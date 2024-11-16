@@ -2968,11 +2968,11 @@ export default {
       }
       var httpReg = new RegExp("^(http|https):.*", "ig");
       var fullurl = "";
-      if (httpReg.test(this.api.host)) {
+      if (httpReg.test(resp.responseURL)) {
         // 如果包含,则不追加
-        fullurl = this.api.host;
+        fullurl = resp.responseURL;
       } else {
-        fullurl = protocol + "://" + this.api.host;
+        fullurl = protocol + "://" + resp.responseURL;
       }
       // 判断是否开启了Host的配置,如果开启则直接使用Host中的地址
       if (this.enableHost) {
