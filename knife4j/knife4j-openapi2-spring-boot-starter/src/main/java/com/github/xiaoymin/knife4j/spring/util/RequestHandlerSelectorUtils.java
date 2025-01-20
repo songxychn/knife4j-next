@@ -150,6 +150,16 @@ public class RequestHandlerSelectorUtils {
      * @return
      */
     public static Predicate<RequestHandler> multipleAnnotations(List<String> annotations) {
+        return multipleAnnotations(annotations, false);
+    }
+
+    /**
+     * 基于注解
+     * @param annotations 注解类
+     * @since
+     * @return
+     */
+    public static Predicate<RequestHandler> multipleAnnotations(List<String> annotations, boolean apiRuleAnnoUseAnd) {
         if (annotations == null || annotations.size() == 0) {
             return RequestHandlerSelectors.none();
         }
@@ -159,21 +169,10 @@ public class RequestHandlerSelectorUtils {
         for (String annotationClassName : annotations) {
             try {
                 Class<? extends Annotation> clazz = (Class<? extends Annotation>) ClassUtils.forName(annotationClassName, classLoader);
-                if (clazz != null) {
-                    if (first == null) {
-                        if (annotationClassName.equalsIgnoreCase(AnnotationClassEnums.Api.getFullPath())) {
-                            first = RequestHandlerSelectors.withClassAnnotation(clazz);
-                        } else {
-                            first = RequestHandlerSelectors.withMethodAnnotation(clazz);
-                        }
-                    } else {
-                        if (annotationClassName.equalsIgnoreCase(AnnotationClassEnums.Api.getFullPath())) {
-                            first = first.or(RequestHandlerSelectors.withClassAnnotation(clazz));
-                        } else {
-                            first = first.or(RequestHandlerSelectors.withMethodAnnotation(clazz));
-                        }
-                    }
-                }
+                Predicate<RequestHandler> present = annotationClassName.equalsIgnoreCase(AnnotationClassEnums.Api.getFullPath())
+                        ? RequestHandlerSelectors.withClassAnnotation(clazz)
+                        : RequestHandlerSelectors.withMethodAnnotation(clazz);
+                first = null == first ? present : apiRuleAnnoUseAnd ? first.and(present) : first.or(present);
             } catch (Exception e) {
                 log.warn("Cannot handle annotation type '" + annotationClassName + "' correctly, please make sure the path is correct,message:" + e.getMessage());
             }

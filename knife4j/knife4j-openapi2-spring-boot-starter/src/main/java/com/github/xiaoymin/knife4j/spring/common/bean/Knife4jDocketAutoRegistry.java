@@ -115,7 +115,7 @@ public class Knife4jDocketAutoRegistry implements BeanFactoryAware, Initializing
                     } else if (docketInfo.getApiRule() == ApiRuleEnums.ANNOTATION) {
                         // 替换shortName
                         List<String> annotationClass = AnnotationClassEnums.resolveResources(docketInfo.getApiRuleResources());
-                        apiPredicate = RequestHandlerSelectorUtils.multipleAnnotations(annotationClass);
+                        apiPredicate = RequestHandlerSelectorUtils.multipleAnnotations(annotationClass, docketInfo.isApiRuleAnnoUseAnd());
                     }
                 }
                 if (CollectionUtils.isNotEmpty(docketInfo.getPathRuleResources())) {

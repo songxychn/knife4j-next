@@ -41,7 +41,12 @@ public class Knife4jDocketInfo {
      * Apis strategy
      */
     private ApiRuleEnums apiRule = ApiRuleEnums.PACKAGE;
-    
+
+    /**
+     * Using AND operation when the strategy of apiRule is ANNOTATION, default false(or)
+     */
+    private boolean apiRuleAnnoUseAnd = Boolean.FALSE;
+
     /**
      * The resource set corresponding to the grouping policy with Api Strategy
      */
