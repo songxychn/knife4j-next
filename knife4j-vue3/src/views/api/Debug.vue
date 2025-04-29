@@ -444,6 +444,12 @@ export default {
     } else {
       this.debugUrlStyle = "width: 80%;"
     }
+    // 监听全局参数更新事件
+    this.$root.$on('global-parameters-updated', this.handleGlobalParametersUpdate);
+  },
+  beforeUnmount() {
+    // 组件销毁前移除事件监听
+    this.$root.$off('global-parameters-updated', this.handleGlobalParametersUpdate);
   },
   watch: {
     language: function (val, oldval) {
@@ -451,8 +457,18 @@ export default {
     }
   },
   methods: {
+    // 处理全局参数更新事件
+    handleGlobalParametersUpdate(data) {
+      // 检查是否是当前接口所属的分组的全局参数更新
+      if (data && data.groupId === this.api.instanceId) {
+        // 重新读取全局参数
+        this.globalParameters = data.parameters;
+        // 更新header和参数
+        this.reloadCacheParameter();
+      }
+    },
     // 重置参数为原始默认值
-      resetCacheParameter() {
+    resetCacheParameter() {
       // this.$emit('update:api', cloneDeep(this.oldApi))
       this.headerData = [];
       this.formData = [];

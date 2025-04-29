@@ -208,6 +208,11 @@ export default {
         const dfv = val;
         dfv[this.groupId] = this.globalParameters;
         localStore.setItem(Constants.globalParameter, dfv);
+        // 发送全局参数更新事件，使用Vue根实例作为事件总线
+        this.$root.$emit('global-parameters-updated', { 
+          groupId: this.groupId, 
+          parameters: this.globalParameters 
+        });
       })
     },
     deleteParam(record) {
@@ -236,6 +241,11 @@ export default {
             const dfv = val;
             dfv[key] = this.globalParameters;
             localStore.setItem(Constants.globalParameter, dfv);
+            // 发送全局参数更新事件，使用Vue根实例作为事件总线
+            gpInstance.$root.$emit('global-parameters-updated', { 
+              groupId: key, 
+              parameters: gpInstance.globalParameters 
+            })
           })
           this.visible = false;
         } else {
