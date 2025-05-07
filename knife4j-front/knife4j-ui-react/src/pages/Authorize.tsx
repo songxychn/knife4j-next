@@ -409,6 +409,7 @@ function OAuth2SchemeForm({
           securityKey={securityKey}
           flowType={flowType}
           flow={flow}
+          schemeIn={scheme.in}
           existingValue={existingValue}
           onSave={onSave}
           onRemove={onRemove}
@@ -422,6 +423,7 @@ function OAuth2FlowForm({
   securityKey,
   flowType,
   flow,
+  schemeIn,
   existingValue,
   onSave,
   onRemove,
@@ -429,6 +431,8 @@ function OAuth2FlowForm({
   securityKey: string;
   flowType: string;
   flow: OAuth2Flow;
+  /** Token placement from the security scheme definition (`in` field). */
+  schemeIn?: 'query' | 'header' | 'cookie';
   existingValue: SchemeValue | undefined;
   onSave: (key: string, value: SchemeValue) => void;
   onRemove: (key: string) => void;
@@ -498,7 +502,13 @@ function OAuth2FlowForm({
       const result = await openOAuth2Popup(fullAuthUrl, state, config);
       setAccessToken(result.accessToken);
       // Auto-save after successful popup auth
-      onSave(securityKey, { type: 'oauth2', accessToken: result.accessToken, tokenType: result.tokenType });
+      const tokenIn = schemeIn === 'query' ? 'query' : 'header';
+      onSave(securityKey, {
+        type: 'oauth2',
+        accessToken: result.accessToken,
+        tokenType: result.tokenType,
+        in: tokenIn,
+      });
       message.success(t('auth.msg.tokenObtained'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -533,7 +543,8 @@ function OAuth2FlowForm({
 
   const handleSave = () => {
     if (!accessToken) return;
-    onSave(securityKey, { type: 'oauth2', accessToken, tokenType: 'Bearer' });
+    const tokenIn = schemeIn === 'query' ? 'query' : 'header';
+    onSave(securityKey, { type: 'oauth2', accessToken, tokenType: 'Bearer', in: tokenIn });
     message.success(t('auth.msg.schemeSaved'));
   };
 

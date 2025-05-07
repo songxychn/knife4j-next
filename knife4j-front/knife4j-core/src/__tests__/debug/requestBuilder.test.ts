@@ -193,6 +193,51 @@ describe('authToHeaders', () => {
     expect(result.headers['Authorization']).toBe('MAC mac-token');
   });
 
+  test('oauth2 with in=query places token in query params', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        oauth: { type: 'oauth2', accessToken: 'my-token', in: 'query' },
+      },
+    });
+    expect(result.queries['access_token']).toBe('my-token');
+    expect(result.headers['Authorization']).toBeUndefined();
+  });
+
+  test('oauth2 with in=header (explicit) places token in Authorization header', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        oauth: { type: 'oauth2', accessToken: 'my-token', tokenType: 'Bearer', in: 'header' },
+      },
+    });
+    expect(result.headers['Authorization']).toBe('Bearer my-token');
+    expect(result.queries['access_token']).toBeUndefined();
+  });
+
+  test('oauth2 with in=query token appears in final built request URL', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/api/data',
+      method: 'GET',
+      debugModel: {
+        pathParams: [],
+        queryParams: [],
+        headerParams: [],
+        cookieParams: [],
+        bodyContents: [],
+        bodyRequired: false,
+      },
+      formValues: { pathParams: {}, queryParams: {}, headerParams: {}, cookieParams: {} },
+      auth: {
+        bySecurityKey: {
+          oauth: { type: 'oauth2', accessToken: 'tok123', in: 'query' },
+        },
+      },
+      securityKeys: ['oauth'],
+    });
+    expect(result.url).toContain('access_token=tok123');
+    expect(result.headers['Authorization']).toBeUndefined();
+  });
+
   test('securityKeys filters bySecurityKey entries', () => {
     const result = authToHeaders(
       {

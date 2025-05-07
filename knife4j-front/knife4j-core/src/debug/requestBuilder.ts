@@ -120,8 +120,14 @@ export function authToHeaders(
         }
       } else if (scheme.type === 'oauth2') {
         if (scheme.accessToken) {
-          const tokenType = scheme.tokenType ?? 'Bearer';
-          headers['Authorization'] = `${tokenType} ${scheme.accessToken}`;
+          if (scheme.in === 'query') {
+            // OAS2 oauth2 with `in: 'query'` — token goes as query param
+            queries['access_token'] = scheme.accessToken;
+          } else {
+            // Default (OAS3 / OAS2 header): Authorization header
+            const tokenType = scheme.tokenType ?? 'Bearer';
+            headers['Authorization'] = `${tokenType} ${scheme.accessToken}`;
+          }
         }
       }
     }

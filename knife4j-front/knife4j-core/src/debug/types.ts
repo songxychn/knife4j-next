@@ -139,7 +139,7 @@ export interface BuiltRequestSourceMap {
  * - apiKey: `{ type: 'apiKey', in: 'header'|'query'|'cookie', name, value }`
  * - http-bearer: `{ type: 'http', scheme: 'bearer', token }`
  * - http-basic: `{ type: 'http', scheme: 'basic', username, password }`
- * - oauth2: `{ type: 'oauth2', accessToken, tokenType? }`（UI 侧拿到 token 后写回）
+ * - oauth2: `{ type: 'oauth2', accessToken, tokenType?, in? }`（UI 侧拿到 token 后写回；`in` 从 securityScheme 推断）
  */
 export type SchemeValue =
   | {
@@ -163,6 +163,14 @@ export type SchemeValue =
       type: 'oauth2';
       accessToken: string;
       tokenType?: string;
+      /**
+       * Token placement inferred from the security scheme definition.
+       * - 'header' (default): inject as `Authorization: <tokenType> <accessToken>`
+       * - 'query': inject as a query parameter named `access_token`
+       *
+       * OAS3 oauth2 always uses 'header'. OAS2 oauth2 may specify `in: 'query'`.
+       */
+      in?: 'header' | 'query';
     };
 
 /** 鉴权信息 */
