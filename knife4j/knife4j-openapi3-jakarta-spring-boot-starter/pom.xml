@@ -50,6 +50,13 @@
             <scope>provided</scope>
             <version>${knife4j-servlet-jakarta.version}</version>
         </dependency>
+        <!-- Optional: spring-cloud-context enables @RefreshScope support for Apollo/Nacos/etc. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-context</artifactId>
+            <version>4.2.1</version>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
