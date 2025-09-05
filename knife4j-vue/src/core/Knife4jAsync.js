@@ -2384,9 +2384,9 @@ SwaggerBootstrapUi.prototype.getSwaggerModelRefType = function (propobj, oas2) {
               refType = RegExp.$1;
             }
           }
-        } else {
-          refType = type;
         }
+      } else {
+        refType = type;
       }
     } else {
       if (type == 'array') {
