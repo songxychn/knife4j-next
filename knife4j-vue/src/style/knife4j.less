@@ -133,7 +133,7 @@
 
 
 .knife4j-menu-line {
-  /* left: 10px; 
+  /* left: 10px;
   position: absolute;
   */
   width: 65px;
@@ -686,6 +686,8 @@
 
 .knife4j-debug-response {
   min-height: @DebugContentBodyHeight;
+  height: auto;
+  max-height: none;
 }
 
 .knife4j-debug-response-mt {
@@ -721,10 +723,17 @@
 }
 
 .knife4j-debug-ace-editor {
-  overflow-y: hidden;
+  overflow-y: auto;
+  height: auto;
+  // 后续可以考虑优化json区域底部延伸到页面底部
+  max-height: 600px;
 
   .ace_scrollbar-v {
-    overflow-y: hidden;
+    overflow-y: auto;
+  }
+
+  .ace_editor {
+    height: auto !important;
   }
 }
 
@@ -737,17 +746,23 @@
   color: #8c8c8c;
 }
 
+.knife4j-debug-editor-container {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+
 // 文件拖拽上传样式
 .knife4j-file-upload-area {
   position: relative;
   border: 1px solid transparent;
   border-radius: 4px;
   transition: all 0.3s ease;
-  
+
   &.knife4j-file-drag-over {
     border-color: #1890ff;
     background-color: rgba(24, 144, 255, 0.05);
-    
+
     .knife4j-file-drop-zone {
       opacity: 1;
       transform: scale(1.02);
