@@ -2181,7 +2181,7 @@ SwaggerBootstrapUi.prototype.analysisDefinitionRefTableModel = function (instanc
                       if (p.hasOwnProperty('enum')) {
                         description = KUtils.enumAvalibleLabel(that.i18nInstance, p.enum, description);
                         // console.log("当前枚举description:", description);
-                      } 
+                      }
                       // 处理枚举列表类型的参数
                       else if (p.items && p.items.hasOwnProperty('enum')) {
                         description = KUtils.enumAvalibleLabel(that.i18nInstance, p.items.enum, description);
@@ -4978,14 +4978,14 @@ SwaggerBootstrapUi.prototype.initApiInfoAsyncOAS3 = function (swpinfo) {
 }
 /**
  * 创建对象实例,返回SwaggerBootstrapUiApiInfo实例
- * @param {*} path path对象
+ * @param {*} pathKey path对象
  * @param {*} mtype 接口类型
  * @param {*} apiInfo 对象
  * @param {*} appendBaePathFlag 是否追加basePath
  */
-SwaggerBootstrapUi.prototype.createApiInfoInstance = function (path, mtype, apiInfo, appendBaePathFlag) {
+SwaggerBootstrapUi.prototype.createApiInfoInstance = function (pathKey, mtype, apiInfo, appendBaePathFlag) {
   var that = this;
-
+  const path = apiInfo.showUrl ? apiInfo.showUrl : pathKey
   var swpinfo = new SwaggerBootstrapUiApiInfo();
   // console.log(that.currentInstance)
   // 给接口增加一个版本属性
@@ -5068,7 +5068,9 @@ SwaggerBootstrapUi.prototype.createApiInfoInstance = function (path, mtype, apiI
     newurl = KUtils.insightUrl(newurl);
   }
   // var startApiTime = new Date().getTime();
+
   swpinfo.showUrl = newurl;
+
   // swpinfo.id='ApiInfo'+Math.round(Math.random()*1000000);
   swpinfo.instanceId = that.currentInstance.id;
   swpinfo.host = that.currentInstance.host;
