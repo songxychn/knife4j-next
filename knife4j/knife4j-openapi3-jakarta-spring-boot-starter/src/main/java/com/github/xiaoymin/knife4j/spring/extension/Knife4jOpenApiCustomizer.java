@@ -72,7 +72,8 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
      * @param openApi openApi
      */
     private void addOrderExtension(OpenAPI openApi) {
-        if (CollectionUtils.isEmpty(properties.getGroupConfigs())) {
+        if (Objects.isNull(properties.getGroupConfigs())
+                || properties.getGroupConfigs().isEmpty()) {
             return;
         }
         // 获取包扫描路径

@@ -102,7 +102,7 @@ public class Knife4jAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(JakartaServletSecurityBasicAuthFilter.class)
-    @ConditionalOnExpression("${knife4j.production:false} && ${knife4j.basic.enable:true}")
+    @ConditionalOnExpression("${knife4j.basic.enable:true}")
     public FilterRegistrationBean<JakartaServletSecurityBasicAuthFilter> securityBasicAuthFilter(Knife4jProperties knife4jProperties) {
         JakartaServletSecurityBasicAuthFilter authFilter = new JakartaServletSecurityBasicAuthFilter();
         if (knife4jProperties == null) {
