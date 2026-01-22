@@ -17,8 +17,6 @@
 
 package com.github.xiaoymin.knife4j.insight.upload;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.xiaoymin.knife4j.core.util.Knife4jUtils;
 import com.github.xiaoymin.knife4j.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.insight.Knife4jInsightDiscoveryInfo;
@@ -26,6 +24,7 @@ import com.github.xiaoymin.knife4j.insight.Knife4jInsightRoute;
 import com.github.xiaoymin.knife4j.insight.config.Knife4jInsightCommonInfo;
 import com.github.xiaoymin.knife4j.insight.openapi3.Knife4jInsightOpenAPI3Config;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -42,9 +41,10 @@ public class Knife4jInsightUploader {
     
     /**
      * 上传OpenAPI3规范
+     *
      * @param commonInfo 配置信息
      */
-    public static void upload(Knife4jInsightCommonInfo commonInfo) throws UnknownHostException, JsonProcessingException {
+    public static void upload(Knife4jInsightCommonInfo commonInfo) throws UnknownHostException {
         Knife4jInsightDiscoveryInfo knife4jCloudDiscoveryInfo = new Knife4jInsightDiscoveryInfo();
         ObjectMapper objectMapper = new ObjectMapper();
         // spec
