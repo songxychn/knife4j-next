@@ -9,6 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>knife4j-aggregation-spring-boot-starter</artifactId>
+    <name>knife4j-aggregation-spring-boot-starter</name>
     <description>微服务聚合中间件starter,基于Servlet体系的Filter技术,实现OpenAPI文档的聚合、文档展示及调试</description>
 
     <dependencies>

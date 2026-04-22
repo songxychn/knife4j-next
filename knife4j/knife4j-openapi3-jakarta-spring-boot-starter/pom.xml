@@ -10,6 +10,7 @@
     </parent>
 
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <name>knife4j-openapi3-jakarta-spring-boot-starter</name>
 
     <properties>
         <knife4j-java.version>17</knife4j-java.version>
