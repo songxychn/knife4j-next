@@ -3,9 +3,9 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.github.xiaoymin</groupId>
+    <groupId>com.baizhukui</groupId>
     <artifactId>knife4j</artifactId>
-    <version>4.6.0-SNAPSHOT</version>
+    <version>4.6.0.1</version>
     <modules>
         <module>knife4j-core</module>
         <module>knife4j-dependencies</module>
@@ -22,23 +22,24 @@
     </modules>
     <packaging>pom</packaging>
     <name>knife4j</name>
-    <url>https://gitee.com/xiaoym/knife4j</url>
+    <url>https://github.com/songxychn/knife4j-next</url>
     <description>knife4j是为Java
         MVC框架集成Swagger生成Api文档的增强解决方案,前身是swagger-bootstrap-ui,取名kni4j是希望她能像一把匕首一样小巧,轻量,并且功能强悍!!.
     </description>
     <developers>
         <developer>
-            <id>xiaoym</id>
-            <name>肖玉民</name>
-            <email>xiaoymin@foxmail.com</email>
+            <id>baizhukui</id>
+            <name>Baizhukui</name>
+            <url>https://github.com/songxychn</url>
             <roles>
-                <role>Java Development Engineer</role>
+                <role>Maintainer</role>
             </roles>
-            <timezone>2019-8-26 16:58:07</timezone>
+            <timezone>+8</timezone>
         </developer>
     </developers>
     <properties>
         <knife4j-project.build.sourceEncoding>UTF-8</knife4j-project.build.sourceEncoding>
+        <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
         <knife4j-java.version>1.8</knife4j-java.version>
         <knife4j-spring.version>5.3.31</knife4j-spring.version>
         <knife4j-spring-boot.version>2.7.18</knife4j-spring-boot.version>
@@ -66,6 +67,7 @@
 
         <knife4j-javassist.version>3.30.2-GA</knife4j-javassist.version>
         <knife4j-lombok.version>1.18.36</knife4j-lombok.version>
+        <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
 
         <knife4j-spotless-maven-plugin.version>2.43.0</knife4j-spotless-maven-plugin.version>
         <!-- 打包跳过单元测试1 -->
@@ -78,20 +80,11 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git@gitee.com:xiaoym/knife4j.git</connection>
-        <developerConnection>scm:git@gitee.com:xiaoym/knife4j.git</developerConnection>
-        <url>git@gitee.com:xiaoym/knife4j.git</url>
+        <connection>scm:git:https://github.com/songxychn/knife4j-next.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/songxychn/knife4j-next.git</developerConnection>
+        <url>https://github.com/songxychn/knife4j-next</url>
+        <tag>HEAD</tag>
     </scm>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>oss</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-        </snapshotRepository>
-        <repository>
-            <id>oss</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
 
     <dependencies>
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
@@ -111,19 +104,19 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-core</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi2-ui</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-ui</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <!-- https://mvnrepository.com/artifact/cn.hutool/hutool-all -->
             <dependency>
@@ -271,6 +264,13 @@
                         <target>${knife4j-java.version}</target>
                         <encoding>UTF-8</encoding>
                         <compilerArgument>-Xlint:unchecked</compilerArgument>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${knife4j-lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
                 <!-- java doc-->
@@ -408,42 +408,11 @@
             <id>release</id>
             <build>
                 <plugins>
-                    <!-- Source -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>3.0.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <!-- Javadoc -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>2.10.4</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                                <configuration>
-                                    <additionalparam>-Xdoclint:none</additionalparam>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <!-- GPG -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
+                        <version>${maven-gpg-plugin.version}</version>
                         <executions>
                             <execution>
                                 <phase>verify</phase>
@@ -453,18 +422,19 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
                 </plugins>
             </build>
-            <distributionManagement>
-                <snapshotRepository>
-                    <id>oss</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-                </snapshotRepository>
-                <repository>
-                    <id>oss</id>
-                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                </repository>
-            </distributionManagement>
         </profile>
     </profiles>
 

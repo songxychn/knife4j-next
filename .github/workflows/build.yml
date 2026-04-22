@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  pull_request:
+    paths:
+      - "knife4j/**"
+      - ".github/workflows/build.yml"
+      - ".github/workflows/release.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "knife4j/**"
+      - ".github/workflows/build.yml"
+      - ".github/workflows/release.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knife4j
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Verify Maven build
+        run: mvn -B -ntp verify

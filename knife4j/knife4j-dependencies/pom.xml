@@ -4,24 +4,24 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>knife4j</artifactId>
-        <groupId>com.github.xiaoymin</groupId>
-        <version>4.6.0-SNAPSHOT</version>
+        <groupId>com.baizhukui</groupId>
+        <version>4.6.0.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>knife4j-dependencies</artifactId>
     <packaging>pom</packaging>
     <name>knife4j-dependencies</name>
     <description>Knife4j Dependencies</description>
-    <url>https://gitee.com/xiaoym/knife4j</url>
+    <url>https://github.com/songxychn/knife4j-next</url>
     <developers>
         <developer>
-            <id>xiaoym</id>
-            <name>肖玉民</name>
-            <email>xiaoymin@foxmail.com</email>
+            <id>baizhukui</id>
+            <name>Baizhukui</name>
+            <url>https://github.com/songxychn</url>
             <roles>
-                <role>Java Development Engineer</role>
+                <role>Maintainer</role>
             </roles>
-            <timezone>2020-03-01 20:43:21</timezone>
+            <timezone>+8</timezone>
         </developer>
     </developers>
     <licenses>
@@ -31,22 +31,13 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git@gitee.com:xiaoym/knife4j.git</connection>
-        <developerConnection>scm:git@gitee.com:xiaoym/knife4j.git</developerConnection>
-        <url>git@gitee.com:xiaoym/knife4j.git</url>
+        <connection>scm:git:https://github.com/songxychn/knife4j-next.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/songxychn/knife4j-next.git</developerConnection>
+        <url>https://github.com/songxychn/knife4j-next</url>
+        <tag>HEAD</tag>
     </scm>
     <properties>
     </properties>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>oss</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-        </snapshotRepository>
-        <repository>
-            <id>oss</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
     <dependencyManagement>
         <dependencies>
 
@@ -73,64 +64,64 @@
             </dependency>
 
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-core</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi2-ui</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-ui</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-aggregation-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-aggregation-jakarta-spring-boot-starter</artifactId>
-                <version>4.5.0</version>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-webflux-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>com.github.xiaoymin</groupId>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-webflux-jakarta-spring-boot-starter</artifactId>
-                <version>4.6.0-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
@@ -254,68 +245,4 @@
             </plugin>
         </plugins>
     </build>
-    <profiles>
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <!-- Source -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>3.0.1</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <!-- Javadoc -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>2.10.4</version>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <!-- GPG -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
-                        <executions>
-                            <execution>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-            <distributionManagement>
-                <snapshotRepository>
-                    <id>oss</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-                </snapshotRepository>
-                <repository>
-                    <id>oss</id>
-                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                </repository>
-            </distributionManagement>
-        </profile>
-    </profiles>
-
-
-
 </project>

@@ -2,9 +2,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.github.xiaoymin</groupId>
+        <groupId>com.baizhukui</groupId>
         <artifactId>knife4j</artifactId>
-        <version>4.6.0-SNAPSHOT</version>
+        <version>4.6.0.1</version>
     </parent>
     <artifactId>knife4j-openapi3-webflux-jakarta-spring-boot-starter</artifactId>
     <name>knife4j-openapi3-webflux-jakarta-spring-boot-starter</name>
@@ -18,7 +18,7 @@
             <version>${knife4j-springdoc-openapi-jakarta.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.github.xiaoymin</groupId>
+            <groupId>com.baizhukui</groupId>
             <artifactId>knife4j-openapi3-ui</artifactId>
         </dependency>
     </dependencies>

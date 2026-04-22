@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>knife4j</artifactId>
-        <groupId>com.github.xiaoymin</groupId>
-        <version>4.6.0-SNAPSHOT</version>
+        <groupId>com.baizhukui</groupId>
+        <version>4.6.0.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>knife4j-aggregation-jakarta-spring-boot-starter</artifactId>
@@ -60,11 +60,11 @@
             <artifactId>gson</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.github.xiaoymin</groupId>
+            <groupId>com.baizhukui</groupId>
             <artifactId>knife4j-openapi3-ui</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.github.xiaoymin</groupId>
+            <groupId>com.baizhukui</groupId>
             <artifactId>knife4j-core</artifactId>
         </dependency>
         <dependency>
@@ -79,5 +79,27 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${knife4j-java.version}</source>
+                    <target>${knife4j-java.version}</target>
+                    <encoding>${knife4j-project.build.sourceEncoding}</encoding>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${knife4j-lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
