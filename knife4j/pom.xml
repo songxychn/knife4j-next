@@ -67,7 +67,7 @@
 
         <knife4j-javassist.version>3.30.2-GA</knife4j-javassist.version>
         <knife4j-lombok.version>1.18.36</knife4j-lombok.version>
-        <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
+        <maven-gpg-plugin.version>3.2.5</maven-gpg-plugin.version>
 
         <knife4j-spotless-maven-plugin.version>2.43.0</knife4j-spotless-maven-plugin.version>
         <!-- 打包跳过单元测试1 -->
@@ -415,10 +415,17 @@
                         <version>${maven-gpg-plugin.version}</version>
                         <executions>
                             <execution>
+                                <id>sign-artifacts</id>
                                 <phase>verify</phase>
                                 <goals>
                                     <goal>sign</goal>
                                 </goals>
+                                <configuration>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
