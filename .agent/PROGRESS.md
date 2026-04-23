@@ -21,6 +21,26 @@ blockers:
 - blocker，如无则写 none
 ```
 
+## 2026-04-23 16:50 UTC
+task: TASK-007
+agent: knife4j-next-bot subagent
+branch: codex/TASK-007-fix-basic-auth-bypass
+status: review
+summary:
+- 定位漏洞根源：BasicFilter.match() 和 AbstractBasicAuthFilter.match() 未剥离 URI 中的分号路径参数
+- 修复 knife4j-core/BasicFilter.java：在正则匹配前截断分号后缀
+- 修复 knife4j-gateway-spring-boot-starter/AbstractBasicAuthFilter.java：同上
+- 新增安全回归测试 BasicFilterSemicolonBypassTest（11 个用例，全部通过）
+- 修复 scripts/test-java.sh：自动检测 JAVA_HOME，解决 CI 环境 javadoc 插件报错
+validation:
+- `bash scripts/test-java.sh` → BUILD SUCCESS（全部 16 模块）
+- 11 个新安全测试 + 2 个已有测试全部通过
+next:
+- 等待人工 review PR #6
+blockers:
+- 无
+pr: https://github.com/songxychn/knife4j-next/pull/6
+
 ## 2026-04-24 00:10 CST
 task: TASK-006
 agent: codex
