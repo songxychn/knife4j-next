@@ -30,7 +30,7 @@ notes:
 ## 队列
 
 ### TASK-001
-status: review
+status: done
 area: repo
 title: 增加 fork 专属的贡献流程和自治维护文档
 branch: codex/TASK-001-agent-docs
@@ -70,7 +70,7 @@ notes:
 - 在显著扩大矩阵范围或运行成本前，需要人工确认。
 
 ### TASK-004
-status: ready
+status: review
 area: front-core
 title: 审计 parser-core 测试和 lint 覆盖缺口
 branch: codex/TASK-004-front-core-audit
@@ -82,3 +82,5 @@ done_when:
 - 结果写回 `.agent/PROGRESS.md`
 notes:
 - 保持为一个小修复或一个具体审计结果，不要变成重写。
+- 分支已推送，PR 待人工通过 gh auth login 后创建，或直接在 GitHub 上开 PR。
+- PR compare URL: https://github.com/songxychn/knife4j-next/compare/codex/TASK-004-front-core-audit
