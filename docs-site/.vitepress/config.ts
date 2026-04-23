@@ -41,7 +41,7 @@ export default defineConfig({
     siteTitle: 'Knife4j Next',
     nav: [
       { text: '快速开始', link: '/guide/getting-started' },
-      { text: '功能', link: '/#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD' },
+      { text: '功能', link: '/guide/features' },
       { text: '兼容矩阵', link: '/reference/compatibility' },
       { text: '迁移', link: '/guide/migration' },
       { text: 'GitHub', link: 'https://github.com/songxychn/knife4j-next' }
@@ -50,7 +50,8 @@ export default defineConfig({
       {
         text: '开始使用',
         items: [
-          { text: '产品介绍', link: '/' },
+          { text: '产品介绍', link: '/guide/introduction' },
+          { text: '功能', link: '/guide/features' },
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '迁移指引', link: '/guide/migration' }
         ]

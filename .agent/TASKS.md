@@ -82,3 +82,17 @@ done_when:
 - 结果写回 `.agent/PROGRESS.md`
 notes:
 - 保持为一个小修复或一个具体审计结果，不要变成重写。
+
+### TASK-005
+status: review
+area: docs
+title: 修正文档站“产品介绍”跳到首页的异常导航
+branch: codex/TASK-005-docs-vitepress-nav
+depends_on: TASK-001
+validation: `cd docs-site && npm run build`
+done_when:
+- VitePress 站点侧边栏中的“产品介绍”不再跳转到首页
+- “产品介绍”拥有与其他文档一致的独立文档页
+- 顶部导航“功能”拥有独立文档页，而不是首页锚点
+notes:
+- 已通过受控授权创建独立任务分支，当前改动位于 `codex/TASK-005-docs-vitepress-nav`。
