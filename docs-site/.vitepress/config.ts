@@ -81,7 +81,7 @@ export default defineConfig({
       provider: 'local'
     },
     editLink: {
-      pattern: 'https://github.com/songxychn/knife4j-next/edit/main/docs-site/:path',
+      pattern: 'https://github.com/songxychn/knife4j-next/edit/master/docs-site/:path',
       text: '在 GitHub 上编辑此页'
     },
     footer: {
