@@ -61,6 +61,20 @@ public class PathUtilsTest {
     }
     
     @Test
+    public void test_processContextPath_leadingSlash() {
+        // 无前导斜杠的 contextPath 应被修正，防止 host 拼接缺少 /
+        Assert.assertEquals("/api", PathUtils.processContextPath("api"));
+        Assert.assertEquals("/api", PathUtils.processContextPath("api/"));
+        // 已有前导斜杠的不变
+        Assert.assertEquals("/api", PathUtils.processContextPath("/api"));
+        Assert.assertEquals("/api", PathUtils.processContextPath("/api/"));
+        // 根路径返回空字符串
+        Assert.assertEquals("", PathUtils.processContextPath("/"));
+        // 空字符串不变
+        Assert.assertEquals("", PathUtils.processContextPath(""));
+    }
+    
+    @Test
     public void test_append1() {
         String path = "//abc";
         String appendPath = PathUtils.append(path, "//v2/api-dcos");
