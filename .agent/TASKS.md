@@ -74,7 +74,7 @@ notes:
 - 维护者已确认此为当前优先补齐的组合
 
 ### TASK-004
-status: review
+status: done
 area: front-core
 title: 审计 parser-core 测试和 lint 覆盖缺口
 branch: codex/TASK-004-front-core-audit
@@ -86,5 +86,17 @@ done_when:
 - 结果写回 `.agent/PROGRESS.md`
 notes:
 - 保持为一个小修复或一个具体审计结果，不要变成重写。
-- 分支已推送，PR 待人工通过 gh auth login 后创建，或直接在 GitHub 上开 PR。
-- PR compare URL: https://github.com/songxychn/knife4j-next/compare/codex/TASK-004-front-core-audit
+
+### TASK-005
+status: review
+area: docs
+title: 修正文档站"产品介绍"跳到首页的异常导航
+branch: codex/TASK-005-docs-vitepress-nav
+depends_on: TASK-001
+validation: `cd docs-site && npm run build`
+done_when:
+- VitePress 站点侧边栏中的"产品介绍"不再跳转到首页
+- "产品介绍"拥有与其他文档一致的独立文档页
+- 顶部导航"功能"拥有独立文档页，而不是首页锚点
+notes:
+- 已通过受控授权创建独立任务分支，当前改动位于 `codex/TASK-005-docs-vitepress-nav`。

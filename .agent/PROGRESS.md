@@ -40,6 +40,24 @@ blockers:
 - blocker，如无则写 none
 ```
 
+## 2026-04-23 23:59 CST
+task: TASK-005
+agent: codex
+branch: codex/TASK-005-docs-vitepress-nav
+status: review
+summary:
+- 确认用户反馈对应的是 `docs-site/` 下的 VitePress 新站点，而不是已废弃的 `knife4j-doc` Docusaurus 站点。
+- 定位到 `docs-site/.vitepress/config.ts` 中侧边栏“产品介绍”直接指向 `/`，会回到首页布局。
+- 已补独立“产品介绍”文档页，并将侧边栏链接改到该页。
+- 已将顶部导航“功能”从首页锚点改为独立文档页，并在侧边栏补充同名入口。
+- 已确认 `codex/TASK-005-docs-vitepress-nav` 为当前任务分支，之前的分支创建失败来自沙箱对 `.git/refs/heads` 的写保护，而不是目录式分支名非法。
+validation:
+- `cd docs-site && npm run build` 通过
+next:
+- 等待维护者审查并决定是否提交
+blockers:
+- none
+
 ## 2026-04-23 00:00 CST
 task: TASK-001
 agent: codex
