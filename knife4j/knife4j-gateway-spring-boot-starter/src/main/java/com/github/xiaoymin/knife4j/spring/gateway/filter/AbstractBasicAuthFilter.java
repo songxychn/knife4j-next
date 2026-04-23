@@ -85,6 +85,13 @@ public abstract class AbstractBasicAuthFilter {
         if (uri != null) {
             // https://gitee.com/xiaoym/knife4j/issues/I4XDYE
             String newUri = uri.replaceAll("/+", "/");
+            // 修复分号路径参数绕过 basic 认证的安全漏洞 (#886)
+            // 例如 /v2/api-docs;jsessionid=xxx 可绕过 Spring Security 的路径匹配
+            // 截取分号前的路径部分，防止路径参数干扰认证判断
+            int semicolonIndex = newUri.indexOf(';');
+            if (semicolonIndex != -1) {
+                newUri = newUri.substring(0, semicolonIndex);
+            }
             for (Pattern pattern : getUrlFilters()) {
                 if (pattern.matcher(newUri).matches()) {
                     return true;
