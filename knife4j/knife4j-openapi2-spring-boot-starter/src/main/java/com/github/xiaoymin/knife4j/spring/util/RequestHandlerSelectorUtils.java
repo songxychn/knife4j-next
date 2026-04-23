@@ -37,9 +37,10 @@ import static java.util.Optional.ofNullable;
 
 /**
  * 针对多个包路径的情况提供Api的扫描
+ *
  * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2021/03/02 15:39
- * @since  1.0
+ * @since 1.0
  */
 @Slf4j
 public class RequestHandlerSelectorUtils {
@@ -66,6 +67,7 @@ public class RequestHandlerSelectorUtils {
     
     /**
      * math multiple path selector,see{@link springfox.documentation.builders.PathSelectors}
+     *
      * @param rules path rules
      * @return
      */
@@ -84,9 +86,10 @@ public class RequestHandlerSelectorUtils {
     
     /**
      * match multipart packages requestHandler
+     *
      * @param basePackages basePackages 多个包路径
-     * @since 4.0
      * @return this
+     * @since 4.0
      */
     public static Predicate<RequestHandler> multiplePackage(final String... basePackages) {
         if (basePackages == null || basePackages.length == 0) {
@@ -104,9 +107,10 @@ public class RequestHandlerSelectorUtils {
     
     /**
      * Ant风格
+     *
      * @param antPaths ant路径
-     * @since 4.0
      * @return
+     * @since 4.0
      */
     public static Predicate<String> multipleAntPath(List<String> antPaths) {
         if (antPaths == null || antPaths.size() == 0) {
@@ -125,9 +129,10 @@ public class RequestHandlerSelectorUtils {
     
     /**
      * 正则表达式
+     *
      * @param regex 正则
-     * @since 4.0
      * @return
+     * @since 4.0
      */
     public static Predicate<String> multipleRegexPath(List<String> regex) {
         if (regex == null || regex.size() == 0) {
@@ -145,19 +150,21 @@ public class RequestHandlerSelectorUtils {
     
     /**
      * 基于注解
+     *
      * @param annotations 注解类
-     * @since 4.0
      * @return
+     * @since 4.0
      */
     public static Predicate<RequestHandler> multipleAnnotations(List<String> annotations) {
         return multipleAnnotations(annotations, false);
     }
-
+    
     /**
      * 基于注解
+     *
      * @param annotations 注解类
-     * @since
      * @return
+     * @since
      */
     public static Predicate<RequestHandler> multipleAnnotations(List<String> annotations, boolean apiRuleAnnoUseAnd) {
         if (annotations == null || annotations.size() == 0) {
@@ -179,6 +186,7 @@ public class RequestHandlerSelectorUtils {
         }
         return first != null ? first : RequestHandlerSelectors.none();
     }
+    
     private static Optional<? extends Class<?>> declaringClass(RequestHandler input) {
         return ofNullable(input.declaringClass());
     }

@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
 /**
  * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2020/11/13 13:12
- * @since  2.0.8
+ * @since 2.0.8
  */
 @Component
 @ConfigurationProperties(prefix = "knife4j")
@@ -143,11 +143,11 @@ public class Knife4jAggregationProperties {
     public void setPolaris(PolarisSetting polaris) {
         this.polaris = polaris;
     }
-
+    
     public OpenAPIV3Setting getOpenAPIV3() {
         return openAPIV3;
     }
-
+    
     public void setOpenAPIV3(OpenAPIV3Setting openAPIV3) {
         this.openAPIV3 = openAPIV3;
     }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.github.xiaoymin.knife4j.spring.gateway.utils;
 
 import java.net.URI;
@@ -28,20 +29,20 @@ import com.github.xiaoymin.knife4j.spring.gateway.enums.OpenApiVersion;
 
 /**
  * 在服务发现(Discover)场景下的聚合辅助工具类
- * 
+ *
  * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 2023/7/31 15:05
  * @since knife4j v4.2.0
  */
 public class ServiceUtils {
-
+    
     private ServiceUtils() {
     }
-
+    
     private static final String LB = "lb";
-
+    
     /**
      * 根据OpenAPI规范及分组名称不同获取不同的默认地址
-     * 
+     *
      * @param discover    服务发现配置
      * @param contextPath contextPath
      * @param groupName   分组名称
@@ -49,7 +50,7 @@ public class ServiceUtils {
      * @since v4.3.0
      */
     public static String getOpenAPIURL(Knife4jGatewayProperties.Discover discover, String contextPath,
-            String groupName) {
+                                       String groupName) {
         OpenApiVersion apiVersion = discover.getVersion();
         StringBuilder urlBuilder = new StringBuilder();
         String _defaultPath = PathUtils.processContextPath(contextPath);
@@ -64,10 +65,10 @@ public class ServiceUtils {
         urlBuilder.append(PathUtils.append(_defaultPath, groupUrl));
         return urlBuilder.toString();
     }
-
+    
     /**
      * 判断服务路由是否负载配置
-     * 
+     *
      * @param uri 路由
      * @return True-是，False-非lb
      */
@@ -81,10 +82,10 @@ public class ServiceUtils {
         }
         return scheme.equalsIgnoreCase(LB);
     }
-
+    
     /**
      * 判断是否包含服务
-     * 
+     *
      * @param uri            路由服务
      * @param service        服务列表
      * @param excludeService 已排除服务列表
@@ -98,10 +99,10 @@ public class ServiceUtils {
         return service.stream().anyMatch(serviceName::equalsIgnoreCase)
                 && !excludeServices(serviceName, excludeService);
     }
-
+    
     /**
      * 判断当前服务是否在排除服务列表中
-     * 
+     *
      * @param serviceName    服务名称
      * @param excludeService 排除服务规则列表，支持正则表达式(4.3.0版本)
      * @return True-在排除服务列表中，False-不满足规则
