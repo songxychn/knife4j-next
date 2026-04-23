@@ -56,18 +56,22 @@ notes:
 - 保留历史署名和感谢，只修复容易造成归属误解的表述。
 
 ### TASK-003
-status: blocked
+status: ready
 area: java
-title: 扩展受支持 Spring Boot starter 组合的 smoke 覆盖
+title: 新增 boot3-app smoke 模块（knife4j-openapi3-spring-boot-starter）
 branch: codex/TASK-003-java-smoke-coverage
 depends_on:
 validation: `./scripts/test-java.sh`
 done_when:
-- 代表性 smoke 场景覆盖当前支持承诺
-- 失败信息能清楚指向出问题的兼容路径
+- knife4j-smoke-tests 下新增 boot3-app 子模块
+- 使用 knife4j-openapi3-spring-boot-starter（非 jakarta）
+- smoke test 验证 /doc.html 和 /v3/api-docs 返回 200
+- mvn verify 在该模块通过
 notes:
-- 仓库上下文中似乎已有 `knife4j-smoke-tests` 模块，这项工作大概率应以它为锚点。
-- 在显著扩大矩阵范围或运行成本前，需要人工确认。
+- 参考现有 boot3-jakarta-app 的结构，只换 starter 依赖
+- Spring Boot 版本与 boot3-jakarta-app 保持一致（4.0.1）
+- WebFlux 变体优先级低，本任务不涉及
+- 维护者已确认此为当前优先补齐的组合
 
 ### TASK-004
 status: review
