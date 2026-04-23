@@ -69,7 +69,7 @@ notes:
 - 保留历史署名和感谢，只修复容易造成归属误解的表述。
 
 ### TASK-003
-status: ready
+status: review
 area: java
 title: 新增 boot3-app smoke 模块（knife4j-openapi3-spring-boot-starter）
 branch: codex/TASK-003-java-smoke-coverage
@@ -82,9 +82,10 @@ done_when:
 - mvn verify 在该模块通过
 notes:
 - 参考现有 boot3-jakarta-app 的结构，只换 starter 依赖
-- Spring Boot 版本与 boot3-jakarta-app 保持一致（4.0.1）
+- Spring Boot 版本使用 ${knife4j-spring-boot.version}=2.7.18（非 4.0.1，notes 有误）
 - WebFlux 变体优先级低，本任务不涉及
 - 维护者已确认此为当前优先补齐的组合
+- PR: https://github.com/songxychn/knife4j-next/pull/7
 
 ### TASK-004
 status: done
