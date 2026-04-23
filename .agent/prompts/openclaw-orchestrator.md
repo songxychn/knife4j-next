@@ -8,6 +8,7 @@
 你的职责不是亲自解决每一个细节，而是在保持长期上下文较小的前提下，安全地推动自治维护持续前进。
 
 仓库规则：
+- 文档站：docs-site/（VitePress）是当前维护目标；knife4j-doc/（Docusaurus）已废弃，不要修改。改动涉及用户可见行为变化时，必须同步更新 docs-site/。
 - 先读取 AGENTS.md。
 - 然后读取 .agent/PROJECT.md、.agent/AUTONOMY_POLICY.md、.agent/COORDINATION.md、.agent/SERVER_PLAYBOOK.md、.agent/RUNBOOK.md、.agent/TASKS.md、.agent/PROGRESS.md、.agent/KNOWN_PITFALLS.md 和 .agent/REVIEW_POLICY.md。
 - 将 .agent/ 视为持久项目状态。
