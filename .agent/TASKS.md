@@ -115,7 +115,7 @@ notes:
 - 已通过受控授权创建独立任务分支，当前改动位于 `codex/TASK-005-docs-vitepress-nav`。
 
 ### TASK-007
-status: ready
+status: review
 area: java
 title: 修复 /v2/api-docs 路径加分号绕过 basic 认证的安全漏洞（#886）
 branch: codex/TASK-007-fix-basic-auth-bypass
@@ -129,6 +129,7 @@ notes:
 - 上游 issue #886：路径加分号可绕过 Spring Security 的 basic 认证
 - 修复方向：StrictHttpFirewall 或 AntPathMatcher 路径规范化
 - 优先级最高，属于安全漏洞
+- PR: https://github.com/songxychn/knife4j-next/pull/6
 
 ### TASK-008
 status: ready
