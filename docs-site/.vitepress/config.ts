@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitepress'
 
+const siteUrl = 'https://knife4jnext.com'
+
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Knife4j Next',
@@ -9,10 +11,31 @@ export default defineConfig({
   head: [
     ['meta', { name: 'theme-color', content: '#69aefc' }],
     ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'Knife4j Next' }],
     ['meta', { property: 'og:title', content: 'Knife4j Next' }],
     ['meta', { property: 'og:description', content: 'Spring 生态下的 OpenAPI 文档增强与接口调试工具' }],
+    ['meta', { property: 'og:url', content: siteUrl }],
+    ['meta', { property: 'og:image', content: `${siteUrl}/knife4j-next-mark.svg` }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
+    ['meta', { name: 'twitter:title', content: 'Knife4j Next' }],
+    ['meta', { name: 'twitter:description', content: 'Spring 生态下的 OpenAPI 文档增强与接口调试工具' }],
+    ['meta', { name: 'twitter:image', content: `${siteUrl}/knife4j-next-mark.svg` }],
     ['link', { rel: 'icon', href: '/knife4j-next-mark.svg' }]
   ],
+  sitemap: {
+    hostname: siteUrl
+  },
+  transformPageData(pageData) {
+    const canonicalUrl = `${siteUrl}/${pageData.relativePath}`
+      .replace(/index\.md$/, '')
+      .replace(/\.md$/, '')
+
+    pageData.frontmatter.head ??= []
+    pageData.frontmatter.head.push([
+      'link',
+      { rel: 'canonical', href: canonicalUrl }
+    ])
+  },
   themeConfig: {
     logo: '/knife4j-next-logo.svg',
     siteTitle: 'Knife4j Next',
