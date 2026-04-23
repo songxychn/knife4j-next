@@ -98,14 +98,15 @@ body {
 .VPHero .name {
   font-size: clamp(3rem, 7vw, 5.5rem);
   line-height: 0.95;
-  margin-bottom: 34px;
+  margin-bottom: 34px !important;
 }
 
 .VPHero .text {
   max-width: 15ch;
   font-size: clamp(1.75rem, 4vw, 2.7rem);
   line-height: 1.12;
-  margin-top: 0;
+  margin-top: 4px !important;
+  padding-top: 2px;
 }
 
 .VPHero .tagline {
@@ -235,7 +236,12 @@ html.dark .status-card {
   }
 
   .VPHero .name {
-    margin-bottom: 24px;
+    margin-bottom: 24px !important;
+  }
+
+  .VPHero .text {
+    margin-top: 2px !important;
+    padding-top: 2px;
   }
 
   .status-grid {
