@@ -29,6 +29,19 @@ notes:
 
 ## 队列
 
+### TASK-006
+status: review
+area: repo
+title: 同步 CI 与 agent 文档中的主分支名为 master
+branch: codex/TASK-006-sync-master-branch
+depends_on: TASK-001
+validation: `一致性审查：确认 workflow 与 agent 文档中的主分支引用统一为 master`
+done_when:
+- `.github/workflows/build.yml` 的 push 触发分支与当前主分支一致
+- `AGENTS.md` 与 `.agent/` 中关于禁止直接 push 主分支的表述同步到 master
+notes:
+- 这是仓库配置和维护文档同步，不涉及代码构建或发布流程变更。
+
 ### TASK-001
 status: done
 area: repo

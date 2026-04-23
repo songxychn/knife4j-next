@@ -23,7 +23,7 @@
 ## 永远不要自治执行
 
 - 发布 release
-- 直接 push 到 `main`
+- 直接 push 到 `master`
 - 修改 secrets、tokens 或凭据接线
 - 修改 Maven 坐标或默认兼容性承诺
 - 删除模块、大目录或重要历史代码路径

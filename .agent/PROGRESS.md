@@ -2,25 +2,6 @@
 
 新记录追加在顶部。
 
-## 2026-04-23 15:40 UTC
-task: TASK-004
-agent: coordinator
-branch: codex/TASK-004-front-core-audit
-status: review
-summary:
-- 审计 knife4j-front/knife4j-core 测试覆盖，发现 KUtils（wrapLine/basicType/basicTypeValue）零覆盖
-- 新增 src/__tests__/utils/kutils.test.ts，13 个定向单元测试
-- 测试数从 8 增加到 21，全部通过；lint 和 build 无报错
-- 分支已推送，PR 待人工创建（gh CLI 未认证）
-validation:
-- ./scripts/test-front-core.sh: 8 suites, 21 tests, all pass
-next:
-- 维护者通过 gh auth login 或直接在 GitHub 开 PR
-- PR compare URL: https://github.com/songxychn/knife4j-next/compare/codex/TASK-004-front-core-audit
-- 后续可补充 utils/openapi3.ts、utils/swagger2.ts、SpecParserFactory 的测试
-blockers:
-- gh CLI 未认证，无法自动开 PR；需要维护者手动操作或配置 GH_TOKEN
-
 ## 模板
 
 ```md
@@ -40,21 +21,20 @@ blockers:
 - blocker，如无则写 none
 ```
 
-## 2026-04-23 23:59 CST
-task: TASK-005
+## 2026-04-24 00:10 CST
+task: TASK-006
 agent: codex
-branch: codex/TASK-005-docs-vitepress-nav
+branch: codex/TASK-006-sync-master-branch
 status: review
 summary:
-- 确认用户反馈对应的是 `docs-site/` 下的 VitePress 新站点，而不是已废弃的 `knife4j-doc` Docusaurus 站点。
-- 定位到 `docs-site/.vitepress/config.ts` 中侧边栏“产品介绍”直接指向 `/`，会回到首页布局。
-- 已补独立“产品介绍”文档页，并将侧边栏链接改到该页。
-- 已将顶部导航“功能”从首页锚点改为独立文档页，并在侧边栏补充同名入口。
-- 已确认 `codex/TASK-005-docs-vitepress-nav` 为当前任务分支，之前的分支创建失败来自沙箱对 `.git/refs/heads` 的写保护，而不是目录式分支名非法。
+- 根据维护者说明，仓库远端默认分支已切换为 `master`，现有 `build.yml` 中监听 `main` 的 push 触发已过时。
+- 已将 `.github/workflows/build.yml` 的 `push.branches` 从 `main` 改为 `master`。
+- 已同步更新 `AGENTS.md`、`.agent/AUTONOMY_POLICY.md` 和 `.agent/prompts/openclaw-orchestrator.md` 中关于禁止直接 push 主分支的表述。
 validation:
-- `cd docs-site && npm run build` 通过
+- `rg -n "main|master" .github/workflows AGENTS.md .agent -g '!**/.git/**'` 已确认目标文件中的主分支引用统一为 `master`
+- `git diff -- .github/workflows/build.yml AGENTS.md .agent/AUTONOMY_POLICY.md .agent/prompts/openclaw-orchestrator.md` 已确认改动范围仅限预期文件
 next:
-- 等待维护者审查并决定是否提交
+- 提交、推送并创建 PR
 blockers:
 - none
 
