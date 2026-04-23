@@ -4,22 +4,32 @@ on:
   pull_request:
     paths:
       - "knife4j/**"
+      - "knife4j-front/knife4j-core/**"
+      - "knife4j-doc/**"
+      - "scripts/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/release.yml"
+      - ".java-version"
+      - ".nvmrc"
   push:
     branches:
       - main
     paths:
       - "knife4j/**"
+      - "knife4j-front/knife4j-core/**"
+      - "knife4j-doc/**"
+      - "scripts/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/release.yml"
+      - ".java-version"
+      - ".nvmrc"
 
 jobs:
-  verify:
+  java-build-test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: knife4j
+        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,5 +41,43 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Verify Maven build
-        run: mvn -B -ntp verify
+      - name: Verify Java modules
+        run: scripts/test-java.sh
+
+  front-core-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: knife4j-front/knife4j-core/package-lock.json
+
+      - name: Test front core
+        run: scripts/test-front-core.sh
+
+  docs-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: knife4j-doc/package-lock.json
+
+      - name: Build docs site
+        run: scripts/test-docs.sh
