@@ -17,7 +17,7 @@ export class Knife4jRequestBody {
     /**
      * 示例值,根据不同的MediaType，依靠parameters生成example
      */
-    example: string = "";
+    example = "";
     /**
      * A list of parameters that are applicable for this operation.
      */
@@ -25,7 +25,7 @@ export class Knife4jRequestBody {
     /**
      * Determines if the request body is required in the request. Defaults to false.
      */
-    required: boolean = false;
+    required = false;
 
 
     constructor(media: string) {
@@ -38,6 +38,7 @@ export class Knife4jRequestBody {
      * @param schema schema
      */
     resolveBody(description: string, required: boolean, schema: SchemaObject, instance: Knife4jInstance) {
+        void instance;
         this.description = description;
         this.required = required;
         //此处直接解析schema的properties属性
@@ -46,7 +47,7 @@ export class Knife4jRequestBody {
         }
         //如果是properties，直接解析
         const _properties = schema.properties;
-        for (let _propName in _properties) {
+        for (const _propName in _properties) {
             //如果是属性级别，默认query类型
             const _schema = new Knife4jSchema(_propName, Knife4jParamType.query);
             const _openapiSchema = _properties[_propName];

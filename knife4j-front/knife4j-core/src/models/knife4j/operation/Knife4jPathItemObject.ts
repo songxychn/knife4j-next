@@ -6,7 +6,6 @@ import { Knife4jRequestBody } from '../schema/Knife4jRequestBody';
 import { Knife4jSchema } from '../schema/Knife4jSchema';
 //ParameterObject
 import { ParameterObject, RequestBodyObject, ExternalDocumentationObject } from "../../openapi3/types";
-import OpenAPI3TypeUtils from "../../openapi3/typeCheck";
 import { Knife4jInstance } from '../Knife4jInstance';
 //RequestBodyObject
 /**
@@ -61,12 +60,12 @@ export class Knife4jPathItemObject {
     /**
      * 请求类型
      */
-    consumer: string = "*/*";
+    consumer = "*/*";
 
     /**
      * 响应类型
      */
-    produces: string = "*/*";
+    produces = "*/*";
 
     /**
      * A list of parameters that are applicable for this operation.
@@ -82,12 +81,12 @@ export class Knife4jPathItemObject {
     /**
      * Expected responses for this operation.
      */
-    responses?: {};
+    responses?: Record<string, unknown>;
 
     /**
      * A map of possible out-of band callbacks related to the parent operation.
      */
-    callbacks?: {};
+    callbacks?: Record<string, unknown>;
 
     /**
      * Declares this operation to be deprecated.
@@ -147,7 +146,7 @@ export class Knife4jPathItemObject {
         //遍历param
         parameters.forEach(param => {
             //判断类型
-            const originalParam = param as ParameterObject;
+            const originalParam = param ;
             //基础表单参数
             const _param = new Knife4jSchema(originalParam.name, originalParam.in)
             //基础赋值
@@ -167,7 +166,7 @@ export class Knife4jPathItemObject {
         const _description = lodash.defaultTo(body.description, "");
         const _required = lodash.defaultTo(body.required, false);
         //遍历
-        for (let media in content) {
+        for (const media in content) {
             const _schema = content[media];
             if (lodash.isEmpty(media) || lodash.isEmpty(_schema)) {
                 continue;

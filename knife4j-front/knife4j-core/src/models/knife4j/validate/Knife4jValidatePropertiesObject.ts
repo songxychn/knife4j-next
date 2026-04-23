@@ -18,7 +18,7 @@ export class Knife4jValidatePropertiesObject {
     /**
      * List of required properties in an object.
      */
-    required: string[] = new Array();
+    required: string[] = [];
     /**
    * 解析schema-validate部分参数
    * @param schema schema对象

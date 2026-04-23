@@ -21,4 +21,4 @@ export class Knife4jServerVariableObject {
     constructor(_def: string) {
         this.default = _def;
     }
-};
+}

@@ -19,10 +19,12 @@ export class SwaggerParser extends BaseCommonParser {
     /**
     * 异步解析Path节点，只有在打开文档展示页的情况下才解析该配置，避免前端解析渲染性能问题
     * @param instance 对象实例
-    * @param options 个性化解析配置选项
-   */
+   * @param options 个性化解析配置选项
+  */
     parsePathAsync(operation: Knife4jPathItemObject, instance: Knife4jInstance, options: Knife4jParseOptions): void {
+        void operation;
+        void instance;
+        void options;
         console.log("异步解析path节点")
     }
 }
-

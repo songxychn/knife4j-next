@@ -7,9 +7,9 @@ const KUtils = {
      */
     wrapLine(str: string): string {
         if (!lodash.isEmpty(str)) {
-            var newLinePattern = /(\r\n|\n\r|\r|\n)/g;
+            const newLinePattern = /(\r\n|\n\r|\r|\n)/g;
             if (newLinePattern.test(str)) {
-                var newDes = str.replace(newLinePattern, '\\n');
+                const newDes = str.replace(newLinePattern, '\\n');
                 return newDes;
             }
             return str;
@@ -37,18 +37,18 @@ const KUtils = {
      * @returns 
      */
     basicTypeValue(type: string): any {
-        var propValue;
+        let propValue;
         // 是否是基本类型
-        if (type == "integer") {
+        if (type === "integer") {
             propValue = 0;
         }
-        if (type == "boolean") {
+        if (type === "boolean") {
             propValue = true;
         }
-        if (type == "object") {
+        if (type === "object") {
             propValue = {};
         }
-        if (type == "number") {
+        if (type === "number") {
             propValue = parseFloat("0");
         }
         return propValue;

@@ -58,7 +58,7 @@ export class Knife4jInstance {
         if (tag === null) {
             return;
         }
-        let keys = lodash.keys(this.tagNames)
+        const keys = lodash.keys(this.tagNames)
         //避免重复添加
         if (!lodash.includes(keys, tag.name)) {
             // 初始化count为0
@@ -72,7 +72,7 @@ export class Knife4jInstance {
      * @param tagName tag名称
      */
     addTagCount(tagName: string): void {
-        let keys = lodash.keys(this.tagNames)
+        const keys = lodash.keys(this.tagNames)
         let count = 0
         if (lodash.includes(keys, tagName)) {
             //已经包含
@@ -119,12 +119,11 @@ export class Knife4jInstance {
         console.log("async path:", path)
         console.log(this.parseFactory)
         //从集合中找出当前对象
-        const pathFilters = this.paths.filter(operation => operation.url == path && operation.methodType == methodType);
+        const pathFilters = this.paths.filter(operation => operation.url === path && operation.methodType === methodType);
         if (lodash.isEmpty(pathFilters)) {
             return;
         }
         const pathObject = pathFilters[0];
-        const instance = this;
-        instance.parseFactory.parsePathAsync(pathObject, instance, instance.parseOptions)
+        this.parseFactory.parsePathAsync(pathObject, this, this.parseOptions)
     }
 }

@@ -4,12 +4,11 @@ import { Knife4jInstance } from '../knife4j/Knife4jInstance'
 import { Knife4jTagObject } from '../knife4j/tag/Knife4jTagObject'
 import { Knife4jExternalDocumentationObject } from '../knife4j/externalDoc/Knife4jExternalDocumentationObject'
 import { Knife4jInfoObject } from '../knife4j/info/Knife4jInfoObject'
-import lodash, { constant } from 'lodash'
-import { TagObject, InfoObject, PathsObject, OperationObject, ExternalDocumentationObject, ServerObject, ParameterObject, ReferenceObject } from "./types"
+import lodash from 'lodash'
+import { TagObject, InfoObject, PathsObject, OperationObject, ExternalDocumentationObject, ServerObject } from "./types"
 import { Knife4jPathItemObject } from '../knife4j/operation/Knife4jPathItemObject'
 import { Knife4jServer } from '../knife4j/servers/Knife4jServer'
 import { Knife4jServerVariableObject } from '../knife4j/servers/Knife4jServerVariableObject'
-import OpenAPI3TypeUtils from './typeCheck'
 
 /**
  * 解析OpenAPI3的规范,参考规范文档：https://spec.openapis.org/oas/v3.1.0
@@ -24,7 +23,6 @@ export class OpenAPIParser extends BaseCommonParser {
      */
     parse(data: Record<string, any>, options: Knife4jParseOptions): Knife4jInstance {
         console.log(options)
-        let t1 = lodash.now()
         // 当前openapi规范的版本
         const specVersion = lodash.defaultTo(data["openapi"] as string, "3.0");
         //赋值解析器,当前对象本身
@@ -55,6 +53,7 @@ export class OpenAPIParser extends BaseCommonParser {
      * @param options 个性化解析配置选项
     */
     parsePathAsync(operation: Knife4jPathItemObject, instance: Knife4jInstance, options: Knife4jParseOptions): void {
+        void options;
         console.log("异步解析path节点")
         const data = instance.originalRecord;
         const paths = data["paths"] as PathsObject;
@@ -63,7 +62,7 @@ export class OpenAPIParser extends BaseCommonParser {
             return;
         }
         console.log("operation", operation)
-        let _operation = methods[operation.methodType] as OperationObject;
+        const _operation = methods[operation.methodType] as OperationObject;
         console.log("original:", _operation)
         //解析请求参数parameters
         operation.asyncResolveParameters(_operation.parameters)
@@ -135,15 +134,15 @@ export class OpenAPIParser extends BaseCommonParser {
      */
     resolvePaths(paths: PathsObject, instance: Knife4jInstance): void {
         //console.log(paths)
-        for (let key in paths) {
-            let methods = paths[key];
+        for (const key in paths) {
+            const methods = paths[key];
             // 判断非空
             if (lodash.isEmpty(methods)) {
                 continue;
             }
-            for (let methodType in methods) {
+            for (const methodType in methods) {
                 //console.log("method:", methodType)
-                let operation = methods[methodType] as OperationObject;
+                const operation = methods[methodType] as OperationObject;
                 // 解析operation
                 this.resolveOperation(operation, key, methodType, instance);
             }
@@ -162,13 +161,13 @@ export class OpenAPIParser extends BaseCommonParser {
             return;
         }
         //此处只解析基础对象
-        let _operation = new Knife4jPathItemObject(url, methodType)
+        const _operation = new Knife4jPathItemObject(url, methodType)
         _operation.summary = lodash.defaultTo(operation.summary, '')
         _operation.description = lodash.defaultTo(operation.description, '')
         _operation.operationId = lodash.defaultTo(operation.operationId, '')
         _operation.deprecated = lodash.defaultTo(operation.deprecated, false)
         // 设置tag
-        let _tags = lodash.defaultTo(operation.tags, []);
+        const _tags = lodash.defaultTo(operation.tags, []);
         _operation.tags = _tags;
         // 遍历tags，计数器+1
         _tags.forEach(_tagName => {
@@ -205,8 +204,8 @@ export class OpenAPIParser extends BaseCommonParser {
             const _server = new Knife4jServer(server.url);
             _server.description = lodash.defaultTo(server.description, "");
             if (!lodash.isEmpty(server.variables)) {
-                for (let _varKey in server.variables) {
-                    let _varValue = server.variables[_varKey];
+                for (const _varKey in server.variables) {
+                    const _varValue = server.variables[_varKey];
                     if (lodash.isEmpty(_varValue)) {
                         continue;
                     }
@@ -220,4 +219,3 @@ export class OpenAPIParser extends BaseCommonParser {
         })
     }
 }
-

@@ -14,7 +14,7 @@ export class Knife4jSchema {
     /**
      * title属性
      */
-    title: string = "";
+    title = "";
     /**
        * The name of the parameter.
        */
@@ -28,7 +28,7 @@ export class Knife4jSchema {
     /**
      * 父id，默认顶级情况下为0
      */
-    parentId: string = "0";
+    parentId = "0";
 
     /**
      * 子参数
@@ -43,12 +43,12 @@ export class Knife4jSchema {
     /**
      * Determines whether this parameter is mandatory.
      */
-    required: boolean = false;
+    required = false;
 
     /**
      * Specifies that a parameter is deprecated and SHOULD be transitioned out of usage.
      */
-    deprecated: boolean = false;
+    deprecated = false;
 
     /**
      * Sets the ability to pass empty-valued parameters.
@@ -73,7 +73,7 @@ export class Knife4jSchema {
     /**
      * 参数数据类型
      */
-    schema: string = "string";
+    schema = "string";
 
     /**
      * 数据格式化
@@ -150,7 +150,7 @@ export class Knife4jSchema {
         }
         //类型
         if (!lodash.isEmpty(schema.type)) {
-            let schemaType = schema.type;
+            const schemaType = schema.type;
             if (lodash.isArray(schemaType)) {
                 //数组类型
                 this.schema = schemaType.join()
@@ -170,9 +170,9 @@ export class Knife4jSchema {
         //判断当前参数是否必须
         //this.required = this.validate.propertiesValidate.isReuqire(this.name);
         this.title = lodash.defaultTo(schema.title, "");
-        this.default = schema.default
+        this.default = schema.default as unknown;
         //赋值example值
-        this.example = schema.example;
+        this.example = schema.example as unknown;
     }
 
     /**

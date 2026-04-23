@@ -16,6 +16,9 @@ export class AsyncAPIParser extends BaseCommonParser {
     * @param options 个性化解析配置选项
    */
   parsePathAsync(operation: Knife4jPathItemObject, instance: Knife4jInstance, options: Knife4jParseOptions): void {
+    void operation;
+    void instance;
+    void options;
     console.log("异步解析path节点")
   }
 }

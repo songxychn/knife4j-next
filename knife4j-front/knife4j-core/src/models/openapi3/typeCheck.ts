@@ -1,5 +1,4 @@
-import { ParameterObject } from "./types"
-import { ReferenceObject } from "./types";
+import { ParameterObject, ReferenceObject } from "./types"
 import lodash from 'lodash'
 //SchemaObject
 import { SchemaObject } from "./types";
@@ -12,16 +11,7 @@ const OpenAPI3TypeUtils = {
      * @returns 
      */
     isParameterObject(obj: any): obj is ParameterObject {
-        try {
-            if (!lodash.isEmpty(obj)) {
-                let _param = obj as ParameterObject;
-                return true;
-            }
-
-        } catch (e) {
-
-        }
-        return false;
+        return !lodash.isEmpty(obj);
     },
     /**
      * 判断是否ReferenceObject类型
@@ -29,27 +19,10 @@ const OpenAPI3TypeUtils = {
      * @returns 
      */
     isReferenceObject(obj: any): obj is ReferenceObject {
-        try {
-            if (!lodash.isEmpty(obj)) {
-                let _param = obj as ReferenceObject;
-                return true;
-            }
-
-        } catch (e) {
-
-        }
-        return false;
+        return !lodash.isEmpty(obj);
     },
     isSchemaObject(obj: any): obj is SchemaObject {
-        try {
-            if (!lodash.isEmpty(obj)) {
-                let _param = obj as SchemaObject;
-                return true;
-            }
-        } catch (e) {
-
-        }
-        return false;
+        return !lodash.isEmpty(obj);
     }
 }
 
