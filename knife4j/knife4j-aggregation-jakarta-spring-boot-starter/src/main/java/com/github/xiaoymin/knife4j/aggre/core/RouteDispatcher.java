@@ -62,8 +62,8 @@ import jakarta.servlet.http.Part;
 
 /***
  *
- * @since  2.0.8
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
+ * @since 2.0.8
+ * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2020/10/29 20:08
  */
 public class RouteDispatcher {
@@ -180,7 +180,7 @@ public class RouteDispatcher {
      * Write Response Header
      *
      * @param routeResponse route instance
-     * @param response Servlet Response
+     * @param response      Servlet Response
      */
     protected void writeResponseHeader(RouteResponse routeResponse, HttpServletResponse response) {
         if (routeResponse != null) {
@@ -206,7 +206,7 @@ public class RouteDispatcher {
      * Write Body
      *
      * @param routeResponse route
-     * @param response Servlet Response
+     * @param response      Servlet Response
      */
     protected void writeBody(RouteResponse routeResponse, HttpServletResponse response) throws IOException {
         if (routeResponse != null) {
@@ -236,8 +236,9 @@ public class RouteDispatcher {
     
     /**
      * Build Context of Route
+     *
      * @param routeRequestContext Route Context
-     * @param request Servlet Request
+     * @param request             Servlet Request
      */
     protected void buildContext(RouteRequestContext routeRequestContext, HttpServletRequest request) throws IOException {
         // Whether Basic
@@ -344,6 +345,7 @@ public class RouteDispatcher {
     
     /**
      * convert openapi2 to openapi3
+     *
      * @return
      * @author neal @ Dec 12, 2025
      */
@@ -367,7 +369,7 @@ public class RouteDispatcher {
                 OpenAPI2Resource copyRouter = new OpenAPI2Resource(router);
                 copyRouter.setUrl(PathUtils.append(copyRouter.getContextPath(), copyRouter.getUrl()));
                 // 得到contextPath后再处理一次
-//                copyRouter.setContextPath(PathUtils.processContextPath(PathUtils.append(basePath, copyRouter.getContextPath())));
+                // copyRouter.setContextPath(PathUtils.processContextPath(PathUtils.append(basePath, copyRouter.getContextPath())));
                 copyRouter.setContextPath(PathUtils.processContextPath(copyRouter.getContextPath()));
                 logger.debug("api-resources:{}", copyRouter);
                 sortedSet.add(copyRouter);

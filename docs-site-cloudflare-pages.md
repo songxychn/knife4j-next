@@ -13,11 +13,9 @@
 
 - Framework preset: `VitePress`
 - Root directory: `docs-site`
-- Production branch: 选择你的正式发布分支
+- Production branch: `master`
 - Build command: `npx vitepress build`
 - Build output directory: `.vitepress/dist`
-
-如果你的正式站点准备跟随当前 `dev` 分支发布，也可以把 Production branch 设置为 `dev`。
 
 ## 绑定域名
 

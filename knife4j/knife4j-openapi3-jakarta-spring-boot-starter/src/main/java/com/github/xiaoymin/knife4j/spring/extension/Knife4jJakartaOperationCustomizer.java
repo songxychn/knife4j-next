@@ -35,7 +35,7 @@ import org.springframework.web.method.HandlerMethod;
  */
 @Slf4j
 public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomizer {
-
+    
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {
         // 解析支持作者、接口排序
@@ -62,15 +62,15 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
                 }
             }
         }
-
+        
         // 方法重名则进行处理，防止url覆盖
         String className = handlerMethod.getBeanType().getSimpleName();
         String existingId = operation.getOperationId();
         String methodName = handlerMethod.getMethod().getName();
-
+        
         String newId = (StrUtil.isBlank(existingId)) ? className + StrUtil.UNDERLINE + existingId : className + StrUtil.UNDERLINE + methodName;
         operation.setOperationId(newId);
-
+        
         return operation;
     }
 }

@@ -52,12 +52,13 @@ import org.springframework.web.filter.CorsFilter;
 @EnableConfigurationProperties({Knife4jProperties.class, Knife4jSetting.class, Knife4jHttpBasic.class})
 @ConditionalOnProperty(name = "knife4j.enable", havingValue = "true")
 public class Knife4jAutoConfiguration {
-
+    
     private final Knife4jProperties properties;
     private final Environment environment;
-
+    
     /**
      * 增强自定义配置
+     *
      * @return
      */
     @Bean
@@ -66,12 +67,13 @@ public class Knife4jAutoConfiguration {
         log.debug("Register Knife4jOpenApiCustomizer");
         return new Knife4jOpenApiCustomizer(this.properties, docProperties);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public Knife4jJakartaOperationCustomizer knife4jJakartaOperationCustomizer() {
         return new Knife4jJakartaOperationCustomizer();
     }
+    
     /**
      * 配置Cors
      *
@@ -94,9 +96,10 @@ public class Knife4jAutoConfiguration {
         CorsFilter corsFilter = new CorsFilter(source);
         return corsFilter;
     }
-
+    
     /**
      * Security with Basic Http
+     *
      * @param knife4jProperties Basic Properties
      * @return BasicAuthFilter
      */
@@ -128,7 +131,7 @@ public class Knife4jAutoConfiguration {
         registration.setOrder(AbstractSecurityFilter.SPRING_FILTER_ORDER);
         return registration;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean(JakartaProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
@@ -153,5 +156,5 @@ public class Knife4jAutoConfiguration {
         registration.setOrder(AbstractSecurityFilter.SPRING_FILTER_ORDER - 1);
         return registration;
     }
-
+    
 }

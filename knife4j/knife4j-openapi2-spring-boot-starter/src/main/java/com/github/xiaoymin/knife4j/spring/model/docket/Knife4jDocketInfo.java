@@ -25,9 +25,9 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * @since  4.0.0
  * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2022/8/17 21:41
+ * @since 4.0.0
  */
 @Data
 public class Knife4jDocketInfo {
@@ -41,12 +41,12 @@ public class Knife4jDocketInfo {
      * Apis strategy
      */
     private ApiRuleEnums apiRule = ApiRuleEnums.PACKAGE;
-
+    
     /**
      * Using AND operation when the strategy of apiRule is ANNOTATION, default false(or)
      */
     private boolean apiRuleAnnoUseAnd = Boolean.FALSE;
-
+    
     /**
      * The resource set corresponding to the grouping policy with Api Strategy
      */
