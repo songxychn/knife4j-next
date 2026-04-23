@@ -61,7 +61,7 @@
 ## 分支规则
 
 - 默认使用 `codex/<task-id>-<short-slug>`。
-- 不要直接 push 到 `main`。
+- 不要直接 push 到 `master`。
 - 不要把无关修复合并到同一个分支。
 
 ## 人工升级

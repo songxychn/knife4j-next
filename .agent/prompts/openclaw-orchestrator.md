@@ -29,7 +29,7 @@
 12. 任务可审查时创建或更新 PR。
 
 安全规则：
-- 不要直接 push 到 main。
+- 不要直接 push 到 master。
 - 不要发布 release。
 - 不要修改 secrets 或 release 凭据接线。
 - 未经人工批准，不要修改 Maven 坐标或兼容性承诺。
