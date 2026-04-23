@@ -113,3 +113,66 @@ done_when:
 - 顶部导航"功能"拥有独立文档页，而不是首页锚点
 notes:
 - 已通过受控授权创建独立任务分支，当前改动位于 `codex/TASK-005-docs-vitepress-nav`。
+
+### TASK-007
+status: ready
+area: java
+title: 修复 /v2/api-docs 路径加分号绕过 basic 认证的安全漏洞（#886）
+branch: codex/TASK-007-fix-basic-auth-bypass
+depends_on:
+validation: `./scripts/test-java.sh`
+done_when:
+- /v2/api-docs;xxx 路径无法绕过 basic 认证
+- 正常路径 /v2/api-docs 认证行为不变
+- 有对应的安全回归测试
+notes:
+- 上游 issue #886：路径加分号可绕过 Spring Security 的 basic 认证
+- 修复方向：StrictHttpFirewall 或 AntPathMatcher 路径规范化
+- 优先级最高，属于安全漏洞
+
+### TASK-008
+status: ready
+area: java
+title: 兼容 Spring Boot 3.4/3.5（#874 #882 #885 #913 #960 #992）
+branch: codex/TASK-008-boot34-35-compat
+depends_on: TASK-003
+validation: `./scripts/test-java.sh`
+done_when:
+- knife4j-openapi3-jakarta-spring-boot-starter 在 Boot 3.4.x 启动无报错
+- knife4j-openapi3-jakarta-spring-boot-starter 在 Boot 3.5.x 启动无报错
+- smoke test 覆盖两个版本
+- 已知的 NoSuchMethodError / ClassNotFoundException 回归修复
+notes:
+- 多个 issue 反映 Boot 3.4+ 启动报错，核心是 springdoc 依赖版本未跟进
+- 参考 #913 中社区提供的修复方向
+- Boot 4.x 兼容性单独立任务，本任务聚焦 3.4/3.5
+
+### TASK-009
+status: ready
+area: java
+title: 修复 gateway context-path 导致 host 缺少斜杠的 bug（#954）
+branch: codex/TASK-009-fix-gateway-context-path
+depends_on:
+validation: `./scripts/test-java.sh`
+done_when:
+- 配置 context-path 后 gateway 聚合的 host 拼接正确
+- 有对应的单元测试覆盖路径拼接逻辑
+notes:
+- 上游 issue #954：knife4j-gateway-spring-boot-starter 4.5.0 配置 context-path 后 host 少个 /
+- 影响所有使用 gateway 聚合且配置了 context-path 的用户
+
+### TASK-010
+status: blocked
+area: ui-react
+title: 推进 Vue3 前端替代 Vue2（knife4j-front 架构升级）
+branch: codex/TASK-010-vue3-frontend
+depends_on: TASK-004
+validation: `./scripts/test-front-core.sh`
+done_when:
+- 明确 Vue3 迁移的范围和分阶段计划
+- 至少一个核心组件完成 Vue2 → Vue3 迁移
+- 迁移后功能与原版一致，无回归
+notes:
+- 维护者明确希望推动 Vue3 替代 Vue2
+- 需要先调研 knife4j-front 现有 Vue2 组件结构，再拆分子任务
+- blocked 原因：需要先完成架构调研再拆分可执行子任务，下一步由 agent 完成调研后解除
