@@ -1,0 +1,244 @@
+@font-face {
+  font-family: 'Lota Grotesque';
+  src: url('../../../knife4j-doc/static/font/lota.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --vp-c-brand-1: #69aefc;
+  --vp-c-brand-2: #86bfff;
+  --vp-c-brand-3: #a8d2ff;
+  --vp-c-brand-soft: rgba(118, 177, 255, 0.18);
+  --vp-button-brand-border: #2f8af4;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #2f8af4;
+  --vp-button-brand-hover-border: #1d78df;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #1d78df;
+  --vp-button-brand-active-border: #176bc9;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-active-bg: #176bc9;
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-soft: #ffffff;
+  --vp-c-bg-alt: #f5f9ff;
+  --vp-c-text-1: #17324d;
+  --vp-c-text-2: #637792;
+  --vp-font-family-base: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --vp-font-family-heading: "Lota Grotesque", "Avenir Next", "PingFang SC", sans-serif;
+  --vp-home-hero-name-background: linear-gradient(135deg, #4d93f0 0%, #69aefc 52%, #8ec8ff 100%);
+  --vp-home-hero-image-background-image:
+    radial-gradient(circle at 50% 50%, rgba(105, 174, 252, 0.3), transparent 58%);
+  --vp-home-hero-image-filter: blur(24px);
+}
+
+html.dark {
+  --vp-c-bg: #0f1724;
+  --vp-c-bg-soft: #152134;
+  --vp-c-bg-alt: #1d2d45;
+  --vp-c-text-1: #edf5ff;
+  --vp-c-text-2: #b2c2d8;
+  --vp-c-brand-1: #82bcff;
+  --vp-c-brand-2: #9dd0ff;
+  --vp-c-brand-3: #b7ddff;
+  --vp-c-brand-soft: rgba(118, 177, 255, 0.2);
+  --vp-home-hero-name-background: linear-gradient(135deg, #b8d8ff 0%, #8ebfff 48%, #d3e8ff 100%);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(190, 221, 255, 0.18), transparent 24%),
+    radial-gradient(circle at top right, rgba(144, 192, 255, 0.1), transparent 20%),
+    var(--vp-c-bg);
+}
+
+.Layout {
+  background:
+    linear-gradient(180deg, rgba(240, 247, 255, 0.72), transparent 280px),
+    transparent;
+}
+
+.VPNavBar {
+  background: color-mix(in srgb, var(--vp-c-bg) 84%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 12%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.VPNavBarTitle .title {
+  font-family: var(--vp-font-family-heading);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--vp-c-text-1);
+}
+
+.VPNavBarTitle .logo {
+  height: 32px;
+  width: auto;
+}
+
+.VPNavBarTitle .VPNavBarTitleText {
+  padding-left: 0.2rem;
+}
+
+.VPHero {
+  padding-top: 154px !important;
+}
+
+.VPHero .name,
+.VPDoc h1,
+.VPDoc h2,
+.VPDoc h3,
+.VPFeature .title {
+  font-family: var(--vp-font-family-heading);
+  letter-spacing: 0.01em;
+}
+
+.VPHero .name {
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  line-height: 0.95;
+  margin-bottom: 34px;
+}
+
+.VPHero .text {
+  max-width: 15ch;
+  font-size: clamp(1.75rem, 4vw, 2.7rem);
+  line-height: 1.12;
+  margin-top: 0;
+}
+
+.VPHero .tagline {
+  max-width: 37rem;
+  font-size: 1.08rem;
+  color: var(--vp-c-text-2);
+}
+
+.VPHero .VPButton.brand {
+  box-shadow: 0 18px 40px rgba(47, 138, 244, 0.28);
+  font-weight: 700;
+}
+
+.VPHero .VPButton.brand:hover {
+  box-shadow: 0 20px 44px rgba(29, 120, 223, 0.32);
+}
+
+.VPHero .VPButton.alt {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 84%, white);
+}
+
+.VPImage.image-src {
+  width: min(300px, 64vw);
+  border-radius: 40px;
+  filter: drop-shadow(0 28px 44px rgba(47, 138, 244, 0.18));
+}
+
+.VPHero .image-container {
+  transform: translate(0, 12px);
+}
+
+.VPFeatures {
+  padding-top: 24px !important;
+}
+
+.VPFeature {
+  border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 14%, transparent);
+  background:
+    linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--vp-c-bg-alt) 72%, white));
+  box-shadow: 0 24px 48px rgba(23, 60, 72, 0.07);
+}
+
+html.dark .VPFeature {
+  background:
+    linear-gradient(180deg, rgba(25, 42, 47, 0.94), rgba(18, 31, 36, 0.98));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+}
+
+.VPFeature:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 42%, transparent);
+  transform: translateY(-2px);
+  transition: transform 0.25s ease, border-color 0.25s ease;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 2rem 0 2.5rem;
+}
+
+.status-card {
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent);
+  background:
+    linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--vp-c-bg-alt) 76%, white));
+}
+
+html.dark .status-card {
+  background: linear-gradient(180deg, rgba(24, 39, 44, 0.98), rgba(17, 29, 33, 0.98));
+}
+
+.status-card .label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+
+.status-card strong {
+  display: block;
+  font-family: var(--vp-font-family-heading);
+  font-size: 1.25rem;
+  line-height: 1.1;
+  margin-bottom: 0.35rem;
+}
+
+.status-card p {
+  margin: 0;
+  color: var(--vp-c-text-2);
+}
+
+.signal-board {
+  padding: 1.2rem 1.3rem;
+  border-left: 4px solid var(--vp-c-brand-1);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vp-c-brand-soft) 70%, var(--vp-c-bg-soft));
+}
+
+.signal-board p:last-child {
+  margin-bottom: 0;
+}
+
+.VPDoc .custom-block.tip,
+.VPDoc .custom-block.info {
+  border-radius: 18px;
+}
+
+.VPFooter {
+  border-top: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 10%, transparent);
+}
+
+@media (max-width: 960px) {
+  .status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .VPHero {
+    padding-top: 96px !important;
+  }
+
+  .VPHero .name {
+    margin-bottom: 24px;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+}

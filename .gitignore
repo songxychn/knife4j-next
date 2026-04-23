@@ -19,6 +19,12 @@ logs
 front/.idea
 
 .DS_Store
+node_modules/
+.vitepress/cache/
+.vitepress/dist/
+docs-site/.vitepress/cache/
+docs-site/.vitepress/dist/
+docs-site/node_modules/
 
 ### NetBeans ###
 nbproject/private/
