@@ -1,5 +1,8 @@
 name: Notify on PR Merged
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   pull_request:
     types: [closed]
