@@ -9,15 +9,16 @@ import {
   VideoCameraOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Button, Select, Input, ConfigProvider, Tabs, theme } from 'antd';
+import type { MenuInfo } from 'rc-menu/lib/interface';
 import { Resizable } from 'react-resizable';
-import { Route, useNavigate, Outlet } from 'react-router-dom';
+import { Route as _Route, useNavigate, Outlet as _Outlet } from 'react-router-dom';
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
-const defaultPanes = new Array(1).fill(null).map((_, index) => {
+const defaultPanes = new Array(1).fill(null).map(() => {
   return { label: '主页', children: '', key: '/group/home' };
 });
 
-import Home from './pages/Home';
+import _Home from './pages/Home';
 
 
 const footerStyle: React.CSSProperties = {
@@ -48,19 +49,16 @@ const App: React.FC = () => {
   const newTabIndex = useRef(0);
 
 
-  // TabPane.js
-  const TabPane = ({ title }) => {
-    return <div>{title}</div>
-  }
+    // TabPane removed (unused)
 
   //menu
-  const menuClick = (menu) => {
+  const menuClick = (menu: MenuInfo) => {
     console.log(menu)
     const newActiveKey = menu.key;
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
 
-      const title = menu.item.props.title;
+      const title = menu.key;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
     setSelectedKey(newActiveKey);

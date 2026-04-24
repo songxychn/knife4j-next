@@ -5,7 +5,7 @@ import './ResizableMenu.css'; // Create this CSS file for custom styles
 const ResizableMenu = () => {
     const [sidebarWidth, setSidebarWidth] = useState(250);
 
-    const handleDrag = (e) => {
+    const handleDrag = (e: MouseEvent) => {
         if (e.clientX > 100 && e.clientX < 400) {
             // Limit the sidebar width between 100px and 400px
             setSidebarWidth(e.clientX);
