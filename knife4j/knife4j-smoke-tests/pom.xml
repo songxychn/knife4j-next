@@ -20,6 +20,7 @@
         <central-publishing-maven-plugin.skip>true</central-publishing-maven-plugin.skip>
     </properties>
 
+    <modules>
         <module>boot2-app</module>
         <module>boot3-jakarta-app</module>
         <module>boot3-app</module>
