@@ -56,7 +56,7 @@ notes:
 - 这个任务用于给自治运行提供持久起点。
 
 ### TASK-002
-status: review
+status: done
 area: docs
 title: 审计 README 和文档中的旧 upstream 归属表述
 branch: codex/TASK-002-doc-ownership-audit
@@ -103,7 +103,7 @@ notes:
 - 保持为一个小修复或一个具体审计结果，不要变成重写。
 
 ### TASK-005
-status: review
+status: done
 area: docs
 title: 修正文档站"产品介绍"跳到首页的异常导航
 branch: codex/TASK-005-docs-vitepress-nav
@@ -134,7 +134,7 @@ notes:
 - PR: https://github.com/songxychn/knife4j-next/pull/6
 
 ### TASK-008
-status: review
+status: done
 area: java
 title: 兼容 Spring Boot 3.4/3.5（#874 #882 #885 #913 #960 #992）
 branch: codex/TASK-008-boot34-35-compat
@@ -180,3 +180,17 @@ notes:
 - 维护者明确希望推动 Vue3 替代 Vue2
 - 需要先调研 knife4j-front 现有 Vue2 组件结构，再拆分子任务
 - blocked 原因：需要先完成架构调研再拆分可执行子任务，下一步由 agent 完成调研后解除
+
+### TASK-011
+status: in_progress
+title: 新增 knife4j-demo 模块，提供在线预览站
+branch: codex/TASK-011-demo-site
+depends_on: TASK-008
+goal: |
+  在 knife4j/ 下新增 knife4j-demo 子模块，包含：
+  - 最小 Spring Boot 应用 + 示例 Controller
+  - Dockerfile
+  - GitHub Actions workflow（tag 触发，构建推送 GHCR）
+  - docker-compose.yml（供服务器部署用）
+  - Caddyfile 片段
+validation: mvn -pl knife4j/knife4j-demo package -DskipTests
