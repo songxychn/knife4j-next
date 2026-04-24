@@ -30,7 +30,7 @@ notes:
 ## 队列
 
 ### TASK-006
-status: review
+status: done
 area: repo
 title: 同步 CI 与 agent 文档中的主分支名为 master
 branch: codex/TASK-006-sync-master-branch
@@ -69,7 +69,7 @@ notes:
 - 保留历史署名和感谢，只修复容易造成归属误解的表述。
 
 ### TASK-003
-status: review
+status: done
 area: java
 title: 新增 boot3-app smoke 模块（knife4j-openapi3-spring-boot-starter）
 branch: codex/TASK-003-java-smoke-coverage
@@ -116,7 +116,7 @@ notes:
 - 已通过受控授权创建独立任务分支，当前改动位于 `codex/TASK-005-docs-vitepress-nav`。
 
 ### TASK-007
-status: review
+status: done
 area: java
 title: 修复 /v2/api-docs 路径加分号绕过 basic 认证的安全漏洞（#886）
 branch: codex/TASK-007-fix-basic-auth-bypass
@@ -137,7 +137,7 @@ status: ready
 area: java
 title: 兼容 Spring Boot 3.4/3.5（#874 #882 #885 #913 #960 #992）
 branch: codex/TASK-008-boot34-35-compat
-depends_on: TASK-003
+depends_on:
 validation: `./scripts/test-java.sh`
 done_when:
 - knife4j-openapi3-jakarta-spring-boot-starter 在 Boot 3.4.x 启动无报错
@@ -150,7 +150,7 @@ notes:
 - Boot 4.x 兼容性单独立任务，本任务聚焦 3.4/3.5
 
 ### TASK-009
-status: review
+status: done
 area: java
 title: 修复 gateway context-path 导致 host 缺少斜杠的 bug（#954）
 branch: codex/TASK-009-fix-gateway-context-path
