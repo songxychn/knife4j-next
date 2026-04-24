@@ -182,7 +182,7 @@ notes:
 - blocked 原因：需要先完成架构调研再拆分可执行子任务，下一步由 agent 完成调研后解除
 
 ### TASK-011
-status: in_progress
+status: done
 title: 新增 knife4j-demo 模块，提供在线预览站
 branch: codex/TASK-011-demo-site
 depends_on: TASK-008
