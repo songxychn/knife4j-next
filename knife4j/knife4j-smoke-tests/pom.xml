@@ -15,7 +15,11 @@
     <packaging>pom</packaging>
     <name>knife4j-smoke-tests</name>
 
-    <modules>
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <central-publishing-maven-plugin.skip>true</central-publishing-maven-plugin.skip>
+    </properties>
+
         <module>boot2-app</module>
         <module>boot3-jakarta-app</module>
         <module>boot3-app</module>
