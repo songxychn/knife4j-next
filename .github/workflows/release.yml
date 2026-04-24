@@ -38,4 +38,4 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp -Prelease deploy
+        run: mvn -B -ntp -Prelease deploy -pl '!knife4j-demo'

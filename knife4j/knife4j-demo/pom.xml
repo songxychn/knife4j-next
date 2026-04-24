@@ -19,6 +19,7 @@
         <knife4j-spring-boot3.version>3.4.5</knife4j-spring-boot3.version>
         <start-class>com.baizhukui.knife4j.demo.DemoApplication</start-class>
         <central-publishing-maven-plugin.skip>true</central-publishing-maven-plugin.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
     <dependencies>
