@@ -56,17 +56,18 @@ notes:
 - 这个任务用于给自治运行提供持久起点。
 
 ### TASK-002
-status: ready
+status: review
 area: docs
 title: 审计 README 和文档中的旧 upstream 归属表述
 branch: codex/TASK-002-doc-ownership-audit
 depends_on: TASK-001
-validation: `cd knife4j-doc && npm ci && npm run build-netlify`
+validation: `cd docs-site && npm ci && npm run build`
 done_when:
 - fork 自己的入口和迁移表述更清楚
 - 保留的 upstream 引用都是有意且有解释的
 notes:
 - 保留历史署名和感谢，只修复容易造成归属误解的表述。
+- PR: https://github.com/songxychn/knife4j-next/pull/11
 
 ### TASK-003
 status: done
