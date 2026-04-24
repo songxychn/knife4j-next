@@ -41,6 +41,25 @@ blockers:
 - 无
 pr: https://github.com/songxychn/knife4j-next/pull/7
 
+## 2026-04-24 08:25 UTC
+task: TASK-002
+agent: knife4j-next-bot
+branch: codex/TASK-002-doc-ownership-audit
+status: review
+summary:
+- 审计所有 docs-site 和 README 的归属表述，整体清晰无误导
+- 修复 README 文档站命令和链接（knife4j-doc 已废弃 → docs-site）
+- 修复 README 模块表格，补充 docs-site 行，knife4j-doc 标注已废弃
+- 移除 compatibility.md 本地绝对路径泄露
+- 修正 getting-started.md VitePress dev 端口 4173 → 5173
+validation:
+- cd docs-site && npm ci && npm run build → build complete in 5.73s ✓
+next:
+- 等待人工 review PR #11
+blockers:
+- 无
+pr: https://github.com/songxychn/knife4j-next/pull/11
+
 ## 2026-04-23 21:58 UTC
 task: TASK-009
 agent: knife4j-next-bot

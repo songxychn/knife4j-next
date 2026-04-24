@@ -1,6 +1,6 @@
 # 兼容矩阵
 
-这份矩阵先描述的是**当前工程依赖基线**，主要依据 [knife4j/pom.xml](/Users/baizhukui/code-repo/personal-projects/knife4j-next/knife4j/pom.xml) 整理，不等于每一种组合都已经完成全量回归测试。
+这份矩阵先描述的是**当前工程依赖基线**，主要依据 `knife4j/pom.xml` 整理，不等于每一种组合都已经完成全量回归测试。
 
 ## 当前基线
 
