@@ -110,3 +110,16 @@ next:
 - 后续 agent 可选择 `TASK-002`，或根据仓库现实继续细化队列
 blockers:
 - none
+
+## 2026-04-24 05:03 UTC
+task: TASK-008
+agent: coordinator (direct)
+branch: codex/TASK-008-boot34-35-compat
+status: ready → review
+summary:
+- springdoc-openapi-jakarta 3.0.1 → 2.8.9
+- jakarta-starter/boot3-jakarta-app Boot 4.0.1 → 3.4.5 覆盖去除
+- 新增 boot35-jakarta-app smoke 模块（Boot 3.5.0）
+validation: ./scripts/test-java.sh → BUILD SUCCESS
+next: 维护者审查 PR #10
+blockers: none

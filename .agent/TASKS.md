@@ -133,7 +133,7 @@ notes:
 - PR: https://github.com/songxychn/knife4j-next/pull/6
 
 ### TASK-008
-status: ready
+status: review
 area: java
 title: 兼容 Spring Boot 3.4/3.5（#874 #882 #885 #913 #960 #992）
 branch: codex/TASK-008-boot34-35-compat
