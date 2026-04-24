@@ -21,6 +21,26 @@ blockers:
 - blocker，如无则写 none
 ```
 
+## 2026-04-23 19:27 UTC
+task: TASK-003
+agent: knife4j-next-bot
+branch: codex/TASK-003-java-smoke-coverage
+status: review
+summary:
+- 新增 knife4j-smoke-tests/boot3-app 子模块
+- 使用 knife4j-openapi3-spring-boot-starter（Boot 2.x + OpenAPI 3，非 jakarta）
+- Spring Boot 版本 2.7.18（TASK notes 中 4.0.1 有误，已修正）
+- Boot3DocHttpSmokeTest 验证 /doc.html 和 /v3/api-docs 返回 200
+- 注册到 knife4j-smoke-tests/pom.xml modules
+validation:
+- `JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 mvn -B -ntp -Dknife4j-skipTests=false verify` → BUILD SUCCESS（全部 17 模块）
+next:
+- 等待人工 review PR #7
+- PR 合并后可推进 TASK-008（Boot 3.4/3.5 兼容性）
+blockers:
+- 无
+pr: https://github.com/songxychn/knife4j-next/pull/7
+
 ## 2026-04-23 21:58 UTC
 task: TASK-009
 agent: knife4j-next-bot
