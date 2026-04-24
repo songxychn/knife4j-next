@@ -25,7 +25,8 @@ jobs:
           cache: maven
 
       - name: Build jar
-        run: mvn -B -ntp -pl knife4j/knife4j-demo -am package -DskipTests
+        working-directory: knife4j
+        run: mvn -B -ntp -pl knife4j-demo -am package -DskipTests
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -44,7 +45,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: knife4j/knife4j-demo
           push: true
