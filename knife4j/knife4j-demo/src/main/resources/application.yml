@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  info:
+    title: knife4j-next Demo
+    description: knife4j-next 在线预览示例，展示常用功能
+    version: "@project.version@"
+    contact:
+      name: knife4j-next
+      url: https://knife4jnext.com

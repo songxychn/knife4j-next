@@ -1,0 +1,9 @@
+services:
+  knife4j-demo:
+    image: ghcr.io/songxychn/knife4j-next/knife4j-demo:latest
+    container_name: knife4j-demo
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:8080"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
