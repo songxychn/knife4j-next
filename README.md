@@ -25,7 +25,8 @@
 | 模块                | 说明                                                                        |
 |-------------------|---------------------------------------------------------------------------|
 | `knife4j`         | Java 主工程，包含 starter、UI webjar、聚合组件与依赖管理                                   |
-| `knife4j-doc`     | 文档站源码，基于 Docusaurus 构建                                                    |
+| `knife4j-doc`     | 历史文档站（Docusaurus）——已废弃，仅保留作历史资料库                                                    |
+| `docs-site`       | 当前维护的文档站（VitePress）——项目对外文档的主入口                                                    |
 | `knife4j-front`   | 下一代前端工作区，包含 `knife4j-core`、`knife4j-ui`、`knife4j-ui-react`、CLI 与浏览器扩展相关模块 |
 | `knife4j-vue`     | 当前历史前端实现，基于 Vue 2，仍可作为现有行为参考                                              |
 | `knife4j-vue3`    | 社区贡献的实验性 Vue 3 前端实现，目前未作为主线发布                                             |
@@ -80,9 +81,9 @@ mvn -B -ntp verify
 ### 文档站
 
 ```bash
-cd knife4j-doc
+cd docs-site
 npm install
-npm run start
+npm run dev
 ```
 
 ### React 前端实验工程
@@ -99,7 +100,7 @@ npm run dev
 - Issue 反馈：[GitHub Issues](https://github.com/songxychn/knife4j-next/issues)
 - Release 记录：[GitHub Releases](https://github.com/songxychn/knife4j-next/releases)
 - Java 发布说明：[knife4j/RELEASE.md](./knife4j/RELEASE.md)
-- 文档站源码：[knife4j-doc](./knife4j-doc)
+- 文档站源码：[docs-site](./docs-site)
 
 当前仓库已经包含原文档站源码，但线上 fork 文档站尚未完全切换完成。涉及历史功能细节时，仍可能需要临时参考 upstream
 文档站 `https://doc.xiaominfo.com/`；这不代表该站点由本仓库维护。
