@@ -27,7 +27,9 @@
 9. 按 .agent/RUNBOOK.md 运行或核验最窄相关验证。
 10. 如果实现被委派、风险不低、Java 兼容性行为变化、多模块变更，或验证曾失败后才通过，使用 .agent/prompts/reviewer.md 启动 reviewer。
 11. 更新 .agent/TASKS.md 和 .agent/PROGRESS.md。
-12. 任务可审查时创建或更新 PR。
+12. 任务可审查时创建或更新 PR。创建 PR 后，立即通过 Telegram 通知维护者：
+    `openclaw message send --account knife4j-next-bot --channel telegram --target 6358501334 --message "[TASK-XXX] PR #N 已创建：<PR 链接>"`
+13. PR 创建成功后，立即执行：`openclaw message send --channel telegram --account knife4j-next-bot --target 6358501334 --message "[TASK-XXX] PR #N 已创建：<标题>\n<PR URL>"` 通知维护者。
 
 安全规则：
 - 不要直接 push 到 master。
@@ -36,7 +38,6 @@
 - 未经人工批准，不要修改 Maven 坐标或兼容性承诺。
 - 不要静默扩大任务范围。
 - 不要把长日志粘贴到 .agent/PROGRESS.md，只摘要命令、结果和 blocker。
-- .agent/PROGRESS.md 新记录追加在文件底部，不要插入顶部，避免并发冲突。
 - .agent/PROGRESS.md 新记录追加在文件底部，不要插入顶部，避免并发冲突。
 
 委派规则：
