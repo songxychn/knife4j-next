@@ -166,7 +166,7 @@ notes:
 - PR: https://github.com/songxychn/knife4j-next/pull/8
 
 ### TASK-010
-status: blocked
+status: done
 area: ui-react
 title: 推进 Vue3 前端替代 Vue2（knife4j-front 架构升级）
 branch: codex/TASK-010-vue3-frontend
@@ -194,3 +194,74 @@ goal: |
   - docker-compose.yml（供服务器部署用）
   - Caddyfile 片段
 validation: mvn -pl knife4j/knife4j-demo package -DskipTests
+
+### TASK-012
+status: ready
+area: ui-react
+title: 实现 ApiDoc 接口文档展示页（参数表格 + 响应结构）
+branch: codex/TASK-012-react-api-doc
+depends_on:
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- ApiDoc.tsx 展示接口的请求参数表格（名称、类型、是否必填、描述）
+- 展示响应结构（状态码、schema）
+- 数据来自 knife4j-core 解析结果（mock 数据驱动开发即可）
+notes:
+- 对标 Vue2 的 views/api/Document.vue
+- 不需要实际发请求，只做展示
+
+### TASK-013
+status: ready
+area: ui-react
+title: 实现 ApiDebug 接口调试功能（表单填参 + 发请求 + 展示响应）
+branch: codex/TASK-013-react-api-debug
+depends_on: TASK-012
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- ApiDebug.tsx 支持填写请求参数（query/header/body）
+- 点击发送后调用实际接口并展示响应（状态码、耗时、响应体）
+- 支持 JSON body 编辑
+notes:
+- 对标 Vue2 的 views/api/Debug.vue + DebugResponse.vue
+- 这是最核心的功能，优先级最高
+
+### TASK-014
+status: ready
+area: ui-react
+title: 实现侧边栏多 group 切换与接口搜索
+branch: codex/TASK-014-react-sidebar-search
+depends_on:
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 顶部或侧边栏支持多 group（多个 swagger 文档源）切换
+- 侧边栏支持按接口名/路径搜索过滤
+notes:
+- 对标 Vue2 的 components/SiderMenu/ + components/HeaderSearch/
+- ResizableMenu.tsx 已存在，在此基础上扩展
+
+### TASK-015
+status: ready
+area: ui-react
+title: 实现 SwaggerModels 数据模型展示页
+branch: codex/TASK-015-react-swagger-models
+depends_on: TASK-012
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 新增 Models 页面，展示所有 schema 定义
+- 支持展开/折叠每个 model 的字段
+notes:
+- 对标 Vue2 的 views/settings/SwaggerModels.vue
+- 数据来自 /v3/api-docs 的 components.schemas
+
+### TASK-016
+status: blocked
+area: ui-react
+title: 离线文档导出（Word/HTML）
+branch: codex/TASK-016-react-offline-doc
+depends_on: TASK-012,TASK-013
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 支持导出当前接口文档为 HTML 或 Word 格式
+notes:
+- 对标 Vue2 的 views/settings/OfficelineDocument.vue + officeDocument/ 工具集
+- blocked：依赖 TASK-012/013 完成后再评估是否复用 Vue2 的 wordTransform 逻辑
