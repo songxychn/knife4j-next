@@ -51,17 +51,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEMO_SERVER_HOST }}
-          username: root
-          key: ${{ secrets.DEMO_SERVER_SSH_KEY }}
-          script: |
-            cd /opt/knife4j-demo
-            docker compose pull
-            docker compose up -d
+

@@ -5,3 +5,5 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8090:8080"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
