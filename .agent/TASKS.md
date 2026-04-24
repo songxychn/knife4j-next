@@ -196,7 +196,7 @@ goal: |
 validation: mvn -pl knife4j/knife4j-demo package -DskipTests
 
 ### TASK-012
-status: ready
+status: review
 area: ui-react
 title: 实现 ApiDoc 接口文档展示页（参数表格 + 响应结构）
 branch: codex/TASK-012-react-api-doc
@@ -209,6 +209,7 @@ done_when:
 notes:
 - 对标 Vue2 的 views/api/Document.vue
 - 不需要实际发请求，只做展示
+- PR: https://github.com/songxychn/knife4j-next/pull/14
 
 ### TASK-013
 status: ready
