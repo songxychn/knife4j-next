@@ -1,15 +1,5 @@
-#### 安装
-```
-yarn install
-```
+# knife4j-vue3（已废弃）
 
-#### 开发
-```
-yarn dev
-```
-访问 `http://localhost:5173/doc.html`
+> ⚠️ 此目录已废弃，不再维护。
 
-#### 打包
-```
-yarn build
-```
+下一代前端已切换为 React 技术栈，请参考 [`knife4j-front/knife4j-ui-react`](../knife4j-front/knife4j-ui-react)。
