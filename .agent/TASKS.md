@@ -196,7 +196,7 @@ goal: |
 validation: mvn -pl knife4j/knife4j-demo package -DskipTests
 
 ### TASK-012
-status: ready
+status: review
 area: ui-react
 title: 实现 ApiDoc 接口文档展示页（参数表格 + 响应结构）
 branch: codex/TASK-012-react-api-doc
@@ -226,7 +226,7 @@ notes:
 - 这是最核心的功能，优先级最高
 
 ### TASK-014
-status: ready
+status: review
 area: ui-react
 title: 实现侧边栏多 group 切换与接口搜索
 branch: codex/TASK-014-react-sidebar-search
