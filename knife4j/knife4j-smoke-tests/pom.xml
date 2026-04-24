@@ -19,5 +19,6 @@
         <module>boot2-app</module>
         <module>boot3-jakarta-app</module>
         <module>boot3-app</module>
+        <module>boot35-jakarta-app</module>
     </modules>
 </project>
