@@ -25,10 +25,11 @@
 | 模块                | 说明                                                                        |
 |-------------------|---------------------------------------------------------------------------|
 | `knife4j`         | Java 主工程，包含 starter、UI webjar、聚合组件与依赖管理                                   |
-| `knife4j-doc`     | 历史文档站（Docusaurus）——已废弃，仅保留作历史资料库                                                    |
-| `docs-site`       | 当前维护的文档站（VitePress）——项目对外文档的主入口                                                    |
-| `knife4j-front`   | 下一代前端工作区，包含 `knife4j-core`、`knife4j-ui`、`knife4j-ui-react`、CLI 与浏览器扩展相关模块 |
-| `knife4j-vue`     | 当前历史前端实现，基于 Vue 2，仍可作为现有行为参考                                              |
+| `docs-site`           | 当前维护的文档站（VitePress）——项目对外文档的主入口                          |
+| `knife4j-doc`         | 历史文档站（Docusaurus）——已废弃，仅保留作历史资料库                         |
+| `knife4j-front`       | 下一代前端工作区，包含 `knife4j-core`、`knife4j-ui`、`knife4j-ui-react`、`knife4j-cli`、浏览器扩展等模块 |
+| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x / Boot 3.x / Boot 3.x Jakarta 等组合             |
+| `knife4j-vue`         | 历史前端实现，基于 Vue 2，以维护为主，不再作为主要演进方向                   |
 | `knife4j-vue3`    | 社区贡献的实验性 Vue 3 前端实现，目前未作为主线发布                                             |
 | `knife4j-insight` | 独立渲染/聚合方向的扩展方案                                                            |
 
@@ -37,7 +38,7 @@
 - `4.x`：优先做兼容性修复、回归修复和发布维护
 - `knife4j-vue`：以维护为主，不再作为主要演进方向
 - `knife4j-front`：承接下一代前端探索，优先沉淀通用解析能力和 React UI
-- 文档站：仓库内已有源码，但 fork 自己的文档站、迁移文档和版本说明仍在整理中
+- 文档站：`docs-site/`（VitePress）是当前维护目标；`knife4j-doc/`（Docusaurus）已废弃
 
 ## 快速开始
 
@@ -102,7 +103,7 @@ npm run dev
 - Java 发布说明：[knife4j/RELEASE.md](./knife4j/RELEASE.md)
 - 文档站源码：[docs-site](./docs-site)
 
-当前仓库已经包含原文档站源码，但线上 fork 文档站尚未完全切换完成。涉及历史功能细节时，仍可能需要临时参考 upstream
+文档站基于 VitePress 构建，源码位于 `docs-site/`。涉及历史功能细节时，仍可参考 upstream 文档站 `https://doc.xiaominfo.com/`；该站点不由本仓库维护。
 文档站 `https://doc.xiaominfo.com/`；这不代表该站点由本仓库维护。
 
 ## 与 upstream 的关系
