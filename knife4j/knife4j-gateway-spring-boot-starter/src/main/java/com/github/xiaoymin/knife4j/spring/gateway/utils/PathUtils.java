@@ -113,6 +113,10 @@ public class PathUtils {
             // 去除尾部/字符
             validateContextPath = validateContextPath.substring(0, validateContextPath.length() - 1);
         }
+        // 确保非空路径有前导斜杠，防止拼接 host 时缺少 /
+        if (StringUtils.hasLength(validateContextPath) && !validateContextPath.startsWith(DEFAULT_CONTEXT_PATH)) {
+            validateContextPath = DEFAULT_CONTEXT_PATH + validateContextPath;
+        }
         return validateContextPath;
     }
     

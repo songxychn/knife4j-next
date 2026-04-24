@@ -149,7 +149,7 @@ notes:
 - Boot 4.x 兼容性单独立任务，本任务聚焦 3.4/3.5
 
 ### TASK-009
-status: ready
+status: review
 area: java
 title: 修复 gateway context-path 导致 host 缺少斜杠的 bug（#954）
 branch: codex/TASK-009-fix-gateway-context-path
@@ -161,6 +161,7 @@ done_when:
 notes:
 - 上游 issue #954：knife4j-gateway-spring-boot-starter 4.5.0 配置 context-path 后 host 少个 /
 - 影响所有使用 gateway 聚合且配置了 context-path 的用户
+- PR: https://github.com/songxychn/knife4j-next/pull/8
 
 ### TASK-010
 status: blocked

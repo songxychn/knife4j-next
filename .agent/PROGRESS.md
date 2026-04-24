@@ -21,7 +21,24 @@ blockers:
 - blocker，如无则写 none
 ```
 
-## 2026-04-23 16:50 UTC
+## 2026-04-23 21:58 UTC
+task: TASK-009
+agent: knife4j-next-bot
+branch: codex/TASK-009-fix-gateway-context-path
+status: review
+summary:
+- PathUtils.processContextPath 加前导斜杠保护，防止 host 拼接缺少 /
+- OpenAPIEndpoint.configUrl 改为 PathUtils.append(basePath, "/v3/api-docs/swagger-config")
+- 新增 PathUtilsTest.test_processContextPath_leadingSlash 回归测试
+validation:
+- JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 mvn -B -ntp -Dknife4j-skipTests=false verify → BUILD SUCCESS（16 模块）
+next:
+- 等待人工 review PR #8
+blockers:
+- 无
+pr: https://github.com/songxychn/knife4j-next/pull/8
+
+## 2026-04-23 19:27 UTC
 task: TASK-007
 agent: knife4j-next-bot subagent
 branch: codex/TASK-007-fix-basic-auth-bypass

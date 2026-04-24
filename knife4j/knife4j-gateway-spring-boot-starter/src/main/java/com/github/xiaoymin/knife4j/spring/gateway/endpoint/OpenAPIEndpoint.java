@@ -58,7 +58,7 @@ public class OpenAPIEndpoint {
         OpenAPI3Response response = new OpenAPI3Response();
         final String basePath = PathUtils.getDefaultContextPath(request);
         log.debug("base-path:{}", basePath);
-        response.setConfigUrl("/v3/api-docs/swagger-config");
+        response.setConfigUrl(PathUtils.append(basePath, "/v3/api-docs/swagger-config"));
         response.setOauth2RedirectUrl(this.knife4jGatewayProperties.getDiscover().getOas3().getOauth2RedirectUrl());
         response.setValidatorUrl(this.knife4jGatewayProperties.getDiscover().getOas3().getValidatorUrl());
         // 设置排序规则,add at 2023/07/02 11:30:00
