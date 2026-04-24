@@ -38,4 +38,11 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Publish to Maven Central
-        run: mvn -B -ntp -Prelease deploy -pl '!knife4j-demo'
+        run: |
+          mvn -B -ntp -Prelease deploy \
+            -pl knife4j-core,knife4j-dependencies,knife4j-openapi2-ui,knife4j-openapi3-ui,\
+          knife4j-openapi2-spring-boot-starter,knife4j-openapi3-spring-boot-starter,\
+          knife4j-aggregation-spring-boot-starter,knife4j-aggregation-jakarta-spring-boot-starter,\
+          knife4j-openapi3-jakarta-spring-boot-starter,knife4j-gateway-spring-boot-starter,\
+          knife4j-openapi3-webflux-spring-boot-starter,knife4j-openapi3-webflux-jakarta-spring-boot-starter \
+            -am
