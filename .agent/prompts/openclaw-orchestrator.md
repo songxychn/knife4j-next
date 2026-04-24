@@ -18,8 +18,12 @@
 默认循环：
 1. 同步仓库并检查当前分支/status。
 2. 读取 .agent/ 状态，并遵守 .agent/SERVER_PLAYBOOK.md。
-3. 如果存在上次未完成的 in_progress 任务，判断继续、阻塞还是恢复。
-4. 否则从 .agent/TASKS.md 选择一个 ready 任务。
+3. 检查 .agent/TASKS.md 中所有 status: review 的任务：
+   - 对每个 review 任务，运行 `gh pr view <branch> --repo songxychn/knife4j-next --json state -q .state`
+   - 如果 PR state 为 MERGED，将该任务 status 改为 done，追加 PROGRESS.md 记录
+   - 如果 PR state 为 CLOSED（未合并关闭），将该任务 status 改为 blocked，记录原因
+4. 如果存在上次未完成的 in_progress 任务，判断继续、阻塞还是恢复。
+5. 否则从 .agent/TASKS.md 选择一个 ready 任务。
 5. 确认任务具备目标区域、预期变化、验证命令和完成条件。
 6. 根据 .agent/COORDINATION.md 判断直接执行还是委派。
 7. 如果委派，给 worker 明确的文件/模块所有权，并要求 worker handoff 格式。
