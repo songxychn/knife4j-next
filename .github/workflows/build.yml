@@ -49,13 +49,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: knife4j-front/knife4j-ui-react/package-lock.json
+          cache-dependency-path: knife4j-front/package-lock.json
 
-      - name: Install knife4j-ui-react dependencies
-        run: npm install
-        working-directory: knife4j-front/knife4j-ui-react
+      - name: Install knife4j-front workspace dependencies
+        run: npm ci
+        working-directory: knife4j-front
 
       - name: Verify Java modules
         run: scripts/test-java.sh
@@ -74,7 +74,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: knife4j-front/knife4j-core/package-lock.json
+          cache-dependency-path: knife4j-front/package-lock.json
 
       - name: Test front core
         run: scripts/test-front-core.sh

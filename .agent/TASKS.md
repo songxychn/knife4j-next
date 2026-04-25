@@ -596,3 +596,33 @@ notes:
 - 本任务不触碰 `knife4j-front/knife4j-cli`、`knife4j-front/knife4j-extension*`（均只含 README）
 - 不修改发布流程、Maven webjar 聚合、Java 端代码
 - 回滚路径：还原 `knife4j-front/package.json`、两份 tgz、两份 lockfile、`scripts/test-front-core.sh`
+
+### TASK-035
+status: review
+area: repo
+title: 升级 Node 20 → 22 LTS 并修复 TASK-034 遗留的 CI workspace 路径
+branch: codex/TASK-035-node22-upgrade
+depends_on: TASK-034
+validation:
+- ./scripts/test-front-core.sh
+- cd knife4j-front && npm run build -w knife4j-ui-react
+- ./scripts/test-docs.sh
+- cd docs-site && npm ci && npm run build
+done_when:
+- `.nvmrc` 从 `20` 改为 `22`
+- `.github/workflows/build.yml` 中 `node-version: "20"` 统一为 `node-version-file: .nvmrc`
+- `.github/workflows/build.yml` 修正 `cache-dependency-path`：
+  - `java-build-test` job 的 `knife4j-front/knife4j-ui-react/package-lock.json` → `knife4j-front/package-lock.json`
+  - 安装步骤 `working-directory: knife4j-front/knife4j-ui-react` → `knife4j-front`（workspace root）
+  - `front-core-test` job 的 `knife4j-front/knife4j-core/package-lock.json` → `knife4j-front/package-lock.json`
+- `knife4j-front/package.json` 添加 `"engines": { "node": ">=22" }`
+- 本地 Node 22 下 `./scripts/test-front-core.sh` 通过
+- 本地 Node 22 下 `npm run build -w knife4j-ui-react` 通过
+- 本地 Node 22 下 `./scripts/test-docs.sh` 通过（knife4j-doc Docusaurus）
+- 本地 Node 22 下 `docs-site` 构建通过（VitePress）
+- `package-lock.json` 若因 npm patch 差异小幅变化是可接受的；不得因 Node 升级产生大面积 peer 冲突
+notes:
+- 目的：对齐 Node Active LTS 22（20 预计 2026-10 EOL），统一 CI 两种写法为 `.nvmrc` 单真相源，顺手修掉 TASK-034 遗留的 CI 路径破损
+- 不引入 Node 22 新特性到业务代码（如内建 test runner、watch mode）；保持现有 jest/vite 工具链
+- 不动 `knife4j-ui/`（pnpm）和 `knife4j-vue/`（Vue2 历史代码）的 engines，避免无关改动
+- 回滚路径：`.nvmrc` 回 20、CI workflow 还原两处、删除 `knife4j-front/package.json` 的 engines 字段

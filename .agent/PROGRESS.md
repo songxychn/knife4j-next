@@ -422,3 +422,32 @@ blockers:
 notes:
 - 本任务不改 requestBody 的 Body Tab 渲染（仅保留 TextArea 展示初始 exampleValue），multipart/urlencoded 独立表单在 TASK-027 中落地
 - 本任务不改 bundler 配置，不引入新依赖（InputNumber/Switch/Tooltip 来自既有 `antd`）
+
+## 2026-04-25 20:20 CST
+task: TASK-035
+agent: coordinator (direct)
+branch: codex/TASK-035-node22-upgrade
+status: review
+summary:
+- `.nvmrc` 从 `20` 改为 `22`（Node 22 Active LTS，维护至 2027-04）
+- `.github/workflows/build.yml` 中 `node-version: "20"` 统一为 `node-version-file: .nvmrc`（单一真相源）
+- 修 TASK-034 遗留的 CI 破损：
+  - `java-build-test` job 的 `cache-dependency-path` 从不存在的 `knife4j-front/knife4j-ui-react/package-lock.json` 改为 `knife4j-front/package-lock.json`
+  - `java-build-test` job 的安装步骤从 `cd knife4j-front/knife4j-ui-react && npm install` 改为 `cd knife4j-front && npm ci`（workspace root）
+  - `front-core-test` job 的 `cache-dependency-path` 同步修正
+- `knife4j-front/package.json` 新增 `"engines": { "node": ">=22" }`
+- 本地 Node 22.22.2 下四组验证全部通过
+- `package-lock.json` 仅因新增 engines 字段变化 5 行，无版本解析差异
+validation:
+- `./scripts/test-front-core.sh` → 11 suites, 82 tests, 0 lint errors, tsc OK
+- `cd knife4j-front/knife4j-ui-react && npm run build` → tsc + vite build OK (3.33s)
+- `./scripts/test-docs.sh` (knife4j-doc Docusaurus) → Client 26.71s, Server 31.08s, SUCCESS
+- `cd docs-site && npm run build` (VitePress) → 6.39s, OK
+next:
+- 等待维护者 review
+blockers:
+- none
+notes:
+- 发现 `npm run build -w knife4j-ui-react` 从 workspace root 执行时 `tsc: command not found`，这是 npm workspace PATH 行为的已知问题（子项目 .bin 不提升到 root PATH）；从子项目目录执行则正常
+- CI 不受此影响（java-build-test job 只做 npm ci，不跑 build；front-core-test 用的是 knife4j-core 的 tsc，被提升到 root）
+- 不引入 Node 22 新特性到业务代码，保持现有 jest/vite 工具链
