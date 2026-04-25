@@ -5,6 +5,7 @@ import {
     Divider,
     Input,
     InputNumber,
+    message,
     Radio,
     Select,
     Space,
@@ -21,7 +22,14 @@ import {SendOutlined, UploadOutlined} from '@ant-design/icons';
 import type {ColumnsType} from 'antd/es/table';
 import type {UploadFile} from 'antd/es/upload/interface';
 import {useTranslation} from 'react-i18next';
-import type {BodyContent, BuiltRequest, DebugFormValues, DebugParam, OperationDebugModel} from 'knife4j-core';
+import type {
+    BodyContent,
+    BuiltRequest,
+    DebugFormValues,
+    DebugParam,
+    OperationDebugModel,
+    ValidationError,
+} from 'knife4j-core';
 import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired,} from 'knife4j-core';
 import {OperationModeTabs, useCurrentOperation} from './useCurrentOperation';
 
@@ -185,10 +193,12 @@ interface ParamInputProps {
   param: DebugParam;
   value: string;
   onChange: (next: string) => void;
+  hasError?: boolean;
 }
 
-function ParamInput({ param, value, onChange }: ParamInputProps) {
+function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
   const { t } = useTranslation();
+  const status = hasError ? ('error' as const) : undefined;
   // enum → Select
   if (param.enum && param.enum.length > 0) {
     return (
@@ -197,6 +207,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
         value={value || undefined}
         onChange={onChange}
         allowClear
+        status={status}
         placeholder={param.description ?? t('apiDebug.enum.placeholder')}
         options={param.enum.map((item) => ({ value: String(item), label: String(item) }))}
         style={{ width: '100%' }}
@@ -225,6 +236,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
     return (
       <InputNumber
         size="small"
+        status={status}
         value={Number.isFinite(numValue) ? numValue : undefined}
         onChange={(next) => onChange(next === null || next === undefined ? '' : String(next))}
         placeholder={param.required ? t('apiDebug.inputNumber.required') : param.description}
@@ -239,6 +251,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
     return (
       <TextArea
         size="small"
+        status={status}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={`${param.type === 'array' ? t('apiDebug.json.array') : t('apiDebug.json.object')} — ${t('apiDebug.json.placeholder')}`}
@@ -252,6 +265,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
   return (
     <Input
       size="small"
+      status={status}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={param.required ? t('apiDebug.inputNumber.required') : (param.description ?? '')}
@@ -731,6 +745,129 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
   );
 }
 
+// ─── Preview Tab (TASK-028) ───────────────────────────
+
+interface PreviewTabPanelProps {
+  build: () => { formValues: DebugFormValues; built: BuiltRequest; curl: string };
+  onCopyCurl: (curl: string) => void;
+}
+
+function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
+  const { t } = useTranslation();
+  // 每次渲染都实时重建一次，保证与当前表单同步（避免额外状态）
+  const { built, curl } = build();
+  const isMultipart = built.contentType.toLowerCase().includes('multipart/form-data');
+  const hasBody = built.body !== undefined && built.body !== '';
+
+  const prettyJson = (raw: string): string => {
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      return raw;
+    }
+  };
+
+  const headerPairs = Object.entries(built.headers);
+  const queryPairs = Object.entries(built.query);
+  const hasContentType = headerPairs.some(([k]) => k.toLowerCase() === 'content-type');
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size={14}>
+      {/* URL + method */}
+      <div>
+        <Space size={8}>
+          <Text type="secondary">{t('apiDebug.preview.method')}</Text>
+          <Tag color={METHOD_COLORS[built.method] ?? 'default'}>{built.method}</Tag>
+          <Text type="secondary">{t('apiDebug.preview.url')}</Text>
+        </Space>
+        <pre style={previewBoxStyle}>{built.url}</pre>
+      </div>
+
+      {/* Headers */}
+      <div>
+        <Text strong>{t('apiDebug.preview.headers')}</Text>
+        {!hasContentType && hasBody && !isMultipart && (
+          <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+            {t('apiDebug.preview.autoContentType')}
+          </Text>
+        )}
+        {headerPairs.length > 0 ? (
+          <Table
+            size="small"
+            pagination={false}
+            dataSource={headerPairs.map(([key, value]) => ({ key, name: key, value }))}
+            columns={[
+              { title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240 },
+              { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
+            ]}
+            style={{ marginTop: 4 }}
+          />
+        ) : (
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>—</Text>
+        )}
+      </div>
+
+      {/* Query */}
+      <div>
+        <Text strong>{t('apiDebug.preview.query')}</Text>
+        {queryPairs.length > 0 ? (
+          <Table
+            size="small"
+            pagination={false}
+            dataSource={queryPairs.map(([key, value]) => ({ key, name: key, value }))}
+            columns={[
+              { title: t('apiDebug.col.paramName'), dataIndex: 'name', key: 'name', width: 240 },
+              { title: t('apiDebug.col.value'), dataIndex: 'value', key: 'value' },
+            ]}
+            style={{ marginTop: 4 }}
+          />
+        ) : (
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>—</Text>
+        )}
+      </div>
+
+      {/* Body */}
+      <div>
+        <Text strong>
+          {isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}
+        </Text>
+        {hasBody ? (
+          <pre style={previewBoxStyle}>
+            {built.contentType.includes('json') ? prettyJson(built.body ?? '') : (built.body ?? '')}
+          </pre>
+        ) : (
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            {t('apiDebug.preview.noBody')}
+          </Text>
+        )}
+      </div>
+
+      {/* Curl */}
+      <div>
+        <Space style={{ marginBottom: 4 }}>
+          <Text strong>{t('apiDebug.preview.curl')}</Text>
+          <Button size="small" onClick={() => onCopyCurl(curl)}>
+            {t('apiDebug.preview.copyCurl')}
+          </Button>
+        </Space>
+        <pre style={{ ...previewBoxStyle, maxHeight: 260 }}>{curl}</pre>
+      </div>
+    </Space>
+  );
+}
+
+const previewBoxStyle: React.CSSProperties = {
+  background: '#f6f8fa',
+  padding: 12,
+  borderRadius: 4,
+  fontSize: 13,
+  maxHeight: 320,
+  overflow: 'auto',
+  margin: '4px 0 0 0',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-all',
+};
+
 // ─── 主组件 ────────────────────────────────────────────
 
 export default function ApiDebug() {
@@ -744,7 +881,6 @@ export default function ApiDebug() {
   const [debugModel, setDebugModel] = useState<OperationDebugModel | null>(null);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<DebugResponse | null>(null);
-  const [curlCommand, setCurlCommand] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // ── requestBody 多内容类型状态 ──
@@ -752,6 +888,16 @@ export default function ApiDebug() {
   const [formFields, setFormFields] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const [rawMode, setRawMode] = useState<RawMode>('text');
+
+  // ── TASK-028: 校验错误与预览 ──
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+
+  /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
+  const errorKeys = useMemo(
+    () => new Set(validationErrors.map((e) => e.key)),
+    [validationErrors],
+  );
 
   useEffect(() => {
     if (!operation || !swaggerDoc) return;
@@ -809,7 +955,8 @@ export default function ApiDebug() {
 
     setResponse(null);
     setError(null);
-    setCurlCommand(null);
+    setValidationErrors([]);
+    setActiveTab(undefined);
   }, [operation, swaggerDoc]);
 
   const updateValue = (param: DebugParam, next: string) => {
@@ -845,6 +992,7 @@ export default function ApiDebug() {
           param={record}
           value={paramValues[paramKey(record)] ?? ''}
           onChange={(next) => updateValue(record, next)}
+          hasError={errorKeys.has(paramKey(record))}
         />
       ),
     },
@@ -874,7 +1022,7 @@ export default function ApiDebug() {
         </Space>
       ),
     },
-  ], [paramValues, t]);
+  ], [paramValues, t, errorKeys]);
 
   if (docLoading) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
@@ -922,38 +1070,41 @@ export default function ApiDebug() {
     };
   };
 
-  const handleSend = async () => {
-    if (!debugModel) return;
-    setError(null);
-
+  /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
+  const buildPreview = (): { formValues: DebugFormValues; built: BuiltRequest; curl: string } => {
     const formValues = collectFormValues();
-
-    // required 校验
-    const validationErrors = validateRequired(debugModel, formValues);
-    if (validationErrors.length > 0) {
-      setError(validationErrors.map((e) => e.message).join('\n'));
-      return;
-    }
-
-    // 构建请求
-    const built: BuiltRequest = coreBuildRequest({
+    const built = coreBuildRequest({
       baseUrl,
       path,
       method,
       debugModel,
       formValues,
     });
+    const curl = buildCurl(built);
+    return { formValues, built, curl };
+  };
+
+  const handleSend = async () => {
+    if (!debugModel) return;
+    setError(null);
+
+    const { formValues, built } = buildPreview();
+
+    // required 校验 — 用 core 侧统一校验，并携带定位 key
+    const errors = validateRequired(debugModel, formValues);
+    setValidationErrors(errors);
+    if (errors.length > 0) {
+      // 定位到第一个错误所在 Tab
+      const first = errors[0];
+      const nextTab = first.in === 'body' ? 'body' : first.in;
+      setActiveTab(nextTab);
+      setError(errors.map((e) => e.message).join('\n'));
+      return;
+    }
 
     // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
     const category = getCurrentCategory();
     const isMultipart = category === 'multipart';
-
-    // curl 命令（multipart 不含文件内容，给提示即可）
-    if (!isMultipart) {
-      setCurlCommand(buildCurl(built));
-    } else {
-      setCurlCommand(null);
-    }
 
     setLoading(true);
     setResponse(null);
@@ -995,6 +1146,32 @@ export default function ApiDebug() {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
+    }
+  };
+
+  /** 复制 curl 命令到剪贴板 */
+  const handleCopyCurl = (curl: string) => {
+    const done = () => message.success(t('apiDebug.preview.copied'));
+    const fail = () => message.error(t('apiDebug.preview.copyFailed'));
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(curl).then(done).catch(fail);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    // 兜底：用临时 textarea
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = curl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    } catch {
+      fail();
     }
   };
 
@@ -1075,10 +1252,17 @@ export default function ApiDebug() {
         />
       ),
     },
+    {
+      key: 'preview',
+      label: t('apiDebug.tab.preview'),
+      disabled: false,
+      children: <PreviewTabPanel build={buildPreview} onCopyCurl={handleCopyCurl} />,
+    },
   ];
 
   // 找到第一个非空 Tab 作为默认
   const defaultTab = tabItems.find((t) => !t.disabled)?.key ?? 'query';
+  const currentActiveTab = activeTab ?? defaultTab;
 
   return (
     <div id="knife4j-api-debug-page" style={{ padding: '24px', maxWidth: 1080 }}>
@@ -1103,7 +1287,13 @@ export default function ApiDebug() {
         <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>{t('apiDebug.send')}</Button>
       </Space.Compact>
 
-      <Tabs defaultActiveKey={defaultTab} size="small" items={tabItems} />
+      <Tabs
+        activeKey={currentActiveTab}
+        defaultActiveKey={defaultTab}
+        onChange={(key) => setActiveTab(key)}
+        size="small"
+        items={tabItems}
+      />
 
       <Divider style={{ margin: '16px 0' }} />
 
@@ -1143,15 +1333,6 @@ export default function ApiDebug() {
                   />
                 ),
               },
-              ...(curlCommand ? [{
-                key: 'curl',
-                label: 'cURL',
-                children: (
-                  <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 4, fontSize: 13, maxHeight: 200, overflow: 'auto', margin: 0 }}>
-                    {curlCommand}
-                  </pre>
-                ),
-              }] : []),
             ]}
           />
         </div>

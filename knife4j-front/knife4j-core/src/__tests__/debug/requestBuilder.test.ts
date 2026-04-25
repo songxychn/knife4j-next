@@ -1,14 +1,14 @@
 import {
-  replacePathParams,
-  buildQueryString,
-  mergeHeaders,
   authToHeaders,
+  buildCurl,
+  buildQueryString,
+  buildRequest,
+  mergeHeaders,
+  replacePathParams,
   splitGlobalParams,
   validateRequired,
-  buildRequest,
-  buildCurl,
 } from '../../debug/requestBuilder';
-import type { OperationDebugModel, DebugFormValues, AuthValues, GlobalParamValues } from '../../debug/types';
+import type { DebugFormValues, GlobalParamValues, OperationDebugModel } from '../../debug/types';
 
 // ─── replacePathParams ────────────────────────────────
 
@@ -156,7 +156,7 @@ describe('validateRequired', () => {
     bodyRequired: true,
   };
 
-  test('reports missing required path param', () => {
+  test('reports missing required path param (with locator key)', () => {
     const form: DebugFormValues = {
       pathParams: { id: '' },
       queryParams: {},
@@ -167,7 +167,7 @@ describe('validateRequired', () => {
     const errors = validateRequired(model, form);
     expect(errors).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'id', in: 'path' }),
+        expect.objectContaining({ name: 'id', in: 'path', key: 'path:id' }),
       ]),
     );
   });
@@ -183,12 +183,12 @@ describe('validateRequired', () => {
     const errors = validateRequired(model, form);
     expect(errors).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'X-Auth', in: 'header' }),
+        expect.objectContaining({ name: 'X-Auth', in: 'header', key: 'header:X-Auth' }),
       ]),
     );
   });
 
-  test('reports missing required body', () => {
+  test('reports missing required json body', () => {
     const form: DebugFormValues = {
       pathParams: { id: '1' },
       queryParams: {},
@@ -199,7 +199,7 @@ describe('validateRequired', () => {
     const errors = validateRequired(model, form);
     expect(errors).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'requestBody', in: 'body' }),
+        expect.objectContaining({ name: 'requestBody', in: 'body', key: 'body:requestBody' }),
       ]),
     );
   });
@@ -214,6 +214,49 @@ describe('validateRequired', () => {
     };
     const errors = validateRequired(model, form);
     expect(errors).toHaveLength(0);
+  });
+
+  test('urlencoded body: missing when formFields all empty', () => {
+    const urlencodedModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [{ mediaType: 'application/x-www-form-urlencoded', category: 'urlencoded', schema: {} }],
+      bodyRequired: true,
+    };
+    const form: DebugFormValues = {
+      pathParams: {},
+      queryParams: {},
+      headerParams: {},
+      cookieParams: {},
+      selectedContentType: 'application/x-www-form-urlencoded',
+      formFields: { a: '', b: '' },
+    };
+    const errors = validateRequired(urlencodedModel, form);
+    expect(errors.map((e) => e.key)).toContain('body:requestBody');
+  });
+
+  test('multipart body: ok when at least one file uploaded', () => {
+    const multipartModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [{ mediaType: 'multipart/form-data', category: 'multipart', schema: {} }],
+      bodyRequired: true,
+    };
+    const form: DebugFormValues = {
+      pathParams: {},
+      queryParams: {},
+      headerParams: {},
+      cookieParams: {},
+      selectedContentType: 'multipart/form-data',
+      formFields: {},
+      fileFields: { file: [new Uint8Array([1, 2, 3])] },
+    };
+    const errors = validateRequired(multipartModel, form);
+    expect(errors.filter((e) => e.in === 'body')).toHaveLength(0);
   });
 });
 
@@ -410,6 +453,28 @@ describe('buildCurl', () => {
     });
 
     expect(curl).not.toContain('-d');
+  });
+
+  test('multipart body emits -F entries and TODO comment (no -d)', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data', 'X-Trace': '1' },
+      query: {},
+      body: JSON.stringify({ name: 'alice', note: "it's fine" }),
+      contentType: 'multipart/form-data',
+    });
+
+    expect(curl).toContain('-X');
+    expect(curl).toContain('POST');
+    expect(curl).not.toContain('-d');
+    // content-type 不应出现在 curl 命令中（由 curl 自动生成）
+    expect(curl).not.toContain('Content-Type: multipart/form-data');
+    expect(curl).toMatch(/-F[\s\\]+'name=alice'/);
+    expect(curl).toMatch(/-F[\s\\]+'note=it'\\''s fine'/);
+    expect(curl).toContain('TODO append file fields');
+    // 其他 header 仍保留
+    expect(curl).toContain('X-Trace: 1');
   });
 });
 

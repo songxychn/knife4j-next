@@ -564,3 +564,27 @@ next:
 - PR: https://github.com/songxychn/knife4j-next/pull/44
 blockers:
 - none
+
+## 2026-04-25 15:10 UTC
+task: TASK-028
+agent: knife4j-next-bot
+branch: codex/TASK-028-react-debug-request-builder
+status: review
+summary:
+- knife4j-core: ValidationError 新增 `key` 字段（格式 `${in}:${name}` / `body:requestBody`），便于 UI 定位
+- knife4j-core: validateRequired 增强 body 必填判定，兼容 urlencoded/multipart（formFields/fileFields 为空才报错）
+- knife4j-core: buildCurl 增强 multipart/form-data 处理——解析 body 的文本字段输出 `-F`，并附 TODO 注释提示附加文件字段；同时跳过 Content-Type 头避免 boundary 冲突
+- knife4j-core: 扩展测试覆盖 urlencoded/multipart 必填校验、multipart curl 生成（12 suites / 124 tests）
+- ApiDebug: 新增独立『请求预览』Tab（PreviewTabPanel），实时展示最终 URL、method、headers、query、body 与等价 cURL；支持一键复制 cURL（clipboard + textarea 兜底）
+- ApiDebug: 发送前调用 core 侧 validateRequired，缺失必填字段时 setValidationErrors + 自动切换到对应 Tab（`in` 映射到 Path/Query/Header/Cookie/Body Tab）
+- ApiDebug: ParamInput 透传 hasError，根据 errorKeys 给缺失输入项 `status="error"` 红框
+- ApiDebug: Tabs 改受控（activeTab/currentActiveTab），移除响应面板原 cURL 子 Tab（已并入请求预览）
+- 预览与发送共用同一 buildPreview()（coreBuildRequest + buildCurl），确保 UI 展示与真实请求一致
+- i18n 补全 14 个预览相关文案（中英文），覆盖 tab.preview / preview.*（method/url/headers/query/body/bodyMultipart/noBody/curl/copyCurl/copied/copyFailed/autoContentType）
+validation:
+- ./scripts/test-front-core.sh → 12 suites / 124 tests pass；lint 0 errors；tsc build OK
+- cd knife4j-front && npm run build -w knife4j-ui-react → tsc + vite build 通过（dist 1.44MB）
+next:
+- 推送分支、创建 PR 等待维护者 review
+blockers:
+- none

@@ -100,6 +100,21 @@ const enUS = {
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
 
+  // ApiDebug — Preview Tab (TASK-028)
+  'apiDebug.tab.preview': 'Preview',
+  'apiDebug.preview.method': 'Method:',
+  'apiDebug.preview.url': 'Final URL:',
+  'apiDebug.preview.headers': 'Headers',
+  'apiDebug.preview.query': 'Query',
+  'apiDebug.preview.body': 'Body',
+  'apiDebug.preview.bodyMultipart': 'Body (multipart/form-data — file fields attached at send time)',
+  'apiDebug.preview.noBody': '—',
+  'apiDebug.preview.curl': 'Equivalent cURL',
+  'apiDebug.preview.copyCurl': 'Copy cURL',
+  'apiDebug.preview.copied': 'Copied to clipboard',
+  'apiDebug.preview.copyFailed': 'Copy failed, please select text manually',
+  'apiDebug.preview.autoContentType': '(Content-Type is auto-injected based on body type)',
+
   // Authorize
   'auth.title': 'Authorization',
   'auth.tab.bearer': 'Bearer Token',
