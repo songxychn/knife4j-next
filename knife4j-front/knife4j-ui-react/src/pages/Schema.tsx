@@ -1,5 +1,7 @@
-import { Badge, Collapse, Table, Tag, Typography } from 'antd';
+import { Badge, Collapse, Spin, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useGroup } from '../context/GroupContext';
+import type { SchemaObject } from '../types/swagger';
 
 const { Title, Text } = Typography;
 
@@ -21,7 +23,35 @@ interface ModelDef {
   fields: SchemaField[];
 }
 
-// ---- mock 数据（对标 components.schemas 结构）----
+// ---- 将 SchemaObject 转换为字段列表 ----
+
+function schemaToFields(schema: SchemaObject, requiredSet: Set<string>): SchemaField[] {
+  const props = schema.properties ?? {};
+  return Object.entries(props).map(([name, prop]) => {
+    const field: SchemaField = {
+      key: name,
+      name,
+      type: prop.type ?? (prop.$ref ? 'object' : 'string'),
+      format: prop.format,
+      required: requiredSet.has(name),
+      description: prop.description ?? '',
+    };
+    if (prop.type === 'object' && prop.properties) {
+      field.children = schemaToFields(prop, new Set(prop.required ?? []));
+    }
+    return field;
+  });
+}
+
+function schemasToModels(schemas: Record<string, SchemaObject>): ModelDef[] {
+  return Object.entries(schemas).map(([name, schema]) => ({
+    name,
+    description: schema.description,
+    fields: schemaToFields(schema, new Set(schema.required ?? [])),
+  }));
+}
+
+// ---- mock 数据 fallback ----
 
 const MOCK_SCHEMAS: ModelDef[] = [
   {
@@ -118,46 +148,56 @@ const fieldColumns: ColumnsType<SchemaField> = [
   },
 ];
 
-// ---- Collapse items ----
-
-const collapseItems = MOCK_SCHEMAS.map((model) => ({
-  key: model.name,
-  label: (
-    <span>
-      <Text strong style={{ fontSize: 14 }}>{model.name}</Text>
-      {model.description && (
-        <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
-          {model.description}
-        </Text>
-      )}
-      <Tag style={{ marginLeft: 12 }} color="default">{model.fields.length} 字段</Tag>
-    </span>
-  ),
-  children: (
-    <Table<SchemaField>
-      columns={fieldColumns}
-      dataSource={model.fields}
-      pagination={false}
-      size="small"
-      bordered
-      expandable={{
-        childrenColumnName: 'children',
-        defaultExpandAllRows: true,
-      }}
-    />
-  ),
-}));
-
 // ---- 页面 ----
 
 export default function Schema() {
+  const { schemas, loading, usingMock } = useGroup();
+  const models: ModelDef[] = usingMock || Object.keys(schemas).length === 0
+    ? MOCK_SCHEMAS
+    : schemasToModels(schemas);
+
+  const collapseItems = models.map((model) => ({
+    key: model.name,
+    label: (
+      <span>
+        <Text strong style={{ fontSize: 14 }}>{model.name}</Text>
+        {model.description && (
+          <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
+            {model.description}
+          </Text>
+        )}
+        <Tag style={{ marginLeft: 12 }} color="default">{model.fields.length} 字段</Tag>
+      </span>
+    ),
+    children: (
+      <Table<SchemaField>
+        columns={fieldColumns}
+        dataSource={model.fields}
+        pagination={false}
+        size="small"
+        bordered
+        expandable={{
+          childrenColumnName: 'children',
+          defaultExpandAllRows: true,
+        }}
+      />
+    ),
+  }));
+
   return (
     <div style={{ padding: '24px', maxWidth: 1100 }}>
-      <Title level={4} style={{ marginBottom: 16 }}>数据模型</Title>
-      <Collapse
-        items={collapseItems}
-        defaultActiveKey={MOCK_SCHEMAS.map((m) => m.name)}
-      />
+      <Title level={4} style={{ marginBottom: 16 }}>
+        数据模型
+        {usingMock && <Tag color="orange" style={{ marginLeft: 8, fontSize: 11 }}>mock</Tag>}
+      </Title>
+      {loading ? (
+        <Spin />
+      ) : (
+        <Collapse
+          items={collapseItems}
+          defaultActiveKey={models.map((m) => m.name)}
+        />
+      )}
     </div>
   );
 }
