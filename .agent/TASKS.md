@@ -196,7 +196,7 @@ goal: |
 validation: mvn -pl knife4j/knife4j-demo package -DskipTests
 
 ### TASK-012
-status: review
+status: done
 area: ui-react
 title: 实现 ApiDoc 接口文档展示页（参数表格 + 响应结构）
 branch: codex/TASK-012-react-api-doc
@@ -212,7 +212,7 @@ notes:
 - PR: https://github.com/songxychn/knife4j-next/pull/14
 
 ### TASK-013
-status: review
+status: done
 area: ui-react
 title: 实现 ApiDebug 接口调试功能（表单填参 + 发请求 + 展示响应）
 branch: codex/TASK-013-react-api-debug
@@ -227,7 +227,7 @@ notes:
 - 这是最核心的功能，优先级最高
 
 ### TASK-014
-status: review
+status: done
 area: ui-react
 title: 实现侧边栏多 group 切换与接口搜索
 branch: codex/TASK-014-react-sidebar-search
@@ -255,7 +255,7 @@ notes:
 - 数据来自 /v3/api-docs 的 components.schemas
 
 ### TASK-016
-status: blocked
+status: ready
 area: ui-react
 title: 离线文档导出（Word/HTML）
 branch: codex/TASK-016-react-offline-doc
