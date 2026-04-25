@@ -641,7 +641,8 @@ notes:
 - 回滚路径：`.nvmrc` 回 20、CI workflow 还原两处、删除 `knife4j-front/package.json` 的 engines 字段
 
 ### TASK-036
-status: review
+status: done
+merged_into: PR #51
 area: repo
 title: 加根级 .gitattributes 与 .editorconfig，统一行尾符与编辑器风格
 branch: agent/TASK-036-repo-format-baseline
@@ -665,7 +666,7 @@ notes:
 - 回滚路径：删除两份新增文件即可
 
 ### TASK-037
-status: in_progress
+status: review
 area: repo
 title: 补齐格式化规则与 CI 强制检查（Prettier / IDEA code style / spotless:check）
 branch: agent/TASK-037-format-rules-enforcement
@@ -689,7 +690,8 @@ notes:
 - 回滚路径：删除新增 .prettierrc + .idea/codeStyles/ + 还原 CI workflow
 
 ### TASK-038
-status: review
+status: done
+merged_into: PR #49
 area: repo
 title: 修复 CI npm ci 失败：清理 package-lock.json 中指向私有 registry 的 URL
 branch: agent/TASK-038-fix-ci-npm-registry
