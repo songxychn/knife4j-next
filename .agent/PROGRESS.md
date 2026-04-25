@@ -537,3 +537,30 @@ next:
 - 等待维护者 review PR
 blockers:
 - gh CLI 未安装，PR 需通过 GitHub 网页创建
+
+## 2026-07-04 CST
+task: TASK-027
+agent: coordinator (direct)
+branch: codex/TASK-027-react-debug-request-body
+status: review
+summary:
+- 重写 ApiDebug.tsx 的 Body Tab，实现 requestBody 多内容类型表单
+- 新增 BodyTab 组件：根据 content-type 分类渲染不同表单
+  - JSON 模式：可编辑 TextArea + Beautify 按钮（接入 buildSchemaExample 生成的 exampleValue）
+  - urlencoded 模式：从 schema.properties 提取字段行，渲染参数表格（SchemaFieldInput 调度器）
+  - multipart 模式：普通字段表单 + 文件字段使用 antd Upload 组件（支持多文件）
+  - raw 模式：Text/JSON/JavaScript/XML/HTML 五种子模式切换 + Beautify
+- Radio.Group 切换 content-type（多 content-type 时显示）
+- 新增 selectedContentType / formFields / fileFields 状态管理
+- collectFormValues 传递 selectedContentType / formFields / fileFields 给 requestBuilder
+- handleSend 对 multipart 场景手动构建 FormData（浏览器自动设 boundary）
+- 新增辅助函数：extractSchemaFields, initialFieldValue, SchemaFieldRow 类型
+- i18n 补全 7 个新文案（中英文）
+validation:
+- knife4j-core: 12 suites, 121 tests pass
+- knife4j-ui-react: npm run build 通过 (tsc + vite build, dist 1.44MB)
+next:
+- 等待维护者 review
+- PR: https://github.com/songxychn/knife4j-next/pull/new/codex/TASK-027-react-debug-request-body
+blockers:
+- none

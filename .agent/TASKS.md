@@ -430,7 +430,7 @@ notes:
 - blocked 原因：等 TASK-032 的参数解析 API 稳定后再落实现
 
 ### TASK-027
-status: ready
+status: review
 area: ui-react
 title: React 调试页补全 requestBody 多内容类型表单
 branch: codex/TASK-027-react-debug-request-body
