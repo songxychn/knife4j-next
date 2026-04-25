@@ -361,3 +361,32 @@ next:
 - TASK-032 完成后可解除 TASK-026 ~ TASK-031 的 blocked 状态
 blockers:
 - none
+
+## 2026-04-25 19:00 CST
+task: TASK-034
+agent: coordinator (direct)
+branch: codex/TASK-034-knife4j-front-workspaces
+status: review
+summary:
+- 在 `knife4j-front/` 新增根 `package.json`，声明 `workspaces: ["knife4j-core", "knife4j-ui-react"]`
+- 将 `knife4j-ui-react/package.json` 中的 `"knife4j-core": "file:knife4j-core-1.0.0.tgz"` 改为 `"*"`（workspace symlink 自动解析）
+- 删除两份 `knife4j-core-1.0.0.tgz` 和两份子项目 `package-lock.json`
+- 在 `knife4j-front/` 根目录运行 `npm install` 成功，生成统一 `package-lock.json` 和 `node_modules`
+- `node_modules/knife4j-core` → `../knife4j-core` symlink 正确建立
+- 更新 `scripts/test-front-core.sh` 为 workspace 命令（`npm ci` + `npm test -w knife4j-core` 等）
+- 更新 `.agent/RUNBOOK.md` 的 Front Core 章节说明
+- 给 `knife4j-core/tsconfig.json` 添加 `"skipLibCheck": true`，解决 workspace 依赖提升导致的 `@types/node` 版本冲突
+- 给 `knife4j-ui-react/vite.config.ts` 添加 `optimizeDeps.include` 和 `commonjsOptions`，解决 CJS workspace 包的 Rollup 命名导出问题
+- 修复 `debug/` 模块遗留 lint 错误（resolveRef `==` → `===`，operationDebugModel 去掉不必要的类型断言和非 null 断言，schemaExample 去掉未使用的 import）
+- 给 `.gitignore` 添加 `*.tgz` 规则
+validation:
+- `./scripts/test-front-core.sh` → 11 suites, 82 tests passed, 0 lint errors, tsc build 成功
+- `npm run build -w knife4j-ui-react` → tsc + vite build 成功（dist 1.26MB）
+next:
+- 等待维护者 review
+blockers:
+- none
+notes:
+- `knife4j-ui/`（ant-design-pro，用 pnpm）不纳入 workspace，避免 lockfile 冲突
+- 回滚路径：还原 `knife4j-front/package.json`、两份 tgz、两份 lockfile、`scripts/test-front-core.sh`
+- 开发流程变化：修改 knife4j-core 后不再需要 `npm pack` + 手动覆盖 tgz + 删 lockfile，symlink 实时生效
