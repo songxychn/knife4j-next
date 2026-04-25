@@ -60,7 +60,8 @@
 
 ## 分支规则
 
-- 默认使用 `codex/<task-id>-<short-slug>`。
+- 默认使用 `agent/<task-id>-<short-slug>`。
+- 历史分支名为 `codex/<task-id>-<short-slug>` 的保留不改，仅新任务按新约定命名。
 - 不要直接 push 到 `master`。
 - 不要把无关修复合并到同一个分支。
 

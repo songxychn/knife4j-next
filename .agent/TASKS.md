@@ -17,7 +17,7 @@
 status: ready
 area: java | docs | front-core | ui-react | repo
 title: 简短、可执行的标题
-branch: codex/TASK-000-short-slug
+branch: agent/TASK-000-short-slug
 depends_on:
 validation: <一个命令，或一组简短命令>
 done_when:
@@ -471,7 +471,7 @@ notes:
 status: ready
 area: ui-react
 title: React 调试响应面板对齐 Vue2 能力
-branch: codex/TASK-029-react-debug-response-panel
+branch: agent/TASK-029-react-debug-response-panel
 depends_on: TASK-028
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
@@ -512,7 +512,7 @@ notes:
 status: ready
 area: ui-react
 title: React 调试接入鉴权与全局参数
-branch: codex/TASK-031-react-debug-auth-global-param
+branch: agent/TASK-031-react-debug-auth-global-param
 depends_on: TASK-028,TASK-018,TASK-019
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
@@ -560,7 +560,7 @@ notes:
 status: ready
 area: ui-react
 title: Authorize 按 OpenAPI securitySchemes 动态渲染并接入请求
-branch: codex/TASK-033-authorize-security-schemes
+branch: agent/TASK-033-authorize-security-schemes
 depends_on: TASK-031
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
