@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
+
 import {
     Alert,
     Button,
@@ -32,17 +33,11 @@ import type {
 } from 'knife4j-core';
 import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired,} from 'knife4j-core';
 import {OperationModeTabs, useCurrentOperation} from './useCurrentOperation';
+import {DebugResponsePanel} from './DebugResponsePanel';
+import type {DebugResponse} from './DebugResponsePanel';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
-
-interface DebugResponse {
-  status: number;
-  statusText: string;
-  duration: number;
-  headers: Record<string, string>;
-  body: string;
-}
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'purple', HEAD: 'cyan', OPTIONS: 'default',
@@ -59,8 +54,6 @@ function paramKey(param: DebugParam): string {
 function currentOrigin(): string {
   return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 }
-
-const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
 
 // ─── Initial value derivation ─────────────────────────
 
@@ -883,6 +876,28 @@ export default function ApiDebug() {
   const [response, setResponse] = useState<DebugResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // ── TASK-029: persist last curl for response panel ──
+  const lastCurlRef = useRef<string>('');
+
+  // ── TASK-029: state preservation across tab switches ──
+  // Store form state per operation (keyed by path+method) so switching doc/debug doesn't reset
+  interface OperationState {
+    paramValues: ParamValueMap;
+    body: string;
+    selectedContentType: string;
+    formFields: Record<string, string>;
+    fileFields: Record<string, File[]>;
+    rawMode: RawMode;
+    response: DebugResponse | null;
+    error: string | null;
+  }
+  const stateCache = useRef<Map<string, OperationState>>(new Map());
+
+  const getOperationKey = (op: typeof operation): string => {
+    if (!op) return '';
+    return `${op.path}::${op.method}`;
+  };
+
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
@@ -902,6 +917,9 @@ export default function ApiDebug() {
   useEffect(() => {
     if (!operation || !swaggerDoc) return;
 
+    const opKey = getOperationKey(operation);
+    const cached = stateCache.current.get(opKey);
+
     const model = buildOperationDebugModel({
       doc: swaggerDoc as unknown as Record<string, unknown>,
       path: operation.path,
@@ -913,7 +931,22 @@ export default function ApiDebug() {
     setMethod(operation.method.toUpperCase());
     setPath(operation.path);
 
-    // 初始化参数值
+    // If we have cached state for this operation, restore it
+    if (cached) {
+      setParamValues(cached.paramValues);
+      setBody(cached.body);
+      setSelectedContentType(cached.selectedContentType);
+      setFormFields(cached.formFields);
+      fileFieldsRef.current = cached.fileFields;
+      setRawMode(cached.rawMode);
+      setResponse(cached.response);
+      setError(cached.error);
+      setValidationErrors([]);
+      setActiveTab(undefined);
+      return;
+    }
+
+    // Otherwise initialize with defaults
     const initial: ParamValueMap = {};
     const allParams = [...model.pathParams, ...model.queryParams, ...model.headerParams, ...model.cookieParams];
     for (const p of allParams) {
@@ -958,6 +991,22 @@ export default function ApiDebug() {
     setValidationErrors([]);
     setActiveTab(undefined);
   }, [operation, swaggerDoc]);
+
+  // ── TASK-029: save state to cache when it changes ──
+  useEffect(() => {
+    if (!operation) return;
+    const opKey = getOperationKey(operation);
+    stateCache.current.set(opKey, {
+      paramValues,
+      body,
+      selectedContentType,
+      formFields,
+      fileFields: fileFieldsRef.current,
+      rawMode,
+      response,
+      error,
+    });
+  }, [operation, paramValues, body, selectedContentType, formFields, rawMode, response, error]);
 
   const updateValue = (param: DebugParam, next: string) => {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
@@ -1088,7 +1137,10 @@ export default function ApiDebug() {
     if (!debugModel) return;
     setError(null);
 
-    const { formValues, built } = buildPreview();
+    const { formValues, built, curl } = buildPreview();
+
+    // Store curl for response panel
+    lastCurlRef.current = curl;
 
     // required 校验 — 用 core 侧统一校验，并携带定位 key
     const errors = validateRequired(debugModel, formValues);
@@ -1140,8 +1192,49 @@ export default function ApiDebug() {
       const res = await fetch(built.url, init);
       const responseHeaders: Record<string, string> = {};
       res.headers.forEach((value, key) => { responseHeaders[key] = value; });
-      const text = await res.text();
-      setResponse({ status: res.status, statusText: res.statusText, duration: Date.now() - start, headers: responseHeaders, body: text });
+      const contentType = responseHeaders['content-type'] ?? '';
+
+      // Handle binary vs text responses
+      const blob = await res.blob();
+      const size = blob.size;
+      let body = '';
+      let blobUrl: string | undefined;
+
+      const isBinary = (() => {
+        const ct = contentType.toLowerCase();
+        return (
+          ct.startsWith('image/') ||
+          ct.startsWith('audio/') ||
+          ct.startsWith('video/') ||
+          ct.startsWith('application/octet-stream') ||
+          ct.startsWith('application/pdf') ||
+          ct.startsWith('application/zip') ||
+          (ct.startsWith('application/') &&
+            !ct.includes('json') &&
+            !ct.includes('xml') &&
+            !ct.includes('javascript') &&
+            !ct.includes('text'))
+        );
+      })();
+
+      if (isBinary) {
+        blobUrl = URL.createObjectURL(blob);
+        body = `[Binary data: ${contentType}, ${size} bytes]`;
+      } else {
+        body = await blob.text();
+      }
+
+      const duration = Date.now() - start;
+      setResponse({
+        status: res.status,
+        statusText: res.statusText,
+        duration,
+        size,
+        headers: responseHeaders,
+        body,
+        blobUrl,
+        contentType,
+      });
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -1172,15 +1265,6 @@ export default function ApiDebug() {
       done();
     } catch {
       fail();
-    }
-  };
-
-  const prettyBody = () => {
-    if (!response) return '';
-    try {
-      return JSON.stringify(JSON.parse(response.body), null, 2);
-    } catch {
-      return response.body;
     }
   };
 
@@ -1298,44 +1382,9 @@ export default function ApiDebug() {
       <Divider style={{ margin: '16px 0' }} />
 
       {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      {error && <Alert type="error" message={t('apiDebug.error.title')} description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>} showIcon />}
+      {!loading && error && !response && <Alert type="error" message={t('apiDebug.error.title')} description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>} showIcon />}
       {response && (
-        <div>
-          <Space style={{ marginBottom: 8 }}>
-            <Text strong>{t('apiDebug.response.status')}</Text>
-            <Tag color={statusColor(response.status)}>{response.status} {response.statusText}</Tag>
-            <Text type="secondary">{t('apiDebug.response.duration')}{response.duration} ms</Text>
-          </Space>
-          <Tabs
-            size="small"
-            items={[
-              {
-                key: 'body',
-                label: t('apiDebug.response.body'),
-                children: (
-                  <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 4, fontSize: 13, maxHeight: 400, overflow: 'auto', margin: 0 }}>
-                    {prettyBody()}
-                  </pre>
-                ),
-              },
-              {
-                key: 'headers',
-                label: t('apiDebug.response.headers'),
-                children: (
-                  <Table
-                    size="small"
-                    dataSource={Object.entries(response.headers).map(([key, value]) => ({ key, name: key, value }))}
-                    columns={[
-                      { title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240 },
-                      { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
-                    ]}
-                    pagination={false}
-                  />
-                ),
-              },
-            ]}
-          />
-        </div>
+        <DebugResponsePanel response={response} curl={lastCurlRef.current} error={error} />
       )}
     </div>
   );

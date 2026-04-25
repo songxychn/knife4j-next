@@ -468,7 +468,8 @@ notes:
 - 请求发送仍用原生 fetch，不引入 axios；blob 处理在 TASK-029 单独考虑
 
 ### TASK-029
-status: ready
+status: review
+pr: https://github.com/songxychn/knife4j-next/pull/47
 area: ui-react
 title: React 调试响应面板对齐 Vue2 能力
 branch: agent/TASK-029-react-debug-response-panel
@@ -509,7 +510,8 @@ notes:
 - OAS2 的 `definitions` 与 OAS3 的 `components.schemas` 统一抽象成同一个 resolver，调用方不感知规范差异
 
 ### TASK-031
-status: ready
+status: review
+pr: https://github.com/songxychn/knife4j-next/pull/46
 area: ui-react
 title: React 调试接入鉴权与全局参数
 branch: agent/TASK-031-react-debug-auth-global-param
@@ -557,7 +559,8 @@ notes:
 - 可选：若现有 knife4j-core 版本号需要升，保持 semver 兼容，不清理无关导出
 
 ### TASK-033
-status: ready
+status: review
+pr: https://github.com/songxychn/knife4j-next/pull/48
 area: ui-react
 title: Authorize 按 OpenAPI securitySchemes 动态渲染并接入请求
 branch: agent/TASK-033-authorize-security-schemes
