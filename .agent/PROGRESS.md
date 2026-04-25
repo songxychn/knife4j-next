@@ -149,3 +149,10 @@ blockers: none
 - 状态: review
 - 验证: npm run build ✓
 - 内容: 重写 Schema.tsx，Collapse+Table 展示 components.schemas，支持嵌套字段
+
+## TASK-017 — 2026-04-25
+- branch: codex/TASK-017-real-api-data
+- PR: https://github.com/songxychn/knife4j-next/pull/18
+- 状态: review
+- 验证: npm run build ✓
+- 内容: 新增 types/swagger.ts + api/knife4jClient.ts，重写 GroupContext 接真实数据，Schema.tsx 消费真实 schemas

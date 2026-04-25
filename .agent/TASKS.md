@@ -268,7 +268,7 @@ notes:
 - blocked：依赖 TASK-012/013 完成后再评估是否复用 Vue2 的 wordTransform 逻辑
 
 ### TASK-017
-status: ready
+status: review
 area: ui-react
 title: 真实数据对接（接 /v3/api-docs 替换 mock）
 branch: codex/TASK-017-real-api-data
