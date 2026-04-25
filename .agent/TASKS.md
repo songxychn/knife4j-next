@@ -241,7 +241,7 @@ notes:
 - ResizableMenu.tsx 已存在，在此基础上扩展
 
 ### TASK-015
-status: ready
+status: review
 area: ui-react
 title: 实现 SwaggerModels 数据模型展示页
 branch: codex/TASK-015-react-swagger-models

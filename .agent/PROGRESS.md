@@ -142,3 +142,10 @@ summary:
 validation: ./scripts/test-java.sh → BUILD SUCCESS
 next: 维护者审查 PR #10
 blockers: none
+
+## TASK-015 — 2026-04-25
+- branch: codex/TASK-015-react-swagger-models
+- PR: https://github.com/songxychn/knife4j-next/pull/17
+- 状态: review
+- 验证: npm run build ✓
+- 内容: 重写 Schema.tsx，Collapse+Table 展示 components.schemas，支持嵌套字段
