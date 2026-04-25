@@ -11,14 +11,13 @@ import {
 import { Layout, Menu, Button, Select, Input, ConfigProvider, Tabs, theme } from 'antd';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import { Resizable } from 'react-resizable';
-import { Route as _Route, useNavigate, Outlet as _Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 const defaultPanes = new Array(1).fill(null).map(() => {
   return { label: '主页', children: '', key: '/group/home' };
 });
 
-import _Home from './pages/Home';
 
 
 const footerStyle: React.CSSProperties = {
@@ -48,8 +47,6 @@ const App: React.FC = () => {
   const [items, setItems] = useState(defaultPanes);
   const newTabIndex = useRef(0);
 
-
-    // TabPane removed (unused)
 
   //menu
   const menuClick = (menu: MenuInfo) => {
