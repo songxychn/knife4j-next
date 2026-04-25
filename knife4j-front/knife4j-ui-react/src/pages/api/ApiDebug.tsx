@@ -4,7 +4,13 @@ import {
 } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { ParameterObject, SchemaObject } from '../../types/swagger';
+import {
+  buildOperationDebugModel,
+  buildRequest as coreBuildRequest,
+  buildCurl,
+  validateRequired,
+} from 'knife4j-core';
+import type { DebugParam, OperationDebugModel, DebugFormValues, BuiltRequest } from 'knife4j-core';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 
 const { TextArea } = Input;
@@ -34,46 +40,15 @@ function currentOrigin() {
   return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 }
 
-function schemaExample(schema?: SchemaObject): unknown {
-  if (!schema) return undefined;
-  if (schema.$ref) return {};
-  if (schema.type === 'array') return [schemaExample(schema.items) ?? {}];
-  if (schema.type === 'integer' || schema.type === 'number') return 0;
-  if (schema.type === 'boolean') return true;
-  if (schema.type === 'string') return schema.enum?.[0] ?? '';
-  if (schema.properties) {
-    return Object.fromEntries(Object.entries(schema.properties).map(([name, prop]) => [name, schemaExample(prop)]));
-  }
-  return {};
-}
-
-function requestBodyExample(schema?: SchemaObject) {
-  if (!schema) return '';
-  return JSON.stringify(schemaExample(schema), null, 2);
-}
-
-function firstRequestSchema(content?: Record<string, { schema?: SchemaObject }>): SchemaObject | undefined {
-  if (!content) return undefined;
-  return content['application/json']?.schema ?? Object.values(content)[0]?.schema;
-}
-
-function parameterRows(parameters: ParameterObject[] | undefined, location: ParameterObject['in']): ParamRow[] {
-  return (parameters ?? [])
-    .filter((parameter) => parameter.in === location)
-    .map((parameter) => ({
-      key: `${parameter.in}-${parameter.name}`,
-      name: parameter.name,
-      value: '',
-      description: parameter.description,
-      required: Boolean(parameter.required),
-    }));
-}
-
-function replacePathParams(path: string, params: ParamRow[]) {
-  return params.reduce((url, param) => {
-    if (!param.name) return url;
-    return url.replace(`{${param.name}}`, encodeURIComponent(param.value));
-  }, path);
+/** 将 knife4j-core 的 DebugParam 转为 UI 的 ParamRow */
+function debugParamToRow(param: DebugParam): ParamRow {
+  return {
+    key: `${param.in}-${param.name}`,
+    name: param.name,
+    value: '',
+    description: param.description,
+    required: param.required,
+  };
 }
 
 const statusColor = (status: number) => status < 300 ? 'green' : status < 400 ? 'orange' : 'red';
@@ -87,27 +62,42 @@ export default function ApiDebug() {
   const [queryParams, setQueryParams] = useState<ParamRow[]>([]);
   const [headerParams, setHeaderParams] = useState<ParamRow[]>([]);
   const [body, setBody] = useState('');
+  const [debugModel, setDebugModel] = useState<OperationDebugModel | null>(null);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<DebugResponse | null>(null);
+  const [curlCommand, setCurlCommand] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!operation) return;
-    const op = operation.operation;
-    const requestSchema = firstRequestSchema(op.requestBody?.content);
-    const hasJsonBody = Boolean(requestSchema);
+    if (!operation || !swaggerDoc) return;
+
+    // 使用 knife4j-core 解析调试模型
+    const model = buildOperationDebugModel({
+      doc: swaggerDoc as unknown as Record<string, unknown>,
+      path: operation.path,
+      method: operation.method,
+      isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
+    });
+    setDebugModel(model);
+
     setMethod(operation.method.toUpperCase());
     setPath(operation.path);
-    setPathParams(parameterRows(op.parameters, 'path'));
-    setQueryParams(parameterRows(op.parameters, 'query'));
+    setPathParams(model.pathParams.map(debugParamToRow));
+    setQueryParams(model.queryParams.map(debugParamToRow));
+
+    // header：来自模型 + 自动注入 Content-Type
+    const hasJsonBody = model.bodyContents.some((b) => b.category === 'json');
     setHeaderParams([
-      ...parameterRows(op.parameters, 'header'),
+      ...model.headerParams.map(debugParamToRow),
       ...(hasJsonBody ? [{ key: 'content-type', name: 'Content-Type', value: 'application/json', description: '请求体类型', required: true }] : []),
     ]);
-    setBody(requestBodyExample(requestSchema));
+
+    // body：取第一个 bodyContent 的示例
+    const firstBody = model.bodyContents[0];
+    setBody(firstBody?.exampleValue ?? '');
     setResponse(null);
     setError(null);
-  }, [operation]);
+  }, [operation, swaggerDoc]);
 
   const paramColumns = useMemo<ColumnsType<ParamRow>>(() => [
     { title: '参数名', dataIndex: 'name', key: 'name', width: 180, render: (value) => <Text code>{value}</Text> },
@@ -142,28 +132,54 @@ export default function ApiDebug() {
     return <Alert type="warning" showIcon message="未找到调试接口" description="当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。" />;
   }
 
-  const buildUrl = () => {
-    const urlPath = replacePathParams(path, pathParams);
-    const queryString = queryParams
-      .filter((param) => param.name && param.value)
-      .map((param) => `${encodeURIComponent(param.name)}=${encodeURIComponent(param.value)}`)
-      .join('&');
-    return `${baseUrl}${urlPath}${queryString ? `?${queryString}` : ''}`;
-  };
+  /** 收集当前表单值为 DebugFormValues */
+  const collectFormValues = (): DebugFormValues => ({
+    pathParams: Object.fromEntries(
+      pathParams.filter((p) => p.name && p.value).map((p) => [p.name, p.value]),
+    ),
+    queryParams: Object.fromEntries(
+      queryParams.filter((p) => p.name && p.value).map((p) => [p.name, p.value]),
+    ),
+    headerParams: Object.fromEntries(
+      headerParams.filter((p) => p.name && p.value).map((p) => [p.name, p.value]),
+    ),
+    cookieParams: {},
+    body,
+  });
 
   const handleSend = async () => {
+    if (!debugModel) return;
+
+    // 校验必填参数
+    const formValues = collectFormValues();
+    const validationErrors = validateRequired(debugModel, formValues);
+    if (validationErrors.length > 0) {
+      setError(validationErrors.map((e) => e.message).join('\n'));
+      return;
+    }
+
+    // 使用 knife4j-core 构建请求
+    const built: BuiltRequest = coreBuildRequest({
+      baseUrl,
+      path,
+      method,
+      debugModel,
+      formValues,
+    });
+
+    // 生成 curl 命令
+    setCurlCommand(buildCurl(built));
+
     setLoading(true);
     setError(null);
     setResponse(null);
     const start = Date.now();
     try {
-      const headers: Record<string, string> = {};
-      headerParams.filter((param) => param.name && param.value).forEach((param) => { headers[param.name] = param.value; });
-      const init: RequestInit = { method, headers };
-      if (!['GET', 'HEAD'].includes(method) && body.trim()) {
-        init.body = body;
+      const init: RequestInit = { method: built.method, headers: built.headers };
+      if (built.body !== undefined && built.body !== '') {
+        init.body = built.body;
       }
-      const res = await fetch(buildUrl(), init);
+      const res = await fetch(built.url, init);
       const responseHeaders: Record<string, string> = {};
       res.headers.forEach((value, key) => { responseHeaders[key] = value; });
       const text = await res.text();
@@ -280,6 +296,15 @@ export default function ApiDebug() {
                   />
                 ),
               },
+              ...(curlCommand ? [{
+                key: 'curl',
+                label: 'cURL',
+                children: (
+                  <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 4, fontSize: 13, maxHeight: 200, overflow: 'auto', margin: 0 }}>
+                    {curlCommand}
+                  </pre>
+                ),
+              }] : []),
             ]}
           />
         </div>
