@@ -75,15 +75,15 @@ const MOCK_SWAGGER_DOC: Pick<SwaggerDoc, 'components'> = {
 
 // ---- $ref 解析 ----
 
-function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components'>): SchemaObject | undefined {
+function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
   if (!match) return undefined;
-  return (doc.components?.schemas ?? {})[match[1]];
+  return (doc.components?.schemas ?? (doc.definitions as Record<string, SchemaObject> | undefined) ?? {})[match[1]];
 }
 
 function schemaToBodyRows(
   schema: SchemaObject,
-  doc: Pick<SwaggerDoc, 'components'>,
+  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
 ): BodyRow[] {
   const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
   if (!resolved?.properties) return [];
