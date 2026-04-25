@@ -666,7 +666,9 @@ notes:
 - 回滚路径：删除两份新增文件即可
 
 ### TASK-037
-status: review
+status: done
+merged_into: master@2026-04-25T17:56:47Z
+PR: https://github.com/songxychn/knife4j-next/pull/52
 area: repo
 title: 补齐格式化规则与 CI 强制检查（Prettier / IDEA code style / spotless:check）
 branch: agent/TASK-037-format-rules-enforcement

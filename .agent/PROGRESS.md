@@ -826,3 +826,18 @@ notes:
 - 格式化 commit (dceabaef) 建议在 .git-blame-ignore-revs 中标记，避免 git blame 显示格式化噪声
 blockers:
 - none
+
+## 2026-04-25 18:08 UTC
+task: TASK-037
+agent: coordinator (heartbeat)
+branch: agent/TASK-037-format-rules-enforcement
+status: done
+summary:
+- PR #52 已合并（merged_at: 2026-04-25T17:56:47Z）
+- TASKS.md 中 TASK-037 状态更新为 done
+- 无依赖 TASK-037 的 blocked 任务需要解锁
+- 当前队列：所有任务均为 done，无 ready/blocked/in_progress 任务
+next:
+- 等待新任务加入队列
+blockers:
+- none
