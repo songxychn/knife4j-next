@@ -15,6 +15,9 @@ on:
       - ".github/workflows/release.yml"
       - ".java-version"
       - ".nvmrc"
+      - ".editorconfig"
+      - ".gitattributes"
+      - "CONTRIBUTING.md"
   push:
     branches:
       - master
@@ -28,6 +31,9 @@ on:
       - ".github/workflows/release.yml"
       - ".java-version"
       - ".nvmrc"
+      - ".editorconfig"
+      - ".gitattributes"
+      - "CONTRIBUTING.md"
 
 jobs:
   java-build-test:

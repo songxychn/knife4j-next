@@ -1,49 +1,55 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Button,
-    Divider,
-    Input,
-    InputNumber,
-    message,
-    Radio,
-    Select,
-    Space,
-    Spin,
-    Switch,
-    Table,
-    Tabs,
-    Tag,
-    Tooltip,
-    Typography,
-    Upload,
+  Alert,
+  Button,
+  Divider,
+  Input,
+  InputNumber,
+  message,
+  Radio,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+  Upload,
 } from 'antd';
-import {SendOutlined, UploadOutlined} from '@ant-design/icons';
-import type {ColumnsType} from 'antd/es/table';
-import type {UploadFile} from 'antd/es/upload/interface';
-import {useTranslation} from 'react-i18next';
+import { SendOutlined, UploadOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import type { UploadFile } from 'antd/es/upload/interface';
+import { useTranslation } from 'react-i18next';
 import type {
-    BodyContent,
-    BuiltRequest,
-    DebugFormValues,
-    DebugParam,
-    GlobalParamValues,
-    OperationDebugModel,
-    ParamSource,
-    SchemeValue,
-    ValidationError,
+  BodyContent,
+  BuiltRequest,
+  DebugFormValues,
+  DebugParam,
+  GlobalParamValues,
+  OperationDebugModel,
+  ParamSource,
+  SchemeValue,
+  ValidationError,
 } from 'knife4j-core';
-import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired,} from 'knife4j-core';
-import {OperationModeTabs, useCurrentOperation} from './useCurrentOperation';
-import {useAuth} from '../../context/AuthContext';
-import {useGlobalParam} from '../../context/GlobalParamContext';
-import ResponsePanel, {type DebugResponsePayload} from './ResponsePanel';
+import { buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired } from 'knife4j-core';
+import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import { useAuth } from '../../context/AuthContext';
+import { useGlobalParam } from '../../context/GlobalParamContext';
+import ResponsePanel, { type DebugResponsePayload } from './ResponsePanel';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'purple', HEAD: 'cyan', OPTIONS: 'default',
+  GET: 'green',
+  POST: 'blue',
+  PUT: 'orange',
+  DELETE: 'red',
+  PATCH: 'purple',
+  HEAD: 'cyan',
+  OPTIONS: 'default',
 };
 
 // ─── Helper: form value shape ─────────────────────────
@@ -181,15 +187,16 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   if (!schema || schema.type !== 'object' || !schema.properties) return [];
 
   const props = schema.properties as Record<string, Record<string, unknown>>;
-  const requiredSet = new Set<string>(Array.isArray(schema.required) ? schema.required as string[] : []);
+  const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
   const fileFields = new Set(bodyContent.fileFields ?? []);
 
   return Object.entries(props).map(([name, prop]) => {
     const t = (prop.type as string) ?? 'string';
-    const isFile = fileFields.has(name)
-      || t === 'file'
-      || (t === 'string' && prop.format === 'binary')
-      || (t === 'string' && prop.format === 'base64');
+    const isFile =
+      fileFields.has(name) ||
+      t === 'file' ||
+      (t === 'string' && prop.format === 'binary') ||
+      (t === 'string' && prop.format === 'base64');
 
     return {
       name,
@@ -226,7 +233,7 @@ const RAW_MODES = [
   { value: 'html', label: 'HTML' },
 ] as const;
 
-type RawMode = typeof RAW_MODES[number]['value'];
+type RawMode = (typeof RAW_MODES)[number]['value'];
 
 /** raw mode → Content-Type 映射 */
 const RAW_CONTENT_TYPES: Record<RawMode, string> = {
@@ -270,12 +277,10 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
     const checked = value === 'true';
     return (
       <Space size="small">
-        <Switch
-          size="small"
-          checked={checked}
-          onChange={(next) => onChange(next ? 'true' : 'false')}
-        />
-        <Text type="secondary" style={{ fontSize: 12 }}>{checked ? 'true' : 'false'}</Text>
+        <Switch size="small" checked={checked} onChange={(next) => onChange(next ? 'true' : 'false')} />
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {checked ? 'true' : 'false'}
+        </Text>
       </Space>
     );
   }
@@ -367,7 +372,9 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
     return (
       <Space size="small">
         <Switch size="small" checked={checked} onChange={(next) => onChange(next ? 'true' : 'false')} />
-        <Text type="secondary" style={{ fontSize: 12 }}>{checked ? 'true' : 'false'}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {checked ? 'true' : 'false'}
+        </Text>
       </Space>
     );
   }
@@ -414,15 +421,23 @@ function ParamNameCell({ param }: { param: DebugParam }) {
       >
         {param.name}
       </Text>
-      {param.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.required')}</Tag>}
+      {param.required && (
+        <Tag color="red" style={{ marginInlineEnd: 0 }}>
+          {t('apiDebug.tag.required')}
+        </Tag>
+      )}
       {deprecated && (
         <Tooltip title={t('apiDebug.tooltip.deprecated')}>
-          <Tag color="default" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.deprecated')}</Tag>
+          <Tag color="default" style={{ marginInlineEnd: 0 }}>
+            {t('apiDebug.tag.deprecated')}
+          </Tag>
         </Tooltip>
       )}
       {readOnly && (
         <Tooltip title={t('apiDebug.tooltip.readOnly')}>
-          <Tag color="warning" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.readOnly')}</Tag>
+          <Tag color="warning" style={{ marginInlineEnd: 0 }}>
+            {t('apiDebug.tag.readOnly')}
+          </Tag>
         </Tooltip>
       )}
     </Space>
@@ -513,10 +528,13 @@ function BodyTab({
           >
             {bodyContents.map((bc) => (
               <Radio.Button key={bc.mediaType} value={bc.mediaType}>
-                {bc.category === 'json' ? 'JSON' :
-                 bc.category === 'urlencoded' ? 'x-www-form-urlencoded' :
-                 bc.category === 'multipart' ? 'multipart/form-data' :
-                 'raw'}
+                {bc.category === 'json'
+                  ? 'JSON'
+                  : bc.category === 'urlencoded'
+                    ? 'x-www-form-urlencoded'
+                    : bc.category === 'multipart'
+                      ? 'multipart/form-data'
+                      : 'raw'}
               </Radio.Button>
             ))}
           </Radio.Group>
@@ -527,7 +545,9 @@ function BodyTab({
       {category === 'json' && (
         <div>
           <div style={{ marginBottom: 4, textAlign: 'right' }}>
-            <Button size="small" onClick={handleBeautify}>{t('apiDebug.body.beautify')}</Button>
+            <Button size="small" onClick={handleBeautify}>
+              {t('apiDebug.body.beautify')}
+            </Button>
           </div>
           <TextArea
             value={body}
@@ -540,11 +560,7 @@ function BodyTab({
       )}
 
       {category === 'urlencoded' && (
-        <UrlencodedForm
-          bodyContent={currentBody}
-          formFields={formFields}
-          setFormFields={setFormFields}
-        />
+        <UrlencodedForm bodyContent={currentBody} formFields={formFields} setFormFields={setFormFields} />
       )}
 
       {category === 'multipart' && (
@@ -594,7 +610,11 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
       render: (_value: string, record: SchemaFieldRow) => (
         <Space size={4}>
           <Text code>{record.name}</Text>
-          {record.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.required')}</Tag>}
+          {record.required && (
+            <Tag color="red" style={{ marginInlineEnd: 0 }}>
+              {t('apiDebug.tag.required')}
+            </Tag>
+          )}
         </Space>
       ),
     },
@@ -605,8 +625,14 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
       width: 100,
       render: (_value: string, record: SchemaFieldRow) => (
         <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
-          <Text code style={{ fontSize: 12 }}>{record.type}</Text>
-          {record.format && <Text type="secondary" style={{ fontSize: 11 }}>{record.format}</Text>}
+          <Text code style={{ fontSize: 12 }}>
+            {record.type}
+          </Text>
+          {record.format && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {record.format}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -630,12 +656,18 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
           {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
           {record.default !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {t('apiDebug.desc.default')}<Text code style={{ fontSize: 11 }}>{String(record.default)}</Text>
+              {t('apiDebug.desc.default')}
+              <Text code style={{ fontSize: 11 }}>
+                {String(record.default)}
+              </Text>
             </Text>
           )}
           {record.example !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {t('apiDebug.desc.example')}<Text code style={{ fontSize: 11 }}>{String(record.example)}</Text>
+              {t('apiDebug.desc.example')}
+              <Text code style={{ fontSize: 11 }}>
+                {String(record.example)}
+              </Text>
             </Text>
           )}
         </Space>
@@ -643,15 +675,7 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
     },
   ];
 
-  return (
-    <Table
-      size="small"
-      dataSource={fields}
-      columns={columns}
-      pagination={false}
-      rowKey="name"
-    />
-  );
+  return <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />;
 }
 
 // ─── Multipart Form ───────────────────────────────────
@@ -691,8 +715,16 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
       render: (_value: string, record: SchemaFieldRow) => (
         <Space size={4}>
           <Text code>{record.name}</Text>
-          {record.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.required')}</Tag>}
-          {record.isFile && <Tag color="blue" style={{ marginInlineEnd: 0 }}>{t('apiDebug.body.file')}</Tag>}
+          {record.required && (
+            <Tag color="red" style={{ marginInlineEnd: 0 }}>
+              {t('apiDebug.tag.required')}
+            </Tag>
+          )}
+          {record.isFile && (
+            <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+              {t('apiDebug.body.file')}
+            </Tag>
+          )}
         </Space>
       ),
     },
@@ -702,7 +734,9 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
       key: 'type',
       width: 80,
       render: (_value: string, record: SchemaFieldRow) => (
-        <Text code style={{ fontSize: 12 }}>{record.isFile ? 'file' : record.type}</Text>
+        <Text code style={{ fontSize: 12 }}>
+          {record.isFile ? 'file' : record.type}
+        </Text>
       ),
     },
     {
@@ -717,7 +751,9 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
               fileList={fileListMap[record.name] ?? []}
               onChange={(info) => handleFileChange(record.name, info)}
             >
-              <Button size="small" icon={<UploadOutlined />}>{t('apiDebug.body.selectFile')}</Button>
+              <Button size="small" icon={<UploadOutlined />}>
+                {t('apiDebug.body.selectFile')}
+              </Button>
             </Upload>
           );
         }
@@ -742,15 +778,7 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
     },
   ];
 
-  return (
-    <Table
-      size="small"
-      dataSource={fields}
-      columns={columns}
-      pagination={false}
-      rowKey="name"
-    />
-  );
+  return <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />;
 }
 
 // ─── Raw Editor ───────────────────────────────────────
@@ -777,11 +805,15 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
           buttonStyle="solid"
         >
           {RAW_MODES.map((m) => (
-            <Radio.Button key={m.value} value={m.value}>{m.label}</Radio.Button>
+            <Radio.Button key={m.value} value={m.value}>
+              {m.label}
+            </Radio.Button>
           ))}
         </Radio.Group>
         {rawMode === 'json' && (
-          <Button size="small" onClick={onBeautify}>{t('apiDebug.body.beautify')}</Button>
+          <Button size="small" onClick={onBeautify}>
+            {t('apiDebug.body.beautify')}
+          </Button>
         )}
       </div>
       <TextArea
@@ -824,7 +856,11 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
   const sourceTag = (source: ParamSource | undefined) => {
     if (!source) return null;
     const colorMap: Record<ParamSource, string> = { interface: 'blue', global: 'green', auth: 'orange' };
-    return <Tag color={colorMap[source]} style={{ marginInlineEnd: 0 }}>{t(`apiDebug.preview.source.${source}`)}</Tag>;
+    return (
+      <Tag color={colorMap[source]} style={{ marginInlineEnd: 0 }}>
+        {t(`apiDebug.preview.source.${source}`)}
+      </Tag>
+    );
   };
 
   return (
@@ -851,7 +887,12 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
           <Table
             size="small"
             pagination={false}
-            dataSource={headerPairs.map(([key, value]) => ({ key, name: key, value, source: built.sourceMap?.headers[key] }))}
+            dataSource={headerPairs.map(([key, value]) => ({
+              key,
+              name: key,
+              value,
+              source: built.sourceMap?.headers[key],
+            }))}
             columns={[
               {
                 title: t('apiDebug.col.header'),
@@ -870,7 +911,9 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
             style={{ marginTop: 4 }}
           />
         ) : (
-          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>—</Text>
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            —
+          </Text>
         )}
       </div>
 
@@ -881,7 +924,12 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
           <Table
             size="small"
             pagination={false}
-            dataSource={queryPairs.map(([key, value]) => ({ key, name: key, value, source: built.sourceMap?.query[key] }))}
+            dataSource={queryPairs.map(([key, value]) => ({
+              key,
+              name: key,
+              value,
+              source: built.sourceMap?.query[key],
+            }))}
             columns={[
               {
                 title: t('apiDebug.col.paramName'),
@@ -900,15 +948,15 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
             style={{ marginTop: 4 }}
           />
         ) : (
-          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>—</Text>
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            —
+          </Text>
         )}
       </div>
 
       {/* Body */}
       <div>
-        <Text strong>
-          {isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}
-        </Text>
+        <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
             {built.contentType.includes('json') ? prettyJson(built.body ?? '') : (built.body ?? '')}
@@ -972,10 +1020,7 @@ export default function ApiDebug() {
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
-  const errorKeys = useMemo(
-    () => new Set(validationErrors.map((e) => e.key)),
-    [validationErrors],
-  );
+  const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
   useEffect(() => {
     if (!operation || !swaggerDoc) return;
@@ -1086,73 +1131,94 @@ export default function ApiDebug() {
     return { headers, queries };
   }, [globalParamItems]);
 
-  const paramColumns = useMemo<ColumnsType<DebugParam>>(() => [
-    {
-      title: t('apiDebug.col.paramName'),
-      dataIndex: 'name',
-      key: 'name',
-      width: 220,
-      render: (_value: string, record: DebugParam) => <ParamNameCell param={record} />,
-    },
-    {
-      title: t('apiDebug.col.type'),
-      dataIndex: 'type',
-      key: 'type',
-      width: 110,
-      render: (_value: string, record: DebugParam) => (
-        <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
-          <Text code style={{ fontSize: 12 }}>{record.type}</Text>
-          {record.format && <Text type="secondary" style={{ fontSize: 11 }}>{record.format}</Text>}
-        </Space>
-      ),
-    },
-    {
-      title: t('apiDebug.col.value'),
-      dataIndex: 'value',
-      key: 'value',
-      render: (_value: string, record: DebugParam) => (
-        <ParamInput
-          param={record}
-          value={paramValues[paramKey(record)] ?? ''}
-          onChange={(next) => updateValue(record, next)}
-          hasError={errorKeys.has(paramKey(record))}
-        />
-      ),
-    },
-    {
-      title: t('apiDebug.col.description'),
-      key: 'description',
-      width: 280,
-      render: (_value, record: DebugParam) => (
-        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
-          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
-          {record.default !== undefined && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {t('apiDebug.desc.default')}<Text code style={{ fontSize: 11 }}>{stringify(record.default, record.type)}</Text>
+  const paramColumns = useMemo<ColumnsType<DebugParam>>(
+    () => [
+      {
+        title: t('apiDebug.col.paramName'),
+        dataIndex: 'name',
+        key: 'name',
+        width: 220,
+        render: (_value: string, record: DebugParam) => <ParamNameCell param={record} />,
+      },
+      {
+        title: t('apiDebug.col.type'),
+        dataIndex: 'type',
+        key: 'type',
+        width: 110,
+        render: (_value: string, record: DebugParam) => (
+          <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
+            <Text code style={{ fontSize: 12 }}>
+              {record.type}
             </Text>
-          )}
-          {record.example !== undefined && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {t('apiDebug.desc.example')}<Text code style={{ fontSize: 11 }}>{stringify(record.example, record.type)}</Text>
-            </Text>
-          )}
-          {record.enum && record.enum.length > 0 && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {t('apiDebug.desc.enum')}{record.enum.slice(0, 3).map((item) => String(item)).join(', ')}
-              {record.enum.length > 3 ? '…' : ''}
-            </Text>
-          )}
-        </Space>
-      ),
-    },
-  ], [paramValues, t, errorKeys]);
+            {record.format && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {record.format}
+              </Text>
+            )}
+          </Space>
+        ),
+      },
+      {
+        title: t('apiDebug.col.value'),
+        dataIndex: 'value',
+        key: 'value',
+        render: (_value: string, record: DebugParam) => (
+          <ParamInput
+            param={record}
+            value={paramValues[paramKey(record)] ?? ''}
+            onChange={(next) => updateValue(record, next)}
+            hasError={errorKeys.has(paramKey(record))}
+          />
+        ),
+      },
+      {
+        title: t('apiDebug.col.description'),
+        key: 'description',
+        width: 280,
+        render: (_value, record: DebugParam) => (
+          <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+            {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
+            {record.default !== undefined && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {t('apiDebug.desc.default')}
+                <Text code style={{ fontSize: 11 }}>
+                  {stringify(record.default, record.type)}
+                </Text>
+              </Text>
+            )}
+            {record.example !== undefined && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {t('apiDebug.desc.example')}
+                <Text code style={{ fontSize: 11 }}>
+                  {stringify(record.example, record.type)}
+                </Text>
+              </Text>
+            )}
+            {record.enum && record.enum.length > 0 && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {t('apiDebug.desc.enum')}
+                {record.enum
+                  .slice(0, 3)
+                  .map((item) => String(item))
+                  .join(', ')}
+                {record.enum.length > 3 ? '…' : ''}
+              </Text>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [paramValues, t, errorKeys],
+  );
 
   if (docLoading) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
   }
 
   if (!swaggerDoc || !operation || !debugModel) {
-    return <Alert type="warning" showIcon message={t('apiDebug.notFound.title')} description={t('apiDebug.notFound.desc')} />;
+    return (
+      <Alert type="warning" showIcon message={t('apiDebug.notFound.title')} description={t('apiDebug.notFound.desc')} />
+    );
   }
 
   /** 按 in 过滤已填值 */
@@ -1187,8 +1253,8 @@ export default function ApiDebug() {
       headerParams: collectForIn(debugModel.headerParams),
       cookieParams: collectForIn(debugModel.cookieParams),
       selectedContentType: getEffectiveContentType(),
-      body: (category === 'json' || category === 'raw') ? body : undefined,
-      formFields: (category === 'urlencoded' || category === 'multipart') ? formFields : undefined,
+      body: category === 'json' || category === 'raw' ? body : undefined,
+      formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
     };
   };
@@ -1235,7 +1301,11 @@ export default function ApiDebug() {
     setLoading(true);
     // Revoke any previous object URL to avoid memory leaks across consecutive sends.
     if (response?.objectUrl) {
-      try { URL.revokeObjectURL(response.objectUrl); } catch { /* ignore */ }
+      try {
+        URL.revokeObjectURL(response.objectUrl);
+      } catch {
+        /* ignore */
+      }
     }
     setResponse(null);
     const start = Date.now();
@@ -1269,7 +1339,9 @@ export default function ApiDebug() {
 
       const res = await fetch(built.url, init);
       const responseHeaders: Record<string, string> = {};
-      res.headers.forEach((value, key) => { responseHeaders[key] = value; });
+      res.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
 
       // Read once as blob so we can branch by content-type without draining the stream twice.
       const blob = await res.blob();
@@ -1323,9 +1395,10 @@ export default function ApiDebug() {
   };
 
   // body tab 的标签含当前 content-type
-  const bodyLabel = debugModel.bodyContents.length > 0
-    ? `${t('apiDebug.tab.body')} (${selectedContentType || debugModel.bodyContents[0].mediaType})`
-    : t('apiDebug.tab.body');
+  const bodyLabel =
+    debugModel.bodyContents.length > 0
+      ? `${t('apiDebug.tab.body')} (${selectedContentType || debugModel.bodyContents[0].mediaType})`
+      : t('apiDebug.tab.body');
 
   const tabItems = [
     {
@@ -1333,7 +1406,13 @@ export default function ApiDebug() {
       label: `${t('apiDebug.tab.path')} (${debugModel.pathParams.length})`,
       disabled: debugModel.pathParams.length === 0,
       children: (
-        <Table size="small" dataSource={debugModel.pathParams} columns={paramColumns} pagination={false} rowKey={paramKey} />
+        <Table
+          size="small"
+          dataSource={debugModel.pathParams}
+          columns={paramColumns}
+          pagination={false}
+          rowKey={paramKey}
+        />
       ),
     },
     {
@@ -1341,7 +1420,13 @@ export default function ApiDebug() {
       label: `${t('apiDebug.tab.query')} (${debugModel.queryParams.length})`,
       disabled: debugModel.queryParams.length === 0,
       children: (
-        <Table size="small" dataSource={debugModel.queryParams} columns={paramColumns} pagination={false} rowKey={paramKey} />
+        <Table
+          size="small"
+          dataSource={debugModel.queryParams}
+          columns={paramColumns}
+          pagination={false}
+          rowKey={paramKey}
+        />
       ),
     },
     {
@@ -1356,9 +1441,8 @@ export default function ApiDebug() {
           pagination={false}
           rowKey={paramKey}
           locale={{
-            emptyText: debugModel.bodyContents.length > 0
-              ? t('apiDebug.header.autoInject')
-              : t('apiDebug.noHeaderParams'),
+            emptyText:
+              debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
           }}
         />
       ),
@@ -1368,7 +1452,13 @@ export default function ApiDebug() {
       label: `${t('apiDebug.tab.cookie')} (${debugModel.cookieParams.length})`,
       disabled: debugModel.cookieParams.length === 0,
       children: (
-        <Table size="small" dataSource={debugModel.cookieParams} columns={paramColumns} pagination={false} rowKey={paramKey} />
+        <Table
+          size="small"
+          dataSource={debugModel.cookieParams}
+          columns={paramColumns}
+          pagination={false}
+          rowKey={paramKey}
+        />
       ),
     },
     {
@@ -1410,7 +1500,9 @@ export default function ApiDebug() {
         <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
           {method}
         </Tag>
-        <Title level={5} style={{ margin: 0 }}>{operation.operation.summary ?? operation.path}</Title>
+        <Title level={5} style={{ margin: 0 }}>
+          {operation.operation.summary ?? operation.path}
+        </Title>
       </Space>
 
       <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
@@ -1418,11 +1510,16 @@ export default function ApiDebug() {
           value={method}
           onChange={setMethod}
           style={{ width: 110 }}
-          options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({ value: item, label: item }))}
+          options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
+            value: item,
+            label: item,
+          }))}
         />
         <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
         <Input value={path} onChange={(event) => setPath(event.target.value)} style={{ flex: 1 }} />
-        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>{t('apiDebug.send')}</Button>
+        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
+          {t('apiDebug.send')}
+        </Button>
       </Space.Compact>
 
       <Tabs

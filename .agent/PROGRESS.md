@@ -797,3 +797,32 @@ blockers:
 lessons:
 - npm lock 文件的 `resolved` 字段是「谁生成 lock 就写谁」，private registry 会无声地污染公共仓库的 lock 文件，跨团队贡献代码时必须用 project-level `.npmrc` 兜底
 - CI 报 `ENOTFOUND` 而不是 `ETIMEDOUT` 说明 runner 连 DNS 都解析不了，基本 100% 是某个只在私有网络内可解析的域名泄漏到公共 lock 文件
+
+## 2026-04-27 CST
+task: TASK-037
+agent: coordinator (direct)
+branch: agent/TASK-037-format-rules-enforcement
+status: review
+summary:
+- 背景：TASK-036 合入后（PR #51），仓库有了 .gitattributes + .editorconfig 统一行尾符和缩进，但缺少格式化工具和 CI 强制检查。
+- 实施内容（5 个 commit）：
+  - Commit 1 (316b74d0): knife4j-ui-react 新增 .prettierrc（与 core 对齐：printWidth 120, singleQuote, trailingComma all, endOfLine lf）+ .prettierignore + prettier@^3.3.0 devDep + format/format:check 脚本
+  - Commit 2 (1a75888a): knife4j-core .prettierrc 补 endOfLine: "lf" + package.json 新增 format:check 脚本 + 修复 format 脚本去掉不存在的 src/**/*.js glob
+  - Commit 3 (dceabaef): 对 knife4j-core 和 knife4j-ui-react 全量执行 prettier --write，79 文件格式化。无语义变更。
+  - Commit 4 (64cd1a12): CI 强化 -- test-front-core.sh 加 format:check + ui-react build/lint；test-java.sh 加 spotless:check；build.yml paths filter 加 .editorconfig/.gitattributes/CONTRIBUTING.md
+  - Commit 5 (adf96bb7): 新增 CONTRIBUTING.md，覆盖 Prettier / Spotless / ESLint 使用指南、IDEA/VS Code 配置、行尾符规则、本地验证脚本、PR checklist
+- 未做 .idea/codeStyles/Project.xml（决定不引入，理由见 notes）
+validation:
+- npm run format:check -w knife4j-core → All matched files use Prettier code style! ✅
+- npm run format:check -w knife4j-ui-react → All matched files use Prettier code style! ✅
+- npm test -w knife4j-core → 12 suites, 147 tests passed ✅
+- npm run build -w knife4j-core → tsc 编译成功 ✅
+next:
+- 推送分支 → 开 PR → review → merge master
+- 合并后验证 CI Build workflow 全绿
+notes:
+- 放弃 .idea/codeStyles/Project.xml 的原因：(1) IDEA 的 code style XML 格式不稳定，不同 IDEA 版本可能改结构；(2) .editorconfig 已覆盖缩进/换行/charset；(3) Spotless + Prettier 在 CI 侧已经强制约束，开发者只需关掉 IDEA 的 Actions on Save 自动格式化即可
+- 未引入 husky/lint-staged（pre-commit hook），保持轻量
+- 格式化 commit (dceabaef) 建议在 .git-blame-ignore-revs 中标记，避免 git blame 显示格式化噪声
+blockers:
+- none

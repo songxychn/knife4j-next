@@ -205,7 +205,8 @@ const enUS = {
 
   // OfficeDoc
   'officeDoc.title': 'Offline Document Export',
-  'officeDoc.desc': 'Export the current API documentation as a downloadable offline file. Supports HTML and Word (.doc) formats.',
+  'officeDoc.desc':
+    'Export the current API documentation as a downloadable offline file. Supports HTML and Word (.doc) formats.',
   'officeDoc.alert.mockData': 'Mock data or unloaded document detected; exported content may be incomplete.',
   'officeDoc.btn.html': 'Download HTML',
   'officeDoc.btn.word': 'Download Word (.doc)',

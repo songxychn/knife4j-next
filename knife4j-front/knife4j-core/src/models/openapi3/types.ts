@@ -253,7 +253,7 @@ export type TagObject = {
   /**
    * Knife4j扩展属性，排序规则
    */
-  "x-order"?: number;
+  'x-order'?: number;
 
   /**
    * Additional external documentation for this tag.
@@ -440,8 +440,8 @@ export type SchemaObject = {
    */
   allOf?: SchemaObject[];
   /**
-     * Reference to the object.
-     */
+   * Reference to the object.
+   */
   $ref?: string;
   /**
    * List of schemas that this schema must conform to one of.
@@ -1105,8 +1105,8 @@ export type ResponseObject = {
   links?: { [link: string]: LinkObject | ReferenceObject };
 
   /**
-  * Reference to the object.
-  */
+   * Reference to the object.
+   */
   $ref?: string;
 };
 

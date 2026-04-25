@@ -247,10 +247,7 @@ export interface SchemaFieldNode {
  * 支持：$ref / object / array / enum / example / default / allOf（浅合并） /
  * oneOf / anyOf（取第一个可解析分支） / 循环引用截断 / maxDepth 保护。
  */
-export type BuildSchemaExampleFn = (
-  schema: Record<string, unknown> | undefined,
-  ctx: SchemaResolveContext,
-) => unknown;
+export type BuildSchemaExampleFn = (schema: Record<string, unknown> | undefined, ctx: SchemaResolveContext) => unknown;
 
 /**
  * 根据 schema 生成字段树（用于文档展示）。
@@ -262,4 +259,3 @@ export type BuildSchemaFieldTreeFn = (
   schema: Record<string, unknown> | undefined,
   ctx: SchemaResolveContext,
 ) => SchemaFieldNode[];
-

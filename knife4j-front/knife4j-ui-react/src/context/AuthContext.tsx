@@ -125,26 +125,34 @@ export const AuthProvider: React.FC<{
         setLoaded(true);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [activeGroupId]);
 
-  const setScheme = useCallback((securityKey: string, value: SchemeValue) => {
-    setSchemes((prev) => {
-      const next = { ...prev, [securityKey]: value };
-      // 异步持久化
-      saveGroup(activeGroupId, next).catch(() => {});
-      return next;
-    });
-  }, [activeGroupId]);
+  const setScheme = useCallback(
+    (securityKey: string, value: SchemeValue) => {
+      setSchemes((prev) => {
+        const next = { ...prev, [securityKey]: value };
+        // 异步持久化
+        saveGroup(activeGroupId, next).catch(() => {});
+        return next;
+      });
+    },
+    [activeGroupId],
+  );
 
-  const removeScheme = useCallback((securityKey: string) => {
-    setSchemes((prev) => {
-      const next = { ...prev };
-      delete next[securityKey];
-      saveGroup(activeGroupId, next).catch(() => {});
-      return next;
-    });
-  }, [activeGroupId]);
+  const removeScheme = useCallback(
+    (securityKey: string) => {
+      setSchemes((prev) => {
+        const next = { ...prev };
+        delete next[securityKey];
+        saveGroup(activeGroupId, next).catch(() => {});
+        return next;
+      });
+    },
+    [activeGroupId],
+  );
 
   const clearGroup = useCallback(() => {
     setSchemes({});
@@ -161,9 +169,7 @@ export const AuthProvider: React.FC<{
   }
 
   return (
-    <AuthContext.Provider
-      value={{ schemes, setScheme, removeScheme, clearGroup, activeGroupId, setActiveGroupId }}
-    >
+    <AuthContext.Provider value={{ schemes, setScheme, removeScheme, clearGroup, activeGroupId, setActiveGroupId }}>
       {children}
     </AuthContext.Provider>
   );

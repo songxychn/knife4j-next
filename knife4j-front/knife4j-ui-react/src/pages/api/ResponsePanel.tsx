@@ -1,9 +1,9 @@
-import {useEffect, useMemo, useState} from 'react';
-import {Alert, Button, Space, Table, Tabs, Tag, Typography, message} from 'antd';
-import {CopyOutlined} from '@ant-design/icons';
-import {useTranslation} from 'react-i18next';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Space, Table, Tabs, Tag, Typography, message } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
-const {Text} = Typography;
+const { Text } = Typography;
 
 /**
  * Shape of a completed debug response (success or failure w/ payload).
@@ -42,7 +42,13 @@ interface ResponsePanelProps {
 const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'purple', HEAD: 'cyan', OPTIONS: 'default',
+  GET: 'green',
+  POST: 'blue',
+  PUT: 'orange',
+  DELETE: 'red',
+  PATCH: 'purple',
+  HEAD: 'cyan',
+  OPTIONS: 'default',
 };
 
 /** Human-readable byte size, matching Vue2 DebugResponse.vue logic. */
@@ -105,8 +111,8 @@ function copyToClipboard(text: string, onDone: () => void, onFail: () => void): 
   }
 }
 
-export default function ResponsePanel({response, error}: ResponsePanelProps) {
-  const {t} = useTranslation();
+export default function ResponsePanel({ response, error }: ResponsePanelProps) {
+  const { t } = useTranslation();
   const [activeKey, setActiveKey] = useState<string>('content');
 
   // When a new response arrives, reset focus back to the Content tab so
@@ -125,7 +131,7 @@ export default function ResponsePanel({response, error}: ResponsePanelProps) {
   };
 
   const headerRows = useMemo(
-    () => (response ? Object.entries(response.headers).map(([k, v]) => ({key: k, name: k, value: v})) : []),
+    () => (response ? Object.entries(response.headers).map(([k, v]) => ({ key: k, name: k, value: v })) : []),
     [response],
   );
 
@@ -137,15 +143,15 @@ export default function ResponsePanel({response, error}: ResponsePanelProps) {
         <Alert
           type="error"
           showIcon
-          style={{marginBottom: 12}}
+          style={{ marginBottom: 12 }}
           message={t('apiDebug.error.title')}
-          description={<pre style={{margin: 0, whiteSpace: 'pre-wrap'}}>{error}</pre>}
+          description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>}
         />
       )}
 
       {response && (
         <>
-          <Space wrap style={{marginBottom: 8}}>
+          <Space wrap style={{ marginBottom: 8 }}>
             <Text strong>{t('apiDebug.response.status')}</Text>
             <Tag color={statusColor(response.status)}>
               {response.status} {response.statusText}
@@ -176,7 +182,7 @@ export default function ResponsePanel({response, error}: ResponsePanelProps) {
                 label: t('apiDebug.response.tab.raw'),
                 children: (
                   <div>
-                    <div style={{marginBottom: 8}}>
+                    <div style={{ marginBottom: 8 }}>
                       <Button size="small" icon={<CopyOutlined />} onClick={handleCopyRaw}>
                         {t('apiDebug.response.copyRaw')}
                       </Button>
@@ -193,8 +199,8 @@ export default function ResponsePanel({response, error}: ResponsePanelProps) {
                     size="small"
                     dataSource={headerRows}
                     columns={[
-                      {title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240},
-                      {title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value'},
+                      { title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240 },
+                      { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
                     ]}
                     pagination={false}
                   />
@@ -215,19 +221,19 @@ export default function ResponsePanel({response, error}: ResponsePanelProps) {
  *  - `json`   → pretty-printed JSON (JSON.stringify on parse), textual fallback
  *  - `text`   → plain text / html source in <pre>
  */
-function ContentTab({response}: {response: DebugResponsePayload}) {
-  const {t} = useTranslation();
+function ContentTab({ response }: { response: DebugResponsePayload }) {
+  const { t } = useTranslation();
 
   if (response.kind === 'image' && response.objectUrl) {
     return (
       <div>
-        <Text type="secondary" style={{display: 'block', marginBottom: 8}}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           {t('apiDebug.response.imagePreview')}
         </Text>
         <img
           src={response.objectUrl}
           alt="response"
-          style={{maxWidth: '100%', borderRadius: 4, border: '1px solid #e8e8e8'}}
+          style={{ maxWidth: '100%', borderRadius: 4, border: '1px solid #e8e8e8' }}
         />
       </div>
     );
@@ -236,7 +242,7 @@ function ContentTab({response}: {response: DebugResponsePayload}) {
   if (response.kind === 'binary' && response.objectUrl) {
     return (
       <div>
-        <Text type="secondary" style={{display: 'block', marginBottom: 8}}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           {response.contentType || 'application/octet-stream'}
         </Text>
         <Button type="primary">
@@ -255,4 +261,3 @@ function ContentTab({response}: {response: DebugResponsePayload}) {
   // text & unknown textual fallback
   return <pre style={preStyle}>{response.rawText}</pre>;
 }
-

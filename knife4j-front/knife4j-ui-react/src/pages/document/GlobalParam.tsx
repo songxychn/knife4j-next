@@ -20,12 +20,7 @@ function GlobalParamInner() {
       title: t('globalParam.col.action'),
       key: 'action',
       render: (_: unknown, record: GlobalParamItem) => (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => removeParam(record.id)}
-        />
+        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeParam(record.id)} />
       ),
     },
   ];
@@ -67,13 +62,7 @@ function GlobalParamInner() {
         </Form.Item>
       </Form>
 
-      <Table
-        dataSource={params}
-        columns={columns}
-        rowKey="id"
-        pagination={false}
-        size="small"
-      />
+      <Table dataSource={params} columns={columns} rowKey="id" pagination={false} size="small" />
     </div>
   );
 }

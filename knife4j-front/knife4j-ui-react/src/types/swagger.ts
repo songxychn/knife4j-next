@@ -5,7 +5,7 @@
 
 export interface SwaggerGroup {
   name: string;
-  url: string;       // api-docs 地址
+  url: string; // api-docs 地址
   swaggerVersion?: string;
   location?: string; // swagger-resources 格式
 }
@@ -38,7 +38,7 @@ export interface ParameterObject {
   required?: boolean;
   description?: string;
   schema?: SchemaObject;
-  type?: string;   // OAS2
+  type?: string; // OAS2
   format?: string; // OAS2
 }
 
@@ -107,8 +107,8 @@ export interface PathItemObject {
 }
 
 export interface SwaggerDoc {
-  openapi?: string;   // OAS3
-  swagger?: string;   // OAS2
+  openapi?: string; // OAS3
+  swagger?: string; // OAS2
   info: SwaggerInfo;
   tags?: SwaggerTag[];
   paths: Record<string, PathItemObject>;
@@ -124,7 +124,7 @@ export interface SwaggerDoc {
 
 /** 解析后的菜单项（tag + operations） */
 export interface MenuOperation {
-  key: string;       // e.g. "UserController/getUserById"
+  key: string; // e.g. "UserController/getUserById"
   path: string;
   method: string;
   summary: string;

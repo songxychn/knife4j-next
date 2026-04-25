@@ -12,7 +12,8 @@ const { Text } = Typography;
 function extractSecuritySchemes(swaggerDoc: Record<string, unknown> | null): Record<string, SecuritySchemeObject> {
   if (!swaggerDoc) return {};
   // OAS3: components.securitySchemes
-  const oas3 = (swaggerDoc as { components?: { securitySchemes?: Record<string, SecuritySchemeObject> } }).components?.securitySchemes;
+  const oas3 = (swaggerDoc as { components?: { securitySchemes?: Record<string, SecuritySchemeObject> } }).components
+    ?.securitySchemes;
   // OAS2: securityDefinitions
   const oas2 = (swaggerDoc as { securityDefinitions?: Record<string, SecuritySchemeObject> }).securityDefinitions;
   return { ...oas3, ...oas2 };
@@ -23,8 +24,10 @@ function getOauth2Flows(scheme: SecuritySchemeObject): Array<{ flowType: string;
   if (scheme.type !== 'oauth2' || !scheme.flows) return [];
   const result: Array<{ flowType: string; flow: OAuth2Flow }> = [];
   if (scheme.flows.password) result.push({ flowType: 'password', flow: scheme.flows.password });
-  if (scheme.flows.clientCredentials) result.push({ flowType: 'clientCredentials', flow: scheme.flows.clientCredentials });
-  if (scheme.flows.authorizationCode) result.push({ flowType: 'authorizationCode', flow: scheme.flows.authorizationCode });
+  if (scheme.flows.clientCredentials)
+    result.push({ flowType: 'clientCredentials', flow: scheme.flows.clientCredentials });
+  if (scheme.flows.authorizationCode)
+    result.push({ flowType: 'authorizationCode', flow: scheme.flows.authorizationCode });
   if (scheme.flows.implicit) result.push({ flowType: 'implicit', flow: scheme.flows.implicit });
   return result;
 }
@@ -70,7 +73,13 @@ async function fetchOAuth2Token(params: {
 
 // ─── Sub Components ────────────────────────────────────
 
-function ApiKeySchemeForm({ securityKey, scheme, existingValue, onSave, onRemove }: {
+function ApiKeySchemeForm({
+  securityKey,
+  scheme,
+  existingValue,
+  onSave,
+  onRemove,
+}: {
   securityKey: string;
   scheme: SecuritySchemeObject;
   existingValue: SchemeValue | undefined;
@@ -78,9 +87,7 @@ function ApiKeySchemeForm({ securityKey, scheme, existingValue, onSave, onRemove
   onRemove: (key: string) => void;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState(
-    existingValue?.type === 'apiKey' ? existingValue.value : '',
-  );
+  const [value, setValue] = useState(existingValue?.type === 'apiKey' ? existingValue.value : '');
   const isIn = scheme.in ?? 'header';
   const name = scheme.name ?? securityKey;
 
@@ -94,8 +101,12 @@ function ApiKeySchemeForm({ securityKey, scheme, existingValue, onSave, onRemove
     <div style={{ marginBottom: 12 }}>
       <Space direction="vertical" style={{ width: '100%' }}>
         <Space>
-          <Tag>{t('auth.schemes.apiKey.in')}: {isIn}</Tag>
-          <Tag>{t('auth.schemes.apiKey.name')}: {name}</Tag>
+          <Tag>
+            {t('auth.schemes.apiKey.in')}: {isIn}
+          </Tag>
+          <Tag>
+            {t('auth.schemes.apiKey.name')}: {name}
+          </Tag>
         </Space>
         <Input
           value={value}
@@ -108,7 +119,14 @@ function ApiKeySchemeForm({ securityKey, scheme, existingValue, onSave, onRemove
             {t('auth.btn.authorize')}
           </Button>
           {existingValue && (
-            <Button size="small" danger onClick={() => { onRemove(securityKey); message.success(t('auth.msg.schemeRemoved')); }}>
+            <Button
+              size="small"
+              danger
+              onClick={() => {
+                onRemove(securityKey);
+                message.success(t('auth.msg.schemeRemoved'));
+              }}
+            >
               {t('auth.btn.unauthorize')}
             </Button>
           )}
@@ -118,7 +136,12 @@ function ApiKeySchemeForm({ securityKey, scheme, existingValue, onSave, onRemove
   );
 }
 
-function HttpBearerSchemeForm({ securityKey, existingValue, onSave, onRemove }: {
+function HttpBearerSchemeForm({
+  securityKey,
+  existingValue,
+  onSave,
+  onRemove,
+}: {
   securityKey: string;
   existingValue: SchemeValue | undefined;
   onSave: (key: string, value: SchemeValue) => void;
@@ -149,7 +172,14 @@ function HttpBearerSchemeForm({ securityKey, existingValue, onSave, onRemove }: 
           {t('auth.btn.authorize')}
         </Button>
         {existingValue && (
-          <Button size="small" danger onClick={() => { onRemove(securityKey); message.success(t('auth.msg.schemeRemoved')); }}>
+          <Button
+            size="small"
+            danger
+            onClick={() => {
+              onRemove(securityKey);
+              message.success(t('auth.msg.schemeRemoved'));
+            }}
+          >
             {t('auth.btn.unauthorize')}
           </Button>
         )}
@@ -158,7 +188,12 @@ function HttpBearerSchemeForm({ securityKey, existingValue, onSave, onRemove }: 
   );
 }
 
-function HttpBasicSchemeForm({ securityKey, existingValue, onSave, onRemove }: {
+function HttpBasicSchemeForm({
+  securityKey,
+  existingValue,
+  onSave,
+  onRemove,
+}: {
   securityKey: string;
   existingValue: SchemeValue | undefined;
   onSave: (key: string, value: SchemeValue) => void;
@@ -197,7 +232,14 @@ function HttpBasicSchemeForm({ securityKey, existingValue, onSave, onRemove }: {
             {t('auth.btn.authorize')}
           </Button>
           {existingValue && (
-            <Button size="small" danger onClick={() => { onRemove(securityKey); message.success(t('auth.msg.schemeRemoved')); }}>
+            <Button
+              size="small"
+              danger
+              onClick={() => {
+                onRemove(securityKey);
+                message.success(t('auth.msg.schemeRemoved'));
+              }}
+            >
               {t('auth.btn.unauthorize')}
             </Button>
           )}
@@ -207,7 +249,13 @@ function HttpBasicSchemeForm({ securityKey, existingValue, onSave, onRemove }: {
   );
 }
 
-function OAuth2SchemeForm({ securityKey, scheme, existingValue, onSave, onRemove }: {
+function OAuth2SchemeForm({
+  securityKey,
+  scheme,
+  existingValue,
+  onSave,
+  onRemove,
+}: {
   securityKey: string;
   scheme: SecuritySchemeObject;
   existingValue: SchemeValue | undefined;
@@ -252,7 +300,14 @@ function OAuth2SchemeForm({ securityKey, scheme, existingValue, onSave, onRemove
   );
 }
 
-function OAuth2FlowForm({ securityKey, flowType, flow, existingValue, onSave, onRemove }: {
+function OAuth2FlowForm({
+  securityKey,
+  flowType,
+  flow,
+  existingValue,
+  onSave,
+  onRemove,
+}: {
   securityKey: string;
   flowType: string;
   flow: OAuth2Flow;
@@ -269,14 +324,11 @@ function OAuth2FlowForm({ securityKey, flowType, flow, existingValue, onSave, on
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [scope, setScope] = useState('');
-  const [accessToken, setAccessToken] = useState(
-    existingValue?.type === 'oauth2' ? existingValue.accessToken : '',
-  );
+  const [accessToken, setAccessToken] = useState(existingValue?.type === 'oauth2' ? existingValue.accessToken : '');
   const [obtaining, setObtaining] = useState(false);
 
-  const flowLabel = flowType === 'password'
-    ? t('auth.schemes.oauth2.password')
-    : t('auth.schemes.oauth2.clientCredentials');
+  const flowLabel =
+    flowType === 'password' ? t('auth.schemes.oauth2.password') : t('auth.schemes.oauth2.clientCredentials');
 
   const handleObtainToken = async () => {
     if (!tokenUrl) return;
@@ -350,19 +402,21 @@ function OAuth2FlowForm({ securityKey, flowType, flow, existingValue, onSave, on
           placeholder={t('auth.schemes.oauth2.accessToken.placeholder')}
         />
         <Space>
-          <Button
-            size="small"
-            loading={obtaining}
-            onClick={handleObtainToken}
-            disabled={!tokenUrl}
-          >
+          <Button size="small" loading={obtaining} onClick={handleObtainToken} disabled={!tokenUrl}>
             {obtaining ? t('auth.schemes.oauth2.obtaining') : t('auth.schemes.oauth2.obtainToken')}
           </Button>
           <Button type="primary" size="small" onClick={handleSave} disabled={!accessToken}>
             {t('auth.btn.authorize')}
           </Button>
           {existingValue && (
-            <Button size="small" danger onClick={() => { onRemove(securityKey); message.success(t('auth.msg.schemeRemoved')); }}>
+            <Button
+              size="small"
+              danger
+              onClick={() => {
+                onRemove(securityKey);
+                message.success(t('auth.msg.schemeRemoved'));
+              }}
+            >
               {t('auth.btn.unauthorize')}
             </Button>
           )}
@@ -382,13 +436,19 @@ export default function Authorize() {
   const securitySchemes = extractSecuritySchemes(swaggerDoc as unknown as Record<string, unknown> | null);
   const schemeEntries = Object.entries(securitySchemes);
 
-  const handleSave = useCallback((securityKey: string, value: SchemeValue) => {
-    setScheme(securityKey, value);
-  }, [setScheme]);
+  const handleSave = useCallback(
+    (securityKey: string, value: SchemeValue) => {
+      setScheme(securityKey, value);
+    },
+    [setScheme],
+  );
 
-  const handleRemove = useCallback((securityKey: string) => {
-    removeScheme(securityKey);
-  }, [removeScheme]);
+  const handleRemove = useCallback(
+    (securityKey: string) => {
+      removeScheme(securityKey);
+    },
+    [removeScheme],
+  );
 
   const handleClearAll = useCallback(() => {
     clearGroup();
@@ -460,7 +520,11 @@ export default function Authorize() {
         <Tag>{scheme.type}</Tag>
         {scheme.type === 'http' && <Tag>{scheme.scheme}</Tag>}
         {isAuthorized && <Tag color="green">✓</Tag>}
-        {scheme.description && <Text type="secondary" style={{ fontSize: 12 }}>{scheme.description}</Text>}
+        {scheme.description && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {scheme.description}
+          </Text>
+        )}
       </Space>
     );
 

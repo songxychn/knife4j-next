@@ -24,7 +24,9 @@ export async function fetchGroups(): Promise<SwaggerGroup[]> {
       // 单文档，无分组
       return [{ name: 'default', url: 'v3/api-docs' }];
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 
   // fallback: springfox swagger-resources
   try {
@@ -37,7 +39,9 @@ export async function fetchGroups(): Promise<SwaggerGroup[]> {
         swaggerVersion: g.swaggerVersion,
       }));
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 
   return [];
 }
@@ -47,7 +51,7 @@ export async function fetchSwaggerDoc(url: string): Promise<SwaggerDoc | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    return await res.json() as SwaggerDoc;
+    return (await res.json()) as SwaggerDoc;
   } catch (_) {
     return null;
   }

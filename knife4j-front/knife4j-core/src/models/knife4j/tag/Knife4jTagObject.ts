@@ -1,46 +1,44 @@
-import { Knife4jExternalDocumentationObject } from "../externalDoc/Knife4jExternalDocumentationObject";
+import { Knife4jExternalDocumentationObject } from '../externalDoc/Knife4jExternalDocumentationObject';
 
 /**
  * tag内容
  */
 export class Knife4jTagObject {
-    /**
-     * REQUIRED. The name of the tag.
-     */
-    name: string;
+  /**
+   * REQUIRED. The name of the tag.
+   */
+  name: string;
 
-    /**
-     * A short description for the tag. CommonMark syntax MAY be used for rich text representation.
-     */
-    description?: string;
+  /**
+   * A short description for the tag. CommonMark syntax MAY be used for rich text representation.
+   */
+  description?: string;
 
-    /**
-     * tag顺序
-     */
-    order = 0;
+  /**
+   * tag顺序
+   */
+  order = 0;
 
-    /**
-     * 当前tag下拥有的接口数量
-     */
-    count = 0;
+  /**
+   * 当前tag下拥有的接口数量
+   */
+  count = 0;
 
-    /**
-     * 支持多级别的Tag
-     */
-    children: Array<Knife4jTagObject> = [];
+  /**
+   * 支持多级别的Tag
+   */
+  children: Array<Knife4jTagObject> = [];
 
-    /**
-     * Additional external documentation for this tag.
-     */
-    externalDocs?: Knife4jExternalDocumentationObject;
+  /**
+   * Additional external documentation for this tag.
+   */
+  externalDocs?: Knife4jExternalDocumentationObject;
 
-    /**
-     * 构造函数
-     * @param name tag名称
-     */
-    constructor(name: string) {
-        this.name = name
-    }
+  /**
+   * 构造函数
+   * @param name tag名称
+   */
+  constructor(name: string) {
+    this.name = name;
+  }
 }
-
-

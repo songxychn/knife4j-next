@@ -42,9 +42,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   return (
-    <GlobalParamContext.Provider value={{ params, addParam, removeParam }}>
-      {children}
-    </GlobalParamContext.Provider>
+    <GlobalParamContext.Provider value={{ params, addParam, removeParam }}>{children}</GlobalParamContext.Provider>
   );
 };
 
