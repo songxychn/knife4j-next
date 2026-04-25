@@ -114,6 +114,9 @@ const zhCN = {
   'apiDebug.preview.copied': '已复制到剪贴板',
   'apiDebug.preview.copyFailed': '复制失败，请手动选择文本',
   'apiDebug.preview.autoContentType': '（Content-Type 将由 body 类型自动注入）',
+  'apiDebug.preview.source.interface': '接口',
+  'apiDebug.preview.source.global': '全局',
+  'apiDebug.preview.source.auth': '鉴权',
 
   // Authorize
   'auth.title': 'Authorization',

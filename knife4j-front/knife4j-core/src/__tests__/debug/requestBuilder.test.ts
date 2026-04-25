@@ -101,26 +101,26 @@ describe('mergeHeaders', () => {
 describe('authToHeaders', () => {
   test('bearer token', () => {
     const result = authToHeaders({ bearerToken: 'mytoken' });
-    expect(result['Authorization']).toBe('Bearer mytoken');
+    expect(result.headers['Authorization']).toBe('Bearer mytoken');
   });
 
   test('basic credentials', () => {
     const result = authToHeaders({ basicCredentials: 'dXNlcjpwYXNz' });
-    expect(result['Authorization']).toBe('Basic dXNlcjpwYXNz');
+    expect(result.headers['Authorization']).toBe('Basic dXNlcjpwYXNz');
   });
 
   test('basic overrides bearer when both present', () => {
     const result = authToHeaders({ bearerToken: 'tok', basicCredentials: 'dXNlcjpwYXNz' });
-    expect(result['Authorization']).toBe('Basic dXNlcjpwYXNz');
+    expect(result.headers['Authorization']).toBe('Basic dXNlcjpwYXNz');
   });
 
   test('api keys', () => {
     const result = authToHeaders({ apiKeys: { 'X-API-Key': 'key123' } });
-    expect(result['X-API-Key']).toBe('key123');
+    expect(result.headers['X-API-Key']).toBe('key123');
   });
 
   test('empty auth returns empty headers', () => {
-    expect(authToHeaders(undefined)).toEqual({});
+    expect(authToHeaders(undefined)).toEqual({ headers: {}, queries: {} });
   });
 });
 
@@ -477,4 +477,164 @@ describe('buildCurl', () => {
     expect(curl).toContain('X-Trace: 1');
   });
 });
+// ─── sourceMap 追踪测试 (TASK-031) ─────────────────────
 
+describe('buildRequest sourceMap', () => {
+  const baseModel: OperationDebugModel = {
+    pathParams: [],
+    queryParams: [],
+    headerParams: [],
+    cookieParams: [],
+    bodyContents: [],
+    bodyRequired: false,
+  };
+
+  const baseForm: DebugFormValues = {
+    pathParams: {},
+    queryParams: {},
+    headerParams: {},
+    cookieParams: {},
+  };
+
+  test('no sourceMap when auth and globalParams are undefined', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+    });
+    expect(result.sourceMap).toBeUndefined();
+  });
+
+  test('sourceMap generated when auth is provided', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      auth: { bearerToken: 'mytoken' },
+    });
+    expect(result.sourceMap).toBeDefined();
+    expect(result.sourceMap!.headers['Authorization']).toBe('auth');
+    expect(result.headers['Authorization']).toBe('Bearer mytoken');
+  });
+
+  test('sourceMap generated when globalParams is provided', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      globalParams: { headers: { 'X-Global': 'val' }, queries: { gq: '1' } },
+    });
+    expect(result.sourceMap).toBeDefined();
+    expect(result.sourceMap!.headers['X-Global']).toBe('global');
+    expect(result.sourceMap!.query['gq']).toBe('global');
+  });
+
+  test('interface overrides global and auth in sourceMap', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: {
+        ...baseForm,
+        headerParams: { 'Authorization': 'Custom Token' },
+        queryParams: { gq: '2' },
+      },
+      auth: { bearerToken: 'mytoken' },
+      globalParams: { headers: { 'X-Global': 'val' }, queries: { gq: '1' } },
+    });
+    // Auth sets Authorization=auth, but interface overrides it
+    expect(result.sourceMap!.headers['Authorization']).toBe('interface');
+    expect(result.sourceMap!.query['gq']).toBe('interface');
+    // Global header should still be 'global'
+    expect(result.sourceMap!.headers['X-Global']).toBe('global');
+  });
+
+  test('global overrides auth in sourceMap', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      auth: { bearerToken: 'mytoken' },
+      globalParams: { headers: { 'Authorization': 'GlobalAuth' }, queries: {} },
+    });
+    // Global overrides auth for Authorization header
+    expect(result.sourceMap!.headers['Authorization']).toBe('global');
+    expect(result.headers['Authorization']).toBe('GlobalAuth');
+  });
+
+  test('basic auth generates sourceMap with auth source', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      auth: { basicCredentials: 'dXNlcjpwYXNz' },
+    });
+    expect(result.sourceMap!.headers['Authorization']).toBe('auth');
+    expect(result.headers['Authorization']).toBe('Basic dXNlcjpwYXNz');
+  });
+
+  test('apiKey auth generates sourceMap', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      auth: { apiKeys: { 'X-API-Key': 'abc123' } },
+    });
+    expect(result.sourceMap!.headers['X-API-Key']).toBe('auth');
+    expect(result.headers['X-API-Key']).toBe('abc123');
+  });
+
+  test('empty auth and globalParams still generates sourceMap', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      auth: {},
+      globalParams: { headers: {}, queries: {} },
+    });
+    // sourceMap generated because auth !== undefined
+    expect(result.sourceMap).toBeDefined();
+    expect(Object.keys(result.sourceMap!.headers)).toHaveLength(0);
+    expect(Object.keys(result.sourceMap!.query)).toHaveLength(0);
+  });
+
+  test('interface empty value does not mark as interface source', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: {
+        ...baseForm,
+        headerParams: { 'X-Empty': '' },
+      },
+      auth: { bearerToken: 'mytoken' },
+    });
+    // Empty string interface header should not override auth
+    expect(result.sourceMap!.headers['X-Empty']).toBeUndefined();
+    expect(result.sourceMap!.headers['Authorization']).toBe('auth');
+  });
+
+  test('authToHeaders returns { headers, queries }', () => {
+    const result = authToHeaders({ bearerToken: 'tok' });
+    expect(result.headers).toBeDefined();
+    expect(result.queries).toBeDefined();
+    expect(result.headers['Authorization']).toBe('Bearer tok');
+    expect(Object.keys(result.queries)).toHaveLength(0);
+  });
+});

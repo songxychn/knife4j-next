@@ -10,10 +10,12 @@
 import type {
   AuthValues,
   BuiltRequest,
+  BuiltRequestSourceMap,
   DebugFormValues,
   GlobalParamValues,
   OperationDebugModel,
   ParamIn,
+  ParamSource,
   ValidationError,
 } from './types';
 
@@ -66,12 +68,13 @@ export function mergeHeaders(
   return result;
 }
 
-// ─── 鉴权 → headers ──────────────────────────────────
+// ─── 鉴权 → headers + query ──────────────────────────
 
-/** 将鉴权信息转化为 headers */
-export function authToHeaders(auth: AuthValues | undefined): Record<string, string> {
+/** 将鉴权信息转化为 headers 和 query 参数 */
+export function authToHeaders(auth: AuthValues | undefined): { headers: Record<string, string>; queries: Record<string, string> } {
   const headers: Record<string, string> = {};
-  if (!auth) return headers;
+  const queries: Record<string, string> = {};
+  if (!auth) return { headers, queries };
 
   if (auth.bearerToken) {
     headers['Authorization'] = `Bearer ${auth.bearerToken}`;
@@ -85,7 +88,7 @@ export function authToHeaders(auth: AuthValues | undefined): Record<string, stri
     }
   }
 
-  return headers;
+  return { headers, queries };
 }
 
 // ─── 全局参数 → headers + query ───────────────────────
@@ -196,15 +199,52 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   // 2. query 合并（用户填写 + 全局参数，全局参数不覆盖用户填写）
   const gp = splitGlobalParams(globalParams);
-  const mergedQuery: Record<string, string> = { ...gp.queries, ...formValues.queryParams };
 
   // 3. headers 合并（接口级 > 全局 > 鉴权）
-  const authHeaders = authToHeaders(auth);
+  const authResult = authToHeaders(auth);
   const mergedHeaders = mergeHeaders(
-    authHeaders,               // 优先级最低
+    authResult.headers,        // 优先级最低
     gp.headers,                // 全局参数
     formValues.headerParams,   // 接口级最高
   );
+  // 鉴权 query 参数合并（鉴权 < 全局 < 接口级）
+  const mergedQuery: Record<string, string> = { ...authResult.queries, ...gp.queries, ...formValues.queryParams };
+
+  // 3.5 sourceMap 追踪（仅当存在 auth 或 globalParams 时生成）
+  const hasMultiSource = auth !== undefined || globalParams !== undefined;
+  let sourceMap: BuiltRequestSourceMap | undefined;
+  if (hasMultiSource) {
+    const headerSource: Record<string, ParamSource> = {};
+    const querySource: Record<string, ParamSource> = {};
+
+    // 先标记 auth 来源（最低优先级）
+    for (const key of Object.keys(authResult.headers)) {
+      headerSource[key] = 'auth';
+    }
+    for (const key of Object.keys(authResult.queries)) {
+      querySource[key] = 'auth';
+    }
+    // 全局参数覆盖 auth
+    for (const key of Object.keys(gp.headers)) {
+      headerSource[key] = 'global';
+    }
+    for (const key of Object.keys(gp.queries)) {
+      querySource[key] = 'global';
+    }
+    // 接口级覆盖全局/auth
+    for (const key of Object.keys(formValues.headerParams)) {
+      if (formValues.headerParams[key] !== undefined && formValues.headerParams[key] !== '') {
+        headerSource[key] = 'interface';
+      }
+    }
+    for (const key of Object.keys(formValues.queryParams)) {
+      if (formValues.queryParams[key] !== undefined && formValues.queryParams[key] !== '') {
+        querySource[key] = 'interface';
+      }
+    }
+
+    sourceMap = { headers: headerSource, query: querySource };
+  }
 
   // 4. Content-Type + body 构建
   const selectedContentType = formValues.selectedContentType
@@ -250,6 +290,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     query: mergedQuery,
     body,
     contentType: selectedContentType,
+    sourceMap,
   };
 }
 

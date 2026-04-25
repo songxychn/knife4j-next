@@ -114,6 +114,9 @@ const enUS = {
   'apiDebug.preview.copied': 'Copied to clipboard',
   'apiDebug.preview.copyFailed': 'Copy failed, please select text manually',
   'apiDebug.preview.autoContentType': '(Content-Type is auto-injected based on body type)',
+  'apiDebug.preview.source.interface': 'Interface',
+  'apiDebug.preview.source.global': 'Global',
+  'apiDebug.preview.source.auth': 'Auth',
 
   // Authorize
   'auth.title': 'Authorization',
