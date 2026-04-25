@@ -163,3 +163,10 @@ blockers: none
 - 状态: review
 - 验证: npm run build ✓（由 claude-worker 执行）
 - 内容: GlobalParamContext.tsx + GlobalParam.tsx（表格+新增表单）+ App.tsx 注册
+
+## TASK-020 — 2026-04-25
+- branch: codex/TASK-020-react-home
+- PR: https://github.com/songxychn/knife4j-next/pull/21
+- 状态: review
+- 流程: worker → reviewer（发现 paths null safety 问题）→ worker fix → build ✓
+- 内容: Home.tsx，API info + method 统计，paths/?? {} guard，info fallback
