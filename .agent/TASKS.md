@@ -570,3 +570,29 @@ notes:
 - implicit flow 明确不做，理由：现代浏览器不推荐、redirect 回跳对 starter 场景不友好；文档注明
 - authorization_code flow 本任务不做；如后续要做单独立 TASK
 - 本任务仅扩展 TASK-031 的鉴权合并层，不重写 requestBuilder
+
+### TASK-034
+status: in_progress
+area: repo
+title: knife4j-front 引入 npm workspaces 替代本地 tgz 依赖
+branch: codex/TASK-034-knife4j-front-workspaces
+depends_on: TASK-032
+validation:
+- ./scripts/test-front-core.sh
+- cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- `knife4j-front/` 新增根 `package.json`，声明 `workspaces: ["knife4j-core", "knife4j-ui-react"]`，`private: true`
+- `knife4j-ui-react/package.json` 中 `"knife4j-core": "file:knife4j-core-1.0.0.tgz"` 改为 workspace 指向（如 `"*"`）
+- 删除 `knife4j-front/knife4j-core/knife4j-core-1.0.0.tgz` 与 `knife4j-front/knife4j-ui-react/knife4j-core-1.0.0.tgz`
+- 删除子项目各自的 `package-lock.json`（由根 lockfile 接管）
+- 在 `knife4j-front/` 根目录运行 `npm install` 成功，生成统一的 `node_modules` 与 `package-lock.json`
+- `scripts/test-front-core.sh` 改为先在 `knife4j-front/` 根目录 `npm ci`，再对 `knife4j-core` 运行 test / lint / build
+- `.agent/RUNBOOK.md` 的「Front Core」章节同步新命令
+- `knife4j-ui/`（ant-design-pro，用 pnpm）**不**纳入本次 workspace，避免 lockfile 冲突
+notes:
+- 目的：去掉手工 `npm pack` + 覆盖 tgz + 删 `package-lock.json` 的开发链路
+- 对照 Maven 父子 POM：根 `package.json` 类比父 POM 的 `<modules>`，子 `package.json` 类比子模块 POM
+- 不引入 pnpm / yarn / turborepo，坚持纯 npm workspaces，减少工具链变化面
+- 本任务不触碰 `knife4j-front/knife4j-cli`、`knife4j-front/knife4j-extension*`（均只含 README）
+- 不修改发布流程、Maven webjar 聚合、Java 端代码
+- 回滚路径：还原 `knife4j-front/package.json`、两份 tgz、两份 lockfile、`scripts/test-front-core.sh`

@@ -1,0 +1,11 @@
+{
+  "name": "knife4j-front",
+  "version": "0.0.0",
+  "private": true,
+  "description": "knife4j front-end monorepo (npm workspaces)",
+  "workspaces": [
+    "knife4j-core",
+    "knife4j-ui-react"
+  ]
+}
+

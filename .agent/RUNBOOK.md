@@ -39,14 +39,17 @@
 
 它会：
 
-- 进入 `knife4j-front/knife4j-core`
-- 运行 `npm ci`
-- 运行 test、lint 和 build
+- 进入 `knife4j-front/`（workspace 根）
+- 运行 `npm ci`（统一安装所有 workspace 依赖）
+- 对 `knife4j-core` workspace 运行 test、lint 和 build
 
 适用于：
 
 - 修改解析逻辑
 - 修改 `knife4j-front/knife4j-core` 下的 TypeScript 源码
+- 修改 `knife4j-front/package.json` 或 workspace 配置
+
+> **注意**：`knife4j-front/` 使用 npm workspaces。`knife4j-core` 和 `knife4j-ui-react` 共享根 `node_modules`，通过 symlink 联动。子项目不再有独立的 `package-lock.json`。
 
 ### 文档站
 

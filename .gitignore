@@ -20,6 +20,7 @@ front/.idea
 
 .DS_Store
 node_modules/
+*.tgz
 .vitepress/cache/
 .vitepress/dist/
 docs-site/.vitepress/cache/

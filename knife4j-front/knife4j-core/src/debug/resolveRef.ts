@@ -25,13 +25,13 @@ export function resolveRef(
   let current: unknown = doc;
 
   for (const part of parts) {
-    if (current == null || typeof current !== 'object') return undefined;
+    if (current === null || typeof current !== 'object') return undefined;
     // JSON Pointer 允许 ~1 → / 和 ~0 → ~
     const key = part.replace(/~1/g, '/').replace(/~0/g, '~');
     current = (current as Record<string, unknown>)[key];
   }
 
-  if (current == null || typeof current !== 'object') return undefined;
+  if (current === null || typeof current !== 'object') return undefined;
   return current as Record<string, unknown>;
 }
 
@@ -44,12 +44,12 @@ export function resolveRef(
 export function dereference(
   obj: Record<string, unknown>,
   doc: Record<string, unknown>,
-  maxResolveDepth: number = 10,
+  maxResolveDepth = 10,
 ): Record<string, unknown> {
   let current = obj;
   let depth = 0;
   while (current.$ref && typeof current.$ref === 'string' && depth < maxResolveDepth) {
-    const resolved = resolveRef(current.$ref as string, doc);
+    const resolved = resolveRef(String(current.$ref), doc);
     if (!resolved) break;
     current = resolved;
     depth++;

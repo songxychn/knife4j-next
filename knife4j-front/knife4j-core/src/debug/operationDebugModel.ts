@@ -197,7 +197,7 @@ export function buildOperationDebugModel(
   const { doc, path, method, isOAS2 = Boolean(doc.swagger), schemaCtx } = options;
 
   // 定位 PathItem 和 Operation
-  const pathItem = doc.paths?.[path] as PathItemLike | undefined;
+  const pathItem = doc.paths?.[path];
   if (!pathItem) {
     return { pathParams: [], queryParams: [], headerParams: [], cookieParams: [], bodyContents: [], bodyRequired: false };
   }
@@ -280,7 +280,8 @@ export function buildOperationDebugModel(
       }
 
       // 将 formData 参数添加到 schema.properties
-      const props = (existingBody.schema!.properties ?? {}) as Record<string, Record<string, unknown>>;
+      const schemaObj = existingBody.schema as Record<string, unknown>;
+      const props = (schemaObj.properties ?? {}) as Record<string, Record<string, unknown>>;
       const fieldName = raw.name ?? '';
       const fieldType = (raw as OAS2Param).type ?? 'string';
 
@@ -292,7 +293,7 @@ export function buildOperationDebugModel(
         enum: (raw as OAS2Param).enum,
         example: raw.example,
       };
-      existingBody.schema!.properties = props;
+      schemaObj.properties = props;
 
       // file 字段标记
       if (fieldType === 'file') {
@@ -301,8 +302,9 @@ export function buildOperationDebugModel(
       }
 
       // required
-      if (raw.required && existingBody.schema!.required) {
-        (existingBody.schema!.required as string[]).push(fieldName);
+      if (raw.required) {
+        const reqList = schemaObj.required as string[] | undefined;
+        if (reqList) reqList.push(fieldName);
       }
 
       continue;

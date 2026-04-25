@@ -6,7 +6,7 @@
  * 目的：让 requestBuilder 和 OperationDebugModel 在 TASK-032 就能生成初始值。
  */
 
-import type { BuildSchemaExampleFn, BuildSchemaFieldTreeFn, SchemaResolveContext } from './types';
+import type { BuildSchemaExampleFn, BuildSchemaFieldTreeFn } from './types';
 
 /**
  * 基本类型 → 示例值的映射
