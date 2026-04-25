@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 
 public class OpenApi3UiResourceSmokeTest {
 
-    private static final Pattern ASSET_REFERENCE = Pattern.compile("(?:href|src)=([^\\s>\"']+)");
+    private static final Pattern ASSET_REFERENCE = Pattern.compile("(?:href|src)=[\"']?([^\"'\\s>]+)[\"']?");
 
     @Test
     public void shouldPackageDocHtmlAndReferencedAssets() throws IOException {
