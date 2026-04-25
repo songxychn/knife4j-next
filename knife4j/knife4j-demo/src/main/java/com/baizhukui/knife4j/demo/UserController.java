@@ -25,6 +25,7 @@ import com.baizhukui.knife4j.demo.dto.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,14 +45,11 @@ public class UserController {
     
     @Operation(summary = "分页查询用户")
     @GetMapping("/page")
-    public PageResult<UserVO> page(
-                                   @Parameter(description = "页码（从 1 开始）") @RequestParam(defaultValue = "1") int pageNum,
-                                   @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") int pageSize,
-                                   @Parameter(description = "关键词（模糊搜索用户名或邮箱）") @RequestParam(required = false) String keyword) {
+    public PageResult<UserVO> page(@ParameterObject PageQuery query) {
         List<UserVO> data = List.of(
                 new UserVO(1L, "张三", "zhangsan@example.com"),
                 new UserVO(2L, "李四", "lisi@example.com"));
-        return new PageResult<>(pageNum, pageSize, data.size(), data);
+        return new PageResult<>(query.getPageNum(), query.getPageSize(), data.size(), data);
     }
     
     @Operation(summary = "根据 ID 获取用户")
