@@ -70,12 +70,25 @@ export function mergeHeaders(
 
 // ─── 鉴权 → headers + query ──────────────────────────
 
-/** 将鉴权信息转化为 headers 和 query 参数 */
-export function authToHeaders(auth: AuthValues | undefined): { headers: Record<string, string>; queries: Record<string, string> } {
+/**
+ * 将鉴权信息转化为 headers 和 query 参数。
+ *
+ * 处理顺序：
+ * 1. 顶层 legacy 字段（`bearerToken` / `basicCredentials` / `apiKeys`）—— 保留 TASK-031 之前的行为
+ * 2. `bySecurityKey` 中按 `securityKeys` 筛选的 scheme 值（若 `securityKeys` 为 undefined，则注入全部）
+ *
+ * `securityKeys` 里出现但 `bySecurityKey` 中缺失 / 未填写的项会被忽略，不抛错。
+ * cookie 位置的 apiKey 会写入 `Cookie` 头：`name=value`；已有的 Cookie 头会以 `; ` 追加。
+ */
+export function authToHeaders(
+  auth: AuthValues | undefined,
+  securityKeys?: string[],
+): { headers: Record<string, string>; queries: Record<string, string> } {
   const headers: Record<string, string> = {};
   const queries: Record<string, string> = {};
   if (!auth) return { headers, queries };
 
+  // ── 1. Legacy 顶层字段 ──
   if (auth.bearerToken) {
     headers['Authorization'] = `Bearer ${auth.bearerToken}`;
   }
@@ -85,6 +98,46 @@ export function authToHeaders(auth: AuthValues | undefined): { headers: Record<s
   if (auth.apiKeys) {
     for (const [name, value] of Object.entries(auth.apiKeys)) {
       if (value) headers[name] = value;
+    }
+  }
+
+  // ── 2. bySecurityKey 按 securityKeys 筛选 ──
+  if (auth.bySecurityKey) {
+    const entries = Object.entries(auth.bySecurityKey);
+    const filtered = securityKeys === undefined
+      ? entries
+      : entries.filter(([key]) => securityKeys.includes(key));
+
+    for (const [, scheme] of filtered) {
+      if (!scheme) continue;
+      if (scheme.type === 'apiKey') {
+        if (!scheme.name || !scheme.value) continue;
+        if (scheme.in === 'header') {
+          headers[scheme.name] = scheme.value;
+        } else if (scheme.in === 'query') {
+          queries[scheme.name] = scheme.value;
+        } else if (scheme.in === 'cookie') {
+          const pair = `${scheme.name}=${scheme.value}`;
+          headers['Cookie'] = headers['Cookie']
+            ? `${headers['Cookie']}; ${pair}`
+            : pair;
+        }
+      } else if (scheme.type === 'http' && scheme.scheme === 'bearer') {
+        if (scheme.token) {
+          headers['Authorization'] = `Bearer ${scheme.token}`;
+        }
+      } else if (scheme.type === 'http' && scheme.scheme === 'basic') {
+        if (scheme.username || scheme.password) {
+          const raw = `${scheme.username ?? ''}:${scheme.password ?? ''}`;
+          const encoded = base64Encode(raw);
+          headers['Authorization'] = `Basic ${encoded}`;
+        }
+      } else if (scheme.type === 'oauth2') {
+        if (scheme.accessToken) {
+          const tokenType = scheme.tokenType ?? 'Bearer';
+          headers['Authorization'] = `${tokenType} ${scheme.accessToken}`;
+        }
+      }
     }
   }
 
@@ -186,13 +239,20 @@ export interface BuildRequestOptions {
   globalParams?: GlobalParamValues;
   /** 鉴权信息 */
   auth?: AuthValues;
+  /**
+   * 当前 operation 生效的 security key 列表（来自 OpenAPI operation.security）。
+   *
+   * 传入则按此筛选 `auth.bySecurityKey` 只注入命中的 scheme；
+   * 传 undefined 保持旧行为（注入顶层 legacy 字段 + 所有 `bySecurityKey`）。
+   */
+  securityKeys?: string[];
 }
 
 /**
  * 构建最终请求对象
  */
 export function buildRequest(options: BuildRequestOptions): BuiltRequest {
-  const { baseUrl, path, method, debugModel, formValues, globalParams, auth } = options;
+  const { baseUrl, path, method, debugModel, formValues, globalParams, auth, securityKeys } = options;
 
   // 1. path 替换
   const resolvedPath = replacePathParams(path, formValues.pathParams);
@@ -201,7 +261,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   const gp = splitGlobalParams(globalParams);
 
   // 3. headers 合并（接口级 > 全局 > 鉴权）
-  const authResult = authToHeaders(auth);
+  const authResult = authToHeaders(auth, securityKeys);
   const mergedHeaders = mergeHeaders(
     authResult.headers,        // 优先级最低
     gp.headers,                // 全局参数
@@ -367,6 +427,16 @@ export function buildUrlencodedBody(fields: Record<string, string>): string {
 }
 
 // ─── 工具 ─────────────────────────────────────────────
+
+/** 纯 JS base64 编码（不依赖 btoa / Buffer） */
+function base64Encode(str: string): string {
+  const bytes: Uint8Array = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
 /** 正则特殊字符转义 */
 function escapeRegExp(str: string): string {
