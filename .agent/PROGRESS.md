@@ -451,3 +451,32 @@ notes:
 - 发现 `npm run build -w knife4j-ui-react` 从 workspace root 执行时 `tsc: command not found`，这是 npm workspace PATH 行为的已知问题（子项目 .bin 不提升到 root PATH）；从子项目目录执行则正常
 - CI 不受此影响（java-build-test job 只做 npm ci，不跑 build；front-core-test 用的是 knife4j-core 的 tsc，被提升到 root）
 - 不引入 Node 22 新特性到业务代码，保持现有 jest/vite 工具链
+- 后续：4 个 commits（TASK-034/026/035 + docs(agent)）被意外直推到 master（fast-forward），绕过 PR 审查。详见下方 incident 记录。
+
+---
+
+## TASK-036: agent 状态同步 & incident 记录
+date: 2026-04-25
+status: done
+summary:
+- 将 TASK-026/032/034/035 状态从 review → done，添加 merged_into 字段
+- 记录 incident：TASK-034/026/035 的 4 个 commits 被 fast-forward 直推到 master，绕过 PR 审查
+incident:
+- what: 4 个 commits (6572a458, b8b018d6, 3056e407, 2617c72f) 被直接 push 到 origin/master，而非走 feature branch → PR → merge 的正规流程
+- when: 2026-04-25 ~19:41 CST
+- how: 用户在 IDE/命令行手动 push 时误选目标分支（origin/master 而非 origin/codex/task-034-035-stack）
+- impact: fast-forward（未改写历史），代码本身已通过本地完整验证；但缺少 PR 审查记录和 CI 绿灯记录
+- remediation:
+  - 接受现状（代码已落地且验证通过）
+  - 清理本地堆叠分支（已删除 5 个）
+  - 需手动删除远端残留分支 codex/TASK-034-knife4j-front-workspaces、codex/TASK-035-node22-upgrade
+  - 本次 .agent/ 状态更新走正规 PR 流程
+- prevention: 建议在 GitHub 仓库设置 Branch Protection Rules（master 禁止直推，必须走 PR + 1 approval）
+validation:
+- .agent/TASKS.md 状态一致
+- .agent/PROGRESS.md 含完整 incident 记录
+next:
+- 删除远端残留分支
+- 考虑启用 GitHub Branch Protection
+blockers:
+- 需用户手动删除远端分支（命令行无 push 凭据）

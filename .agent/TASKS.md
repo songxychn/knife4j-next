@@ -409,8 +409,9 @@ notes:
 - blocked 原因：等 TASK-023 集成后在真实环境验证
 
 ### TASK-026
-status: review
+status: done
 area: ui-react
+merged_into: master@2617c72f
 title: React 调试页按 OpenAPI 参数定义渲染填参表单
 branch: codex/TASK-026-react-debug-params
 depends_on: TASK-032
@@ -524,8 +525,9 @@ notes:
 - 接入顺序：requestBuilder 合并层 → GlobalParam → Authorize（bearer/basic），每一步保留 UI 预览可验证
 
 ### TASK-032
-status: review
+status: done
 area: front-core
+merged_into: master@864e30c2 (PR #37)
 title: 抽取调试/解析层到 knife4j-core（阶段 1 前置）
 branch: codex/TASK-032-core-debug-model
 depends_on:
@@ -572,8 +574,9 @@ notes:
 - 本任务仅扩展 TASK-031 的鉴权合并层，不重写 requestBuilder
 
 ### TASK-034
-status: review
+status: done
 area: repo
+merged_into: master@2617c72f
 title: knife4j-front 引入 npm workspaces 替代本地 tgz 依赖
 branch: codex/TASK-034-knife4j-front-workspaces
 depends_on: TASK-032
@@ -598,10 +601,10 @@ notes:
 - 回滚路径：还原 `knife4j-front/package.json`、两份 tgz、两份 lockfile、`scripts/test-front-core.sh`
 
 ### TASK-035
-status: review
+status: done
 area: repo
 title: 升级 Node 20 → 22 LTS 并修复 TASK-034 遗留的 CI workspace 路径
-branch: codex/TASK-035-node22-upgrade
+merged_into: master@2617c72f
 depends_on: TASK-034
 validation:
 - ./scripts/test-front-core.sh
