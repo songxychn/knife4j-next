@@ -505,3 +505,19 @@ summary:
 - 依赖 TASK-034 未合并，TASK-035 重新标为 blocked
 blockers:
 - TASK-034 PR 关闭未合并
+
+## 2026-04-25 13:14 UTC
+task: TASK-025
+agent: coordinator (heartbeat)
+branch: codex/TASK-025-i18n
+status: review
+summary:
+- 分支已有完整实现（react-i18next，zh-CN/en-US 约 130 条文案，Header 语言切换按钮）
+- npm ci && npm run build 通过，无 TypeScript 错误
+- 创建 PR #40
+validation:
+- cd knife4j-front/knife4j-ui-react && npm ci && npm run build: exit 0
+next:
+- 等待维护者 review PR #40
+blockers:
+- none
