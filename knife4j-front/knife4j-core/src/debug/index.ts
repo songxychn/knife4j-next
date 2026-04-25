@@ -43,6 +43,7 @@ export {
   validateRequired,
   buildRequest,
   buildCurl,
+  buildUrlencodedBody,
 } from './requestBuilder';
 export type { BuildRequestOptions } from './requestBuilder';
 

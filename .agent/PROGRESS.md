@@ -515,3 +515,25 @@ summary:
 - TASK-034（npm workspaces）：代码已在 master@6572a458，状态更新为 done
 - TASK-035（Node 22 升级）：代码已在 master@2617c72f，状态更新为 done
 - 解锁 TASK-027（requestBody 多内容类型表单）和 TASK-030（schema 示例生成）为 ready
+
+## 2026-07-04 CST
+task: TASK-030
+agent: coordinator (direct)
+branch: codex/TASK-030-schema-example-builder
+status: review
+summary:
+- 完整实现 buildSchemaExample(schema, ctx) 和 buildSchemaFieldTree(schema, ctx)
+- 支持 $ref、object、array、enum、example、default、allOf、oneOf、anyOf（后两者取第一个可解析分支）
+- 循环引用通过引用链数组截断，重复引用以占位值兜底
+- maxDepth 保护（默认 8），超过截断并附 truncated 标记
+- OAS2 definitions 与 OAS3 components.schemas 统一抽象
+- 新增 SchemaFieldNode 类型定义
+- 新增 schemaExample.test.ts（39 个用例覆盖各种分支）
+validation:
+- 12 test suites, 121 tests pass
+- lint 0 errors, tsc build OK
+- 分支已推送，等待创建 PR
+next:
+- 等待维护者 review PR
+blockers:
+- gh CLI 未安装，PR 需通过 GitHub 网页创建

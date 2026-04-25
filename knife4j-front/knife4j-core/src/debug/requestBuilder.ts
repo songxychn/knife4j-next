@@ -8,13 +8,13 @@
  */
 
 import type {
-  OperationDebugModel,
-  DebugFormValues,
-  GlobalParamValues,
   AuthValues,
   BuiltRequest,
-  ValidationError,
+  DebugFormValues,
+  GlobalParamValues,
+  OperationDebugModel,
   ParamIn,
+  ValidationError,
 } from './types';
 
 // ─── URL 构建 ─────────────────────────────────────────
@@ -180,18 +180,40 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     formValues.headerParams,   // 接口级最高
   );
 
-  // 4. Content-Type
+  // 4. Content-Type + body 构建
   const selectedContentType = formValues.selectedContentType
     ?? (debugModel.bodyContents.length > 0 ? debugModel.bodyContents[0].mediaType : '');
-  if (selectedContentType && !mergedHeaders['Content-Type']) {
-    mergedHeaders['Content-Type'] = selectedContentType;
+
+  const hasBody = !['GET', 'HEAD'].includes(method.toUpperCase());
+  let body: string | undefined = undefined;
+
+  if (hasBody) {
+    const category = debugModel.bodyContents.find(
+      (b) => b.mediaType === selectedContentType,
+    )?.category ?? 'raw';
+
+    if (category === 'urlencoded' && formValues.formFields) {
+      // application/x-www-form-urlencoded: 从 formFields 序列化
+      body = buildUrlencodedBody(formValues.formFields);
+      if (!mergedHeaders['Content-Type']) {
+        mergedHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+      }
+    } else if (category === 'multipart') {
+      // multipart/form-data: 纯函数只拼文本字段；
+      // UI 层需要用 fileFields 构建 FormData 后替换 body
+      // 这里输出 JSON 占位（文本字段序列化），UI 层自行组装 FormData
+      body = JSON.stringify(formValues.formFields ?? {});
+      // multipart 不设 Content-Type（浏览器自动设 boundary）
+    } else {
+      // json / raw: 直接用 body 文本
+      body = formValues.body;
+      if (selectedContentType && !mergedHeaders['Content-Type']) {
+        mergedHeaders['Content-Type'] = selectedContentType;
+      }
+    }
   }
 
-  // 5. body
-  const hasBody = !['GET', 'HEAD'].includes(method.toUpperCase());
-  const body = hasBody ? formValues.body : undefined;
-
-  // 6. URL
+  // 5. URL
   const queryString = buildQueryString(mergedQuery);
   const url = `${baseUrl}${resolvedPath}${queryString ? `?${queryString}` : ''}`;
 
@@ -232,6 +254,20 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push(`'${req.url}'`);
 
   return parts.join(' \\\n  ');
+}
+
+// ─── Urlencoded 序列化 ────────────────────────────────
+
+/**
+ * 将 formFields 序列化为 application/x-www-form-urlencoded 格式
+ */
+export function buildUrlencodedBody(fields: Record<string, string>): string {
+  const pairs: string[] = [];
+  for (const [name, value] of Object.entries(fields)) {
+    if (value === undefined || value === '') continue;
+    pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
+  }
+  return pairs.join('&');
 }
 
 // ─── 工具 ─────────────────────────────────────────────
