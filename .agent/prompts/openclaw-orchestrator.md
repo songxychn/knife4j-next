@@ -60,6 +60,20 @@
 - blocker，如有
 ```
 
+## Worker 调用方式（非 root 环境）
+
+Claude Code CLI 在 root 下被禁止，使用 `claude-worker` 用户运行：
+
+```bash
+# 前台运行（短任务）
+su -s /bin/bash claude-worker -c "cd /root/.openclaw/workspaces/knife4j-next-bot/knife4j-next && claude --permission-mode bypassPermissions --print 'TASK PROMPT'"
+
+# 后台运行（长任务，用 exec background:true + process poll 等待）
+```
+
+- 配置：`/home/claude-worker/.claude.json`
+- SSH key：`/home/claude-worker/.ssh/knife4j_next_deploy_key`
+
 ## 最小服务器调用形态
 
 将仓库路径和本次唤醒原因作为独立输入传给上面的提示词。
