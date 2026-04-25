@@ -1,7 +1,7 @@
 import { Button, Space, Typography, Alert } from 'antd';
 import { FileTextOutlined, FileWordOutlined } from '@ant-design/icons';
 import { useGroup } from '../../context/GroupContext';
-import type { SwaggerDoc, MenuTag, OperationObject, ParameterObject } from '../../types/swagger';
+import type { SwaggerDoc, MenuTag, OperationObject, ParameterObject, SchemaObject } from '../../types/swagger';
 
 const { Title, Paragraph } = Typography;
 
@@ -59,9 +59,52 @@ function renderParamTable(params: ParameterObject[]): string {
     </table>`;
 }
 
-function renderOperation(path: string, method: string, op: OperationObject): string {
+function resolveRef(ref: string, doc: SwaggerDoc): SchemaObject | undefined {
+  const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
+  if (!match) return undefined;
+  return (doc.components?.schemas ?? (doc.definitions as Record<string, SchemaObject> | undefined) ?? {})[match[1]];
+}
+
+function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
+  const rb = op.requestBody;
+  if (!rb) return '';
+  const jsonContent = rb.content?.['application/json'];
+  if (!jsonContent?.schema) return '';
+  let schema = jsonContent.schema;
+  if (schema.$ref) {
+    const resolved = resolveRef(schema.$ref, doc);
+    if (!resolved) return '';
+    schema = resolved;
+  }
+  if (!schema.properties) return '';
+  const requiredSet = new Set(schema.required ?? []);
+  const rows = Object.entries(schema.properties).map(([name, prop]) => {
+    const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
+    return `
+    <tr>
+      <td style="${borderStyle}">${escapeHtml(name)}</td>
+      <td style="${borderStyle}">${escapeHtml(type)}</td>
+      <td style="${borderStyle}">${requiredSet.has(name) ? 'Yes' : 'No'}</td>
+      <td style="${borderStyle}">${escapeHtml(prop.description)}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (application/json)</p>
+    <table style="width:100%;border-collapse:collapse;margin:4px 0;font-size:13px;">
+      <thead><tr style="background:#f5f5f5;">
+        <th style="${borderStyle}text-align:left;">Field</th>
+        <th style="${borderStyle}text-align:left;">Type</th>
+        <th style="${borderStyle}text-align:left;">Required</th>
+        <th style="${borderStyle}text-align:left;">Description</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderOperation(path: string, method: string, op: OperationObject, doc: SwaggerDoc): string {
   const color = methodColor(method);
   const params = op.parameters ?? [];
+  const bodyHtml = renderRequestBodyTable(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
   return `
     <div style="margin:14px 0;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;">
       <div style="padding:8px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">
@@ -72,12 +115,13 @@ function renderOperation(path: string, method: string, op: OperationObject): str
       ${op.summary ? `<div style="padding:5px 12px;font-size:14px;">${escapeHtml(op.summary)}</div>` : ''}
       ${op.description ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(op.description)}</div>` : ''}
       ${params.length ? `<div style="padding:5px 12px;">${renderParamTable(params)}</div>` : ''}
+      ${bodyHtml ? `<div style="padding:5px 12px;">${bodyHtml}</div>` : ''}
     </div>`;
 }
 
 function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
   const sections = tags.map((t) => {
-    const ops = t.operations.map((op) => renderOperation(op.path, op.method, op.operation)).join('');
+    const ops = t.operations.map((op) => renderOperation(op.path, op.method, op.operation, doc)).join('');
     return `
       <div style="margin-bottom:28px;">
         <h2 style="border-left:4px solid #00ab6d;padding-left:10px;margin:20px 0 10px;">${escapeHtml(t.tag)}</h2>
@@ -135,11 +179,13 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
           </tr></thead>
           <tbody>${paramRows}</tbody>
         </table>` : '';
+      const bodyHtml = renderRequestBodyTable(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
       return `
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
           <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(op.method.toUpperCase())}]</strong> <code>${escapeHtml(op.path)}</code>${op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''}</p>
           ${op.operation.summary ? `<p style="margin:2px 0;font-size:13px;">${escapeHtml(op.operation.summary)}</p>` : ''}
           ${paramTable}
+          ${bodyHtml}
         </div>`;
     }).join('');
     return `
