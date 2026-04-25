@@ -561,6 +561,6 @@ validation:
 - knife4j-ui-react: npm run build 通过 (tsc + vite build, dist 1.44MB)
 next:
 - 等待维护者 review
-- PR: https://github.com/songxychn/knife4j-next/pull/new/codex/TASK-027-react-debug-request-body
+- PR: https://github.com/songxychn/knife4j-next/pull/44
 blockers:
 - none
