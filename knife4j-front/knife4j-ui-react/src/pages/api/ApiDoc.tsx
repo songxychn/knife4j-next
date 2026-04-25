@@ -1,5 +1,6 @@
 import { Badge, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -21,25 +22,82 @@ interface ResponseRow {
   schema: string;
 }
 
+interface BodyRow {
+  key: string;
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+}
+
 const MOCK_OPERATION = {
-  url: '/api/user/{id}',
-  methodType: 'GET',
-  summary: '查询用户详情',
-  description: '根据用户 ID 查询用户的基本信息，包含姓名、邮箱和角色。',
+  url: '/api/user',
+  methodType: 'POST',
+  summary: '创建用户',
+  description: '创建一个新用户，请求体包含用户基本信息。',
   deprecated: false,
   parameters: [
-    { key: '1', name: 'id', in: 'path', type: 'integer', required: true, description: '用户 ID' },
-    { key: '2', name: 'Authorization', in: 'header', type: 'string', required: true, description: 'Bearer token' },
-    { key: '3', name: 'fields', in: 'query', type: 'string', required: false, description: '需要返回的字段，逗号分隔' },
+    { key: '1', name: 'Authorization', in: 'header', type: 'string', required: true, description: 'Bearer token' },
   ] as ParamRow[],
+  requestBody: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          $ref: '#/components/schemas/CreateUserRequest',
+        },
+      },
+    },
+  },
   responses: [
     { key: '200', statusCode: '200', description: '成功', schema: 'UserVO' },
-    { key: '404', statusCode: '404', description: '用户不存在', schema: '' },
+    { key: '400', statusCode: '400', description: '参数错误', schema: '' },
     { key: '401', statusCode: '401', description: '未授权', schema: '' },
   ] as ResponseRow[],
 };
 
-// ---- 请求参数表格 ----
+const MOCK_SWAGGER_DOC: Pick<SwaggerDoc, 'components'> = {
+  components: {
+    schemas: {
+      CreateUserRequest: {
+        type: 'object',
+        required: ['username', 'email'],
+        properties: {
+          username: { type: 'string', description: '用户名，3-20 个字符' },
+          email: { type: 'string', format: 'email', description: '邮箱地址' },
+          role: { type: 'string', description: '角色，默认 user', enum: ['user', 'admin'] },
+          age: { type: 'integer', description: '年龄' },
+        },
+      },
+    },
+  },
+};
+
+// ---- $ref 解析 ----
+
+function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components'>): SchemaObject | undefined {
+  const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
+  if (!match) return undefined;
+  return (doc.components?.schemas ?? {})[match[1]];
+}
+
+function schemaToBodyRows(
+  schema: SchemaObject,
+  doc: Pick<SwaggerDoc, 'components'>,
+): BodyRow[] {
+  const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
+  if (!resolved?.properties) return [];
+  const requiredSet = new Set(resolved.required ?? []);
+  return Object.entries(resolved.properties).map(([name, prop]) => ({
+    key: name,
+    name,
+    type: prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object'),
+    required: requiredSet.has(name),
+    description: prop.description ?? '',
+  }));
+}
+
+// ---- 请求参数表格列 ----
 
 const paramColumns: ColumnsType<ParamRow> = [
   {
@@ -69,7 +127,26 @@ const paramColumns: ColumnsType<ParamRow> = [
   { title: '说明', dataIndex: 'description' },
 ];
 
-// ---- 响应结构表格 ----
+// ---- 请求体字段表格列 ----
+
+const bodyColumns: ColumnsType<BodyRow> = [
+  {
+    title: '字段名',
+    dataIndex: 'name',
+    width: 160,
+    render: (v) => <Text code>{v}</Text>,
+  },
+  { title: '类型', dataIndex: 'type', width: 100 },
+  {
+    title: '必填',
+    dataIndex: 'required',
+    width: 70,
+    render: (v) => v ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
+  },
+  { title: '说明', dataIndex: 'description' },
+];
+
+// ---- 响应结构表格列 ----
 
 const responseColumns: ColumnsType<ResponseRow> = [
   {
@@ -98,6 +175,15 @@ const METHOD_COLOR: Record<string, string> = {
 
 export default function ApiDoc() {
   const op = MOCK_OPERATION;
+  const doc = MOCK_SWAGGER_DOC;
+
+  const bodyRows: BodyRow[] = (() => {
+    const rb = op.requestBody;
+    if (!rb) return [];
+    const jsonContent = rb.content?.['application/json'];
+    if (!jsonContent?.schema) return [];
+    return schemaToBodyRows(jsonContent.schema as SchemaObject, doc);
+  })();
 
   return (
     <div style={{ padding: '24px', maxWidth: 960 }}>
@@ -114,14 +200,32 @@ export default function ApiDoc() {
       {op.description && <Paragraph type="secondary">{op.description}</Paragraph>}
 
       {/* 请求参数 */}
-      <Title level={5} style={{ marginTop: 24 }}>请求参数</Title>
-      <Table<ParamRow>
-        columns={paramColumns}
-        dataSource={op.parameters}
-        pagination={false}
-        size="small"
-        bordered
-      />
+      {op.parameters.length > 0 && (
+        <>
+          <Title level={5} style={{ marginTop: 24 }}>请求参数</Title>
+          <Table<ParamRow>
+            columns={paramColumns}
+            dataSource={op.parameters}
+            pagination={false}
+            size="small"
+            bordered
+          />
+        </>
+      )}
+
+      {/* 请求体 */}
+      {bodyRows.length > 0 && (
+        <>
+          <Title level={5} style={{ marginTop: 24 }}>请求体（application/json）</Title>
+          <Table<BodyRow>
+            columns={bodyColumns}
+            dataSource={bodyRows}
+            pagination={false}
+            size="small"
+            bordered
+          />
+        </>
+      )}
 
       {/* 响应结构 */}
       <Title level={5} style={{ marginTop: 24 }}>响应结构</Title>
