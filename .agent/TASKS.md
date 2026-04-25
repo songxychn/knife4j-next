@@ -561,7 +561,8 @@ notes:
 - 可选：若现有 knife4j-core 版本号需要升，保持 semver 兼容，不清理无关导出
 
 ### TASK-033
-status: review
+status: done
+merged_into: master@2026-04-25T17:02:23Z
 PR: https://github.com/songxychn/knife4j-next/pull/48
 area: ui-react
 title: Authorize 按 OpenAPI securitySchemes 动态渲染并接入请求
