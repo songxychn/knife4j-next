@@ -392,7 +392,8 @@ notes:
 - blocked 原因：等 TASK-023 集成完成后再做，避免在沙盒里调 UI 细节
 
 ### TASK-025
-status: review
+status: done
+merged_into: master@2026-04-25T13:27:38Z
 area: ui-react
 title: i18n 中英文切换
 branch: codex/TASK-025-i18n
