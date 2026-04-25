@@ -506,22 +506,6 @@ summary:
 blockers:
 - TASK-034 PR 关闭未合并
 
-## 2026-04-25 13:14 UTC
-task: TASK-025
-agent: coordinator (heartbeat)
-branch: codex/TASK-025-i18n
-status: review
-summary:
-- 分支已有完整实现（react-i18next，zh-CN/en-US 约 130 条文案，Header 语言切换按钮）
-- npm ci && npm run build 通过，无 TypeScript 错误
-- 创建 PR #40
-validation:
-- cd knife4j-front/knife4j-ui-react && npm ci && npm run build: exit 0
-next:
-- 等待维护者 review PR #40
-blockers:
-- none
-
 ## 2026-04-25 状态同步
 task: TASK-026/034/035
 agent: coordinator
@@ -531,16 +515,3 @@ summary:
 - TASK-034（npm workspaces）：代码已在 master@6572a458，状态更新为 done
 - TASK-035（Node 22 升级）：代码已在 master@2617c72f，状态更新为 done
 - 解锁 TASK-027（requestBody 多内容类型表单）和 TASK-030（schema 示例生成）为 ready
-
-## 2026-04-25 13:48 UTC
-task: TASK-025
-agent: coordinator (heartbeat)
-branch: codex/TASK-025-i18n
-status: done
-summary:
-- PR #40 已合并（MERGED at 2026-04-25T13:27:38Z）
-- i18n 中英文切换功能完成
-next:
-- 推进 TASK-027 和 TASK-030
-blockers:
-- none
