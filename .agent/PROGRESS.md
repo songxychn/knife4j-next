@@ -451,3 +451,57 @@ notes:
 - 发现 `npm run build -w knife4j-ui-react` 从 workspace root 执行时 `tsc: command not found`，这是 npm workspace PATH 行为的已知问题（子项目 .bin 不提升到 root PATH）；从子项目目录执行则正常
 - CI 不受此影响（java-build-test job 只做 npm ci，不跑 build；front-core-test 用的是 knife4j-core 的 tsc，被提升到 root）
 - 不引入 Node 22 新特性到业务代码，保持现有 jest/vite 工具链
+
+## 2026-04-25 11:47 UTC
+task: TASK-023
+agent: coordinator (heartbeat)
+branch: codex/TASK-023-ui-react-integration
+status: done
+summary:
+- PR #25 已合并（2026-04-25T06:55:52Z）
+- knife4j-ui-react 产物打包进 knife4j-openapi3-ui 完成
+next:
+- TASK-024、TASK-025 解锁为 ready
+
+## 2026-04-25 11:47 UTC
+task: TASK-024
+agent: coordinator (heartbeat)
+branch: codex/TASK-024-settings-panel
+status: done
+summary:
+- PR #28 已合并（2026-04-25T07:25:05Z）
+- Header 设置抽屉（Authorize/GlobalParam/OfflineDoc）完成
+next:
+- none
+
+## 2026-04-25 11:47 UTC
+task: TASK-032
+agent: coordinator (heartbeat)
+branch: codex/TASK-032-core-debug-model
+status: done
+summary:
+- PR #37 已合并（2026-04-25T10:57:32Z）
+- knife4j-core 调试/解析层抽取完成
+next:
+- TASK-026、TASK-030 解锁为 ready
+
+## 2026-04-25 11:47 UTC
+task: TASK-034
+agent: coordinator (heartbeat)
+branch: codex/TASK-034-knife4j-front-workspaces
+status: blocked
+summary:
+- PR #36 已关闭未合并（CLOSED）
+- npm workspaces 迁移未完成
+blockers:
+- PR 被关闭，需重新评估或重新实现
+
+## 2026-04-25 11:47 UTC
+task: TASK-035
+agent: coordinator (heartbeat)
+branch: codex/TASK-035-node22-upgrade
+status: blocked
+summary:
+- 依赖 TASK-034 未合并，TASK-035 重新标为 blocked
+blockers:
+- TASK-034 PR 关闭未合并
