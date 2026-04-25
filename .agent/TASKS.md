@@ -409,7 +409,8 @@ notes:
 - blocked 原因：等 TASK-023 集成后在真实环境验证
 
 ### TASK-026
-status: ready
+status: done
+merged_into: master@3056e407
 area: ui-react
 title: React 调试页按 OpenAPI 参数定义渲染填参表单
 branch: codex/TASK-026-react-debug-params
@@ -429,7 +430,7 @@ notes:
 - blocked 原因：等 TASK-032 的参数解析 API 稳定后再落实现
 
 ### TASK-027
-status: blocked
+status: ready
 area: ui-react
 title: React 调试页补全 requestBody 多内容类型表单
 branch: codex/TASK-027-react-debug-request-body
@@ -484,7 +485,7 @@ notes:
 - Vue2 的 Base64Img Tab 若实现成本低可一并做，否则延后
 
 ### TASK-030
-status: blocked
+status: ready
 area: front-core
 title: schema 示例生成与字段树递归（knife4j-core）
 branch: codex/TASK-030-schema-example-builder
@@ -572,7 +573,8 @@ notes:
 - 本任务仅扩展 TASK-031 的鉴权合并层，不重写 requestBuilder
 
 ### TASK-034
-status: blocked
+status: done
+merged_into: master@6572a458
 area: repo
 title: knife4j-front 引入 npm workspaces 替代本地 tgz 依赖
 branch: codex/TASK-034-knife4j-front-workspaces
@@ -598,7 +600,8 @@ notes:
 - 回滚路径：还原 `knife4j-front/package.json`、两份 tgz、两份 lockfile、`scripts/test-front-core.sh`
 
 ### TASK-035
-status: blocked
+status: done
+merged_into: master@2617c72f
 area: repo
 title: 升级 Node 20 → 22 LTS 并修复 TASK-034 遗留的 CI workspace 路径
 branch: codex/TASK-035-node22-upgrade
