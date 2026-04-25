@@ -607,3 +607,80 @@ next:
 - 三者均为 ui-react 窄范围任务，可独立成 PR，无需再等前置依赖
 blockers:
 - none
+
+## 2026-04-26 CST — 三任务并行分派
+task: TASK-029 / TASK-031 / TASK-033
+agent: coordinator + 3 workers (general-agent)
+status: review
+summary:
+- 并行分派 3 个 worker（TASK-029 响应面板、TASK-031 鉴权+全局参数合并、TASK-033 securitySchemes 动态渲染）
+- 预先规划文件所有权边界，约束每个 worker 的可改/禁改范围，降低 merge 冲突
+- TASK-031 和 TASK-033 共享 `requestBuilder.ts` / `types.ts` / `ApiDebug.tsx`：
+  - TASK-031 扩展 authToHeaders 返回 `{ headers, queries }`、新增 sourceMap、ApiDebug 消费 auth + globalParams
+  - TASK-033 基于 TASK-031 之上，扩展 AuthValues.bySecurityKey、authToHeaders(securityKeys?) 选择注入、ApiDebug 传入 securityKeys
+  - 两者叠加正确，TASK-033 保留了 TASK-031 的 sourceMap / source Tag 功能
+- 中途坑：worker 运行在共享 workspace，首轮 TASK-031/033 worker 均未 commit 导致 TASK-033 改动被覆盖；重派 TASK-033 时强制要求 commit + 返回 hash
+- 最终提交：
+  - TASK-029: e6aff14b（基于 master）
+  - TASK-031: 051001a9（基于 master）
+  - TASK-033: 31579eba（stacked on TASK-031 051001a9）
+
+## TASK-029 详情
+branch: agent/TASK-029-react-debug-response-panel
+PR: https://github.com/songxychn/knife4j-next/pull/47
+summary:
+- 抽出独立 ResponsePanel 组件（pages/api/ResponsePanel.tsx）
+- 响应区顶栏：status + statusText + method + 耗时 + 响应体大小（blob.size）
+- Content / Raw / Headers 三个子 Tab
+- Content Tab 按 Content-Type 分流：image/* → img 预览；application/json → 格式化 JSON；text/xml/yaml/javascript → 文本；其他二进制 → 下载链接
+- Raw Tab：原始文本 + 复制按钮（clipboard API + textarea 兜底）
+- Headers Tab：antd Table
+- 错误以 Alert 置顶，Tab 结构保留
+- fetch 响应改为读一次 Blob 再分类（interpretResponseBlob），revoke 旧 objectURL
+- 新增 apiDebug.response.* i18n 键
+- 无新依赖；cURL 不重复（已在 Preview Tab）
+validation:
+- ./scripts/test-front-core.sh → 12 suites / 124 tests pass（未动 core）
+- npm run build -w knife4j-ui-react → OK
+
+## TASK-031 详情
+branch: agent/TASK-031-react-debug-auth-global-param
+PR: https://github.com/songxychn/knife4j-next/pull/46
+summary:
+- knife4j-core types: 新增 ParamSource、BuiltRequestSourceMap；BuiltRequest.sourceMap 可选
+- knife4j-core requestBuilder: authToHeaders 返回 `{ headers, queries }`；buildRequest 按 interface > global > auth 合并并生成 sourceMap
+- ApiDebug 消费 useAuth + useGlobalParam，转换为 AuthValues / GlobalParamValues 传给 coreBuildRequest
+- PreviewTabPanel 为每行 header/query 渲染 source Tag
+- locales 新增 apiDebug.preview.source.{interface,global,auth}
+- 测试：+10 用例（sourceMap、接口覆盖全局、auth 冲突等）
+- AuthContext / Authorize / GlobalParam UI **未动**，留给 TASK-033 叠加
+validation:
+- ./scripts/test-front-core.sh → 12 suites / 134 tests pass（+10）
+- npm run build -w knife4j-ui-react → OK
+
+## TASK-033 详情
+branch: agent/TASK-033-authorize-security-schemes
+PR: https://github.com/songxychn/knife4j-next/pull/48
+base: 051001a9（stacked on TASK-031）
+commit: 31579eba
+summary:
+- knife4j-core types: SchemeValue 联合类型 + AuthValues.bySecurityKey（可选，向后兼容）
+- knife4j-core requestBuilder: authToHeaders(auth, securityKeys?) 支持按 operation.security 筛选注入 apiKey/http/oauth2；base64Encode 纯 JS（TextEncoder + btoa）
+- AuthContext: state schema 改为 Record<groupId, Record<securityKey, SchemeValue>>；idb-keyval 持久化；一次性迁移旧 localStorage
+- Authorize.tsx: 按 securitySchemes 动态渲染（apiKey / http-bearer / http-basic / oauth2-password / oauth2-clientCredentials）；implicit + authorizationCode 明确不实现，UI 标注
+- ApiDebug.buildPreview: 提取 operation.security → securityKeys 传给 coreBuildRequest
+- swagger.ts: 新增 SecuritySchemeObject / OAuth2Flow / OAuth2Flows 类型
+- i18n: +46 个 auth.schemes.* / auth.oauth2.* 中英文
+- 新增 idb-keyval 依赖
+- 测试：+13 用例
+validation:
+- ./scripts/test-front-core.sh → 12 suites / 147 tests pass（+13）
+- npm run build -w knife4j-ui-react → OK (dist 1.46MB)
+
+next:
+- 等待维护者 review 三个 PR（建议顺序：TASK-029 / TASK-031 独立可并，TASK-033 需 TASK-031 先合）
+blockers:
+- none
+
+notes:
+- TASK-033 worker 违反「禁改 .agent/」约束，自行写入了状态（已由 coordinator 整合重写，保留有价值内容）
