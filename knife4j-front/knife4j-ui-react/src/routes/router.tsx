@@ -10,6 +10,7 @@ import Settings from "../pages/document/Settings.tsx";
 
 import ApiHome from "../pages/api/ApiHome.tsx";
 import ApiDoc from "../pages/api/ApiDoc.tsx";
+import ApiDebug from "../pages/api/ApiDebug.tsx";
 
 const router = createBrowserRouter([
     {
@@ -47,6 +48,10 @@ const router = createBrowserRouter([
             {
                 path: ":group/:tag/:operaterId/doc",
                 element: <ApiDoc />
+            },
+            {
+                path: ":group/:tag/:operaterId/debug",
+                element: <ApiDebug />
             }
         ],
     }, {
