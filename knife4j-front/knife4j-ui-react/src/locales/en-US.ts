@@ -1,0 +1,139 @@
+const enUS = {
+  // App / Layout
+  'app.brand': 'Knife4j Next',
+  'app.header.title': 'OpenAPI Hub',
+  'app.tab.home': 'Home',
+  'app.footer': 'Apache License 2.0 | Copyright 2019-Knife4j v5.0',
+
+  // Header language switch
+  'header.lang.zh': '中',
+  'header.lang.en': 'EN',
+
+  // SidebarSearchMenu
+  'sidebar.search.placeholder': 'Search API name/path...',
+
+  // Home
+  'home.noData': 'No data',
+  'home.version': 'Version',
+  'home.description': 'Description',
+  'home.apiStats': 'API Statistics',
+  'home.total': 'Total',
+
+  // Schema
+  'schema.title': 'Data Models',
+  'schema.tag.mock': 'mock',
+  'schema.col.fieldName': 'Field Name',
+  'schema.col.type': 'Type',
+  'schema.col.format': 'Format',
+  'schema.col.required': 'Required',
+  'schema.col.description': 'Description',
+  'schema.required.yes': 'Yes',
+  'schema.required.no': 'No',
+  'schema.fields': 'fields',
+
+  // ApiDoc
+  'apiDoc.notFound.title': 'API doc not found',
+  'apiDoc.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
+  'apiDoc.deprecated': 'Deprecated',
+  'apiDoc.requestParams': 'Request Parameters',
+  'apiDoc.col.paramName': 'Name',
+  'apiDoc.col.location': 'In',
+  'apiDoc.col.type': 'Type',
+  'apiDoc.col.required': 'Required',
+  'apiDoc.col.description': 'Description',
+  'apiDoc.noParams': 'No request parameters',
+  'apiDoc.requestBody': 'Request Body',
+  'apiDoc.body.notExpandable': 'Field expansion is not supported for this request body',
+  'apiDoc.noBody': 'No request body',
+  'apiDoc.responseStructure': 'Response Structure',
+  'apiDoc.col.statusCode': 'Status Code',
+  'apiDoc.col.schema': 'Schema',
+  'apiDoc.col.fieldName': 'Field Name',
+
+  // Operation mode tabs (doc / debug)
+  'operation.tab.doc': 'Doc',
+  'operation.tab.debug': 'Debug',
+
+  // ApiDebug
+  'apiDebug.notFound.title': 'Debug interface not found',
+  'apiDebug.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
+  'apiDebug.col.paramName': 'Name',
+  'apiDebug.col.type': 'Type',
+  'apiDebug.col.value': 'Value',
+  'apiDebug.col.description': 'Description',
+  'apiDebug.tag.required': 'Required',
+  'apiDebug.tag.deprecated': 'Deprecated',
+  'apiDebug.tooltip.deprecated': 'This parameter is deprecated but can still be filled',
+  'apiDebug.tag.readOnly': 'ReadOnly',
+  'apiDebug.tooltip.readOnly': 'ReadOnly parameters usually do not need to be sent by the client',
+  'apiDebug.enum.placeholder': 'Select an enum value',
+  'apiDebug.inputNumber.required': 'Required',
+  'apiDebug.json.placeholder': 'Enter JSON',
+  'apiDebug.tab.path': 'Path',
+  'apiDebug.tab.query': 'Query',
+  'apiDebug.tab.header': 'Header',
+  'apiDebug.tab.cookie': 'Cookie',
+  'apiDebug.tab.body': 'Body',
+  'apiDebug.header.autoInject': 'Content-Type is auto-injected by the selected Body type (visible in cURL on send)',
+  'apiDebug.noHeaderParams': 'No header parameters',
+  'apiDebug.noBody': 'This API has no request body',
+  'apiDebug.send': 'Send',
+  'apiDebug.sending': 'Sending...',
+  'apiDebug.error.title': 'Request failed',
+  'apiDebug.response.headers': 'Response Headers',
+  'apiDebug.response.status': 'Status: ',
+  'apiDebug.response.body': 'Response Body',
+  'apiDebug.response.duration': 'Duration: ',
+  'apiDebug.col.header': 'Header',
+  'apiDebug.col.headerValue': 'Value',
+  'apiDebug.desc.default': 'Default: ',
+  'apiDebug.desc.example': 'Example: ',
+  'apiDebug.desc.enum': 'Enum: ',
+  'apiDebug.json.array': 'array',
+  'apiDebug.json.object': 'object',
+
+  // Authorize
+  'auth.title': 'Authorization',
+  'auth.tab.bearer': 'Bearer Token',
+  'auth.tab.basic': 'Basic Auth',
+  'auth.label.token': 'Token',
+  'auth.validation.token': 'Please enter token',
+  'auth.placeholder.token': 'Enter Bearer token',
+  'auth.label.username': 'Username',
+  'auth.validation.username': 'Please enter username',
+  'auth.placeholder.username': 'Username',
+  'auth.label.password': 'Password',
+  'auth.validation.password': 'Please enter password',
+  'auth.placeholder.password': 'Password',
+  'auth.btn.save': 'Save',
+  'auth.btn.clear': 'Clear Auth',
+  'auth.msg.bearerSaved': 'Bearer token saved',
+  'auth.msg.basicSaved': 'Basic auth saved',
+  'auth.msg.cleared': 'Auth cleared',
+
+  // GlobalParam
+  'globalParam.col.name': 'Name',
+  'globalParam.col.value': 'Value',
+  'globalParam.col.in': 'In',
+  'globalParam.col.action': 'Action',
+  'globalParam.placeholder.name': 'Parameter name',
+  'globalParam.validation.name': 'Name required',
+  'globalParam.placeholder.value': 'Parameter value',
+  'globalParam.validation.value': 'Value required',
+  'globalParam.btn.add': 'Add',
+
+  // OfficeDoc
+  'officeDoc.title': 'Offline Document Export',
+  'officeDoc.desc': 'Export the current API documentation as a downloadable offline file. Supports HTML and Word (.doc) formats.',
+  'officeDoc.alert.mockData': 'Mock data or unloaded document detected; exported content may be incomplete.',
+  'officeDoc.btn.html': 'Download HTML',
+  'officeDoc.btn.word': 'Download Word (.doc)',
+
+  // SettingsDrawer
+  'settings.title': 'Settings',
+  'settings.tab.authorize': 'Authorize',
+  'settings.tab.globalParam': 'Global Parameters',
+  'settings.tab.offlineDoc': 'Offline Docs',
+} as const;
+
+export default enUS;

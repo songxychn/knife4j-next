@@ -1,32 +1,34 @@
 import { useState } from 'react';
 import { Table, Form, Input, Select, Button, Space } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { GlobalParamProvider, useGlobalParam, GlobalParamItem } from '../../context/GlobalParamContext';
 
 export { useGlobalParam };
 
-const columns = (onDelete: (id: string) => void) => [
-  { title: 'Name', dataIndex: 'name', key: 'name' },
-  { title: 'Value', dataIndex: 'value', key: 'value' },
-  { title: 'In', dataIndex: 'in', key: 'in' },
-  {
-    title: 'Action',
-    key: 'action',
-    render: (_: unknown, record: GlobalParamItem) => (
-      <Button
-        type="text"
-        danger
-        icon={<DeleteOutlined />}
-        onClick={() => onDelete(record.id)}
-      />
-    ),
-  },
-];
-
 function GlobalParamInner() {
+  const { t } = useTranslation();
   const { params, addParam, removeParam } = useGlobalParam();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+
+  const columns = [
+    { title: t('globalParam.col.name'), dataIndex: 'name', key: 'name' },
+    { title: t('globalParam.col.value'), dataIndex: 'value', key: 'value' },
+    { title: t('globalParam.col.in'), dataIndex: 'in', key: 'in' },
+    {
+      title: t('globalParam.col.action'),
+      key: 'action',
+      render: (_: unknown, record: GlobalParamItem) => (
+        <Button
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => removeParam(record.id)}
+        />
+      ),
+    },
+  ];
 
   const onFinish = (values: { name: string; value: string; in: 'header' | 'query' }) => {
     setLoading(true);
@@ -44,11 +46,11 @@ function GlobalParamInner() {
         initialValues={{ in: 'header' }}
         style={{ marginBottom: 16 }}
       >
-        <Form.Item name="name" rules={[{ required: true, message: 'Name required' }]}>
-          <Input placeholder="Parameter name" />
+        <Form.Item name="name" rules={[{ required: true, message: t('globalParam.validation.name') }]}>
+          <Input placeholder={t('globalParam.placeholder.name')} />
         </Form.Item>
-        <Form.Item name="value" rules={[{ required: true, message: 'Value required' }]}>
-          <Input placeholder="Parameter value" />
+        <Form.Item name="value" rules={[{ required: true, message: t('globalParam.validation.value') }]}>
+          <Input placeholder={t('globalParam.placeholder.value')} />
         </Form.Item>
         <Form.Item name="in">
           <Select style={{ width: 100 }}>
@@ -59,7 +61,7 @@ function GlobalParamInner() {
         <Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" loading={loading}>
-              Add
+              {t('globalParam.btn.add')}
             </Button>
           </Space>
         </Form.Item>
@@ -67,7 +69,7 @@ function GlobalParamInner() {
 
       <Table
         dataSource={params}
-        columns={columns(removeParam)}
+        columns={columns}
         rowKey="id"
         pagination={false}
         size="small"

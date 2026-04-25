@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Input, Menu } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useGroup, ApiItem } from '../context/GroupContext';
 
 const METHOD_COLORS: Record<string, string> = {
@@ -39,6 +40,7 @@ interface SidebarSearchMenuProps {
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick }) => {
   const { activeGroup } = useGroup();
+  const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
   // Group apis by tag, filtered by search text
@@ -90,7 +92,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       <div style={{ padding: '8px 8px 4px' }}>
         <Input
           className="knife4j-sidebar-search"
-          placeholder="搜索接口名/路径..."
+          placeholder={t('sidebar.search.placeholder')}
           prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
