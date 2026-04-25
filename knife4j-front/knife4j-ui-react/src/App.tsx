@@ -111,7 +111,7 @@ const AppInner: React.FC = () => {
               padding: '8px 0',
             }}
           >
-            <img src="/src/assets/logo/k.png" style={{ width: 32, height: 32 }} />
+            <img src="/knife4j-next-mark.svg" style={{ width: 32, height: 32 }} />
           </div>
 
           {/* Group switcher */}
