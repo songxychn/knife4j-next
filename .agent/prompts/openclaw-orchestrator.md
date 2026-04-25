@@ -45,7 +45,7 @@
     `openclaw message send --account knife4j-next-bot --channel telegram --target 6358501334 --message "[TASK-XXX] PR #N 已创建：<PR 链接>"`
 
 安全规则：
-- 不要直接 push 到 master。
+- 不要直接 push 到 master（状态文件除外，见下方规则）。
 - 不要发布 release。
 - 不要修改 secrets 或 release 凭据接线。
 - 未经人工批准，不要修改 Maven 坐标或兼容性承诺。
@@ -53,6 +53,19 @@
 - 不要把长日志粘贴到 .agent/PROGRESS.md，只摘要命令、结果和 blocker。
 - .agent/PROGRESS.md 新记录追加在文件底部，不要插入顶部，避免并发冲突。
 - worker 禁止修改 .agent/TASKS.md 和 .agent/PROGRESS.md，这两个文件只由 coordinator 写入。
+
+状态文件写回规则（防冲突）：
+- .agent/TASKS.md 和 .agent/PROGRESS.md 的修改必须在同一个 shell 序列里原子完成：
+  ```
+  git pull --rebase origin master
+  # 修改 TASKS.md / PROGRESS.md
+  git add .agent/TASKS.md .agent/PROGRESS.md
+  git commit -m "chore(agent): ..."
+  git push origin master
+  ```
+- 状态文件直接 push 到 master，不走 PR 流程（状态文件不需要 review）。
+- 代码变更仍然走 feature branch → PR → merge 流程，不受此规则影响。
+- 如果 push 失败（non-fast-forward），重新 pull --rebase 后再 push，不要放弃。
 
 委派规则：
 - 对重文件阅读、有边界实现或独立探索使用 worker。
