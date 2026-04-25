@@ -170,3 +170,18 @@ blockers: none
 - 状态: review
 - 流程: worker → reviewer（发现 paths null safety 问题）→ worker fix → build ✓
 - 内容: Home.tsx，API info + method 统计，paths/?? {} guard，info fallback
+
+## 2026-04-25 14:29 CST
+task: ad-hoc telegram bot avatar
+agent: codex
+branch: codex/ad-hoc-telegram-avatar
+status: done
+summary:
+- 基于 `docs-site/public/knife4j-next-mark.svg` 的文档折角与蓝色 `N` 主体，生成 Telegram 机器人头像资产。
+- 新增圆角蓝色渐变背景、轻量装饰线和右下角纸飞机徽章，保证小尺寸头像可识别。
+validation:
+- `sips -g pixelWidth -g pixelHeight docs-site/public/assets/knife4j-next-telegram-bot-avatar.png` 确认为 512x512。
+next:
+- 如需启用，可将 PNG 上传为 Telegram Bot 头像。
+blockers:
+- none
