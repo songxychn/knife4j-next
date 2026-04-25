@@ -212,7 +212,7 @@ notes:
 - PR: https://github.com/songxychn/knife4j-next/pull/14
 
 ### TASK-013
-status: ready
+status: review
 area: ui-react
 title: 实现 ApiDebug 接口调试功能（表单填参 + 发请求 + 展示响应）
 branch: codex/TASK-013-react-api-debug
