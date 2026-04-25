@@ -10,7 +10,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>4.6.0.1</version>
+    <version>4.6.0.2</version>
 </dependency>
 ```
 
@@ -20,7 +20,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>4.6.0.1</version>
+    <version>4.6.0.2</version>
 </dependency>
 ```
 
