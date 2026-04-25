@@ -135,6 +135,11 @@ export interface ValidationError {
   in: ParamIn | 'body';
   /** 错误信息 */
   message: string;
+  /**
+   * 表单定位 key，统一格式 `${in}:${name}`；body 错误时为 `body:requestBody`，
+   * UI 层可用它高亮或聚焦对应输入项。
+   */
+  key: string;
 }
 
 // ─── Schema 示例/字段树 ───────────────────────────────

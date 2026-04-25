@@ -109,7 +109,11 @@ export function validateRequired(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const check = (params: typeof model.pathParams, values: Record<string, string>, in_: ParamIn | 'body') => {
+  const check = (
+    params: typeof model.pathParams,
+    values: Record<string, string>,
+    in_: ParamIn,
+  ) => {
     for (const param of params) {
       if (!param.required) continue;
       const value = values[param.name];
@@ -118,6 +122,7 @@ export function validateRequired(
           name: param.name,
           in: in_,
           message: `参数 ${param.name} 为必填项`,
+          key: `${in_}:${param.name}`,
         });
       }
     }
@@ -128,13 +133,34 @@ export function validateRequired(
   check(model.headerParams, form.headerParams, 'header');
   check(model.cookieParams, form.cookieParams, 'cookie');
 
-  // body required
-  if (model.bodyRequired && (!form.body || form.body.trim() === '') && model.bodyContents.length > 0) {
-    errors.push({
-      name: 'requestBody',
-      in: 'body',
-      message: '请求体为必填项',
-    });
+  // body required — 根据当前选中的 content-type 决定从哪个字段判断
+  if (model.bodyRequired && model.bodyContents.length > 0) {
+    const selected = form.selectedContentType ?? model.bodyContents[0].mediaType;
+    const current = model.bodyContents.find((b) => b.mediaType === selected)
+      ?? model.bodyContents[0];
+    const category = current.category;
+
+    let bodyMissing = false;
+    if (category === 'json' || category === 'raw') {
+      bodyMissing = !form.body || form.body.trim() === '';
+    } else if (category === 'urlencoded' || category === 'multipart') {
+      const hasFormField = form.formFields
+        ? Object.values(form.formFields).some((v) => v !== undefined && v !== '')
+        : false;
+      const hasFile = form.fileFields
+        ? Object.values(form.fileFields).some((v) => Array.isArray(v) && v.length > 0)
+        : false;
+      bodyMissing = !hasFormField && !hasFile;
+    }
+
+    if (bodyMissing) {
+      errors.push({
+        name: 'requestBody',
+        in: 'body',
+        message: '请求体为必填项',
+        key: 'body:requestBody',
+      });
+    }
   }
 
   return errors;
@@ -231,6 +257,9 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
 /**
  * 从 BuiltRequest 生成等价 curl 命令
+ *
+ * 注意：multipart/form-data 场景因文件不可序列化为字符串，输出占位 `-F` 行，
+ * 让用户自行补全文件路径（`-F field=@/path/to/file`）。
  */
 export function buildCurl(req: BuiltRequest): string {
   const parts: string[] = [];
@@ -238,13 +267,39 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push('curl');
   parts.push('-X', req.method);
 
-  // headers
+  const isMultipart = typeof req.contentType === 'string'
+    && req.contentType.toLowerCase().includes('multipart/form-data');
+
+  // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
+    if (isMultipart && key.toLowerCase() === 'content-type') continue;
     parts.push('-H', `${key}: ${value}`);
   }
 
-  // body
-  if (req.body !== undefined && req.body !== '') {
+  if (isMultipart) {
+    // multipart：尝试从 body（若为 JSON 字段映射）拆出字段，否则给占位注释
+    let fieldObj: Record<string, unknown> | null = null;
+    if (typeof req.body === 'string' && req.body !== '') {
+      try {
+        const parsed: unknown = JSON.parse(req.body);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          fieldObj = parsed as Record<string, unknown>;
+        }
+      } catch {
+        fieldObj = null;
+      }
+    }
+    if (fieldObj && Object.keys(fieldObj).length > 0) {
+      for (const [name, value] of Object.entries(fieldObj)) {
+        if (value === undefined || value === '') continue;
+        const escaped = String(value).replace(/'/g, "'\\''");
+        parts.push('-F', `'${name}=${escaped}'`);
+      }
+    }
+    // 文件字段占位（UI 层调用方会在 body 外通过 curlFileFields 注入，
+    // 若没有注入则仅提示用户手动追加 -F field=@/path/to/file）
+    parts.push('# TODO append file fields via: -F field=@/path/to/file');
+  } else if (req.body !== undefined && req.body !== '') {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
     const escapedBody = req.body.replace(/'/g, "'\\''");
     parts.push('-d', `'${escapedBody}'`);

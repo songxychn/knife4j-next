@@ -100,6 +100,21 @@ const zhCN = {
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',
 
+  // ApiDebug — Preview Tab (TASK-028)
+  'apiDebug.tab.preview': '请求预览',
+  'apiDebug.preview.method': '方法：',
+  'apiDebug.preview.url': '最终 URL：',
+  'apiDebug.preview.headers': 'Headers',
+  'apiDebug.preview.query': 'Query',
+  'apiDebug.preview.body': '请求体',
+  'apiDebug.preview.bodyMultipart': '请求体（multipart/form-data，文件字段需在真实发送时追加）',
+  'apiDebug.preview.noBody': '—',
+  'apiDebug.preview.curl': '等价 cURL',
+  'apiDebug.preview.copyCurl': '复制 cURL',
+  'apiDebug.preview.copied': '已复制到剪贴板',
+  'apiDebug.preview.copyFailed': '复制失败，请手动选择文本',
+  'apiDebug.preview.autoContentType': '（Content-Type 将由 body 类型自动注入）',
+
   // Authorize
   'auth.title': 'Authorization',
   'auth.tab.bearer': 'Bearer Token',

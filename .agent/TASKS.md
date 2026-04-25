@@ -448,7 +448,7 @@ notes:
 - 当同一 operation 同时定义多种 content-type 时，UI 以单选 Radio 暴露，默认选 application/json
 
 ### TASK-028
-status: blocked
+status: review
 area: ui-react
 title: React 调试发送前校验与请求预览
 branch: codex/TASK-028-react-debug-request-builder
