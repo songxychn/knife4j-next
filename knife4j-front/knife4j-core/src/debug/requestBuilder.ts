@@ -22,26 +22,18 @@ import type {
 // ─── URL 构建 ─────────────────────────────────────────
 
 /** 替换 path 参数：{id} → 实际值 */
-export function replacePathParams(
-  path: string,
-  pathParams: Record<string, string>,
-): string {
+export function replacePathParams(path: string, pathParams: Record<string, string>): string {
   let result = path;
   for (const [name, value] of Object.entries(pathParams)) {
     if (!name) continue;
     // 替换 {name} 和 {+name}（RFC 6570 简单展开）
-    result = result.replace(
-      new RegExp(`\\{\\+?${escapeRegExp(name)}\\}`, 'g'),
-      encodeURIComponent(value),
-    );
+    result = result.replace(new RegExp(`\\{\\+?${escapeRegExp(name)}\\}`, 'g'), encodeURIComponent(value));
   }
   return result;
 }
 
 /** 拼接 query 字符串 */
-export function buildQueryString(
-  queryParams: Record<string, string>,
-): string {
+export function buildQueryString(queryParams: Record<string, string>): string {
   const pairs: string[] = [];
   for (const [name, value] of Object.entries(queryParams)) {
     if (!name && !value) continue;
@@ -53,9 +45,7 @@ export function buildQueryString(
 // ─── Header 合并 ──────────────────────────────────────
 
 /** 多来源 headers 合并，后者覆盖前者 */
-export function mergeHeaders(
-  ...sources: Array<Record<string, string> | undefined>
-): Record<string, string> {
+export function mergeHeaders(...sources: Array<Record<string, string> | undefined>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const src of sources) {
     if (!src) continue;
@@ -104,9 +94,7 @@ export function authToHeaders(
   // ── 2. bySecurityKey 按 securityKeys 筛选 ──
   if (auth.bySecurityKey) {
     const entries = Object.entries(auth.bySecurityKey);
-    const filtered = securityKeys === undefined
-      ? entries
-      : entries.filter(([key]) => securityKeys.includes(key));
+    const filtered = securityKeys === undefined ? entries : entries.filter(([key]) => securityKeys.includes(key));
 
     for (const [, scheme] of filtered) {
       if (!scheme) continue;
@@ -118,9 +106,7 @@ export function authToHeaders(
           queries[scheme.name] = scheme.value;
         } else if (scheme.in === 'cookie') {
           const pair = `${scheme.name}=${scheme.value}`;
-          headers['Cookie'] = headers['Cookie']
-            ? `${headers['Cookie']}; ${pair}`
-            : pair;
+          headers['Cookie'] = headers['Cookie'] ? `${headers['Cookie']}; ${pair}` : pair;
         }
       } else if (scheme.type === 'http' && scheme.scheme === 'bearer') {
         if (scheme.token) {
@@ -147,9 +133,10 @@ export function authToHeaders(
 // ─── 全局参数 → headers + query ───────────────────────
 
 /** 全局参数按位置拆分 */
-export function splitGlobalParams(
-  globalParams: GlobalParamValues | undefined,
-): { headers: Record<string, string>; queries: Record<string, string> } {
+export function splitGlobalParams(globalParams: GlobalParamValues | undefined): {
+  headers: Record<string, string>;
+  queries: Record<string, string>;
+} {
   return {
     headers: globalParams?.headers ?? {},
     queries: globalParams?.queries ?? {},
@@ -159,17 +146,10 @@ export function splitGlobalParams(
 // ─── Required 校验 ────────────────────────────────────
 
 /** 校验必填参数，返回缺失列表 */
-export function validateRequired(
-  model: OperationDebugModel,
-  form: DebugFormValues,
-): ValidationError[] {
+export function validateRequired(model: OperationDebugModel, form: DebugFormValues): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const check = (
-    params: typeof model.pathParams,
-    values: Record<string, string>,
-    in_: ParamIn,
-  ) => {
+  const check = (params: typeof model.pathParams, values: Record<string, string>, in_: ParamIn) => {
     for (const param of params) {
       if (!param.required) continue;
       const value = values[param.name];
@@ -192,8 +172,7 @@ export function validateRequired(
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
   if (model.bodyRequired && model.bodyContents.length > 0) {
     const selected = form.selectedContentType ?? model.bodyContents[0].mediaType;
-    const current = model.bodyContents.find((b) => b.mediaType === selected)
-      ?? model.bodyContents[0];
+    const current = model.bodyContents.find((b) => b.mediaType === selected) ?? model.bodyContents[0];
     const category = current.category;
 
     let bodyMissing = false;
@@ -263,9 +242,9 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   // 3. headers 合并（接口级 > 全局 > 鉴权）
   const authResult = authToHeaders(auth, securityKeys);
   const mergedHeaders = mergeHeaders(
-    authResult.headers,        // 优先级最低
-    gp.headers,                // 全局参数
-    formValues.headerParams,   // 接口级最高
+    authResult.headers, // 优先级最低
+    gp.headers, // 全局参数
+    formValues.headerParams, // 接口级最高
   );
   // 鉴权 query 参数合并（鉴权 < 全局 < 接口级）
   const mergedQuery: Record<string, string> = { ...authResult.queries, ...gp.queries, ...formValues.queryParams };
@@ -307,16 +286,14 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   }
 
   // 4. Content-Type + body 构建
-  const selectedContentType = formValues.selectedContentType
-    ?? (debugModel.bodyContents.length > 0 ? debugModel.bodyContents[0].mediaType : '');
+  const selectedContentType =
+    formValues.selectedContentType ?? (debugModel.bodyContents.length > 0 ? debugModel.bodyContents[0].mediaType : '');
 
   const hasBody = !['GET', 'HEAD'].includes(method.toUpperCase());
   let body: string | undefined = undefined;
 
   if (hasBody) {
-    const category = debugModel.bodyContents.find(
-      (b) => b.mediaType === selectedContentType,
-    )?.category ?? 'raw';
+    const category = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType)?.category ?? 'raw';
 
     if (category === 'urlencoded' && formValues.formFields) {
       // application/x-www-form-urlencoded: 从 formFields 序列化
@@ -368,8 +345,8 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push('curl');
   parts.push('-X', req.method);
 
-  const isMultipart = typeof req.contentType === 'string'
-    && req.contentType.toLowerCase().includes('multipart/form-data');
+  const isMultipart =
+    typeof req.contentType === 'string' && req.contentType.toLowerCase().includes('multipart/form-data');
 
   // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
@@ -442,4 +419,3 @@ function base64Encode(str: string): string {
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-

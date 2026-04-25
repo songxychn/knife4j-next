@@ -84,28 +84,28 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
-  const groups: ApiGroup[] = usingMock || !swaggerDoc
-    ? MOCK_GROUPS
-    : rawGroups.map((g) => {
-        const isActive = g.name === activeGroupValue;
-        const apis: ApiItem[] = isActive
-          ? menuTags.flatMap((t) =>
-              t.operations.map((op) => ({
-                key: `/${activeGroupValue}/${op.key}`,
-                method: op.method.toUpperCase(),
-                path: op.path,
-                summary: op.summary,
-                tag: t.tag,
-                operationId: op.operationId,
-                deprecated: op.deprecated,
-              }))
-            )
-          : [];
-        return { value: g.name, label: g.name, apis };
-      });
+  const groups: ApiGroup[] =
+    usingMock || !swaggerDoc
+      ? MOCK_GROUPS
+      : rawGroups.map((g) => {
+          const isActive = g.name === activeGroupValue;
+          const apis: ApiItem[] = isActive
+            ? menuTags.flatMap((t) =>
+                t.operations.map((op) => ({
+                  key: `/${activeGroupValue}/${op.key}`,
+                  method: op.method.toUpperCase(),
+                  path: op.path,
+                  summary: op.summary,
+                  tag: t.tag,
+                  operationId: op.operationId,
+                  deprecated: op.deprecated,
+                })),
+              )
+            : [];
+          return { value: g.name, label: g.name, apis };
+        });
 
-  const activeGroup =
-    groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? MOCK_GROUPS[0];
+  const activeGroup = groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? MOCK_GROUPS[0];
 
   const handleSetActiveGroup = useCallback((value: string) => {
     setActiveGroupValue(value);

@@ -14,12 +14,7 @@
  * 不依赖浏览器 API、不依赖框架。
  */
 
-import type {
-  BuildSchemaExampleFn,
-  BuildSchemaFieldTreeFn,
-  SchemaFieldNode,
-  SchemaResolveContext,
-} from './types';
+import type { BuildSchemaExampleFn, BuildSchemaFieldTreeFn, SchemaFieldNode, SchemaResolveContext } from './types';
 import { resolveRef } from './resolveRef';
 
 // ─── 常量 ─────────────────────────────────────────────
@@ -27,39 +22,54 @@ import { resolveRef } from './resolveRef';
 const DEFAULT_MAX_DEPTH = 8;
 
 /** 按 type + format 推断的 primitive 默认值 */
-function primitiveExample(
-  type: string | undefined,
-  format: string | undefined,
-): unknown {
+function primitiveExample(type: string | undefined, format: string | undefined): unknown {
   switch (type) {
     case 'string':
       switch (format) {
-        case 'date': return '2024-01-01';
-        case 'date-time': return '2024-01-01T00:00:00Z';
-        case 'time': return '00:00:00';
-        case 'email': return 'user@example.com';
+        case 'date':
+          return '2024-01-01';
+        case 'date-time':
+          return '2024-01-01T00:00:00Z';
+        case 'time':
+          return '00:00:00';
+        case 'email':
+          return 'user@example.com';
         case 'uri':
-        case 'url': return 'https://example.com';
-        case 'uuid': return '3fa85f64-5717-4562-b3fc-2c963f66afa6';
-        case 'hostname': return 'example.com';
-        case 'ipv4': return '127.0.0.1';
-        case 'ipv6': return '::1';
-        case 'binary': return '';
-        case 'byte': return 'dGVzdA==';
-        case 'password': return 'password';
-        default: return 'string';
+        case 'url':
+          return 'https://example.com';
+        case 'uuid':
+          return '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+        case 'hostname':
+          return 'example.com';
+        case 'ipv4':
+          return '127.0.0.1';
+        case 'ipv6':
+          return '::1';
+        case 'binary':
+          return '';
+        case 'byte':
+          return 'dGVzdA==';
+        case 'password':
+          return 'password';
+        default:
+          return 'string';
       }
     case 'integer':
       switch (format) {
-        case 'int64': return 0;
+        case 'int64':
+          return 0;
         case 'int32':
-        default: return 0;
+        default:
+          return 0;
       }
     case 'number':
       switch (format) {
-        case 'float': return 0.0;
-        case 'double': return 0.0;
-        default: return 0;
+        case 'float':
+          return 0.0;
+        case 'double':
+          return 0.0;
+        default:
+          return 0;
       }
     case 'boolean':
       return true;
@@ -124,10 +134,7 @@ function childCtx(ctx: InternalCtx, pushedRef?: string): InternalCtx {
  * - properties 浅合并
  * - required 拼接去重
  */
-function mergeAllOf(
-  parts: Record<string, unknown>[],
-  ctx: InternalCtx,
-): Record<string, unknown> {
+function mergeAllOf(parts: Record<string, unknown>[], ctx: InternalCtx): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   const mergedProps: Record<string, Record<string, unknown>> = {};
   const mergedRequired = new Set<string>();
@@ -214,10 +221,7 @@ function resolveSchema(
 }
 
 /** dereference：$ref → 解析后 schema（循环或失败时原样返回） */
-function deref(
-  schema: Record<string, unknown> | undefined,
-  ctx: InternalCtx,
-): Record<string, unknown> | undefined {
+function deref(schema: Record<string, unknown> | undefined, ctx: InternalCtx): Record<string, unknown> | undefined {
   if (!schema) return schema;
   if (typeof schema.$ref !== 'string') return schema;
   if (ctx.refChain.includes(schema.$ref)) return undefined;
@@ -238,10 +242,7 @@ export const buildSchemaExample: BuildSchemaExampleFn = (schema, ctx) => {
   return buildExampleInternal(schema, toInternalCtx(ctx));
 };
 
-function buildExampleInternal(
-  schema: Record<string, unknown> | undefined,
-  ctx: InternalCtx,
-): unknown {
+function buildExampleInternal(schema: Record<string, unknown> | undefined, ctx: InternalCtx): unknown {
   if (!schema) return null;
 
   // maxDepth 保护
@@ -309,10 +310,7 @@ export const buildSchemaFieldTree: BuildSchemaFieldTreeFn = (schema, ctx) => {
   return buildFieldTreeInternal(schema, toInternalCtx(ctx));
 };
 
-function buildFieldTreeInternal(
-  schema: Record<string, unknown> | undefined,
-  ctx: InternalCtx,
-): SchemaFieldNode[] {
+function buildFieldTreeInternal(schema: Record<string, unknown> | undefined, ctx: InternalCtx): SchemaFieldNode[] {
   if (!schema) return [];
   if (ctx.depth >= ctx.maxDepth) return [];
 
@@ -374,7 +372,11 @@ function objectToFieldNodes(
     nodes.push(buildSingleFieldNode(name, propSchema, requiredSet.has(name), pushRefIfAny(ctx, parentRef)));
   }
   // additionalProperties 作为伪字段（只有在没有 properties 时展示）
-  if (Object.keys(props).length === 0 && resolved.additionalProperties && typeof resolved.additionalProperties === 'object') {
+  if (
+    Object.keys(props).length === 0 &&
+    resolved.additionalProperties &&
+    typeof resolved.additionalProperties === 'object'
+  ) {
     nodes.push(buildSingleFieldNode('*', resolved.additionalProperties as Record<string, unknown>, false, ctx));
   }
   return nodes;
@@ -475,4 +477,3 @@ function buildSingleFieldNode(
 
   return node;
 }
-

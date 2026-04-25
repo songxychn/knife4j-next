@@ -47,10 +47,7 @@ function parameterType(parameter: ParameterObject): string {
   return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
 }
 
-function schemaToBodyRows(
-  schema: SchemaObject,
-  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
-): BodyRow[] {
+function schemaToBodyRows(schema: SchemaObject, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): BodyRow[] {
   const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
   if (!resolved?.properties) return [];
   const requiredSet = new Set(resolved.required ?? []);
@@ -63,18 +60,29 @@ function schemaToBodyRows(
   }));
 }
 
-function firstRequestSchema(requestBody: { content?: Record<string, { schema?: SchemaObject }> } | undefined): SchemaObject | undefined {
+function firstRequestSchema(
+  requestBody: { content?: Record<string, { schema?: SchemaObject }> } | undefined,
+): SchemaObject | undefined {
   if (!requestBody?.content) return undefined;
   return requestBody.content['application/json']?.schema ?? Object.values(requestBody.content)[0]?.schema;
 }
 
 function responseSchema(response: ResponseObject): string {
-  const schema = response.content?.['application/json']?.schema ?? response.schema ?? Object.values(response.content ?? {})[0]?.schema;
+  const schema =
+    response.content?.['application/json']?.schema ??
+    response.schema ??
+    Object.values(response.content ?? {})[0]?.schema;
   return schemaName(schema);
 }
 
 const METHOD_COLOR: Record<string, string> = {
-  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'cyan', HEAD: 'purple', OPTIONS: 'default',
+  GET: 'green',
+  POST: 'blue',
+  PUT: 'orange',
+  DELETE: 'red',
+  PATCH: 'cyan',
+  HEAD: 'purple',
+  OPTIONS: 'default',
 };
 
 export default function ApiDoc() {
@@ -86,7 +94,9 @@ export default function ApiDoc() {
   }
 
   if (!swaggerDoc || !operation) {
-    return <Alert type="warning" showIcon message={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />;
+    return (
+      <Alert type="warning" showIcon message={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />
+    );
   }
 
   const paramColumns: ColumnsType<ParamRow> = [
@@ -102,7 +112,12 @@ export default function ApiDoc() {
       width: 90,
       render: (value) => {
         const colorMap: Record<string, string> = {
-          path: 'blue', query: 'cyan', header: 'purple', cookie: 'orange', body: 'geekblue', formData: 'lime',
+          path: 'blue',
+          query: 'cyan',
+          header: 'purple',
+          cookie: 'orange',
+          body: 'geekblue',
+          formData: 'lime',
         };
         return <Tag color={colorMap[value] ?? 'default'}>{value}</Tag>;
       },
@@ -112,7 +127,12 @@ export default function ApiDoc() {
       title: t('apiDoc.col.required'),
       dataIndex: 'required',
       width: 80,
-      render: (value) => value ? <Badge status="error" text={t('schema.required.yes')} /> : <Badge status="default" text={t('schema.required.no')} />,
+      render: (value) =>
+        value ? (
+          <Badge status="error" text={t('schema.required.yes')} />
+        ) : (
+          <Badge status="default" text={t('schema.required.no')} />
+        ),
     },
     { title: t('apiDoc.col.description'), dataIndex: 'description' },
   ];
@@ -129,7 +149,12 @@ export default function ApiDoc() {
       title: t('apiDoc.col.required'),
       dataIndex: 'required',
       width: 80,
-      render: (value) => value ? <Badge status="error" text={t('schema.required.yes')} /> : <Badge status="default" text={t('schema.required.no')} />,
+      render: (value) =>
+        value ? (
+          <Badge status="error" text={t('schema.required.yes')} />
+        ) : (
+          <Badge status="default" text={t('schema.required.no')} />
+        ),
     },
     { title: t('apiDoc.col.description'), dataIndex: 'description' },
   ];
@@ -149,7 +174,7 @@ export default function ApiDoc() {
       title: t('apiDoc.col.schema'),
       dataIndex: 'schema',
       width: 180,
-      render: (value) => value ? <Text code>{value}</Text> : <Text type="secondary">—</Text>,
+      render: (value) => (value ? <Text code>{value}</Text> : <Text type="secondary">—</Text>),
     },
   ];
 
@@ -180,14 +205,20 @@ export default function ApiDoc() {
         <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
           {method}
         </Tag>
-        <Text code style={{ fontSize: 15 }}>{operation.path}</Text>
+        <Text code style={{ fontSize: 15 }}>
+          {operation.path}
+        </Text>
         {op.deprecated && <Tag color="red">{t('apiDoc.deprecated')}</Tag>}
       </div>
 
-      <Title level={4} style={{ marginTop: 0 }}>{op.summary ?? operation.path}</Title>
+      <Title level={4} style={{ marginTop: 0 }}>
+        {op.summary ?? operation.path}
+      </Title>
       {op.description && <Paragraph type="secondary">{op.description}</Paragraph>}
 
-      <Title level={5} style={{ marginTop: 24 }}>{t('apiDoc.requestParams')}</Title>
+      <Title level={5} style={{ marginTop: 24 }}>
+        {t('apiDoc.requestParams')}
+      </Title>
       <Table<ParamRow>
         columns={paramColumns}
         dataSource={parameters}
@@ -197,7 +228,9 @@ export default function ApiDoc() {
         locale={{ emptyText: t('apiDoc.noParams') }}
       />
 
-      <Title level={5} style={{ marginTop: 24 }}>{t('apiDoc.requestBody')}</Title>
+      <Title level={5} style={{ marginTop: 24 }}>
+        {t('apiDoc.requestBody')}
+      </Title>
       <Table<BodyRow>
         columns={bodyColumns}
         dataSource={bodyRows}
@@ -207,14 +240,10 @@ export default function ApiDoc() {
         locale={{ emptyText: bodySchema ? t('apiDoc.body.notExpandable') : t('apiDoc.noBody') }}
       />
 
-      <Title level={5} style={{ marginTop: 24 }}>{t('apiDoc.responseStructure')}</Title>
-      <Table<ResponseRow>
-        columns={responseColumns}
-        dataSource={responses}
-        pagination={false}
-        size="small"
-        bordered
-      />
+      <Title level={5} style={{ marginTop: 24 }}>
+        {t('apiDoc.responseStructure')}
+      </Title>
+      <Table<ResponseRow> columns={responseColumns} dataSource={responses} pagination={false} size="small" bordered />
     </div>
   );
 }

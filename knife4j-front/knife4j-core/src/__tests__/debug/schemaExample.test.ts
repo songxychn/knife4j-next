@@ -68,16 +68,10 @@ const doc: Record<string, unknown> = {
         ],
       },
       OneOfDemo: {
-        oneOf: [
-          { $ref: '#/components/schemas/User' },
-          { $ref: '#/components/schemas/Pet' },
-        ],
+        oneOf: [{ $ref: '#/components/schemas/User' }, { $ref: '#/components/schemas/Pet' }],
       },
       AnyOfDemo: {
-        anyOf: [
-          { $ref: '#/components/schemas/Pet' },
-          { type: 'string' },
-        ],
+        anyOf: [{ $ref: '#/components/schemas/Pet' }, { type: 'string' }],
       },
       FreeFormMap: {
         type: 'object',
@@ -144,10 +138,7 @@ describe('buildSchemaExample', () => {
   });
 
   test('default takes priority over enum and type inference', () => {
-    const result = buildSchemaExample(
-      { type: 'string', enum: ['a'], default: 'my-default' },
-      ctx(),
-    );
+    const result = buildSchemaExample({ type: 'string', enum: ['a'], default: 'my-default' }, ctx());
     expect(result).toBe('my-default');
   });
 
@@ -192,10 +183,7 @@ describe('buildSchemaExample', () => {
   });
 
   test('generates example for array of $ref items', () => {
-    const result = buildSchemaExample(
-      { type: 'array', items: { $ref: '#/components/schemas/Pet' } },
-      ctx(),
-    );
+    const result = buildSchemaExample({ type: 'array', items: { $ref: '#/components/schemas/Pet' } }, ctx());
     expect(result).toEqual([{ name: 'Buddy', tag: 'string' }]);
   });
 
@@ -249,10 +237,7 @@ describe('buildSchemaExample', () => {
 
   // 12. maxDepth 保护
   test('respects maxDepth and returns null beyond it', () => {
-    const result = buildSchemaExample(
-      { $ref: '#/components/schemas/User' },
-      ctx({ maxDepth: 0 }),
-    );
+    const result = buildSchemaExample({ $ref: '#/components/schemas/User' }, ctx({ maxDepth: 0 }));
     expect(result).toBeNull();
   });
 
@@ -458,4 +443,3 @@ describe('buildSchemaFieldTree', () => {
     expect(nodes[0].type).toBe('string');
   });
 });
-

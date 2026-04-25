@@ -15,10 +15,7 @@
  * @param doc  完整的 OpenAPI 文档对象（OAS2 或 OAS3）
  * @returns    被引用的 schema 对象；找不到时返回 undefined
  */
-export function resolveRef(
-  ref: string,
-  doc: Record<string, unknown>,
-): Record<string, unknown> | undefined {
+export function resolveRef(ref: string, doc: Record<string, unknown>): Record<string, unknown> | undefined {
   if (!ref || !ref.startsWith('#/')) return undefined;
 
   const parts = ref.slice(2).split('/');
@@ -56,4 +53,3 @@ export function dereference(
   }
   return current;
 }
-

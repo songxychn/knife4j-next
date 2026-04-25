@@ -19,9 +19,7 @@ describe('buildOperationDebugModel — OAS3', () => {
         post: {
           operationId: 'createUser',
           summary: 'Create user',
-          parameters: [
-            { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-          ],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           requestBody: {
             required: true,
             content: {
@@ -238,13 +236,9 @@ describe('buildOperationDebugModel — OAS3', () => {
       info: { title: 'T', version: '1' },
       paths: {
         '/items': {
-          parameters: [
-            { name: 'X-Common', in: 'header', required: true, schema: { type: 'string' } },
-          ],
+          parameters: [{ name: 'X-Common', in: 'header', required: true, schema: { type: 'string' } }],
           get: {
-            parameters: [
-              { name: 'page', in: 'query', schema: { type: 'integer' } },
-            ],
+            parameters: [{ name: 'page', in: 'query', schema: { type: 'integer' } }],
             responses: { '200': { description: 'OK' } },
           },
         },
@@ -269,13 +263,9 @@ describe('buildOperationDebugModel — OAS3', () => {
       info: { title: 'T', version: '1' },
       paths: {
         '/items': {
-          parameters: [
-            { name: 'page', in: 'query', schema: { type: 'integer' }, description: 'path-level' },
-          ],
+          parameters: [{ name: 'page', in: 'query', schema: { type: 'integer' }, description: 'path-level' }],
           get: {
-            parameters: [
-              { name: 'page', in: 'query', schema: { type: 'string' }, description: 'op-level' },
-            ],
+            parameters: [{ name: 'page', in: 'query', schema: { type: 'string' }, description: 'op-level' }],
             responses: { '200': { description: 'OK' } },
           },
         },
@@ -439,9 +429,7 @@ describe('buildOperationDebugModel — OAS2', () => {
       paths: {
         '/items': {
           get: {
-            parameters: [
-              { $ref: '#/parameters/PageParam' },
-            ],
+            parameters: [{ $ref: '#/parameters/PageParam' }],
             responses: { '200': { description: 'OK' } },
           },
         },
@@ -463,4 +451,3 @@ describe('buildOperationDebugModel — OAS2', () => {
     expect(model.queryParams[0].type).toBe('integer');
   });
 });
-

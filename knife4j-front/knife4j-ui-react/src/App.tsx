@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
+import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Layout, Button, Select, ConfigProvider, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useNavigate } from 'react-router-dom';
@@ -18,7 +14,7 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const HOME_KEY = '/group/home';
 
-const routeKeyToMenuKey = (key: string) => key.endsWith('/doc') ? key.slice(0, -4) : key;
+const routeKeyToMenuKey = (key: string) => (key.endsWith('/doc') ? key.slice(0, -4) : key);
 
 const footerStyle: React.CSSProperties = {
   textAlign: 'center',
@@ -45,10 +41,7 @@ const AppInner: React.FC = () => {
   const [activeKey, setActiveKey] = useState(HOME_KEY);
   const [items, setItems] = useState([{ label: t('app.tab.home'), children: '', key: HOME_KEY }]);
 
-  const handleResize = (
-    _e: React.SyntheticEvent,
-    data: { size: { width: number } }
-  ) => {
+  const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
   };
 
@@ -74,8 +67,7 @@ const AppInner: React.FC = () => {
     const targetIndex = items.findIndex((pane) => pane.key === targetKey);
     const newPanes = items.filter((pane) => pane.key !== targetKey);
     if (newPanes.length && targetKey === activeKey) {
-      const { key } =
-        newPanes[targetIndex === newPanes.length ? targetIndex - 1 : targetIndex];
+      const { key } = newPanes[targetIndex === newPanes.length ? targetIndex - 1 : targetIndex];
       setActiveKey(key);
     }
     setItems(newPanes);
@@ -90,9 +82,7 @@ const AppInner: React.FC = () => {
     i18n.changeLanguage(next);
   };
 
-  const langLabel = i18n.language === 'zh-CN'
-    ? t('header.lang.en')
-    : t('header.lang.zh');
+  const langLabel = i18n.language === 'zh-CN' ? t('header.lang.en') : t('header.lang.zh');
 
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const tabItems = items.map((item) => ({
@@ -152,10 +142,7 @@ const AppInner: React.FC = () => {
           )}
 
           {/* Search + Menu */}
-          <SidebarSearchMenu
-            selectedKey={selectedKey}
-            onMenuClick={menuClick}
-          />
+          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} />
         </Sider>
       </Resizable>
 
@@ -215,9 +202,7 @@ const AppInner: React.FC = () => {
           </div>
         </Content>
 
-        <Footer style={footerStyle}>
-          {t('app.footer')}
-        </Footer>
+        <Footer style={footerStyle}>{t('app.footer')}</Footer>
       </Layout>
     </Layout>
   );

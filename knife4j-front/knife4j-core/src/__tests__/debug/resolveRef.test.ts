@@ -104,4 +104,3 @@ describe('dereference', () => {
     expect(result.$ref).toBe('#/components/schemas/NotExist');
   });
 });
-

@@ -15,19 +15,21 @@ const METHOD_COLORS: Record<string, string> = {
 function methodTag(method: string) {
   const color = METHOD_COLORS[method.toUpperCase()] ?? '#999';
   return (
-    <span style={{
-      display: 'inline-block',
-      minWidth: 46,
-      padding: '0 4px',
-      marginRight: 6,
-      borderRadius: 3,
-      fontSize: 11,
-      fontWeight: 700,
-      color: '#fff',
-      backgroundColor: color,
-      textAlign: 'center',
-      lineHeight: '18px',
-    }}>
+    <span
+      style={{
+        display: 'inline-block',
+        minWidth: 46,
+        padding: '0 4px',
+        marginRight: 6,
+        borderRadius: 3,
+        fontSize: 11,
+        fontWeight: 700,
+        color: '#fff',
+        backgroundColor: color,
+        textAlign: 'center',
+        lineHeight: '18px',
+      }}
+    >
       {method.toUpperCase()}
     </span>
   );
@@ -51,7 +53,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           (api) =>
             api.summary.toLowerCase().includes(q) ||
             api.path.toLowerCase().includes(q) ||
-            api.tag.toLowerCase().includes(q)
+            api.tag.toLowerCase().includes(q),
         )
       : activeGroup.apis;
 
@@ -76,9 +78,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           label: (
             <span style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
               {methodTag(api.method)}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {api.summary}
-              </span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{api.summary}</span>
             </span>
           ),
         })),

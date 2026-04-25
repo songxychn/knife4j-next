@@ -22,31 +22,36 @@ function downloadBlob(content: string, filename: string, mime: string) {
 
 function escapeHtml(s: string | undefined | null): string {
   if (!s) return '';
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function methodColor(method: string): string {
   const map: Record<string, string> = {
-    GET: '#61affe', POST: '#49cc90', PUT: '#fca130',
-    DELETE: '#f93e3e', PATCH: '#50e3c2', HEAD: '#9012fe', OPTIONS: '#0d5aa7',
+    GET: '#61affe',
+    POST: '#49cc90',
+    PUT: '#fca130',
+    DELETE: '#f93e3e',
+    PATCH: '#50e3c2',
+    HEAD: '#9012fe',
+    OPTIONS: '#0d5aa7',
   };
   return map[method.toUpperCase()] ?? '#999';
 }
 
 function renderParamTable(params: ParameterObject[]): string {
   if (!params.length) return '';
-  const rows = params.map((p) => `
+  const rows = params
+    .map(
+      (p) => `
     <tr>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.name)}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.in)}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${p.required ? 'Yes' : 'No'}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.schema?.type ?? p.type ?? '')}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.description)}</td>
-    </tr>`).join('');
+    </tr>`,
+    )
+    .join('');
   return `
     <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;">
       <thead><tr style="background:#f5f5f5;">
@@ -79,16 +84,18 @@ function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyl
   }
   if (!schema.properties) return '';
   const requiredSet = new Set(schema.required ?? []);
-  const rows = Object.entries(schema.properties).map(([name, prop]) => {
-    const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
-    return `
+  const rows = Object.entries(schema.properties)
+    .map(([name, prop]) => {
+      const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
+      return `
     <tr>
       <td style="${borderStyle}">${escapeHtml(name)}</td>
       <td style="${borderStyle}">${escapeHtml(type)}</td>
       <td style="${borderStyle}">${requiredSet.has(name) ? 'Yes' : 'No'}</td>
       <td style="${borderStyle}">${escapeHtml(prop.description)}</td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
   return `
     <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (application/json)</p>
     <table style="width:100%;border-collapse:collapse;margin:4px 0;font-size:13px;">
@@ -121,15 +128,17 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
 }
 
 function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
-  const sections = tags.map((t) => {
-    const ops = t.operations.map((op) => renderOperation(op.path, op.method, op.operation, doc)).join('');
-    return `
+  const sections = tags
+    .map((t) => {
+      const ops = t.operations.map((op) => renderOperation(op.path, op.method, op.operation, doc)).join('');
+      return `
       <div style="margin-bottom:28px;">
         <h2 style="border-left:4px solid #00ab6d;padding-left:10px;margin:20px 0 10px;">${escapeHtml(t.tag)}</h2>
         ${t.description ? `<p style="color:#666;margin-bottom:10px;">${escapeHtml(t.description)}</p>` : ''}
         ${ops}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -158,18 +167,25 @@ function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 }
 
 function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
-  const sections = tags.map((t) => {
-    const ops = t.operations.map((op) => {
-      const params = op.operation.parameters ?? [];
-      const paramRows = params.map((p) => `
+  const sections = tags
+    .map((t) => {
+      const ops = t.operations
+        .map((op) => {
+          const params = op.operation.parameters ?? [];
+          const paramRows = params
+            .map(
+              (p) => `
         <tr>
           <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.name)}</td>
           <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.in)}</td>
           <td style="border:1px solid #000;padding:4px 6px;">${p.required ? 'Yes' : 'No'}</td>
           <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.schema?.type ?? p.type ?? '')}</td>
           <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.description)}</td>
-        </tr>`).join('');
-      const paramTable = params.length ? `
+        </tr>`,
+            )
+            .join('');
+          const paramTable = params.length
+            ? `
         <table style="width:100%;border-collapse:collapse;margin:6px 0;font-size:12px;">
           <thead><tr style="background:#e8e8e8;">
             <th style="border:1px solid #000;padding:4px 6px;">Name</th>
@@ -179,20 +195,23 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
             <th style="border:1px solid #000;padding:4px 6px;">Description</th>
           </tr></thead>
           <tbody>${paramRows}</tbody>
-        </table>` : '';
-      const bodyHtml = renderRequestBodyTable(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
-      return `
+        </table>`
+            : '';
+          const bodyHtml = renderRequestBodyTable(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
+          return `
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
           <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(op.method.toUpperCase())}]</strong> <code>${escapeHtml(op.path)}</code>${op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''}</p>
           ${op.operation.summary ? `<p style="margin:2px 0;font-size:13px;">${escapeHtml(op.operation.summary)}</p>` : ''}
           ${paramTable}
           ${bodyHtml}
         </div>`;
-    }).join('');
-    return `
+        })
+        .join('');
+      return `
       <h2 style="border-left:4px solid #00ab6d;padding-left:8px;margin:20px 0 8px;">${escapeHtml(t.tag)}</h2>
       ${ops}`;
-  }).join('');
+    })
+    .join('');
 
   return `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
@@ -237,18 +256,14 @@ export default function OfficeDoc() {
 
   return (
     <div id="knife4j-office-doc-page" style={{ padding: 24, maxWidth: 800 }}>
-      <Title level={4} style={{ marginBottom: 8 }}>{t('officeDoc.title')}</Title>
+      <Title level={4} style={{ marginBottom: 8 }}>
+        {t('officeDoc.title')}
+      </Title>
       <Paragraph type="secondary" style={{ marginBottom: 20 }}>
         {t('officeDoc.desc')}
       </Paragraph>
 
-      {noData && (
-        <Alert
-          type="warning"
-          message={t('officeDoc.alert.mockData')}
-          style={{ marginBottom: 16 }}
-        />
-      )}
+      {noData && <Alert type="warning" message={t('officeDoc.alert.mockData')} style={{ marginBottom: 16 }} />}
 
       <Space size="middle">
         <Button

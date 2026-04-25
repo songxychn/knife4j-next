@@ -56,12 +56,15 @@ interface OAS2Param {
 interface OAS3RequestBody {
   description?: string;
   required?: boolean;
-  content?: Record<string, {
-    schema?: Record<string, unknown>;
-    example?: unknown;
-    examples?: Record<string, unknown>;
-    encoding?: Record<string, unknown>;
-  }>;
+  content?: Record<
+    string,
+    {
+      schema?: Record<string, unknown>;
+      example?: unknown;
+      examples?: Record<string, unknown>;
+      encoding?: Record<string, unknown>;
+    }
+  >;
   $ref?: string;
 }
 
@@ -155,20 +158,14 @@ function extractFileFields(schema: Record<string, unknown> | undefined): string[
 }
 
 /** 解析 $ref 参数 */
-function resolveParameter(
-  param: OAS3Param | OAS2Param,
-  doc: DocLike,
-): OAS3Param | OAS2Param {
+function resolveParameter(param: OAS3Param | OAS2Param, doc: DocLike): OAS3Param | OAS2Param {
   if (!param.$ref) return param;
   const resolved = resolveRef(param.$ref, doc as Record<string, unknown>);
   return resolved ? (resolved as OAS3Param | OAS2Param) : param;
 }
 
 /** 将参数合并到结果列表（去重：同 name+in 不重复添加） */
-function mergeParam(
-  list: DebugParam[],
-  param: DebugParam,
-): void {
+function mergeParam(list: DebugParam[], param: DebugParam): void {
   const exists = list.some((p) => p.name === param.name && p.in === param.in);
   if (!exists) list.push(param);
 }
@@ -191,20 +188,32 @@ export interface BuildDebugModelOptions {
 /**
  * 从 OpenAPI operation 解析出统一的调试参数模型
  */
-export function buildOperationDebugModel(
-  options: BuildDebugModelOptions,
-): OperationDebugModel {
+export function buildOperationDebugModel(options: BuildDebugModelOptions): OperationDebugModel {
   const { doc, path, method, isOAS2 = Boolean(doc.swagger), schemaCtx } = options;
 
   // 定位 PathItem 和 Operation
   const pathItem = doc.paths?.[path];
   if (!pathItem) {
-    return { pathParams: [], queryParams: [], headerParams: [], cookieParams: [], bodyContents: [], bodyRequired: false };
+    return {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [],
+      bodyRequired: false,
+    };
   }
 
   const operation = pathItem[method] as OperationLike | undefined;
   if (!operation) {
-    return { pathParams: [], queryParams: [], headerParams: [], cookieParams: [], bodyContents: [], bodyRequired: false };
+    return {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [],
+      bodyRequired: false,
+    };
   }
 
   const ctx: SchemaResolveContext = schemaCtx ?? { doc: doc as Record<string, unknown>, maxDepth: 8 };
@@ -246,9 +255,7 @@ export function buildOperationDebugModel(
         mediaType,
         category: classifyContentType(mediaType),
         schema: schema ?? raw.schema,
-        exampleValue: schema
-          ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2)
-          : undefined,
+        exampleValue: schema ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2) : undefined,
       });
       bodyRequired = Boolean(raw.required);
       continue;
@@ -287,7 +294,7 @@ export function buildOperationDebugModel(
 
       props[fieldName] = {
         type: fieldType === 'file' ? 'string' : fieldType,
-        format: fieldType === 'file' ? 'binary' : ((raw as OAS2Param).format),
+        format: fieldType === 'file' ? 'binary' : (raw as OAS2Param).format,
         description: raw.description,
         default: (raw as OAS2Param).default,
         enum: (raw as OAS2Param).enum,
@@ -321,36 +328,45 @@ export function buildOperationDebugModel(
       required: paramIn === 'path' ? true : Boolean(raw.required), // path 参数始终 required
       description: raw.description,
       type: extractType(raw, schema),
-      format: schema?.format as string | undefined ?? (raw as OAS2Param).format,
+      format: (schema?.format as string | undefined) ?? (raw as OAS2Param).format,
       default: schema?.default ?? (raw as OAS2Param).default,
       example: schema?.example ?? raw.example,
-      enum: schema?.enum as unknown[] | undefined ?? (raw as OAS2Param).enum,
+      enum: (schema?.enum as unknown[] | undefined) ?? (raw as OAS2Param).enum,
       deprecated: raw.deprecated,
       readOnly: schema?.readOnly as boolean | undefined,
       schema: schema ?? (raw.schema ? { ...raw.schema } : undefined),
     };
 
     switch (paramIn) {
-      case 'path': mergeParam(pathParams, debugParam); break;
-      case 'query': mergeParam(queryParams, debugParam); break;
-      case 'header': mergeParam(headerParams, debugParam); break;
-      case 'cookie': mergeParam(cookieParams, debugParam); break;
+      case 'path':
+        mergeParam(pathParams, debugParam);
+        break;
+      case 'query':
+        mergeParam(queryParams, debugParam);
+        break;
+      case 'header':
+        mergeParam(headerParams, debugParam);
+        break;
+      case 'cookie':
+        mergeParam(cookieParams, debugParam);
+        break;
     }
   }
 
   // OAS3: requestBody
   if (!isOAS2 && operation.requestBody) {
     const rb = operation.requestBody.$ref
-      ? dereference(operation.requestBody as Record<string, unknown>, doc as Record<string, unknown>) as unknown as OAS3RequestBody
+      ? (dereference(
+          operation.requestBody as Record<string, unknown>,
+          doc as Record<string, unknown>,
+        ) as unknown as OAS3RequestBody)
       : operation.requestBody;
 
     bodyRequired = Boolean(rb.required);
 
     if (rb.content) {
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
-        const schema = mediaObj.schema
-          ? dereference(mediaObj.schema, doc as Record<string, unknown>)
-          : undefined;
+        const schema = mediaObj.schema ? dereference(mediaObj.schema, doc as Record<string, unknown>) : undefined;
 
         bodyContents.push({
           mediaType,
@@ -359,11 +375,9 @@ export function buildOperationDebugModel(
           exampleValue: schema
             ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2)
             : mediaObj.example
-              ? JSON.stringify(mediaObj.example, null, 2)
-              : undefined,
-          fileFields: classifyContentType(mediaType) === 'multipart'
-            ? extractFileFields(schema)
+            ? JSON.stringify(mediaObj.example, null, 2)
             : undefined,
+          fileFields: classifyContentType(mediaType) === 'multipart' ? extractFileFields(schema) : undefined,
         });
       }
     }
@@ -378,4 +392,3 @@ export function buildOperationDebugModel(
     bodyRequired,
   };
 }
-

@@ -18,8 +18,9 @@ describe('replacePathParams', () => {
   });
 
   test('replaces multiple path params', () => {
-    expect(replacePathParams('/users/{userId}/posts/{postId}', { userId: '1', postId: '99' }))
-      .toBe('/users/1/posts/99');
+    expect(replacePathParams('/users/{userId}/posts/{postId}', { userId: '1', postId: '99' })).toBe(
+      '/users/1/posts/99',
+    );
   });
 
   test('encodes special characters', () => {
@@ -65,30 +66,21 @@ describe('buildQueryString', () => {
 
 describe('mergeHeaders', () => {
   test('merges multiple header sources', () => {
-    const result = mergeHeaders(
-      { 'Authorization': 'Bearer xxx' },
-      { 'Content-Type': 'application/json' },
-    );
+    const result = mergeHeaders({ Authorization: 'Bearer xxx' }, { 'Content-Type': 'application/json' });
     expect(result).toEqual({
-      'Authorization': 'Bearer xxx',
+      Authorization: 'Bearer xxx',
       'Content-Type': 'application/json',
     });
   });
 
   test('later sources override earlier ones', () => {
-    const result = mergeHeaders(
-      { 'X-Token': 'old' },
-      { 'X-Token': 'new' },
-    );
+    const result = mergeHeaders({ 'X-Token': 'old' }, { 'X-Token': 'new' });
     expect(result['X-Token']).toBe('new');
   });
 
   test('skips undefined and empty string values', () => {
-    const result = mergeHeaders(
-      { 'A': 'a', 'B': '', 'C': 'c' },
-      undefined,
-    );
-    expect(result).toEqual({ 'A': 'a', 'C': 'c' });
+    const result = mergeHeaders({ A: 'a', B: '', C: 'c' }, undefined);
+    expect(result).toEqual({ A: 'a', C: 'c' });
   });
 
   test('handles all undefined sources', () => {
@@ -265,11 +257,11 @@ describe('splitGlobalParams', () => {
   test('splits headers and queries', () => {
     const gp: GlobalParamValues = {
       headers: { 'X-Token': 'global-token' },
-      queries: { 'lang': 'zh' },
+      queries: { lang: 'zh' },
     };
     const result = splitGlobalParams(gp);
     expect(result.headers).toEqual({ 'X-Token': 'global-token' });
-    expect(result.queries).toEqual({ 'lang': 'zh' });
+    expect(result.queries).toEqual({ lang: 'zh' });
   });
 
   test('handles undefined', () => {
@@ -301,9 +293,7 @@ describe('validateRequired', () => {
     };
     const errors = validateRequired(model, form);
     expect(errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'id', in: 'path', key: 'path:id' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ name: 'id', in: 'path', key: 'path:id' })]),
     );
   });
 
@@ -317,9 +307,7 @@ describe('validateRequired', () => {
     };
     const errors = validateRequired(model, form);
     expect(errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'X-Auth', in: 'header', key: 'header:X-Auth' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ name: 'X-Auth', in: 'header', key: 'header:X-Auth' })]),
     );
   });
 
@@ -333,9 +321,7 @@ describe('validateRequired', () => {
     };
     const errors = validateRequired(model, form);
     expect(errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'requestBody', in: 'body', key: 'body:requestBody' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ name: 'requestBody', in: 'body', key: 'body:requestBody' })]),
     );
   });
 
@@ -463,7 +449,7 @@ describe('buildRequest', () => {
       },
       globalParams: {
         headers: { 'X-Global': 'yes' },
-        queries: { 'lang': 'zh', 'verbose': 'false' },
+        queries: { lang: 'zh', verbose: 'false' },
       },
     });
 
@@ -537,7 +523,7 @@ describe('buildCurl', () => {
     const curl = buildCurl({
       url: 'http://localhost:8080/users/42?page=1',
       method: 'GET',
-      headers: { 'Authorization': 'Bearer tok' },
+      headers: { Authorization: 'Bearer tok' },
       query: { page: '1' },
       contentType: '',
     });
@@ -678,7 +664,7 @@ describe('buildRequest sourceMap', () => {
       debugModel: baseModel,
       formValues: {
         ...baseForm,
-        headerParams: { 'Authorization': 'Custom Token' },
+        headerParams: { Authorization: 'Custom Token' },
         queryParams: { gq: '2' },
       },
       auth: { bearerToken: 'mytoken' },
@@ -699,7 +685,7 @@ describe('buildRequest sourceMap', () => {
       debugModel: baseModel,
       formValues: baseForm,
       auth: { bearerToken: 'mytoken' },
-      globalParams: { headers: { 'Authorization': 'GlobalAuth' }, queries: {} },
+      globalParams: { headers: { Authorization: 'GlobalAuth' }, queries: {} },
     });
     // Global overrides auth for Authorization header
     expect(result.sourceMap!.headers['Authorization']).toBe('global');

@@ -20,13 +20,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose }) => {
   ];
 
   return (
-    <Drawer
-      title={t('settings.title')}
-      placement="right"
-      width={600}
-      open={open}
-      onClose={onClose}
-    >
+    <Drawer title={t('settings.title')} placement="right" width={600} open={open} onClose={onClose}>
       <Tabs items={tabItems} />
     </Drawer>
   );
