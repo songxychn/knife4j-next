@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { GroupProvider, useGroup } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
+import SettingsDrawer from './compoents/SettingsDrawer';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -27,6 +28,7 @@ const footerStyle: React.CSSProperties = {
 // Inner component so it can use GroupProvider context
 const AppInner: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
   const { groups, setActiveGroupValue } = useGroup();
@@ -152,10 +154,13 @@ const AppInner: React.FC = () => {
             <Button
               type="text"
               icon={<SettingOutlined />}
+              onClick={() => setSettingsOpen(true)}
               style={{ fontSize: 16, width: 48, height: 48 }}
             />
           </span>
         </Header>
+
+        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
         <Content
           style={{
