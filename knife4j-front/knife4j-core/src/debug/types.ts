@@ -135,7 +135,7 @@ export interface ValidationError {
   message: string;
 }
 
-// ─── Schema 示例/字段树 占位签名（TASK-030 实现） ──────
+// ─── Schema 示例/字段树 ───────────────────────────────
 
 /** schema 递归展开上下文 */
 export interface SchemaResolveContext {
@@ -145,9 +145,43 @@ export interface SchemaResolveContext {
   maxDepth?: number;
 }
 
+/** 字段树节点（用于文档展示） */
+export interface SchemaFieldNode {
+  /** 字段名；根节点或 array 元素可能为空字符串 */
+  name: string;
+  /** 归一化后的类型：string / integer / number / boolean / array / object / unknown */
+  type: string;
+  /** 格式修饰（如 int64 / date-time / binary） */
+  format?: string;
+  /** 是否必填（由父 schema 的 required 列表决定） */
+  required: boolean;
+  /** 描述 */
+  description?: string;
+  /** 默认值 */
+  default?: unknown;
+  /** 显式 example */
+  example?: unknown;
+  /** 枚举值 */
+  enum?: unknown[];
+  /** 是否只读 */
+  readOnly?: boolean;
+  /** 是否只写 */
+  writeOnly?: boolean;
+  /** 是否已废弃 */
+  deprecated?: boolean;
+  /** 当 type 为 $ref 指向的具名类型时，保留类型名便于 UI 提示 */
+  refName?: string;
+  /** 因循环引用或达到最大深度被截断时标记 */
+  truncated?: boolean;
+  /** 子字段（object.properties 或 array.items） */
+  children?: SchemaFieldNode[];
+}
+
 /**
- * 根据 schema 生成 JSON 示例值。
- * TASK-030 实现完整逻辑；当前为占位，只处理基本类型。
+ * 根据 schema 生成 JSON 示例值（纯数据）。
+ *
+ * 支持：$ref / object / array / enum / example / default / allOf（浅合并） /
+ * oneOf / anyOf（取第一个可解析分支） / 循环引用截断 / maxDepth 保护。
  */
 export type BuildSchemaExampleFn = (
   schema: Record<string, unknown> | undefined,
@@ -156,10 +190,12 @@ export type BuildSchemaExampleFn = (
 
 /**
  * 根据 schema 生成字段树（用于文档展示）。
- * TASK-030 实现；当前占位。
+ *
+ * 返回值为 SchemaFieldNode 数组：object 展开 properties，array 以伪节点暴露 items。
+ * 循环引用以 `truncated=true` 截断，不会死循环。
  */
 export type BuildSchemaFieldTreeFn = (
   schema: Record<string, unknown> | undefined,
   ctx: SchemaResolveContext,
-) => unknown;
+) => SchemaFieldNode[];
 

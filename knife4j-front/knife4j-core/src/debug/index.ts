@@ -21,6 +21,7 @@ export type {
   BuiltRequest,
   ValidationError,
   SchemaResolveContext,
+  SchemaFieldNode,
   BuildSchemaExampleFn,
   BuildSchemaFieldTreeFn,
 } from './types';
@@ -45,6 +46,6 @@ export {
 } from './requestBuilder';
 export type { BuildRequestOptions } from './requestBuilder';
 
-// schemaExample (占位，TASK-030 完整实现)
+// schemaExample
 export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';
 
