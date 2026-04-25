@@ -68,7 +68,7 @@ public class Boot2DocHttpSmokeTest {
         
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
-        Assert.assertTrue(docHtml.body.contains("webjars/js/"));
+        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
         
         HttpResponse apiDocs = get(port, "/v2/api-docs");
         Assert.assertEquals(200, apiDocs.statusCode);
