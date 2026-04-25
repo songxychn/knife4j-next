@@ -684,3 +684,27 @@ blockers:
 
 notes:
 - TASK-033 worker 违反「禁改 .agent/」约束，自行写入了状态（已由 coordinator 整合重写，保留有价值内容）
+
+## 2026-04-25 17:05 UTC — PR #46 / #47 合并
+task: TASK-031 + TASK-029
+agent: coordinator
+status: done
+summary:
+- PR #46（TASK-031）先合入 master（merge commit a44907d8）
+- 合并后 PR #47（TASK-029）出现冲突：import 区 + locales + ApiDebug.tsx
+- rebase agent/TASK-029-* 到新 master 后只剩 1 处 import 冲突（两边都加了不同 import，合并保留即可）
+- locales 的追加内容自动三方合并成功
+- ApiDebug.tsx 内语义性分区（TASK-029 响应消费 vs TASK-031 buildPreview 传参）无逻辑冲突，tsc + vite + jest 一次通过
+- 维护者在 force-push 后立即合并 PR #47（merge commit fad3ab25）
+- 当前 master 已包含 TASK-029 + TASK-031 全部改动
+- TASK-033 分支（PR #48）经 git 内容识别自动收窄，现在相对 master 只剩自己的 1 个 commit（31579eba），无需 rebase
+validation:
+- 本地 rebase 后：./scripts/test-front-core.sh → 12/134 pass；npm run build -w knife4j-ui-react → OK
+- git push --force-with-lease agent/TASK-029-* → 成功
+next:
+- 等待维护者 review PR #48（TASK-033）
+blockers:
+- none
+lessons:
+- 并行 PR 堆叠模型下，先合并底层任务后上层任务会产生 import/locales 级冲突，属可预期；git 三方合并能正确处理大多数语义分区
+- 使用 --force-with-lease 而非 --force，避免意外覆盖远端其他改动
