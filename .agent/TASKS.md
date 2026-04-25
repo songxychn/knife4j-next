@@ -430,7 +430,7 @@ notes:
 - blocked 原因：等 TASK-032 的参数解析 API 稳定后再落实现
 
 ### TASK-027
-status: ready
+status: review
 area: ui-react
 title: React 调试页补全 requestBody 多内容类型表单
 branch: codex/TASK-027-react-debug-request-body
@@ -485,7 +485,7 @@ notes:
 - Vue2 的 Base64Img Tab 若实现成本低可一并做，否则延后
 
 ### TASK-030
-status: ready
+status: review
 area: front-core
 title: schema 示例生成与字段树递归（knife4j-core）
 branch: codex/TASK-030-schema-example-builder

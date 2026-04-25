@@ -87,9 +87,11 @@ export interface DebugFormValues {
   cookieParams: Record<string, string>;
   /** 当前选中的 content-type */
   selectedContentType?: string;
-  /** body 文本（已序列化） */
+  /** body 文本（已序列化，用于 json/raw 模式） */
   body?: string;
-  /** multipart 文件字段 { fieldName: File } — 由 UI 层处理，不进入纯函数 */
+  /** urlencoded / multipart 字段表单值 { fieldName: value }（纯字符串值） */
+  formFields?: Record<string, string>;
+  /** multipart 文件字段 { fieldName: File[] } — 由 UI 层处理，不序列化进纯函数 */
   fileFields?: Record<string, unknown>;
 }
 

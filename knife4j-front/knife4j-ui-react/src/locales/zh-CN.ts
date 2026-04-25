@@ -92,6 +92,14 @@ const zhCN = {
   'apiDebug.json.array': '数组',
   'apiDebug.json.object': '对象',
 
+  // ApiDebug — Body Tab
+  'apiDebug.body.beautify': '格式化',
+  'apiDebug.body.file': '文件',
+  'apiDebug.body.selectFile': '选择文件',
+  'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
+  'apiDebug.body.raw': '原始文本',
+  'apiDebug.body.contentType': 'Content-Type',
+
   // Authorize
   'auth.title': 'Authorization',
   'auth.tab.bearer': 'Bearer Token',

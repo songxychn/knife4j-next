@@ -1,18 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {
-  Alert, Button, Divider, Input, InputNumber, Select, Space, Spin, Switch, Table, Tabs, Tag, Tooltip, Typography,
+    Alert,
+    Button,
+    Divider,
+    Input,
+    InputNumber,
+    Radio,
+    Select,
+    Space,
+    Spin,
+    Switch,
+    Table,
+    Tabs,
+    Tag,
+    Tooltip,
+    Typography,
+    Upload,
 } from 'antd';
-import { SendOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { useTranslation } from 'react-i18next';
-import {
-  buildOperationDebugModel,
-  buildRequest as coreBuildRequest,
-  buildCurl,
-  validateRequired,
-} from 'knife4j-core';
-import type { DebugParam, OperationDebugModel, DebugFormValues, BuiltRequest } from 'knife4j-core';
-import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import {SendOutlined, UploadOutlined} from '@ant-design/icons';
+import type {ColumnsType} from 'antd/es/table';
+import type {UploadFile} from 'antd/es/upload/interface';
+import {useTranslation} from 'react-i18next';
+import type {BodyContent, BuiltRequest, DebugFormValues, DebugParam, OperationDebugModel} from 'knife4j-core';
+import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired,} from 'knife4j-core';
+import {OperationModeTabs, useCurrentOperation} from './useCurrentOperation';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -89,6 +100,84 @@ function stringify(value: unknown, type: string): string {
   }
   return String(value);
 }
+
+// ─── Schema property → field row for urlencoded / multipart ──────
+
+interface SchemaFieldRow {
+  name: string;
+  type: string;
+  format?: string;
+  required: boolean;
+  description?: string;
+  default?: unknown;
+  example?: unknown;
+  enum?: unknown[];
+  isFile: boolean;
+}
+
+/**
+ * 从 BodyContent 的 schema.properties 提取字段行
+ */
+function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
+  const schema = bodyContent.schema;
+  if (!schema || schema.type !== 'object' || !schema.properties) return [];
+
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  const requiredSet = new Set<string>(Array.isArray(schema.required) ? schema.required as string[] : []);
+  const fileFields = new Set(bodyContent.fileFields ?? []);
+
+  return Object.entries(props).map(([name, prop]) => {
+    const t = (prop.type as string) ?? 'string';
+    const isFile = fileFields.has(name)
+      || t === 'file'
+      || (t === 'string' && prop.format === 'binary')
+      || (t === 'string' && prop.format === 'base64');
+
+    return {
+      name,
+      type: isFile ? 'file' : t,
+      format: typeof prop.format === 'string' ? prop.format : undefined,
+      required: requiredSet.has(name),
+      description: typeof prop.description === 'string' ? prop.description : undefined,
+      default: prop.default,
+      example: prop.example,
+      enum: Array.isArray(prop.enum) ? prop.enum : undefined,
+      isFile,
+    };
+  });
+}
+
+/** 根据 SchemaFieldRow 的类型推断初始值 */
+function initialFieldValue(field: SchemaFieldRow): string {
+  if (field.isFile) return '';
+  if (field.example !== undefined && field.example !== null) return String(field.example);
+  if (field.default !== undefined && field.default !== null) return String(field.default);
+  if (field.enum && field.enum.length > 0) return String(field.enum[0]);
+  if (field.type === 'boolean') return 'true';
+  if (field.type === 'integer' || field.type === 'number') return '0';
+  return '';
+}
+
+// ─── Raw mode types ───────────────────────────────────
+
+const RAW_MODES = [
+  { value: 'text', label: 'Text' },
+  { value: 'json', label: 'JSON' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'xml', label: 'XML' },
+  { value: 'html', label: 'HTML' },
+] as const;
+
+type RawMode = typeof RAW_MODES[number]['value'];
+
+/** raw mode → Content-Type 映射 */
+const RAW_CONTENT_TYPES: Record<RawMode, string> = {
+  text: 'text/plain',
+  json: 'application/json',
+  javascript: 'application/javascript',
+  xml: 'application/xml',
+  html: 'text/html',
+};
 
 // ─── Param input dispatcher ───────────────────────────
 
@@ -171,6 +260,79 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
   );
 }
 
+// ─── Schema field input (for urlencoded / multipart) ──
+
+interface SchemaFieldInputProps {
+  field: SchemaFieldRow;
+  value: string;
+  onChange: (next: string) => void;
+}
+
+function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
+  const { t } = useTranslation();
+
+  // file → Upload
+  if (field.isFile) {
+    return (
+      <Input
+        size="small"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={t('apiDebug.body.file.placeholder')}
+      />
+    );
+  }
+
+  // enum → Select
+  if (field.enum && field.enum.length > 0) {
+    return (
+      <Select
+        size="small"
+        value={value || undefined}
+        onChange={onChange}
+        allowClear
+        options={field.enum.map((item) => ({ value: String(item), label: String(item) }))}
+        style={{ width: '100%' }}
+      />
+    );
+  }
+
+  // boolean → Switch
+  if (field.type === 'boolean') {
+    const checked = value === 'true';
+    return (
+      <Space size="small">
+        <Switch size="small" checked={checked} onChange={(next) => onChange(next ? 'true' : 'false')} />
+        <Text type="secondary" style={{ fontSize: 12 }}>{checked ? 'true' : 'false'}</Text>
+      </Space>
+    );
+  }
+
+  // integer / number
+  if (field.type === 'integer' || field.type === 'number') {
+    const numValue = value === '' ? undefined : Number(value);
+    return (
+      <InputNumber
+        size="small"
+        value={Number.isFinite(numValue) ? numValue : undefined}
+        onChange={(next) => onChange(next === null || next === undefined ? '' : String(next))}
+        style={{ width: '100%' }}
+        step={field.type === 'integer' ? 1 : undefined}
+      />
+    );
+  }
+
+  // default: Input
+  return (
+    <Input
+      size="small"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={field.description ?? ''}
+    />
+  );
+}
+
 // ─── Name cell（附带 deprecated/readOnly 标记）────────
 
 function ParamNameCell({ param }: { param: DebugParam }) {
@@ -203,6 +365,372 @@ function ParamNameCell({ param }: { param: DebugParam }) {
   );
 }
 
+// ─── Body Tab 组件 ────────────────────────────────────
+
+interface BodyTabProps {
+  debugModel: OperationDebugModel;
+  body: string;
+  setBody: (v: string) => void;
+  selectedContentType: string;
+  setSelectedContentType: (v: string) => void;
+  formFields: Record<string, string>;
+  setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
+  rawMode: RawMode;
+  setRawMode: (v: RawMode) => void;
+}
+
+function BodyTab({
+  debugModel,
+  body,
+  setBody,
+  selectedContentType,
+  setSelectedContentType,
+  formFields,
+  setFormFields,
+  fileFieldsRef,
+  rawMode,
+  setRawMode,
+}: BodyTabProps) {
+  const { t } = useTranslation();
+  const bodyContents = debugModel.bodyContents;
+
+  if (bodyContents.length === 0) {
+    return <Alert type="info" message={t('apiDebug.noBody')} showIcon />;
+  }
+
+  // 当前选中的 BodyContent
+  const currentBody = bodyContents.find((b) => b.mediaType === selectedContentType) ?? bodyContents[0];
+  const category = currentBody.category;
+
+  // ── 切换 content-type 时重置 formFields ──
+  const handleContentTypeChange = (mediaType: string) => {
+    setSelectedContentType(mediaType);
+    const target = bodyContents.find((b) => b.mediaType === mediaType);
+    if (target) {
+      // 初始化 formFields
+      const fields = extractSchemaFields(target);
+      const initial: Record<string, string> = {};
+      for (const f of fields) {
+        initial[f.name] = initialFieldValue(f);
+      }
+      setFormFields(initial);
+      // 重置 fileFields
+      fileFieldsRef.current = {};
+
+      // 更新 body 文本
+      if (target.category === 'json') {
+        setBody(target.exampleValue ?? '');
+      } else if (target.category === 'raw') {
+        setBody(target.exampleValue ?? '');
+      }
+    }
+  };
+
+  // ── JSON Beautify ──
+  const handleBeautify = () => {
+    try {
+      const parsed = JSON.parse(body);
+      setBody(JSON.stringify(parsed, null, 2));
+    } catch {
+      // 无效 JSON，不处理
+    }
+  };
+
+  return (
+    <div>
+      {/* Content-Type 选择 */}
+      {bodyContents.length > 1 && (
+        <div style={{ marginBottom: 12 }}>
+          <Radio.Group
+            value={selectedContentType}
+            onChange={(e) => handleContentTypeChange(e.target.value)}
+            size="small"
+          >
+            {bodyContents.map((bc) => (
+              <Radio.Button key={bc.mediaType} value={bc.mediaType}>
+                {bc.category === 'json' ? 'JSON' :
+                 bc.category === 'urlencoded' ? 'x-www-form-urlencoded' :
+                 bc.category === 'multipart' ? 'multipart/form-data' :
+                 'raw'}
+              </Radio.Button>
+            ))}
+          </Radio.Group>
+        </div>
+      )}
+
+      {/* 根据分类渲染不同的表单 */}
+      {category === 'json' && (
+        <div>
+          <div style={{ marginBottom: 4, textAlign: 'right' }}>
+            <Button size="small" onClick={handleBeautify}>{t('apiDebug.body.beautify')}</Button>
+          </div>
+          <TextArea
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            rows={10}
+            style={{ fontFamily: 'monospace', fontSize: 13 }}
+            placeholder={`${currentBody.mediaType} request body`}
+          />
+        </div>
+      )}
+
+      {category === 'urlencoded' && (
+        <UrlencodedForm
+          bodyContent={currentBody}
+          formFields={formFields}
+          setFormFields={setFormFields}
+        />
+      )}
+
+      {category === 'multipart' && (
+        <MultipartForm
+          bodyContent={currentBody}
+          formFields={formFields}
+          setFormFields={setFormFields}
+          fileFieldsRef={fileFieldsRef}
+        />
+      )}
+
+      {category === 'raw' && (
+        <RawEditor
+          body={body}
+          setBody={setBody}
+          rawMode={rawMode}
+          setRawMode={setRawMode}
+          onBeautify={handleBeautify}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Urlencoded Form ──────────────────────────────────
+
+interface UrlencodedFormProps {
+  bodyContent: BodyContent;
+  formFields: Record<string, string>;
+  setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}
+
+function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFormProps) {
+  const { t } = useTranslation();
+  const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
+
+  const updateField = (name: string, value: string) => {
+    setFormFields((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const columns: ColumnsType<SchemaFieldRow> = [
+    {
+      title: t('apiDebug.col.paramName'),
+      dataIndex: 'name',
+      key: 'name',
+      width: 200,
+      render: (_value: string, record: SchemaFieldRow) => (
+        <Space size={4}>
+          <Text code>{record.name}</Text>
+          {record.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.required')}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: t('apiDebug.col.type'),
+      dataIndex: 'type',
+      key: 'type',
+      width: 100,
+      render: (_value: string, record: SchemaFieldRow) => (
+        <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
+          <Text code style={{ fontSize: 12 }}>{record.type}</Text>
+          {record.format && <Text type="secondary" style={{ fontSize: 11 }}>{record.format}</Text>}
+        </Space>
+      ),
+    },
+    {
+      title: t('apiDebug.col.value'),
+      key: 'value',
+      render: (_value, record: SchemaFieldRow) => (
+        <SchemaFieldInput
+          field={record}
+          value={formFields[record.name] ?? ''}
+          onChange={(next) => updateField(record.name, next)}
+        />
+      ),
+    },
+    {
+      title: t('apiDebug.col.description'),
+      key: 'description',
+      width: 240,
+      render: (_value, record: SchemaFieldRow) => (
+        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
+          {record.default !== undefined && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {t('apiDebug.desc.default')}<Text code style={{ fontSize: 11 }}>{String(record.default)}</Text>
+            </Text>
+          )}
+          {record.example !== undefined && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {t('apiDebug.desc.example')}<Text code style={{ fontSize: 11 }}>{String(record.example)}</Text>
+            </Text>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Table
+      size="small"
+      dataSource={fields}
+      columns={columns}
+      pagination={false}
+      rowKey="name"
+    />
+  );
+}
+
+// ─── Multipart Form ───────────────────────────────────
+
+interface MultipartFormProps {
+  bodyContent: BodyContent;
+  formFields: Record<string, string>;
+  setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
+}
+
+function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }: MultipartFormProps) {
+  const { t } = useTranslation();
+  const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>({});
+  const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
+
+  const updateField = (name: string, value: string) => {
+    setFormFields((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (name: string, info: { fileList: UploadFile[] }) => {
+    setFileListMap((prev) => ({ ...prev, [name]: info.fileList }));
+    // 提取原始 File 对象存入 ref（originFileObj 是 RcFile，extends File）
+    const files: File[] = [];
+    for (const f of info.fileList) {
+      if (f.originFileObj) files.push(f.originFileObj);
+    }
+    fileFieldsRef.current[name] = files;
+  };
+
+  const columns: ColumnsType<SchemaFieldRow> = [
+    {
+      title: t('apiDebug.col.paramName'),
+      dataIndex: 'name',
+      key: 'name',
+      width: 200,
+      render: (_value: string, record: SchemaFieldRow) => (
+        <Space size={4}>
+          <Text code>{record.name}</Text>
+          {record.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.required')}</Tag>}
+          {record.isFile && <Tag color="blue" style={{ marginInlineEnd: 0 }}>{t('apiDebug.body.file')}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: t('apiDebug.col.type'),
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (_value: string, record: SchemaFieldRow) => (
+        <Text code style={{ fontSize: 12 }}>{record.isFile ? 'file' : record.type}</Text>
+      ),
+    },
+    {
+      title: t('apiDebug.col.value'),
+      key: 'value',
+      render: (_value, record: SchemaFieldRow) => {
+        if (record.isFile) {
+          return (
+            <Upload
+              beforeUpload={() => false} // 阻止自动上传
+              multiple
+              fileList={fileListMap[record.name] ?? []}
+              onChange={(info) => handleFileChange(record.name, info)}
+            >
+              <Button size="small" icon={<UploadOutlined />}>{t('apiDebug.body.selectFile')}</Button>
+            </Upload>
+          );
+        }
+        return (
+          <SchemaFieldInput
+            field={record}
+            value={formFields[record.name] ?? ''}
+            onChange={(next) => updateField(record.name, next)}
+          />
+        );
+      },
+    },
+    {
+      title: t('apiDebug.col.description'),
+      key: 'description',
+      width: 240,
+      render: (_value, record: SchemaFieldRow) => (
+        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Table
+      size="small"
+      dataSource={fields}
+      columns={columns}
+      pagination={false}
+      rowKey="name"
+    />
+  );
+}
+
+// ─── Raw Editor ───────────────────────────────────────
+
+interface RawEditorProps {
+  body: string;
+  setBody: (v: string) => void;
+  rawMode: RawMode;
+  setRawMode: (v: RawMode) => void;
+  onBeautify: () => void;
+}
+
+function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditorProps) {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Radio.Group
+          value={rawMode}
+          onChange={(e) => setRawMode(e.target.value)}
+          size="small"
+          optionType="button"
+          buttonStyle="solid"
+        >
+          {RAW_MODES.map((m) => (
+            <Radio.Button key={m.value} value={m.value}>{m.label}</Radio.Button>
+          ))}
+        </Radio.Group>
+        {rawMode === 'json' && (
+          <Button size="small" onClick={onBeautify}>{t('apiDebug.body.beautify')}</Button>
+        )}
+      </div>
+      <TextArea
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        rows={10}
+        style={{ fontFamily: 'monospace', fontSize: 13 }}
+        placeholder={`${RAW_CONTENT_TYPES[rawMode]} request body`}
+      />
+    </div>
+  );
+}
+
 // ─── 主组件 ────────────────────────────────────────────
 
 export default function ApiDebug() {
@@ -218,6 +746,12 @@ export default function ApiDebug() {
   const [response, setResponse] = useState<DebugResponse | null>(null);
   const [curlCommand, setCurlCommand] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // ── requestBody 多内容类型状态 ──
+  const [selectedContentType, setSelectedContentType] = useState('');
+  const [formFields, setFormFields] = useState<Record<string, string>>({});
+  const fileFieldsRef = useRef<Record<string, File[]>>({});
+  const [rawMode, setRawMode] = useState<RawMode>('text');
 
   useEffect(() => {
     if (!operation || !swaggerDoc) return;
@@ -241,9 +775,38 @@ export default function ApiDebug() {
     }
     setParamValues(initial);
 
-    // body 初始值：取第一个 bodyContent 的示例
+    // body 初始值
     const firstBody = model.bodyContents[0];
+    const firstMediaType = firstBody?.mediaType ?? '';
+    setSelectedContentType(firstMediaType);
     setBody(firstBody?.exampleValue ?? '');
+
+    // 初始化 formFields
+    if (firstBody && (firstBody.category === 'urlencoded' || firstBody.category === 'multipart')) {
+      const fields = extractSchemaFields(firstBody);
+      const initialForm: Record<string, string> = {};
+      for (const f of fields) {
+        initialForm[f.name] = initialFieldValue(f);
+      }
+      setFormFields(initialForm);
+    } else {
+      setFormFields({});
+    }
+
+    // 重置文件字段
+    fileFieldsRef.current = {};
+
+    // raw mode 初始推断
+    if (firstBody?.category === 'raw') {
+      if (firstMediaType.includes('json')) setRawMode('json');
+      else if (firstMediaType.includes('xml')) setRawMode('xml');
+      else if (firstMediaType.includes('html')) setRawMode('html');
+      else if (firstMediaType.includes('javascript')) setRawMode('javascript');
+      else setRawMode('text');
+    } else {
+      setRawMode('text');
+    }
+
     setResponse(null);
     setError(null);
     setCurlCommand(null);
@@ -331,13 +894,33 @@ export default function ApiDebug() {
     return result;
   };
 
-  const collectFormValues = (): DebugFormValues => ({
-    pathParams: collectForIn(debugModel.pathParams),
-    queryParams: collectForIn(debugModel.queryParams),
-    headerParams: collectForIn(debugModel.headerParams),
-    cookieParams: collectForIn(debugModel.cookieParams),
-    body,
-  });
+  /** 获取当前选中的 body content 分类 */
+  const getCurrentCategory = (): string => {
+    const bc = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+    return bc?.category ?? 'raw';
+  };
+
+  /** 获取最终 effective content-type */
+  const getEffectiveContentType = (): string => {
+    if (selectedContentType) return selectedContentType;
+    // raw mode fallback
+    if (getCurrentCategory() === 'raw') return RAW_CONTENT_TYPES[rawMode];
+    return debugModel.bodyContents[0]?.mediaType ?? '';
+  };
+
+  const collectFormValues = (): DebugFormValues => {
+    const category = getCurrentCategory();
+    return {
+      pathParams: collectForIn(debugModel.pathParams),
+      queryParams: collectForIn(debugModel.queryParams),
+      headerParams: collectForIn(debugModel.headerParams),
+      cookieParams: collectForIn(debugModel.cookieParams),
+      selectedContentType: getEffectiveContentType(),
+      body: (category === 'json' || category === 'raw') ? body : undefined,
+      formFields: (category === 'urlencoded' || category === 'multipart') ? formFields : undefined,
+      fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
+    };
+  };
 
   const handleSend = async () => {
     if (!debugModel) return;
@@ -360,16 +943,49 @@ export default function ApiDebug() {
       debugModel,
       formValues,
     });
-    setCurlCommand(buildCurl(built));
+
+    // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
+    const category = getCurrentCategory();
+    const isMultipart = category === 'multipart';
+
+    // curl 命令（multipart 不含文件内容，给提示即可）
+    if (!isMultipart) {
+      setCurlCommand(buildCurl(built));
+    } else {
+      setCurlCommand(null);
+    }
 
     setLoading(true);
     setResponse(null);
     const start = Date.now();
     try {
       const init: RequestInit = { method: built.method, headers: built.headers };
-      if (built.body !== undefined && built.body !== '') {
-        init.body = built.body;
+
+      if (isMultipart) {
+        // 构建 FormData
+        const fd = new FormData();
+        // 添加普通字段
+        for (const [name, value] of Object.entries(formFields)) {
+          if (value !== undefined && value !== '') {
+            fd.append(name, value);
+          }
+        }
+        // 添加文件字段
+        const files = fileFieldsRef.current;
+        for (const [name, fileList] of Object.entries(files)) {
+          for (const file of fileList) {
+            fd.append(name, file);
+          }
+        }
+        init.body = fd;
+        // 不设 Content-Type，让浏览器自动设 boundary
+        delete (init.headers as Record<string, string>)['Content-Type'];
+      } else {
+        if (built.body !== undefined && built.body !== '') {
+          init.body = built.body;
+        }
       }
+
       const res = await fetch(built.url, init);
       const responseHeaders: Record<string, string> = {};
       res.headers.forEach((value, key) => { responseHeaders[key] = value; });
@@ -390,6 +1006,11 @@ export default function ApiDebug() {
       return response.body;
     }
   };
+
+  // body tab 的标签含当前 content-type
+  const bodyLabel = debugModel.bodyContents.length > 0
+    ? `${t('apiDebug.tab.body')} (${selectedContentType || debugModel.bodyContents[0].mediaType})`
+    : t('apiDebug.tab.body');
 
   const tabItems = [
     {
@@ -437,20 +1058,20 @@ export default function ApiDebug() {
     },
     {
       key: 'body',
-      label: `${t('apiDebug.tab.body')}${debugModel.bodyContents.length > 0 ? ` (${debugModel.bodyContents[0].mediaType})` : ''}`,
+      label: bodyLabel,
       disabled: debugModel.bodyContents.length === 0,
       children: (
-        <TextArea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          rows={10}
-          style={{ fontFamily: 'monospace', fontSize: 13 }}
-          placeholder={
-            debugModel.bodyContents.length > 0
-              ? `${debugModel.bodyContents[0].mediaType} request body`
-              : t('apiDebug.noBody')
-          }
-          disabled={debugModel.bodyContents.length === 0}
+        <BodyTab
+          debugModel={debugModel}
+          body={body}
+          setBody={setBody}
+          selectedContentType={selectedContentType}
+          setSelectedContentType={setSelectedContentType}
+          formFields={formFields}
+          setFormFields={setFormFields}
+          fileFieldsRef={fileFieldsRef}
+          rawMode={rawMode}
+          setRawMode={setRawMode}
         />
       ),
     },

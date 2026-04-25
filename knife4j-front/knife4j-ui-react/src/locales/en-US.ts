@@ -92,6 +92,14 @@ const enUS = {
   'apiDebug.json.array': 'array',
   'apiDebug.json.object': 'object',
 
+  // ApiDebug — Body Tab
+  'apiDebug.body.beautify': 'Beautify',
+  'apiDebug.body.file': 'File',
+  'apiDebug.body.selectFile': 'Select File',
+  'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
+  'apiDebug.body.raw': 'Raw',
+  'apiDebug.body.contentType': 'Content-Type',
+
   // Authorize
   'auth.title': 'Authorization',
   'auth.tab.bearer': 'Bearer Token',

@@ -515,3 +515,52 @@ summary:
 - TASK-034（npm workspaces）：代码已在 master@6572a458，状态更新为 done
 - TASK-035（Node 22 升级）：代码已在 master@2617c72f，状态更新为 done
 - 解锁 TASK-027（requestBody 多内容类型表单）和 TASK-030（schema 示例生成）为 ready
+
+## 2026-07-04 CST
+task: TASK-030
+agent: coordinator (direct)
+branch: codex/TASK-030-schema-example-builder
+status: review
+summary:
+- 完整实现 buildSchemaExample(schema, ctx) 和 buildSchemaFieldTree(schema, ctx)
+- 支持 $ref、object、array、enum、example、default、allOf、oneOf、anyOf（后两者取第一个可解析分支）
+- 循环引用通过引用链数组截断，重复引用以占位值兜底
+- maxDepth 保护（默认 8），超过截断并附 truncated 标记
+- OAS2 definitions 与 OAS3 components.schemas 统一抽象
+- 新增 SchemaFieldNode 类型定义
+- 新增 schemaExample.test.ts（39 个用例覆盖各种分支）
+validation:
+- 12 test suites, 121 tests pass
+- lint 0 errors, tsc build OK
+- 分支已推送，等待创建 PR
+next:
+- 等待维护者 review PR
+blockers:
+- gh CLI 未安装，PR 需通过 GitHub 网页创建
+
+## 2026-07-04 CST
+task: TASK-027
+agent: coordinator (direct)
+branch: codex/TASK-027-react-debug-request-body
+status: review
+summary:
+- 重写 ApiDebug.tsx 的 Body Tab，实现 requestBody 多内容类型表单
+- 新增 BodyTab 组件：根据 content-type 分类渲染不同表单
+  - JSON 模式：可编辑 TextArea + Beautify 按钮（接入 buildSchemaExample 生成的 exampleValue）
+  - urlencoded 模式：从 schema.properties 提取字段行，渲染参数表格（SchemaFieldInput 调度器）
+  - multipart 模式：普通字段表单 + 文件字段使用 antd Upload 组件（支持多文件）
+  - raw 模式：Text/JSON/JavaScript/XML/HTML 五种子模式切换 + Beautify
+- Radio.Group 切换 content-type（多 content-type 时显示）
+- 新增 selectedContentType / formFields / fileFields 状态管理
+- collectFormValues 传递 selectedContentType / formFields / fileFields 给 requestBuilder
+- handleSend 对 multipart 场景手动构建 FormData（浏览器自动设 boundary）
+- 新增辅助函数：extractSchemaFields, initialFieldValue, SchemaFieldRow 类型
+- i18n 补全 7 个新文案（中英文）
+validation:
+- knife4j-core: 12 suites, 121 tests pass
+- knife4j-ui-react: npm run build 通过 (tsc + vite build, dist 1.44MB)
+next:
+- 等待维护者 review
+- PR: https://github.com/songxychn/knife4j-next/pull/44
+blockers:
+- none
