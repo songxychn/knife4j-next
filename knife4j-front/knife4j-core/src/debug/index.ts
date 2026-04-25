@@ -17,6 +17,7 @@ export type {
   OperationDebugModel,
   DebugFormValues,
   GlobalParamValues,
+  SchemeValue,
   AuthValues,
   BuiltRequest,
   BuiltRequestSourceMap,

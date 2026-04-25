@@ -54,6 +54,35 @@ export interface ResponseObject {
   schema?: SchemaObject; // OAS2
 }
 
+/** OpenAPI securityScheme 定义（OAS3 components.securitySchemes / OAS2 securityDefinitions） */
+export interface SecuritySchemeObject {
+  type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect';
+  description?: string;
+  // apiKey
+  in?: 'query' | 'header' | 'cookie';
+  name?: string;
+  // http
+  scheme?: string;
+  bearerFormat?: string;
+  // oauth2
+  flows?: {
+    implicit?: OAuth2Flow;
+    password?: OAuth2Flow;
+    clientCredentials?: OAuth2Flow;
+    authorizationCode?: OAuth2Flow;
+  };
+  // openIdConnect
+  openIdConnectUrl?: string;
+}
+
+/** OAuth2 flow 配置 */
+export interface OAuth2Flow {
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  refreshUrl?: string;
+  scopes?: Record<string, string>;
+}
+
 export interface OperationObject {
   operationId?: string;
   summary?: string;
@@ -63,6 +92,8 @@ export interface OperationObject {
   requestBody?: RequestBodyObject;
   responses?: Record<string, ResponseObject>;
   deprecated?: boolean;
+  /** operation 级别的 security 声明，每项是 `{ [schemeName]: string[] } */
+  security?: Record<string, string[]>[];
 }
 
 export interface PathItemObject {
@@ -83,8 +114,12 @@ export interface SwaggerDoc {
   paths: Record<string, PathItemObject>;
   components?: {
     schemas?: Record<string, SchemaObject>;
+    securitySchemes?: Record<string, SecuritySchemeObject>;
   };
   definitions?: Record<string, SchemaObject>; // OAS2
+  securityDefinitions?: Record<string, SecuritySchemeObject>; // OAS2
+  /** 文档级默认 security */
+  security?: Record<string, string[]>[];
 }
 
 /** 解析后的菜单项（tag + operations） */

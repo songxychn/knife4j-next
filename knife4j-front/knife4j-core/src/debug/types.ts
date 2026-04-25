@@ -110,14 +110,60 @@ export interface BuiltRequestSourceMap {
   query: Record<string, ParamSource>;
 }
 
+/**
+ * 单个 securityScheme 的已填写值（按 scheme 类型区分）。
+ *
+ * - apiKey: `{ type: 'apiKey', in: 'header'|'query'|'cookie', name, value }`
+ * - http-bearer: `{ type: 'http', scheme: 'bearer', token }`
+ * - http-basic: `{ type: 'http', scheme: 'basic', username, password }`
+ * - oauth2: `{ type: 'oauth2', accessToken, tokenType? }`（UI 侧拿到 token 后写回）
+ */
+export type SchemeValue =
+  | {
+      type: 'apiKey';
+      in: 'header' | 'query' | 'cookie';
+      name: string;
+      value: string;
+    }
+  | {
+      type: 'http';
+      scheme: 'bearer';
+      token: string;
+    }
+  | {
+      type: 'http';
+      scheme: 'basic';
+      username: string;
+      password: string;
+    }
+  | {
+      type: 'oauth2';
+      accessToken: string;
+      tokenType?: string;
+    };
+
 /** 鉴权信息 */
 export interface AuthValues {
-  /** bearer token */
+  /**
+   * @deprecated TASK-033 起建议使用 `bySecurityKey`；保留用于向后兼容。
+   * bearer token（顶层 fallback）
+   */
   bearerToken?: string;
-  /** basic auth: base64("user:pass") */
+  /**
+   * @deprecated TASK-033 起建议使用 `bySecurityKey`；保留用于向后兼容。
+   * basic auth: base64("user:pass")
+   */
   basicCredentials?: string;
-  /** apiKey 头/查询值 */
+  /**
+   * @deprecated TASK-033 起建议使用 `bySecurityKey`；保留用于向后兼容。
+   * apiKey 头/查询值
+   */
   apiKeys?: Record<string, string>;
+  /**
+   * 按 OpenAPI `components.securitySchemes` / `securityDefinitions` 的 key 组织的已填值。
+   * 配合 buildRequest 的 `securityKeys` 选项筛选。
+   */
+  bySecurityKey?: Record<string, SchemeValue>;
 }
 
 /** requestBuilder 输出 */

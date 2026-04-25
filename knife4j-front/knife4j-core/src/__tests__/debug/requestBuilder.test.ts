@@ -122,6 +122,141 @@ describe('authToHeaders', () => {
   test('empty auth returns empty headers', () => {
     expect(authToHeaders(undefined)).toEqual({ headers: {}, queries: {} });
   });
+
+  // ── bySecurityKey tests ──
+
+  test('apiKey in header via bySecurityKey', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        apiHeader: { type: 'apiKey', in: 'header', name: 'X-API-Key', value: 'mykey' },
+      },
+    });
+    expect(result.headers['X-API-Key']).toBe('mykey');
+    expect(result.queries).toEqual({});
+  });
+
+  test('apiKey in query via bySecurityKey', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        apiQuery: { type: 'apiKey', in: 'query', name: 'api_key', value: 'qkey' },
+      },
+    });
+    expect(result.queries['api_key']).toBe('qkey');
+    expect(result.headers).toEqual({});
+  });
+
+  test('apiKey in cookie via bySecurityKey', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        apiCookie: { type: 'apiKey', in: 'cookie', name: 'session', value: 'abc123' },
+      },
+    });
+    expect(result.headers['Cookie']).toBe('session=abc123');
+  });
+
+  test('apiKey in cookie appends to existing Cookie header', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        apiCookie: { type: 'apiKey', in: 'cookie', name: 'session', value: 'abc123' },
+        apiCookie2: { type: 'apiKey', in: 'cookie', name: 'token', value: 'xyz' },
+      },
+    });
+    expect(result.headers['Cookie']).toContain('session=abc123');
+    expect(result.headers['Cookie']).toContain('token=xyz');
+  });
+
+  test('http bearer via bySecurityKey', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        bearerAuth: { type: 'http', scheme: 'bearer', token: 'bykey-token' },
+      },
+    });
+    expect(result.headers['Authorization']).toBe('Bearer bykey-token');
+  });
+
+  test('http basic via bySecurityKey', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        basicAuth: { type: 'http', scheme: 'basic', username: 'user', password: 'pass' },
+      },
+    });
+    expect(result.headers['Authorization']).toBe('Basic dXNlcjpwYXNz');
+  });
+
+  test('oauth2 via bySecurityKey', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        oauth: { type: 'oauth2', accessToken: 'oauth-token', tokenType: 'Bearer' },
+      },
+    });
+    expect(result.headers['Authorization']).toBe('Bearer oauth-token');
+  });
+
+  test('oauth2 with custom tokenType', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        oauth: { type: 'oauth2', accessToken: 'mac-token', tokenType: 'MAC' },
+      },
+    });
+    expect(result.headers['Authorization']).toBe('MAC mac-token');
+  });
+
+  test('securityKeys filters bySecurityKey entries', () => {
+    const result = authToHeaders(
+      {
+        bySecurityKey: {
+          apiKey1: { type: 'apiKey', in: 'header', name: 'X-Key-1', value: 'v1' },
+          apiKey2: { type: 'apiKey', in: 'header', name: 'X-Key-2', value: 'v2' },
+        },
+      },
+      ['apiKey2'],
+    );
+    expect(result.headers['X-Key-2']).toBe('v2');
+    expect(result.headers['X-Key-1']).toBeUndefined();
+  });
+
+  test('securityKeys with unknown key falls through gracefully', () => {
+    const result = authToHeaders(
+      {
+        bySecurityKey: {
+          apiKey1: { type: 'apiKey', in: 'header', name: 'X-Key-1', value: 'v1' },
+        },
+      },
+      ['nonExistent'],
+    );
+    expect(result.headers).toEqual({});
+  });
+
+  test('no securityKeys means all bySecurityKey entries are injected', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        apiKey1: { type: 'apiKey', in: 'header', name: 'X-Key-1', value: 'v1' },
+        apiKey2: { type: 'apiKey', in: 'header', name: 'X-Key-2', value: 'v2' },
+      },
+    });
+    expect(result.headers['X-Key-1']).toBe('v1');
+    expect(result.headers['X-Key-2']).toBe('v2');
+  });
+
+  test('bySecurityKey overrides legacy bearerToken', () => {
+    const result = authToHeaders({
+      bearerToken: 'legacy-token',
+      bySecurityKey: {
+        bearerAuth: { type: 'http', scheme: 'bearer', token: 'new-token' },
+      },
+    });
+    expect(result.headers['Authorization']).toBe('Bearer new-token');
+  });
+
+  test('skips apiKey with empty name or value', () => {
+    const result = authToHeaders({
+      bySecurityKey: {
+        emptyName: { type: 'apiKey', in: 'header', name: '', value: 'v' },
+        emptyValue: { type: 'apiKey', in: 'header', name: 'X-Key', value: '' },
+      },
+    });
+    expect(result.headers).toEqual({});
+  });
 });
 
 // ─── splitGlobalParams ────────────────────────────────

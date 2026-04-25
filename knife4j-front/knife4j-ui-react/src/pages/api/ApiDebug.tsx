@@ -30,6 +30,7 @@ import type {
     GlobalParamValues,
     OperationDebugModel,
     ParamSource,
+    SchemeValue,
     ValidationError,
 } from 'knife4j-core';
 import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired,} from 'knife4j-core';
@@ -995,6 +996,51 @@ export default function ApiDebug() {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
   };
 
+  // ── 所有 hooks 必须在 early return 之前 ──
+
+  // ── 从 AuthContext 获取鉴权数据 ──
+  const { schemes: authSchemes } = useAuth();
+  const authValues = useMemo(() => {
+    const bySecurityKey: Record<string, SchemeValue> = {};
+    let hasAny = false;
+    for (const [key, val] of Object.entries(authSchemes)) {
+      if (val) {
+        bySecurityKey[key] = val;
+        hasAny = true;
+      }
+    }
+    if (!hasAny) return undefined;
+    return { bySecurityKey };
+  }, [authSchemes]);
+
+  // ── 从 operation.security 推导 securityKeys ──
+  const securityKeys = useMemo(() => {
+    const opSecurity = operation?.operation?.security;
+    if (!opSecurity || !Array.isArray(opSecurity) || opSecurity.length === 0) return undefined;
+    const keys: string[] = [];
+    for (const item of opSecurity) {
+      for (const key of Object.keys(item)) {
+        if (!keys.includes(key)) keys.push(key);
+      }
+    }
+    return keys.length > 0 ? keys : undefined;
+  }, [operation]);
+
+  // ── 从 GlobalParamContext 转换为 GlobalParamValues ──
+  const { params: globalParamItems } = useGlobalParam();
+  const globalParamValues: GlobalParamValues | undefined = useMemo(() => {
+    if (!globalParamItems || globalParamItems.length === 0) return undefined;
+    const headers: Record<string, string> = {};
+    const queries: Record<string, string> = {};
+    for (const p of globalParamItems) {
+      if (p.value !== undefined && p.value !== '') {
+        if (p.in === 'header') headers[p.name] = p.value;
+        else if (p.in === 'query') queries[p.name] = p.value;
+      }
+    }
+    return { headers, queries };
+  }, [globalParamItems]);
+
   const paramColumns = useMemo<ColumnsType<DebugParam>>(() => [
     {
       title: t('apiDebug.col.paramName'),
@@ -1102,35 +1148,6 @@ export default function ApiDebug() {
     };
   };
 
-  // ── 从 AuthContext 获取鉴权数据 ──
-  const { auth } = useAuth();
-  const authValues = useMemo(() => {
-    if (!auth) return undefined;
-    if (auth.type === 'bearer' && auth.token) {
-      return { bearerToken: auth.token };
-    }
-    if (auth.type === 'basic' && (auth.username || auth.password)) {
-      const encoded = btoa(`${auth.username}:${auth.password}`);
-      return { basicCredentials: encoded };
-    }
-    return undefined;
-  }, [auth]);
-
-  // ── 从 GlobalParamContext 转换为 GlobalParamValues ──
-  const { params: globalParamItems } = useGlobalParam();
-  const globalParamValues: GlobalParamValues | undefined = useMemo(() => {
-    if (!globalParamItems || globalParamItems.length === 0) return undefined;
-    const headers: Record<string, string> = {};
-    const queries: Record<string, string> = {};
-    for (const p of globalParamItems) {
-      if (p.value !== undefined && p.value !== '') {
-        if (p.in === 'header') headers[p.name] = p.value;
-        else if (p.in === 'query') queries[p.name] = p.value;
-      }
-    }
-    return { headers, queries };
-  }, [globalParamItems]);
-
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
   const buildPreview = (): { formValues: DebugFormValues; built: BuiltRequest; curl: string } => {
     const formValues = collectFormValues();
@@ -1142,6 +1159,7 @@ export default function ApiDebug() {
       formValues,
       auth: authValues,
       globalParams: globalParamValues,
+      securityKeys,
     });
     const curl = buildCurl(built);
     return { formValues, built, curl };
