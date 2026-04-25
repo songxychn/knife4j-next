@@ -36,17 +36,10 @@ import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, v
 import {OperationModeTabs, useCurrentOperation} from './useCurrentOperation';
 import {useAuth} from '../../context/AuthContext';
 import {useGlobalParam} from '../../context/GlobalParamContext';
+import ResponsePanel, {type DebugResponsePayload} from './ResponsePanel';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
-
-interface DebugResponse {
-  status: number;
-  statusText: string;
-  duration: number;
-  headers: Record<string, string>;
-  body: string;
-}
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'purple', HEAD: 'cyan', OPTIONS: 'default',
@@ -64,7 +57,59 @@ function currentOrigin(): string {
   return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 }
 
-const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
+// ─── Response body classification ─────────────────────
+
+/**
+ * Map a response blob + Content-Type into a representation the
+ * ResponsePanel can render directly. Text-friendly payloads are always
+ * decoded into `rawText` so the Raw tab can show something even for
+ * image / binary responses that choose to embed ASCII.
+ */
+async function interpretResponseBlob(
+  blob: Blob,
+  contentType: string,
+  requestUrl: string,
+): Promise<{ kind: DebugResponsePayload['kind']; rawText: string; objectUrl?: string; filename?: string }> {
+  const ct = (contentType || '').toLowerCase();
+
+  // image/* → inline preview via object URL, keep rawText empty (binary)
+  if (ct.startsWith('image/')) {
+    return { kind: 'image', rawText: '', objectUrl: URL.createObjectURL(blob) };
+  }
+
+  // application/json (and *+json variants) → JSON text
+  if (ct.includes('json')) {
+    const rawText = await blob.text();
+    return { kind: 'json', rawText };
+  }
+
+  // Anything text-like: text/plain, text/html, application/javascript, application/xml, text/xml, etc.
+  if (ct.startsWith('text/') || ct.includes('javascript') || ct.includes('xml') || ct.includes('yaml')) {
+    const rawText = await blob.text();
+    return { kind: 'text', rawText };
+  }
+
+  // Empty Content-Type: fall back to text interpretation for robustness
+  if (!ct) {
+    const rawText = await blob.text();
+    return { kind: rawText ? 'text' : 'binary', rawText };
+  }
+
+  // Binary payload (pdf, octet-stream, zip, ...) → download link.
+  const filename = extractFilenameFromUrl(requestUrl) ?? 'download';
+  return { kind: 'binary', rawText: '', objectUrl: URL.createObjectURL(blob), filename };
+}
+
+/** Best-effort filename from a URL path's last segment, dropping query/hash. */
+function extractFilenameFromUrl(url: string): string | undefined {
+  try {
+    const parsed = new URL(url, typeof window === 'undefined' ? 'http://localhost' : window.location.href);
+    const last = parsed.pathname.split('/').filter(Boolean).pop();
+    return last || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // ─── Initial value derivation ─────────────────────────
 
@@ -912,7 +957,7 @@ export default function ApiDebug() {
   const [body, setBody] = useState('');
   const [debugModel, setDebugModel] = useState<OperationDebugModel | null>(null);
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<DebugResponse | null>(null);
+  const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // ── requestBody 多内容类型状态 ──
@@ -1170,6 +1215,10 @@ export default function ApiDebug() {
     const isMultipart = category === 'multipart';
 
     setLoading(true);
+    // Revoke any previous object URL to avoid memory leaks across consecutive sends.
+    if (response?.objectUrl) {
+      try { URL.revokeObjectURL(response.objectUrl); } catch { /* ignore */ }
+    }
     setResponse(null);
     const start = Date.now();
     try {
@@ -1203,8 +1252,25 @@ export default function ApiDebug() {
       const res = await fetch(built.url, init);
       const responseHeaders: Record<string, string> = {};
       res.headers.forEach((value, key) => { responseHeaders[key] = value; });
-      const text = await res.text();
-      setResponse({ status: res.status, statusText: res.statusText, duration: Date.now() - start, headers: responseHeaders, body: text });
+
+      // Read once as blob so we can branch by content-type without draining the stream twice.
+      const blob = await res.blob();
+      const contentType = responseHeaders['content-type'] ?? blob.type ?? '';
+      const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(blob, contentType, built.url);
+
+      setResponse({
+        status: res.status,
+        statusText: res.statusText,
+        method: built.method,
+        duration: Date.now() - start,
+        contentType,
+        size: blob.size,
+        headers: responseHeaders,
+        rawText,
+        objectUrl,
+        filename,
+        kind,
+      });
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -1235,15 +1301,6 @@ export default function ApiDebug() {
       done();
     } catch {
       fail();
-    }
-  };
-
-  const prettyBody = () => {
-    if (!response) return '';
-    try {
-      return JSON.stringify(JSON.parse(response.body), null, 2);
-    } catch {
-      return response.body;
     }
   };
 
@@ -1361,45 +1418,7 @@ export default function ApiDebug() {
       <Divider style={{ margin: '16px 0' }} />
 
       {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      {error && <Alert type="error" message={t('apiDebug.error.title')} description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>} showIcon />}
-      {response && (
-        <div>
-          <Space style={{ marginBottom: 8 }}>
-            <Text strong>{t('apiDebug.response.status')}</Text>
-            <Tag color={statusColor(response.status)}>{response.status} {response.statusText}</Tag>
-            <Text type="secondary">{t('apiDebug.response.duration')}{response.duration} ms</Text>
-          </Space>
-          <Tabs
-            size="small"
-            items={[
-              {
-                key: 'body',
-                label: t('apiDebug.response.body'),
-                children: (
-                  <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 4, fontSize: 13, maxHeight: 400, overflow: 'auto', margin: 0 }}>
-                    {prettyBody()}
-                  </pre>
-                ),
-              },
-              {
-                key: 'headers',
-                label: t('apiDebug.response.headers'),
-                children: (
-                  <Table
-                    size="small"
-                    dataSource={Object.entries(response.headers).map(([key, value]) => ({ key, name: key, value }))}
-                    columns={[
-                      { title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240 },
-                      { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
-                    ]}
-                    pagination={false}
-                  />
-                ),
-              },
-            ]}
-          />
-        </div>
-      )}
+      <ResponsePanel response={response} error={error} />
     </div>
   );
 }
