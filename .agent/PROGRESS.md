@@ -722,3 +722,78 @@ next:
 - 等待新任务规划（阶段 2 或维护者指定下一优先级）
 blockers:
 - none
+
+## 2026-04-26 01:09 CST
+task: TASK-036
+agent: coordinator (direct)
+branch: agent/TASK-036-repo-format-baseline
+status: review
+summary:
+- 背景：维护者反映「AI 提交完文件之后经常出现格式化变更」，排查结论是 IDE 保存时自动格式化 + 缺少仓库级 EOL/风格约束共同作用。
+- 在仓库根目录新增 `.gitattributes`（178 行）：
+  - `* text=auto eol=lf`：默认所有文本统一存 LF，解决 CRLF↔LF 抖动
+  - `.sh` 强制 LF；`.bat` / `.cmd` / `.ps1` / `mvnw.cmd` 强制 CRLF
+  - 显式声明常见二进制（png/jpg/gif/ico/webp/woff/woff2/ttf/jar/war/class/zip/pdf 等）
+  - `package-lock.json` / `yarn.lock` / `pnpm-lock.yaml` 设 `merge=ours`，减少 lockfile 手工解冲突
+  - linguist 分类：`knife4j-vue/**` + `knife4j-front/knife4j-ui/**` → vendored；webjars 产物 → generated；`docs-site/` + `knife4j-doc/` → documentation
+  - `export-ignore`：`.agent/` `.github/` `.gitee/` `docs-site/` `knife4j-doc/` `scripts/` `backup/` `static/` 等，打 `git archive` 时排除
+- 在仓库根目录新增 `.editorconfig`（113 行）：
+  - 全局默认：charset=utf-8、eol=lf、insert_final_newline、trim_trailing_whitespace、2 空格
+  - Java/Kotlin/Groovy/Scala → 4 空格（Java 社区惯例）
+  - Python → 4 空格；Go / Makefile → tab
+  - `.bat` / `.cmd` / `.ps1` → CRLF
+  - Markdown → 不 trim 末尾空白（保留「两空格换行」语义）
+  - 未设 `root = true`，保持 `knife4j-vue/` 和 `knife4j-front/knife4j-ui/` 子项目 editorconfig 自治（两者均已有独立 .editorconfig）
+- **未触发 `git add --renormalize`**：本次只让规则对今后的改动生效，不回溯历史，避免一次性产生几百文件的 EOL diff。
+- 未改动任何源代码，未触发构建，零源文件风险。
+validation:
+- `git check-attr -a scripts/test-java.sh` → `text: set`, `eol: lf` ✅
+- `git check-attr -a knife4j/knife4j-demo/.../UserVO.java` → `text: set`, `eol: lf` ✅
+- `git check-attr -a knife4j-front/package-lock.json` → `merge: ours`, `text: set`, `eol: lf` ✅
+- `git check-attr -a README.md` → `diff: markdown`, `text: set`, `eol: lf` ✅
+- `git check-attr -a knife4j-vue/src/core/logger.js` → `linguist-vendored: set` ✅
+- `git check-attr -a AGENTS.md` → `export-ignore: set`, `diff: markdown` ✅
+- `git check-attr -a knife4j/changeVersion.bat` → `text: set`, `eol: crlf` ✅
+- `git check-attr -a docs-site/public/assets/*.png` → `binary: set`, `text: unset`, `linguist-documentation: set` ✅
+- 工作区 diff 仅 3 个文件变化：.agent/TASKS.md (+24)、新增 .editorconfig (+113)、新增 .gitattributes (+178)
+next:
+- 提交本分支并推送，等待维护者 review（或根据 .agent/COORDINATION.md 继续协调发 PR）
+- 推送前恢复本地 TASK-033 的脏改动（git stash pop）
+followup 候选:
+- 后续如果想彻底清洗历史 EOL，可独立做一个 `git add --renormalize .` 的 commit，并把该 commit 写入 `.git-blame-ignore-revs`，但本任务不做
+- IDEA 端还需要用户手动关 Settings → Tools → Actions on Save 的 Reformat / Optimize imports，`.editorconfig` 只能约束缩进和换行，不能阻止 IDEA 重排代码
+blockers:
+- none
+
+## 2026-04-26 17:30 CST
+task: TASK-038
+agent: coordinator (direct)
+branch: agent/TASK-038-fix-ci-npm-registry
+status: review
+summary:
+- 背景：master@7e2b52d 触发的 GitHub Actions run 24936006761 两个 job 失败（`java-build-test` / `front-core-test`），第三个 `docs-build` 因路径过滤未跑到 npm ci 故幸免。
+- 失败日志关键行：`npm error network request to <private-registry-host>/idb-keyval/download/idb-keyval-6.2.2.tgz failed, reason: getaddrinfo ENOTFOUND <private-registry-host>`（`<private-registry-host>` 是贡献者本地配置的私有 npm 镜像域名，公共 runner 无法解析）
+- 根因定位：
+  - 贡献者本地 `~/.npmrc` 配置了一个私有 npm registry（只在贡献者自己的网络里能解析）。
+  - PR #48 合并版的 `knife4j-front/package-lock.json` 中 `idb-keyval@6.2.2` 的 `resolved` 字段被写成了那个私有 URL（其它包恰好已被其他 PR 写成 `registry.npmjs.org`，仅此一处漏网）。
+  - GitHub Actions 公共 runner 无法解析该域名，`npm ci` 按 lock 下载 tarball 时直接失败。
+- 修复动作（只动 3 个文件，刻意最小 diff）：
+  - `knife4j-front/package-lock.json`：用 `sed` 精确替换 `idb-keyval` 那一行 `resolved` URL，从私有 registry 的下载路径 → `https://registry.npmjs.org/idb-keyval/-/idb-keyval-6.2.2.tgz`；**不重新生成 lock**、**不升级任何依赖**、**不改其他包的 integrity**。最终 diff 就是 1 行 `-` / 1 行 `+`。
+  - `knife4j-front/.npmrc`（新增）：`registry=https://registry.npmjs.org/`，强制本仓库 npm workspace 使用公共 registry，覆盖 user-level `~/.npmrc`。
+  - `knife4j-doc/.npmrc`（新增）：同上，给 VitePress 站点加同样护栏（该项目当前 lock 干净，但容易被同一台机器后续的 `npm install` 污染）。
+- 未动源代码、未改 CI workflow、未升级任何依赖版本。
+validation:
+- `jq -r '.. | .resolved? // empty' knife4j-front/package-lock.json | grep -v '^https://registry.npmjs.org/'` → 无输出（所有 resolved 都指向公共 registry）✅
+- `cd knife4j-front && rm -rf node_modules && npm ci` → 成功完成（513 packages installed）✅
+- `./scripts/test-front-core.sh` → `Test Suites: 12 passed, 12 total / Tests: 147 passed` + `eslint src --ext .js,.ts` 0 error + `tsc` 0 error ✅
+next:
+- 推送分支 `agent/TASK-038-fix-ci-npm-registry` → 开 PR → 人工 review → merge master
+- 合并后验证下一次 push 到 master 的 `Build` workflow 三个 job 全绿
+followup 候选:
+- 可在 `scripts/` 下加一条预防性检查，如 `jq -r '.. | .resolved? // empty' knife4j-front/package-lock.json | grep -v '^https://registry.npmjs.org/' && exit 1`，一旦 lock 出现非公共 registry URL 就 fail fast；但此属 TASK-037 的 CI 强化范畴，本任务不扩散
+- 贡献者如果继续在配置了私有 registry 的机器上开发，建议临时把 `~/.npmrc` 的 registry 改成 `https://registry.npmjs.org/`，或直接依赖本次加的项目级 `.npmrc` 的覆盖行为
+blockers:
+- none
+lessons:
+- npm lock 文件的 `resolved` 字段是「谁生成 lock 就写谁」，private registry 会无声地污染公共仓库的 lock 文件，跨团队贡献代码时必须用 project-level `.npmrc` 兜底
+- CI 报 `ENOTFOUND` 而不是 `ETIMEDOUT` 说明 runner 连 DNS 都解析不了，基本 100% 是某个只在私有网络内可解析的域名泄漏到公共 lock 文件

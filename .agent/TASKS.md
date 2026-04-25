@@ -639,3 +639,73 @@ notes:
 - 不引入 Node 22 新特性到业务代码（如内建 test runner、watch mode）；保持现有 jest/vite 工具链
 - 不动 `knife4j-ui/`（pnpm）和 `knife4j-vue/`（Vue2 历史代码）的 engines，避免无关改动
 - 回滚路径：`.nvmrc` 回 20、CI workflow 还原两处、删除 `knife4j-front/package.json` 的 engines 字段
+
+### TASK-036
+status: review
+area: repo
+title: 加根级 .gitattributes 与 .editorconfig，统一行尾符与编辑器风格
+branch: agent/TASK-036-repo-format-baseline
+depends_on:
+validation:
+- `git check-attr -a scripts/test-java.sh` 命中 `text eol=lf`
+- `git check-attr -a knife4j/knife4j-demo/src/main/java` 下任意 .java 命中 `text=auto eol=lf`
+- `git check-attr -a knife4j-openapi3-ui/src/main/resources/webjars` 下任意 .png/.woff 命中 `binary`
+- 现有已 tracked 文件不做 `git add --renormalize`，避免一次性巨量 diff
+done_when:
+- 仓库根目录新增 `.gitattributes`，覆盖 EOL（默认 LF，.bat/.cmd 保持 CRLF）、常见二进制标注、`package-lock.json merge=ours`、linguist 分类、`export-ignore`
+- 仓库根目录新增 `.editorconfig`，覆盖 Java / TS / JS / Vue / JSON / YAML / Markdown / Shell 的缩进、charset、换行、trim_trailing_whitespace、insert_final_newline
+- 不回溯历史文件行尾符（本任务不跑 renormalize），只让规则对「今后的改动」生效
+- 不改动任何源代码文件，不触发构建
+- .agent/PROGRESS.md 记录本次结果
+notes:
+- 目的：解决「AI 改完文件后 IDE 自动格式化 / CRLF↔LF 漂移 / GitHub 语言统计不准」三类噪声
+- 子项目已有的 `.editorconfig`（knife4j-vue、knife4j-front/knife4j-ui）保持不动；`.editorconfig` 支持层叠，子项目规则会覆盖根
+- 子项目已有的 `.prettierrc`（knife4j-front/knife4j-core、knife4j-front/knife4j-ui）保持不动
+- 不碰 IDEA 的 code style（`.idea/codeStyles/`），由开发者自行在 IDE 里关 Actions on Save
+- 回滚路径：删除两份新增文件即可
+
+### TASK-037
+status: in_progress
+area: repo
+title: 补齐格式化规则与 CI 强制检查（Prettier / IDEA code style / spotless:check）
+branch: agent/TASK-037-format-rules-enforcement
+depends_on: TASK-036
+validation:
+- cd knife4j-front/knife4j-ui-react && npx prettier --check "src/**/*.{ts,tsx}"
+- cd knife4j-front/knife4j-core && npx prettier --check "src/**/*.ts"
+- .idea/codeStyles/Project.xml 存在且能被 IDEA 识别
+- CI workflow 包含 `spotless:check` 步骤
+done_when:
+- knife4j-ui-react 有 .prettierrc + format 脚本，且现有代码 prettier --check 通过
+- knife4j-front 根级共享 .prettierrc（子项目不再各自维护重复配置）
+- .idea/codeStyles/Project.xml 从 spotless_knife4j_formatter.xml 导出，IDEA 用户开箱即用
+- CI build.yml 新增 spotless:check 步骤（Java）和 npm run lint 步骤（前端）
+notes:
+- 目的：让所有编辑者（AI / IDEA / VS Code）产出一致的格式化结果，消除"改一行 diff 全红"
+- knife4j-ui-react 当前没有 Prettier，是格式化噪声的最大来源
+- Java 侧已有 spotless + Eclipse formatter，但 IDEA 不知道它的存在，导致两套规则打架
+- CI 目前只跑 spotless:apply（静默修复），不跑 spotless:check（检查不合规就 fail），需要补上
+- 不引入 husky / lint-staged（pre-commit hook），保持轻量
+- 回滚路径：删除新增 .prettierrc + .idea/codeStyles/ + 还原 CI workflow
+
+### TASK-038
+status: review
+area: repo
+title: 修复 CI npm ci 失败：清理 package-lock.json 中指向私有 registry 的 URL
+branch: agent/TASK-038-fix-ci-npm-registry
+depends_on:
+validation:
+- `jq -r '.. | .resolved? // empty' knife4j-front/package-lock.json | grep -v '^https://registry.npmjs.org/'` → 无输出
+- `cd knife4j-front && rm -rf node_modules && npm ci` → 成功
+- `./scripts/test-front-core.sh` → 147 tests / 12 suites pass + lint + build ok
+done_when:
+- `knife4j-front/package-lock.json` 中所有 `resolved` 字段只指向公共 `registry.npmjs.org`，不再出现任何私有 registry URL
+- `knife4j-front/.npmrc` 与 `knife4j-doc/.npmrc` 强制使用公共 `registry.npmjs.org`，防止未来 lock 文件再被本地配置的私有 registry 污染
+- GitHub Actions `Build` workflow 的 `java-build-test` 与 `front-core-test` 不再因 `npm ci` 走不通 `getaddrinfo ENOTFOUND` 的私有域名而失败
+notes:
+- 触发：GitHub Actions run 24936006761（master@7e2b52d）两个 job 因 `npm ci` 尝试从一个公共 runner 无法解析的私有域名下载 `idb-keyval-6.2.2.tgz` 而被 ENOTFOUND
+- 根因：贡献者本地 `~/.npmrc` 配置了私有 npm registry，PR #48 合并时 `idb-keyval` 的 `resolved` 字段被写入了那个私有 URL
+- 修复范围刻意最小化：`package-lock.json` 只改动 `idb-keyval` 的一行 `resolved` URL，不重新生成 lock、不升降任何依赖版本，避免把其他噪声混进来
+- 子项目级 `.npmrc` 会覆盖 user-level `.npmrc`，保证任何人在任何环境 `npm install` 写出的 lock 都走公共 registry
+- 不引入 `ignore-scripts` 等额外策略；只加一行 `registry=...`
+- 回滚路径：删除两份 `.npmrc`、还原 `knife4j-front/package-lock.json` 即可
