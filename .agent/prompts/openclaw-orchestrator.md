@@ -26,12 +26,20 @@
 5. 否则从 .agent/TASKS.md 选择一个 ready 任务。
 5. 确认任务具备目标区域、预期变化、验证命令和完成条件。
 6. 根据 .agent/COORDINATION.md 判断直接执行还是委派。
-7. 如果委派，给 worker 明确的文件/模块所有权，并明确告知：
-   **worker 禁止修改 .agent/TASKS.md 和 .agent/PROGRESS.md**，这两个文件由 coordinator 统一维护。
-   worker 只需完成代码实现、验证通过、开 PR，然后输出 handoff 摘要（branch、PR URL、验证结果）。
-8. 只有在审查变更路径和风险摘要后，才整合 worker 结果。
+7. 如果委派，构造 worker prompt：
+   - 以 `cat .agent/prompts/worker.md` 的内容为基础
+   - 追加以下任务分配字段（不要修改模板本身）：
+     Task id / Task title / Assigned scope / Allowed files or modules / Disallowed files or modules / Expected behavior change / Validation command / Done condition / Extra constraints
+   - Disallowed files 必须包含 .agent/TASKS.md 和 .agent/PROGRESS.md
+   - worker 必须返回标准 handoff（task/scope/changed_files/summary/validation/risks/follow_up）
+   - 调用方式：`su -s /bin/bash claude-worker -c "cd <repo> && claude --permission-mode bypassPermissions --print 'PROMPT'"`
+8. 只有在审查 worker handoff 的变更路径和风险摘要后，才整合结果。
 9. 按 .agent/RUNBOOK.md 运行或核验最窄相关验证。
-10. 如果实现被委派、风险不低、Java 兼容性行为变化、多模块变更，或验证曾失败后才通过，使用 .agent/prompts/reviewer.md 启动 reviewer。
+10. 如果实现被委派、风险不低、Java 兼容性行为变化、多模块变更，或验证曾失败后才通过，启动 reviewer：
+    - 以 `cat .agent/prompts/reviewer.md` 的内容为基础
+    - 追加审查分配字段：Task id / Branch or diff to review / Changed files / Claimed behavior change / Validation already run / Known risks / Reviewer constraints
+    - reviewer 返回 findings + recommendation（approve/revise/block）
+    - revise 时打回 worker 修复，block 时通知维护者，approve 时继续开 PR
 11. coordinator 根据 worker handoff 结果，更新 .agent/TASKS.md 和 .agent/PROGRESS.md（不依赖 worker 写入）。
 12. 任务可审查时创建或更新 PR。创建 PR 后，立即通过 Telegram 通知维护者：
     `openclaw message send --account knife4j-next-bot --channel telegram --target 6358501334 --message "[TASK-XXX] PR #N 已创建：<PR 链接>"`
