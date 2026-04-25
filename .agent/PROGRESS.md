@@ -588,3 +588,22 @@ next:
 - 推送分支、创建 PR 等待维护者 review
 blockers:
 - none
+
+## 2026-04-25 状态同步
+task: TASK-027/028/030 合并确认
+agent: coordinator (heartbeat)
+status: done
+summary:
+- TASK-030（schema 示例生成）：PR #43 已合入 master@87745b54
+- TASK-027（requestBody 多内容类型表单）：PR #44 已合入 master@7ec205d5
+- TASK-028（发送前校验与请求预览）：PR #45 已合入 master@1b940a3b
+- 三者对应 TASKS.md 条目状态更新为 done + merged_into
+- 下游解锁：
+  - TASK-029（响应面板对齐 Vue2）：blocked → ready
+  - TASK-031（接入鉴权/全局参数）：blocked → ready（TASK-018/019 已 done）
+  - TASK-033（securitySchemes 动态渲染）：blocked → ready（所有前置已 done）
+next:
+- 建议顺序：TASK-029（响应面板）→ TASK-031（鉴权/全局参数合并）→ TASK-033（securitySchemes）
+- 三者均为 ui-react 窄范围任务，可独立成 PR，无需再等前置依赖
+blockers:
+- none

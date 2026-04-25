@@ -430,7 +430,8 @@ notes:
 - blocked 原因：等 TASK-032 的参数解析 API 稳定后再落实现
 
 ### TASK-027
-status: review
+status: done
+merged_into: master@7ec205d5
 area: ui-react
 title: React 调试页补全 requestBody 多内容类型表单
 branch: codex/TASK-027-react-debug-request-body
@@ -448,7 +449,8 @@ notes:
 - 当同一 operation 同时定义多种 content-type 时，UI 以单选 Radio 暴露，默认选 application/json
 
 ### TASK-028
-status: review
+status: done
+merged_into: master@1b940a3b
 area: ui-react
 title: React 调试发送前校验与请求预览
 branch: codex/TASK-028-react-debug-request-builder
@@ -466,7 +468,7 @@ notes:
 - 请求发送仍用原生 fetch，不引入 axios；blob 处理在 TASK-029 单独考虑
 
 ### TASK-029
-status: blocked
+status: ready
 area: ui-react
 title: React 调试响应面板对齐 Vue2 能力
 branch: codex/TASK-029-react-debug-response-panel
@@ -485,7 +487,8 @@ notes:
 - Vue2 的 Base64Img Tab 若实现成本低可一并做，否则延后
 
 ### TASK-030
-status: review
+status: done
+merged_into: master@87745b54
 area: front-core
 title: schema 示例生成与字段树递归（knife4j-core）
 branch: codex/TASK-030-schema-example-builder
@@ -506,7 +509,7 @@ notes:
 - OAS2 的 `definitions` 与 OAS3 的 `components.schemas` 统一抽象成同一个 resolver，调用方不感知规范差异
 
 ### TASK-031
-status: blocked
+status: ready
 area: ui-react
 title: React 调试接入鉴权与全局参数
 branch: codex/TASK-031-react-debug-auth-global-param
@@ -554,7 +557,7 @@ notes:
 - 可选：若现有 knife4j-core 版本号需要升，保持 semver 兼容，不清理无关导出
 
 ### TASK-033
-status: blocked
+status: ready
 area: ui-react
 title: Authorize 按 OpenAPI securitySchemes 动态渲染并接入请求
 branch: codex/TASK-033-authorize-security-schemes
