@@ -17,13 +17,18 @@
 
 package com.baizhukui.knife4j.demo;
 
+import com.baizhukui.knife4j.demo.dto.PageQuery;
+import com.baizhukui.knife4j.demo.dto.PageResult;
+import com.baizhukui.knife4j.demo.dto.UserCreateRequest;
+import com.baizhukui.knife4j.demo.dto.UserUpdateRequest;
+import com.baizhukui.knife4j.demo.dto.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @Tag(name = "用户接口", description = "用户相关示例接口")
 @RestController
@@ -32,30 +37,46 @@ public class UserController {
     
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
-    public List<Map<String, Object>> list() {
+    public List<UserVO> list() {
         return List.of(
-                Map.of("id", 1, "name", "张三", "email", "zhangsan@example.com"),
-                Map.of("id", 2, "name", "李四", "email", "lisi@example.com"));
+                new UserVO(1L, "张三", "zhangsan@example.com"),
+                new UserVO(2L, "李四", "lisi@example.com"));
+    }
+    
+    @Operation(summary = "分页查询用户")
+    @GetMapping("/page")
+    public PageResult<UserVO> page(@ParameterObject PageQuery query) {
+        List<UserVO> data = List.of(
+                new UserVO(1L, "张三", "zhangsan@example.com"),
+                new UserVO(2L, "李四", "lisi@example.com"));
+        return new PageResult<>(query.getPageNum(), query.getPageSize(), data.size(), data);
     }
     
     @Operation(summary = "根据 ID 获取用户")
     @GetMapping("/{id}")
-    public Map<String, Object> getById(
-                                       @Parameter(description = "用户 ID") @PathVariable Long id) {
-        return Map.of("id", id, "name", "张三", "email", "zhangsan@example.com");
+    public UserVO getById(
+                          @Parameter(description = "用户 ID") @PathVariable Long id) {
+        return new UserVO(id, "张三", "zhangsan@example.com");
     }
     
     @Operation(summary = "创建用户")
     @PostMapping
-    public Map<String, Object> create(@RequestBody Map<String, Object> body) {
-        body.put("id", 3);
-        return body;
+    public UserVO create(@RequestBody UserCreateRequest request) {
+        return new UserVO(3L, request.getName(), request.getEmail());
+    }
+    
+    @Operation(summary = "更新用户")
+    @PutMapping("/{id}")
+    public UserVO update(
+                         @Parameter(description = "用户 ID") @PathVariable Long id,
+                         @RequestBody UserUpdateRequest request) {
+        return new UserVO(id, request.getName(), request.getEmail());
     }
     
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
-    public Map<String, Object> delete(
-                                      @Parameter(description = "用户 ID") @PathVariable Long id) {
-        return Map.of("success", true, "id", id);
+    public UserVO delete(
+                         @Parameter(description = "用户 ID") @PathVariable Long id) {
+        return new UserVO(id, "张三", "zhangsan@example.com");
     }
 }
