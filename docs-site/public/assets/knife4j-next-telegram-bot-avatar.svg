@@ -1,0 +1,44 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="avatar-bg" x1="96" y1="40" x2="430" y2="474" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38C7FF"/>
+      <stop offset="0.46" stop-color="#2F8AF4"/>
+      <stop offset="1" stop-color="#1764E8"/>
+    </linearGradient>
+    <radialGradient id="avatar-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(170 118) rotate(53.4) scale(350 330)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.48"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="doc-fold" x1="314" y1="54" x2="402" y2="156" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9F5FF"/>
+      <stop offset="1" stop-color="#CBE6FF"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="46" y="28" width="420" height="460" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#053F9E" flood-opacity="0.32"/>
+    </filter>
+    <filter id="badge-shadow" x="306" y="310" width="168" height="168" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#053F9E" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="url(#avatar-bg)"/>
+  <rect width="512" height="512" rx="128" fill="url(#avatar-glow)"/>
+  <circle cx="88" cy="96" r="14" fill="#FFFFFF" fill-opacity="0.18"/>
+  <circle cx="420" cy="104" r="9" fill="#FFFFFF" fill-opacity="0.18"/>
+  <circle cx="82" cy="394" r="8" fill="#FFFFFF" fill-opacity="0.16"/>
+  <path d="M70 302C142 250 198 250 270 302C334 348 384 350 442 312" stroke="#FFFFFF" stroke-opacity="0.13" stroke-width="18" stroke-linecap="round"/>
+  <path d="M58 205C124 160 188 160 254 205C324 252 382 250 454 196" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="14" stroke-linecap="round"/>
+
+  <g filter="url(#soft-shadow)">
+    <path d="M154 52H312L414 154V378C414 416.66 382.66 448 344 448H154C115.34 448 84 416.66 84 378V122C84 83.34 115.34 52 154 52Z" fill="#F5FAFF" stroke="#D8EAFF" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M312 54V132C312 145.255 322.745 156 336 156H412" fill="url(#doc-fold)"/>
+    <path d="M312 54V132C312 145.255 322.745 156 336 156H412" stroke="#D8EAFF" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M184 340V204L300 340V204" stroke="#2F8AF4" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g filter="url(#badge-shadow)">
+    <circle cx="390" cy="394" r="58" fill="#2AABEE" stroke="#FFFFFF" stroke-width="10"/>
+    <path d="M358 389.5L419.5 365.5C426 363 429.6 366.8 427.4 373.7L409.6 428.4C407.7 434.3 403.8 435.4 398.8 431.6L381.6 418.8L373.2 427C370.2 429.9 367.8 429.7 366.8 424.2L362.4 401.8L398.8 379C400.8 377.8 400.2 375.9 397.1 377.8L352.4 405.8L332.7 399.5C326.8 397.6 326.8 393.1 333.9 390.4L358 389.5Z" fill="#FFFFFF"/>
+  </g>
+</svg>
