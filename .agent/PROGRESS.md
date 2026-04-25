@@ -316,3 +316,22 @@ next:
 - 建议优先执行 TASK-026：React 调试页按 OpenAPI 参数定义渲染填参表单。
 blockers:
 - none
+
+## 2026-07-03 CST
+task: docs-site-overhaul
+agent: coordinator (direct)
+branch: codex/TASK-027-docs-site-overhaul
+status: review
+summary:
+- 全面重写 VitePress 文档站，对齐并超越上游 knife4j 文档深度
+- 新建 5 个指南页：gateway 聚合、Disk/Nacos/Eureka 聚合、WebFlux 接入、Demo 预览、FAQ
+- 新建 4 个参考页：version-ref、configuration、annotations
+- 重写 5 个现有页：introduction、getting-started、migration、compatibility、modules
+- 重写 release-notes 和 roadmap
+- 更新 .vitepress/config.ts 侧边栏和导航结构
+validation:
+- cd docs-site && npm ci && npm run build → build complete in 3.20s
+next:
+- 提交 PR，等待维护者审查
+blockers:
+- none

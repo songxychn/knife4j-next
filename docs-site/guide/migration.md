@@ -1,56 +1,177 @@
-# 迁移指引
+---
+title: 从 upstream 迁移
+---
 
-如果你已经在使用 upstream 的 `knife4j`，迁移到 `knife4j-next` 时，建议先把目标设成“平稳切换”，而不是“顺手升级所有东西”。
+# 从 upstream 迁移到 knife4j-next
 
-## 最先需要知道的变化
+本文针对已经在用 `com.github.xiaoymin:knife4j-*` 的项目，说明**切到 `com.baizhukui:knife4j-*` 的最小改动**。
 
-### Maven 坐标变了
+## 核心结论
 
-最重要的变化是 `groupId`：
+迁移的最小原子操作只有一件事：**改 Maven 依赖坐标的 `groupId`**。
 
-| 旧坐标 | 新坐标 |
+- Java 包名保留 `com.github.xiaoymin.knife4j.*`，**不变**。
+- 所有 `knife4j.*` YAML 配置键，**不变**。
+- `/doc.html`、`/v2/api-docs`、`/v3/api-docs` 访问路径，**不变**。
+- 全部既有注解（`@ApiOperationSupport`、`@ApiSupport`、`@DynamicParameters` ... ），**不变**。
+
+## 依赖替换（before / after）
+
+### Spring Boot 3.x Jakarta
+
+Before：
+
+```xml
+<dependency>
+    <groupId>com.github.xiaoymin</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>4.6.0</version>
+</dependency>
+```
+
+After：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>4.6.0.3</version>
+</dependency>
+```
+
+### Spring Boot 2.x + springdoc-openapi
+
+Before：
+
+```xml
+<dependency>
+    <groupId>com.github.xiaoymin</groupId>
+    <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
+    <version>4.6.0</version>
+</dependency>
+```
+
+After：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
+    <version>4.6.0.3</version>
+</dependency>
+```
+
+### Spring Boot 2.x + Springfox（OpenAPI2）
+
+Before：
+
+```xml
+<dependency>
+    <groupId>com.github.xiaoymin</groupId>
+    <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
+    <version>4.6.0</version>
+</dependency>
+```
+
+After：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
+    <version>4.6.0.3</version>
+</dependency>
+```
+
+### 网关 / 聚合 / WebFlux 对应坐标
+
+| upstream | knife4j-next |
 | --- | --- |
-| `com.github.xiaoymin` | `com.baizhukui` |
+| `com.github.xiaoymin:knife4j-gateway-spring-boot-starter` | `com.baizhukui:knife4j-gateway-spring-boot-starter` |
+| `com.github.xiaoymin:knife4j-aggregation-spring-boot-starter` | `com.baizhukui:knife4j-aggregation-spring-boot-starter` |
+| `com.github.xiaoymin:knife4j-aggregation-jakarta-spring-boot-starter` | `com.baizhukui:knife4j-aggregation-jakarta-spring-boot-starter` |
+| `com.github.xiaoymin:knife4j-openapi3-webflux-spring-boot-starter` | `com.baizhukui:knife4j-openapi3-webflux-spring-boot-starter`（见 [WebFlux](./webflux)） |
+| `com.github.xiaoymin:knife4j-openapi3-webflux-jakarta-spring-boot-starter` | `com.baizhukui:knife4j-openapi3-webflux-jakarta-spring-boot-starter`（见 [WebFlux](./webflux)） |
 
-这意味着你的第一步通常不是改代码，而是先改依赖来源。
+## 业务代码不用动
 
-## 推荐迁移顺序
+下面这些在 upstream 文档中会出现的代码，**迁到 knife4j-next 后完全不用改**：
 
-1. 先替换 Maven 坐标，保留你现有的业务配置和访问路径。
-2. 启动应用，确认 `doc.html` 能正常打开。
-3. 验证最关键的接口分组、鉴权、网关聚合和静态资源加载。
-4. 如果你还依赖旧官网文档里的某些历史功能，暂时可以把它们作为参考资料，而不是迁移阻塞点。
+```java
+// 注解 import 不变
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import com.github.xiaoymin.knife4j.annotations.DynamicParameters;
+```
 
-## 哪些东西尽量先别动
+```yaml
+# 配置键不变
+knife4j:
+  enable: true
+  production: false
+  setting:
+    language: zh_cn
+  basic:
+    enable: true
+    username: admin
+    password: secret
+```
 
-- 先不要同时切换到新的前端实现。
-- 先不要把历史缓存、网关规则和上下文路径一并重构。
-- 先不要假设旧文档站里的每个链接都已经迁到新站。
+::: warning 部分注解只在 openapi2-starter 可用
+`@DynamicParameters`、`@DynamicResponseParameters`、`@ApiOperationSupport(ignoreParameters/includeParameters)` 等 **Springfox 专属** 的 Plugin 体系只在 `knife4j-openapi2-spring-boot-starter` 生效。
+迁到 `openapi3` 系列 starter 时这些注解会被编译器接受但 **运行时不处理**。这是 upstream v4.0 起官方弃用的决策，非本 fork 变更。详见 [注解速查](../reference/annotations)。
+:::
 
-## 这次新文档站的角色
+## 迁移步骤
 
-这个 VitePress 版本不会假装自己已经把旧站所有内容都迁完。它更像是新的“主入口”：
+1. **更新 Maven 依赖坐标**：全部 `com.github.xiaoymin` → `com.baizhukui`。
+2. **确认版本**：升到 `4.6.0.3`（包含 `/v2/api-docs;` 分号绕过修复、gateway context-path 修复、springdoc 2.8.9 兼容等）。
+3. **刷新依赖**：`mvn -U clean verify` 或 `mvn dependency:tree | grep knife4j` 检查无残留旧坐标。
+4. **启动验证**：访问 `/doc.html`，确认能看到接口列表。
+5. **如切到 OpenAPI3 系列 starter**：额外检查是否用了 Springfox 专属注解（`@DynamicParameters` 等），必要时替换为 DTO 实体类方式（参考 [注解速查](../reference/annotations)）。
 
-- 先回答“现在怎么接入”
-- 再回答“和 upstream 的差异是什么”
-- 最后再逐步承接“所有历史细节”
+## 验证命令
 
-## 迁移检查清单
+```bash
+# 确认依赖里全部是 com.baizhukui
+mvn dependency:tree -Dincludes=com.baizhukui:knife4j-*,com.github.xiaoymin:knife4j-*
 
-- [ ] 已切换到 `com.baizhukui`
-- [ ] 已确认当前使用的是 Boot 2.x 还是 3.x
-- [ ] 已验证 `doc.html` 入口
-- [ ] 已验证常用分组和调试能力
-- [ ] 已验证网关或聚合场景
-- [ ] 已记录仍需依赖旧文档的历史功能点
+# 启动并抓一下 doc.html
+mvn spring-boot:run &
+curl -I http://localhost:8080/doc.html
+curl http://localhost:8080/v3/api-docs | head
 
-## 关于旧文档站
+# 生产环境保护是否生效
+curl -I http://localhost:8080/doc.html   # 403 即正确
+```
 
-你后面给域名之后，新站会进一步补：
+## 迁移后验收清单
 
-- 正式的迁移 FAQ
-- 旧链接跳转策略
-- 版本差异页
-- 兼容性公告页
+- [ ] `mvn dependency:tree` 输出里没有 `com.github.xiaoymin:knife4j-*` 残留
+- [ ] 应用成功启动，`/doc.html` 可访问
+- [ ] `/v3/api-docs`（或 `/v2/api-docs`）返回正确的 OpenAPI JSON
+- [ ] 业务代码**没有**改动，只有 `pom.xml` 的 groupId 改了
+- [ ] 如果启用了 `knife4j.production` 或 `knife4j.basic`，生产发布前再做一次黑盒验证
+- [ ] 如果依赖新 React 前端的 UI 行为，已阅读 [新前端覆盖范围](../roadmap/#react-ui-coverage)，确认 `enable-debug`、`enable-search`、`enable-version` 等配置是否还是你预期的效果
 
-在此之前，旧站更像“历史资料库”，新站才是你面向社区的新入口。
+## 回滚策略
+
+`com.github.xiaoymin:knife4j-*` 仍然在 Maven Central，随时可以回退：
+
+```xml
+<!-- 回滚 -->
+<dependency>
+    <groupId>com.github.xiaoymin</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>4.6.0</version>
+</dependency>
+```
+
+由于业务代码未改，回滚成本等于依赖替换成本。
+
+## 常见迁移问题
+
+- **找不到 `com.baizhukui` 坐标**：刷新 Maven 中央仓库镜像；企业私服需要手动同步（Central 已发布）。
+- **doc.html 404**：见 [FAQ / SpringBoot 访问 doc.html 404](./faq#doc-html-404)。
+- **`enable-version` / `enable-debug` 等开关对新前端无效**：见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
+- **Gateway context-path 下聚合出错**：升级到 `4.6.0.2` 或以上即修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
