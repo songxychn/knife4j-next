@@ -2,6 +2,23 @@
 
 ## 当前版本
 
+### 4.6.0.3
+
+**前端**
+- 集成 knife4j-ui-react（React 下一代前端）到 `knife4j-openapi3-ui` webjar
+- 新增设置面板（Header 右上角），整合 Authorize / GlobalParam / OfflineDoc 三个 Tab
+- 实现离线文档导出（HTML / Word）
+- 实现 Home 页、ApiDoc 页、ApiDebug 页、SwaggerModels 页
+- 实现 Authorize、GlobalParam 功能页
+- 实现侧边栏分组切换与搜索过滤
+- 接入真实 API 数据层（OpenAPI 解析）
+
+**其他**
+- demo 模块：根路径 `/` 重定向至 `/doc.html`
+- demo 模块：接口示例改用 DTO + `@Schema` 注解
+
+---
+
 ### 4.6.0.2
 
 **Bug 修复**
