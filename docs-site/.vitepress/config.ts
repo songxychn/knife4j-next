@@ -42,8 +42,8 @@ export default defineConfig({
     nav: [
       { text: '快速开始', link: '/guide/getting-started' },
       { text: '功能', link: '/guide/features' },
-      { text: '兼容矩阵', link: '/reference/compatibility' },
       { text: '迁移', link: '/guide/migration' },
+      { text: '配置参考', link: '/reference/configuration' },
       { text: 'GitHub', link: 'https://github.com/songxychn/knife4j-next' }
     ],
     sidebar: [
@@ -51,23 +51,41 @@ export default defineConfig({
         text: '开始使用',
         items: [
           { text: '产品介绍', link: '/guide/introduction' },
-          { text: '功能', link: '/guide/features' },
+          { text: '功能概览', link: '/guide/features' },
           { text: '快速开始', link: '/guide/getting-started' },
+          { text: '在线 Demo', link: '/guide/demo' },
           { text: '迁移指引', link: '/guide/migration' }
         ]
       },
       {
-        text: '参考',
+        text: '接入指南',
         items: [
-          { text: '兼容矩阵', link: '/reference/compatibility' },
-          { text: '模块说明', link: '/reference/modules' },
-          { text: '发布说明', link: '/release-notes/' }
+          { text: 'Spring Cloud Gateway 聚合', link: '/guide/gateway' },
+          { text: 'Disk / Nacos / Eureka 聚合', link: '/guide/aggregation' },
+          { text: 'Spring WebFlux 接入', link: '/guide/webflux' }
         ]
       },
       {
-        text: '规划',
+        text: '参考手册',
         items: [
-          { text: '下一步路线图', link: '/roadmap/' }
+          { text: '兼容矩阵', link: '/reference/compatibility' },
+          { text: '版本参考', link: '/reference/version-ref' },
+          { text: '模块说明', link: '/reference/modules' },
+          { text: '配置参考', link: '/reference/configuration' },
+          { text: '注解速查表', link: '/reference/annotations' }
+        ]
+      },
+      {
+        text: 'FAQ',
+        items: [
+          { text: '常见问题', link: '/guide/faq' }
+        ]
+      },
+      {
+        text: '项目',
+        items: [
+          { text: '发布说明', link: '/release-notes/' },
+          { text: '路线图', link: '/roadmap/' }
         ]
       }
     ],

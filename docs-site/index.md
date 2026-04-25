@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Knife4j Next
-  text: 更现代的 Knife4j
-  tagline: 为 Spring 生态提供开箱即用的 API 文档增强体验，覆盖文档浏览、接口调试、微服务聚合、鉴权配置、离线导出与团队协作。
+  text: 为 Spring 生态保驾护航的 OpenAPI 文档增强
+  tagline: 延续熟悉的 doc.html 接入方式，持续修复 Spring Boot 2.7 / 3.x 的兼容性。这是 Knife4j 的社区维护 fork。
   image:
     src: /knife4j-next-mark.svg
     alt: Knife4j Next
@@ -13,66 +13,108 @@ hero:
       text: 快速开始
       link: /guide/getting-started
     - theme: alt
-      text: 了解功能
-      link: /#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD
+      text: 从 upstream 迁移
+      link: /guide/migration
+    - theme: alt
+      text: GitHub
+      link: https://github.com/songxychn/knife4j-next
 
 features:
-  - title: 文档更清晰
-    details: 在 Swagger / OpenAPI 的基础上增强接口分组、参数展示、模型结构和搜索体验，让后端接口对团队更可读。
-  - title: 调试更顺手
-    details: 直接在 doc.html 中完成接口请求、参数缓存、全局参数、OAuth2 / Basic Auth 等常见调试流程。
-  - title: 聚合更简单
-    details: 面向 Spring Cloud Gateway 与服务聚合场景，将多个服务的 OpenAPI 文档统一到一个入口展示。
-  - title: 交付更完整
-    details: 支持离线文档、Markdown / HTML 导出、自定义首页、访问控制和生产环境禁用等团队交付能力。
+  - title: 保持 doc.html 使用习惯
+    details: Maven groupId 切到 com.baizhukui 即可替换原依赖，/doc.html、/v2/api-docs、/v3/api-docs 入口保持不变。
+    link: /guide/migration
+    linkText: 迁移指引
+  - title: Spring Boot 2.7、3.4、3.5 都跑过
+    details: 4 个 smoke 模块（Boot 2.7.18、Boot 3.4.0、Boot 3.5.0）随每次构建回归，springdoc-openapi-jakarta 已对齐 2.8.9。
+    link: /reference/compatibility
+    linkText: 兼容矩阵
+  - title: 配置项按前缀整理
+    details: knife4j.setting / knife4j.basic / knife4j.gateway / knife4j.cloud / knife4j.nacos ... 全部 YAML 选项、默认值、所属模块有据可查。
+    link: /reference/configuration
+    linkText: 配置参考
+  - title: Gateway 与多服务聚合
+    details: knife4j-gateway-spring-boot-starter 支持 DISCOVER / MANUAL 两种策略；aggregation starter 另外提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
+    link: /guide/gateway
+    linkText: 网关接入
 ---
 
-## 核心功能
+## 这是 Knife4j 的 fork，不是重写
 
-<div class="status-grid">
-  <div class="status-card">
-    <span class="label">Browse</span>
-    <strong>API 文档浏览</strong>
-    <p>接口分组、模型结构、参数说明和全文搜索集中展示。</p>
-  </div>
-  <div class="status-card">
-    <span class="label">Debug</span>
-    <strong>在线接口调试</strong>
-    <p>直接在页面内发起请求，支持常用鉴权和全局参数。</p>
-  </div>
-  <div class="status-card">
-    <span class="label">Gateway</span>
-    <strong>微服务文档聚合</strong>
-    <p>为网关和多服务项目提供统一的 API 文档入口。</p>
-  </div>
-  <div class="status-card">
-    <span class="label">Export</span>
-    <strong>离线文档导出</strong>
-    <p>将接口说明导出为团队交付更方便的离线文档。</p>
-  </div>
-</div>
+`knife4j-next` 是 [`xiaoymin/knife4j`](https://github.com/xiaoymin/knife4j) 的社区维护分支。
 
-## 适合哪些场景
+- 保留 `com.github.xiaoymin.knife4j.*` Java 包名，不做重命名。
+- 保留 `doc.html` / `v2/api-docs` / `v3/api-docs` 访问入口。
+- 保留 `@ApiOperationSupport`、`@ApiSupport`、`knife4j.*` 等全部既有注解与配置键。
+- 只改 `groupId`：`com.github.xiaoymin` → `com.baizhukui`，其余业务代码不用动。
 
-<div class="signal-board">
-  <p>如果你的团队已经在使用 Swagger、OpenAPI、Springfox 或 springdoc-openapi，但默认 UI 不够好用，Knife4j Next 可以作为更完整的文档增强层。</p>
-  <p>它保留熟悉的 <code>/doc.html</code> 访问入口，同时提供更适合团队协作、联调和微服务聚合的功能。</p>
-</div>
+## 60 秒上手
 
-## 主要能力
+Spring Boot 3.x（Jakarta）：
 
-- **接口分组与搜索**：让大型项目中的接口更容易查找、定位和理解。
-- **请求参数增强**：支持全局参数、动态参数、参数缓存和请求过滤。
-- **鉴权调试**：覆盖 Basic Auth、OAuth2 等常见接口调试场景。
-- **模型展示增强**：更友好地展示请求体、响应体和嵌套模型结构。
-- **网关聚合**：适合 Spring Cloud Gateway、多服务、多分组的文档统一展示。
-- **离线交付**：支持将接口文档导出为离线格式，方便评审、归档和交付。
-- **访问控制**：支持生产环境禁用、基础访问控制和文档入口保护。
-
-## 接入方式
-
-Spring Boot 2.x 和 Spring Boot 3.x 项目都可以通过 starter 快速接入。先从 [快速开始](/guide/getting-started) 选择适合你的依赖版本，然后启动应用访问：
-
-```text
-http://ip:port/doc.html
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>4.6.0.3</version>
+</dependency>
 ```
+
+最小配置：
+
+```yaml
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+```
+
+启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
+
+## 本次版本亮点（4.6.0.3）
+
+- 🧩 React + Vite 构建的新前端已集成到 `knife4j-openapi3-ui` webjar（旧 Vue2 产物仍由 `knife4j-openapi2-ui` 使用）。
+- 🛡️ 修复 `/v2/api-docs;xxx` 分号绕过 Basic 认证（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。
+- 🌉 修复 gateway `context-path` 下聚合 host 缺斜杠（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
+- 🧱 升级 springdoc-openapi-jakarta 至 `2.8.9`，兼容 Boot 3.4.x / 3.5.x。
+- 🐳 `knife4j-demo` 模块提供 Docker Compose 在线预览。
+
+完整更新列表见 [发布说明](/release-notes/)。
+
+::: warning 关于新前端覆盖范围
+新 React 前端当前**仅覆盖部分** upstream 增强特性。如果你依赖的是 `knife4j.setting.enable-debug=false`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script`、`enable-version`、Postman 导出或 OAuth2 调试的完整授权流程，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 仍是 Vue2 旧前端，所有 upstream 特性继续可用。
+:::
+
+## 文档导航
+
+**上手**
+
+- [产品介绍](/guide/introduction)：这个 fork 的定位、与 upstream 的对照表
+- [快速开始](/guide/getting-started)：Spring Boot 2.x / 3.x 完整接入
+- [迁移指引](/guide/migration)：从 `com.github.xiaoymin` 切到 `com.baizhukui`
+- [Demo 预览](/guide/demo)：`knife4j-demo` 模块、本地跑 / Docker Compose
+- [常见问题](/guide/faq)：doc.html 404、生产环境禁用、Nginx 反向代理、React 配置不生效
+
+**组件**
+
+- [Gateway 聚合](/guide/gateway)：Spring Cloud Gateway + knife4j-gateway-starter
+- [Aggregation 聚合](/guide/aggregation)：disk / cloud / nacos / eureka / polaris
+- [WebFlux 方案](/guide/webflux)：当前 fork 中的 webflux 实际情况与替代路径
+
+**参考**
+
+- [兼容矩阵](/reference/compatibility)：Java、Spring、Boot、springdoc 基线
+- [版本参考表](/reference/version-ref)：Boot 版本如何选 knife4j 版本
+- [模块说明](/reference/modules)：14 个 Maven 模块的职责与选择决策
+- [配置参考](/reference/configuration)：全部 `knife4j.*` YAML 选项
+- [注解速查](/reference/annotations)：Springfox 专有 vs 通用注解
+
+**其他**
+
+- [路线图](/roadmap/)：当前任务队列 + React UI 覆盖缺口清单
+- [发布说明](/release-notes/)：版本更新记录
