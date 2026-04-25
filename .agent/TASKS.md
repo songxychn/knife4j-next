@@ -468,7 +468,8 @@ notes:
 - 请求发送仍用原生 fetch，不引入 axios；blob 处理在 TASK-029 单独考虑
 
 ### TASK-029
-status: review
+status: done
+merged_into: master@fad3ab25
 PR: https://github.com/songxychn/knife4j-next/pull/47
 area: ui-react
 title: React 调试响应面板对齐 Vue2 能力
@@ -510,7 +511,8 @@ notes:
 - OAS2 的 `definitions` 与 OAS3 的 `components.schemas` 统一抽象成同一个 resolver，调用方不感知规范差异
 
 ### TASK-031
-status: review
+status: done
+merged_into: master@a44907d8
 PR: https://github.com/songxychn/knife4j-next/pull/46
 area: ui-react
 title: React 调试接入鉴权与全局参数
