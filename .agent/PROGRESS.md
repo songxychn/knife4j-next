@@ -607,3 +607,18 @@ next:
 - 三者均为 ui-react 窄范围任务，可独立成 PR，无需再等前置依赖
 blockers:
 - none
+
+## 2026-04-25 17:17 UTC
+task: TASK-029 / TASK-031 / TASK-033 合并确认
+agent: coordinator (heartbeat)
+status: done
+summary:
+- TASK-029（响应面板对齐 Vue2）：PR #47 已合入 master@2026-04-25T16:59:59Z
+- TASK-031（调试接入鉴权与全局参数）：PR #46 已合入 master@2026-04-25T16:55:23Z
+- TASK-033（Authorize securitySchemes 动态渲染）：PR #48 已合入 master@2026-04-25T17:02:23Z
+- 三者对应 TASKS.md 条目状态更新为 done + merged_into
+- 当前队列：35 done，0 ready，0 blocked，0 review
+next:
+- 所有已知任务均已完成，等待新任务规划
+blockers:
+- none
