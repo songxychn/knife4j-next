@@ -8,6 +8,7 @@ import { Layout, Button, Select, ConfigProvider, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { useNavigate } from 'react-router-dom';
 import { GroupProvider, useGroup } from './context/GroupContext';
+import { AuthProvider } from './context/AuthContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -187,9 +188,11 @@ const AppInner: React.FC = () => {
 
 const App: React.FC = () => (
   <ConfigProvider>
-    <GroupProvider>
-      <AppInner />
-    </GroupProvider>
+    <AuthProvider>
+      <GroupProvider>
+        <AppInner />
+      </GroupProvider>
+    </AuthProvider>
   </ConfigProvider>
 );
 
