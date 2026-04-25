@@ -19,6 +19,8 @@ export type {
   GlobalParamValues,
   AuthValues,
   BuiltRequest,
+  BuiltRequestSourceMap,
+  ParamSource,
   ValidationError,
   SchemaResolveContext,
   SchemaFieldNode,

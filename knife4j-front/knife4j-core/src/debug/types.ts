@@ -101,6 +101,15 @@ export interface GlobalParamValues {
   queries: Record<string, string>;
 }
 
+/** 参数来源标签（用于请求预览中标记优先级） */
+export type ParamSource = 'interface' | 'global' | 'auth';
+
+/** 请求参数来源映射 */
+export interface BuiltRequestSourceMap {
+  headers: Record<string, ParamSource>;
+  query: Record<string, ParamSource>;
+}
+
 /** 鉴权信息 */
 export interface AuthValues {
   /** bearer token */
@@ -125,6 +134,8 @@ export interface BuiltRequest {
   body?: string;
   /** Content-Type */
   contentType: string;
+  /** 参数来源映射（仅在存在 auth / globalParams 时生成） */
+  sourceMap?: BuiltRequestSourceMap;
 }
 
 /** required 校验结果 */

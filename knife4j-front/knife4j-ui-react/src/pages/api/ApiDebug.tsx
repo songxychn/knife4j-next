@@ -27,11 +27,15 @@ import type {
     BuiltRequest,
     DebugFormValues,
     DebugParam,
+    GlobalParamValues,
     OperationDebugModel,
+    ParamSource,
     ValidationError,
 } from 'knife4j-core';
 import {buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired,} from 'knife4j-core';
 import {OperationModeTabs, useCurrentOperation} from './useCurrentOperation';
+import {useAuth} from '../../context/AuthContext';
+import {useGlobalParam} from '../../context/GlobalParamContext';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -771,6 +775,12 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
   const queryPairs = Object.entries(built.query);
   const hasContentType = headerPairs.some(([k]) => k.toLowerCase() === 'content-type');
 
+  const sourceTag = (source: ParamSource | undefined) => {
+    if (!source) return null;
+    const colorMap: Record<ParamSource, string> = { interface: 'blue', global: 'green', auth: 'orange' };
+    return <Tag color={colorMap[source]} style={{ marginInlineEnd: 0 }}>{t(`apiDebug.preview.source.${source}`)}</Tag>;
+  };
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={14}>
       {/* URL + method */}
@@ -795,9 +805,20 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
           <Table
             size="small"
             pagination={false}
-            dataSource={headerPairs.map(([key, value]) => ({ key, name: key, value }))}
+            dataSource={headerPairs.map(([key, value]) => ({ key, name: key, value, source: built.sourceMap?.headers[key] }))}
             columns={[
-              { title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240 },
+              {
+                title: t('apiDebug.col.header'),
+                dataIndex: 'name',
+                key: 'name',
+                width: 240,
+                render: (name: string, record: { source?: ParamSource }) => (
+                  <Space size={4}>
+                    <Text code>{name}</Text>
+                    {sourceTag(record.source)}
+                  </Space>
+                ),
+              },
               { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
             ]}
             style={{ marginTop: 4 }}
@@ -814,9 +835,20 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
           <Table
             size="small"
             pagination={false}
-            dataSource={queryPairs.map(([key, value]) => ({ key, name: key, value }))}
+            dataSource={queryPairs.map(([key, value]) => ({ key, name: key, value, source: built.sourceMap?.query[key] }))}
             columns={[
-              { title: t('apiDebug.col.paramName'), dataIndex: 'name', key: 'name', width: 240 },
+              {
+                title: t('apiDebug.col.paramName'),
+                dataIndex: 'name',
+                key: 'name',
+                width: 240,
+                render: (name: string, record: { source?: ParamSource }) => (
+                  <Space size={4}>
+                    <Text code>{name}</Text>
+                    {sourceTag(record.source)}
+                  </Space>
+                ),
+              },
               { title: t('apiDebug.col.value'), dataIndex: 'value', key: 'value' },
             ]}
             style={{ marginTop: 4 }}
@@ -1070,6 +1102,35 @@ export default function ApiDebug() {
     };
   };
 
+  // ── 从 AuthContext 获取鉴权数据 ──
+  const { auth } = useAuth();
+  const authValues = useMemo(() => {
+    if (!auth) return undefined;
+    if (auth.type === 'bearer' && auth.token) {
+      return { bearerToken: auth.token };
+    }
+    if (auth.type === 'basic' && (auth.username || auth.password)) {
+      const encoded = btoa(`${auth.username}:${auth.password}`);
+      return { basicCredentials: encoded };
+    }
+    return undefined;
+  }, [auth]);
+
+  // ── 从 GlobalParamContext 转换为 GlobalParamValues ──
+  const { params: globalParamItems } = useGlobalParam();
+  const globalParamValues: GlobalParamValues | undefined = useMemo(() => {
+    if (!globalParamItems || globalParamItems.length === 0) return undefined;
+    const headers: Record<string, string> = {};
+    const queries: Record<string, string> = {};
+    for (const p of globalParamItems) {
+      if (p.value !== undefined && p.value !== '') {
+        if (p.in === 'header') headers[p.name] = p.value;
+        else if (p.in === 'query') queries[p.name] = p.value;
+      }
+    }
+    return { headers, queries };
+  }, [globalParamItems]);
+
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
   const buildPreview = (): { formValues: DebugFormValues; built: BuiltRequest; curl: string } => {
     const formValues = collectFormValues();
@@ -1079,6 +1140,8 @@ export default function ApiDebug() {
       method,
       debugModel,
       formValues,
+      auth: authValues,
+      globalParams: globalParamValues,
     });
     const curl = buildCurl(built);
     return { formValues, built, curl };
