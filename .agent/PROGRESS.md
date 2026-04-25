@@ -316,3 +316,29 @@ next:
 - 建议优先执行 TASK-026：React 调试页按 OpenAPI 参数定义渲染填参表单。
 blockers:
 - none
+
+## 2026-04-25 18:50 CST
+task: TASK-032
+agent: coordinator (direct)
+branch: codex/TASK-032-core-debug-model
+status: review
+summary:
+- 在 knife4j-core 新增 `debug` 模块，包含 5 个文件：
+  - `types.ts`：统一类型定义（ParamIn, DebugParam, BodyContent, OperationDebugModel, DebugFormValues, AuthValues, BuiltRequest, ValidationError 等）
+  - `resolveRef.ts`：`resolveRef()` + `dereference()` 统一 OAS2/OAS3 的 $ref 解析
+  - `operationDebugModel.ts`：`buildOperationDebugModel()` 将 OpenAPI operation 解析为调试模型，同时兼容 OAS2 和 OAS3
+  - `requestBuilder.ts`：`buildRequest()` + `buildCurl()` + 辅助函数（replacePathParams, buildQueryString, mergeHeaders, authToHeaders, splitGlobalParams, validateRequired）
+  - `schemaExample.ts`：`buildSchemaExample()` 简易版 + `buildSchemaFieldTree()` 占位版（完整实现留给 TASK-030）
+- 新增 3 个测试文件（resolveRef.test.ts, operationDebugModel.test.ts, requestBuilder.test.ts），覆盖 OAS2/OAS3 参数解析、$ref 解析、path 替换、query/header 合并、required 校验、curl 转义等
+- knife4j-core `src/index.ts` 新增 `export * from './debug'`
+- knife4j-ui-react `ApiDebug.tsx` 重构，消费 knife4j-core 的 `buildOperationDebugModel`, `buildRequest`, `buildCurl`, `validateRequired`，移除内联解析逻辑
+- 新增 cURL 命令展示 Tab
+- knife4j-ui-react 通过本地 tgz 依赖接入 knife4j-core
+validation:
+- `cd knife4j-front/knife4j-core && npx jest --config jestconfig.json` → 11 suites, 82 tests passed
+- `cd knife4j-front/knife4j-ui-react && npm run build` → tsc + vite build 成功
+next:
+- 等待维护者 review
+- TASK-032 完成后可解除 TASK-026 ~ TASK-031 的 blocked 状态
+blockers:
+- none

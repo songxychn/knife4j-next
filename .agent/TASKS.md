@@ -409,11 +409,11 @@ notes:
 - blocked 原因：等 TASK-023 集成后在真实环境验证
 
 ### TASK-026
-status: ready
+status: blocked
 area: ui-react
 title: React 调试页按 OpenAPI 参数定义渲染填参表单
 branch: codex/TASK-026-react-debug-params
-depends_on: TASK-013,TASK-017
+depends_on: TASK-032
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
 - ApiDebug 根据当前 operation 展示 path、query、header、cookie 参数的待填写表单项
@@ -422,9 +422,11 @@ done_when:
 - 表单初始值优先使用 example，其次 default，再按类型生成空值
 - 点击发送时合并用户填写的 path/query/header/cookie 参数，不再只依赖简化输入
 notes:
-- 第一优先级，对标 Vue2 `knife4j-vue/src/views/api/Debug.vue` 的参数填写能力
+- 阶段 1 第 1 步，对标 Vue2 `knife4j-vue/src/views/api/Debug.vue` 的参数填写能力
 - 交互可以更现代，但同一份 OpenAPI 下 Vue2 能展示的参数项 React 也必须展示
-- 建议抽出 `operationDebugModel` 或同等工具，避免把解析逻辑堆在 ApiDebug 组件里
+- 消费 TASK-032 抽出的 `OperationDebugModel`，禁止把解析逻辑堆回 ApiDebug 组件
+- deprecated / readOnly 参数在 UI 中用独立样式标记，但不阻止用户填写
+- blocked 原因：等 TASK-032 的参数解析 API 稳定后再落实现
 
 ### TASK-027
 status: blocked
@@ -434,14 +436,15 @@ branch: codex/TASK-027-react-debug-request-body
 depends_on: TASK-026
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
-- application/json 根据 schema 生成可编辑 JSON 示例
+- application/json 根据 schema 生成可编辑 JSON 示例（复用 TASK-030 的 schemaExampleBuilder）
 - application/x-www-form-urlencoded 根据 schema properties 展示字段表单
-- multipart/form-data 支持普通字段和 file/binary 文件字段
-- raw/text/xml 等未知内容类型提供可编辑文本输入兜底
-- 发送请求时按所选 content-type 正确构造 body 和 Content-Type
+- multipart/form-data 支持普通字段和 file/binary 文件字段，并支持文件拖拽上传
+- raw 支持 Text / JSON / JavaScript / XML / HTML 模式切换，提供 Beautify 入口
+- 发送请求时按所选 content-type 正确构造 body 和 Content-Type，由统一 requestBuilder 负责
 notes:
-- 对标 Vue2 `initBodyParameter`、`debugSendFormRequest`、`debugSendRawRequest` 等调试链路
-- 依赖 TASK-026 的参数模型，避免 requestBody 和普通参数各自实现一套解析
+- 阶段 1 第 2 步，对标 Vue2 `initBodyParameter`、`debugSendFormRequest`、`debugSendRawRequest`
+- requestBody 必须共用 TASK-032 的参数模型，禁止 body 和普通参数各写一套解析
+- 当同一 operation 同时定义多种 content-type 时，UI 以单选 Radio 暴露，默认选 application/json
 
 ### TASK-028
 status: blocked
@@ -451,13 +454,15 @@ branch: codex/TASK-028-react-debug-request-builder
 depends_on: TASK-027
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
-- 发送前校验 required 的 path/query/header/cookie/body 字段，缺失时定位到对应输入项
-- 调试页展示最终请求 URL、method、headers、query、body 预览
-- 支持复制等价 curl 命令
-- path 参数替换、query 拼接、header 合并、body 序列化由统一 requestBuilder 负责
+- 发送前校验 required 的 path/query/header/cookie/body 字段，缺失时定位到对应输入项并阻止发送
+- 调试页展示最终请求 URL、method、headers、query、body 预览（独立 Tab 或抽屉）
+- 支持复制等价 curl 命令，curl 与真实发送共用同一 requestBuilder 输出
+- path 参数替换、query 拼接、header 合并、body 序列化由统一 requestBuilder 负责，输出纯对象 `{ url, method, headers, body, contentType }`
+- requestBuilder 单独放在 TASK-032 抽出的 knife4j-core 下，含独立单元测试
 notes:
-- 对标 Vue2 `Knife4jDebugger.js` 和 Debug.vue 的请求组装职责
-- 需要保留同源 Spring Boot starter 场景优先，不在本任务扩展跨域代理能力
+- 阶段 1 第 3 步，对标 Vue2 `Knife4jDebugger.js` 和 Debug.vue 的请求组装职责
+- 保留同源 Spring Boot starter 场景优先，不在本任务扩展跨域代理能力
+- 请求发送仍用原生 fetch，不引入 axios；blob 处理在 TASK-029 单独考虑
 
 ### TASK-029
 status: blocked
@@ -467,29 +472,37 @@ branch: codex/TASK-029-react-debug-response-panel
 depends_on: TASK-028
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
-- 响应区展示 status、耗时、headers、body、错误信息
-- JSON 响应自动格式化并支持复制原始内容
-- 非 JSON 响应用文本兜底，二进制响应给出下载或不可预览提示
+- 响应区展示 status、耗时、响应体大小、headers、body、错误信息
+- 响应 Tab 划分为 Content / Raw / Headers / Curl 四个子 Tab
+- JSON 响应自动格式化并支持复制原始内容（Raw Tab）
+- 非 JSON 响应用文本兜底；二进制响应按 Content-Type 判断：图片预览，其他给下载链接
 - 保留最近一次请求和响应，切换文档/调试 Tab 不丢失当前填写内容
 notes:
-- 对标 Vue2 `knife4j-vue/src/views/api/DebugResponse.vue`
+- 阶段 1 第 4 步，对标 Vue2 `knife4j-vue/src/views/api/DebugResponse.vue`
 - 本任务只做单接口内状态保持，跨接口历史记录可后续拆分
+- Vue2 的「响应字段描述叠加到 JSON 编辑器」能力本任务明确不做，留到后续独立任务评估
+- Vue2 的 Base64Img Tab 若实现成本低可一并做，否则延后
 
 ### TASK-030
 status: blocked
-area: ui-react
-title: React schema 示例生成对齐 Vue2 递归展开
-branch: codex/TASK-030-react-schema-example-builder
-depends_on: TASK-027
-validation: cd knife4j-front/knife4j-ui-react && npm run build
+area: front-core
+title: schema 示例生成与字段树递归（knife4j-core）
+branch: codex/TASK-030-schema-example-builder
+depends_on: TASK-032
+validation:
+- ./scripts/test-front-core.sh
+- cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
-- 根据 schema 递归生成 JSON 示例，支持 $ref、object、array、enum、example、default
-- 循环引用不会造成死循环，重复引用类型以安全占位值截断
-- requestBody JSON 示例、ApiDoc 示例和 Models 示例复用同一生成逻辑
-- 对深层嵌套有显式 maxDepth 保护，并在代码中集中配置
+- 在 knife4j-core 中完成 TASK-032 预留的 `buildSchemaExample(schema, ctx)` 与 `buildSchemaFieldTree(schema, ctx)` 实现
+- 支持 $ref、object、array、enum、example、default、allOf、oneOf、anyOf（后三者取第一个可解析分支）
+- 循环引用通过引用链数组截断，重复引用以类型占位值兜底，不会死循环
+- 有显式 maxDepth 保护（默认 8），集中配置，超过深度截断并附 `__truncated__` 标记
+- React 的 requestBody JSON 示例、ApiDoc 请求体/响应体字段树、Schema 页全部复用同一生成逻辑
+- knife4j-core 侧新增不少于 10 个单元测试覆盖上述分支
 notes:
-- 对标 Vue2 `Knife4jAsync.js` 的 `findRefDefinition` 与 utils 示例值逻辑
-- Vue2 不是固定深度展开，而是递归展开并通过引用链数组防循环；React 版建议增加 maxDepth 保险
+- 阶段 1 第 5 步，area 由 ui-react 改为 front-core：逻辑放在 knife4j-core 供 React/Vue3/未来 Vue2 共用
+- 对标 Vue2 `Knife4jAsync.js` 的 `findRefDefinition` + `OAS3SchemaPropertyReader.js`
+- OAS2 的 `definitions` 与 OAS3 的 `components.schemas` 统一抽象成同一个 resolver，调用方不感知规范差异
 
 ### TASK-031
 status: blocked
@@ -499,10 +512,61 @@ branch: codex/TASK-031-react-debug-auth-global-param
 depends_on: TASK-028,TASK-018,TASK-019
 validation: cd knife4j-front/knife4j-ui-react && npm run build
 done_when:
-- ApiDebug 发送请求时自动合并 Authorize 中配置的认证信息
+- ApiDebug 发送请求时自动合并 Authorize 中配置的认证信息（当前阶段仅覆盖已实现的 bearer/basic；securityScheme 动态渲染留到 TASK-033）
 - ApiDebug 发送请求时自动合并 GlobalParam 中配置的 header/query 参数
-- 接口级参数与全局参数冲突时有明确优先级，并在 UI 中可见
-- 用户可以在发送前预览最终合并后的 headers/query
+- 接口级参数与全局参数冲突时按「接口级 > 全局」优先级合并，并在请求预览 Tab 中以来源标签展示
+- 用户可以在发送前预览最终合并后的 headers/query/body
+- 合并逻辑由 requestBuilder 承担，调试组件只负责 UI 与数据源
 notes:
-- 对标 Vue2 全局参数、Authorize 与 Debug.vue 的联动能力
+- 阶段 1 第 6 步，对标 Vue2 全局参数、Authorize 与 Debug.vue 的联动能力
 - 依赖请求预览和 requestBuilder 稳定后再接入，避免参数来源混乱
+- 本任务不包含 OAuth2 / securityScheme 动态表单（阶段 3 独立任务 TASK-033 处理）
+- 接入顺序：requestBuilder 合并层 → GlobalParam → Authorize（bearer/basic），每一步保留 UI 预览可验证
+
+### TASK-032
+status: review
+area: front-core
+title: 抽取调试/解析层到 knife4j-core（阶段 1 前置）
+branch: codex/TASK-032-core-debug-model
+depends_on:
+validation:
+- ./scripts/test-front-core.sh
+- cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- knife4j-core 中新增以下公共模块（保持为纯 TS，无框架依赖）：
+  - `resolveRef(ref, doc)`：统一处理 OAS2 `definitions` 与 OAS3 `components.schemas`
+  - `OperationDebugModel`：从一个 operation 解析出 `{ pathParams, queryParams, headerParams, cookieParams, bodyContents[] }`，每个参数带 `name / in / type / required / description / default / example / enum / deprecated / readOnly / schema`
+  - `BodyContent`：按 content-type 分类（json / urlencoded / multipart / raw）并附带初始示例生成入口
+  - `buildSchemaExample` / `buildSchemaFieldTree` 先落接口与签名，实际实现放到 TASK-030
+  - `requestBuilder`：输入 operation + 用户填写 + 全局参数 + 鉴权，输出纯 `{ url, method, headers, query, body, contentType }`；同时输出等价 curl 字符串
+- 上述模块有独立单元测试，覆盖：path 参数替换、query/header 合并、required 校验失败、curl 字符串转义
+- knife4j-ui-react 通过本地依赖（`file:../knife4j-core` 或 tgz 再打一版）消费这些模块，当前页面行为不变
+- ./scripts/test-front-core.sh 通过
+- knife4j-ui-react `npm run build` 通过
+notes:
+- 这是阶段 1 的前置任务，后续 TASK-026 ~ TASK-031 全部依赖它
+- 只抽象 + 适配，不改 UI 行为；UI 的实际能力提升放到 TASK-026 及之后
+- 解析层必须同时兼容 OAS2 (`parameters[].in=body` / formData / type+format) 与 OAS3 (`requestBody` / `schema`)
+- requestBuilder 本任务只落「纯函数 + 测试」，不做 UI 预览；UI 预览在 TASK-028 使用它
+- 禁止在 knife4j-core 引入 React / Vue / antd 等框架依赖
+- 禁止在 knife4j-core 直接依赖浏览器 API（fetch/localStorage）；发送和持久化留给 UI 层
+- 可选：若现有 knife4j-core 版本号需要升，保持 semver 兼容，不清理无关导出
+
+### TASK-033
+status: blocked
+area: ui-react
+title: Authorize 按 OpenAPI securitySchemes 动态渲染并接入请求
+branch: codex/TASK-033-authorize-security-schemes
+depends_on: TASK-031
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- Authorize 页根据当前 OpenAPI 的 `securitySchemes` 动态渲染表单（apiKey / http bearer / http basic）
+- 一个文档定义多个 security key 时，全部可填、分别保存
+- 配置按 groupId 持久化到 IndexedDB（使用 idb-keyval），兼容刷新和多分组切换
+- OAuth2 支持 password 与 client_credentials 两种 flow；authorization_code 留作可选后续任务；implicit 明确不实现
+- ApiDebug 发送请求时按 operation 的 `security` 字段选择对应的 scheme 并注入 header / query
+notes:
+- 阶段 3 对齐任务，对标 Vue2 `knife4j-vue/src/views/settings/Authorize.vue` + `OAuth2.vue`
+- implicit flow 明确不做，理由：现代浏览器不推荐、redirect 回跳对 starter 场景不友好；文档注明
+- authorization_code flow 本任务不做；如后续要做单独立 TASK
+- 本任务仅扩展 TASK-031 的鉴权合并层，不重写 requestBuilder
