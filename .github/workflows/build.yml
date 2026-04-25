@@ -8,6 +8,7 @@ on:
     paths:
       - "knife4j/**"
       - "knife4j-front/knife4j-core/**"
+      - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-doc/**"
       - "scripts/**"
       - ".github/workflows/build.yml"
@@ -20,6 +21,7 @@ on:
     paths:
       - "knife4j/**"
       - "knife4j-front/knife4j-core/**"
+      - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-doc/**"
       - "scripts/**"
       - ".github/workflows/build.yml"
@@ -43,6 +45,17 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: knife4j-front/knife4j-ui-react/package-lock.json
+
+      - name: Install knife4j-ui-react dependencies
+        run: npm install
+        working-directory: knife4j-front/knife4j-ui-react
 
       - name: Verify Java modules
         run: scripts/test-java.sh

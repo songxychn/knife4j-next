@@ -241,7 +241,7 @@ notes:
 - ResizableMenu.tsx 已存在，在此基础上扩展
 
 ### TASK-015
-status: review
+status: done
 area: ui-react
 title: 实现 SwaggerModels 数据模型展示页
 branch: codex/TASK-015-react-swagger-models
@@ -255,7 +255,7 @@ notes:
 - 数据来自 /v3/api-docs 的 components.schemas
 
 ### TASK-016
-status: ready
+status: done
 area: ui-react
 title: 离线文档导出（Word/HTML）
 branch: codex/TASK-016-react-offline-doc
@@ -268,7 +268,7 @@ notes:
 - blocked：依赖 TASK-012/013 完成后再评估是否复用 Vue2 的 wordTransform 逻辑
 
 ### TASK-017
-status: review
+status: done
 area: ui-react
 title: 真实数据对接（接 /v3/api-docs 替换 mock）
 branch: codex/TASK-017-real-api-data
@@ -286,7 +286,7 @@ notes:
 - group 列表来自 /knife4j/groupSetting 或 /swagger-resources
 
 ### TASK-018
-status: ready
+status: done
 area: ui-react
 title: 实现 Authorize 鉴权配置页
 branch: codex/TASK-018-react-authorize
@@ -300,7 +300,7 @@ notes:
 - 支持多 securityScheme（apiKey、http bearer、http basic）
 
 ### TASK-019
-status: review
+status: done
 area: ui-react
 title: 实现 GlobalParam 全局参数页
 branch: codex/TASK-019-react-global-param
@@ -313,7 +313,7 @@ notes:
 - 对标 Vue2 的 views/settings/GlobalParam.vue
 
 ### TASK-020
-status: blocked
+status: done
 area: ui-react
 title: 实现 Home 首页（接口统计概览）
 branch: codex/TASK-020-react-home
@@ -325,3 +325,85 @@ done_when:
 notes:
 - 对标 Vue2 的 views/home/Index.vue
 - 数据来自 /v3/api-docs 的 info 和 paths
+
+### TASK-021
+status: done
+area: java
+title: 完善 knife4j-demo 接口文档（DTO + @Schema 注解）
+branch: codex/TASK-021-demo-dto
+depends_on:
+validation: cd knife4j && mvn -pl knife4j-demo -am -q package -DskipTests
+done_when:
+- UserController 的 Map<String, Object> 全部替换为具名 DTO（UserVO、UserCreateRequest、UserUpdateRequest、PageResult 等）
+- 所有 DTO 字段补全 @Schema(description, example, requiredMode)
+- 新增分页查询接口（GET /api/user/page，支持 pageNum/pageSize/keyword 参数）
+- 新增更新接口（PUT /api/user/{id}）
+- mvn package 通过
+notes:
+- 目标是让调试者在 Swagger UI 里能看到清晰的字段说明和示例值
+- DTO 放在 com.baizhukui.knife4j.demo.dto 包下
+
+### TASK-022
+status: done
+area: ui-react
+title: ApiDoc 补全 requestBody 渲染
+branch: codex/TASK-022-react-request-body
+depends_on:
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- ApiDoc.tsx 对 POST/PUT/PATCH 接口展示 requestBody schema（字段名、类型、是否必填、描述）
+- 支持 application/json 的 schema 展开（$ref 解析）
+- OfficeDoc.tsx 离线导出同步补上 requestBody 内容
+- npm run build 通过，无 TypeScript 错误
+notes:
+- 数据来自 swaggerDoc.components.schemas，需处理 $ref 引用
+- 对标原版 knife4j 的接口文档展示效果
+
+### TASK-023
+status: review
+
+area: repo
+title: 构建集成——knife4j-ui-react 产物打包进 knife4j-openapi3-ui
+branch: codex/TASK-023-ui-react-integration
+depends_on: TASK-022
+validation: cd knife4j && mvn -pl knife4j-openapi3-ui -am -q package -DskipTests && ls knife4j-openapi3-ui/target/classes/META-INF/resources/webjars/
+done_when:
+- knife4j-front/knife4j-ui-react 的 build 产物（dist/）复制到 knife4j-openapi3-ui/src/main/resources/webjars/
+- doc.html 入口更新为指向新的 React 产物
+- Maven build 通过，产物包含新前端静态资源
+- 访问 /doc.html 加载的是 knife4j-ui-react 而非原 Vue2 产物
+notes:
+- 可通过 Maven frontend-maven-plugin 或 exec-maven-plugin 在 package 阶段自动触发 npm run build
+- 或先手动 copy 验证可行性，再自动化
+- 这是里程碑任务，完成后 demo 站跑新前端
+
+### TASK-024
+status: blocked
+area: ui-react
+title: 设置面板入口（Header 右上角整合 Authorize/GlobalParam/OfflineDoc）
+branch: codex/TASK-024-settings-panel
+depends_on: TASK-023
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- Header 右上角 SettingOutlined 按钮点击后弹出设置抽屉/弹窗
+- 设置面板内含 Authorize、GlobalParam、OfflineDoc 三个 Tab
+- npm run build 通过
+notes:
+- 依赖 TASK-023 完成后在真实环境验证交互
+- blocked 原因：等 TASK-023 集成完成后再做，避免在沙盒里调 UI 细节
+
+### TASK-025
+status: blocked
+area: ui-react
+title: i18n 中英文切换
+branch: codex/TASK-025-i18n
+depends_on: TASK-023
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 引入 i18n 方案（react-i18next 或类似）
+- 中英文语言包覆盖所有 UI 文案
+- Header 提供语言切换入口
+- npm run build 通过
+notes:
+- 对标原版 knife4j 的 zh-CN / en-US 切换
+- blocked 原因：等 TASK-023 集成后在真实环境验证

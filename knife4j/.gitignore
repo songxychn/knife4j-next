@@ -32,3 +32,6 @@ nbdist/
 .nb-gradle/
 
 /swagger-bootstrap-ui-front/.idea/
+
+# Generated React UI build artifacts (produced by Maven build, not committed)
+knife4j-openapi3-ui/src/main/resources/webjars/knife4j-ui-react/
