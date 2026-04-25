@@ -6,15 +6,15 @@
 
 | 维度 | 当前基线 |
 | --- | --- |
-| 项目版本 | `4.6.0.1` |
+| 项目版本 | `4.6.0.2` |
 | Java 基线 | `1.8` |
 | Spring Framework 5.x | `5.3.31` |
 | Spring Boot 2.x | `2.7.18` |
 | Spring Framework 6.x | `6.2.0` |
-| Spring Boot 3.x | `3.4.0` |
+| Spring Boot 3.x | `3.4.x / 3.5.x` |
 | Springfox | `2.10.5` |
 | springdoc-openapi | `1.8.0` |
-| springdoc-openapi Jakarta | `3.0.1` |
+| springdoc-openapi Jakarta | `2.8.9` |
 
 ## 当前站点建议怎么表达兼容性
 
