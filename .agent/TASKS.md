@@ -409,7 +409,7 @@ notes:
 - blocked 原因：等 TASK-023 集成后在真实环境验证
 
 ### TASK-026
-status: ready
+status: review
 area: ui-react
 title: React 调试页按 OpenAPI 参数定义渲染填参表单
 branch: codex/TASK-026-react-debug-params

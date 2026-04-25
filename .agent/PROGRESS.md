@@ -390,3 +390,35 @@ notes:
 - `knife4j-ui/`（ant-design-pro，用 pnpm）不纳入 workspace，避免 lockfile 冲突
 - 回滚路径：还原 `knife4j-front/package.json`、两份 tgz、两份 lockfile、`scripts/test-front-core.sh`
 - 开发流程变化：修改 knife4j-core 后不再需要 `npm pack` + 手动覆盖 tgz + 删 lockfile，symlink 实时生效
+
+## 2026-04-25 19:40 CST
+task: TASK-026
+agent: coordinator (direct)
+branch: codex/TASK-026-react-debug-params
+status: review
+summary:
+- 重写 `knife4j-ui-react/src/pages/api/ApiDebug.tsx` 的参数渲染层，直接消费 knife4j-core 的 `OperationDebugModel`
+- 表单状态从 `ParamRow[]` 改为 `Record<string, string>`（key 为 `${in}:${name}`），避免跨位置的名字冲突
+- 新增 `ParamInput` 组件调度器，根据 `DebugParam.type / enum` 动态选择输入组件：
+  - `enum` → `Select` 单选
+  - `boolean` → `Switch`（底层存 'true'/'false' 字符串）
+  - `integer`/`number` → `InputNumber`
+  - `array`/`object` → `TextArea`（JSON 占位）
+  - 其他 → `Input`（readOnly 参数自动禁止编辑）
+- 初始值按 `example > default > 类型空值` 优先级生成
+- 新增 `ParamNameCell` 组件，为 `deprecated`（删除线 + 「已废弃」Tag）和 `readOnly`（「只读」Tag）打独立样式
+- 表格列扩展为 `参数名 / 类型（含 format）/ 值 / 说明（含默认值 / 示例 / 枚举前 3 个）`
+- 新增 Cookie Tab（之前只有 path/query/header/body）
+- Tab 默认激活第一个非空分类，无参数的 Tab 显示 disabled
+- `handleSend` 通过 `collectFormValues` 输出完整 `DebugFormValues`（含 cookie），交给 `buildRequest` 组装
+validation:
+- `./scripts/test-front-core.sh` → 11 suites, 82 tests passed, 0 lint errors
+- `npm run build -w knife4j-ui-react` → tsc + vite build 成功（dist 1.30MB，+35KB 来自 InputNumber/Switch）
+next:
+- 等待维护者 review
+- 后续 TASK-027 ~ TASK-031 可在 review 过程中并行推进（本分支已堆在 TASK-034 之上）
+blockers:
+- none
+notes:
+- 本任务不改 requestBody 的 Body Tab 渲染（仅保留 TextArea 展示初始 exampleValue），multipart/urlencoded 独立表单在 TASK-027 中落地
+- 本任务不改 bundler 配置，不引入新依赖（InputNumber/Switch/Tooltip 来自既有 `antd`）
