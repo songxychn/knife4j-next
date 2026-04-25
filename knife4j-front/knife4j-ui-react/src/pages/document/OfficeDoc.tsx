@@ -5,14 +5,18 @@ import type { SwaggerDoc, MenuTag, OperationObject, ParameterObject } from '../.
 
 const { Title, Paragraph } = Typography;
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[/\\:*?"<>|]/g, '_').trim() || 'document';
+}
+
 function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  a.download = sanitizeFilename(filename);
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 function escapeHtml(s: string | undefined | null): string {
@@ -203,7 +207,7 @@ export default function OfficeDoc() {
           type="primary"
           icon={<FileTextOutlined />}
           onClick={handleDownloadHtml}
-          disabled={loading || !swaggerDoc}
+          disabled={loading || !swaggerDoc || usingMock}
           loading={loading}
         >
           下载 HTML
@@ -211,7 +215,7 @@ export default function OfficeDoc() {
         <Button
           icon={<FileWordOutlined />}
           onClick={handleDownloadWord}
-          disabled={loading || !swaggerDoc}
+          disabled={loading || !swaggerDoc || usingMock}
           loading={loading}
         >
           下载 Word (.doc)
