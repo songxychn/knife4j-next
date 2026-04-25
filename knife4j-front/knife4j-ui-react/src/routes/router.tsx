@@ -9,6 +9,7 @@ import OfficeDoc from "../pages/document/OfficeDoc.tsx";
 import Settings from "../pages/document/Settings.tsx";
 
 import ApiHome from "../pages/api/ApiHome.tsx";
+import ApiDoc from "../pages/api/ApiDoc.tsx";
 
 const router = createBrowserRouter([
     {
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
             {
                 path: ":group/:tag/:operaterId",
                 element: <ApiHome />
+            },
+            {
+                path: ":group/:tag/:operaterId/doc",
+                element: <ApiDoc />
             }
         ],
     }, {

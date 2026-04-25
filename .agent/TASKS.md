@@ -209,6 +209,7 @@ done_when:
 notes:
 - 对标 Vue2 的 views/api/Document.vue
 - 不需要实际发请求，只做展示
+- PR: https://github.com/songxychn/knife4j-next/pull/14
 
 ### TASK-013
 status: ready
