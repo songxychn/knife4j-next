@@ -16,6 +16,8 @@
     <properties>
         <!--<destDir>${project.build.outputDirectory}/META-INF/resources/webjars/${project.artifactId}/${project.version}</destDir>-->
         <destDir>${project.build.outputDirectory}/META-INF/resources/</destDir>
+        <knife4j-ui-react.dir>${project.basedir}/../../knife4j-front/knife4j-ui-react</knife4j-ui-react.dir>
+        <knife4j-ui-react.outDir>${project.build.directory}/knife4j-ui-react-dist</knife4j-ui-react.outDir>
     </properties>
 
     <build>
@@ -25,6 +27,72 @@
                 <targetPath>META-INF/resources/</targetPath>
             </resource>
         </resources>
+        <plugins>
+            <!-- Step 1: vite build with outDir pointing to Maven target -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>npm-install</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npm</executable>
+                            <arguments>
+                                <argument>install</argument>
+                            </arguments>
+                            <workingDirectory>${knife4j-ui-react.dir}</workingDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>vite-build</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npx</executable>
+                            <arguments>
+                                <argument>vite</argument>
+                                <argument>build</argument>
+                                <argument>--outDir=${knife4j-ui-react.outDir}</argument>
+                                <argument>--emptyOutDir</argument>
+                            </arguments>
+                            <workingDirectory>${knife4j-ui-react.dir}</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Step 2: copy dist to webjars -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-react-dist</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/resources/webjars/knife4j-ui-react</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <resources>
+                                <resource>
+                                    <directory>${knife4j-ui-react.outDir}</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <dependencies>
