@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Knife4j Next
-  text: 为 Spring 生态保驾护航的 OpenAPI 文档增强
+  text: 更现代的 Knife4j
   tagline: 延续熟悉的 doc.html 接入方式，持续修复 Spring Boot 2.7 / 3.x 的兼容性。这是 Knife4j 的社区维护 fork。
   image:
     src: /knife4j-next-mark.svg
