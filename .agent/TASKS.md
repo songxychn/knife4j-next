@@ -266,3 +266,62 @@ done_when:
 notes:
 - 对标 Vue2 的 views/settings/OfficelineDocument.vue + officeDocument/ 工具集
 - blocked：依赖 TASK-012/013 完成后再评估是否复用 Vue2 的 wordTransform 逻辑
+
+### TASK-017
+status: ready
+area: ui-react
+title: 真实数据对接（接 /v3/api-docs 替换 mock）
+branch: codex/TASK-017-real-api-data
+depends_on: TASK-015
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 新增 api client，从 /v3/api-docs 拉取真实 OpenAPI 数据
+- GroupContext 从真实接口获取 group 列表
+- SidebarSearchMenu 展示真实接口列表（tags + operations）
+- ApiDoc、ApiDebug、Schema 页面消费真实数据（通过 context 或 props 传入）
+- 保留 mock fallback，真实接口不可用时降级展示
+notes:
+- 参考 knife4j-vue 的 store/globals.js 和 api/index.js 了解数据结构
+- 数据入口：/v3/api-docs（OpenAPI 3）和 /v2/api-docs（Swagger 2）
+- group 列表来自 /knife4j/groupSetting 或 /swagger-resources
+
+### TASK-018
+status: ready
+area: ui-react
+title: 实现 Authorize 鉴权配置页
+branch: codex/TASK-018-react-authorize
+depends_on: TASK-017
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 实现 Authorize.tsx，支持配置 Bearer token 和 Basic auth
+- 鉴权信息存入 context/localStorage，ApiDebug 发请求时自动带上
+notes:
+- 对标 Vue2 的 views/settings/Authorize.vue
+- 支持多 securityScheme（apiKey、http bearer、http basic）
+
+### TASK-019
+status: ready
+area: ui-react
+title: 实现 GlobalParam 全局参数页
+branch: codex/TASK-019-react-global-param
+depends_on: TASK-017
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 实现 GlobalParam.tsx，支持添加/删除全局请求头和 query 参数
+- 全局参数存入 context，ApiDebug 发请求时自动合并
+notes:
+- 对标 Vue2 的 views/settings/GlobalParam.vue
+
+### TASK-020
+status: blocked
+area: ui-react
+title: 实现 Home 首页（接口统计概览）
+branch: codex/TASK-020-react-home
+depends_on: TASK-017
+validation: cd knife4j-front/knife4j-ui-react && npm ci && npm run build
+done_when:
+- 实现 Home.tsx，展示当前 group 的接口统计（GET/POST/PUT/DELETE 数量）
+- 展示 API 基本信息（title、version、description）
+notes:
+- 对标 Vue2 的 views/home/Index.vue
+- 数据来自 /v3/api-docs 的 info 和 paths
