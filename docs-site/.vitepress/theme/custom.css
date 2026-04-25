@@ -6,11 +6,16 @@
   font-display: swap;
 }
 
+/* ========================================================================
+ * Design tokens — light mode
+ * 整站纯白：不使用任何浅蓝渐变/光晕作为背景。
+ * 品牌蓝仅用于 CTA 按钮、链接等强调元素。
+ * ====================================================================== */
 :root {
-  --vp-c-brand-1: #69aefc;
-  --vp-c-brand-2: #86bfff;
-  --vp-c-brand-3: #a8d2ff;
-  --vp-c-brand-soft: rgba(118, 177, 255, 0.18);
+  --vp-c-brand-1: #2f8af4;
+  --vp-c-brand-2: #1d78df;
+  --vp-c-brand-3: #176bc9;
+  --vp-c-brand-soft: rgba(47, 138, 244, 0.12);
   --vp-button-brand-border: #2f8af4;
   --vp-button-brand-text: #ffffff;
   --vp-button-brand-bg: #2f8af4;
@@ -22,49 +27,104 @@
   --vp-button-brand-active-bg: #176bc9;
   --vp-c-bg: #ffffff;
   --vp-c-bg-soft: #ffffff;
-  --vp-c-bg-alt: #f5f9ff;
+  --vp-c-bg-alt: #f5f7fa;
+  --vp-c-divider: #e5e7eb;
+  --vp-c-gutter: #eef0f3;
   --vp-c-text-1: #17324d;
   --vp-c-text-2: #637792;
   --vp-font-family-base: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --vp-font-family-heading: "Lota Grotesque", "Avenir Next", "PingFang SC", sans-serif;
+  /* Hero 名字：保留品牌蓝渐变作为视觉重心 */
   --vp-home-hero-name-background: linear-gradient(135deg, #4d93f0 0%, #69aefc 52%, #8ec8ff 100%);
-  --vp-home-hero-image-background-image:
-    radial-gradient(circle at 50% 50%, rgba(105, 174, 252, 0.3), transparent 58%);
-  --vp-home-hero-image-filter: blur(24px);
+  /* Hero 图像背后的径向蓝光：去掉 */
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
 }
 
+/* ========================================================================
+ * Design tokens — dark mode
+ * 保持近黑灰主底，不使用蓝色渐变。
+ * ====================================================================== */
 html.dark {
-  --vp-c-bg: #0f1724;
-  --vp-c-bg-soft: #152134;
-  --vp-c-bg-alt: #1d2d45;
-  --vp-c-text-1: #edf5ff;
-  --vp-c-text-2: #b2c2d8;
+  --vp-c-bg: #0c0e12;
+  --vp-c-bg-soft: #14171d;
+  --vp-c-bg-alt: #181b22;
+  --vp-c-divider: #22262d;
+  --vp-c-gutter: #1a1d23;
+  --vp-c-text-1: #edf0f5;
+  --vp-c-text-2: #aab2c0;
   --vp-c-brand-1: #82bcff;
   --vp-c-brand-2: #9dd0ff;
   --vp-c-brand-3: #b7ddff;
-  --vp-c-brand-soft: rgba(118, 177, 255, 0.2);
+  --vp-c-brand-soft: rgba(118, 177, 255, 0.12);
   --vp-home-hero-name-background: linear-gradient(135deg, #b8d8ff 0%, #8ebfff 48%, #d3e8ff 100%);
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
 }
 
+/* ------------------------------------------------------------------------
+ * 全局底色：body / Layout 一律纯底色，无任何渐变或光晕。
+ * ---------------------------------------------------------------------- */
 body {
-  background:
-    radial-gradient(circle at top left, rgba(190, 221, 255, 0.18), transparent 24%),
-    radial-gradient(circle at top right, rgba(144, 192, 255, 0.1), transparent 20%),
-    var(--vp-c-bg);
+  background: var(--vp-c-bg);
 }
 
 .Layout {
-  background:
-    linear-gradient(180deg, rgba(240, 247, 255, 0.72), transparent 280px),
-    transparent;
+  background: var(--vp-c-bg);
 }
 
+/* ------------------------------------------------------------------------
+ * 顶部导航栏
+ * 默认透明（顶部贴边时就是纯白/纯黑底），
+ * 滚动后显示底色 + 细下划线，无蓝色边框、无蓝色 tint。
+ * ---------------------------------------------------------------------- */
 .VPNavBar {
-  background: color-mix(in srgb, var(--vp-c-bg) 84%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 12%, transparent);
-  backdrop-filter: blur(18px);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  backdrop-filter: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, backdrop-filter 0.2s ease;
 }
 
+.VPNavBar:not(.top) {
+  background: color-mix(in srgb, var(--vp-c-bg) 85%, transparent);
+  border-bottom-color: var(--vp-c-divider);
+  backdrop-filter: blur(12px);
+}
+
+.VPNavBar.has-sidebar .content-body,
+.VPNavBar:not(.top) .content-body {
+  background: transparent;
+}
+
+/* 搜索按钮：中性灰底 + 中性灰边框，不要蓝 */
+.VPNavBarSearch .DocSearch-Button,
+.VPNavBarSearch .VPNavBarSearchButton {
+  background: var(--vp-c-bg-alt);
+  border: 1px solid var(--vp-c-divider);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.VPNavBarSearch .DocSearch-Button:hover,
+.VPNavBarSearch .VPNavBarSearchButton:hover {
+  background: color-mix(in srgb, var(--vp-c-bg-alt) 70%, var(--vp-c-bg));
+  border-color: color-mix(in srgb, var(--vp-c-text-2) 35%, var(--vp-c-divider));
+}
+
+html.dark .VPNavBarSearch .DocSearch-Button,
+html.dark .VPNavBarSearch .VPNavBarSearchButton {
+  background: var(--vp-c-bg-soft);
+  border-color: var(--vp-c-divider);
+}
+
+/* 移动端 NavScreen 实底 */
+.VPNavScreen {
+  background: var(--vp-c-bg);
+}
+
+/* ------------------------------------------------------------------------
+ * 品牌标题 / Logo
+ * Logo 保留彩色（由 SVG 自身决定），文字标题使用正文色。
+ * ---------------------------------------------------------------------- */
 .VPNavBarTitle .title {
   font-family: var(--vp-font-family-heading);
   font-size: 1.02rem;
@@ -82,6 +142,10 @@ body {
   padding-left: 0.2rem;
 }
 
+/* ------------------------------------------------------------------------
+ * Hero 区
+ * 无背景光晕、无蓝色渐变文字、无蓝色阴影；仅主按钮保留品牌蓝（CTA）。
+ * ---------------------------------------------------------------------- */
 .VPHero {
   padding-top: 154px !important;
 }
@@ -116,52 +180,75 @@ body {
 }
 
 .VPHero .VPButton.brand {
-  box-shadow: 0 18px 40px rgba(47, 138, 244, 0.28);
   font-weight: 700;
 }
 
-.VPHero .VPButton.brand:hover {
-  box-shadow: 0 20px 44px rgba(29, 120, 223, 0.32);
-}
-
 .VPHero .VPButton.alt {
-  border-color: color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);
-  background: color-mix(in srgb, var(--vp-c-bg-soft) 84%, white);
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
 }
 
+.VPHero .VPButton.alt:hover {
+  border-color: color-mix(in srgb, var(--vp-c-text-2) 35%, var(--vp-c-divider));
+  background: var(--vp-c-bg-alt);
+}
+
+html.dark .VPHero .VPButton.alt {
+  background: var(--vp-c-bg-soft);
+  border-color: var(--vp-c-divider);
+  color: var(--vp-c-text-1);
+}
+
+html.dark .VPHero .VPButton.alt:hover {
+  background: var(--vp-c-bg-alt);
+}
+
+/* Hero 图片：不加蓝色 drop-shadow */
 .VPImage.image-src {
   width: min(300px, 64vw);
   border-radius: 40px;
-  filter: drop-shadow(0 28px 44px rgba(47, 138, 244, 0.18));
+  filter: none;
 }
 
 .VPHero .image-container {
   transform: translate(0, 12px);
 }
 
+/* 去掉 Hero image 背景容器的径向蓝光（VitePress 默认会渲染一个伪元素） */
+.VPHero .image-bg {
+  background: none !important;
+  filter: none !important;
+}
+
+/* ------------------------------------------------------------------------
+ * Feature 卡片：白底 + 中性灰边框，无蓝色渐变 / 蓝色阴影
+ * ---------------------------------------------------------------------- */
 .VPFeatures {
   padding-top: 24px !important;
 }
 
 .VPFeature {
-  border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 14%, transparent);
-  background:
-    linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--vp-c-bg-alt) 72%, white));
-  box-shadow: 0 24px 48px rgba(23, 60, 72, 0.07);
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 html.dark .VPFeature {
-  background:
-    linear-gradient(180deg, rgba(25, 42, 47, 0.94), rgba(18, 31, 36, 0.98));
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  box-shadow: none;
 }
 
 .VPFeature:hover {
-  border-color: color-mix(in srgb, var(--vp-c-brand-1) 42%, transparent);
+  border-color: color-mix(in srgb, var(--vp-c-text-2) 35%, var(--vp-c-divider));
   transform: translateY(-2px);
   transition: transform 0.25s ease, border-color 0.25s ease;
 }
 
+/* ------------------------------------------------------------------------
+ * 首页自定义卡片组：白底 + 中性灰
+ * ---------------------------------------------------------------------- */
 .status-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -172,13 +259,13 @@ html.dark .VPFeature {
 .status-card {
   padding: 1rem 1.1rem;
   border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent);
-  background:
-    linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--vp-c-bg-alt) 76%, white));
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
 }
 
 html.dark .status-card {
-  background: linear-gradient(180deg, rgba(24, 39, 44, 0.98), rgba(17, 29, 33, 0.98));
+  background: var(--vp-c-bg-soft);
+  border-color: var(--vp-c-divider);
 }
 
 .status-card .label {
@@ -204,26 +291,38 @@ html.dark .status-card {
   color: var(--vp-c-text-2);
 }
 
+/* signal-board：去掉浅蓝底，改为中性灰底 + 中性灰左边框 */
 .signal-board {
   padding: 1.2rem 1.3rem;
-  border-left: 4px solid var(--vp-c-brand-1);
+  border-left: 4px solid var(--vp-c-divider);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--vp-c-brand-soft) 70%, var(--vp-c-bg-soft));
+  background: var(--vp-c-bg-alt);
+}
+
+html.dark .signal-board {
+  background: var(--vp-c-bg-soft);
+  border-left-color: var(--vp-c-divider);
 }
 
 .signal-board p:last-child {
   margin-bottom: 0;
 }
 
+/* ------------------------------------------------------------------------
+ * 文档内容细节
+ * ---------------------------------------------------------------------- */
 .VPDoc .custom-block.tip,
 .VPDoc .custom-block.info {
   border-radius: 18px;
 }
 
 .VPFooter {
-  border-top: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 10%, transparent);
+  border-top: 1px solid var(--vp-c-divider);
 }
 
+/* ------------------------------------------------------------------------
+ * 响应式
+ * ---------------------------------------------------------------------- */
 @media (max-width: 960px) {
   .status-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
