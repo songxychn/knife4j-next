@@ -6,7 +6,7 @@ import {
 } from '@ant-design/icons';
 import { Layout, Button, Select, ConfigProvider, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
-import { useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { GroupProvider, useGroup } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
@@ -16,6 +16,8 @@ const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const defaultPanes = [{ label: '主页', children: '', key: '/group/home' }];
+
+const routeKeyToMenuKey = (key: string) => key.endsWith('/doc') ? key.slice(0, -4) : key;
 
 const footerStyle: React.CSSProperties = {
   textAlign: 'center',
@@ -49,20 +51,20 @@ const AppInner: React.FC = () => {
   };
 
   const menuClick = (menu: { key: string; item: { props: { title: string } } }) => {
-    const newActiveKey = menu.key;
+    const newActiveKey = `${menu.key}/doc`;
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
       const title = menu.item.props.title;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
-    setSelectedKey(newActiveKey);
+    setSelectedKey(menu.key);
     setActiveKey(newActiveKey);
-    navigate(menu.key);
+    navigate(newActiveKey);
   };
 
   const onChange = (key: string) => {
     setActiveKey(key);
-    setSelectedKey(key);
+    setSelectedKey(routeKeyToMenuKey(key));
     navigate(key);
   };
 
@@ -82,6 +84,10 @@ const AppInner: React.FC = () => {
   };
 
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
+  const tabItems = items.map((item) => ({
+    ...item,
+    children: item.key === activeKey ? <Outlet /> : item.children,
+  }));
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -102,16 +108,24 @@ const AppInner: React.FC = () => {
           width={siderWidth}
           style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         >
-          {/* Logo */}
+          {/* Brand */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              padding: '8px 0',
+              gap: 10,
+              minHeight: 56,
+              padding: collapsed ? '12px 0' : '12px 16px',
+              color: '#fff',
+              fontSize: collapsed ? 14 : 20,
+              fontWeight: 700,
+              letterSpacing: collapsed ? 0 : 0.2,
+              whiteSpace: 'nowrap',
             }}
           >
-            <img src="/knife4j-next-mark.svg" style={{ width: 32, height: 32 }} />
+            <img src="webjars/knife4j-ui-react/knife4j-next-mark.svg" style={{ width: 28, height: 28 }} />
+            {!collapsed && <span>Knife4j Next</span>}
           </div>
 
           {/* Group switcher */}
@@ -177,7 +191,7 @@ const AppInner: React.FC = () => {
               activeKey={activeKey}
               type="editable-card"
               onEdit={onEdit}
-              items={items}
+              items={tabItems}
               style={{ flex: 1, margin: '2px 2px' }}
             />
           </div>

@@ -89,16 +89,12 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     <>
       <div style={{ padding: '8px 8px 4px' }}>
         <Input
+          className="knife4j-sidebar-search"
           placeholder="搜索接口名/路径..."
           prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           allowClear
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            borderColor: 'rgba(255,255,255,0.15)',
-            color: '#fff',
-          }}
         />
       </div>
       <Menu

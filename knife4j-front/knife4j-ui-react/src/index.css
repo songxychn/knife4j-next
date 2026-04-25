@@ -8,6 +8,37 @@ body {
 
 }
 
+.knife4j-sidebar-search.ant-input-affix-wrapper {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+.knife4j-sidebar-search.ant-input-affix-wrapper:hover,
+.knife4j-sidebar-search.ant-input-affix-wrapper-focused {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+}
+
+.knife4j-sidebar-search .ant-input {
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+}
+
+.knife4j-sidebar-search .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.knife4j-sidebar-search .ant-input-clear-icon {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.knife4j-sidebar-search .ant-input-clear-icon:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .knife4j-logo-collapsed {
   display: inline-block;
   vertical-align: middle;

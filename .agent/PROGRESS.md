@@ -185,3 +185,134 @@ next:
 - 如需启用，可将 PNG 上传为 Telegram Bot 头像。
 blockers:
 - none
+
+## 2026-04-25 16:05 CST
+task: ad-hoc react doc.html starter demo
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 排查 `knife4j-demo` 集成 starter 后访问 `/doc.html` 出现 React Router `Unexpected Application Error! 404 Not Found`。
+- 确认后端 `/doc.html`、`/v3/api-docs` 和 React 静态资源均返回 200，问题源于 Browser history 将 `/doc.html` 当作前端路由匹配。
+- 将 React router 改为 hash router，并把 logo 路径改为 webjar 相对路径，适配 starter 静态资源部署。
+validation:
+- `mvn -pl knife4j-demo -am -DskipTests package` → BUILD SUCCESS
+- `curl http://localhost:8080/doc.html` → 200
+- `curl http://localhost:8080/v3/api-docs` → 200
+- `curl http://localhost:8080/webjars/knife4j-ui-react/assets/index.js` → 200，且打包产物包含 `createHashRouter`
+next:
+- 本地 demo 已使用修复后的 jar 在 8080 运行，可访问 `http://localhost:8080/doc.html`。
+blockers:
+- none
+
+## 2026-04-25 16:08 CST
+task: ad-hoc react api doc blank pane
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 排查接口菜单点击后文档主体空白，确认原因是 App 只维护 Tab 标题和路由跳转，没有在 Tab 内容区渲染 React Router `Outlet`。
+- 在当前激活 Tab 中渲染 `Outlet`，并让接口菜单点击默认进入 `/:group/:tag/:operationId/doc` 文档页。
+- 为 hash router 增加 index 首页路由，避免首次打开 `/doc.html` 时内容区为空。
+validation:
+- `npm run build` → 成功
+- `mvn -pl knife4j-demo -am -DskipTests package` → BUILD SUCCESS
+- `curl http://localhost:8080/doc.html` → 200
+- `curl http://localhost:8080/v3/api-docs` → 200
+- `curl http://localhost:8080/webjars/knife4j-ui-react/assets/index.js` → 200，且打包产物包含文档页内容与 hash router
+next:
+- 本地 demo 已使用补充修复后的 jar 在 8080 运行，可刷新 `http://localhost:8080/doc.html` 后点击接口查看文档页。
+blockers:
+- none
+
+## 2026-04-25 16:12 CST
+task: ad-hoc react sidebar polish
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 将左侧顶部 logo 区改为产品名 `Knife4j Next`，折叠态显示 `K4N`。
+- 为侧边栏搜索框增加专用暗色样式，覆盖 Ant Design 默认白底、placeholder 和清除按钮颜色。
+validation:
+- `npm run build` → 成功
+- `mvn -pl knife4j-demo -am -DskipTests package` → BUILD SUCCESS
+- `curl http://localhost:8080/doc.html` → 200
+- `curl http://localhost:8080/webjars/knife4j-ui-react/assets/index.js` → 200，且打包产物包含 `Knife4j Next`
+- `curl http://localhost:8080/webjars/knife4j-ui-react/assets/index.css` → 200，且打包产物包含 `knife4j-sidebar-search`
+next:
+- 本地 demo 已使用最新 jar 在 8080 运行，可刷新 `http://localhost:8080/doc.html` 查看侧边栏调整。
+blockers:
+- none
+
+## 2026-04-25 16:17 CST
+task: ad-hoc react api tabs and debug
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 修复接口 Tab 切换看起来无效的问题：文档页从 mock operation 改为按当前路由参数读取真实 OpenAPI operation。
+- 新增 `useCurrentOperation` 共享 hook，用于文档页和调试页定位当前接口。
+- 增加接口页内 `文档 / 调试` 切换，并将调试页接入真实 method、path、path/query/header/body 参数。
+- 调试页支持同源发送请求、展示响应状态、耗时、响应体和响应 headers。
+validation:
+- `npm run build` → 成功
+- `mvn -pl knife4j-demo -am -DskipTests package` → BUILD SUCCESS
+- `curl http://localhost:8080/doc.html` → 200
+- `curl http://localhost:8080/v3/api-docs` → 200
+- `curl http://localhost:8080/webjars/knife4j-ui-react/assets/index.js` → 200，且打包产物包含文档/调试页文案
+next:
+- 本地 demo 已使用最新 jar 在 8080 运行，可刷新后验证接口 Tab 切换和调试功能。
+blockers:
+- none
+notes:
+- 构建过程改写了 `package-lock.json` 和两个 Java 文件的格式；维护者确认如属正常格式化则采纳，本次保留这些构建链输出。
+
+## 2026-04-25 16:20 CST
+task: ad-hoc react brand logo
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 在左侧品牌区 `Knife4j Next` 文案左边加回 `knife4j-next-mark.svg` logo。
+- 折叠侧边栏时仅保留 logo，避免窄栏显示拥挤。
+validation:
+- `npm run build` → 成功
+- `mvn -pl knife4j-demo -am -DskipTests package` → BUILD SUCCESS
+- `curl http://localhost:8080/doc.html` → 200
+- `curl http://localhost:8080/webjars/knife4j-ui-react/assets/index.js` → 200，且打包产物包含 logo 路径和 `Knife4j Next`
+next:
+- 本地 demo 已使用最新 jar 在 8080 运行，可刷新查看品牌区 logo。
+blockers:
+- none
+
+## 2026-04-25 16:42 CST
+task: ad-hoc vue2 local demo
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 确认先前访问 `http://127.0.0.1:8081/doc.html` 看到的不是 Vue2 Knife4j，而是 Vue2 devServer 的 `/` 代理把 `/doc.html` 转发给了后端 React 静态资源。
+- 使用 Node 17 + Yarn 构建 `knife4j-vue/dist`，并启动临时 Express 静态代理服务：`/doc.html` 和 `/webjars` 来自 Vue2 dist，其余 API 代理到 `http://127.0.0.1:17812`。
+validation:
+- `yarn run build` in `knife4j-vue` → 成功（仅 webpack size warning）
+- `curl http://127.0.0.1:8081/doc.html` → 200，返回 Vue2 dist `webjars/js/app.*.js`
+- `curl http://127.0.0.1:8081/v3/api-docs` → 200 `application/json`
+next:
+- 当前真正的 Vue2 对比页面为 `http://127.0.0.1:8081/doc.html`，后端 demo 代理目标为 `http://127.0.0.1:17812`。
+blockers:
+- none
+
+## 2026-04-25 16:52 CST
+task: ad-hoc react/vue2 capability parity planning
+agent: codex
+branch: codex/ad-hoc-react-doc-html-router
+status: done
+summary:
+- 根据维护者要求，将 React 前端下一阶段目标调整为优先复原 Knife4j Vue2 版能力，而不是先追求视觉重设计。
+- 在 `.agent/TASKS.md` 新增 TASK-026 至 TASK-031，按调试参数表单、requestBody、请求构造、响应面板、schema 示例生成、鉴权/全局参数接入拆分。
+validation:
+- 纯任务队列与进度文档更新，未运行代码构建。
+next:
+- 建议优先执行 TASK-026：React 调试页按 OpenAPI 参数定义渲染填参表单。
+blockers:
+- none
