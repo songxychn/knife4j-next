@@ -300,7 +300,7 @@ notes:
 - 支持多 securityScheme（apiKey、http bearer、http basic）
 
 ### TASK-019
-status: ready
+status: review
 area: ui-react
 title: 实现 GlobalParam 全局参数页
 branch: codex/TASK-019-react-global-param

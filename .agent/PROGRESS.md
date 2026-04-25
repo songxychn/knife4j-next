@@ -156,3 +156,10 @@ blockers: none
 - 状态: review
 - 验证: npm run build ✓
 - 内容: 新增 types/swagger.ts + api/knife4jClient.ts，重写 GroupContext 接真实数据，Schema.tsx 消费真实 schemas
+
+## TASK-019 — 2026-04-25
+- branch: codex/TASK-019-react-global-param
+- PR: https://github.com/songxychn/knife4j-next/pull/20
+- 状态: review
+- 验证: npm run build ✓（由 claude-worker 执行）
+- 内容: GlobalParamContext.tsx + GlobalParam.tsx（表格+新增表单）+ App.tsx 注册
