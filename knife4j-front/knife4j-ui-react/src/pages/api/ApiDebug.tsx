@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Button, Input, Select, Tabs, Table, Typography, Space,
-  Tag, Spin, Alert, Divider
+  Alert, Button, Divider, Input, Select, Space, Spin, Table, Tabs, Tag, Typography,
 } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import type { ParameterObject, SchemaObject } from '../../types/swagger';
+import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -24,65 +26,129 @@ interface DebugResponse {
   body: string;
 }
 
-// Mock operation metadata — in production this would come from GroupContext / knife4j-core
-const MOCK_OPERATION = {
-  method: 'POST',
-  path: '/api/user/login',
-  summary: '用户登录',
-  queryParams: [] as ParamRow[],
-  headerParams: [
-    { key: '1', name: 'Content-Type', value: 'application/json', description: '请求类型', required: true },
-  ] as ParamRow[],
-  bodyExample: JSON.stringify({ username: 'admin', password: '123456' }, null, 2),
-};
-
 const METHOD_COLORS: Record<string, string> = {
-  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red',
-  PATCH: 'purple', HEAD: 'cyan', OPTIONS: 'default',
+  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'purple', HEAD: 'cyan', OPTIONS: 'default',
 };
 
-const paramColumns = [
-  { title: '参数名', dataIndex: 'name', key: 'name', width: 160 },
-  {
-    title: '值',
-    dataIndex: 'value',
-    key: 'value',
-    render: (_: string, record: ParamRow) => (
-      <Input
-        size="small"
-        defaultValue={record.value}
-        onChange={(e) => { record.value = e.target.value; }}
-        placeholder={record.description}
-      />
-    ),
-  },
-  { title: '说明', dataIndex: 'description', key: 'description', width: 200 },
-  {
-    title: '必填',
-    dataIndex: 'required',
-    key: 'required',
-    width: 60,
-    render: (v: boolean) => v ? <Tag color="red">是</Tag> : <Tag>否</Tag>,
-  },
-];
+function currentOrigin() {
+  return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
+}
+
+function schemaExample(schema?: SchemaObject): unknown {
+  if (!schema) return undefined;
+  if (schema.$ref) return {};
+  if (schema.type === 'array') return [schemaExample(schema.items) ?? {}];
+  if (schema.type === 'integer' || schema.type === 'number') return 0;
+  if (schema.type === 'boolean') return true;
+  if (schema.type === 'string') return schema.enum?.[0] ?? '';
+  if (schema.properties) {
+    return Object.fromEntries(Object.entries(schema.properties).map(([name, prop]) => [name, schemaExample(prop)]));
+  }
+  return {};
+}
+
+function requestBodyExample(schema?: SchemaObject) {
+  if (!schema) return '';
+  return JSON.stringify(schemaExample(schema), null, 2);
+}
+
+function firstRequestSchema(content?: Record<string, { schema?: SchemaObject }>): SchemaObject | undefined {
+  if (!content) return undefined;
+  return content['application/json']?.schema ?? Object.values(content)[0]?.schema;
+}
+
+function parameterRows(parameters: ParameterObject[] | undefined, location: ParameterObject['in']): ParamRow[] {
+  return (parameters ?? [])
+    .filter((parameter) => parameter.in === location)
+    .map((parameter) => ({
+      key: `${parameter.in}-${parameter.name}`,
+      name: parameter.name,
+      value: '',
+      description: parameter.description,
+      required: Boolean(parameter.required),
+    }));
+}
+
+function replacePathParams(path: string, params: ParamRow[]) {
+  return params.reduce((url, param) => {
+    if (!param.name) return url;
+    return url.replace(`{${param.name}}`, encodeURIComponent(param.value));
+  }, path);
+}
+
+const statusColor = (status: number) => status < 300 ? 'green' : status < 400 ? 'orange' : 'red';
 
 export default function ApiDebug() {
-  const [baseUrl, setBaseUrl] = useState('http://localhost:8080');
-  const [method, setMethod] = useState(MOCK_OPERATION.method);
-  const [path, setPath] = useState(MOCK_OPERATION.path);
-  const [queryParams, setQueryParams] = useState<ParamRow[]>(MOCK_OPERATION.queryParams);
-  const [headerParams, setHeaderParams] = useState<ParamRow[]>(MOCK_OPERATION.headerParams);
-  const [body, setBody] = useState(MOCK_OPERATION.bodyExample);
+  const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
+  const [baseUrl, setBaseUrl] = useState(currentOrigin());
+  const [method, setMethod] = useState('GET');
+  const [path, setPath] = useState('/');
+  const [pathParams, setPathParams] = useState<ParamRow[]>([]);
+  const [queryParams, setQueryParams] = useState<ParamRow[]>([]);
+  const [headerParams, setHeaderParams] = useState<ParamRow[]>([]);
+  const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<DebugResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!operation) return;
+    const op = operation.operation;
+    const requestSchema = firstRequestSchema(op.requestBody?.content);
+    const hasJsonBody = Boolean(requestSchema);
+    setMethod(operation.method.toUpperCase());
+    setPath(operation.path);
+    setPathParams(parameterRows(op.parameters, 'path'));
+    setQueryParams(parameterRows(op.parameters, 'query'));
+    setHeaderParams([
+      ...parameterRows(op.parameters, 'header'),
+      ...(hasJsonBody ? [{ key: 'content-type', name: 'Content-Type', value: 'application/json', description: '请求体类型', required: true }] : []),
+    ]);
+    setBody(requestBodyExample(requestSchema));
+    setResponse(null);
+    setError(null);
+  }, [operation]);
+
+  const paramColumns = useMemo<ColumnsType<ParamRow>>(() => [
+    { title: '参数名', dataIndex: 'name', key: 'name', width: 180, render: (value) => <Text code>{value}</Text> },
+    {
+      title: '值',
+      dataIndex: 'value',
+      key: 'value',
+      render: (_value: string, record: ParamRow, index: number) => (
+        <Input
+          size="small"
+          value={record.value}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            const update = (rows: ParamRow[]) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, value: nextValue } : row);
+            if (record.key.startsWith('path-')) setPathParams(update);
+            else if (record.key.startsWith('query-')) setQueryParams(update);
+            else setHeaderParams(update);
+          }}
+          placeholder={record.required ? '必填' : record.description}
+        />
+      ),
+    },
+    { title: '说明', dataIndex: 'description', key: 'description', width: 240 },
+    { title: '必填', dataIndex: 'required', key: 'required', width: 70, render: (value) => value ? <Tag color="red">是</Tag> : <Tag>否</Tag> },
+  ], []);
+
+  if (docLoading) {
+    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+  }
+
+  if (!swaggerDoc || !operation) {
+    return <Alert type="warning" showIcon message="未找到调试接口" description="当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。" />;
+  }
+
   const buildUrl = () => {
-    const qs = queryParams
-      .filter(p => p.name && p.value)
-      .map(p => `${encodeURIComponent(p.name)}=${encodeURIComponent(p.value)}`)
+    const urlPath = replacePathParams(path, pathParams);
+    const queryString = queryParams
+      .filter((param) => param.name && param.value)
+      .map((param) => `${encodeURIComponent(param.name)}=${encodeURIComponent(param.value)}`)
       .join('&');
-    return `${baseUrl}${path}${qs ? '?' + qs : ''}`;
+    return `${baseUrl}${urlPath}${queryString ? `?${queryString}` : ''}`;
   };
 
   const handleSend = async () => {
@@ -92,114 +158,73 @@ export default function ApiDebug() {
     const start = Date.now();
     try {
       const headers: Record<string, string> = {};
-      headerParams.filter(p => p.name).forEach(p => { headers[p.name] = p.value; });
-
+      headerParams.filter((param) => param.name && param.value).forEach((param) => { headers[param.name] = param.value; });
       const init: RequestInit = { method, headers };
       if (!['GET', 'HEAD'].includes(method) && body.trim()) {
         init.body = body;
       }
-
       const res = await fetch(buildUrl(), init);
-      const duration = Date.now() - start;
-      const resHeaders: Record<string, string> = {};
-      res.headers.forEach((v, k) => { resHeaders[k] = v; });
+      const responseHeaders: Record<string, string> = {};
+      res.headers.forEach((value, key) => { responseHeaders[key] = value; });
       const text = await res.text();
-      setResponse({ status: res.status, statusText: res.statusText, duration, headers: resHeaders, body: text });
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
+      setResponse({ status: res.status, statusText: res.statusText, duration: Date.now() - start, headers: responseHeaders, body: text });
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
     }
   };
 
-  const addQueryParam = () =>
-    setQueryParams(prev => [...prev, { key: String(Date.now()), name: '', value: '', description: '' }]);
-
-  const addHeaderParam = () =>
-    setHeaderParams(prev => [...prev, { key: String(Date.now()), name: '', value: '', description: '' }]);
-
   const prettyBody = () => {
     if (!response) return '';
-    try { return JSON.stringify(JSON.parse(response.body), null, 2); } catch { return response.body; }
+    try {
+      return JSON.stringify(JSON.parse(response.body), null, 2);
+    } catch {
+      return response.body;
+    }
   };
 
-  const statusColor = (s: number) => s < 300 ? 'success' : s < 400 ? 'warning' : 'error';
-
   return (
-    <div id="knife4j-api-debug-page" style={{ padding: '16px 24px' }}>
+    <div id="knife4j-api-debug-page" style={{ padding: '24px', maxWidth: 1080 }}>
+      <OperationModeTabs activeKey="debug" />
+
       <Space align="center" style={{ marginBottom: 12 }}>
         <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
           {method}
         </Tag>
-        <Title level={5} style={{ margin: 0 }}>{MOCK_OPERATION.summary}</Title>
+        <Title level={5} style={{ margin: 0 }}>{operation.operation.summary ?? operation.path}</Title>
       </Space>
 
-      {/* URL bar */}
       <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
         <Select
           value={method}
           onChange={setMethod}
           style={{ width: 110 }}
-          options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map(m => ({ value: m, label: m }))}
+          options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({ value: item, label: item }))}
         />
-        <Input
-          value={baseUrl}
-          onChange={e => setBaseUrl(e.target.value)}
-          style={{ width: 220 }}
-          placeholder="http://localhost:8080"
-        />
-        <Input
-          value={path}
-          onChange={e => setPath(e.target.value)}
-          style={{ flex: 1 }}
-          placeholder="/api/path"
-        />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-          loading={loading}
-        >
-          发送
-        </Button>
+        <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
+        <Input value={path} onChange={(event) => setPath(event.target.value)} style={{ flex: 1 }} />
+        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>发送</Button>
       </Space.Compact>
 
-      {/* Params tabs */}
       <Tabs
-        defaultActiveKey="query"
+        defaultActiveKey="path"
         size="small"
         items={[
           {
+            key: 'path',
+            label: `Path (${pathParams.length})`,
+            children: <Table size="small" dataSource={pathParams} columns={paramColumns} pagination={false} rowKey="key" />,
+          },
+          {
             key: 'query',
             label: `Query (${queryParams.length})`,
-            children: (
-              <>
-                <Table
-                  size="small"
-                  dataSource={queryParams}
-                  columns={paramColumns}
-                  pagination={false}
-                  rowKey="key"
-                />
-                <Button size="small" style={{ marginTop: 8 }} onClick={addQueryParam}>+ 添加参数</Button>
-              </>
-            ),
+            children: <Table size="small" dataSource={queryParams} columns={paramColumns} pagination={false} rowKey="key" />,
           },
           {
             key: 'header',
             label: `Header (${headerParams.length})`,
-            children: (
-              <>
-                <Table
-                  size="small"
-                  dataSource={headerParams}
-                  columns={paramColumns}
-                  pagination={false}
-                  rowKey="key"
-                />
-                <Button size="small" style={{ marginTop: 8 }} onClick={addHeaderParam}>+ 添加 Header</Button>
-              </>
-            ),
+            children: <Table size="small" dataSource={headerParams} columns={paramColumns} pagination={false} rowKey="key" />,
           },
           {
             key: 'body',
@@ -207,7 +232,7 @@ export default function ApiDebug() {
             children: (
               <TextArea
                 value={body}
-                onChange={e => setBody(e.target.value)}
+                onChange={(event) => setBody(event.target.value)}
                 rows={8}
                 style={{ fontFamily: 'monospace', fontSize: 13 }}
                 placeholder="JSON request body"
@@ -219,16 +244,13 @@ export default function ApiDebug() {
 
       <Divider style={{ margin: '16px 0' }} />
 
-      {/* Response */}
       {loading && <Spin tip="请求中..." style={{ display: 'block', margin: '24px auto' }} />}
       {error && <Alert type="error" message="请求失败" description={error} showIcon />}
       {response && (
         <div>
           <Space style={{ marginBottom: 8 }}>
             <Text strong>响应状态：</Text>
-            <Tag color={statusColor(response.status) === 'success' ? 'green' : statusColor(response.status) === 'warning' ? 'orange' : 'red'}>
-              {response.status} {response.statusText}
-            </Tag>
+            <Tag color={statusColor(response.status)}>{response.status} {response.statusText}</Tag>
             <Text type="secondary">耗时：{response.duration} ms</Text>
           </Space>
           <Tabs
@@ -238,10 +260,7 @@ export default function ApiDebug() {
                 key: 'body',
                 label: '响应体',
                 children: (
-                  <pre style={{
-                    background: '#f6f8fa', padding: 12, borderRadius: 4,
-                    fontSize: 13, maxHeight: 400, overflow: 'auto', margin: 0,
-                  }}>
+                  <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 4, fontSize: 13, maxHeight: 400, overflow: 'auto', margin: 0 }}>
                     {prettyBody()}
                   </pre>
                 ),
@@ -252,7 +271,7 @@ export default function ApiDebug() {
                 children: (
                   <Table
                     size="small"
-                    dataSource={Object.entries(response.headers).map(([k, v]) => ({ key: k, name: k, value: v }))}
+                    dataSource={Object.entries(response.headers).map(([key, value]) => ({ key, name: key, value }))}
                     columns={[
                       { title: 'Header', dataIndex: 'name', key: 'name', width: 240 },
                       { title: '值', dataIndex: 'value', key: 'value' },

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createHashRouter } from "react-router-dom";
 import App from '../App.tsx'
 
 import Home from "../pages/Home.tsx";
@@ -12,11 +12,15 @@ import ApiHome from "../pages/api/ApiHome.tsx";
 import ApiDoc from "../pages/api/ApiDoc.tsx";
 import ApiDebug from "../pages/api/ApiDebug.tsx";
 
-const router = createBrowserRouter([
+const router = createHashRouter([
     {
         path: "/",
         element: <App />,
         children: [
+            {
+                index: true,
+                element: <Home />
+            },
             {
                 path: ":group/home",
                 element: <Home />

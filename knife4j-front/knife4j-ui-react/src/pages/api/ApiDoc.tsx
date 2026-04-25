@@ -1,10 +1,9 @@
-import { Badge, Table, Tag, Typography } from 'antd';
+import { Alert, Badge, Spin, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
+import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
+import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 
 const { Title, Paragraph, Text } = Typography;
-
-// ---- mock 数据（对标 knife4j-core Knife4jPathItemObject 结构）----
 
 interface ParamRow {
   key: string;
@@ -30,55 +29,21 @@ interface BodyRow {
   description: string;
 }
 
-const MOCK_OPERATION = {
-  url: '/api/user',
-  methodType: 'POST',
-  summary: '创建用户',
-  description: '创建一个新用户，请求体包含用户基本信息。',
-  deprecated: false,
-  parameters: [
-    { key: '1', name: 'Authorization', in: 'header', type: 'string', required: true, description: 'Bearer token' },
-  ] as ParamRow[],
-  requestBody: {
-    required: true,
-    content: {
-      'application/json': {
-        schema: {
-          $ref: '#/components/schemas/CreateUserRequest',
-        },
-      },
-    },
-  },
-  responses: [
-    { key: '200', statusCode: '200', description: '成功', schema: 'UserVO' },
-    { key: '400', statusCode: '400', description: '参数错误', schema: '' },
-    { key: '401', statusCode: '401', description: '未授权', schema: '' },
-  ] as ResponseRow[],
-};
-
-const MOCK_SWAGGER_DOC: Pick<SwaggerDoc, 'components'> = {
-  components: {
-    schemas: {
-      CreateUserRequest: {
-        type: 'object',
-        required: ['username', 'email'],
-        properties: {
-          username: { type: 'string', description: '用户名，3-20 个字符' },
-          email: { type: 'string', format: 'email', description: '邮箱地址' },
-          role: { type: 'string', description: '角色，默认 user', enum: ['user', 'admin'] },
-          age: { type: 'integer', description: '年龄' },
-        },
-      },
-    },
-  },
-};
-
-// ---- $ref 解析 ----
-
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
   if (!match) return undefined;
-  return (doc.components?.schemas ?? (doc.definitions as Record<string, SchemaObject> | undefined) ?? {})[match[1]];
+  return (doc.components?.schemas ?? doc.definitions ?? {})[match[1]];
+}
+
+function schemaName(schema?: SchemaObject): string {
+  if (!schema) return '';
+  if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
+  if (schema.type === 'array') return `${schemaName(schema.items) || 'object'}[]`;
+  return [schema.type, schema.format].filter(Boolean).join(' / ') || 'object';
+}
+
+function parameterType(parameter: ParameterObject): string {
+  return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
 }
 
 function schemaToBodyRows(
@@ -91,147 +56,159 @@ function schemaToBodyRows(
   return Object.entries(resolved.properties).map(([name, prop]) => ({
     key: name,
     name,
-    type: prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object'),
+    type: schemaName(prop),
     required: requiredSet.has(name),
     description: prop.description ?? '',
   }));
 }
 
-// ---- 请求参数表格列 ----
+function firstRequestSchema(requestBody: { content?: Record<string, { schema?: SchemaObject }> } | undefined): SchemaObject | undefined {
+  if (!requestBody?.content) return undefined;
+  return requestBody.content['application/json']?.schema ?? Object.values(requestBody.content)[0]?.schema;
+}
+
+function responseSchema(response: ResponseObject): string {
+  const schema = response.content?.['application/json']?.schema ?? response.schema ?? Object.values(response.content ?? {})[0]?.schema;
+  return schemaName(schema);
+}
 
 const paramColumns: ColumnsType<ParamRow> = [
   {
     title: '参数名',
     dataIndex: 'name',
-    width: 160,
-    render: (v) => <Text code>{v}</Text>,
+    width: 180,
+    render: (value) => <Text code>{value}</Text>,
   },
   {
     title: '位置',
     dataIndex: 'in',
     width: 90,
-    render: (v) => {
+    render: (value) => {
       const colorMap: Record<string, string> = {
-        path: 'blue', query: 'cyan', header: 'purple', cookie: 'orange',
+        path: 'blue', query: 'cyan', header: 'purple', cookie: 'orange', body: 'geekblue', formData: 'lime',
       };
-      return <Tag color={colorMap[v] ?? 'default'}>{v}</Tag>;
+      return <Tag color={colorMap[value] ?? 'default'}>{value}</Tag>;
     },
   },
-  { title: '类型', dataIndex: 'type', width: 100 },
+  { title: '类型', dataIndex: 'type', width: 130 },
   {
     title: '必填',
     dataIndex: 'required',
-    width: 70,
-    render: (v) => v ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
+    width: 80,
+    render: (value) => value ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
   },
   { title: '说明', dataIndex: 'description' },
 ];
-
-// ---- 请求体字段表格列 ----
 
 const bodyColumns: ColumnsType<BodyRow> = [
   {
     title: '字段名',
     dataIndex: 'name',
-    width: 160,
-    render: (v) => <Text code>{v}</Text>,
+    width: 180,
+    render: (value) => <Text code>{value}</Text>,
   },
-  { title: '类型', dataIndex: 'type', width: 100 },
+  { title: '类型', dataIndex: 'type', width: 130 },
   {
     title: '必填',
     dataIndex: 'required',
-    width: 70,
-    render: (v) => v ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
+    width: 80,
+    render: (value) => value ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
   },
   { title: '说明', dataIndex: 'description' },
 ];
-
-// ---- 响应结构表格列 ----
 
 const responseColumns: ColumnsType<ResponseRow> = [
   {
     title: '状态码',
     dataIndex: 'statusCode',
-    width: 90,
-    render: (v) => {
-      const color = v.startsWith('2') ? 'success' : v.startsWith('4') ? 'warning' : 'error';
-      return <Tag color={color}>{v}</Tag>;
+    width: 100,
+    render: (value) => {
+      const color = value.startsWith('2') ? 'success' : value.startsWith('4') ? 'warning' : 'error';
+      return <Tag color={color}>{value}</Tag>;
     },
   },
   { title: '说明', dataIndex: 'description' },
   {
     title: 'Schema',
     dataIndex: 'schema',
-    render: (v) => v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>,
+    width: 180,
+    render: (value) => value ? <Text code>{value}</Text> : <Text type="secondary">—</Text>,
   },
 ];
 
-// ---- 方法颜色 ----
-
 const METHOD_COLOR: Record<string, string> = {
-  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red',
-  PATCH: 'cyan', HEAD: 'purple', OPTIONS: 'default',
+  GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'cyan', HEAD: 'purple', OPTIONS: 'default',
 };
 
 export default function ApiDoc() {
-  const op = MOCK_OPERATION;
-  const doc = MOCK_SWAGGER_DOC;
+  const { loading, swaggerDoc, operation } = useCurrentOperation();
 
-  const bodyRows: BodyRow[] = (() => {
-    const rb = op.requestBody;
-    if (!rb) return [];
-    const jsonContent = rb.content?.['application/json'];
-    if (!jsonContent?.schema) return [];
-    return schemaToBodyRows(jsonContent.schema as SchemaObject, doc);
-  })();
+  if (loading) {
+    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+  }
+
+  if (!swaggerDoc || !operation) {
+    return <Alert type="warning" showIcon message="未找到接口文档" description="当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。" />;
+  }
+
+  const method = operation.method.toUpperCase();
+  const op = operation.operation;
+  const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => ({
+    key: `${parameter.in}-${parameter.name}-${index}`,
+    name: parameter.name,
+    in: parameter.in,
+    type: parameterType(parameter),
+    required: Boolean(parameter.required),
+    description: parameter.description ?? '',
+  }));
+  const bodySchema = firstRequestSchema(op.requestBody);
+  const bodyRows = bodySchema ? schemaToBodyRows(bodySchema, swaggerDoc) : [];
+  const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
+    key: statusCode,
+    statusCode,
+    description: response.description ?? '',
+    schema: responseSchema(response),
+  }));
 
   return (
-    <div style={{ padding: '24px', maxWidth: 960 }}>
-      {/* 接口标题行 */}
+    <div style={{ padding: '24px', maxWidth: 1080 }}>
+      <OperationModeTabs activeKey="doc" />
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <Tag color={METHOD_COLOR[op.methodType] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
-          {op.methodType}
+        <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
+          {method}
         </Tag>
-        <Text code style={{ fontSize: 15 }}>{op.url}</Text>
+        <Text code style={{ fontSize: 15 }}>{operation.path}</Text>
         {op.deprecated && <Tag color="red">已废弃</Tag>}
       </div>
 
-      <Title level={4} style={{ marginTop: 0 }}>{op.summary}</Title>
+      <Title level={4} style={{ marginTop: 0 }}>{op.summary ?? operation.path}</Title>
       {op.description && <Paragraph type="secondary">{op.description}</Paragraph>}
 
-      {/* 请求参数 */}
-      {op.parameters.length > 0 && (
-        <>
-          <Title level={5} style={{ marginTop: 24 }}>请求参数</Title>
-          <Table<ParamRow>
-            columns={paramColumns}
-            dataSource={op.parameters}
-            pagination={false}
-            size="small"
-            bordered
-          />
-        </>
-      )}
+      <Title level={5} style={{ marginTop: 24 }}>请求参数</Title>
+      <Table<ParamRow>
+        columns={paramColumns}
+        dataSource={parameters}
+        pagination={false}
+        size="small"
+        bordered
+        locale={{ emptyText: '无请求参数' }}
+      />
 
-      {/* 请求体 */}
-      {bodyRows.length > 0 && (
-        <>
-          <Title level={5} style={{ marginTop: 24 }}>请求体（application/json）</Title>
-          <Table<BodyRow>
-            columns={bodyColumns}
-            dataSource={bodyRows}
-            pagination={false}
-            size="small"
-            bordered
-          />
-        </>
-      )}
+      <Title level={5} style={{ marginTop: 24 }}>请求体</Title>
+      <Table<BodyRow>
+        columns={bodyColumns}
+        dataSource={bodyRows}
+        pagination={false}
+        size="small"
+        bordered
+        locale={{ emptyText: bodySchema ? '当前请求体暂不支持字段展开' : '无请求体' }}
+      />
 
-      {/* 响应结构 */}
       <Title level={5} style={{ marginTop: 24 }}>响应结构</Title>
       <Table<ResponseRow>
         columns={responseColumns}
-        dataSource={op.responses}
+        dataSource={responses}
         pagination={false}
         size="small"
         bordered

@@ -407,3 +407,102 @@ done_when:
 notes:
 - 对标原版 knife4j 的 zh-CN / en-US 切换
 - blocked 原因：等 TASK-023 集成后在真实环境验证
+
+### TASK-026
+status: ready
+area: ui-react
+title: React 调试页按 OpenAPI 参数定义渲染填参表单
+branch: codex/TASK-026-react-debug-params
+depends_on: TASK-013,TASK-017
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- ApiDebug 根据当前 operation 展示 path、query、header、cookie 参数的待填写表单项
+- 每个参数展示名称、位置、类型、required、description、default、example、enum 信息
+- enum 参数使用可选项输入，boolean 参数使用布尔选择，array/object 参数有 JSON 输入兜底
+- 表单初始值优先使用 example，其次 default，再按类型生成空值
+- 点击发送时合并用户填写的 path/query/header/cookie 参数，不再只依赖简化输入
+notes:
+- 第一优先级，对标 Vue2 `knife4j-vue/src/views/api/Debug.vue` 的参数填写能力
+- 交互可以更现代，但同一份 OpenAPI 下 Vue2 能展示的参数项 React 也必须展示
+- 建议抽出 `operationDebugModel` 或同等工具，避免把解析逻辑堆在 ApiDebug 组件里
+
+### TASK-027
+status: blocked
+area: ui-react
+title: React 调试页补全 requestBody 多内容类型表单
+branch: codex/TASK-027-react-debug-request-body
+depends_on: TASK-026
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- application/json 根据 schema 生成可编辑 JSON 示例
+- application/x-www-form-urlencoded 根据 schema properties 展示字段表单
+- multipart/form-data 支持普通字段和 file/binary 文件字段
+- raw/text/xml 等未知内容类型提供可编辑文本输入兜底
+- 发送请求时按所选 content-type 正确构造 body 和 Content-Type
+notes:
+- 对标 Vue2 `initBodyParameter`、`debugSendFormRequest`、`debugSendRawRequest` 等调试链路
+- 依赖 TASK-026 的参数模型，避免 requestBody 和普通参数各自实现一套解析
+
+### TASK-028
+status: blocked
+area: ui-react
+title: React 调试发送前校验与请求预览
+branch: codex/TASK-028-react-debug-request-builder
+depends_on: TASK-027
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- 发送前校验 required 的 path/query/header/cookie/body 字段，缺失时定位到对应输入项
+- 调试页展示最终请求 URL、method、headers、query、body 预览
+- 支持复制等价 curl 命令
+- path 参数替换、query 拼接、header 合并、body 序列化由统一 requestBuilder 负责
+notes:
+- 对标 Vue2 `Knife4jDebugger.js` 和 Debug.vue 的请求组装职责
+- 需要保留同源 Spring Boot starter 场景优先，不在本任务扩展跨域代理能力
+
+### TASK-029
+status: blocked
+area: ui-react
+title: React 调试响应面板对齐 Vue2 能力
+branch: codex/TASK-029-react-debug-response-panel
+depends_on: TASK-028
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- 响应区展示 status、耗时、headers、body、错误信息
+- JSON 响应自动格式化并支持复制原始内容
+- 非 JSON 响应用文本兜底，二进制响应给出下载或不可预览提示
+- 保留最近一次请求和响应，切换文档/调试 Tab 不丢失当前填写内容
+notes:
+- 对标 Vue2 `knife4j-vue/src/views/api/DebugResponse.vue`
+- 本任务只做单接口内状态保持，跨接口历史记录可后续拆分
+
+### TASK-030
+status: blocked
+area: ui-react
+title: React schema 示例生成对齐 Vue2 递归展开
+branch: codex/TASK-030-react-schema-example-builder
+depends_on: TASK-027
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- 根据 schema 递归生成 JSON 示例，支持 $ref、object、array、enum、example、default
+- 循环引用不会造成死循环，重复引用类型以安全占位值截断
+- requestBody JSON 示例、ApiDoc 示例和 Models 示例复用同一生成逻辑
+- 对深层嵌套有显式 maxDepth 保护，并在代码中集中配置
+notes:
+- 对标 Vue2 `Knife4jAsync.js` 的 `findRefDefinition` 与 utils 示例值逻辑
+- Vue2 不是固定深度展开，而是递归展开并通过引用链数组防循环；React 版建议增加 maxDepth 保险
+
+### TASK-031
+status: blocked
+area: ui-react
+title: React 调试接入鉴权与全局参数
+branch: codex/TASK-031-react-debug-auth-global-param
+depends_on: TASK-028,TASK-018,TASK-019
+validation: cd knife4j-front/knife4j-ui-react && npm run build
+done_when:
+- ApiDebug 发送请求时自动合并 Authorize 中配置的认证信息
+- ApiDebug 发送请求时自动合并 GlobalParam 中配置的 header/query 参数
+- 接口级参数与全局参数冲突时有明确优先级，并在 UI 中可见
+- 用户可以在发送前预览最终合并后的 headers/query
+notes:
+- 对标 Vue2 全局参数、Authorize 与 Debug.vue 的联动能力
+- 依赖请求预览和 requestBuilder 稳定后再接入，避免参数来源混乱
