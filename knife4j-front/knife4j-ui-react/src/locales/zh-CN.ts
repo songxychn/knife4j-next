@@ -1,0 +1,139 @@
+const zhCN = {
+  // App / Layout
+  'app.brand': 'Knife4j Next',
+  'app.header.title': 'OpenAPI 接口文档聚合中心',
+  'app.tab.home': '主页',
+  'app.footer': 'Apache License 2.0 | Copyright 2019-Knife4j v5.0',
+
+  // Header language switch
+  'header.lang.zh': '中',
+  'header.lang.en': 'EN',
+
+  // SidebarSearchMenu
+  'sidebar.search.placeholder': '搜索接口名/路径...',
+
+  // Home
+  'home.noData': '暂无数据',
+  'home.version': '版本',
+  'home.description': '描述',
+  'home.apiStats': '接口统计',
+  'home.total': '总计',
+
+  // Schema
+  'schema.title': '数据模型',
+  'schema.tag.mock': 'mock',
+  'schema.col.fieldName': '字段名',
+  'schema.col.type': '类型',
+  'schema.col.format': '格式',
+  'schema.col.required': '必填',
+  'schema.col.description': '说明',
+  'schema.required.yes': '是',
+  'schema.required.no': '否',
+  'schema.fields': '字段',
+
+  // ApiDoc
+  'apiDoc.notFound.title': '未找到接口文档',
+  'apiDoc.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
+  'apiDoc.deprecated': '已废弃',
+  'apiDoc.requestParams': '请求参数',
+  'apiDoc.col.paramName': '参数名',
+  'apiDoc.col.location': '位置',
+  'apiDoc.col.type': '类型',
+  'apiDoc.col.required': '必填',
+  'apiDoc.col.description': '说明',
+  'apiDoc.noParams': '无请求参数',
+  'apiDoc.requestBody': '请求体',
+  'apiDoc.body.notExpandable': '当前请求体暂不支持字段展开',
+  'apiDoc.noBody': '无请求体',
+  'apiDoc.responseStructure': '响应结构',
+  'apiDoc.col.statusCode': '状态码',
+  'apiDoc.col.schema': 'Schema',
+  'apiDoc.col.fieldName': '字段名',
+
+  // Operation mode tabs (doc / debug)
+  'operation.tab.doc': '文档',
+  'operation.tab.debug': '调试',
+
+  // ApiDebug
+  'apiDebug.notFound.title': '未找到调试接口',
+  'apiDebug.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
+  'apiDebug.col.paramName': '参数名',
+  'apiDebug.col.type': '类型',
+  'apiDebug.col.value': '值',
+  'apiDebug.col.description': '说明',
+  'apiDebug.tag.required': '必填',
+  'apiDebug.tag.deprecated': '已废弃',
+  'apiDebug.tooltip.deprecated': '该参数已废弃，但仍可填写',
+  'apiDebug.tag.readOnly': '只读',
+  'apiDebug.tooltip.readOnly': 'readOnly 参数通常不需要客户端传入',
+  'apiDebug.enum.placeholder': '选择一个枚举值',
+  'apiDebug.inputNumber.required': '必填',
+  'apiDebug.json.placeholder': '请输入 JSON',
+  'apiDebug.tab.path': 'Path',
+  'apiDebug.tab.query': 'Query',
+  'apiDebug.tab.header': 'Header',
+  'apiDebug.tab.cookie': 'Cookie',
+  'apiDebug.tab.body': 'Body',
+  'apiDebug.header.autoInject': 'Content-Type 由所选 Body 类型自动注入（在发送时可见于 cURL）',
+  'apiDebug.noHeaderParams': '无 header 参数',
+  'apiDebug.noBody': '该接口无请求体',
+  'apiDebug.send': '发送',
+  'apiDebug.sending': '请求中...',
+  'apiDebug.error.title': '请求失败',
+  'apiDebug.response.headers': '响应 Headers',
+  'apiDebug.response.status': '响应状态：',
+  'apiDebug.response.body': '响应体',
+  'apiDebug.response.duration': '耗时：',
+  'apiDebug.col.header': 'Header',
+  'apiDebug.col.headerValue': '值',
+  'apiDebug.desc.default': '默认：',
+  'apiDebug.desc.example': '示例：',
+  'apiDebug.desc.enum': '枚举：',
+  'apiDebug.json.array': '数组',
+  'apiDebug.json.object': '对象',
+
+  // Authorize
+  'auth.title': 'Authorization',
+  'auth.tab.bearer': 'Bearer Token',
+  'auth.tab.basic': 'Basic Auth',
+  'auth.label.token': 'Token',
+  'auth.validation.token': '请输入 Token',
+  'auth.placeholder.token': '输入 Bearer Token',
+  'auth.label.username': '用户名',
+  'auth.validation.username': '请输入用户名',
+  'auth.placeholder.username': '用户名',
+  'auth.label.password': '密码',
+  'auth.validation.password': '请输入密码',
+  'auth.placeholder.password': '密码',
+  'auth.btn.save': '保存',
+  'auth.btn.clear': '清除认证',
+  'auth.msg.bearerSaved': 'Bearer Token 已保存',
+  'auth.msg.basicSaved': 'Basic 认证已保存',
+  'auth.msg.cleared': '认证已清除',
+
+  // GlobalParam
+  'globalParam.col.name': '名称',
+  'globalParam.col.value': '值',
+  'globalParam.col.in': '位置',
+  'globalParam.col.action': '操作',
+  'globalParam.placeholder.name': '参数名',
+  'globalParam.validation.name': '名称不能为空',
+  'globalParam.placeholder.value': '参数值',
+  'globalParam.validation.value': '值不能为空',
+  'globalParam.btn.add': '添加',
+
+  // OfficeDoc
+  'officeDoc.title': '离线文档导出',
+  'officeDoc.desc': '将当前接口文档导出为可下载的离线文件，支持 HTML 和 Word（.doc）格式。',
+  'officeDoc.alert.mockData': '当前使用 Mock 数据或文档未加载，导出内容可能不完整。',
+  'officeDoc.btn.html': '下载 HTML',
+  'officeDoc.btn.word': '下载 Word (.doc)',
+
+  // SettingsDrawer
+  'settings.title': '设置',
+  'settings.tab.authorize': 'Authorize',
+  'settings.tab.globalParam': '全局参数',
+  'settings.tab.offlineDoc': '离线文档',
+} as const;
+
+export default zhCN;

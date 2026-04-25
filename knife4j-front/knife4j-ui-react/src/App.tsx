@@ -7,6 +7,7 @@ import {
 import { Layout, Button, Select, ConfigProvider, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
@@ -15,7 +16,7 @@ import SettingsDrawer from './compoents/SettingsDrawer';
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
-const defaultPanes = [{ label: '主页', children: '', key: '/group/home' }];
+const HOME_KEY = '/group/home';
 
 const routeKeyToMenuKey = (key: string) => key.endsWith('/doc') ? key.slice(0, -4) : key;
 
@@ -34,14 +35,15 @@ const AppInner: React.FC = () => {
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
   const { groups, setActiveGroupValue } = useGroup();
+  const { t, i18n } = useTranslation();
 
   const {
     token: { colorBgContainer },
   } = theme.useToken();
 
-  const [selectedKey, setSelectedKey] = useState('/group/home');
-  const [activeKey, setActiveKey] = useState(defaultPanes[0].key);
-  const [items, setItems] = useState(defaultPanes);
+  const [selectedKey, setSelectedKey] = useState(HOME_KEY);
+  const [activeKey, setActiveKey] = useState(HOME_KEY);
+  const [items, setItems] = useState([{ label: t('app.tab.home'), children: '', key: HOME_KEY }]);
 
   const handleResize = (
     _e: React.SyntheticEvent,
@@ -82,6 +84,15 @@ const AppInner: React.FC = () => {
   const onEdit = (targetKey: TargetKey, action: 'add' | 'remove') => {
     if (action === 'remove') remove(targetKey);
   };
+
+  const toggleLang = () => {
+    const next = i18n.language === 'zh-CN' ? 'en-US' : 'zh-CN';
+    i18n.changeLanguage(next);
+  };
+
+  const langLabel = i18n.language === 'zh-CN'
+    ? t('header.lang.en')
+    : t('header.lang.zh');
 
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const tabItems = items.map((item) => ({
@@ -125,7 +136,7 @@ const AppInner: React.FC = () => {
             }}
           >
             <img src="webjars/knife4j-ui-react/knife4j-next-mark.svg" style={{ width: 28, height: 28 }} />
-            {!collapsed && <span>Knife4j Next</span>}
+            {!collapsed && <span>{t('app.brand')}</span>}
           </div>
 
           {/* Group switcher */}
@@ -163,8 +174,15 @@ const AppInner: React.FC = () => {
             onClick={() => setCollapsed(!collapsed)}
             style={{ fontSize: 16, width: 64, height: 64 }}
           />
-          OpenAPI 接口文档聚合中心
-          <span style={{ marginLeft: 'auto' }}>
+          {t('app.header.title')}
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+            <Button
+              type="text"
+              onClick={toggleLang}
+              style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}
+            >
+              {langLabel}
+            </Button>
             <Button
               type="text"
               icon={<SettingOutlined />}
@@ -198,7 +216,7 @@ const AppInner: React.FC = () => {
         </Content>
 
         <Footer style={footerStyle}>
-          Apache License 2.0 | Copyright 2019-Knife4j v5.0
+          {t('app.footer')}
         </Footer>
       </Layout>
     </Layout>

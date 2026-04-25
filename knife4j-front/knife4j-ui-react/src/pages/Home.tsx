@@ -1,4 +1,5 @@
 import { Card, Descriptions, Statistic, Row, Col, Typography, Spin } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
 
 const { Title, Paragraph } = Typography;
@@ -6,6 +7,7 @@ const { Title, Paragraph } = Typography;
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
 
 export default function Home() {
+  const { t } = useTranslation();
   const { swaggerDoc, loading } = useGroup();
 
   if (loading) {
@@ -13,7 +15,7 @@ export default function Home() {
   }
 
   if (!swaggerDoc) {
-    return <div style={{ padding: 24 }}>暂无数据</div>;
+    return <div style={{ padding: 24 }}>{t('home.noData')}</div>;
   }
 
   const { info, paths } = swaggerDoc;
@@ -36,19 +38,19 @@ export default function Home() {
 
       <Card style={{ marginBottom: 24 }}>
         <Descriptions column={1} size="small">
-          <Descriptions.Item label="版本">{info.version ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label={t('home.version')}>{info.version ?? '-'}</Descriptions.Item>
           {info.description && (
-            <Descriptions.Item label="描述">
+            <Descriptions.Item label={t('home.description')}>
               <Paragraph style={{ margin: 0 }}>{info.description}</Paragraph>
             </Descriptions.Item>
           )}
         </Descriptions>
       </Card>
 
-      <Card title="接口统计">
+      <Card title={t('home.apiStats')}>
         <Row gutter={16}>
           <Col span={4}>
-            <Statistic title="总计" value={total} />
+            <Statistic title={t('home.total')} value={total} />
           </Col>
           <Col span={4}>
             <Statistic title="GET" value={counts.get} valueStyle={{ color: '#61affe' }} />

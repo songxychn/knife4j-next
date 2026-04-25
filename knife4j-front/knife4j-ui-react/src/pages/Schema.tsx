@@ -1,5 +1,6 @@
 import { Badge, Collapse, Spin, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
 import type { SchemaObject } from '../types/swagger';
 
@@ -113,48 +114,47 @@ const TYPE_COLOR: Record<string, string> = {
   object: 'geekblue',
 };
 
-// ---- 字段表格列定义 ----
-
-const fieldColumns: ColumnsType<SchemaField> = [
-  {
-    title: '字段名',
-    dataIndex: 'name',
-    width: 180,
-    render: (v) => <Text code>{v}</Text>,
-  },
-  {
-    title: '类型',
-    dataIndex: 'type',
-    width: 100,
-    render: (v) => <Tag color={TYPE_COLOR[v] ?? 'default'}>{v}</Tag>,
-  },
-  {
-    title: '格式',
-    dataIndex: 'format',
-    width: 110,
-    render: (v) => v ? <Text type="secondary">{v}</Text> : <Text type="secondary">—</Text>,
-  },
-  {
-    title: '必填',
-    dataIndex: 'required',
-    width: 70,
-    render: (v) => v
-      ? <Badge status="error" text="是" />
-      : <Badge status="default" text="否" />,
-  },
-  {
-    title: '说明',
-    dataIndex: 'description',
-  },
-];
-
 // ---- 页面 ----
 
 export default function Schema() {
+  const { t } = useTranslation();
   const { schemas, loading, usingMock } = useGroup();
   const models: ModelDef[] = usingMock || Object.keys(schemas).length === 0
     ? MOCK_SCHEMAS
     : schemasToModels(schemas);
+
+  const fieldColumns: ColumnsType<SchemaField> = [
+    {
+      title: t('schema.col.fieldName'),
+      dataIndex: 'name',
+      width: 180,
+      render: (v) => <Text code>{v}</Text>,
+    },
+    {
+      title: t('schema.col.type'),
+      dataIndex: 'type',
+      width: 100,
+      render: (v) => <Tag color={TYPE_COLOR[v] ?? 'default'}>{v}</Tag>,
+    },
+    {
+      title: t('schema.col.format'),
+      dataIndex: 'format',
+      width: 110,
+      render: (v) => v ? <Text type="secondary">{v}</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: t('schema.col.required'),
+      dataIndex: 'required',
+      width: 70,
+      render: (v) => v
+        ? <Badge status="error" text={t('schema.required.yes')} />
+        : <Badge status="default" text={t('schema.required.no')} />,
+    },
+    {
+      title: t('schema.col.description'),
+      dataIndex: 'description',
+    },
+  ];
 
   const collapseItems = models.map((model) => ({
     key: model.name,
@@ -166,7 +166,7 @@ export default function Schema() {
             {model.description}
           </Text>
         )}
-        <Tag style={{ marginLeft: 12 }} color="default">{model.fields.length} 字段</Tag>
+        <Tag style={{ marginLeft: 12 }} color="default">{model.fields.length} {t('schema.fields')}</Tag>
       </span>
     ),
     children: (
@@ -187,8 +187,8 @@ export default function Schema() {
   return (
     <div style={{ padding: '24px', maxWidth: 1100 }}>
       <Title level={4} style={{ marginBottom: 16 }}>
-        数据模型
-        {usingMock && <Tag color="orange" style={{ marginLeft: 8, fontSize: 11 }}>mock</Tag>}
+        {t('schema.title')}
+        {usingMock && <Tag color="orange" style={{ marginLeft: 8, fontSize: 11 }}>{t('schema.tag.mock')}</Tag>}
       </Title>
       {loading ? (
         <Spin />

@@ -1,5 +1,6 @@
 import { Button, Space, Typography, Alert } from 'antd';
 import { FileTextOutlined, FileWordOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { SwaggerDoc, MenuTag, OperationObject, ParameterObject, SchemaObject } from '../../types/swagger';
 
@@ -215,6 +216,7 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 }
 
 export default function OfficeDoc() {
+  const { t } = useTranslation();
   const { swaggerDoc, menuTags, loading, usingMock } = useGroup();
 
   function handleDownloadHtml() {
@@ -235,15 +237,15 @@ export default function OfficeDoc() {
 
   return (
     <div id="knife4j-office-doc-page" style={{ padding: 24, maxWidth: 800 }}>
-      <Title level={4} style={{ marginBottom: 8 }}>离线文档导出</Title>
+      <Title level={4} style={{ marginBottom: 8 }}>{t('officeDoc.title')}</Title>
       <Paragraph type="secondary" style={{ marginBottom: 20 }}>
-        将当前接口文档导出为可下载的离线文件，支持 HTML 和 Word（.doc）格式。
+        {t('officeDoc.desc')}
       </Paragraph>
 
       {noData && (
         <Alert
           type="warning"
-          message="当前使用 Mock 数据或文档未加载，导出内容可能不完整。"
+          message={t('officeDoc.alert.mockData')}
           style={{ marginBottom: 16 }}
         />
       )}
@@ -256,7 +258,7 @@ export default function OfficeDoc() {
           disabled={loading || !swaggerDoc || usingMock}
           loading={loading}
         >
-          下载 HTML
+          {t('officeDoc.btn.html')}
         </Button>
         <Button
           icon={<FileWordOutlined />}
@@ -264,7 +266,7 @@ export default function OfficeDoc() {
           disabled={loading || !swaggerDoc || usingMock}
           loading={loading}
         >
-          下载 Word (.doc)
+          {t('officeDoc.btn.word')}
         </Button>
       </Space>
     </div>

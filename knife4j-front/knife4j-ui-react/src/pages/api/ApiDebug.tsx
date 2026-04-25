@@ -4,6 +4,7 @@ import {
 } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { useTranslation } from 'react-i18next';
 import {
   buildOperationDebugModel,
   buildRequest as coreBuildRequest,
@@ -98,6 +99,7 @@ interface ParamInputProps {
 }
 
 function ParamInput({ param, value, onChange }: ParamInputProps) {
+  const { t } = useTranslation();
   // enum → Select
   if (param.enum && param.enum.length > 0) {
     return (
@@ -106,7 +108,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
         value={value || undefined}
         onChange={onChange}
         allowClear
-        placeholder={param.description ?? '选择一个枚举值'}
+        placeholder={param.description ?? t('apiDebug.enum.placeholder')}
         options={param.enum.map((item) => ({ value: String(item), label: String(item) }))}
         style={{ width: '100%' }}
       />
@@ -136,7 +138,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
         size="small"
         value={Number.isFinite(numValue) ? numValue : undefined}
         onChange={(next) => onChange(next === null || next === undefined ? '' : String(next))}
-        placeholder={param.required ? '必填' : param.description}
+        placeholder={param.required ? t('apiDebug.inputNumber.required') : param.description}
         style={{ width: '100%' }}
         step={param.type === 'integer' ? 1 : undefined}
       />
@@ -150,7 +152,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
         size="small"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={`${param.type === 'array' ? '数组' : '对象'} — 请输入 JSON`}
+        placeholder={`${param.type === 'array' ? t('apiDebug.json.array') : t('apiDebug.json.object')} — ${t('apiDebug.json.placeholder')}`}
         autoSize={{ minRows: 2, maxRows: 6 }}
         style={{ fontFamily: 'monospace', fontSize: 12 }}
       />
@@ -163,7 +165,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={param.required ? '必填' : (param.description ?? '')}
+      placeholder={param.required ? t('apiDebug.inputNumber.required') : (param.description ?? '')}
       readOnly={param.readOnly}
     />
   );
@@ -172,6 +174,7 @@ function ParamInput({ param, value, onChange }: ParamInputProps) {
 // ─── Name cell（附带 deprecated/readOnly 标记）────────
 
 function ParamNameCell({ param }: { param: DebugParam }) {
+  const { t } = useTranslation();
   const deprecated = param.deprecated;
   const readOnly = param.readOnly;
   return (
@@ -185,15 +188,15 @@ function ParamNameCell({ param }: { param: DebugParam }) {
       >
         {param.name}
       </Text>
-      {param.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>必填</Tag>}
+      {param.required && <Tag color="red" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.required')}</Tag>}
       {deprecated && (
-        <Tooltip title="该参数已废弃，但仍可填写">
-          <Tag color="default" style={{ marginInlineEnd: 0 }}>已废弃</Tag>
+        <Tooltip title={t('apiDebug.tooltip.deprecated')}>
+          <Tag color="default" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.deprecated')}</Tag>
         </Tooltip>
       )}
       {readOnly && (
-        <Tooltip title="readOnly 参数通常不需要客户端传入">
-          <Tag color="warning" style={{ marginInlineEnd: 0 }}>只读</Tag>
+        <Tooltip title={t('apiDebug.tooltip.readOnly')}>
+          <Tag color="warning" style={{ marginInlineEnd: 0 }}>{t('apiDebug.tag.readOnly')}</Tag>
         </Tooltip>
       )}
     </Space>
@@ -203,6 +206,7 @@ function ParamNameCell({ param }: { param: DebugParam }) {
 // ─── 主组件 ────────────────────────────────────────────
 
 export default function ApiDebug() {
+  const { t } = useTranslation();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const [baseUrl, setBaseUrl] = useState(currentOrigin());
   const [method, setMethod] = useState('GET');
@@ -251,14 +255,14 @@ export default function ApiDebug() {
 
   const paramColumns = useMemo<ColumnsType<DebugParam>>(() => [
     {
-      title: '参数名',
+      title: t('apiDebug.col.paramName'),
       dataIndex: 'name',
       key: 'name',
       width: 220,
       render: (_value: string, record: DebugParam) => <ParamNameCell param={record} />,
     },
     {
-      title: '类型',
+      title: t('apiDebug.col.type'),
       dataIndex: 'type',
       key: 'type',
       width: 110,
@@ -270,7 +274,7 @@ export default function ApiDebug() {
       ),
     },
     {
-      title: '值',
+      title: t('apiDebug.col.value'),
       dataIndex: 'value',
       key: 'value',
       render: (_value: string, record: DebugParam) => (
@@ -282,7 +286,7 @@ export default function ApiDebug() {
       ),
     },
     {
-      title: '说明',
+      title: t('apiDebug.col.description'),
       key: 'description',
       width: 280,
       render: (_value, record: DebugParam) => (
@@ -290,31 +294,31 @@ export default function ApiDebug() {
           {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
           {record.default !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              默认：<Text code style={{ fontSize: 11 }}>{stringify(record.default, record.type)}</Text>
+              {t('apiDebug.desc.default')}<Text code style={{ fontSize: 11 }}>{stringify(record.default, record.type)}</Text>
             </Text>
           )}
           {record.example !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              示例：<Text code style={{ fontSize: 11 }}>{stringify(record.example, record.type)}</Text>
+              {t('apiDebug.desc.example')}<Text code style={{ fontSize: 11 }}>{stringify(record.example, record.type)}</Text>
             </Text>
           )}
           {record.enum && record.enum.length > 0 && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              枚举：{record.enum.slice(0, 3).map((item) => String(item)).join(', ')}
+              {t('apiDebug.desc.enum')}{record.enum.slice(0, 3).map((item) => String(item)).join(', ')}
               {record.enum.length > 3 ? '…' : ''}
             </Text>
           )}
         </Space>
       ),
     },
-  ], [paramValues]);
+  ], [paramValues, t]);
 
   if (docLoading) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
   }
 
   if (!swaggerDoc || !operation || !debugModel) {
-    return <Alert type="warning" showIcon message="未找到调试接口" description="当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。" />;
+    return <Alert type="warning" showIcon message={t('apiDebug.notFound.title')} description={t('apiDebug.notFound.desc')} />;
   }
 
   /** 按 in 过滤已填值 */
@@ -390,7 +394,7 @@ export default function ApiDebug() {
   const tabItems = [
     {
       key: 'path',
-      label: `Path (${debugModel.pathParams.length})`,
+      label: `${t('apiDebug.tab.path')} (${debugModel.pathParams.length})`,
       disabled: debugModel.pathParams.length === 0,
       children: (
         <Table size="small" dataSource={debugModel.pathParams} columns={paramColumns} pagination={false} rowKey={paramKey} />
@@ -398,7 +402,7 @@ export default function ApiDebug() {
     },
     {
       key: 'query',
-      label: `Query (${debugModel.queryParams.length})`,
+      label: `${t('apiDebug.tab.query')} (${debugModel.queryParams.length})`,
       disabled: debugModel.queryParams.length === 0,
       children: (
         <Table size="small" dataSource={debugModel.queryParams} columns={paramColumns} pagination={false} rowKey={paramKey} />
@@ -406,7 +410,7 @@ export default function ApiDebug() {
     },
     {
       key: 'header',
-      label: `Header (${debugModel.headerParams.length})`,
+      label: `${t('apiDebug.tab.header')} (${debugModel.headerParams.length})`,
       disabled: debugModel.headerParams.length === 0 && debugModel.bodyContents.length === 0,
       children: (
         <Table
@@ -417,15 +421,15 @@ export default function ApiDebug() {
           rowKey={paramKey}
           locale={{
             emptyText: debugModel.bodyContents.length > 0
-              ? 'Content-Type 由所选 Body 类型自动注入（在发送时可见于 cURL）'
-              : '无 header 参数',
+              ? t('apiDebug.header.autoInject')
+              : t('apiDebug.noHeaderParams'),
           }}
         />
       ),
     },
     {
       key: 'cookie',
-      label: `Cookie (${debugModel.cookieParams.length})`,
+      label: `${t('apiDebug.tab.cookie')} (${debugModel.cookieParams.length})`,
       disabled: debugModel.cookieParams.length === 0,
       children: (
         <Table size="small" dataSource={debugModel.cookieParams} columns={paramColumns} pagination={false} rowKey={paramKey} />
@@ -433,7 +437,7 @@ export default function ApiDebug() {
     },
     {
       key: 'body',
-      label: `Body${debugModel.bodyContents.length > 0 ? ` (${debugModel.bodyContents[0].mediaType})` : ''}`,
+      label: `${t('apiDebug.tab.body')}${debugModel.bodyContents.length > 0 ? ` (${debugModel.bodyContents[0].mediaType})` : ''}`,
       disabled: debugModel.bodyContents.length === 0,
       children: (
         <TextArea
@@ -444,7 +448,7 @@ export default function ApiDebug() {
           placeholder={
             debugModel.bodyContents.length > 0
               ? `${debugModel.bodyContents[0].mediaType} request body`
-              : '该接口无请求体'
+              : t('apiDebug.noBody')
           }
           disabled={debugModel.bodyContents.length === 0}
         />
@@ -475,28 +479,28 @@ export default function ApiDebug() {
         />
         <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
         <Input value={path} onChange={(event) => setPath(event.target.value)} style={{ flex: 1 }} />
-        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>发送</Button>
+        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>{t('apiDebug.send')}</Button>
       </Space.Compact>
 
       <Tabs defaultActiveKey={defaultTab} size="small" items={tabItems} />
 
       <Divider style={{ margin: '16px 0' }} />
 
-      {loading && <Spin tip="请求中..." style={{ display: 'block', margin: '24px auto' }} />}
-      {error && <Alert type="error" message="请求失败" description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>} showIcon />}
+      {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
+      {error && <Alert type="error" message={t('apiDebug.error.title')} description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>} showIcon />}
       {response && (
         <div>
           <Space style={{ marginBottom: 8 }}>
-            <Text strong>响应状态：</Text>
+            <Text strong>{t('apiDebug.response.status')}</Text>
             <Tag color={statusColor(response.status)}>{response.status} {response.statusText}</Tag>
-            <Text type="secondary">耗时：{response.duration} ms</Text>
+            <Text type="secondary">{t('apiDebug.response.duration')}{response.duration} ms</Text>
           </Space>
           <Tabs
             size="small"
             items={[
               {
                 key: 'body',
-                label: '响应体',
+                label: t('apiDebug.response.body'),
                 children: (
                   <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 4, fontSize: 13, maxHeight: 400, overflow: 'auto', margin: 0 }}>
                     {prettyBody()}
@@ -505,14 +509,14 @@ export default function ApiDebug() {
               },
               {
                 key: 'headers',
-                label: '响应 Headers',
+                label: t('apiDebug.response.headers'),
                 children: (
                   <Table
                     size="small"
                     dataSource={Object.entries(response.headers).map(([key, value]) => ({ key, name: key, value }))}
                     columns={[
-                      { title: 'Header', dataIndex: 'name', key: 'name', width: 240 },
-                      { title: '值', dataIndex: 'value', key: 'value' },
+                      { title: t('apiDebug.col.header'), dataIndex: 'name', key: 'name', width: 240 },
+                      { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
                     ]}
                     pagination={false}
                   />

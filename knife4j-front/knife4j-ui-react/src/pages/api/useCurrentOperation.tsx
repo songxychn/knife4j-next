@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Tabs } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 
@@ -41,6 +42,7 @@ interface OperationModeTabsProps {
 export function OperationModeTabs({ activeKey }: OperationModeTabsProps) {
   const navigate = useNavigate();
   const { group, tag, operaterId } = useParams();
+  const { t } = useTranslation();
 
   return (
     <Tabs
@@ -50,8 +52,8 @@ export function OperationModeTabs({ activeKey }: OperationModeTabsProps) {
         navigate(`/${encodeURIComponent(group)}/${encodeURIComponent(tag)}/${encodeURIComponent(operaterId)}/${key}`);
       }}
       items={[
-        { key: 'doc', label: '文档' },
-        { key: 'debug', label: '调试' },
+        { key: 'doc', label: t('operation.tab.doc') },
+        { key: 'debug', label: t('operation.tab.debug') },
       ]}
     />
   );

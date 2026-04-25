@@ -1,5 +1,6 @@
 import { Alert, Badge, Spin, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 
@@ -72,75 +73,12 @@ function responseSchema(response: ResponseObject): string {
   return schemaName(schema);
 }
 
-const paramColumns: ColumnsType<ParamRow> = [
-  {
-    title: '参数名',
-    dataIndex: 'name',
-    width: 180,
-    render: (value) => <Text code>{value}</Text>,
-  },
-  {
-    title: '位置',
-    dataIndex: 'in',
-    width: 90,
-    render: (value) => {
-      const colorMap: Record<string, string> = {
-        path: 'blue', query: 'cyan', header: 'purple', cookie: 'orange', body: 'geekblue', formData: 'lime',
-      };
-      return <Tag color={colorMap[value] ?? 'default'}>{value}</Tag>;
-    },
-  },
-  { title: '类型', dataIndex: 'type', width: 130 },
-  {
-    title: '必填',
-    dataIndex: 'required',
-    width: 80,
-    render: (value) => value ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
-  },
-  { title: '说明', dataIndex: 'description' },
-];
-
-const bodyColumns: ColumnsType<BodyRow> = [
-  {
-    title: '字段名',
-    dataIndex: 'name',
-    width: 180,
-    render: (value) => <Text code>{value}</Text>,
-  },
-  { title: '类型', dataIndex: 'type', width: 130 },
-  {
-    title: '必填',
-    dataIndex: 'required',
-    width: 80,
-    render: (value) => value ? <Badge status="error" text="是" /> : <Badge status="default" text="否" />,
-  },
-  { title: '说明', dataIndex: 'description' },
-];
-
-const responseColumns: ColumnsType<ResponseRow> = [
-  {
-    title: '状态码',
-    dataIndex: 'statusCode',
-    width: 100,
-    render: (value) => {
-      const color = value.startsWith('2') ? 'success' : value.startsWith('4') ? 'warning' : 'error';
-      return <Tag color={color}>{value}</Tag>;
-    },
-  },
-  { title: '说明', dataIndex: 'description' },
-  {
-    title: 'Schema',
-    dataIndex: 'schema',
-    width: 180,
-    render: (value) => value ? <Text code>{value}</Text> : <Text type="secondary">—</Text>,
-  },
-];
-
 const METHOD_COLOR: Record<string, string> = {
   GET: 'green', POST: 'blue', PUT: 'orange', DELETE: 'red', PATCH: 'cyan', HEAD: 'purple', OPTIONS: 'default',
 };
 
 export default function ApiDoc() {
+  const { t } = useTranslation();
   const { loading, swaggerDoc, operation } = useCurrentOperation();
 
   if (loading) {
@@ -148,8 +86,72 @@ export default function ApiDoc() {
   }
 
   if (!swaggerDoc || !operation) {
-    return <Alert type="warning" showIcon message="未找到接口文档" description="当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。" />;
+    return <Alert type="warning" showIcon message={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />;
   }
+
+  const paramColumns: ColumnsType<ParamRow> = [
+    {
+      title: t('apiDoc.col.paramName'),
+      dataIndex: 'name',
+      width: 180,
+      render: (value) => <Text code>{value}</Text>,
+    },
+    {
+      title: t('apiDoc.col.location'),
+      dataIndex: 'in',
+      width: 90,
+      render: (value) => {
+        const colorMap: Record<string, string> = {
+          path: 'blue', query: 'cyan', header: 'purple', cookie: 'orange', body: 'geekblue', formData: 'lime',
+        };
+        return <Tag color={colorMap[value] ?? 'default'}>{value}</Tag>;
+      },
+    },
+    { title: t('apiDoc.col.type'), dataIndex: 'type', width: 130 },
+    {
+      title: t('apiDoc.col.required'),
+      dataIndex: 'required',
+      width: 80,
+      render: (value) => value ? <Badge status="error" text={t('schema.required.yes')} /> : <Badge status="default" text={t('schema.required.no')} />,
+    },
+    { title: t('apiDoc.col.description'), dataIndex: 'description' },
+  ];
+
+  const bodyColumns: ColumnsType<BodyRow> = [
+    {
+      title: t('schema.col.fieldName'),
+      dataIndex: 'name',
+      width: 180,
+      render: (value) => <Text code>{value}</Text>,
+    },
+    { title: t('apiDoc.col.type'), dataIndex: 'type', width: 130 },
+    {
+      title: t('apiDoc.col.required'),
+      dataIndex: 'required',
+      width: 80,
+      render: (value) => value ? <Badge status="error" text={t('schema.required.yes')} /> : <Badge status="default" text={t('schema.required.no')} />,
+    },
+    { title: t('apiDoc.col.description'), dataIndex: 'description' },
+  ];
+
+  const responseColumns: ColumnsType<ResponseRow> = [
+    {
+      title: t('apiDoc.col.statusCode'),
+      dataIndex: 'statusCode',
+      width: 100,
+      render: (value) => {
+        const color = value.startsWith('2') ? 'success' : value.startsWith('4') ? 'warning' : 'error';
+        return <Tag color={color}>{value}</Tag>;
+      },
+    },
+    { title: t('apiDoc.col.description'), dataIndex: 'description' },
+    {
+      title: t('apiDoc.col.schema'),
+      dataIndex: 'schema',
+      width: 180,
+      render: (value) => value ? <Text code>{value}</Text> : <Text type="secondary">—</Text>,
+    },
+  ];
 
   const method = operation.method.toUpperCase();
   const op = operation.operation;
@@ -179,33 +181,33 @@ export default function ApiDoc() {
           {method}
         </Tag>
         <Text code style={{ fontSize: 15 }}>{operation.path}</Text>
-        {op.deprecated && <Tag color="red">已废弃</Tag>}
+        {op.deprecated && <Tag color="red">{t('apiDoc.deprecated')}</Tag>}
       </div>
 
       <Title level={4} style={{ marginTop: 0 }}>{op.summary ?? operation.path}</Title>
       {op.description && <Paragraph type="secondary">{op.description}</Paragraph>}
 
-      <Title level={5} style={{ marginTop: 24 }}>请求参数</Title>
+      <Title level={5} style={{ marginTop: 24 }}>{t('apiDoc.requestParams')}</Title>
       <Table<ParamRow>
         columns={paramColumns}
         dataSource={parameters}
         pagination={false}
         size="small"
         bordered
-        locale={{ emptyText: '无请求参数' }}
+        locale={{ emptyText: t('apiDoc.noParams') }}
       />
 
-      <Title level={5} style={{ marginTop: 24 }}>请求体</Title>
+      <Title level={5} style={{ marginTop: 24 }}>{t('apiDoc.requestBody')}</Title>
       <Table<BodyRow>
         columns={bodyColumns}
         dataSource={bodyRows}
         pagination={false}
         size="small"
         bordered
-        locale={{ emptyText: bodySchema ? '当前请求体暂不支持字段展开' : '无请求体' }}
+        locale={{ emptyText: bodySchema ? t('apiDoc.body.notExpandable') : t('apiDoc.noBody') }}
       />
 
-      <Title level={5} style={{ marginTop: 24 }}>响应结构</Title>
+      <Title level={5} style={{ marginTop: 24 }}>{t('apiDoc.responseStructure')}</Title>
       <Table<ResponseRow>
         columns={responseColumns}
         dataSource={responses}
