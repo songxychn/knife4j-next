@@ -121,6 +121,7 @@ const zhCN = {
   'apiDebug.response.imagePreview': '图片预览',
   'apiDebug.response.copied': '已复制到剪贴板',
   'apiDebug.response.copyFailed': '复制失败，请手动选择文本',
+  'apiDebug.response.showDescription': '显示字段说明',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': '值',
   'apiDebug.desc.default': '默认：',

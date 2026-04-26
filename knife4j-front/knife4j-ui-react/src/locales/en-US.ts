@@ -121,6 +121,7 @@ const enUS = {
   'apiDebug.response.imagePreview': 'Image preview',
   'apiDebug.response.copied': 'Copied to clipboard',
   'apiDebug.response.copyFailed': 'Copy failed, please select text manually',
+  'apiDebug.response.showDescription': 'Show field descriptions',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': 'Value',
   'apiDebug.desc.default': 'Default: ',

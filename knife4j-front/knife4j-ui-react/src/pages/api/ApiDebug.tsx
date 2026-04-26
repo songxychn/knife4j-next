@@ -1598,7 +1598,7 @@ export default function ApiDebug() {
       <Divider style={{ margin: '16px 0' }} />
 
       {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      <ResponsePanel response={response} error={error} builtRequest={builtRequest} />
+      <ResponsePanel response={response} error={error} builtRequest={builtRequest} operation={operation} swaggerDoc={swaggerDoc} />
     </div>
   );
 }
