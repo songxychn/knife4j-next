@@ -8,7 +8,7 @@ title: 路线图
 
 ---
 
-## 当前阶段：1.0.0 正式版已发布
+## 当前阶段：1.0.1 已发布
 
 ### 已完成 ✅
 
@@ -36,6 +36,9 @@ title: 路线图
 | React 前端 | Tab 右键菜单 + 刷新后状态持久化 | ✅ |
 | React 前端 | 侧边栏接口搜索高亮 + Method 过滤条 | ✅ |
 | React 前端 | Markdown 渲染（API/tag/info description） | ✅ |
+| React 前端 | OAuth2 授权码 / 隐式模式弹窗流程 | ✅ |
+| React 前端 | 离线文档导出（HTML / Word / Markdown / OpenAPI JSON） | ✅ |
+| React 前端 | 尊重后端 tags-sorter / operations-sorter 配置 | ✅ |
 | knife4j-core | debug 解析层抽取（resolveRef / OperationDebugModel / requestBuilder） | ✅ |
 | knife4j-core | buildSchemaExample & buildSchemaFieldTree | ✅ |
 | 基础设施 | npm workspaces 统一 knife4j-front 包管理 | ✅ |
@@ -56,9 +59,9 @@ title: 路线图
 | 数据模型展示 | ✅ | ✅ | — |
 | 分组切换 | ✅ | ✅ | — |
 | 接口搜索 | ✅ | ✅ | — |
-| Authorize 鉴权 | ✅ | 🔲 | React 支持 securitySchemes 动态渲染 + OAuth2 授权码流程，缺少 password/client_credentials |
+| Authorize 鉴权 | ✅ | 🔲 | React 支持 securitySchemes 动态渲染 + OAuth2 授权码/隐式流程，缺少 password/client_credentials |
 | 全局参数 | ✅ | ✅ | — |
-| 离线文档导出 | ✅ | 🔲 | React 支持 HTML/Word，缺少 Markdown |
+| 离线文档导出 | ✅ | 🔲 | React 支持 HTML/Word/Markdown/OpenAPI JSON，缺少 Word 模板自定义 |
 | 首页统计 | ✅ | ✅ | — |
 
 ### 调试页详细缺口

@@ -24,7 +24,7 @@ title: Demo 预览
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
 | Spring Boot | `3.4.5` | demo `pom.xml` 显式声明 |
-| knife4j starter | `knife4j-openapi3-jakarta-spring-boot-starter`（本仓库当前版本） | `1.0.0` |
+| knife4j starter | `knife4j-openapi3-jakarta-spring-boot-starter`（本仓库当前版本） | `1.0.1` |
 | JDK | 17 | Dockerfile base image `eclipse-temurin:17-jre-alpine` |
 | springdoc-openapi-jakarta | `2.8.9` | 由 starter 管理 |
 

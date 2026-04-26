@@ -51,7 +51,7 @@ title: WebFlux 接入
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-webflux-jakarta-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
@@ -101,7 +101,7 @@ public class UserController {
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-webflux-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 

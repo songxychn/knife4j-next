@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
@@ -76,16 +76,13 @@ springdoc:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 1.0.0 版本亮点 <Badge type="tip" text="即将发布" />
+## 1.0.1 版本亮点 <Badge type="tip" text="最新" />
 
-- 🌐 国际化：zh-CN / en-US 双语切换
-- 🔐 Authorize 支持 OAuth2 授权码流程 + securitySchemes 动态渲染
-- 📋 ApiDebug 类型感知参数输入、cURL 预览、响应复制/下载
-- 🗂️ Tab 右键菜单 + 刷新后状态持久化
-- 🔍 侧边栏接口搜索高亮 + Method 过滤条
-- 📄 ApiDoc 工具栏：复制 endpoint / Markdown / URL
-- 🧱 knife4j-core 提取 debug 解析层（82 项单元测试）
-- 🐳 `knife4j-demo` 模块提供 Docker Compose 在线预览
+- 🐛 修复页面加载时 Petstore 示例数据一闪而过
+- 🔐 OAuth2 授权码 / 隐式模式弹窗流程
+- 📄 离线文档导出新增 Markdown 与 OpenAPI JSON
+- 🏷️ 尊重后端 `tags-sorter` / `operations-sorter` 配置
+- 🔧 GlobalParam 布局修复 + ApiDoc 工具栏优化
 
 完整更新列表见 [发布说明](/release-notes/)。
 
