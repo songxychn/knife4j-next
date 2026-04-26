@@ -1,9 +1,12 @@
-import { Alert, Badge, Spin, Table, Tag, Typography } from 'antd';
+import { Alert, Badge, Button, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 import Markdown from '../../components/Markdown';
+import { copyToClipboard } from '../../utils/clipboard';
+import { generateApiMarkdown } from 'knife4j-core';
 
 const { Title, Text } = Typography;
 
@@ -100,9 +103,41 @@ export default function ApiDoc() {
     );
   }
 
+  const method = operation.method.toUpperCase();
+  const op = operation.operation;
+
+  const handleCopyEndpoint = () => {
+    copyToClipboard(
+      `${method} ${operation.path}`,
+      () => message.success(t('apiDoc.copy.endpoint.success')),
+      () => message.error(t('apiDoc.copy.failed')),
+    );
+  };
+
+  const handleCopyMarkdown = () => {
+    const md = generateApiMarkdown({
+      method,
+      path: operation.path,
+      operation: op,
+      docContext: swaggerDoc,
+    });
+    copyToClipboard(
+      md,
+      () => message.success(t('apiDoc.copy.markdown.success')),
+      () => message.error(t('apiDoc.copy.failed')),
+    );
+  };
+
+  const handleCopyUrl = () => {
+    copyToClipboard(
+      window.location.href,
+      () => message.success(t('apiDoc.copy.url.success')),
+      () => message.error(t('apiDoc.copy.failed')),
+    );
+  };
+
   const paramColumns: ColumnsType<ParamRow> = [
     {
-      title: t('apiDoc.col.paramName'),
       dataIndex: 'name',
       width: 180,
       render: (value) => <Text code>{value}</Text>,
@@ -179,8 +214,6 @@ export default function ApiDoc() {
     },
   ];
 
-  const method = operation.method.toUpperCase();
-  const op = operation.operation;
   const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => ({
     key: `${parameter.in}-${parameter.name}-${index}`,
     name: parameter.name,
@@ -201,6 +234,18 @@ export default function ApiDoc() {
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
       <OperationModeTabs activeKey="doc" />
+
+      <Space style={{ marginBottom: 8 }}>
+        <Button size="small" icon={<CopyOutlined />} onClick={handleCopyEndpoint}>
+          {t('apiDoc.copy.endpoint')}
+        </Button>
+        <Button size="small" icon={<CopyOutlined />} onClick={handleCopyMarkdown}>
+          {t('apiDoc.copy.markdown')}
+        </Button>
+        <Button size="small" icon={<CopyOutlined />} onClick={handleCopyUrl}>
+          {t('apiDoc.copy.url')}
+        </Button>
+      </Space>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
