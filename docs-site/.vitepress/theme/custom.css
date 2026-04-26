@@ -1,6 +1,8 @@
 @font-face {
   font-family: 'Lota Grotesque';
-  src: url('../../../knife4j-doc/static/font/lota.woff2') format('woff2');
+  /* 字体文件放在 docs-site/public/font/，通过 Vite public 目录以绝对路径引用，
+     避免跨目录引用触发 "outside of Vite serving allow list" 告警。 */
+  src: url('/font/lota.woff2') format('woff2');
   font-weight: 400 700;
   font-style: normal;
   font-display: swap;
@@ -36,9 +38,9 @@
   --vp-font-family-heading: "Lota Grotesque", "Avenir Next", "PingFang SC", sans-serif;
   /* Hero 名字：保留品牌蓝渐变作为视觉重心 */
   --vp-home-hero-name-background: linear-gradient(135deg, #4d93f0 0%, #69aefc 52%, #8ec8ff 100%);
-  /* Hero 图像背后的径向蓝光：去掉 */
-  --vp-home-hero-image-background-image: none;
-  --vp-home-hero-image-filter: none;
+  /* Hero 图像背后的背光：品牌蓝 → 青色对角渐变，参考 vitepress.dev 的观感 */
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #2f8af4 50%, #47caff 50%);
+  --vp-home-hero-image-filter: blur(56px);
 }
 
 /* ========================================================================
@@ -58,8 +60,9 @@ html.dark {
   --vp-c-brand-3: #b7ddff;
   --vp-c-brand-soft: rgba(118, 177, 255, 0.12);
   --vp-home-hero-name-background: linear-gradient(135deg, #b8d8ff 0%, #8ebfff 48%, #d3e8ff 100%);
-  --vp-home-hero-image-background-image: none;
-  --vp-home-hero-image-filter: none;
+  /* 暗色模式下使用更深的蓝紫配色，避免过曝 */
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #1d78df 50%, #38b6ff 50%);
+  --vp-home-hero-image-filter: blur(68px);
 }
 
 /* ------------------------------------------------------------------------
@@ -204,7 +207,7 @@ html.dark .VPHero .VPButton.alt:hover {
   background: var(--vp-c-bg-alt);
 }
 
-/* Hero 图片：不加蓝色 drop-shadow */
+/* Hero 图片 */
 .VPImage.image-src {
   width: min(300px, 64vw);
   border-radius: 40px;
@@ -215,10 +218,22 @@ html.dark .VPHero .VPButton.alt:hover {
   transform: translate(0, 12px);
 }
 
-/* 去掉 Hero image 背景容器的径向蓝光（VitePress 默认会渲染一个伪元素） */
+/* Hero image 背景光晕（参考 vitepress.dev）：
+ *   .image-bg 是 VitePress 默认主题在 logo 背后渲染的伪光晕层；
+ *   这里放大尺寸、保留默认 filter/background，使其呈现柔和对角彩光。 */
 .VPHero .image-bg {
-  background: none !important;
-  filter: none !important;
+  width: 360px;
+  height: 360px;
+  opacity: 0.55;
+  transition: opacity 0.4s ease;
+}
+
+html.dark .VPHero .image-bg {
+  opacity: 0.45;
+}
+
+.VPHero .image-container:hover .image-bg {
+  opacity: 0.75;
 }
 
 /* ------------------------------------------------------------------------
