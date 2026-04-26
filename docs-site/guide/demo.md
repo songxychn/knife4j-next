@@ -4,6 +4,8 @@ title: Demo 预览
 
 # Demo 预览（knife4j-demo）
 
+> 🚀 **在线体验**：[https://demo.knife4jnext.com/doc.html](https://demo.knife4jnext.com/doc.html) —— 点击即可直接打开最新版 `knife4j-next` 的效果。
+
 `knife4j-demo` 是仓库内置的最小可运行工程，用来：
 
 1. 作为**官方站点在线预览**的后端。
@@ -96,9 +98,9 @@ docker compose up -d
 
 ## 在线预览
 
-官方站点预留的在线预览地址：
+官方站点提供的在线预览地址：
 
-- `https://demo.knife4jnext.com/doc.html`（如对应域名已上线）
+- 👉 [https://demo.knife4jnext.com/doc.html](https://demo.knife4jnext.com/doc.html) —— 点击直接打开，即可体验 knife4j-next 真实效果
 - 版本跟随 `master`，每次 `master` 合并后由 `watchtower` 自动刷新
 
 如果访问失败，优先在本地跑一遍，以避免把预览环境问题当成功能问题。

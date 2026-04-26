@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import {defineConfig} from 'vitepress'
 
 const siteUrl = 'https://knife4jnext.com'
 
@@ -44,6 +44,7 @@ export default defineConfig({
       { text: '功能', link: '/guide/features' },
       { text: '迁移', link: '/guide/migration' },
       { text: '配置参考', link: '/reference/configuration' },
+      { text: '在线 Demo', link: 'https://demo.knife4jnext.com/doc.html' },
       { text: 'GitHub', link: 'https://github.com/songxychn/knife4j-next' }
     ],
     sidebar: [
