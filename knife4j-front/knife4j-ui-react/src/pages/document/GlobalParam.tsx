@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Table, Form, Input, Select, Button, Space } from 'antd';
+import { Button, Form, Input, Select, Space, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { GlobalParamProvider, useGlobalParam, GlobalParamItem } from '../../context/GlobalParamContext';
+import { GlobalParamItem, useGlobalParam } from '../../context/GlobalParamContext';
 
 export { useGlobalParam };
 
@@ -68,9 +68,5 @@ function GlobalParamInner() {
 }
 
 export default function GlobalParam() {
-  return (
-    <GlobalParamProvider>
-      <GlobalParamInner />
-    </GlobalParamProvider>
-  );
+  return <GlobalParamInner />;
 }

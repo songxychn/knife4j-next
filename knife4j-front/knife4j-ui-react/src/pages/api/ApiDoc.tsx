@@ -198,7 +198,7 @@ export default function ApiDoc() {
   }));
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1080 }}>
+    <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
       <OperationModeTabs activeKey="doc" />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>

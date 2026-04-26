@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Input, Menu } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useGroup, ApiItem } from '../context/GroupContext';
+import { ApiItem, useGroup } from '../context/GroupContext';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: '#61affe',
@@ -18,7 +18,8 @@ function methodTag(method: string) {
     <span
       style={{
         display: 'inline-block',
-        minWidth: 46,
+        flex: '0 0 auto',
+        width: 54,
         padding: '0 4px',
         marginRight: 6,
         borderRadius: 3,
@@ -28,6 +29,8 @@ function methodTag(method: string) {
         backgroundColor: color,
         textAlign: 'center',
         lineHeight: '18px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       {method.toUpperCase()}

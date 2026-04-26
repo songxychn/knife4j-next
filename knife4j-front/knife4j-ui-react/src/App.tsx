@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Layout, Button, Select, ConfigProvider, Tabs, theme } from 'antd';
+import { Button, ConfigProvider, Layout, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
+import { GlobalParamProvider } from './context/GlobalParamContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
+import knife4jMark from './assets/logo/knife4j-next-mark.svg';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -125,7 +127,7 @@ const AppInner: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            <img src="webjars/knife4j-ui-react/knife4j-next-mark.svg" style={{ width: 28, height: 28 }} />
+            <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
             {!collapsed && <span>{t('app.brand')}</span>}
           </div>
 
@@ -211,9 +213,11 @@ const AppInner: React.FC = () => {
 const App: React.FC = () => (
   <ConfigProvider>
     <AuthProvider>
-      <GroupProvider>
-        <AppInner />
-      </GroupProvider>
+      <GlobalParamProvider>
+        <GroupProvider>
+          <AppInner />
+        </GroupProvider>
+      </GlobalParamProvider>
     </AuthProvider>
   </ConfigProvider>
 );
