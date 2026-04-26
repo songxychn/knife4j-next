@@ -904,3 +904,22 @@ summary:
 notes:
 - 本地 Java 8 环境下 spotless 插件无法运行（PluginContainerException），需 JAVA_HOME 指向 Java 17+
 - PR #53 的 Java spotless 问题将在 PR #55 合并后自动解决（空行不再需要缩进）
+
+## 2026-04-26 TASK-039 (supplement)
+task: TASK-039
+agent: coordinator (interactive, user-authorized scope extension)
+branch: agent/TASK-039-vite-dev-proxy
+status: review
+summary:
+- 维护者在本地用 IDEA 启动 knife4j-demo 时编译报错：UserController 的 List.of 在 Java 8 源码级别找不到
+- 根因：knife4j 父 pom 默认 knife4j-java.version=1.8，knife4j-demo 未覆盖，继承为 1.8
+- UserController 使用了 Java 9+ 的 List.of 静态工厂方法
+- 修复：在 knife4j-demo/pom.xml properties 中新增 <knife4j-java.version>17</knife4j-java.version>，只影响 demo 模块
+- 用户显式授权将该修复并入当前 TASK-039 分支，范围偏离有书面授权
+validation:
+- JAVA_HOME=corretto-17 mvn -pl knife4j-demo -am -DskipTests -Dspotless.skip=true compile → BUILD SUCCESS
+- （spotless.skip=true 仅因本地终端误用 JDK 8 启动 maven 时会触发 spotless class file 55 不兼容；与改动无关）
+next:
+- 推送分支 → 开 PR（描述说明 TASK-039 包含两项改动）
+blockers:
+- none
