@@ -238,6 +238,8 @@ const enUS = {
   'officeDoc.btn.html': 'Download HTML',
   'officeDoc.btn.docx': 'Download Word (.docx)',
   'officeDoc.btn.word': 'Download Word (.doc)',
+  'officeDoc.btn.markdown': 'Download Markdown',
+  'officeDoc.btn.openapi': 'Download OpenAPI JSON',
 
   // Tab context menu
   'tab.context.closeCurrent': 'Close Current',
