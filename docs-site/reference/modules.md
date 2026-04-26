@@ -13,7 +13,6 @@ title: 模块说明
 | `knife4j-vue/` | 当前历史 Vue2 前端实现，承担"现有行为参考"角色 |
 | `knife4j-vue3/` | 社区贡献的实验性 Vue3 实现，暂不作为主线发布 |
 | `knife4j-insight/` | 独立渲染 / 聚合方向的扩展能力 |
-| `knife4j-doc/` | 历史 Docusaurus 文档站（已废弃，内容迁移到 `docs-site/`） |
 | `docs-site/` | 当前 VitePress 文档站 |
 
 ## Java 模块（`knife4j/` 下）

@@ -151,7 +151,6 @@ knife4j-openapi3-ui/src/main/resources/webjars/**  linguist-generated
 
 # 文档站
 docs-site/**   linguist-documentation
-knife4j-doc/** linguist-documentation
 
 # 常见 min 产物
 *.min.js   linguist-generated
@@ -165,10 +164,7 @@ knife4j-doc/** linguist-documentation
 .github/       export-ignore
 .gitee/        export-ignore
 docs-site/     export-ignore
-knife4j-doc/   export-ignore
 scripts/       export-ignore
-backup/        export-ignore
-static/        export-ignore
 
 .editorconfig   export-ignore
 .gitattributes  export-ignore

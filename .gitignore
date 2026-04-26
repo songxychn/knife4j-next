@@ -26,6 +26,8 @@ node_modules/
 docs-site/.vitepress/cache/
 docs-site/.vitepress/dist/
 docs-site/node_modules/
+knife4j-doc/
+backup/
 
 ### NetBeans ###
 nbproject/private/

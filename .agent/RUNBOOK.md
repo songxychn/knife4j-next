@@ -66,9 +66,9 @@
 
 它会：
 
-- 进入 `knife4j-doc`
+- 进入 `docs-site`
 - 运行 `npm ci`
-- 运行文档构建
+- 运行 VitePress 构建（`npm run build`）
 
 适用于：
 

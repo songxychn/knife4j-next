@@ -31,9 +31,9 @@ Java 多模块主工程。这里是最关键的维护面，因为它影响下游
 
 TypeScript 解析核心。只要测试能证明行为，适合做窄范围自治任务。
 
-### `knife4j-doc`
+### `docs-site`
 
-文档站。适合自治清理、迁移说明和 release note 改进，前提是文档构建通过。
+VitePress 文档站。适合自治清理、迁移说明和 release note 改进，前提是文档构建通过。
 
 ### `knife4j-front/knife4j-ui-react`
 

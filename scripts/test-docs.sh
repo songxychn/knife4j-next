@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/../knife4j-doc"
+cd "$(dirname "$0")/../docs-site"
 
 npm ci
-npm run build-netlify
+npm run build
