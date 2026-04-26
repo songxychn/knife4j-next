@@ -12,7 +12,30 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 1.0.0 <Badge type="tip" text="即将发布" />
+### 1.0.1 <Badge type="tip" text="最新" />
+
+**Bug 修复 & 功能增强** — 修复 petstore 闪烁、侧边栏排序、OAuth2 授权码流程等回归问题。
+
+**前端（knife4j-ui-react）**
+
+- 修复页面加载时 Petstore 示例数据一闪而过（Select 改为受控、groups 在加载中返回空数组）
+- 修复侧边栏 group 切换时 `groupOptions[0]` 越界
+- 尊重后端 `springdoc.swagger-ui.tags-sorter` / `operations-sorter` 配置
+- ApiDoc 工具栏：移除 Copy Endpoint，Copy URL 改名为 Copy Page URL
+- GlobalParam：新增按钮与表单控件同行，窄 Drawer 不再溢出
+
+**新功能**
+
+- OAuth2 授权码 / 隐式模式弹窗流程（`oauth2-redirect.html` 回跳页面）
+- 离线文档导出新增 Markdown 与 OpenAPI JSON 两种格式
+
+**Demo**
+
+- `knife4j-demo` 首页显示在线 demo 链接
+
+---
+
+### 1.0.0 <Badge type="info" text="已发布" />
 
 **knife4j-next 正式版** — 相比 Preview 版本新增了大量前端功能，是第一个推荐生产试用的版本。
 
@@ -59,7 +82,7 @@ title: 发布说明
 
 ### 4.6.0.3 <Badge type="warning" text="Preview" />
 
-> Preview 版本：前端首次集成 React UI 到 `knife4j-openapi3-ui` webjar。仅包含基础功能，不推荐生产使用。请升级到 `1.0.0`。
+> Preview 版本：前端首次集成 React UI 到 `knife4j-openapi3-ui` webjar。仅包含基础功能，不推荐生产使用。请升级到 `1.0.1`。
 
 **前端**
 
@@ -102,6 +125,7 @@ title: 发布说明
 knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号：
 
 ```
+1.0.1 → Bug 修复 & 功能增强
 1.0.0 → knife4j-next 正式版（首个推荐生产试用的版本）
 4.6.0.3 → Preview 版本（仅包含基础 React 前端，不推荐生产使用）
 ```
@@ -111,7 +135,7 @@ knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
