@@ -177,11 +177,15 @@ const AppInner: React.FC = () => {
   };
 
   const remove = (targetKey: TargetKey) => {
+    // Home tab is not closable – it acts as the persistent entry point.
+    if (targetKey === HOME_KEY) return;
     const targetIndex = items.findIndex((pane) => pane.key === targetKey);
     const newPanes = items.filter((pane) => pane.key !== targetKey);
     if (newPanes.length && targetKey === activeKey) {
       const { key } = newPanes[targetIndex === newPanes.length ? targetIndex - 1 : targetIndex];
       setActiveKey(key);
+      setSelectedKey(routeKeyToMenuKey(key));
+      navigate(key);
     }
     setItems(newPanes);
   };
@@ -233,6 +237,7 @@ const AppInner: React.FC = () => {
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const tabItems = items.map((item) => ({
     ...item,
+    closable: item.key !== HOME_KEY,
     children: item.key === activeKey ? <Outlet /> : item.children,
   }));
 
