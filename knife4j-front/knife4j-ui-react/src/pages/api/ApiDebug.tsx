@@ -184,6 +184,8 @@ interface SchemaFieldRow {
   example?: unknown;
   enum?: unknown[];
   isFile: boolean;
+  /** encoding.contentType=application/json — render as JSON TextArea */
+  isJson: boolean;
 }
 
 /**
@@ -196,6 +198,7 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   const props = schema.properties as Record<string, Record<string, unknown>>;
   const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
   const fileFields = new Set(bodyContent.fileFields ?? []);
+  const jsonFields = new Set(bodyContent.jsonFields ?? []);
 
   return Object.entries(props).map(([name, prop]) => {
     const t = (prop.type as string) ?? 'string';
@@ -215,6 +218,7 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
       example: prop.example,
       enum: Array.isArray(prop.enum) ? prop.enum : undefined,
       isFile,
+      isJson: !isFile && jsonFields.has(name),
     };
   });
 }
@@ -222,6 +226,7 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
 /** 根据 SchemaFieldRow 的类型推断初始值 */
 function initialFieldValue(field: SchemaFieldRow): string {
   if (field.isFile) return '';
+  if (field.isJson) return field.example !== undefined ? JSON.stringify(field.example, null, 2) : '{}';
   if (field.example !== undefined && field.example !== null) return String(field.example);
   if (field.default !== undefined && field.default !== null) return String(field.default);
   if (field.enum && field.enum.length > 0) return String(field.enum[0]);
@@ -734,6 +739,11 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
               {t('apiDebug.body.file')}
             </Tag>
           )}
+          {record.isJson && (
+            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
+              JSON
+            </Tag>
+          )}
         </Space>
       ),
     },
@@ -764,6 +774,18 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
                 {t('apiDebug.body.selectFile')}
               </Button>
             </Upload>
+          );
+        }
+        if (record.isJson) {
+          return (
+            <TextArea
+              size="small"
+              value={formFields[record.name] ?? '{}'}
+              onChange={(event) => updateField(record.name, event.target.value)}
+              placeholder={t('apiDebug.body.jsonPart.placeholder')}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
+            />
           );
         }
         return (
@@ -1307,6 +1329,7 @@ export default function ApiDebug() {
 
   const collectFormValues = (): DebugFormValues => {
     const category = getCurrentCategory();
+    const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
     return {
       pathParams: collectForIn(debugModel.pathParams),
       queryParams: collectForIn(debugModel.queryParams),
@@ -1316,6 +1339,7 @@ export default function ApiDebug() {
       body: category === 'json' || category === 'raw' ? body : undefined,
       formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
+      jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
     };
   };
 
@@ -1376,10 +1400,16 @@ export default function ApiDebug() {
       if (isMultipart) {
         // 构建 FormData
         const fd = new FormData();
-        // 添加普通字段
+        const jsonFieldSet = new Set(formValues.jsonFields ?? []);
+        // 添加普通字段（非 JSON part）
         for (const [name, value] of Object.entries(formFields)) {
           if (value !== undefined && value !== '') {
-            fd.append(name, value);
+            if (jsonFieldSet.has(name)) {
+              // JSON-encoded part: append as Blob with application/json content type
+              fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
+            } else {
+              fd.append(name, value);
+            }
           }
         }
         // 添加文件字段

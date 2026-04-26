@@ -57,6 +57,11 @@ export interface BodyContent {
   exampleValue?: string;
   /** multipart 场景中标记哪些字段是 file / binary */
   fileFields?: string[];
+  /**
+   * multipart 场景中标记哪些字段的 encoding.contentType = application/json，
+   * 这些字段在 UI 中以 JSON 文本框形式提交，发送时作为独立 JSON part 附加。
+   */
+  jsonFields?: string[];
 }
 
 // ─── OperationDebugModel ──────────────────────────────
@@ -93,6 +98,11 @@ export interface DebugFormValues {
   formFields?: Record<string, string>;
   /** multipart 文件字段 { fieldName: File[] } — 由 UI 层处理，不序列化进纯函数 */
   fileFields?: Record<string, unknown>;
+  /**
+   * multipart 场景中 encoding.contentType=application/json 的字段名列表。
+   * 用于 buildCurl 输出 `-F 'field=...;type=application/json'`。
+   */
+  jsonFields?: string[];
 }
 
 /** 全局参数来源 */
@@ -182,6 +192,11 @@ export interface BuiltRequest {
   contentType: string;
   /** 参数来源映射（仅在存在 auth / globalParams 时生成） */
   sourceMap?: BuiltRequestSourceMap;
+  /**
+   * multipart 场景中 encoding.contentType=application/json 的字段名列表。
+   * buildCurl 用此输出 `-F 'field=...;type=application/json'`。
+   */
+  jsonFields?: string[];
 }
 
 /** required 校验结果 */
