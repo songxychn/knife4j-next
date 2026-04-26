@@ -94,6 +94,53 @@ export default function Settings() {
         </div>
       </div>
       <Divider style={{ margin: '4px 0' }} />
+
+      {/* tags-sorter 覆盖 */}
+      <div style={{ minHeight: 50, lineHeight: '50px' }}>
+        <Space align="center" wrap>
+          <Text>{t('settings.tagsSorter')}</Text>
+          <Select
+            value={settings.tagsSorter}
+            style={{ width: 200 }}
+            onChange={(val) => setSetting('tagsSorter', val)}
+            options={[
+              { value: 'auto', label: t('settings.sorter.auto') },
+              { value: 'alpha', label: t('settings.sorter.alpha') },
+              { value: 'preserve', label: t('settings.sorter.preserve') },
+            ]}
+          />
+        </Space>
+        <div style={{ marginTop: 4, marginLeft: 0, lineHeight: 1.4 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('settings.tagsSorter.desc')}
+          </Text>
+        </div>
+      </div>
+      <Divider style={{ margin: '4px 0' }} />
+
+      {/* operations-sorter 覆盖 */}
+      <div style={{ minHeight: 50, lineHeight: '50px' }}>
+        <Space align="center" wrap>
+          <Text>{t('settings.operationsSorter')}</Text>
+          <Select
+            value={settings.operationsSorter}
+            style={{ width: 200 }}
+            onChange={(val) => setSetting('operationsSorter', val)}
+            options={[
+              { value: 'auto', label: t('settings.sorter.auto') },
+              { value: 'alpha', label: t('settings.sorter.alpha') },
+              { value: 'method', label: t('settings.sorter.method') },
+              { value: 'preserve', label: t('settings.sorter.preserve') },
+            ]}
+          />
+        </Space>
+        <div style={{ marginTop: 4, marginLeft: 0, lineHeight: 1.4 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {t('settings.operationsSorter.desc')}
+          </Text>
+        </div>
+      </div>
+      <Divider style={{ margin: '4px 0' }} />
     </div>
   );
 }

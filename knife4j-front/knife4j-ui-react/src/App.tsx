@@ -277,11 +277,11 @@ const AppInner: React.FC = () => {
           </div>
 
           {/* Group switcher */}
-          {!collapsed && (
+          {!collapsed && groupOptions.length > 0 && (
             <div style={{ padding: '0 8px 8px' }}>
               <Select
                 options={groupOptions}
-                defaultValue={groupOptions[0].value}
+                defaultValue={groupOptions[0]?.value}
                 style={{ width: '100%' }}
                 onChange={(val) => setActiveGroupValue(val)}
               />

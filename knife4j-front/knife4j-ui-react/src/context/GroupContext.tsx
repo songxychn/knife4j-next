@@ -1,7 +1,18 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { fetchGroups, fetchSwaggerDoc, getSchemas, parseMenuTags } from '../api/knife4jClient';
-import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup } from '../types/swagger';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  fetchSwaggerDoc,
+  fetchSwaggerUiConfig,
+  getSchemas,
+  normalizeOperationsSorter,
+  normalizeTagsSorter,
+  parseGroupsFromConfig,
+  parseMenuTags,
+  type OperationsSorter,
+  type TagsSorter,
+} from '../api/knife4jClient';
+import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
 import { MOCK_GROUPS } from '../data/mockGroups';
+import { useSettings } from './SettingsContext';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
 
@@ -33,6 +44,7 @@ interface GroupContextValue {
 
   // 真实数据
   swaggerDoc: SwaggerDoc | null;
+  swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
   schemas: Record<string, SchemaObject>;
   loading: boolean;
@@ -43,22 +55,59 @@ const GroupContext = createContext<GroupContextValue | null>(null);
 
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [rawGroups, setRawGroups] = useState<SwaggerGroup[]>([]);
+  const [swaggerUiConfig, setSwaggerUiConfig] = useState<SwaggerUiConfig | null>(null);
   const [activeGroupValue, setActiveGroupValue] = useState<string>('');
   const [swaggerDoc, setSwaggerDoc] = useState<SwaggerDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
 
-  // 初始化：拉取 group 列表
+  const { settings } = useSettings();
+
+  // 初始化：优先拉取 swagger-config（拿到 tagsSorter / operationsSorter），失败回退到 swagger-resources
   useEffect(() => {
-    fetchGroups().then((groups) => {
-      if (groups.length > 0) {
-        setRawGroups(groups);
-        setActiveGroupValue(groups[0].name);
-      } else {
-        setUsingMock(true);
-        setLoading(false);
+    let cancelled = false;
+    (async () => {
+      const config = await fetchSwaggerUiConfig();
+      if (cancelled) return;
+
+      if (config) {
+        setSwaggerUiConfig(config);
+        const groups = parseGroupsFromConfig(config);
+        if (groups.length > 0) {
+          setRawGroups(groups);
+          setActiveGroupValue(groups[0].name);
+          return;
+        }
       }
-    });
+
+      // swagger-config 不可用 → 回退 springfox swagger-resources
+      try {
+        const res = await fetch('swagger-resources');
+        if (res.ok) {
+          const data: Array<{ name: string; location: string; swaggerVersion?: string }> = await res.json();
+          const groups: SwaggerGroup[] = data.map((g) => ({
+            name: g.name,
+            url: g.location,
+            swaggerVersion: g.swaggerVersion,
+          }));
+          if (groups.length > 0) {
+            setRawGroups(groups);
+            setActiveGroupValue(groups[0].name);
+            return;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      // 完全拿不到 → mock
+      setUsingMock(true);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 切换 group 时拉取对应 api-docs
@@ -78,8 +127,33 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [activeGroupValue, rawGroups, usingMock]);
 
+  // 计算最终生效的排序策略：用户显式覆盖优先，否则跟随后端 swagger-config
+  const effectiveTagsSorter: TagsSorter = useMemo(() => {
+    if (settings.tagsSorter === 'alpha') return 'alpha';
+    if (settings.tagsSorter === 'preserve') return 'preserve';
+    // 'auto' → 跟随后端
+    return normalizeTagsSorter(swaggerUiConfig?.tagsSorter);
+  }, [settings.tagsSorter, swaggerUiConfig]);
+
+  const effectiveOperationsSorter: OperationsSorter = useMemo(() => {
+    if (settings.operationsSorter === 'alpha') return 'alpha';
+    if (settings.operationsSorter === 'method') return 'method';
+    if (settings.operationsSorter === 'preserve') return 'preserve';
+    // 'auto' → 跟随后端
+    return normalizeOperationsSorter(swaggerUiConfig?.operationsSorter);
+  }, [settings.operationsSorter, swaggerUiConfig]);
+
   // 派生数据
-  const menuTags: MenuTag[] = swaggerDoc ? parseMenuTags(swaggerDoc) : [];
+  const menuTags: MenuTag[] = useMemo(
+    () =>
+      swaggerDoc
+        ? parseMenuTags(swaggerDoc, {
+            tagsSorter: effectiveTagsSorter,
+            operationsSorter: effectiveOperationsSorter,
+          })
+        : [],
+    [swaggerDoc, effectiveTagsSorter, effectiveOperationsSorter],
+  );
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
@@ -125,6 +199,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         activeGroup,
         setActiveGroupValue: handleSetActiveGroup,
         swaggerDoc,
+        swaggerUiConfig,
         menuTags,
         schemas,
         loading,

@@ -263,6 +263,17 @@ const enUS = {
   'settings.enableHost': 'Override Host (Use specified Host to replace API BaseURL in debug mode)',
   'settings.hostPlaceholder': 'Enter Host, e.g. http://localhost:8080',
   'settings.hostEmptyError': 'Please enter Host address first',
+  // Sidebar sorting (mirrors springdoc.swagger-ui.tags-sorter / operations-sorter)
+  'settings.tagsSorter': 'Tag sort (tagsSorter)',
+  'settings.tagsSorter.desc':
+    'Defaults to springdoc.swagger-ui.tags-sorter; selecting a value overrides the backend config.',
+  'settings.operationsSorter': 'Operation sort (operationsSorter)',
+  'settings.operationsSorter.desc':
+    'Defaults to springdoc.swagger-ui.operations-sorter; supports alphabetic by path, HTTP method order, or preserve.',
+  'settings.sorter.auto': 'Auto (follow backend)',
+  'settings.sorter.alpha': 'Alphabetic (alpha)',
+  'settings.sorter.method': 'By HTTP method',
+  'settings.sorter.preserve': 'Preserve source order',
 } as const;
 
 export default enUS;
