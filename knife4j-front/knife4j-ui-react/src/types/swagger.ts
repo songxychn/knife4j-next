@@ -10,6 +10,25 @@ export interface SwaggerGroup {
   location?: string; // swagger-resources 格式
 }
 
+/**
+ * springdoc / swagger-ui 配置，对应 `/v3/api-docs/swagger-config` 响应。
+ * 我们只使用其中与排序相关的字段；其余字段保留原始语义便于后续接入。
+ *
+ * 说明：
+ * - `tagsSorter` / `operationsSorter`：和 springdoc 一致，取值为 `'alpha'` 时按字母序排序；
+ *   `operationsSorter` 还可取 `'method'` 按 HTTP method 排序；其他值一律保持原序。
+ */
+export interface SwaggerUiConfig {
+  /** 分组列表（springdoc 多文档场景） */
+  urls?: Array<{ name: string; url: string }>;
+  /** tag 排序策略（例如 'alpha'） */
+  tagsSorter?: string;
+  /** operation 排序策略（例如 'alpha' / 'method'） */
+  operationsSorter?: string;
+  /** 其它 springdoc 配置字段允许透传 */
+  [key: string]: unknown;
+}
+
 export interface SwaggerContact {
   name?: string;
   url?: string;

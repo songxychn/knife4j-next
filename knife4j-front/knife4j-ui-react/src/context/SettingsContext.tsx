@@ -2,6 +2,22 @@ import React, { createContext, useContext, useState } from 'react';
 
 const STORAGE_KEY = 'Knife4jGlobalSettings';
 
+/**
+ * 前端覆盖的 tag 排序策略。
+ * - 'auto'：不覆盖，跟随后端 `/v3/api-docs/swagger-config` 的 `tagsSorter`；后端未配置时保持原序。
+ * - 'alpha'：按字母序排序。
+ * - 'preserve'：强制保持 OpenAPI JSON 的原始顺序（即使后端配置了 alpha）。
+ */
+export type TagsSorterOverride = 'auto' | 'alpha' | 'preserve';
+/**
+ * 前端覆盖的 operation 排序策略。
+ * - 'auto'：跟随后端 `operationsSorter`；后端未配置时保持原序。
+ * - 'alpha'：按路径字母序。
+ * - 'method'：按 HTTP method 顺序。
+ * - 'preserve'：强制保持原序。
+ */
+export type OperationsSorterOverride = 'auto' | 'alpha' | 'method' | 'preserve';
+
 export interface AppSettings {
   /** 是否启用 Host 覆盖 */
   enableHost: boolean;
@@ -15,6 +31,10 @@ export interface AppSettings {
   enableFilterMultipartApis: boolean;
   /** 过滤后保留的 method 类型（默认 POST） */
   enableFilterMultipartApiMethodType: string;
+  /** tag 排序覆盖（默认 'auto'：跟随 springdoc.swagger-ui.tags-sorter） */
+  tagsSorter: TagsSorterOverride;
+  /** operation 排序覆盖（默认 'auto'：跟随 springdoc.swagger-ui.operations-sorter） */
+  operationsSorter: OperationsSorterOverride;
   /**
    * 预留钩子：增强模式（swaggerBootstrapUi）
    * 当前版本不对接，保持 false；未来可按需启用。
@@ -29,6 +49,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   enableDynamicParameter: false,
   enableFilterMultipartApis: false,
   enableFilterMultipartApiMethodType: 'POST',
+  tagsSorter: 'auto',
+  operationsSorter: 'auto',
   enableSwaggerBootstrapUi: false,
 };
 

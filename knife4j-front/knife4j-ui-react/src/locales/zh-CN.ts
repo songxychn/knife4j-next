@@ -261,6 +261,16 @@ const zhCN = {
   'settings.enableHost': '覆盖 Host（调试时使用指定 Host 替换接口 BaseURL）',
   'settings.hostPlaceholder': '输入 Host，例如 http://localhost:8080',
   'settings.hostEmptyError': '请先填写 Host 地址',
+  // 侧边栏排序（对应 springdoc.swagger-ui.tags-sorter / operations-sorter）
+  'settings.tagsSorter': '分组排序（tagsSorter）',
+  'settings.tagsSorter.desc': '默认跟随 springdoc.swagger-ui.tags-sorter；选择后覆盖后端配置。',
+  'settings.operationsSorter': '接口排序（operationsSorter）',
+  'settings.operationsSorter.desc':
+    '默认跟随 springdoc.swagger-ui.operations-sorter；支持按路径字母序、HTTP 方法顺序或保持原序。',
+  'settings.sorter.auto': '自动（跟随后端）',
+  'settings.sorter.alpha': '字母序（alpha）',
+  'settings.sorter.method': '按方法（method）',
+  'settings.sorter.preserve': '保持原序',
 } as const;
 
 export default zhCN;
