@@ -130,8 +130,8 @@ export default function Home() {
   const specLabel = swaggerDoc.openapi
     ? `OpenAPI ${swaggerDoc.openapi}`
     : swaggerDoc.swagger
-      ? `Swagger ${swaggerDoc.swagger}`
-      : 'OpenAPI';
+    ? `Swagger ${swaggerDoc.swagger}`
+    : 'OpenAPI';
 
   const versionLabel = info.version ? (/^v/i.test(info.version) ? info.version : `v${info.version}`) : '-';
 
@@ -142,7 +142,9 @@ export default function Home() {
   const tagTotalOps = stats.topTags.reduce((sum, it) => sum + it.count, 0);
   const maxTagCount = stats.topTags[0]?.count ?? 0;
 
-  const heroBg = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorInfoHover ?? '#1677ff'} 45%, #40c9a2 100%)`;
+  const heroBg = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${
+    token.colorInfoHover ?? '#1677ff'
+  } 45%, #40c9a2 100%)`;
 
   const hasContactInfo = !!(info.contact?.name || info.contact?.email || info.contact?.url);
   const hasLicense = !!(info.license?.name || info.license?.url);

@@ -86,7 +86,7 @@ function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyl
   const requiredSet = new Set(schema.required ?? []);
   const rows = Object.entries(schema.properties)
     .map(([name, prop]) => {
-      const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
+      const type = prop.type ?? (prop.$ref ? prop.$ref.split('/').pop() ?? '$ref' : 'object');
       return `
     <tr>
       <td style="${borderStyle}">${escapeHtml(name)}</td>
@@ -116,12 +116,18 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
   return `
     <div style="margin:14px 0;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;">
       <div style="padding:8px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">
-        <span style="background:${color};color:#fff;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;min-width:56px;text-align:center;">${escapeHtml(method.toUpperCase())}</span>
+        <span style="background:${color};color:#fff;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;min-width:56px;text-align:center;">${escapeHtml(
+    method.toUpperCase(),
+  )}</span>
         <span style="font-family:monospace;font-size:14px;">${escapeHtml(path)}</span>
         ${op.deprecated ? '<span style="color:#f93e3e;font-size:12px;margin-left:8px;">[Deprecated]</span>' : ''}
       </div>
       ${op.summary ? `<div style="padding:5px 12px;font-size:14px;">${escapeHtml(op.summary)}</div>` : ''}
-      ${op.description ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(op.description)}</div>` : ''}
+      ${
+        op.description
+          ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(op.description)}</div>`
+          : ''
+      }
       ${params.length ? `<div style="padding:5px 12px;">${renderParamTable(params)}</div>` : ''}
       ${bodyHtml ? `<div style="padding:5px 12px;">${bodyHtml}</div>` : ''}
     </div>`;
@@ -200,8 +206,16 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
           const bodyHtml = renderRequestBodyTable(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
           return `
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
-          <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(op.method.toUpperCase())}]</strong> <code>${escapeHtml(op.path)}</code>${op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''}</p>
-          ${op.operation.summary ? `<p style="margin:2px 0;font-size:13px;">${escapeHtml(op.operation.summary)}</p>` : ''}
+          <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(
+            op.method.toUpperCase(),
+          )}]</strong> <code>${escapeHtml(op.path)}</code>${
+            op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''
+          }</p>
+          ${
+            op.operation.summary
+              ? `<p style="margin:2px 0;font-size:13px;">${escapeHtml(op.operation.summary)}</p>`
+              : ''
+          }
           ${paramTable}
           ${bodyHtml}
         </div>`;
