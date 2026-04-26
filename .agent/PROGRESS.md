@@ -973,3 +973,25 @@ status: done
 summary: PR #57 merged into master at 2026-04-26T08:18:25Z. Markdown rendering complete.
 next: TASK-041 (ready) - ApiDebug response panel copy/cURL/download actions
 blockers: none
+
+---
+date: 2026-04-26T08:40Z
+task: TASK-041
+agent: coordinator
+branch: agent/TASK-041-debug-response-actions
+status: review
+PR: https://github.com/songxychn/knife4j-next/pull/61
+summary:
+- Recovered uncommitted changes from previous SIGKILL'd worker
+- ResponsePanel: Copy Raw / Copy cURL / Download buttons added to status bar
+- ResponsePanel: accepts builtRequest prop, uses buildCurl() from knife4j-core
+- ApiDebug: stores builtRequest in state, passes to ResponsePanel
+- i18n: copyCurl key added in zh-CN and en-US
+- vite.config.ts: knife4j-core path alias added for workspace resolution
+- SidebarSearchMenu: tag description Markdown tooltip (incidental)
+validation:
+- tsc --noEmit: clean
+- npm run build -w knife4j-ui-react: passed
+- reviewer: approve
+next: await PR review/merge; then proceed to TASK-042
+blockers: none

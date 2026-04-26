@@ -761,7 +761,8 @@ notes:
 - 不引入代码高亮以控制体积，后续再补
 
 ### TASK-041
-status: ready
+status: review
+PR: https://github.com/songxychn/knife4j-next/pull/61
 area: ui-react
 title: ApiDebug 调试响应面板增加 "复制 Raw / 复制 cURL" 与体积格式化
 branch: agent/TASK-041-debug-response-actions
