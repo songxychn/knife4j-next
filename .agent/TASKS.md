@@ -780,7 +780,8 @@ notes:
 - 已有 cURL 预览（TASK-028），本任务聚焦响应面板按钮化
 
 ### TASK-042
-status: ready
+status: review
+PR: https://github.com/songxychn/knife4j-next/pull/62
 area: ui-react
 title: ApiDoc 顶部加入 "复制接口" / "复制文档 Markdown" / "复制地址" 三个操作
 branch: agent/TASK-042-apidoc-copy-actions

@@ -995,3 +995,22 @@ validation:
 - reviewer: approve
 next: await PR review/merge; then proceed to TASK-042
 blockers: none
+
+---
+date: 2026-04-26T09:00Z
+task: TASK-042
+agent: coordinator
+branch: agent/TASK-042-apidoc-copy-actions
+status: review
+PR: https://github.com/songxychn/knife4j-next/pull/62
+summary:
+- ApiDoc.tsx: three copy buttons added to toolbar (endpoint / markdown / url)
+- generateApiMarkdown in knife4j-core/src/markdownExport.ts (created by prior worker)
+- copyToClipboard util in knife4j-ui-react/src/utils/clipboard.ts (reused)
+- i18n keys: apiDoc.copy.endpoint / apiDoc.copy.markdown / apiDoc.copy.url in zh-CN + en-US
+- antd message.success/error on copy result
+validation:
+- tsc --noEmit: clean
+- vite build: passed
+next: await PR #62 review/merge; then proceed to TASK-043
+blockers: none
