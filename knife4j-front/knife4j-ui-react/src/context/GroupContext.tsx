@@ -11,7 +11,6 @@ import {
   type TagsSorter,
 } from '../api/knife4jClient';
 import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
-import { MOCK_GROUPS } from '../data/mockGroups';
 import { useSettings } from './SettingsContext';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
@@ -159,34 +158,31 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
   // 关键区分：
   //   - loading 中（swaggerDoc 为 null 且 usingMock 为 false）→ 空数组，让 UI 显示 loading
-  //   - 真正降级（usingMock 为 true）→ MOCK_GROUPS fallback
   //   - 有真实数据 → 从 rawGroups 转换
-  const groups: ApiGroup[] = usingMock
-    ? MOCK_GROUPS
-    : swaggerDoc
-      ? rawGroups.map((g) => {
-          const isActive = g.name === activeGroupValue;
-          const apis: ApiItem[] = isActive
-            ? menuTags.flatMap((t) =>
-                t.operations.map((op) => ({
-                  key: `/${activeGroupValue}/${op.key}`,
-                  method: op.method.toUpperCase(),
-                  path: op.path,
-                  summary: op.summary,
-                  tag: t.tag,
-                  operationId: op.operationId,
-                  deprecated: op.deprecated,
-                })),
-              )
-            : [];
-          return { value: g.name, label: g.name, apis };
-        })
-      : [];
+  //   注意：不再在 groups 里暴露 MOCK_GROUPS，彻底杜绝 petstore 闪烁
+  const groups: ApiGroup[] = swaggerDoc
+    ? rawGroups.map((g) => {
+        const isActive = g.name === activeGroupValue;
+        const apis: ApiItem[] = isActive
+          ? menuTags.flatMap((t) =>
+              t.operations.map((op) => ({
+                key: `/${activeGroupValue}/${op.key}`,
+                method: op.method.toUpperCase(),
+                path: op.path,
+                summary: op.summary,
+                tag: t.tag,
+                operationId: op.operationId,
+                deprecated: op.deprecated,
+              })),
+            )
+          : [];
+        return { value: g.name, label: g.name, apis };
+      })
+    : [];
 
   // loading 期间 groups 为空，提供一个空占位对象，避免下游 .apis 报错
   const EMPTY_GROUP: ApiGroup = { value: '', label: '', apis: [] };
-  const activeGroup =
-    groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? (usingMock ? MOCK_GROUPS[0] : EMPTY_GROUP);
+  const activeGroup = groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? EMPTY_GROUP;
 
   const handleSetActiveGroup = useCallback((value: string) => {
     setActiveGroupValue(value);

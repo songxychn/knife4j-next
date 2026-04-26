@@ -281,7 +281,7 @@ const AppInner: React.FC = () => {
             <div style={{ padding: '0 8px 8px' }}>
               <Select
                 options={groupOptions}
-                defaultValue={groupOptions[0]?.value}
+                value={activeGroup.value}
                 style={{ width: '100%' }}
                 onChange={(val) => setActiveGroupValue(val)}
               />
