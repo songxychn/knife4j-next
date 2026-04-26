@@ -1,8 +1,9 @@
 import { Card, Descriptions, Statistic, Row, Col, Typography, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
+import Markdown from '../components/Markdown';
 
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
 
@@ -41,7 +42,7 @@ export default function Home() {
           <Descriptions.Item label={t('home.version')}>{info.version ?? '-'}</Descriptions.Item>
           {info.description && (
             <Descriptions.Item label={t('home.description')}>
-              <Paragraph style={{ margin: 0 }}>{info.description}</Paragraph>
+              <Markdown source={info.description} />
             </Descriptions.Item>
           )}
         </Descriptions>

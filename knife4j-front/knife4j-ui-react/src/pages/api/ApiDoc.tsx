@@ -3,8 +3,9 @@ import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import Markdown from '../../components/Markdown';
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Text } = Typography;
 
 interface ParamRow {
   key: string;
@@ -214,7 +215,7 @@ export default function ApiDoc() {
       <Title level={4} style={{ marginTop: 0 }}>
         {op.summary ?? operation.path}
       </Title>
-      {op.description && <Paragraph type="secondary">{op.description}</Paragraph>}
+      {op.description && <Markdown source={op.description} />}
 
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestParams')}
