@@ -1,0 +1,27 @@
+id: TASK-026
+status: ready
+area: ui-react
+title: "React 调试页按 OpenAPI 参数定义渲染填参表单"
+branch: codex/TASK-026-react-debug-params
+depends_on:
+  - TASK-013
+  - TASK-017
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "ApiDebug 根据当前 operation 展示 path、query、header、cookie 参数的待填写表单项。"
+  - "每个参数展示名称、位置、类型、required、description、default、example、enum 信息。"
+  - "enum 参数使用可选项输入，boolean 参数使用布尔选择，array/object 参数有 JSON 输入兜底。"
+  - "表单初始值优先使用 example，其次 default，再按类型生成空值。"
+  - "点击发送时合并用户填写的 path/query/header/cookie 参数，不再只依赖简化输入。"
+notes:
+  - "第一优先级，对标 Vue2 knife4j-vue/src/views/api/Debug.vue 的参数填写能力。"
+  - "交互可以更现代，但同一份 OpenAPI 下 Vue2 能展示的参数项 React 也必须展示。"
+  - "建议抽出 operationDebugModel 或同等工具，避免把解析逻辑堆在 ApiDebug 组件里。"
+blockers: []
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

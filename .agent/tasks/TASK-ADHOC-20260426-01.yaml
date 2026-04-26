@@ -1,0 +1,24 @@
+id: TASK-ADHOC-20260426-01
+status: review
+area: repo
+title: "引入 AI 持续工作状态治理模型"
+branch: codex/TASK-ADHOC-20260426-agent-state-model
+depends_on: []
+validation:
+  commands:
+    - "git status --short --branch"
+    - "rg -n \"<<<<<<<|=======|>>>>>>>\" .agent || true"
+  expected: "工作区无冲突标记，状态治理文件齐全。"
+done_when:
+  - "新增 .agent/STATE.md 定义单一任务状态源、事件日志、租约和 run handoff。"
+  - "新增 .agent/tasks、.agent/events、.agent/leases、.agent/runs 模板。"
+  - "活跃任务 TASK-023 至 TASK-031 迁移到结构化 YAML。"
+  - "AGENTS.md 与 .agent/COORDINATION.md 指向新的状态治理流程。"
+notes:
+  - "这是维护工作流改造，不触碰业务代码。"
+  - "docs-site/guide/demo.md 包含此前本地在线 demo 地址说明改动，一并进入本 PR。"
+blockers: []
+owner: codex
+claimed_at: "2026-04-26T00:00:00+08:00"
+updated_at: "2026-04-26"
+handoff: .agent/runs/RUN-20260426-state-model.md

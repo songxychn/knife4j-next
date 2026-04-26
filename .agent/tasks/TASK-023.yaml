@@ -1,0 +1,25 @@
+id: TASK-023
+status: review
+area: repo
+title: "构建集成——knife4j-ui-react 产物打包进 knife4j-openapi3-ui"
+branch: codex/TASK-023-ui-react-integration
+depends_on:
+  - TASK-022
+validation:
+  commands:
+    - "cd knife4j && mvn -pl knife4j-openapi3-ui -am -q package -DskipTests && ls knife4j-openapi3-ui/target/classes/META-INF/resources/webjars/"
+  expected: "Maven package 通过，target webjars 目录包含 React 前端静态资源。"
+done_when:
+  - "knife4j-front/knife4j-ui-react 的 build 产物复制到 knife4j-openapi3-ui/src/main/resources/webjars/。"
+  - "doc.html 入口指向新的 React 产物。"
+  - "Maven build 通过，产物包含新前端静态资源。"
+  - "访问 /doc.html 加载的是 knife4j-ui-react 而非原 Vue2 产物。"
+notes:
+  - "可通过 Maven frontend-maven-plugin 或 exec-maven-plugin 在 package 阶段自动触发 npm run build。"
+  - "或先手动 copy 验证可行性，再自动化。"
+  - "这是里程碑任务，完成后 demo 站跑新前端。"
+blockers: []
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

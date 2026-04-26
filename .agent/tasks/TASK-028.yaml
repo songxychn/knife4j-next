@@ -1,0 +1,25 @@
+id: TASK-028
+status: blocked
+area: ui-react
+title: "React 调试发送前校验与请求预览"
+branch: codex/TASK-028-react-debug-request-builder
+depends_on:
+  - TASK-027
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "发送前校验 required 的 path/query/header/cookie/body 字段，缺失时定位到对应输入项。"
+  - "调试页展示最终请求 URL、method、headers、query、body 预览。"
+  - "支持复制等价 curl 命令。"
+  - "path 参数替换、query 拼接、header 合并、body 序列化由统一 requestBuilder 负责。"
+notes:
+  - "对标 Vue2 Knife4jDebugger.js 和 Debug.vue 的请求组装职责。"
+  - "需要保留同源 Spring Boot starter 场景优先，不在本任务扩展跨域代理能力。"
+blockers:
+  - "等待 TASK-027 完成。"
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

@@ -11,10 +11,12 @@
 3. `.agent/COORDINATION.md`
 4. `.agent/SERVER_PLAYBOOK.md`
 5. `.agent/RUNBOOK.md`
-6. `.agent/TASKS.md`
-7. `.agent/PROGRESS.md`
-8. `.agent/KNOWN_PITFALLS.md`
-9. `.agent/REVIEW_POLICY.md`
+6. `.agent/STATE.md`
+7. `.agent/tasks/*.yaml`
+8. `.agent/TASKS.md`
+9. `.agent/PROGRESS.md`
+10. `.agent/KNOWN_PITFALLS.md`
+11. `.agent/REVIEW_POLICY.md`
 
 未读完上述文件前，不要开始改代码。
 
@@ -26,20 +28,20 @@
 
 - 优先选择小而可回滚的任务。
 - 一个分支只处理一个可独立验证的任务。
-- 将进度持久写入 `.agent/PROGRESS.md`。
-- 任务状态变化时更新 `.agent/TASKS.md`。
+- 任务当前状态只写入 `.agent/tasks/*.yaml`。
+- 执行过程追加到 `.agent/events/*.ndjson`，会话交接写入 `.agent/runs/*.md`。
 - 遇到阻塞时记录 blocker，不要自行扩大范围。
 - 不要让关键上下文只存在于聊天记录中，必须写回 `.agent/`。
 
 ## 默认循环
 
 1. 读取 `.agent/` 状态。
-2. 从 `.agent/TASKS.md` 选择一个 `ready` 任务。
+2. 从 `.agent/tasks/*.yaml` 选择一个 `ready` 任务。
 3. 根据 `.agent/COORDINATION.md` 判断直接执行还是委派给短命 agent。
-4. 为任务创建或继续分支。
+4. 为任务创建租约，并创建或继续分支。
 5. 做满足任务的最小改动，或整合 worker 的交接结果。
 6. 按 `.agent/RUNBOOK.md` 运行最窄相关验证。
-7. 更新 `.agent/PROGRESS.md` 和 `.agent/TASKS.md`。
+7. 更新 `.agent/tasks/*.yaml`，追加事件日志和 run handoff。
 8. 任务可审查时创建或更新 PR。
 
 ## 多 Agent 规则

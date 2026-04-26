@@ -1,0 +1,24 @@
+id: TASK-025
+status: blocked
+area: ui-react
+title: "i18n 中英文切换"
+branch: codex/TASK-025-i18n
+depends_on:
+  - TASK-023
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm ci && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "引入 i18n 方案（react-i18next 或类似）。"
+  - "中英文语言包覆盖所有 UI 文案。"
+  - "Header 提供语言切换入口。"
+  - "npm run build 通过。"
+notes:
+  - "对标原版 knife4j 的 zh-CN / en-US 切换。"
+blockers:
+  - "等待 TASK-023 集成后在真实环境验证。"
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

@@ -1,0 +1,23 @@
+id: TASK-024
+status: blocked
+area: ui-react
+title: "设置面板入口（Header 右上角整合 Authorize/GlobalParam/OfflineDoc）"
+branch: codex/TASK-024-settings-panel
+depends_on:
+  - TASK-023
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm ci && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "Header 右上角 SettingOutlined 按钮点击后弹出设置抽屉/弹窗。"
+  - "设置面板内含 Authorize、GlobalParam、OfflineDoc 三个 Tab。"
+  - "npm run build 通过。"
+notes:
+  - "依赖 TASK-023 完成后在真实环境验证交互。"
+blockers:
+  - "等待 TASK-023 集成完成后再做，避免在沙盒里调 UI 细节。"
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

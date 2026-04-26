@@ -1,0 +1,26 @@
+id: TASK-027
+status: blocked
+area: ui-react
+title: "React 调试页补全 requestBody 多内容类型表单"
+branch: codex/TASK-027-react-debug-request-body
+depends_on:
+  - TASK-026
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "application/json 根据 schema 生成可编辑 JSON 示例。"
+  - "application/x-www-form-urlencoded 根据 schema properties 展示字段表单。"
+  - "multipart/form-data 支持普通字段和 file/binary 文件字段。"
+  - "raw/text/xml 等未知内容类型提供可编辑文本输入兜底。"
+  - "发送请求时按所选 content-type 正确构造 body 和 Content-Type。"
+notes:
+  - "对标 Vue2 initBodyParameter、debugSendFormRequest、debugSendRawRequest 等调试链路。"
+  - "依赖 TASK-026 的参数模型，避免 requestBody 和普通参数各自实现一套解析。"
+blockers:
+  - "等待 TASK-026 完成。"
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

@@ -1,0 +1,25 @@
+id: TASK-030
+status: blocked
+area: ui-react
+title: "React schema 示例生成对齐 Vue2 递归展开"
+branch: codex/TASK-030-react-schema-example-builder
+depends_on:
+  - TASK-027
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "根据 schema 递归生成 JSON 示例，支持 $ref、object、array、enum、example、default。"
+  - "循环引用不会造成死循环，重复引用类型以安全占位值截断。"
+  - "requestBody JSON 示例、ApiDoc 示例和 Models 示例复用同一生成逻辑。"
+  - "对深层嵌套有显式 maxDepth 保护，并在代码中集中配置。"
+notes:
+  - "对标 Vue2 Knife4jAsync.js 的 findRefDefinition 与 utils 示例值逻辑。"
+  - "Vue2 不是固定深度展开，而是递归展开并通过引用链数组防循环；React 版建议增加 maxDepth 保险。"
+blockers:
+  - "等待 TASK-027 完成。"
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

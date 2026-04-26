@@ -1,5 +1,7 @@
 # 进度日志
 
+> 状态治理迁移提示：从 2026-04-26 起，新的权威任务状态不再写入本文件；状态以 `.agent/tasks/*.yaml` 为准，过程事件写入 `.agent/events/*.ndjson`，会话交接写入 `.agent/runs/*.md`。本文件保留为历史阅读摘要。详见 `.agent/STATE.md`。
+
 新记录追加在底部。
 
 ## 模板
@@ -973,3 +975,19 @@ status: done
 summary: PR #57 merged into master at 2026-04-26T08:18:25Z. Markdown rendering complete.
 next: TASK-041 (ready) - ApiDebug response panel copy/cURL/download actions
 blockers: none
+
+## 2026-04-25 CST
+任务: ad-hoc docs demo online entry
+agent: codex
+branch: current
+status: done
+summary:
+- 在 `docs-site/guide/demo.md` 开头明确说明在线体验网站 `https://demo.knife4jnext.com/doc.html`。
+- 将“在线预览”小节中的“预留/如已上线”表述改为正式在线体验地址。
+validation:
+- `cd docs-site && npm run build` → 成功，VitePress build complete in 2.66s
+next:
+- 如需发布文档站，可走既有文档部署流程。
+blockers:
+- none
+

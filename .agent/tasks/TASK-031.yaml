@@ -1,0 +1,27 @@
+id: TASK-031
+status: blocked
+area: ui-react
+title: "React 调试接入鉴权与全局参数"
+branch: codex/TASK-031-react-debug-auth-global-param
+depends_on:
+  - TASK-028
+  - TASK-018
+  - TASK-019
+validation:
+  commands:
+    - "cd knife4j-front/knife4j-ui-react && npm run build"
+  expected: "React UI build 通过。"
+done_when:
+  - "ApiDebug 发送请求时自动合并 Authorize 中配置的认证信息。"
+  - "ApiDebug 发送请求时自动合并 GlobalParam 中配置的 header/query 参数。"
+  - "接口级参数与全局参数冲突时有明确优先级，并在 UI 中可见。"
+  - "用户可以在发送前预览最终合并后的 headers/query。"
+notes:
+  - "对标 Vue2 全局参数、Authorize 与 Debug.vue 的联动能力。"
+  - "依赖请求预览和 requestBuilder 稳定后再接入，避免参数来源混乱。"
+blockers:
+  - "等待 TASK-028 完成，并确认 TASK-018、TASK-019 的状态。"
+owner: null
+claimed_at: null
+updated_at: "2026-04-26"
+handoff: null

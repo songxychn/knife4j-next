@@ -1,0 +1,3 @@
+{"ts":"2026-04-26T00:00:00+08:00","event":"state_model.created","agent":"codex","summary":"Added STATE.md to define single-source task registry, append-only events, leases, and run handoffs."}
+{"ts":"2026-04-26T00:00:00+08:00","event":"task_registry.migrated","agent":"codex","task_ids":["TASK-023","TASK-024","TASK-025","TASK-026","TASK-027","TASK-028","TASK-029","TASK-030","TASK-031"],"summary":"Migrated active ready/blocked/review tasks from TASKS.md into .agent/tasks/*.yaml."}
+{"ts":"2026-04-26T00:00:00+08:00","event":"legacy_views.annotated","agent":"codex","files":[".agent/TASKS.md",".agent/PROGRESS.md"],"summary":"Marked legacy Markdown files as human-readable summaries, not authoritative task status sources."}

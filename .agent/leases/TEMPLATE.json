@@ -1,0 +1,9 @@
+{
+  "task_id": "TASK-000",
+  "owner": "agent-name",
+  "branch": "codex/TASK-000-short-slug",
+  "claimed_at": "YYYY-MM-DDTHH:MM:SS+08:00",
+  "expires_at": "YYYY-MM-DDTHH:MM:SS+08:00",
+  "heartbeat_at": "YYYY-MM-DDTHH:MM:SS+08:00",
+  "scope": ["path/or/module"]
+}

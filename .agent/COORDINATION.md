@@ -14,13 +14,13 @@ coordinator 负责持久状态。worker 和 reviewer 负责临时上下文。
 
 职责：
 
-- 读取 `.agent/` 状态
+- 读取 `.agent/` 状态，优先使用 `.agent/STATE.md` 和 `.agent/tasks/*.yaml`
 - 选择或细化一个任务
 - 判断是否委派
 - 定义 worker 范围和文件所有权
 - 整合结果
 - 运行或核验最终验证
-- 更新 `.agent/TASKS.md` 和 `.agent/PROGRESS.md`
+- 更新 `.agent/tasks/*.yaml`，追加 `.agent/events/*.ndjson`，必要时写 `.agent/runs/*.md`
 - 创建或更新 PR
 
 coordinator 应通过要求摘要、变更路径、验证结果和风险说明来保持上下文较小，而不是保存原始探索记录。

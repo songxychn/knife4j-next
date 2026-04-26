@@ -1,0 +1,20 @@
+id: TASK-000
+status: ready
+area: repo
+title: "任务标题"
+branch: codex/TASK-000-short-slug
+depends_on: []
+validation:
+  commands:
+    - "echo 'replace with the narrowest relevant validation'"
+  expected: "验证命令通过，或记录明确的验证例外"
+done_when:
+  - "完成条件 1"
+  - "完成条件 2"
+notes:
+  - "实现约束、参考路径或风险提示"
+blockers: []
+owner: null
+claimed_at: null
+updated_at: null
+handoff: null
