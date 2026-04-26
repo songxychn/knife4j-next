@@ -90,9 +90,7 @@ const AppInner: React.FC = () => {
 
   const closeOther = () => {
     if (contextMenuKey) {
-      const newPanes = items.filter(
-        (pane) => pane.key === HOME_KEY || pane.key === contextMenuKey,
-      );
+      const newPanes = items.filter((pane) => pane.key === HOME_KEY || pane.key === contextMenuKey);
       setItems(newPanes);
       if (!newPanes.some((p) => p.key === activeKey)) {
         const targetKey = contextMenuKey === HOME_KEY ? HOME_KEY : contextMenuKey;
