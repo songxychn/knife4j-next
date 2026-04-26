@@ -1,8 +1,29 @@
 import { Button, Space, Typography, Alert } from 'antd';
 import { FileTextOutlined, FileWordOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import {
+  Document,
+  Packer,
+  Paragraph as DocxParagraph,
+  TextRun,
+  Table as DocxTable,
+  TableRow as DocxTableRow,
+  TableCell as DocxTableCell,
+  WidthType,
+  AlignmentType,
+  BorderStyle,
+  HeadingLevel,
+  ShadingType,
+} from 'docx';
 import { useGroup } from '../../context/GroupContext';
-import type { SwaggerDoc, MenuTag, OperationObject, ParameterObject, SchemaObject } from '../../types/swagger';
+import type {
+  SwaggerDoc,
+  MenuTag,
+  OperationObject,
+  ParameterObject,
+  ResponseObject,
+  SchemaObject,
+} from '../../types/swagger';
 
 const { Title, Paragraph } = Typography;
 
@@ -109,6 +130,96 @@ function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyl
     </table>`;
 }
 
+/** Render a schema's properties as table rows, resolving $ref recursively. */
+function renderSchemaRows(
+  schema: SchemaObject,
+  doc: SwaggerDoc,
+  borderStyle: string,
+  requiredSet: Set<string>,
+  prefix = '',
+): string {
+  if (schema.$ref) {
+    const resolved = resolveRef(schema.$ref, doc);
+    if (!resolved) return '';
+    return renderSchemaRows(
+      resolved,
+      doc,
+      borderStyle,
+      resolved.required ? new Set(resolved.required) : new Set<string>(),
+      prefix,
+    );
+  }
+  if (!schema.properties) return '';
+  return Object.entries(schema.properties)
+    .map(([name, prop]) => {
+      const fieldPath = prefix ? `${prefix}.${name}` : name;
+      const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
+      const nested = prop.properties || (prop.$ref ? resolveRef(prop.$ref, doc) : undefined)?.properties;
+      let rows = `
+    <tr>
+      <td style="${borderStyle}">${escapeHtml(fieldPath)}</td>
+      <td style="${borderStyle}">${escapeHtml(type)}${prop.items?.type ? `&lt;${escapeHtml(prop.items.type)}&gt;` : ''}</td>
+      <td style="${borderStyle}">${requiredSet.has(name) ? 'Yes' : 'No'}</td>
+      <td style="${borderStyle}">${escapeHtml(prop.description)}</td>
+    </tr>`;
+      if (nested || (prop.$ref && resolveRef(prop.$ref, doc)?.properties)) {
+        const resolved = prop.$ref ? resolveRef(prop.$ref, doc) : prop;
+        if (resolved?.properties) {
+          const childRequired = resolved.required ? new Set(resolved.required) : new Set<string>();
+          rows += renderSchemaRows(resolved, doc, borderStyle, childRequired, fieldPath);
+        }
+      }
+      return rows;
+    })
+    .join('');
+}
+
+/** Render responses section for an operation (used by both HTML and Word exports). */
+function renderResponseSection(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
+  const responses = op.responses;
+  if (!responses || !Object.keys(responses).length) return '';
+
+  const entries = Object.entries(responses);
+  const parts: string[] = [];
+
+  for (const [statusCode, resp] of entries) {
+    const response = resp as ResponseObject;
+    const desc = response.description ?? '';
+    // Try OAS3 first, then OAS2
+    const schema = response.content?.['application/json']?.schema ?? response.schema;
+
+    if (schema) {
+      let resolved = schema;
+      if (schema.$ref) {
+        const refResolved = resolveRef(schema.$ref, doc);
+        if (refResolved) resolved = refResolved;
+      }
+      const requiredSet = new Set(resolved.required ?? []);
+      const rows = renderSchemaRows(resolved, doc, borderStyle, requiredSet);
+      if (rows) {
+        parts.push(`
+      <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Response ${escapeHtml(statusCode)}${desc ? ' — ' + escapeHtml(desc) : ''} (application/json)</p>
+      <table style="width:100%;border-collapse:collapse;margin:4px 0;font-size:13px;">
+        <thead><tr style="background:#f5f5f5;">
+          <th style="${borderStyle}text-align:left;">Field</th>
+          <th style="${borderStyle}text-align:left;">Type</th>
+          <th style="${borderStyle}text-align:left;">Required</th>
+          <th style="${borderStyle}text-align:left;">Description</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`);
+        continue;
+      }
+    }
+    // No schema or no properties — just show status + description
+    parts.push(
+      `<p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Response ${escapeHtml(statusCode)}${desc ? ' — ' + escapeHtml(desc) : ''}</p>`,
+    );
+  }
+
+  return parts.length ? parts.join('') : '';
+}
+
 function renderOperation(path: string, method: string, op: OperationObject, doc: SwaggerDoc): string {
   const color = methodColor(method);
   const params = op.parameters ?? [];
@@ -124,6 +235,10 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
       ${op.description ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(op.description)}</div>` : ''}
       ${params.length ? `<div style="padding:5px 12px;">${renderParamTable(params)}</div>` : ''}
       ${bodyHtml ? `<div style="padding:5px 12px;">${bodyHtml}</div>` : ''}
+      ${(() => {
+        const r = renderResponseSection(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
+        return r ? `<div style="padding:5px 12px;">${r}</div>` : '';
+      })()}
     </div>`;
 }
 
@@ -198,12 +313,14 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
         </table>`
             : '';
           const bodyHtml = renderRequestBodyTable(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
+          const responseHtml = renderResponseSection(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
           return `
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
           <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(op.method.toUpperCase())}]</strong> <code>${escapeHtml(op.path)}</code>${op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''}</p>
           ${op.operation.summary ? `<p style="margin:2px 0;font-size:13px;">${escapeHtml(op.operation.summary)}</p>` : ''}
           ${paramTable}
           ${bodyHtml}
+          ${responseHtml}
         </div>`;
         })
         .join('');
@@ -234,6 +351,251 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 </html>`;
 }
 
+// ─── docx helpers ────────────────────────────────────────────────
+
+const THIN_BORDER = {
+  top: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
+  bottom: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
+  left: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
+  right: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
+};
+
+function docxTextCell(text: string, opts?: { bold?: boolean; shading?: string }): DocxTableCell {
+  return new DocxTableCell({
+    borders: THIN_BORDER,
+    width: { size: 25, type: WidthType.PERCENTAGE },
+    shading: opts?.shading ? { type: ShadingType.SOLID, color: opts.shading } : undefined,
+    children: [
+      new DocxParagraph({
+        children: [new TextRun({ text, bold: opts?.bold, size: 20 })],
+        spacing: { before: 40, after: 40 },
+      }),
+    ],
+  });
+}
+
+/** Build schema rows for docx table, resolving $ref recursively. */
+function docxSchemaRows(schema: SchemaObject, doc: SwaggerDoc, requiredSet: Set<string>, prefix = ''): DocxTableRow[] {
+  if (schema.$ref) {
+    const resolved = resolveRef(schema.$ref, doc);
+    if (!resolved) return [];
+    return docxSchemaRows(resolved, doc, resolved.required ? new Set(resolved.required) : new Set<string>(), prefix);
+  }
+  if (!schema.properties) return [];
+  const rows: DocxTableRow[] = [];
+  for (const [name, prop] of Object.entries(schema.properties)) {
+    const fieldPath = prefix ? `${prefix}.${name}` : name;
+    const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
+    const itemType = prop.items?.type ? `<${prop.items.type}>` : '';
+    rows.push(
+      new DocxTableRow({
+        children: [
+          docxTextCell(fieldPath),
+          docxTextCell(`${type}${itemType}`),
+          docxTextCell(requiredSet.has(name) ? 'Yes' : 'No'),
+          docxTextCell(prop.description ?? ''),
+        ],
+      }),
+    );
+    // Recurse into nested objects
+    const nested = prop.properties || (prop.$ref ? resolveRef(prop.$ref, doc) : undefined)?.properties;
+    if (nested) {
+      const resolved = prop.$ref ? resolveRef(prop.$ref, doc) : prop;
+      if (resolved?.properties) {
+        const childRequired = resolved.required ? new Set(resolved.required) : new Set<string>();
+        rows.push(...docxSchemaRows(resolved, doc, childRequired, fieldPath));
+      }
+    }
+  }
+  return rows;
+}
+
+function docxParamRows(params: ParameterObject[]): DocxTableRow[] {
+  return params.map(
+    (p) =>
+      new DocxTableRow({
+        children: [
+          docxTextCell(p.name),
+          docxTextCell(p.in),
+          docxTextCell(p.required ? 'Yes' : 'No'),
+          docxTextCell(p.schema?.type ?? p.type ?? ''),
+          docxTextCell(p.description ?? ''),
+        ],
+      }),
+  );
+}
+
+function docxRequestBodySection(op: OperationObject, doc: SwaggerDoc): (DocxParagraph | DocxTable)[] {
+  const rb = op.requestBody;
+  if (!rb) return [];
+  const jsonContent = rb.content?.['application/json'];
+  if (!jsonContent?.schema) return [];
+  let schema = jsonContent.schema;
+  if (schema.$ref) {
+    const resolved = resolveRef(schema.$ref, doc);
+    if (!resolved) return [];
+    schema = resolved;
+  }
+  if (!schema.properties) return [];
+  const requiredSet = new Set(schema.required ?? []);
+  const headerRow = new DocxTableRow({
+    children: [
+      docxTextCell('Field', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+    ],
+  });
+  const dataRows = docxSchemaRows(schema, doc, requiredSet);
+  return [
+    new DocxParagraph({
+      children: [new TextRun({ text: 'Request Body (application/json)', bold: true, size: 22 })],
+      spacing: { before: 120, after: 40 },
+    }),
+    new DocxTable({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } }),
+  ];
+}
+
+function docxResponseSection(op: OperationObject, doc: SwaggerDoc): (DocxParagraph | DocxTable)[] {
+  const responses = op.responses;
+  if (!responses || !Object.keys(responses).length) return [];
+  const children: (DocxParagraph | DocxTable)[] = [];
+  for (const [statusCode, resp] of Object.entries(responses)) {
+    const response = resp as ResponseObject;
+    const desc = response.description ?? '';
+    const schema = response.content?.['application/json']?.schema ?? response.schema;
+    const label = desc ? `Response ${statusCode} — ${desc}` : `Response ${statusCode}`;
+    if (schema) {
+      let resolved = schema;
+      if (schema.$ref) {
+        const refResolved = resolveRef(schema.$ref, doc);
+        if (refResolved) resolved = refResolved;
+      }
+      const requiredSet = new Set(resolved.required ?? []);
+      const rows = docxSchemaRows(resolved, doc, requiredSet);
+      if (rows.length) {
+        const headerRow = new DocxTableRow({
+          children: [
+            docxTextCell('Field', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+          ],
+        });
+        children.push(
+          new DocxParagraph({
+            children: [new TextRun({ text: `${label} (application/json)`, bold: true, size: 22 })],
+            spacing: { before: 120, after: 40 },
+          }),
+          new DocxTable({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } }),
+        );
+        continue;
+      }
+    }
+    children.push(
+      new DocxParagraph({
+        children: [new TextRun({ text: label, bold: true, size: 22 })],
+        spacing: { before: 120, after: 40 },
+      }),
+    );
+  }
+  return children;
+}
+
+async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
+  const children: (DocxParagraph | DocxTable)[] = [];
+
+  // Title & info
+  children.push(
+    new DocxParagraph({
+      text: doc.info.title,
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+    }),
+  );
+  children.push(new DocxParagraph({ children: [new TextRun({ text: `Version: ${doc.info.version}`, size: 22 })] }));
+  if (doc.info.description) {
+    children.push(
+      new DocxParagraph({ children: [new TextRun({ text: `Description: ${doc.info.description}`, size: 22 })] }),
+    );
+  }
+  children.push(new DocxParagraph({ text: '' })); // spacer
+
+  for (const t of tags) {
+    children.push(
+      new DocxParagraph({
+        text: t.tag,
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 300, after: 100 },
+      }),
+    );
+    if (t.description) {
+      children.push(
+        new DocxParagraph({
+          children: [new TextRun({ text: t.description, italics: true, color: '666666', size: 22 })],
+          spacing: { after: 80 },
+        }),
+      );
+    }
+
+    for (const op of t.operations) {
+      const method = op.method.toUpperCase();
+      const path = op.path;
+      // Method + Path heading
+      children.push(
+        new DocxParagraph({
+          children: [
+            new TextRun({ text: `[${method}] `, bold: true, color: methodColor(op.method).replace('#', ''), size: 24 }),
+            new TextRun({ text: path, font: 'Courier New', size: 24 }),
+            ...(op.operation.deprecated ? [new TextRun({ text: ' [Deprecated]', color: 'f93e3e', size: 22 })] : []),
+          ],
+          spacing: { before: 200, after: 60 },
+        }),
+      );
+      if (op.operation.summary) {
+        children.push(new DocxParagraph({ children: [new TextRun({ text: op.operation.summary, size: 22 })] }));
+      }
+
+      // Parameters table
+      const params = op.operation.parameters ?? [];
+      if (params.length) {
+        const paramHeader = new DocxTableRow({
+          children: [
+            docxTextCell('Name', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('In', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+          ],
+        });
+        children.push(
+          new DocxParagraph({
+            children: [new TextRun({ text: 'Parameters', bold: true, size: 22 })],
+            spacing: { before: 80, after: 40 },
+          }),
+          new DocxTable({
+            rows: [paramHeader, ...docxParamRows(params)],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          }),
+        );
+      }
+
+      // Request body
+      children.push(...docxRequestBodySection(op.operation, doc));
+
+      // Responses
+      children.push(...docxResponseSection(op.operation, doc));
+    }
+  }
+
+  const document = new Document({
+    sections: [{ children }],
+  });
+
+  return Packer.toBlob(document);
+}
+
 export default function OfficeDoc() {
   const { t } = useTranslation();
   const { swaggerDoc, menuTags, loading, usingMock } = useGroup();
@@ -252,6 +614,18 @@ export default function OfficeDoc() {
     downloadBlob(html, `${title}.doc`, 'application/msword');
   }
 
+  async function handleDownloadDocx() {
+    if (!swaggerDoc) return;
+    const blob = await buildDocx(swaggerDoc, menuTags);
+    const title = swaggerDoc.info.title || 'api-docs';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = sanitizeFilename(`${title}.docx`);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
   const noData = !loading && (!swaggerDoc || usingMock);
 
   return (
@@ -265,7 +639,7 @@ export default function OfficeDoc() {
 
       {noData && <Alert type="warning" message={t('officeDoc.alert.mockData')} style={{ marginBottom: 16 }} />}
 
-      <Space size="middle">
+      <Space size="middle" wrap>
         <Button
           type="primary"
           icon={<FileTextOutlined />}
@@ -274,6 +648,14 @@ export default function OfficeDoc() {
           loading={loading}
         >
           {t('officeDoc.btn.html')}
+        </Button>
+        <Button
+          icon={<FileWordOutlined />}
+          onClick={handleDownloadDocx}
+          disabled={loading || !swaggerDoc || usingMock}
+          loading={loading}
+        >
+          {t('officeDoc.btn.docx')}
         </Button>
         <Button
           icon={<FileWordOutlined />}

@@ -233,9 +233,10 @@ const zhCN = {
 
   // OfficeDoc
   'officeDoc.title': '离线文档导出',
-  'officeDoc.desc': '将当前接口文档导出为可下载的离线文件，支持 HTML 和 Word（.doc）格式。',
+  'officeDoc.desc': '将当前接口文档导出为可下载的离线文件，支持 HTML、Word（.docx）和 Word（.doc）格式。',
   'officeDoc.alert.mockData': '当前使用 Mock 数据或文档未加载，导出内容可能不完整。',
   'officeDoc.btn.html': '下载 HTML',
+  'officeDoc.btn.docx': '下载 Word (.docx)',
   'officeDoc.btn.word': '下载 Word (.doc)',
 
   // Tab context menu

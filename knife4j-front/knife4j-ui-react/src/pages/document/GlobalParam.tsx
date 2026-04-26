@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Form, Input, Select, Space, Table } from 'antd';
+import { Button, Form, Input, Select, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { GlobalParamItem, useGlobalParam } from '../../context/GlobalParamContext';
@@ -43,10 +43,10 @@ function GlobalParamInner() {
         style={{ marginBottom: 16 }}
       >
         <Form.Item name="name" rules={[{ required: true, message: t('globalParam.validation.name') }]}>
-          <Input placeholder={t('globalParam.placeholder.name')} />
+          <Input placeholder={t('globalParam.placeholder.name')} style={{ width: 160 }} />
         </Form.Item>
         <Form.Item name="value" rules={[{ required: true, message: t('globalParam.validation.value') }]}>
-          <Input placeholder={t('globalParam.placeholder.value')} />
+          <Input placeholder={t('globalParam.placeholder.value')} style={{ width: 160 }} />
         </Form.Item>
         <Form.Item name="in">
           <Select style={{ width: 100 }}>
@@ -55,11 +55,9 @@ function GlobalParamInner() {
           </Select>
         </Form.Item>
         <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {t('globalParam.btn.add')}
-            </Button>
-          </Space>
+          <Button type="primary" htmlType="submit" loading={loading}>
+            {t('globalParam.btn.add')}
+          </Button>
         </Form.Item>
       </Form>
 
