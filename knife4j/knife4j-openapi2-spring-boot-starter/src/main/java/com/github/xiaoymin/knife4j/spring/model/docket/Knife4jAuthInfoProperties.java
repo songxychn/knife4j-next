@@ -32,28 +32,28 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "knife4j.openapi.basic-auth")
 public class Knife4jAuthInfoProperties {
-    
+
     /**
      * basic auth type.
      */
     private BasicAuthTypeEnums authType;
-    
+
     /**
      * OAuth2 Scope
      */
     private List<OAuth2Scope> scopes;
-    
+
     /**
      * basic auth APi Path Collection,Only support Ant,not support regex.
      * example: /api/**, /config/** etc.
      */
     private List<String> paths;
-    
+
     /**
      * header name
      */
     private String name;
-    
+
     /**
      * authType is {@link BasicAuthTypeEnums#API_KEY},set this property
      */

@@ -27,17 +27,17 @@ import org.springframework.beans.BeanUtils;
  * 2018/10/11 16:30
  */
 public class SwaggerExt extends Swagger {
-    
+
     protected SwaggerBootstrapUi swaggerBootstrapUi;
-    
+
     public SwaggerBootstrapUi getSwaggerBootstrapUi() {
         return swaggerBootstrapUi;
     }
-    
+
     public void setSwaggerBootstrapUi(SwaggerBootstrapUi swaggerBootstrapUi) {
         this.swaggerBootstrapUi = swaggerBootstrapUi;
     }
-    
+
     public SwaggerExt(Swagger swagger) {
         BeanUtils.copyProperties(swagger, this);
     }

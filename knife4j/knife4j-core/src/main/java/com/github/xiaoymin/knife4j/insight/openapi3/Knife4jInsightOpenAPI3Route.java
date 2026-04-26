@@ -28,7 +28,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Knife4jInsightOpenAPI3Route {
-    
+
     private String name;
     private String url;
 }

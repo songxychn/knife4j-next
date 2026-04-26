@@ -33,11 +33,11 @@ import java.util.regex.Pattern;
  * 2019/02/02 19:57
  */
 public class BasicFilter {
-    
+
     private Logger logger = LoggerFactory.getLogger(BasicFilter.class);
-    
+
     protected List<Pattern> urlFilters = null;
-    
+
     public BasicFilter() {
         urlFilters = new ArrayList<>();
         urlFilters.add(Pattern.compile(".*?/doc\\.html.*", Pattern.CASE_INSENSITIVE));
@@ -50,7 +50,7 @@ public class BasicFilter {
         urlFilters.add(Pattern.compile(".*?/swagger-ui.*", Pattern.CASE_INSENSITIVE));
         urlFilters.add(Pattern.compile(".*?/v3/api-docs.*", Pattern.CASE_INSENSITIVE));
     }
-    
+
     /**
      * 添加外部过滤规则，正则表达式
      * @param rule 外部自定义规则
@@ -58,7 +58,7 @@ public class BasicFilter {
     public void addRule(String rule) {
         this.urlFilters.add(Pattern.compile(rule, Pattern.CASE_INSENSITIVE));
     }
-    
+
     /**
      * 添加外部过滤规则，正则表达式
      * @param rules
@@ -68,7 +68,7 @@ public class BasicFilter {
             rules.forEach(this::addRule);
         }
     }
-    
+
     protected boolean match(String uri) {
         boolean match = false;
         if (uri != null) {
@@ -105,7 +105,7 @@ public class BasicFilter {
         }
         return decodeStr;
     }
-    
+
     public List<Pattern> getUrlFilters() {
         return urlFilters;
     }

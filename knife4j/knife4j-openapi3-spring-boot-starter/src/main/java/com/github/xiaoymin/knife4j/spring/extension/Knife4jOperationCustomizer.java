@@ -35,7 +35,7 @@ import org.springframework.web.method.HandlerMethod;
  */
 @Slf4j
 public class Knife4jOperationCustomizer implements GlobalOperationCustomizer {
-    
+
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {
         // 解析支持作者、接口排序

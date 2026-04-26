@@ -37,9 +37,9 @@ import java.util.Base64;
 @Slf4j
 @AllArgsConstructor
 public class CustomerServiceConvert implements ServiceRouterConvert {
-    
+
     final Knife4jGatewayProperties knife4jGatewayProperties;
-    
+
     @Override
     public void process(ServiceRouterHolder routerHolder) {
         log.debug("Knife4j Gateway Routes Config process...");
@@ -57,7 +57,7 @@ public class CustomerServiceConvert implements ServiceRouterConvert {
             }
         }
     }
-    
+
     @Override
     public int order() {
         return GatewayRouterStrategy.CUSTOM.getOrder();

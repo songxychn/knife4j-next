@@ -36,11 +36,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 public abstract class AbstractBasicAuthFilter {
-    
+
     public static final String BASIC = "Basic";
-    
+
     protected List<Pattern> urlFilters = null;
-    
+
     protected AbstractBasicAuthFilter() {
         urlFilters = new ArrayList<>();
         urlFilters.add(Pattern.compile(".*?/doc\\.html.*", Pattern.CASE_INSENSITIVE));
@@ -53,7 +53,7 @@ public abstract class AbstractBasicAuthFilter {
         urlFilters.add(Pattern.compile(".*?/swagger-ui.*", Pattern.CASE_INSENSITIVE));
         urlFilters.add(Pattern.compile(".*?/v3/api-docs.*", Pattern.CASE_INSENSITIVE));
     }
-    
+
     /**
      * 添加外部过滤规则，正则表达式
      * 
@@ -62,7 +62,7 @@ public abstract class AbstractBasicAuthFilter {
     public void addRule(String rule) {
         this.urlFilters.add(Pattern.compile(rule, Pattern.CASE_INSENSITIVE));
     }
-    
+
     /**
      * 添加外部过滤规则，正则表达式
      * 
@@ -73,7 +73,7 @@ public abstract class AbstractBasicAuthFilter {
             rules.forEach(this::addRule);
         }
     }
-    
+
     /**
      * 判断是否匹配
      * 
@@ -100,7 +100,7 @@ public abstract class AbstractBasicAuthFilter {
         }
         return false;
     }
-    
+
     /**
      * base64解码
      * 
@@ -119,5 +119,5 @@ public abstract class AbstractBasicAuthFilter {
         }
         return decodeStr;
     }
-    
+
 }

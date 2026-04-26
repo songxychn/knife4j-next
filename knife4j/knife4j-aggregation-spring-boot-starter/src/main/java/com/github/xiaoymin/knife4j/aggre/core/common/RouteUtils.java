@@ -26,7 +26,7 @@ import java.util.Base64;
  * @since  2.0.8
  */
 public class RouteUtils {
-    
+
     public static String authorize(String username, String password) {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("Basic ");

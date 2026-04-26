@@ -28,7 +28,7 @@ import java.util.Objects;
  * 2022/8/18 22:26
  */
 public class EnvironmentUtils {
-    
+
     /**
      * 处理程序contextPath
      * @param environment 环境变量
@@ -48,7 +48,7 @@ public class EnvironmentUtils {
         }
         return contextPath;
     }
-    
+
     /**
      * get String property
      * @param environment Spring Context Environment
@@ -65,7 +65,7 @@ public class EnvironmentUtils {
         }
         return defaultValue;
     }
-    
+
     /**
      * 获取int类型的值
      * @param environment 环境变量
@@ -80,7 +80,7 @@ public class EnvironmentUtils {
         }
         return defaultValue;
     }
-    
+
     /**
      * 获取bool值
      * @param environment 环境变量

@@ -51,7 +51,7 @@ import static springfox.documentation.service.Tags.emptyTags;
 @Component
 @Order(value = Ordered.HIGHEST_PRECEDENCE + 2000)
 public class ApiListingOrderReader implements ApiListingBuilderPlugin {
-    
+
     @Override
     public void apply(ApiListingContext apiListingContext) {
         // 设计思路
@@ -64,7 +64,7 @@ public class ApiListingOrderReader implements ApiListingBuilderPlugin {
             Optional<Api> apiAnnotation = ofNullable(findAnnotation(controller.get(), Api.class));
             String description = apiAnnotation.map(Api::description).filter(((Predicate<String>) String::isEmpty).negate())
                     .orElse(null);
-            
+
             Set<String> tagSet = apiAnnotation.map(tags())
                     .orElse(new TreeSet<>());
             if (tagSet.isEmpty()) {
@@ -84,7 +84,7 @@ public class ApiListingOrderReader implements ApiListingBuilderPlugin {
             }
             apiListingContext.apiListingBuilder().tags(tagsSet);
         }
-        
+
     }
     private String applyAuthor(Optional<? extends Class<?>> controller) {
         Optional<ApiSupport> apiSupportAnnotation = ofNullable(findAnnotation(controller.get(), ApiSupport.class));
@@ -108,12 +108,12 @@ public class ApiListingOrderReader implements ApiListingBuilderPlugin {
         Integer min = apiSortOrder.compareTo(apiSupportOrder) < 0 ? apiSortOrder : apiSupportOrder;
         return min;
     }
-    
+
     @Override
     public boolean supports(DocumentationType documentationType) {
         return true;
     }
-    
+
     private Function<Api, Set<String>> tags() {
         return input -> Stream.of(input.tags())
                 .filter(emptyTags())

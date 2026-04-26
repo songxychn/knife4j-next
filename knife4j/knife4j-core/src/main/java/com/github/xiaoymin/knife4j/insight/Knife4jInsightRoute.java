@@ -28,12 +28,12 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Knife4jInsightRoute {
-    
+
     /**
      * 分组名称
      */
     private String groupName;
-    
+
     /**
      * JSON内容
      */

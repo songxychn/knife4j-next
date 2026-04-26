@@ -61,22 +61,22 @@ import static springfox.documentation.spring.web.readers.operation.ResponseMessa
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1050)
 public class DynamicResponseModelReader implements OperationBuilderPlugin {
-    
+
     private final TypeNameExtractor typeNameExtractor;
     private final EnumTypeDeterminer typeDeterminer;
     private final SchemaPluginsManager pluginsManager;
-    
+
     private final Map<String, String> cacheGenModelMaps = new HashMap<>();
     @Autowired
     private TypeResolver typeResolver;
-    
+
     @Autowired
     public DynamicResponseModelReader(TypeNameExtractor typeNameExtractor, EnumTypeDeterminer typeDeterminer, SchemaPluginsManager pluginsManager) {
         this.typeNameExtractor = typeNameExtractor;
         this.typeDeterminer = typeDeterminer;
         this.pluginsManager = pluginsManager;
     }
-    
+
     @Override
     public void apply(OperationContext context) {
         Optional<ApiOperationSupport> optional = context.findAnnotation(ApiOperationSupport.class);
@@ -99,7 +99,7 @@ public class DynamicResponseModelReader implements OperationBuilderPlugin {
             }
         }
     }
-    
+
     /***
      * 改变响应Model的状态码200指定类
      * @param dynamicResponseParameters
@@ -158,16 +158,16 @@ public class DynamicResponseModelReader implements OperationBuilderPlugin {
                     sets.add(built);
                     operationContext.operationBuilder().responseMessages(sets);
                 }
-                
+
             }
         }
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;
     }
-    
+
     public String genClassName(OperationContext context) {
         // gen
         String name = context.getName();

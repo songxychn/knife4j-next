@@ -30,7 +30,7 @@ import org.springframework.cloud.gateway.support.NameUtils;
 @Getter
 @AllArgsConstructor
 public enum GatewayRouterStrategy {
-    
+
     /**
      * 基于gateway配置routes，spring.gateway.routes的方式
      */
@@ -52,5 +52,5 @@ public enum GatewayRouterStrategy {
      */
     final String rule;
     final int order;
-    
+
 }

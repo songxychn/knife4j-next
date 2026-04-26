@@ -28,20 +28,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * 2020/10/31 11:07
  */
 public class RouteInMemoryCache implements RouteCache<String, SwaggerRoute> {
-    
+
     private final ConcurrentHashMap<String, SwaggerRoute> cache = new ConcurrentHashMap<>();
-    
+
     @Override
     public boolean put(String s, SwaggerRoute swaggerRoute) {
         cache.put(s, swaggerRoute);
         return true;
     }
-    
+
     @Override
     public SwaggerRoute get(String s) {
         return cache.get(s);
     }
-    
+
     @Override
     public boolean remove(String s) {
         cache.remove(s);

@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @AllArgsConstructor
 public class Knife4jInsightUploadRunner implements Runnable {
-    
+
     final Knife4jInsightCommonInfo knife4jInsightCommonInfo;
     @Override
     public void run() {

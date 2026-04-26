@@ -41,13 +41,13 @@ import java.util.List;
  * 2020/10/29 22:04
  */
 public class ApacheClientResponse implements RouteResponse {
-    
+
     Logger logger = LoggerFactory.getLogger(ApacheClientResponse.class);
-    
+
     private final HttpResponse httpResponse;
-    
+
     private HttpEntity httpEntity;
-    
+
     public ApacheClientResponse(HttpResponse httpResponse) {
         if (httpResponse == null) {
             throw new IllegalArgumentException("响应请求体不能为空");
@@ -57,7 +57,7 @@ public class ApacheClientResponse implements RouteResponse {
             httpEntity = httpResponse.getEntity();
         }
     }
-    
+
     @Override
     public List<HeaderWrapper> getHeaders() {
         Header[] headers = this.httpResponse.getAllHeaders();
@@ -71,17 +71,17 @@ public class ApacheClientResponse implements RouteResponse {
         }
         return headerWrappers;
     }
-    
+
     @Override
     public boolean success() {
         return true;
     }
-    
+
     @Override
     public int getStatusCode() {
         return httpResponse.getStatusLine().getStatusCode();
     }
-    
+
     @Override
     public String getContentType() {
         if (httpEntity != null) {
@@ -92,7 +92,7 @@ public class ApacheClientResponse implements RouteResponse {
         }
         return "application/json";
     }
-    
+
     @Override
     public Long getContentLength() {
         if (httpEntity != null) {
@@ -100,7 +100,7 @@ public class ApacheClientResponse implements RouteResponse {
         }
         return Long.valueOf(-1);
     }
-    
+
     @Override
     public Charset getCharsetEncoding() {
         if (httpEntity != null) {
@@ -111,7 +111,7 @@ public class ApacheClientResponse implements RouteResponse {
         }
         return Charset.forName("UTF-8");
     }
-    
+
     @Override
     public InputStream getBody() {
         try {
@@ -120,7 +120,7 @@ public class ApacheClientResponse implements RouteResponse {
         }
         return null;
     }
-    
+
     @Override
     public String text() {
         try {

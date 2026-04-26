@@ -24,7 +24,7 @@ package com.github.xiaoymin.knife4j.aggre.core;
  * 2020/10/29 20:33
  */
 public interface RouteExecutor {
-    
+
     /**
      * 执行器
      * @param routeContext 请求上下文

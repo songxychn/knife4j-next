@@ -38,10 +38,10 @@ import java.util.Map;
 @AllArgsConstructor
 @Slf4j
 public class ConfigRouteServiceConvert extends AbstactServiceRouterConvert {
-    
+
     final GatewayProperties gatewayProperties;
     final Knife4jGatewayProperties knife4jGatewayProperties;
-    
+
     @Override
     public void process(ServiceRouterHolder routerHolder) {
         log.debug("Spring Cloud Gateway Routes Config process.");
@@ -53,30 +53,30 @@ public class ConfigRouteServiceConvert extends AbstactServiceRouterConvert {
                 .forEach(routeDefinition -> parseRouteDefinition(routerHolder, routeDefinition.getPredicates(), routeDefinition.getUri().getHost(),
                         routeDefinition.getUri().getHost()));
     }
-    
+
     @Override
     String convertPathPrefix(Map<String, String> predicateArgs) {
         String value = predicateArgs.get(GatewayRouterStrategy.CONFIG.getRule());
-        
+
         // 如果获取简洁写法失败，则尝试获取完整写法
         if (StrUtil.isBlank(value)) {
             value = predicateArgs.get(GatewayRouterStrategy.REACTIVE.getRule());
         }
-        
+
         if (StrUtil.isNotBlank(value)) {
             return value.replace("**", StringUtil.EMPTY_STRING);
         }
         return StringUtil.EMPTY_STRING;
     }
-    
+
     @Override
     public int order() {
         return GatewayRouterStrategy.CONFIG.getOrder();
     }
-    
+
     @Override
     Knife4jGatewayProperties.Discover getDiscover() {
         return this.knife4jGatewayProperties.getDiscover();
     }
-    
+
 }

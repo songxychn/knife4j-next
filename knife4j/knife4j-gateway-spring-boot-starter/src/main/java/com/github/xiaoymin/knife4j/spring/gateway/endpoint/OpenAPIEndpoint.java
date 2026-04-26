@@ -45,7 +45,7 @@ import java.util.*;
 @RestController
 @ConditionalOnProperty(name = "knife4j.gateway.enabled", havingValue = "true")
 public class OpenAPIEndpoint {
-    
+
     final Knife4jGatewayProperties knife4jGatewayProperties;
     final ApplicationContext applicationContext;
     /**

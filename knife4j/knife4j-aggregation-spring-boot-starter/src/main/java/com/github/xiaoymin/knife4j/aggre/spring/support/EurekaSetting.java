@@ -31,12 +31,12 @@ import java.util.List;
  */
 @ConfigurationProperties(prefix = "knife4j.eureka")
 public class EurekaSetting {
-    
+
     /**
      * 是否启用
      */
     private boolean enable;
-    
+
     /**
      * Eureka注册中心地址,例如(http://localhost:10000/eureka/)
      */
@@ -49,48 +49,48 @@ public class EurekaSetting {
      * 配置的Route路由服务的公共Basic验证信息，仅作用与访问Swagger接口时使用，具体服务的其他接口不使用该配置
      */
     private BasicAuth routeAuth;
-    
+
     /**
      * 路由列表
      */
     private List<EurekaRoute> routes;
-    
+
     public BasicAuth getRouteAuth() {
         return routeAuth;
     }
-    
+
     public void setRouteAuth(BasicAuth routeAuth) {
         this.routeAuth = routeAuth;
     }
-    
+
     public boolean isEnable() {
         return enable;
     }
-    
+
     public void setEnable(boolean enable) {
         this.enable = enable;
     }
-    
+
     public String getServiceUrl() {
         return serviceUrl;
     }
-    
+
     public void setServiceUrl(String serviceUrl) {
         this.serviceUrl = serviceUrl;
     }
-    
+
     public List<EurekaRoute> getRoutes() {
         return routes;
     }
-    
+
     public void setRoutes(List<EurekaRoute> routes) {
         this.routes = routes;
     }
-    
+
     public BasicAuth getServiceAuth() {
         return serviceAuth;
     }
-    
+
     public void setServiceAuth(BasicAuth serviceAuth) {
         this.serviceAuth = serviceAuth;
     }

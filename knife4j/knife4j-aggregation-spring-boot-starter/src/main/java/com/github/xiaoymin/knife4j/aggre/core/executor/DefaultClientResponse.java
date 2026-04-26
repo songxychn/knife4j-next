@@ -33,57 +33,57 @@ import java.util.List;
  * 2020/10/30 10:30
  */
 public class DefaultClientResponse implements RouteResponse {
-    
+
     private final String uri;
     private final String error;
     private int httpCode = 500;
-    
+
     public DefaultClientResponse(String uri, String error) {
         this.uri = uri;
         this.error = error;
     }
-    
+
     public DefaultClientResponse(String uri, String error, int httpCode) {
         this.uri = uri;
         this.error = error;
         this.httpCode = httpCode;
     }
-    
+
     @Override
     public List<HeaderWrapper> getHeaders() {
         return null;
     }
-    
+
     @Override
     public boolean success() {
         return false;
     }
-    
+
     @Override
     public int getStatusCode() {
         return httpCode;
     }
-    
+
     @Override
     public String getContentType() {
         return "application/json";
     }
-    
+
     @Override
     public Long getContentLength() {
         return 0L;
     }
-    
+
     @Override
     public Charset getCharsetEncoding() {
         return Charset.forName("UTF-8");
     }
-    
+
     @Override
     public InputStream getBody() {
         return null;
     }
-    
+
     @Override
     public String text() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));

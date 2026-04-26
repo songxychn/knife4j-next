@@ -25,16 +25,16 @@ import com.github.xiaoymin.knife4j.aggre.core.pojo.CommonAuthRoute;
  * @since  2.0.8
  */
 public class EurekaRoute extends CommonAuthRoute {
-    
+
     /**
      * 服务名称,不能为空,代表需要聚合的服务
      */
     private String serviceName;
-    
+
     public String getServiceName() {
         return serviceName;
     }
-    
+
     public void setServiceName(String serviceName) {
         this.serviceName = serviceName;
     }

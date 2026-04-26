@@ -32,17 +32,17 @@ import java.util.Enumeration;
  * 2019/01/18 17:15
  */
 public class ProductionSecurityFilter extends BasicFilter implements Filter {
-    
+
     /***
      * 是否生产环境,如果是生成环境,过滤Swagger的相关资源请求
      */
     private boolean production = false;
-    
+
     /**
      * 生产环境屏蔽后自定义响应HTTP状态码
      */
     private Integer customCode = 200;
-    
+
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
         // 判断filterConfig
@@ -52,7 +52,7 @@ public class ProductionSecurityFilter extends BasicFilter implements Filter {
             setProduction(Boolean.valueOf(filterConfig.getInitParameter("production")));
         }
     }
-    
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest httpServletRequest = (HttpServletRequest) request;
@@ -73,28 +73,28 @@ public class ProductionSecurityFilter extends BasicFilter implements Filter {
             chain.doFilter(request, response);
         }
     }
-    
+
     @Override
     public void destroy() {
-        
+
     }
-    
+
     public ProductionSecurityFilter(boolean production) {
         this.production = production;
     }
-    
+
     public ProductionSecurityFilter(boolean production, Integer customCode) {
         this.production = production;
         this.customCode = customCode;
     }
-    
+
     public ProductionSecurityFilter() {
     }
-    
+
     public boolean isProduction() {
         return production;
     }
-    
+
     public void setProduction(boolean production) {
         this.production = production;
     }

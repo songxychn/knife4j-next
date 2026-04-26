@@ -26,13 +26,13 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface DynamicParameters {
-    
+
     /***
      * dynamic Model name
      * @return 类名
      */
     String name() default "";
-    
+
     /***
      * list of properties
      * @return 类属性集合

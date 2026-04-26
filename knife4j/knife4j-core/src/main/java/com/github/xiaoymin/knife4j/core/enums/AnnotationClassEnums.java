@@ -29,7 +29,7 @@ import java.util.List;
  * 2022/8/18 23:59
  */
 public enum AnnotationClassEnums {
-    
+
     /**
      * ShortName with @Api Swagger2
      */
@@ -42,7 +42,7 @@ public enum AnnotationClassEnums {
     PatchMapping("PatchMapping", "org.springframework.web.bind.annotation.PatchMapping"),
     RestController("RestController", "org.springframework.web.bind.annotation.RestController"),
     Controller("Controller", "org.springframework.stereotype.Controller");
-    
+
     /**
      * ShortName
      */
@@ -53,12 +53,12 @@ public enum AnnotationClassEnums {
      */
     @Getter
     private String fullPath;
-    
+
     AnnotationClassEnums(String shortName, String fullPath) {
         this.shortName = shortName;
         this.fullPath = fullPath;
     }
-    
+
     /**
      * 处理资源
      * @param resources

@@ -35,7 +35,7 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "knife4j")
 public class Knife4jProperties {
-    
+
     /**
      * Whether to enable knife4j enhanced mode
      */
@@ -48,27 +48,27 @@ public class Knife4jProperties {
      * Enable default cross domain,default is false.
      */
     private boolean cors = false;
-    
+
     /**
      * Enable HTTP Basic authentication,default is false.
      */
     private Knife4jHttpBasic basic;
-    
+
     /**
      * Is it in the production environment? If yes, all documents cannot be accessed at present，default is false
      */
     private boolean production = false;
-    
+
     /**
      * The Personalized configuration
      */
     private Knife4jSetting setting;
-    
+
     /**
      * The group of Custom Markdown resources
      */
     private List<MarkdownProperty> documents;
-    
+
     /**
      * Knife4jInsight 配置功能
      * @since v4.4.0

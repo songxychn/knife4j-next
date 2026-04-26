@@ -36,16 +36,16 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class Boot3JakartaDocHttpSmokeTest {
-    
+
     private ConfigurableApplicationContext context;
-    
+
     @After
     public void closeContext() {
         if (context != null) {
             context.close();
         }
     }
-    
+
     @Test
     public void shouldServeDocHtmlAndOpenApiJson() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
@@ -55,19 +55,19 @@ public class Boot3JakartaDocHttpSmokeTest {
                         "knife4j.enable=true",
                         "logging.level.root=ERROR")
                 .run();
-        
+
         int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
-        
+
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
         Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
-        
+
         HttpResponse apiDocs = get(port, "/v3/api-docs");
         Assert.assertEquals(200, apiDocs.statusCode);
         Assert.assertTrue(apiDocs.body.contains("\"openapi\""));
         Assert.assertTrue(apiDocs.body.contains("/hello"));
     }
-    
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
@@ -77,7 +77,7 @@ public class Boot3JakartaDocHttpSmokeTest {
         InputStream input = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
         return new HttpResponse(statusCode, read(input));
     }
-    
+
     private String read(InputStream input) throws IOException {
         if (input == null) {
             return "";
@@ -91,26 +91,26 @@ public class Boot3JakartaDocHttpSmokeTest {
             return output.toString(StandardCharsets.UTF_8.name());
         }
     }
-    
+
     private static class HttpResponse {
-        
+
         private final int statusCode;
         private final String body;
-        
+
         private HttpResponse(int statusCode, String body) {
             this.statusCode = statusCode;
             this.body = body;
         }
     }
-    
+
     @EnableKnife4j
     @SpringBootApplication
     public static class TestApplication {
     }
-    
+
     @RestController
     public static class TestController {
-        
+
         @GetMapping("/hello")
         public String hello() {
             return "hello";

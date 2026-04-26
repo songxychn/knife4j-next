@@ -67,7 +67,7 @@ import jakarta.servlet.http.Part;
  * 2020/10/29 20:08
  */
 public class RouteDispatcher {
-    
+
     /**
      * header
      */
@@ -77,23 +77,23 @@ public class RouteDispatcher {
     public static final String OPENAPI_GROUP_ENDPOINT = "/swagger-resources";
     public static final String OPENAPI_GROUP_INSTANCE_ENDPOINT = "/swagger-instance";
     public static final String ROUTE_BASE_PATH = "/";
-    
+
     Logger logger = LoggerFactory.getLogger(RouteDispatcher.class);
     /**
      * current project contextPath
      */
     private String rootPath;
-    
+
     private RouteRepository routeRepository;
-    
+
     private RouteExecutor routeExecutor;
-    
+
     private RouteCache<String, SwaggerRoute> routeCache;
-    
+
     private OpenAPIV3Setting openAPIV3Setting;
-    
+
     private Set<String> ignoreHeaders = new HashSet<>();
-    
+
     public RouteDispatcher(RouteRepository routeRepository, RouteCache<String, SwaggerRoute> routeRouteCache,
                            ExecutorEnum executorEnum, String rootPath, OpenAPIV3Setting openAPIV3Setting) {
         this.routeRepository = routeRepository;
@@ -105,7 +105,7 @@ public class RouteDispatcher {
                 "host", "content-length", ROUTE_PROXY_HEADER_NAME, ROUTE_PROXY_HEADER_BASIC_NAME, "Request-Origion", "language", "knife4j-gateway-code"
         }));
     }
-    
+
     private void initExecutor(ExecutorEnum executorEnum) {
         if (executorEnum == null) {
             throw new IllegalArgumentException("ExecutorEnum can not be empty");
@@ -121,7 +121,7 @@ public class RouteDispatcher {
                 throw new UnsupportedOperationException("UnSupported ExecutorType:" + executorEnum.name());
         }
     }
-    
+
     public boolean checkRoute(String header) {
         if (StrUtil.isNotBlank(header)) {
             SwaggerRoute swaggerRoute = routeRepository.getRoute(header);
@@ -131,7 +131,7 @@ public class RouteDispatcher {
         }
         return false;
     }
-    
+
     public void execute(HttpServletRequest request, HttpServletResponse response) {
         try {
             RouteRequestContext routeContext = new RouteRequestContext();
@@ -147,7 +147,7 @@ public class RouteDispatcher {
             writeDefault(request, response, e.getMessage());
         }
     }
-    
+
     protected void writeDefault(HttpServletRequest request, HttpServletResponse response, String errMsg) {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -163,7 +163,7 @@ public class RouteDispatcher {
             // ignore
         }
     }
-    
+
     /**
      * Write Http Status Code
      *
@@ -175,7 +175,7 @@ public class RouteDispatcher {
             response.setStatus(routeResponse.getStatusCode());
         }
     }
-    
+
     /**
      * Write Response Header
      *
@@ -201,7 +201,7 @@ public class RouteDispatcher {
             response.setCharacterEncoding(routeResponse.getCharsetEncoding().displayName());
         }
     }
-    
+
     /**
      * Write Body
      *
@@ -230,10 +230,10 @@ public class RouteDispatcher {
                     printWriter.close();
                 }
             }
-            
+
         }
     }
-    
+
     /**
      * Build Context of Route
      *
@@ -331,18 +331,18 @@ public class RouteDispatcher {
         }
         routeRequestContext.setRequestContent(request.getInputStream());
     }
-    
+
     public SwaggerRoute getRoute(String header) {
         // 去除缓存机制，由于Eureka以及Nacos设立了心跳检测机制，服务在多节点部署时，节点ip可能存在变化,导致调试最终转发给已经下线的服务
         // since 2.0.9
         SwaggerRoute swaggerRoute = routeRepository.getRoute(header);
         return swaggerRoute;
     }
-    
+
     public List<SwaggerRoute> getRoutes() {
         return routeRepository.getRoutes();
     }
-    
+
     /**
      * convert openapi2 to openapi3
      *
@@ -378,7 +378,7 @@ public class RouteDispatcher {
         }
         return response;
     }
-    
+
     public String getRootPath() {
         return rootPath;
     }

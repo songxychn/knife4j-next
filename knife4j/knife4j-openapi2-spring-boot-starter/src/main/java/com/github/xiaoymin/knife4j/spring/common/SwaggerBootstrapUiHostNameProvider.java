@@ -35,44 +35,44 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
  * 2019/01/14 16:29
  */
 public class SwaggerBootstrapUiHostNameProvider {
-    
+
     public SwaggerBootstrapUiHostNameProvider() {
         throw new UnsupportedOperationException();
     }
-    
+
     public static UriComponents componentsFrom(
                                                HttpServletRequest request,
                                                String basePath) {
-        
+
         ServletUriComponentsBuilder builder = fromServletMapping(request, basePath);
-        
+
         UriComponents components = UriComponentsBuilder.fromHttpRequest(
                 new ServletServerHttpRequest(request))
                 .build();
-        
+
         String host = components.getHost();
         if (!hasText(host)) {
             return builder.build();
         }
-        
+
         builder.host(host);
         builder.port(components.getPort());
-        
+
         return builder.build();
     }
-    
+
     private static ServletUriComponentsBuilder fromServletMapping(
                                                                   HttpServletRequest request,
                                                                   String basePath) {
-        
+
         ServletUriComponentsBuilder builder = fromContextPath(request);
-        
+
         SwaggerBootstrapUiXForwardPrefixPathAdjuster adjuster = new SwaggerBootstrapUiXForwardPrefixPathAdjuster(request);
         builder.replacePath(adjuster.adjustedPath(basePath));
         if (hasText(new UrlPathHelper().getPathWithinServletMapping(request))) {
             builder.path(request.getServletPath());
         }
-        
+
         return builder;
     }
 }

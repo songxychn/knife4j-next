@@ -38,21 +38,21 @@ import java.io.PrintWriter;
  * 2020/10/29 20:06
  */
 public class Knife4jRouteProxyFilter implements Filter {
-    
+
     private final RouteDispatcher routeDispatcher;
     private final Gson gson = new GsonBuilder().create();
-    
+
     Logger logger = LoggerFactory.getLogger(Knife4jRouteProxyFilter.class);
-    
+
     public Knife4jRouteProxyFilter(RouteDispatcher routeDispatcher) {
         this.routeDispatcher = routeDispatcher;
     }
-    
+
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        
+
     }
-    
+
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
@@ -85,7 +85,7 @@ public class Knife4jRouteProxyFilter implements Filter {
             }
         }
     }
-    
+
     /**
      * 响应服务端的内容
      * @param response 响应流
@@ -101,7 +101,7 @@ public class Knife4jRouteProxyFilter implements Filter {
     }
     @Override
     public void destroy() {
-        
+
     }
-    
+
 }

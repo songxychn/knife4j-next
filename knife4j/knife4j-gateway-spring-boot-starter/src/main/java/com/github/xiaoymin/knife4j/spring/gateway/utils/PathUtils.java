@@ -37,12 +37,12 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 public class PathUtils {
-    
+
     static final String DOC_URL = "/doc.html";
     public static final String DEFAULT_CONTEXT_PATH = "/";
-    
+
     static final Pattern PATTERN = Pattern.compile("(.*?)\\/doc\\.html", Pattern.CASE_INSENSITIVE);
-    
+
     public static String getContextPath(String referer) {
         if (StringUtils.hasLength(referer)) {
             try {
@@ -59,7 +59,7 @@ public class PathUtils {
         }
         return "/";
     }
-    
+
     public static String append(String... paths) {
         if (Objects.isNull(paths) || paths.length == 0) {
             return GlobalConstants.DEFAULT_API_PATH_PREFIX;
@@ -70,7 +70,7 @@ public class PathUtils {
                 .collect(Collectors.joining());
         return fullPath.replaceAll(GlobalConstants.DEFAULT_API_PATH_PREFIX + "+", GlobalConstants.DEFAULT_API_PATH_PREFIX);
     }
-    
+
     /**
      * 获取默认请求ContextPath路径
      * @param request 当前请求对象实例
@@ -93,7 +93,7 @@ public class PathUtils {
         }
         return contextPath;
     }
-    
+
     /**
      * 数据校验，主要是针对ContextPath属性，两个要求：
      * <ul>
@@ -119,7 +119,7 @@ public class PathUtils {
         }
         return validateContextPath;
     }
-    
+
     /**
      * 判断ContextPath非空,并且不等于"/"字符串
      * @param contextPath contextPath
@@ -129,7 +129,7 @@ public class PathUtils {
     public static boolean contextPathNull(String contextPath) {
         return StrUtil.isNotBlank(contextPath) && !contextPath.equalsIgnoreCase(PathUtils.DEFAULT_CONTEXT_PATH);
     }
-    
+
     private PathUtils() {
     }
 }

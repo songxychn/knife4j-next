@@ -38,10 +38,10 @@ import java.util.Map;
 @AllArgsConstructor
 @Slf4j
 public class DynamicRouteServiceConvert extends AbstactServiceRouterConvert {
-    
+
     final RouteDefinitionRepository routeDefinitionRepository;
     final Knife4jGatewayProperties knife4jGatewayProperties;
-    
+
     @Override
     public void process(ServiceRouterHolder holder) {
         log.debug("Spring Cloud Gateway Dynamic Route process...");
@@ -51,7 +51,7 @@ public class DynamicRouteServiceConvert extends AbstactServiceRouterConvert {
                 .subscribe(routeDefinition -> parseRouteDefinition(holder, routeDefinition.getPredicates(), routeDefinition.getUri().getHost(),
                         routeDefinition.getUri().getHost()));
     }
-    
+
     @Override
     String convertPathPrefix(Map<String, String> predicateArgs) {
         String value = predicateArgs.get(GatewayRouterStrategy.DYNAMIC.getRule());
@@ -60,15 +60,15 @@ public class DynamicRouteServiceConvert extends AbstactServiceRouterConvert {
         }
         return StringUtil.EMPTY_STRING;
     }
-    
+
     @Override
     public int order() {
         return GatewayRouterStrategy.DYNAMIC.getOrder();
     }
-    
+
     @Override
     Knife4jGatewayProperties.Discover getDiscover() {
         return this.knife4jGatewayProperties.getDiscover();
     }
-    
+
 }

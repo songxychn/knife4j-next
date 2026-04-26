@@ -36,23 +36,23 @@ import lombok.Setter;
 @Setter
 @Getter
 public class OpenAPI2Resource extends AbstractOpenAPIResource {
-    
+
     /**
      * 服务发现场景下的服务名称
      * @since v4.3.0
      */
     private transient String serviceName;
-    
+
     private String name;
     private String url;
     private String contextPath;
     private String id;
     private String header;
-    
+
     public OpenAPI2Resource(Integer order, Boolean discovered) {
         super(order, discovered);
     }
-    
+
     /**
      * 基于Router配置对象构建接口Resource
      * @param router Config配置对象
@@ -66,7 +66,7 @@ public class OpenAPI2Resource extends AbstractOpenAPIResource {
         this.id = router.getPkId();
         this.header = router.getHeader();
     }
-    
+
     /**
      * 基于参数配置构建Resource对象
      * @param url 分组url
@@ -88,7 +88,7 @@ public class OpenAPI2Resource extends AbstractOpenAPIResource {
         this.id = Base64.getEncoder().encodeToString((groupName + url +
                 contextPath).getBytes(StandardCharsets.UTF_8));
     }
-    
+
     /**
      * 增加服务名称
      * @param url 分组url
@@ -119,12 +119,12 @@ public class OpenAPI2Resource extends AbstractOpenAPIResource {
         return Objects.equals(getName(), that.getName()) && Objects.equals(getUrl(), that.getUrl()) && Objects.equals(getContextPath(), that.getContextPath()) && Objects.equals(getId(), that.getId())
                 && Objects.equals(getServiceName(), that.getServiceName());
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(getName(), getUrl(), getContextPath(), getId(), getServiceName());
     }
-    
+
     /**
      * 赋值一个新对象
      * @return resource对象实例
@@ -133,7 +133,7 @@ public class OpenAPI2Resource extends AbstractOpenAPIResource {
     public OpenAPI2Resource copy() {
         return new OpenAPI2Resource(this.url, this.order, this.discovered, this.name, this.contextPath, this.serviceName);
     }
-    
+
     @Override
     public String toString() {
         return "OpenAPI2Resource{" +

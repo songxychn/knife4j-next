@@ -41,12 +41,12 @@ import java.net.UnknownHostException;
  * 2020/10/14 14:42
  */
 public class PoolingConnectionManager {
-    
+
     Logger logger = LoggerFactory.getLogger(PoolingConnectionManager.class);
-    
+
     // Request retry handler
     private HttpRequestRetryHandler retryHandler = new HttpRequestRetryHandler() {
-        
+
         @Override
         public boolean retryRequest(IOException exception, int executionCount, HttpContext context) {
             if (logger.isDebugEnabled()) {
@@ -78,15 +78,15 @@ public class PoolingConnectionManager {
                 // Retry if the request is considered idempotent
                 return true;
             }
-            
+
             return false;
         }
     };
-    
+
     protected RequestConfig getRequestConfig() {
         return ConnectionSettingHolder.ME.getDefaultRequestConfig();
     }
-    
+
     /***
      * 获取client连接
      * @return client链接对象
@@ -99,7 +99,7 @@ public class PoolingConnectionManager {
                 .setConnectionManagerShared(true)
                 .build();
     }
-    
+
     public CloseableHttpClient getClient(CredentialsProvider credentialsProvider) {
         return HttpClients.custom()
                 .setConnectionManager(ConnectionSettingHolder.ME.getPoolingHttpClientConnectionManager())
@@ -109,5 +109,5 @@ public class PoolingConnectionManager {
                 .setConnectionManagerShared(true)
                 .build();
     }
-    
+
 }

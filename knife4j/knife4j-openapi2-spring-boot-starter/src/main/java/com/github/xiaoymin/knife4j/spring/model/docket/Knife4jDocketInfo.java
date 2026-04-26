@@ -31,45 +31,45 @@ import java.util.List;
  */
 @Data
 public class Knife4jDocketInfo {
-    
+
     /**
      * Group name
      */
     private String groupName;
-    
+
     /**
      * Apis strategy
      */
     private ApiRuleEnums apiRule = ApiRuleEnums.PACKAGE;
-    
+
     /**
      * Using AND operation when the strategy of apiRule is ANNOTATION, default false(or)
      */
     private boolean apiRuleAnnoUseAnd = Boolean.FALSE;
-    
+
     /**
      * The resource set corresponding to the grouping policy with Api Strategy
      */
     private List<String> apiRuleResources;
-    
+
     /**
      * Paths strategy
      */
     private PathRuleEnums pathRule = PathRuleEnums.ANT;
-    
+
     /**
      * The resource set corresponding to the grouping policy Withs Paths strategy
      */
     private List<String> pathRuleResources;
-    
+
     /**
      * OAuth2 config
      */
     private OAuth2Properties oauth2;
-    
+
     /**
      * Custom Authorization config
      */
     private List<Knife4jAuthInfoProperties> basicAuths;
-    
+
 }

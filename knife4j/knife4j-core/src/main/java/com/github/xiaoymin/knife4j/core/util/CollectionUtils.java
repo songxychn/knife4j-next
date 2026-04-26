@@ -26,7 +26,7 @@ import java.util.*;
  * 2020/06/13 11:30
  */
 public abstract class CollectionUtils {
-    
+
     /**
      * 判断集合是否为空
      * @param collection 集合
@@ -38,7 +38,7 @@ public abstract class CollectionUtils {
         }
         return false;
     }
-    
+
     public static boolean isNotEmpty(Map<?, ?> map) {
         if (map != null) {
             if (map.size() > 0) {
@@ -55,7 +55,7 @@ public abstract class CollectionUtils {
     public static boolean isNotEmpty(Collection<?> collection) {
         return !isEmpty(collection);
     }
-    
+
     /***
      * 是否为空
      * @param arrs 对象数组
@@ -67,7 +67,7 @@ public abstract class CollectionUtils {
         }
         return false;
     }
-    
+
     /**
      *  根据数组对象初始化集合
      * @param ts 数组
@@ -81,5 +81,5 @@ public abstract class CollectionUtils {
         }
         return list;
     }
-    
+
 }

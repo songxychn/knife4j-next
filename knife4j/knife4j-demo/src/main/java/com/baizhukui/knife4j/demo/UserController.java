@@ -34,7 +34,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
-    
+
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
     public List<UserVO> list() {
@@ -42,7 +42,7 @@ public class UserController {
                 new UserVO(1L, "张三", "zhangsan@example.com"),
                 new UserVO(2L, "李四", "lisi@example.com"));
     }
-    
+
     @Operation(summary = "分页查询用户")
     @GetMapping("/page")
     public PageResult<UserVO> page(@ParameterObject PageQuery query) {
@@ -51,20 +51,20 @@ public class UserController {
                 new UserVO(2L, "李四", "lisi@example.com"));
         return new PageResult<>(query.getPageNum(), query.getPageSize(), data.size(), data);
     }
-    
+
     @Operation(summary = "根据 ID 获取用户")
     @GetMapping("/{id}")
     public UserVO getById(
                           @Parameter(description = "用户 ID") @PathVariable Long id) {
         return new UserVO(id, "张三", "zhangsan@example.com");
     }
-    
+
     @Operation(summary = "创建用户")
     @PostMapping
     public UserVO create(@RequestBody UserCreateRequest request) {
         return new UserVO(3L, request.getName(), request.getEmail());
     }
-    
+
     @Operation(summary = "更新用户")
     @PutMapping("/{id}")
     public UserVO update(
@@ -72,7 +72,7 @@ public class UserController {
                          @RequestBody UserUpdateRequest request) {
         return new UserVO(id, request.getName(), request.getEmail());
     }
-    
+
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
     public UserVO delete(

@@ -31,7 +31,7 @@ import java.util.List;
  */
 @ConfigurationProperties(prefix = "knife4j.cloud")
 public class CloudSetting {
-    
+
     /**
      * 是否启用
      */
@@ -40,32 +40,32 @@ public class CloudSetting {
      * 微服务集合
      */
     private List<CloudRoute> routes;
-    
+
     /**
      * 配置的Route路由服务的公共Basic验证信息，仅作用与访问Swagger接口时使用，具体服务的其他接口不使用该配置
      */
     private BasicAuth routeAuth;
-    
+
     public BasicAuth getRouteAuth() {
         return routeAuth;
     }
-    
+
     public void setRouteAuth(BasicAuth routeAuth) {
         this.routeAuth = routeAuth;
     }
-    
+
     public boolean isEnable() {
         return enable;
     }
-    
+
     public void setEnable(boolean enable) {
         this.enable = enable;
     }
-    
+
     public List<CloudRoute> getRoutes() {
         return routes;
     }
-    
+
     public void setRoutes(List<CloudRoute> routes) {
         this.routes = routes;
     }

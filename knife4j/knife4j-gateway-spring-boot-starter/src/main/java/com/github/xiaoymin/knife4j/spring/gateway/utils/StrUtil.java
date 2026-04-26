@@ -24,18 +24,18 @@ package com.github.xiaoymin.knife4j.spring.gateway.utils;
  * 2020/06/17 10:32
  */
 public class StrUtil {
-    
+
     public static boolean isBlankChar(int c) {
         return Character.isWhitespace(c) || Character.isSpaceChar(c) || c == '\ufeff' || c == '\u202a';
     }
-    
+
     public static boolean isBlank(CharSequence str) {
         int length;
-        
+
         if ((str == null) || ((length = str.length()) == 0)) {
             return true;
         }
-        
+
         for (int i = 0; i < length; i++) {
             // 只要有一个非空字符即为非空字符串
             if (!isBlankChar(str.charAt(i))) {
@@ -44,11 +44,11 @@ public class StrUtil {
         }
         return true;
     }
-    
+
     public static boolean isNotBlank(CharSequence str) {
         return !isBlank(str);
     }
-    
+
     /**
      * 判断当前内容是否非空，如果是空，这用默认值替换
      * @param value 判断值

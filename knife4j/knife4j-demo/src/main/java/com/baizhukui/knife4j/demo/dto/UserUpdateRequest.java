@@ -21,23 +21,23 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "更新用户请求")
 public class UserUpdateRequest {
-    
+
     @Schema(description = "用户名", example = "李四", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String name;
-    
+
     @Schema(description = "邮箱地址", example = "lisi@example.com", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String email;
-    
+
     public UserUpdateRequest() {
     }
-    
+
     public String getName() {
         return name;
     }
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public String getEmail() {
         return email;
     }

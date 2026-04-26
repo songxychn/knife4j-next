@@ -25,17 +25,17 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class Knife4jGatewayAutoConfigurationSmokeTest {
-    
+
     @Test
     public void shouldExposeBoot2AndBoot3AutoConfigurationMetadata() throws IOException {
         String springFactories = readResource("META-INF/spring.factories");
         Assert.assertTrue(springFactories.contains("org.springframework.boot.autoconfigure.EnableAutoConfiguration"));
         Assert.assertTrue(springFactories.contains(Knife4jGatewayAutoConfiguration.class.getName()));
-        
+
         String autoConfigurationImports = readResource("META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports");
         Assert.assertTrue(autoConfigurationImports.contains(Knife4jGatewayAutoConfiguration.class.getName()));
     }
-    
+
     private String readResource(String path) throws IOException {
         try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
             Assert.assertNotNull("Missing auto-configuration metadata: " + path, input);

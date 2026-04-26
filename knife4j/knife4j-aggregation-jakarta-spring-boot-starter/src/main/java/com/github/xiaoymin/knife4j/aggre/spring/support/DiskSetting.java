@@ -29,29 +29,29 @@ import java.util.List;
  */
 @ConfigurationProperties(prefix = "knife4j.disk")
 public class DiskSetting {
-    
+
     /**
      * 是否启用disk模式
      */
     private boolean enable;
-    
+
     /**
      * disk模式聚合资源
      */
     private List<DiskRoute> routes;
-    
+
     public boolean isEnable() {
         return enable;
     }
-    
+
     public void setEnable(boolean enable) {
         this.enable = enable;
     }
-    
+
     public List<DiskRoute> getRoutes() {
         return routes;
     }
-    
+
     public void setRoutes(List<DiskRoute> routes) {
         this.routes = routes;
     }

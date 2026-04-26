@@ -35,7 +35,7 @@ import jakarta.servlet.http.Part;
  * 2020/10/29 20:34
  */
 public class RouteRequestContext {
-    
+
     /**
      * 当前请求的接口地址
      */
@@ -60,12 +60,12 @@ public class RouteRequestContext {
      * 文件
      */
     private List<Part> parts = new ArrayList<>();
-    
+
     /**
      * 请求内容
      */
     private InputStream requestContent;
-    
+
     /**
      * 请求长度
      */
@@ -74,7 +74,7 @@ public class RouteRequestContext {
      * Basic验证
      */
     private BasicAuth basicAuth;
-    
+
     /**
      * 添加请求头
      * @param key 请求头
@@ -83,7 +83,7 @@ public class RouteRequestContext {
     public void addHeader(String key, String value) {
         this.headers.add(new HeaderWrapper(key, value));
     }
-    
+
     /**
      * 添加params参数
      * @param name 参数名称
@@ -92,7 +92,7 @@ public class RouteRequestContext {
     public void addParam(String name, String value) {
         this.params.put(name, value);
     }
-    
+
     /**
      * 增加文件参数
      * @param part  文件
@@ -100,75 +100,75 @@ public class RouteRequestContext {
     public void addPart(Part part) {
         this.parts.add(part);
     }
-    
+
     public BasicAuth getBasicAuth() {
         return basicAuth;
     }
-    
+
     public void setBasicAuth(BasicAuth basicAuth) {
         this.basicAuth = basicAuth;
     }
-    
+
     public String getOriginalUri() {
         return originalUri;
     }
-    
+
     public void setOriginalUri(String originalUri) {
         this.originalUri = originalUri;
     }
-    
+
     public Long getContentLength() {
         return contentLength;
     }
-    
+
     public void setContentLength(Long contentLength) {
         this.contentLength = contentLength;
     }
-    
+
     public Map<String, String> getParams() {
         return params;
     }
-    
+
     public void setParams(Map<String, String> params) {
         this.params = params;
     }
-    
+
     public String getUrl() {
         return url;
     }
-    
+
     public void setUrl(String url) {
         this.url = url;
     }
-    
+
     public String getMethod() {
         return method;
     }
-    
+
     public void setMethod(String method) {
         this.method = method;
     }
-    
+
     public List<HeaderWrapper> getHeaders() {
         return headers;
     }
-    
+
     public void setHeaders(List<HeaderWrapper> headers) {
         this.headers = headers;
     }
-    
+
     public InputStream getRequestContent() {
         return requestContent;
     }
-    
+
     public void setRequestContent(InputStream requestContent) {
         this.requestContent = requestContent;
     }
-    
+
     public List<Part> getParts() {
         return parts;
     }
-    
+
     public void setParts(List<Part> parts) {
         this.parts = parts;
     }

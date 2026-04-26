@@ -29,22 +29,22 @@ import java.util.List;
  */
 @Data
 public class OAuth2Properties {
-    
+
     /**
      * OAuth2 type
      */
     private OAuth2TypeEnums grantType;
-    
+
     /**
      * OAuth2 config properties
      */
     private OAuth2Info config;
-    
+
     /**
      * OAuth2 Scope
      */
     private List<OAuth2Scope> scopes;
-    
+
     /**
      * OAuth2 APi Path Collection,Only support Ant,not support regex.
      * example: /api/**, /config/** etc.

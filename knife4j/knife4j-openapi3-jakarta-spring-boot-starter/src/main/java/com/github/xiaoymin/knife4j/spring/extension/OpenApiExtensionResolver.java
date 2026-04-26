@@ -39,22 +39,22 @@ import java.util.*;
  * @since  2.0.6
  */
 public class OpenApiExtensionResolver {
-    
+
     Logger logger = LoggerFactory.getLogger(OpenApiExtensionResolver.class);
-    
+
     private final ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
-    
+
     private final Map<String, List<OpenApiExtendMarkdownFile>> markdownFileMaps = new HashMap<>();
     /**
      * 个性化配置
      */
     private final Knife4jSetting setting;
-    
+
     /**
      * 分组文档集合
      */
     private final List<MarkdownProperty> markdownProperties;
-    
+
     public List<OpenApiExtendMarkdownFile> getMarkdownFiles() {
         if (CollectionUtils.isNotEmpty(markdownFileMaps)) {
             List<OpenApiExtendMarkdownFile> markdownFiles = new LinkedList<>();
@@ -64,11 +64,11 @@ public class OpenApiExtensionResolver {
                 }
             }
             return markdownFiles;
-            
+
         }
         return Collections.EMPTY_LIST;
     }
-    
+
     public void start() {
         if (logger.isDebugEnabled()) {
             logger.debug("Resolver method start...");
@@ -92,7 +92,7 @@ public class OpenApiExtensionResolver {
                                 if (CollectionUtils.isNotEmpty(childrenList)) {
                                     allChildrenLists.addAll(childrenList);
                                 }
-                                
+
                             }
                         }
                     }
@@ -119,7 +119,7 @@ public class OpenApiExtensionResolver {
             }
         }
     }
-    
+
     /**
      * 读取自定义主页markdown的内容
      * @param customHomeLocation 路径
@@ -139,7 +139,7 @@ public class OpenApiExtensionResolver {
         }
         return customHomeContent;
     }
-    
+
     /**
      * 根据路径读取markdown文件
      * @param locations markdown文件路径
@@ -163,11 +163,11 @@ public class OpenApiExtensionResolver {
         }
         return null;
     }
-    
+
     private OpenApiExtendMarkdownChildren readMarkdownChildren(Resource resource) {
         return MarkdownUtils.resolveMarkdownResource(resource);
     }
-    
+
     public OpenApiExtensionResolver(Knife4jSetting setting, List<MarkdownProperty> markdownProperties) {
         this.setting = setting;
         this.markdownProperties = markdownProperties;

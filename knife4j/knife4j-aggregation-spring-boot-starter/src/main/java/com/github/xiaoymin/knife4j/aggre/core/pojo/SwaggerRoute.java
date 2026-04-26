@@ -41,14 +41,14 @@ import java.util.Objects;
  * 2020/10/31 9:34
  */
 public class SwaggerRoute {
-    
+
     private String name;
     /**
      * 唯一主键id
      * add since 4.0.0
      */
     private transient String pkId;
-    
+
     /**
      * 调试地址,开发者可自定义，获取OpenAPI地址与最终Debug调试的地址可以不相同
      * add since 4.0.0
@@ -84,7 +84,7 @@ public class SwaggerRoute {
      * @since 2.0.9
      */
     private transient Integer order = 1;
-    
+
     /**
      * 本地聚合模式
      * @param diskRoute 配置
@@ -132,7 +132,7 @@ public class SwaggerRoute {
             this.order = diskRoute.getOrder();
         }
     }
-    
+
     /**
      * 根据Cloud配置创建
      * @param cloudRoute 云端配置
@@ -169,7 +169,7 @@ public class SwaggerRoute {
             this.order = cloudRoute.getOrder();
         }
     }
-    
+
     /**
      * 根据Eureka配置创建
      * @param eurekaRoute eureka配置
@@ -204,7 +204,7 @@ public class SwaggerRoute {
             this.order = eurekaRoute.getOrder();
         }
     }
-    
+
     /**
      * 根据nacos配置
      * @param nacosRoute nacos配置
@@ -239,7 +239,7 @@ public class SwaggerRoute {
             this.order = nacosRoute.getOrder();
         }
     }
-    
+
     public SwaggerRoute(PolarisRoute polarisRoute, PolarisInstance polarisInstance) {
         if (polarisRoute != null && polarisInstance != null) {
             this.pkId = polarisRoute.pkId();
@@ -269,115 +269,115 @@ public class SwaggerRoute {
             this.order = polarisRoute.getOrder();
         }
     }
-    
+
     public String getPkId() {
         return pkId;
     }
-    
+
     public void setPkId(String pkId) {
         this.pkId = pkId;
     }
-    
+
     public boolean isRouteProxy() {
         return routeProxy;
     }
-    
+
     public void setRouteProxy(boolean routeProxy) {
         this.routeProxy = routeProxy;
     }
-    
+
     public String getBasicAuth() {
         return basicAuth;
     }
-    
+
     public void setBasicAuth(String basicAuth) {
         this.basicAuth = basicAuth;
     }
-    
+
     public boolean isLocal() {
         return local;
     }
-    
+
     public void setLocal(boolean local) {
         this.local = local;
     }
-    
+
     public String getName() {
         return name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public String getUri() {
         return uri;
     }
-    
+
     public void setUri(String uri) {
         this.uri = uri;
     }
-    
+
     public String getHeader() {
         return header;
     }
-    
+
     public void setHeader(String header) {
         this.header = header;
     }
-    
+
     public String getLocation() {
         return location;
     }
-    
+
     public void setLocation(String location) {
         this.location = location;
     }
-    
+
     public String getContent() {
         return content;
     }
-    
+
     public void setContent(String content) {
         this.content = content;
     }
-    
+
     public String getSwaggerVersion() {
         return swaggerVersion;
     }
-    
+
     public void setSwaggerVersion(String swaggerVersion) {
         this.swaggerVersion = swaggerVersion;
     }
-    
+
     public boolean isDebug() {
         return debug;
     }
-    
+
     public void setDebug(boolean debug) {
         this.debug = debug;
     }
-    
+
     public String getServicePath() {
         return servicePath;
     }
-    
+
     public void setServicePath(String servicePath) {
         this.servicePath = servicePath;
     }
-    
+
     public Integer getOrder() {
         return order;
     }
-    
+
     public void setOrder(Integer order) {
         this.order = order;
     }
-    
+
     public String getDebugUrl() {
         return debugUrl;
     }
-    
+
     public void setDebugUrl(String debugUrl) {
         this.debugUrl = debugUrl;
     }

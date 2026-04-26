@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 2020/06/12 22:17
  */
 public class AnnotationUtils {
-    
+
     private static final Map<AnnotationCacheKey, Annotation> findAnnotationCache =
             new ConcurrentHashMap<>(256);
     /**
@@ -43,7 +43,7 @@ public class AnnotationUtils {
     public static <A extends Annotation> Optional<A> findAnnotation(Class<?> clazz, Class<A> annotationType) {
         return findAnnotation(clazz, annotationType, true);
     }
-    
+
     public static <A extends Annotation> Optional<A> findAnnotation(Class<?> clazz, Class<A> annotationType, boolean cache) {
         if (annotationType == null) {
             return Optional.empty();
@@ -63,7 +63,7 @@ public class AnnotationUtils {
         }
         return result == null ? Optional.empty() : Optional.ofNullable(result);
     }
-    
+
     private static <A extends Annotation> Annotation findOneAnnotation(Class<?> clazz, Class<A> annotationType) {
         Annotation[] annotations = clazz.getAnnotations();
         for (Annotation annotation : annotations) {

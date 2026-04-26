@@ -35,7 +35,7 @@ import java.util.List;
 @Component
 @ConfigurationProperties(prefix = "knife4j")
 public class Knife4jProperties {
-    
+
     /**
      * 是否开启Knife4j增强模式
      */
@@ -44,25 +44,25 @@ public class Knife4jProperties {
      * 是否开启默认跨域
      */
     private boolean cors = false;
-    
+
     /**
      * 是否开启BasicHttp验证
      */
     private Knife4jHttpBasic basic;
-    
+
     /**
      * 是否生产环境
      */
     private boolean production = false;
-    
+
     /**
      * 个性化配置
      */
     private Knife4jSetting setting;
-    
+
     /**
      * 分组文档集合
      */
     private List<MarkdownProperty> documents;
-    
+
 }

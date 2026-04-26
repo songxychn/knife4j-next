@@ -26,13 +26,13 @@ import java.time.Duration;
  * 2019/02/02 19:57
  */
 public class GlobalConstants {
-    
+
     /**
      * 默认阻塞时间
      * @since v4.3.0
      */
     public static Duration DEFAULT_BLOCK_TIME = Duration.ofSeconds(5L);
-    
+
     public static final String DEFAULT_API_PATH_PREFIX = "/";
     /**
      * 获取gateway断言的规则名称
@@ -43,7 +43,7 @@ public class GlobalConstants {
      * 默认排序值
      */
     public static final Integer DEFAULT_ORDER = 0;
-    
+
     /**
      * swagger2接口默认待拼接的地址
      * @since v4.3.0
@@ -58,77 +58,77 @@ public class GlobalConstants {
     public static final String DEFAULT_OPEN_API_V2_PATH = "/v2/api-docs?group=default";
     @SuppressWarnings("java:S1075")
     public static final String DEFAULT_OPEN_API_V3_PATH = "/v3/api-docs";
-    
+
     /***
      * basic auth验证
      */
     public static final String KNIFE4J_BASIC_AUTH_SESSION = "KNIFE4J_BASIC_AUTH_SESSION";
-    
+
     /**
      * 校验Basic请求头
      */
     public static final String AUTH_HEADER_NAME = "Authorization";
-    
+
     /**
      * HTTP Schema
      */
     public static final String PROTOCOL_HTTP = "http://";
-    
+
     /**
      * HTTPS Schema
      */
     public static final String PROTOCOL_HTTPS = "https://";
-    
+
     /**
      * 空字符串
      */
     public static final String EMPTY_STR = "";
-    
+
     /**
      * Knife4j provider default username with basic auth.
      */
     public static final String BASIC_DEFAULT_USERNAME = "admin";
-    
+
     /**
      * Knife4j provider default password with basic auth.
      */
     public static final String BASIC_DEFAULT_PASSWORD = "123321";
-    
+
     /**
      * Cors max_age
      */
     public static final Long CORS_MAX_AGE = 10000L;
-    
+
     /**
      * 动态生成class包名前缀
      */
     public static final String BASE_PACKAGE_PREFIX = "com.github.xiaoymin.knife4j.model.";
-    
+
     /**
      * Knife4j增强扩展属性名称
      */
     public static final String EXTENSION_NAME = "extensions";
-    
+
     /**
      * Knife4j增强扩展属性名称
      */
     public static final String EXTENSION_OPEN_API_NAME = "x-openapi";
-    
+
     /**
      * Knife4j增强扩展配置属性
      */
     public static final String EXTENSION_OPEN_SETTING_NAME = "x-setting";
-    
+
     /**
      * Knife4j增强扩展配置属性
      */
     public static final String EXTENSION_OPEN_MARKDOWN_NAME = "x-markdownFiles";
-    
+
     /**
      * 响应HTTP状态码
      */
     public static final Integer BASIC_SECURITY_RESPONSE_CODE = 401;
-    
+
     /**
      * 生产环境屏蔽后自定义响应HTTP状态码
      */

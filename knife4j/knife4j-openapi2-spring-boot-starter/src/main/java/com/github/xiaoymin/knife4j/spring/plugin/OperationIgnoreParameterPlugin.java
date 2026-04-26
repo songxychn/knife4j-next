@@ -38,11 +38,11 @@ import java.util.*;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 102)
 public class OperationIgnoreParameterPlugin extends AbstractOperationBuilderPlugin {
-    
+
     public static final String IGNORE_PARAMETER_EXTENSION_NAME = "x-ignoreParameters";
-    
+
     public static final String INCLUDE_PARAMETER_EXTENSION_NAME = "x-includeParameters";
-    
+
     @Override
     public void apply(OperationContext context) {
         Optional<ApiOperationSupport> apiOperationSupportOptional = context.findAnnotation(ApiOperationSupport.class);
@@ -52,12 +52,12 @@ public class OperationIgnoreParameterPlugin extends AbstractOperationBuilderPlug
             addExtensionParameters(apiOperationSupport.includeParameters(), INCLUDE_PARAMETER_EXTENSION_NAME, context);
         }
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;
     }
-    
+
     /**
      * 添加扩展属性参数
      * @param params 参数

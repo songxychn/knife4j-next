@@ -26,12 +26,12 @@ import lombok.Data;
  */
 @Data
 public class OAuth2Scope {
-    
+
     /**
      * 名称
      */
     private String name;
-    
+
     /**
      * 描述
      */

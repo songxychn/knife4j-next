@@ -30,7 +30,7 @@ import java.util.Set;
  * @since knife4j v4.2.0
  */
 public class ExtensionUtils {
-    
+
     /**
      * 获取作者
      * @param apiOperationSupport 扩展注解实例
@@ -53,7 +53,7 @@ public class ExtensionUtils {
         }
         return "";
     }
-    
+
     public static String getAuthor(ApiSupport apiSupport) {
         Set<String> authorSet = new HashSet<>();
         String author = apiSupport.author();
@@ -71,5 +71,5 @@ public class ExtensionUtils {
         }
         return "";
     }
-    
+
 }

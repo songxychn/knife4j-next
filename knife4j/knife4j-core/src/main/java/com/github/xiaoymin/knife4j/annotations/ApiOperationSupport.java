@@ -30,19 +30,19 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface ApiOperationSupport {
-    
+
     /***
      * Sort Fields
      * @return 排序
      */
     int order() default 0;
-    
+
     /***
      * author
      * @return 开发者
      */
     String author() default "";
-    
+
     /**
      * 作者,提供数组形式以展示多个，会和{@link #author()}进行合并展示 <p />
      * issues: <a href="https://gitee.com/xiaoym/knife4j/issues/I6SZMK">Gitee#I6SZMK</a>
@@ -50,14 +50,14 @@ public @interface ApiOperationSupport {
      * @return 作者
      */
     String[] authors() default {};
-    
+
     /**
      * A list of {@link DynamicParameter}s available to the API operation.
      * Note: 自Knife4j 4.0版本起，放弃维护此属性值，建议开发者建实体类
      * @return 动态类声明
      */
     DynamicParameters params() default @DynamicParameters;
-    
+
     /**
      * 动态构建response响应参数说明
      * Note: 自Knife4j 4.0版本起，放弃维护此属性值，建议开发者建实体类
@@ -65,7 +65,7 @@ public @interface ApiOperationSupport {
      * @return 响应类动态说明
      */
     DynamicResponseParameters responses() default @DynamicResponseParameters;
-    
+
     /**
      * 请求忽略参数数组
      * @since 1.9.5
@@ -78,7 +78,7 @@ public @interface ApiOperationSupport {
      * @return 过滤参数数组
      */
     String[] ignoreParameters() default {};
-    
+
     /**
      * 请求接口包含的参数数组,和ignoreParameters属性对立
      * Note: 自Knife4j 4.0版本起，放弃维护此属性值，建议开发者建实体类
@@ -86,5 +86,5 @@ public @interface ApiOperationSupport {
      * @return 包含参数数组
      */
     String[] includeParameters() default {};
-    
+
 }

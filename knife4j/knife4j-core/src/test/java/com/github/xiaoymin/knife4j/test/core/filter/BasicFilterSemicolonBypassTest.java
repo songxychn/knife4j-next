@@ -30,47 +30,47 @@ import org.junit.Test;
  * pass through because the semicolon suffix confuses the matcher.</p>
  */
 public class BasicFilterSemicolonBypassTest {
-    
+
     /**
      * Concrete subclass that exposes {@code match()} for unit testing.
      */
     static class TestableBasicFilter extends BasicFilter {
-        
+
         public boolean testMatch(String uri) {
             return match(uri);
         }
     }
-    
+
     private final TestableBasicFilter filter = new TestableBasicFilter();
-    
+
     // -----------------------------------------------------------------------
     // Normal paths must still be matched (regression guard)
     // -----------------------------------------------------------------------
-    
+
     @Test
     public void normalV2ApiDocsShouldMatch() {
         Assert.assertTrue(filter.testMatch("/v2/api-docs"));
     }
-    
+
     @Test
     public void normalV3ApiDocsShouldMatch() {
         Assert.assertTrue(filter.testMatch("/v3/api-docs"));
     }
-    
+
     @Test
     public void normalDocHtmlShouldMatch() {
         Assert.assertTrue(filter.testMatch("/doc.html"));
     }
-    
+
     @Test
     public void normalSwaggerResourcesShouldMatch() {
         Assert.assertTrue(filter.testMatch("/swagger-resources"));
     }
-    
+
     // -----------------------------------------------------------------------
     // Semicolon bypass attempts must ALSO be matched (security fix #886)
     // -----------------------------------------------------------------------
-    
+
     @Test
     public void semicolonSuffixOnV2ApiDocsShouldMatch() {
         // CVE-style bypass: /v2/api-docs;jsessionid=abc
@@ -78,44 +78,44 @@ public class BasicFilterSemicolonBypassTest {
                 "Semicolon suffix must not bypass basic auth for /v2/api-docs",
                 filter.testMatch("/v2/api-docs;jsessionid=abc"));
     }
-    
+
     @Test
     public void semicolonSuffixOnV3ApiDocsShouldMatch() {
         Assert.assertTrue(
                 "Semicolon suffix must not bypass basic auth for /v3/api-docs",
                 filter.testMatch("/v3/api-docs;foo=bar"));
     }
-    
+
     @Test
     public void semicolonSuffixOnDocHtmlShouldMatch() {
         Assert.assertTrue(
                 "Semicolon suffix must not bypass basic auth for /doc.html",
                 filter.testMatch("/doc.html;x=1"));
     }
-    
+
     @Test
     public void semicolonSuffixOnSwaggerResourcesShouldMatch() {
         Assert.assertTrue(
                 "Semicolon suffix must not bypass basic auth for /swagger-resources",
                 filter.testMatch("/swagger-resources;bypass=true"));
     }
-    
+
     @Test
     public void multipleSemicolonsShouldMatch() {
         Assert.assertTrue(
                 "Multiple semicolons must not bypass basic auth",
                 filter.testMatch("/v2/api-docs;a=1;b=2"));
     }
-    
+
     // -----------------------------------------------------------------------
     // Unrelated paths must NOT match
     // -----------------------------------------------------------------------
-    
+
     @Test
     public void unrelatedPathShouldNotMatch() {
         Assert.assertFalse(filter.testMatch("/api/users"));
     }
-    
+
     @Test
     public void unrelatedPathWithSemicolonShouldNotMatch() {
         Assert.assertFalse(filter.testMatch("/api/users;jsessionid=abc"));

@@ -34,11 +34,11 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 public class Knife4jUtils {
-    
+
     public static void main(String[] args) {
         System.out.println(GetUrl("http://localhost:17812/v3/api-docs/用户模块"));
     }
-    
+
     public static String GetUrl(String url) {
         // 提取中文字符
         Pattern pattern = Pattern.compile("[\\u4e00-\\u9fa5]+");
@@ -56,7 +56,7 @@ public class Knife4jUtils {
         }
         return url;
     }
-    
+
     /**
      * 重试次数
      * @param url url
@@ -73,7 +73,7 @@ public class Knife4jUtils {
         }
         return null;
     }
-    
+
     public static String getRetry(String url, int retry) {
         for (int i = 0; i < retry; i++) {
             String result = get(url);
@@ -83,7 +83,7 @@ public class Knife4jUtils {
         }
         return null;
     }
-    
+
     public static String get(String url) {
         URL apiUrl = null;
         try {
@@ -99,7 +99,7 @@ public class Knife4jUtils {
         }
         return null;
     }
-    
+
     private static String getEntity(HttpURLConnection connection) throws IOException {
         int responseCode = connection.getResponseCode();
         if (responseCode == 200) {
@@ -114,7 +114,7 @@ public class Knife4jUtils {
         }
         return null;
     }
-    
+
     /**
      * http post
      * @param url http url
@@ -140,7 +140,7 @@ public class Knife4jUtils {
         }
         return null;
     }
-    
+
     private static HttpURLConnection getUrlConnection(URL apiUrl) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
         // 基础属性
@@ -151,7 +151,7 @@ public class Knife4jUtils {
         setConnection(connection);
         return connection;
     }
-    
+
     private static HttpURLConnection getGetUrlConnection(URL apiUrl) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
         // 基础属性
@@ -160,7 +160,7 @@ public class Knife4jUtils {
         setConnection(connection);
         return connection;
     }
-    
+
     private static void setConnection(HttpURLConnection connection) {
         // 设置通用的请求属性
         connection.setRequestProperty("Accept", "*/*");
@@ -173,6 +173,6 @@ public class Knife4jUtils {
         // 设置读取超时时间
         connection.setReadTimeout(20000);
         connection.setConnectTimeout(20000);
-        
+
     }
 }

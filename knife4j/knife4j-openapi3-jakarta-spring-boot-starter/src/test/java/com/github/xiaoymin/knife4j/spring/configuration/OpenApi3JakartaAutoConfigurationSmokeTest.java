@@ -25,14 +25,14 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class OpenApi3JakartaAutoConfigurationSmokeTest {
-    
+
     @Test
     public void shouldExposeBoot3AutoConfigurationMetadata() throws IOException {
         String autoConfigurationImports = readResource("META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports");
         Assert.assertTrue(autoConfigurationImports.contains(Knife4jAutoConfiguration.class.getName()));
         Assert.assertTrue(autoConfigurationImports.contains("com.github.xiaoymin.knife4j.spring.configuration.insight.Knife4jInsightAutoConfiguration"));
     }
-    
+
     private String readResource(String path) throws IOException {
         try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
             Assert.assertNotNull("Missing auto-configuration metadata: " + path, input);

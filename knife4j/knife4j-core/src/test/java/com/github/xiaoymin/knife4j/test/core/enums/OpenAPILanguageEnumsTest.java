@@ -29,7 +29,7 @@ import java.util.Locale;
  * 2022/8/18 22:52
  */
 public class OpenAPILanguageEnumsTest {
-    
+
     @Test
     public void testLang() {
         Locale locale = Locale.forLanguageTag(OpenAPILanguageEnums.ZH_CN.getValue());

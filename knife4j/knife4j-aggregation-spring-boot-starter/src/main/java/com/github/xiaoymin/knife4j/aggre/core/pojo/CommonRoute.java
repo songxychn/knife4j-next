@@ -25,12 +25,12 @@ import cn.hutool.crypto.digest.MD5;
  * @since  2.0.8
  */
 public abstract class CommonRoute {
-    
+
     /**
      * Debug URL
      */
     private String debugUrl;
-    
+
     /**
      * Service Name
      */
@@ -39,23 +39,23 @@ public abstract class CommonRoute {
      * openapi file(Local)
      */
     private String location;
-    
+
     /**
      * OpenAPI Version，2.0 or 3.0
      */
     private String swaggerVersion = "2.0";
-    
+
     /**
      * The microservice path is mainly for the added basePath when using the gateway, mainly for the same problem that the path is displayed on the document when the gateway forwards
      */
     private String servicePath;
-    
+
     /**
      * Instance Order,see issue：https://gitee.com/xiaoym/knife4j/issues/I27ST2
      * @since 2.0.9
      */
     private Integer order = 1;
-    
+
     /**
      * Primary Key
      * @return Primary Key
@@ -63,7 +63,7 @@ public abstract class CommonRoute {
     public String pkId() {
         return MD5.create().digestHex(this.toString());
     }
-    
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("CommonRoute{");
@@ -75,51 +75,51 @@ public abstract class CommonRoute {
         sb.append('}');
         return sb.toString();
     }
-    
+
     public String getName() {
         return name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public String getLocation() {
         return location;
     }
-    
+
     public void setLocation(String location) {
         this.location = location;
     }
-    
+
     public String getSwaggerVersion() {
         return swaggerVersion;
     }
-    
+
     public void setSwaggerVersion(String swaggerVersion) {
         this.swaggerVersion = swaggerVersion;
     }
-    
+
     public String getServicePath() {
         return servicePath;
     }
-    
+
     public void setServicePath(String servicePath) {
         this.servicePath = servicePath;
     }
-    
+
     public Integer getOrder() {
         return order;
     }
-    
+
     public void setOrder(Integer order) {
         this.order = order;
     }
-    
+
     public String getDebugUrl() {
         return debugUrl;
     }
-    
+
     public void setDebugUrl(String debugUrl) {
         this.debugUrl = debugUrl;
     }

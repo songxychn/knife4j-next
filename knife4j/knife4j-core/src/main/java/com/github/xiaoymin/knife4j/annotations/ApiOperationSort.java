@@ -27,11 +27,11 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface ApiOperationSort {
-    
+
     /**
      * 接口排序值
      * @return 排序值
      */
     int value() default Integer.MAX_VALUE;
-    
+
 }

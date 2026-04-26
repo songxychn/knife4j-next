@@ -26,7 +26,7 @@ import java.io.IOException;
  * @since knife4j
  */
 public class FilterUtils {
-    
+
     /**
      * 响应Basic信息
      *
@@ -39,7 +39,7 @@ public class FilterUtils {
         httpServletResponse.setHeader("WWW-Authenticate", "Basic realm=\"input Swagger Basic userName & password \"");
         httpServletResponse.getWriter().write("You do not have permission to access this resource");
     }
-    
+
     /**
      * 响应Basic
      * @param httpServletResponse
@@ -50,5 +50,5 @@ public class FilterUtils {
         httpServletResponse.setHeader("WWW-Authenticate", "Basic realm=\"input Swagger Basic userName & password \"");
         httpServletResponse.getWriter().write("You do not have permission to access this resource");
     }
-    
+
 }

@@ -32,9 +32,9 @@ import java.util.Objects;
  * 2022/8/26 23:20
  */
 public class MarkdownUtils {
-    
+
     static final Logger logger = LoggerFactory.getLogger(MarkdownUtils.class);
-    
+
     /**
      * Resolve markdown files
      * @param resource markdown file

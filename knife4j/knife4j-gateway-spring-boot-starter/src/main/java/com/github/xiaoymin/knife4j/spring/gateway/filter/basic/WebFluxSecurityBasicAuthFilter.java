@@ -45,16 +45,16 @@ import reactor.core.publisher.Mono;
 @Setter
 @Getter
 public class WebFluxSecurityBasicAuthFilter extends AbstractBasicAuthFilter implements WebFilter {
-    
+
     /***
      * 是否开启basic验证,默认不开启
      */
     private boolean enableBasicAuth = false;
-    
+
     private String userName;
-    
+
     private String password;
-    
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         // 只拦截Knife4J资源
@@ -64,7 +64,7 @@ public class WebFluxSecurityBasicAuthFilter extends AbstractBasicAuthFilter impl
         }
         return chain.filter(exchange);
     }
-    
+
     /**
      * 过滤处理
      * 
@@ -81,13 +81,13 @@ public class WebFluxSecurityBasicAuthFilter extends AbstractBasicAuthFilter impl
         if (authorization == null) {
             writeForbiddenCode(response);
         }
-        
+
         String[] parts = authorization.split(" ");
         // 验证是否符合规则
         if (parts.length != 2 || !parts[0].equals(BASIC)) {
             writeForbiddenCode(response);
         }
-        
+
         String credentials = new String(Base64.getDecoder().decode(parts[1]));
         String[] usernameAndPassword = credentials.split(":");
         // 验证用户名密码是否匹配
@@ -100,11 +100,11 @@ public class WebFluxSecurityBasicAuthFilter extends AbstractBasicAuthFilter impl
                     .subscribe();
         }
     }
-    
+
     private void writeForbiddenCode(ServerHttpResponse serverHttpResponse) {
         serverHttpResponse.setRawStatusCode(HttpStatus.UNAUTHORIZED.value());
         serverHttpResponse.getHeaders().add(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Restricted Area\"");
         throw new ResponseStatusException(HttpStatus.UNAUTHORIZED.value(), null, null);
     }
-    
+
 }

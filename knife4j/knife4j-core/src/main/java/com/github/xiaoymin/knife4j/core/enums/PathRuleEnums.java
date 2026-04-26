@@ -24,7 +24,7 @@ package com.github.xiaoymin.knife4j.core.enums;
  * 2022/8/18 22:09
  */
 public enum PathRuleEnums {
-    
+
     /**
      * group with ant path matcher
      */

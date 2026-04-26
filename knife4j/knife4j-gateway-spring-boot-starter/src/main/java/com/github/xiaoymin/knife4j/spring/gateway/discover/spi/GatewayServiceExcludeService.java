@@ -30,7 +30,7 @@ import java.util.Set;
  * @since knife4j v4.2.0
  */
 public interface GatewayServiceExcludeService {
-    
+
     /**
      * 获取要排除的服务列表
      * @param environment 当前环境变量

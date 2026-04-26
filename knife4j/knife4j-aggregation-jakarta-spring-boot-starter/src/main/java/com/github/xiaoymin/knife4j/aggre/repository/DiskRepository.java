@@ -40,17 +40,17 @@ import java.io.InputStream;
  * @since  2.0.8
  */
 public class DiskRepository extends AbstractRepository {
-    
+
     Logger logger = LoggerFactory.getLogger(DiskRepository.class);
-    
+
     private final ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
-    
+
     public DiskRepository(DiskSetting diskSetting) {
         if (diskSetting != null && CollectionUtils.isNotEmpty(diskSetting.getRoutes())) {
             init(diskSetting);
         }
     }
-    
+
     private void init(DiskSetting diskSetting) {
         for (DiskRoute diskRoute : diskSetting.getRoutes()) {
             if (StrUtil.isNotBlank(diskRoute.getLocation())) {
@@ -68,7 +68,7 @@ public class DiskRepository extends AbstractRepository {
             }
         }
     }
-    
+
     private InputStream getResource(String location) {
         InputStream resource = null;
         try {
@@ -92,7 +92,7 @@ public class DiskRepository extends AbstractRepository {
         }
         return resource;
     }
-    
+
     private byte[] readBytes(InputStream ins) {
         if (ins == null) {
             return null;
@@ -111,5 +111,5 @@ public class DiskRepository extends AbstractRepository {
         }
         return byteOutArr.toByteArray();
     }
-    
+
 }

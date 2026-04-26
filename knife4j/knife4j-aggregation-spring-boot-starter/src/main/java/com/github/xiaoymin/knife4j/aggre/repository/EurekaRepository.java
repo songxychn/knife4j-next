@@ -50,13 +50,13 @@ import java.util.stream.Collectors;
  * @since  2.0.8
  */
 public class EurekaRepository extends AbstractRepository {
-    
+
     private volatile boolean stop = false;
     private Thread thread;
-    
+
     Logger logger = LoggerFactory.getLogger(EurekaRepository.class);
     private EurekaSetting eurekaSetting;
-    
+
     public EurekaRepository(EurekaSetting eurekaSetting) {
         this.eurekaSetting = eurekaSetting;
         if (eurekaSetting != null && CollectionUtils.isNotEmpty(eurekaSetting.getRoutes())) {
@@ -67,7 +67,7 @@ public class EurekaRepository extends AbstractRepository {
             initEurekaApps(eurekaSetting);
         }
     }
-    
+
     /**
      * 从eureka注册中心获取服务列表
      * @param eurekaSetting 配置
@@ -117,7 +117,7 @@ public class EurekaRepository extends AbstractRepository {
                                 }
                             }
                         }
-                        
+
                     }
                 }
             }
@@ -127,7 +127,7 @@ public class EurekaRepository extends AbstractRepository {
         }
         return eurekaApps;
     }
-    
+
     private Map<String, SwaggerRoute> applySwaggerRoutes(List<EurekaApplication> eurekaApps) {
         Map<String, SwaggerRoute> swaggerRouteMap = new HashMap<>();
         // 获取服务列表
@@ -154,7 +154,7 @@ public class EurekaRepository extends AbstractRepository {
         }
         return swaggerRouteMap;
     }
-    
+
     /**
      * 初始化
      * @param eurekaSetting eureka配置
@@ -171,7 +171,7 @@ public class EurekaRepository extends AbstractRepository {
             }
         }
     }
-    
+
     @Override
     public BasicAuth getAuth(String header) {
         BasicAuth basicAuth = null;
@@ -189,11 +189,11 @@ public class EurekaRepository extends AbstractRepository {
         }
         return basicAuth;
     }
-    
+
     public EurekaSetting getEurekaSetting() {
         return eurekaSetting;
     }
-    
+
     @Override
     public void start() {
         logger.info("start Eureka heartbeat Holder thread.");
@@ -245,7 +245,7 @@ public class EurekaRepository extends AbstractRepository {
         thread.setDaemon(true);
         thread.start();
     }
-    
+
     @Override
     public void close() {
         logger.info("stop Eureka heartbeat Holder thread.");

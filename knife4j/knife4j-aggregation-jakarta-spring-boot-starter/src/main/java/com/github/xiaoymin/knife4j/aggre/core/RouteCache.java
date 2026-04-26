@@ -24,7 +24,7 @@ package com.github.xiaoymin.knife4j.aggre.core;
  * 2020/10/31 10:56
  */
 public interface RouteCache<K, V> {
-    
+
     /**
      *
      * @param k key
@@ -32,14 +32,14 @@ public interface RouteCache<K, V> {
      * @return true: cache success,false:error
      */
     boolean put(K k, V v);
-    
+
     /**
      * get cache value
      * @param k key
      * @return cache value
      */
     V get(K k);
-    
+
     /**
      * remove cache
      * @param k key

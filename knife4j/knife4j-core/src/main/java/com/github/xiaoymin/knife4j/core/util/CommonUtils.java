@@ -35,12 +35,12 @@ import java.util.regex.Pattern;
  * 2018/10/11 13:47
  */
 public class CommonUtils {
-    
+
     static final String COMMON_REGEX = "[a-zA-Z0-9]";
     static final String COMMON_BEAN_NAME_PREFIX = "Knife4jDocket";
-    
+
     static Logger logger = LoggerFactory.getLogger(CommonUtils.class);
-    
+
     public static String getDebugUri(String source) {
         if (StrUtil.isNotBlank(source)) {
             String trimSource = source.trim();
@@ -51,7 +51,7 @@ public class CommonUtils {
         }
         return GlobalConstants.EMPTY_STR;
     }
-    
+
     public static String getRandomBeanName(String source) {
         String beanName = "";
         if (source != null && !"".equals(source)) {
@@ -73,7 +73,7 @@ public class CommonUtils {
         }
         return COMMON_BEAN_NAME_PREFIX + beanName;
     }
-    
+
     /**
      * 首字母大写
      * @param name
@@ -90,7 +90,7 @@ public class CommonUtils {
         }
         return supperName;
     }
-    
+
     public static String upperCase(String str) {
         StringBuffer aa = new StringBuffer();
         int index = 0;
@@ -113,13 +113,13 @@ public class CommonUtils {
         aa.append(str.substring(index, len));
         return aa.toString();
     }
-    
+
     public static byte[] readBytes(File file) {
         long len = file.length();
         if (len >= Integer.MAX_VALUE) {
             throw new RuntimeException("File is larger then max array size");
         }
-        
+
         byte[] bytes = new byte[(int) len];
         FileInputStream in = null;
         int readLength;
@@ -134,10 +134,10 @@ public class CommonUtils {
         } finally {
             close(in);
         }
-        
+
         return bytes;
     }
-    
+
     public static byte[] readBytes(InputStream ins) {
         if (ins == null) {
             return null;
@@ -156,7 +156,7 @@ public class CommonUtils {
         }
         return byteOutArr.toByteArray();
     }
-    
+
     /**
      * Resolve MarkdownFile Content Title
      * @param inputStream markdown file inputStream
@@ -187,7 +187,7 @@ public class CommonUtils {
         }
         return title;
     }
-    
+
     public static void close(InputStream ins) {
         if (ins != null) {
             try {
@@ -198,7 +198,7 @@ public class CommonUtils {
             }
         }
     }
-    
+
     public static void close(Reader reader) {
         if (reader != null) {
             try {
@@ -208,7 +208,7 @@ public class CommonUtils {
             }
         }
     }
-    
+
     public static void close(OutputStream outputStream) {
         if (outputStream != null) {
             try {
@@ -219,11 +219,11 @@ public class CommonUtils {
             }
         }
     }
-    
+
     public static void main(String[] args) {
         System.out.println(getRandomBeanName("测试一下吧"));
         System.out.println(getRandomBeanName("测试一下吧-=13【】13【-1=31=-3=1313"));
         System.out.println(getRandomBeanName("测试一下吧！@！）@（）！*#**）！*#&…………%%"));
     }
-    
+
 }

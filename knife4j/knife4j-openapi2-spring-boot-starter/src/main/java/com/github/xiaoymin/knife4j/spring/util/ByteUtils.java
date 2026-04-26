@@ -40,11 +40,11 @@ import java.lang.reflect.Field;
  * 2019/08/27 15:07
  */
 public class ByteUtils {
-    
+
     static Logger logger = LoggerFactory.getLogger(ByteUtils.class);
-    
+
     static final ClassPool classPool = ClassPool.getDefault();
-    
+
     /**
      * createModel
      * @param name 类名
@@ -79,7 +79,7 @@ public class ByteUtils {
         }
         return null;
     }
-    
+
     /**
      * 根据原始泛型类创建一个新的Class
      * @param originalGenericType 原始泛型类
@@ -119,7 +119,7 @@ public class ByteUtils {
         }
         return dynamicClass;
     }
-    
+
     private static CtField createByDynamicField(Field field, String fieldClassName, DynamicResponseParameters dynamicResponseParameters, CtClass ctClass,
                                                 DynamicClass dynamicClass) throws CannotCompileException {
         Class<?> fieldClazz = createDynamicModelClass(fieldClassName, dynamicResponseParameters.properties());
@@ -129,7 +129,7 @@ public class ByteUtils {
         addAnnotation(ctField, field, ctClass);
         return ctField;
     }
-    
+
     private static CtField createByOriginalField(Field field, CtClass ctClass) throws CannotCompileException {
         CtField ctField = new CtField(getFieldType(field.getType()), field.getName(), ctClass);
         ctField.setModifiers(Modifier.PUBLIC);
@@ -137,7 +137,7 @@ public class ByteUtils {
         addAnnotation(ctField, field, ctClass);
         return ctField;
     }
-    
+
     private static void addAnnotation(CtField target, Field source, CtClass ctClass) {
         // 此处需要判断原field是否包含注解
         if (source.isAnnotationPresent(ApiModelProperty.class)) {
@@ -163,17 +163,17 @@ public class ByteUtils {
             target.getFieldInfo().addAttribute(attr);
         }
     }
-    
+
     public static Class<?> load(String classPathName) {
         try {
             return ClassPool.getDefault().getClassLoader().loadClass(classPathName);
             // return Class.forName(classPathName);
         } catch (Exception e) {
-            
+
         }
         return null;
     }
-    
+
     private static CtField createField(DynamicParameter parameter, CtClass ctClass) throws NotFoundException, CannotCompileException {
         CtField field = new CtField(getFieldType(parameter.dataTypeClass()), parameter.name(), ctClass);
         field.setModifiers(Modifier.PUBLIC);
@@ -190,7 +190,7 @@ public class ByteUtils {
         field.getFieldInfo().addAttribute(attr);
         return field;
     }
-    
+
     public static CtClass getFieldType(Class<?> propetyType) {
         CtClass fieldType = null;
         try {

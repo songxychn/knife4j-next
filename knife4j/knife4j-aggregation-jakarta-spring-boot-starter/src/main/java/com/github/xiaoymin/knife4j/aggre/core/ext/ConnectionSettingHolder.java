@@ -27,26 +27,26 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
  * 2022/8/28 19:17
  */
 public class ConnectionSettingHolder {
-    
+
     private HttpConnectionSetting connectionSetting;
     private volatile RequestConfig defaultRequestConfig;
     private volatile PoolingHttpClientConnectionManager poolingHttpClientConnectionManager;
     private ConnectionSettingHolder() {
     }
-    
+
     public static final ConnectionSettingHolder ME = new ConnectionSettingHolder();
-    
+
     public synchronized HttpConnectionSetting getConnectionSetting() {
         if (this.connectionSetting == null) {
             this.connectionSetting = new HttpConnectionSetting();
         }
         return connectionSetting;
     }
-    
+
     public void setConnectionSetting(HttpConnectionSetting connectionSetting) {
         this.connectionSetting = connectionSetting;
     }
-    
+
     public synchronized RequestConfig getDefaultRequestConfig() {
         if (this.defaultRequestConfig == null) {
             this.defaultRequestConfig =
@@ -54,7 +54,7 @@ public class ConnectionSettingHolder {
         }
         return defaultRequestConfig;
     }
-    
+
     public synchronized PoolingHttpClientConnectionManager getPoolingHttpClientConnectionManager() {
         if (this.poolingHttpClientConnectionManager == null) {
             this.poolingHttpClientConnectionManager = new PoolingHttpClientConnectionManager();

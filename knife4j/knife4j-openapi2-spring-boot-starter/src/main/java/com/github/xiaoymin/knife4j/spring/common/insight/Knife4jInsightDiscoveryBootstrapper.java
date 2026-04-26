@@ -33,26 +33,26 @@ import org.springframework.core.env.Environment;
  */
 @Slf4j
 public class Knife4jInsightDiscoveryBootstrapper implements CommandLineRunner, BeanFactoryAware, EnvironmentAware {
-    
+
     final Knife4jInsightProperties insightProperties;
     private BeanFactory beanFactory;
     private Environment environment;
-    
+
     public Knife4jInsightDiscoveryBootstrapper(Knife4jInsightProperties insightProperties) {
         this.insightProperties = insightProperties;
     }
-    
+
     @Override
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
         this.beanFactory = beanFactory;
     }
-    
+
     @Override
     public void run(String... args) throws Exception {
         // 启动时进行异步注册任务
         new Thread(new Knife4jInsightDiscoveryRunnable(environment, insightProperties, beanFactory)).start();
     }
-    
+
     @Override
     public void setEnvironment(Environment environment) {
         this.environment = environment;
