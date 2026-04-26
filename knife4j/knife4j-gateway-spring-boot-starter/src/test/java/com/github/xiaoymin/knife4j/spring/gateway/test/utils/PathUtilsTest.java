@@ -75,6 +75,31 @@ public class PathUtilsTest {
     }
 
     @Test
+    public void test_processContextPath_multiSegment() {
+        // 多段 context-path，无前导斜杠
+        Assert.assertEquals("/api/v1", PathUtils.processContextPath("api/v1"));
+        Assert.assertEquals("/api/v1", PathUtils.processContextPath("api/v1/"));
+        // 多段 context-path，有前导斜杠
+        Assert.assertEquals("/api/v1", PathUtils.processContextPath("/api/v1"));
+        Assert.assertEquals("/api/v1", PathUtils.processContextPath("/api/v1/"));
+        // uaa 场景（issue #107）
+        Assert.assertEquals("/uaa", PathUtils.processContextPath("uaa"));
+        Assert.assertEquals("/uaa", PathUtils.processContextPath("/uaa"));
+        Assert.assertEquals("/uaa", PathUtils.processContextPath("uaa/"));
+        Assert.assertEquals("/uaa", PathUtils.processContextPath("/uaa/"));
+    }
+
+    @Test
+    public void test_append_withContextPath() {
+        // context-path 拼接 api-docs 路径，确保不缺 /
+        Assert.assertEquals("/uaa/v3/api-docs", PathUtils.append("/uaa", "/v3/api-docs"));
+        Assert.assertEquals("/api/v1/v3/api-docs", PathUtils.append("/api/v1", "/v3/api-docs"));
+        // 无 context-path 时直接返回 api-docs 路径
+        Assert.assertEquals("/v3/api-docs", PathUtils.append("", "/v3/api-docs"));
+        Assert.assertEquals("/v3/api-docs", PathUtils.append("/v3/api-docs"));
+    }
+
+    @Test
     public void test_append1() {
         String path = "//abc";
         String appendPath = PathUtils.append(path, "//v2/api-dcos");
