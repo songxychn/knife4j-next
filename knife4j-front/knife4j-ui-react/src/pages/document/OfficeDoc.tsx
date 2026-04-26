@@ -86,7 +86,7 @@ function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyl
   const requiredSet = new Set(schema.required ?? []);
   const rows = Object.entries(schema.properties)
     .map(([name, prop]) => {
-      const type = prop.type ?? (prop.$ref ? prop.$ref.split('/').pop() ?? '$ref' : 'object');
+      const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
       return `
     <tr>
       <td style="${borderStyle}">${escapeHtml(name)}</td>
@@ -117,8 +117,8 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
     <div style="margin:14px 0;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;">
       <div style="padding:8px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">
         <span style="background:${color};color:#fff;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;min-width:56px;text-align:center;">${escapeHtml(
-    method.toUpperCase(),
-  )}</span>
+          method.toUpperCase(),
+        )}</span>
         <span style="font-family:monospace;font-size:14px;">${escapeHtml(path)}</span>
         ${op.deprecated ? '<span style="color:#f93e3e;font-size:12px;margin-left:8px;">[Deprecated]</span>' : ''}
       </div>
