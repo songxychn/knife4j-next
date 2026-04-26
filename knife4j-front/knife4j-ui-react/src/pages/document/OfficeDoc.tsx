@@ -1,5 +1,6 @@
 import { Button, Space, Typography, Alert } from 'antd';
-import { FileTextOutlined, FileWordOutlined } from '@ant-design/icons';
+import { FileTextOutlined, FileWordOutlined, FileMarkdownOutlined, CodeOutlined } from '@ant-design/icons';
+import { generateApiMarkdown } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
 import {
   Document,
@@ -676,6 +677,40 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
   return Packer.toBlob(document);
 }
 
+/**
+ * Build a full-document Markdown string by iterating all tags and operations.
+ * Reuses generateApiMarkdown from knife4j-core (shared with TASK-042 copy action).
+ */
+function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
+  const sections: string[] = [];
+  sections.push(`# ${doc.info.title || 'API Documentation'}`);
+  if (doc.info.description) {
+    sections.push('');
+    sections.push(doc.info.description);
+  }
+  sections.push('');
+
+  for (const tag of tags) {
+    sections.push(`## ${tag.tag}`);
+    if (tag.description) sections.push(tag.description);
+    sections.push('');
+
+    for (const op of tag.operations ?? []) {
+      const md = generateApiMarkdown({
+        method: op.method.toUpperCase(),
+        path: op.path,
+        operation: op.operation as Parameters<typeof generateApiMarkdown>[0]['operation'],
+        docContext: doc,
+      });
+      sections.push(md);
+      sections.push('---');
+      sections.push('');
+    }
+  }
+
+  return sections.join('\n');
+}
+
 export default function OfficeDoc() {
   const { t } = useTranslation();
   const { swaggerDoc, menuTags, loading, usingMock } = useGroup();
@@ -704,6 +739,19 @@ export default function OfficeDoc() {
     a.download = sanitizeFilename(`${title}.docx`);
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  function handleDownloadMarkdown() {
+    if (!swaggerDoc) return;
+    const md = buildMarkdownDoc(swaggerDoc, menuTags);
+    const title = swaggerDoc.info.title || 'api-docs';
+    downloadBlob(md, `${title}.md`, 'text/markdown;charset=utf-8');
+  }
+
+  function handleDownloadOpenApiJson() {
+    if (!swaggerDoc) return;
+    const title = swaggerDoc.info.title || 'api-docs';
+    downloadBlob(JSON.stringify(swaggerDoc, null, 2), `${title}.openapi.json`, 'application/json;charset=utf-8');
   }
 
   const noData = !loading && (!swaggerDoc || usingMock);
@@ -744,6 +792,22 @@ export default function OfficeDoc() {
           loading={loading}
         >
           {t('officeDoc.btn.word')}
+        </Button>
+        <Button
+          icon={<FileMarkdownOutlined />}
+          onClick={handleDownloadMarkdown}
+          disabled={loading || !swaggerDoc || usingMock}
+          loading={loading}
+        >
+          {t('officeDoc.btn.markdown')}
+        </Button>
+        <Button
+          icon={<CodeOutlined />}
+          onClick={handleDownloadOpenApiJson}
+          disabled={loading || !swaggerDoc || usingMock}
+          loading={loading}
+        >
+          {t('officeDoc.btn.openapi')}
         </Button>
       </Space>
     </div>

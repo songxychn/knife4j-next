@@ -239,6 +239,8 @@ const zhCN = {
   'officeDoc.btn.html': '下载 HTML',
   'officeDoc.btn.docx': '下载 Word (.docx)',
   'officeDoc.btn.word': '下载 Word (.doc)',
+  'officeDoc.btn.markdown': '下载 Markdown',
+  'officeDoc.btn.openapi': '下载 OpenAPI JSON',
 
   // Tab context menu
   'tab.context.closeCurrent': '关闭当前',
