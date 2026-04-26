@@ -1,5 +1,7 @@
 # 进度日志
 
+> ⚠️ **本文件已于 2026-04-26 冻结，不再更新。** 新进度记录写入对应的 GitHub Issue comment。查看当前任务：`gh issue list --label agent-task` 或 `./scripts/agent-status.sh`。以下内容仅作历史参考。
+
 新记录追加在底部。
 
 ## 模板

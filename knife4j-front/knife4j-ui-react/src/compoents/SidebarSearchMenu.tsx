@@ -1,11 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Input, Menu, MenuProps, Tag } from 'antd';
+import { Input, Menu, MenuProps, Tooltip } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
-import { useSettings } from '../context/SettingsContext';
-
-const ALL_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] as const;
+import Markdown from '../components/Markdown';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: '#61affe',
@@ -47,16 +45,14 @@ interface SidebarSearchMenuProps {
 }
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick }) => {
-  const { activeGroup } = useGroup();
+  const { activeGroup, menuTags } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
-  const { settings } = useSettings();
-  const [selectedMethods, setSelectedMethods] = useState<Set<string>>(new Set(ALL_METHODS));
 
-  // Group apis by tag, filtered by search text and method
+  // Group apis by tag, filtered by search text
   const filteredByTag = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    let apis: ApiItem[] = q
+    const apis: ApiItem[] = q
       ? activeGroup.apis.filter(
           (api) =>
             api.summary.toLowerCase().includes(q) ||
@@ -65,15 +61,6 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         )
       : activeGroup.apis;
 
-    // Filter by selected methods
-    apis = apis.filter((api) => selectedMethods.has(api.method.toUpperCase()));
-
-    // Filter multipart/RequestMapping interfaces when enabled
-    if (settings.enableFilterMultipartApis) {
-      const allowedMethod = settings.enableFilterMultipartApiMethodType.toUpperCase();
-      apis = apis.filter((api) => api.method.toUpperCase() === allowedMethod);
-    }
-
     // Group by tag
     const tagMap = new Map<string, ApiItem[]>();
     for (const api of apis) {
@@ -81,7 +68,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       tagMap.get(api.tag)!.push(api);
     }
     return tagMap;
-  }, [activeGroup, searchText, selectedMethods, settings.enableFilterMultipartApis, settings.enableFilterMultipartApiMethodType]);
+  }, [activeGroup, searchText]);
 
   // Highlight matching text
   const highlightText = (text: string, query: string) => {
@@ -103,10 +90,21 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const menuItems = useMemo(() => {
     const q = searchText.trim();
     const items: NonNullable<MenuProps['items']> = [];
+    const tagDescMap = new Map(menuTags.map((t) => [t.tag, t.description]));
+
     filteredByTag.forEach((apis, tag) => {
+      const tagDesc = tagDescMap.get(tag);
+      const labelContent = tagDesc ? (
+        <Tooltip title={<Markdown source={tagDesc} />} placement="right" overlayStyle={{ maxWidth: 400 }}>
+          <span>{tag}</span>
+        </Tooltip>
+      ) : (
+        tag
+      );
+
       items.push({
         key: `tag-${tag}`,
-        label: tag,
+        label: labelContent,
         children: apis.map((api) => ({
           key: api.key,
           title: `${api.method.toUpperCase()} ${api.summary}`,
@@ -122,27 +120,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       });
     });
     return items;
-  }, [filteredByTag, searchText]);
-
-  const toggleMethod = (method: string) => {
-    setSelectedMethods((prev) => {
-      const next = new Set(prev);
-      if (next.has(method)) {
-        next.delete(method);
-      } else {
-        next.add(method);
-      }
-      return next;
-    });
-  };
-
-  const toggleAllMethods = () => {
-    if (selectedMethods.size === ALL_METHODS.length) {
-      setSelectedMethods(new Set());
-    } else {
-      setSelectedMethods(new Set(ALL_METHODS));
-    }
-  };
+  }, [filteredByTag, menuTags, searchText]);
 
   return (
     <>
@@ -155,25 +133,6 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           onChange={(e) => setSearchText(e.target.value)}
           allowClear
         />
-      </div>
-      <div style={{ padding: '4px 8px 8px', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        <Tag.CheckableTag
-          checked={selectedMethods.size === ALL_METHODS.length}
-          onChange={toggleAllMethods}
-          style={{ cursor: 'pointer', userSelect: 'none' }}
-        >
-          {t('sidebar.filter.all')}
-        </Tag.CheckableTag>
-        {ALL_METHODS.map((method) => (
-          <Tag.CheckableTag
-            key={method}
-            checked={selectedMethods.has(method)}
-            onChange={() => toggleMethod(method)}
-            style={{ cursor: 'pointer', userSelect: 'none' }}
-          >
-            {method}
-          </Tag.CheckableTag>
-        ))}
       </div>
       <Menu
         theme="dark"

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Layout, MenuProps, Select, Tabs, theme } from 'antd';
+import { Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +43,7 @@ const AppInner: React.FC = () => {
   const [selectedKey, setSelectedKey] = useState(HOME_KEY);
   const [activeKey, setActiveKey] = useState(HOME_KEY);
   const [items, setItems] = useState([{ label: t('app.tab.home'), children: '', key: HOME_KEY }]);
+  const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
 
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
@@ -81,6 +82,39 @@ const AppInner: React.FC = () => {
   const onEdit = (targetKey: TargetKey, action: 'add' | 'remove') => {
     if (action === 'remove') remove(targetKey);
   };
+
+  const closeCurrent = () => {
+    if (contextMenuKey && contextMenuKey !== HOME_KEY) {
+      remove(contextMenuKey);
+    }
+  };
+
+  const closeOther = () => {
+    if (contextMenuKey) {
+      const newPanes = items.filter((pane) => pane.key === HOME_KEY || pane.key === contextMenuKey);
+      setItems(newPanes);
+      if (!newPanes.some((p) => p.key === activeKey)) {
+        const targetKey = contextMenuKey === HOME_KEY ? HOME_KEY : contextMenuKey;
+        setActiveKey(targetKey);
+        setSelectedKey(routeKeyToMenuKey(targetKey));
+        navigate(targetKey);
+      }
+    }
+  };
+
+  const closeAll = () => {
+    const homePane = items.find((pane) => pane.key === HOME_KEY);
+    setItems(homePane ? [homePane] : []);
+    setActiveKey(HOME_KEY);
+    setSelectedKey(HOME_KEY);
+    navigate(HOME_KEY);
+  };
+
+  const contextMenuItems: MenuProps['items'] = [
+    { key: 'closeCurrent', label: t('tab.context.closeCurrent'), onClick: closeCurrent },
+    { key: 'closeOther', label: t('tab.context.closeOther'), onClick: closeOther },
+    { key: 'closeAll', label: t('tab.context.closeAll'), onClick: closeAll },
+  ];
 
   const toggleLang = () => {
     const next = i18n.language === 'zh-CN' ? 'en-US' : 'zh-CN';
@@ -195,15 +229,20 @@ const AppInner: React.FC = () => {
           }}
         >
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Tabs
-              hideAdd
-              onChange={onChange}
-              activeKey={activeKey}
-              type="editable-card"
-              onEdit={onEdit}
-              items={tabItems}
-              style={{ flex: 1, margin: '2px 2px' }}
-            />
+            <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
+              <div>
+                <Tabs
+                  hideAdd
+                  onChange={onChange}
+                  activeKey={activeKey}
+                  type="editable-card"
+                  onEdit={onEdit}
+                  items={tabItems}
+                  style={{ flex: 1, margin: '2px 2px' }}
+                  onTabClick={(key) => setContextMenuKey(key)}
+                />
+              </div>
+            </Dropdown>
           </div>
         </Content>
 

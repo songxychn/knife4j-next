@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Space, Table, Tabs, Tag, Typography, message } from 'antd';
-import { CopyOutlined } from '@ant-design/icons';
+import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { copyToClipboard } from '../../utils/clipboard';
+import type { BuiltRequest } from 'knife4j-core';
+import { buildCurl } from 'knife4j-core';
 
 const { Text } = Typography;
 
@@ -37,6 +40,8 @@ interface ResponsePanelProps {
   response: DebugResponsePayload | null;
   /** network / validation error to surface above the tabs */
   error: string | null;
+  /** built request for generating cURL command */
+  builtRequest: BuiltRequest | null;
 }
 
 const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
@@ -82,36 +87,7 @@ const preStyle: React.CSSProperties = {
   wordBreak: 'break-all',
 };
 
-/**
- * Copies text via navigator.clipboard, with a hidden-textarea fallback
- * for older browsers / non-secure contexts. Mirrors the copy helper
- * already used by the request preview panel.
- */
-function copyToClipboard(text: string, onDone: () => void, onFail: () => void): void {
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(onDone).catch(onFail);
-      return;
-    }
-  } catch {
-    // fall through to textarea fallback
-  }
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    onDone();
-  } catch {
-    onFail();
-  }
-}
-
-export default function ResponsePanel({ response, error }: ResponsePanelProps) {
+export default function ResponsePanel({ response, error, builtRequest }: ResponsePanelProps) {
   const { t } = useTranslation();
   const [activeKey, setActiveKey] = useState<string>('content');
 
@@ -128,6 +104,29 @@ export default function ResponsePanel({ response, error }: ResponsePanelProps) {
       () => message.success(t('apiDebug.response.copied')),
       () => message.error(t('apiDebug.response.copyFailed')),
     );
+  };
+
+  const handleCopyCurl = () => {
+    if (!builtRequest) return;
+    const curl = buildCurl(builtRequest);
+    copyToClipboard(
+      curl,
+      () => message.success(t('apiDebug.response.copied')),
+      () => message.error(t('apiDebug.response.copyFailed')),
+    );
+  };
+
+  const handleDownload = () => {
+    if (!response) return;
+    const blob = new Blob([response.rawText], { type: response.contentType || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = response.filename || 'response.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const headerRows = useMemo(
@@ -165,6 +164,15 @@ export default function ResponsePanel({ response, error }: ResponsePanelProps) {
               {t('apiDebug.response.size')}
               {formatSize(response.size)}
             </Text>
+            <Button size="small" icon={<CopyOutlined />} onClick={handleCopyRaw}>
+              {t('apiDebug.response.copyRaw')}
+            </Button>
+            <Button size="small" icon={<CopyOutlined />} onClick={handleCopyCurl} disabled={!builtRequest}>
+              {t('apiDebug.response.copyCurl')}
+            </Button>
+            <Button size="small" icon={<DownloadOutlined />} onClick={handleDownload}>
+              {t('apiDebug.response.download')}
+            </Button>
           </Space>
 
           <Tabs
@@ -180,16 +188,7 @@ export default function ResponsePanel({ response, error }: ResponsePanelProps) {
               {
                 key: 'raw',
                 label: t('apiDebug.response.tab.raw'),
-                children: (
-                  <div>
-                    <div style={{ marginBottom: 8 }}>
-                      <Button size="small" icon={<CopyOutlined />} onClick={handleCopyRaw}>
-                        {t('apiDebug.response.copyRaw')}
-                      </Button>
-                    </div>
-                    <pre style={preStyle}>{response.rawText}</pre>
-                  </div>
-                ),
+                children: <pre style={preStyle}>{response.rawText}</pre>,
               },
               {
                 key: 'headers',

@@ -11,7 +11,6 @@ const zhCN = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': '搜索接口名/路径...',
-  'sidebar.filter.all': '全部',
 
   // Home
   'home.noData': '暂无数据',
@@ -19,6 +18,24 @@ const zhCN = {
   'home.description': '描述',
   'home.apiStats': '接口统计',
   'home.total': '总计',
+  'home.deprecated': '个已废弃',
+  'home.deprecatedCount': '{{count}} 个已废弃接口',
+  'home.methodDistribution': '按方法分布',
+  'home.noOperations': '当前文档未定义任何接口',
+  'home.noTags': '当前文档未定义任何分组（Tag）',
+  'home.noMeta': '未提供额外元数据',
+  'home.stats.apis': '接口数',
+  'home.stats.paths': '路径数',
+  'home.stats.tags': '分组数',
+  'home.stats.schemas': '数据模型',
+  'home.tagRanking': '分组概览',
+  'home.tagRanking.desc': '按接口数量排序',
+  'home.docMeta': '文档信息',
+  'home.meta.servers': '服务地址',
+  'home.meta.contact': '联系方式',
+  'home.meta.license': '许可协议',
+  'home.meta.terms': '服务条款',
+  'home.meta.security': '安全方案',
 
   // Schema
   'schema.title': '数据模型',
@@ -50,6 +67,15 @@ const zhCN = {
   'apiDoc.col.statusCode': '状态码',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': '字段名',
+
+  // ApiDoc — 复制操作 (TASK-042)
+  'apiDoc.copy.endpoint': '复制接口',
+  'apiDoc.copy.endpoint.success': '接口已复制',
+  'apiDoc.copy.markdown': '复制文档 Markdown',
+  'apiDoc.copy.markdown.success': 'Markdown 已复制',
+  'apiDoc.copy.url': '复制地址',
+  'apiDoc.copy.url.success': '地址已复制',
+  'apiDoc.copy.failed': '复制失败，请手动选择文本',
 
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': '文档',
@@ -90,7 +116,8 @@ const zhCN = {
   'apiDebug.response.tab.raw': 'Raw',
   'apiDebug.response.tab.headers': 'Headers',
   'apiDebug.response.copyRaw': '复制原始内容',
-  'apiDebug.response.download': '下载文件',
+  'apiDebug.response.copyCurl': '复制 cURL',
+  'apiDebug.response.download': '下载',
   'apiDebug.response.imagePreview': '图片预览',
   'apiDebug.response.copied': '已复制到剪贴板',
   'apiDebug.response.copyFailed': '复制失败，请手动选择文本',
@@ -210,6 +237,11 @@ const zhCN = {
   'officeDoc.alert.mockData': '当前使用 Mock 数据或文档未加载，导出内容可能不完整。',
   'officeDoc.btn.html': '下载 HTML',
   'officeDoc.btn.word': '下载 Word (.doc)',
+
+  // Tab context menu
+  'tab.context.closeCurrent': '关闭当前',
+  'tab.context.closeOther': '关闭其他',
+  'tab.context.closeAll': '关闭全部',
 
   // SettingsDrawer
   'settings.title': '设置',

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库已经按 agent 自动维护的方式组织。任何在本仓库工作的 agent，都必须把 `.agent/` 目录视为项目意图、任务状态、权限边界和交接记录的事实来源。
+本仓库已经按 agent 自动维护的方式组织。任务状态由 **GitHub Issues + Labels** 驱动（见下方），不再使用 `.agent/TASKS.md` 和 `.agent/PROGRESS.md` 管理任务队列。
 
 ## 读取顺序
 
@@ -11,44 +11,62 @@
 3. `.agent/COORDINATION.md`
 4. `.agent/SERVER_PLAYBOOK.md`
 5. `.agent/RUNBOOK.md`
-6. `.agent/TASKS.md`
-7. `.agent/PROGRESS.md`
-8. `.agent/KNOWN_PITFALLS.md`
-9. `.agent/REVIEW_POLICY.md`
+6. `.agent/KNOWN_PITFALLS.md`
+7. `.agent/REVIEW_POLICY.md`
 
 未读完上述文件前，不要开始改代码。
+
+> ⚠️ `.agent/TASKS.md` 和 `.agent/PROGRESS.md` 已于 2026-04-26 冻结，仅作历史参考。新任务状态通过 GitHub Issues 管理。
 
 ## 项目使命
 
 `knife4j-next` 是 `knife4j` 的社区维护 fork。当前目标不是重写项目，而是保持 `doc.html` 体验稳定、修复回归、维护兼容性、建立可重复发布流程，并以增量方式推进下一代前端。
 
-## Agent 工作约定
+## 任务状态管理（Issue-Driven）
+
+任务状态通过 GitHub Issues + Labels 管理：
+
+| Label | 含义 |
+|-------|------|
+| `agent-task` | 标记为 agent 自动维护的任务 |
+| `status:ready` | 可被 agent 拾取 |
+| `status:in-progress` | agent 正在执行 |
+| `status:review` | 实现完成，等待 review/merge |
+| `status:blocked` | 阻塞于决策、环境或外部依赖 |
+| `area:*` | 任务所属模块（java / ui-react / front-core / docs / repo） |
+
+**状态流转**：`ready` → `in-progress` → `review` → （PR merged → 关闭 issue）
+
+**Agent 工作约定**：
 
 - 优先选择小而可回滚的任务。
 - 一个分支只处理一个可独立验证的任务。
-- 将进度持久写入 `.agent/PROGRESS.md`。
-- 任务状态变化时更新 `.agent/TASKS.md`。
-- 遇到阻塞时记录 blocker，不要自行扩大范围。
-- 不要让关键上下文只存在于聊天记录中，必须写回 `.agent/`。
+- 拾取任务时，给 issue 加 `status:in-progress` label 并 assign 自己。
+- 任务完成时，加 `status:review` label，创建 PR 并在 issue 中评论 PR 链接。
+- PR 合并后，关闭 issue（状态自然终结）。
+- 遇到阻塞时，加 `status:blocked` label 并在 issue 中评论原因，不要自行扩大范围。
+- 不要让关键上下文只存在于聊天记录中，写回 issue comment 或 `.agent/`。
+- **不再修改** `.agent/TASKS.md` 和 `.agent/PROGRESS.md`。
 
 ## 默认循环
 
-1. 读取 `.agent/` 状态。
-2. 从 `.agent/TASKS.md` 选择一个 `ready` 任务。
+1. 读取 `.agent/` 状态和 GitHub Issues（`gh issue list --label agent-task --label status:ready`）。
+2. 选择一个 `status:ready` 的 issue，加 `status:in-progress` label 并 assign。
 3. 根据 `.agent/COORDINATION.md` 判断直接执行还是委派给短命 agent。
-4. 为任务创建或继续分支。
+4. 为任务创建或继续分支（`agent/<task-id>-<slug>`）。
 5. 做满足任务的最小改动，或整合 worker 的交接结果。
 6. 按 `.agent/RUNBOOK.md` 运行最窄相关验证。
-7. 更新 `.agent/PROGRESS.md` 和 `.agent/TASKS.md`。
-8. 任务可审查时创建或更新 PR。
+7. 在 issue 中评论进度摘要。
+8. 加 `status:review` label，创建或更新 PR。
 
 ## 多 Agent 规则
 
 只使用浅层协作模型：
 
-- 一个 coordinator agent 负责选任务、维护状态、管理分支和最终 PR 叙事。
+- 一个 coordinator agent 负责选任务、维护 issue 状态、管理分支和最终 PR 叙事。
 - 短命 worker agent 可负责窄范围实现或探索。
 - 短命 reviewer agent 可在 PR 前审查已完成 diff。
+- **所有任务状态变更都通过 GitHub Issue label 操作，不再写 `.agent/TASKS.md` 或 `.agent/PROGRESS.md`。**
 
 不要创建递归 agent 层级。coordinator 应该把消耗上下文的工作委派出去，并要求简洁的书面 handoff。
 

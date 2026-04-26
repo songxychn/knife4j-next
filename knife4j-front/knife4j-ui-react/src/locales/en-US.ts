@@ -11,7 +11,6 @@ const enUS = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'Search API name/path...',
-  'sidebar.filter.all': 'All',
 
   // Home
   'home.noData': 'No data',
@@ -19,6 +18,24 @@ const enUS = {
   'home.description': 'Description',
   'home.apiStats': 'API Statistics',
   'home.total': 'Total',
+  'home.deprecated': 'deprecated',
+  'home.deprecatedCount': '{{count}} deprecated operation(s)',
+  'home.methodDistribution': 'By HTTP method',
+  'home.noOperations': 'No operations defined in this document',
+  'home.noTags': 'No tags defined in this document',
+  'home.noMeta': 'No additional metadata provided',
+  'home.stats.apis': 'Operations',
+  'home.stats.paths': 'Paths',
+  'home.stats.tags': 'Tags',
+  'home.stats.schemas': 'Schemas',
+  'home.tagRanking': 'Tag Overview',
+  'home.tagRanking.desc': 'Sorted by operation count',
+  'home.docMeta': 'Document Info',
+  'home.meta.servers': 'Servers',
+  'home.meta.contact': 'Contact',
+  'home.meta.license': 'License',
+  'home.meta.terms': 'Terms of Service',
+  'home.meta.security': 'Security Schemes',
 
   // Schema
   'schema.title': 'Data Models',
@@ -50,6 +67,15 @@ const enUS = {
   'apiDoc.col.statusCode': 'Status Code',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': 'Field Name',
+
+  // ApiDoc — copy actions (TASK-042)
+  'apiDoc.copy.endpoint': 'Copy Endpoint',
+  'apiDoc.copy.endpoint.success': 'Endpoint copied',
+  'apiDoc.copy.markdown': 'Copy Markdown',
+  'apiDoc.copy.markdown.success': 'Markdown copied',
+  'apiDoc.copy.url': 'Copy URL',
+  'apiDoc.copy.url.success': 'URL copied',
+  'apiDoc.copy.failed': 'Copy failed, please select text manually',
 
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'Doc',
@@ -90,7 +116,8 @@ const enUS = {
   'apiDebug.response.tab.raw': 'Raw',
   'apiDebug.response.tab.headers': 'Headers',
   'apiDebug.response.copyRaw': 'Copy Raw',
-  'apiDebug.response.download': 'Download File',
+  'apiDebug.response.copyCurl': 'Copy cURL',
+  'apiDebug.response.download': 'Download',
   'apiDebug.response.imagePreview': 'Image preview',
   'apiDebug.response.copied': 'Copied to clipboard',
   'apiDebug.response.copyFailed': 'Copy failed, please select text manually',
@@ -211,6 +238,11 @@ const enUS = {
   'officeDoc.alert.mockData': 'Mock data or unloaded document detected; exported content may be incomplete.',
   'officeDoc.btn.html': 'Download HTML',
   'officeDoc.btn.word': 'Download Word (.doc)',
+
+  // Tab context menu
+  'tab.context.closeCurrent': 'Close Current',
+  'tab.context.closeOther': 'Close Others',
+  'tab.context.closeAll': 'Close All',
 
   // SettingsDrawer
   'settings.title': 'Settings',
