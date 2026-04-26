@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchGroups, fetchSwaggerDoc, parseMenuTags, getSchemas } from '../api/knife4jClient';
-import type { SwaggerGroup, SwaggerDoc, MenuTag, SchemaObject } from '../types/swagger';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { fetchGroups, fetchSwaggerDoc, getSchemas, parseMenuTags } from '../api/knife4jClient';
+import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup } from '../types/swagger';
+import { MOCK_GROUPS } from '../data/mockGroups';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
 
@@ -21,8 +22,6 @@ export interface ApiGroup {
 }
 
 // ---- mock fallback（真实接口不可用时降级） ----
-
-import { MOCK_GROUPS } from '../data/mockGroups';
 
 // ---- context 类型 ----
 
@@ -84,10 +83,14 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
-  const groups: ApiGroup[] =
-    usingMock || !swaggerDoc
-      ? MOCK_GROUPS
-      : rawGroups.map((g) => {
+  // 关键区分：
+  //   - loading 中（swaggerDoc 为 null 且 usingMock 为 false）→ 空数组，让 UI 显示 loading
+  //   - 真正降级（usingMock 为 true）→ MOCK_GROUPS fallback
+  //   - 有真实数据 → 从 rawGroups 转换
+  const groups: ApiGroup[] = usingMock
+    ? MOCK_GROUPS
+    : swaggerDoc
+      ? rawGroups.map((g) => {
           const isActive = g.name === activeGroupValue;
           const apis: ApiItem[] = isActive
             ? menuTags.flatMap((t) =>
@@ -103,9 +106,13 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               )
             : [];
           return { value: g.name, label: g.name, apis };
-        });
+        })
+      : [];
 
-  const activeGroup = groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? MOCK_GROUPS[0];
+  // loading 期间 groups 为空，提供一个空占位对象，避免下游 .apis 报错
+  const EMPTY_GROUP: ApiGroup = { value: '', label: '', apis: [] };
+  const activeGroup =
+    groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? (usingMock ? MOCK_GROUPS[0] : EMPTY_GROUP);
 
   const handleSetActiveGroup = useCallback((value: string) => {
     setActiveGroupValue(value);
