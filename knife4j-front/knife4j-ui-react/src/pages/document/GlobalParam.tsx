@@ -35,30 +35,38 @@ function GlobalParamInner() {
 
   return (
     <div id="knife4j-global-param-page" style={{ padding: 16 }}>
-      <Form
-        form={form}
-        layout="inline"
-        onFinish={onFinish}
-        initialValues={{ in: 'header' }}
-        style={{ marginBottom: 16 }}
-      >
-        <Form.Item name="name" rules={[{ required: true, message: t('globalParam.validation.name') }]}>
-          <Input placeholder={t('globalParam.placeholder.name')} style={{ width: 160 }} />
-        </Form.Item>
-        <Form.Item name="value" rules={[{ required: true, message: t('globalParam.validation.value') }]}>
-          <Input placeholder={t('globalParam.placeholder.value')} style={{ width: 160 }} />
-        </Form.Item>
-        <Form.Item name="in">
-          <Select style={{ width: 100 }}>
-            <Select.Option value="header">header</Select.Option>
-            <Select.Option value="query">query</Select.Option>
-          </Select>
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading}>
-            {t('globalParam.btn.add')}
-          </Button>
-        </Form.Item>
+      <Form form={form} onFinish={onFinish} initialValues={{ in: 'header' }} style={{ marginBottom: 16 }}>
+        {/*
+         * 使用 flex 布局（而非 Form layout="inline"），让三个输入控件在一行内
+         * 按剩余空间自适应收缩，按钮始终贴在最右侧，避免在 Drawer (600px) 等狭窄容器里被挤到下一行。
+         */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+          <Form.Item
+            name="name"
+            rules={[{ required: true, message: t('globalParam.validation.name') }]}
+            style={{ flex: 1, minWidth: 0, marginBottom: 0 }}
+          >
+            <Input placeholder={t('globalParam.placeholder.name')} />
+          </Form.Item>
+          <Form.Item
+            name="value"
+            rules={[{ required: true, message: t('globalParam.validation.value') }]}
+            style={{ flex: 1, minWidth: 0, marginBottom: 0 }}
+          >
+            <Input placeholder={t('globalParam.placeholder.value')} />
+          </Form.Item>
+          <Form.Item name="in" style={{ flex: '0 0 96px', marginBottom: 0 }}>
+            <Select style={{ width: '100%' }}>
+              <Select.Option value="header">header</Select.Option>
+              <Select.Option value="query">query</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item style={{ flex: '0 0 auto', marginBottom: 0 }}>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              {t('globalParam.btn.add')}
+            </Button>
+          </Form.Item>
+        </div>
       </Form>
 
       <Table dataSource={params} columns={columns} rowKey="id" pagination={false} size="small" />

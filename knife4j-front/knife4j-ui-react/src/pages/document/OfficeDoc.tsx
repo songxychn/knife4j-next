@@ -59,6 +59,150 @@ function methodColor(method: string): string {
   return map[method.toUpperCase()] ?? '#999';
 }
 
+function resolveRef(ref: string, doc: SwaggerDoc): SchemaObject | undefined {
+  const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
+  if (!match) return undefined;
+  return (doc.components?.schemas ?? (doc.definitions as Record<string, SchemaObject> | undefined) ?? {})[match[1]];
+}
+
+/**
+ * 根据 schema 推导出可读类型名。
+ *   $ref  -> "UserVO"
+ *   array -> "UserVO[]" / "string[]"
+ *   原子  -> "string / int32" / "integer"
+ *   其他  -> "object"
+ */
+function schemaDisplayType(schema?: SchemaObject): string {
+  if (!schema) return '';
+  if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
+  if (schema.type === 'array') {
+    const inner = schemaDisplayType(schema.items);
+    return `${inner || 'object'}[]`;
+  }
+  const parts = [schema.type, schema.format].filter(Boolean);
+  return parts.length ? parts.join(' / ') : 'object';
+}
+
+/**
+ * 从 content 里挑一个可展示的 schema：优先 application/json，否则第一个带 schema 的 entry；
+ * 兜底 OAS2 的 response.schema / requestBody.schema。
+ */
+function pickContentSchema(
+  content: Record<string, { schema?: SchemaObject }> | undefined,
+  fallback?: SchemaObject,
+): { mediaType: string; schema: SchemaObject } | undefined {
+  if (content) {
+    const json = content['application/json'];
+    if (json?.schema) return { mediaType: 'application/json', schema: json.schema };
+    for (const [mediaType, entry] of Object.entries(content)) {
+      if (entry?.schema) return { mediaType, schema: entry.schema };
+    }
+  }
+  if (fallback) return { mediaType: 'application/json', schema: fallback };
+  return undefined;
+}
+
+/** 循环解 $ref，防止自引用死循环。 */
+function unwrapRef(schema: SchemaObject, doc: SwaggerDoc, seen: Set<string> = new Set()): SchemaObject {
+  let current = schema;
+  while (current.$ref) {
+    if (seen.has(current.$ref)) return current;
+    seen.add(current.$ref);
+    const resolved = resolveRef(current.$ref, doc);
+    if (!resolved) return current;
+    current = resolved;
+  }
+  return current;
+}
+
+interface FieldRow {
+  fieldPath: string;
+  typeDisplay: string;
+  required: boolean;
+  description: string;
+}
+
+/**
+ * 把 schema 展开成字段行列表：
+ *   object     -> 遍历 properties
+ *   array      -> 进入 items；若 items 是 object 就展开字段（路径加 []）
+ *   $ref       -> 先解 ref 再处理
+ *   原子类型   -> 返回空数组，交给外部“Type:”行单独表达
+ */
+function flattenSchemaFields(
+  schema: SchemaObject,
+  doc: SwaggerDoc,
+  prefix = '',
+  requiredSet: Set<string> = new Set(),
+  depth = 0,
+  seenRefs: Set<string> = new Set(),
+): FieldRow[] {
+  if (depth > 6) return [];
+
+  if (schema.$ref) {
+    if (seenRefs.has(schema.$ref)) return [];
+    const nextSeen = new Set(seenRefs);
+    nextSeen.add(schema.$ref);
+    const resolved = resolveRef(schema.$ref, doc);
+    if (!resolved) return [];
+    return flattenSchemaFields(
+      resolved,
+      doc,
+      prefix,
+      resolved.required ? new Set(resolved.required) : new Set<string>(),
+      depth,
+      nextSeen,
+    );
+  }
+
+  if (schema.type === 'array' && schema.items) {
+    return flattenSchemaFields(schema.items, doc, prefix, requiredSet, depth, seenRefs);
+  }
+
+  const rows: FieldRow[] = [];
+  if (!schema.properties) return rows;
+
+  for (const [name, prop] of Object.entries(schema.properties)) {
+    const fieldPath = prefix ? `${prefix}.${name}` : name;
+    rows.push({
+      fieldPath,
+      typeDisplay: schemaDisplayType(prop),
+      required: requiredSet.has(name),
+      description: prop.description ?? '',
+    });
+
+    const nextSeen = new Set(seenRefs);
+    if (prop.$ref) nextSeen.add(prop.$ref);
+    const resolvedProp = prop.$ref ? unwrapRef(prop, doc, new Set(seenRefs)) : prop;
+    if (!resolvedProp) continue;
+
+    if (resolvedProp.properties) {
+      rows.push(
+        ...flattenSchemaFields(resolvedProp, doc, fieldPath, new Set(resolvedProp.required ?? []), depth + 1, nextSeen),
+      );
+    } else if (resolvedProp.type === 'array' && resolvedProp.items) {
+      const itemSchema = resolvedProp.items.$ref
+        ? unwrapRef(resolvedProp.items, doc, new Set(nextSeen))
+        : resolvedProp.items;
+      if (itemSchema?.properties) {
+        rows.push(
+          ...flattenSchemaFields(
+            itemSchema,
+            doc,
+            `${fieldPath}[]`,
+            new Set(itemSchema.required ?? []),
+            depth + 1,
+            nextSeen,
+          ),
+        );
+      }
+    }
+  }
+  return rows;
+}
+
+// ─── HTML renderers ─────────────────────────────────────────────────────────
+
 function renderParamTable(params: ParameterObject[]): string {
   if (!params.length) return '';
   const rows = params
@@ -68,7 +212,7 @@ function renderParamTable(params: ParameterObject[]): string {
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.name)}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.in)}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${p.required ? 'Yes' : 'No'}</td>
-      <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.schema?.type ?? p.type ?? '')}</td>
+      <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(schemaDisplayType(p.schema) || p.type || '')}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.description)}</td>
     </tr>`,
     )
@@ -86,39 +230,20 @@ function renderParamTable(params: ParameterObject[]): string {
     </table>`;
 }
 
-function resolveRef(ref: string, doc: SwaggerDoc): SchemaObject | undefined {
-  const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
-  if (!match) return undefined;
-  return (doc.components?.schemas ?? (doc.definitions as Record<string, SchemaObject> | undefined) ?? {})[match[1]];
-}
-
-function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
-  const rb = op.requestBody;
-  if (!rb) return '';
-  const jsonContent = rb.content?.['application/json'];
-  if (!jsonContent?.schema) return '';
-  let schema = jsonContent.schema;
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, doc);
-    if (!resolved) return '';
-    schema = resolved;
-  }
-  if (!schema.properties) return '';
-  const requiredSet = new Set(schema.required ?? []);
-  const rows = Object.entries(schema.properties)
-    .map(([name, prop]) => {
-      const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
-      return `
+function renderFieldTable(rows: FieldRow[], borderStyle: string): string {
+  if (!rows.length) return '';
+  const body = rows
+    .map(
+      (r) => `
     <tr>
-      <td style="${borderStyle}">${escapeHtml(name)}</td>
-      <td style="${borderStyle}">${escapeHtml(type)}</td>
-      <td style="${borderStyle}">${requiredSet.has(name) ? 'Yes' : 'No'}</td>
-      <td style="${borderStyle}">${escapeHtml(prop.description)}</td>
-    </tr>`;
-    })
+      <td style="${borderStyle}">${escapeHtml(r.fieldPath)}</td>
+      <td style="${borderStyle}">${escapeHtml(r.typeDisplay)}</td>
+      <td style="${borderStyle}">${r.required ? 'Yes' : 'No'}</td>
+      <td style="${borderStyle}">${escapeHtml(r.description)}</td>
+    </tr>`,
+    )
     .join('');
   return `
-    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (application/json)</p>
     <table style="width:100%;border-collapse:collapse;margin:4px 0;font-size:13px;">
       <thead><tr style="background:#f5f5f5;">
         <th style="${borderStyle}text-align:left;">Field</th>
@@ -126,104 +251,71 @@ function renderRequestBodyTable(op: OperationObject, doc: SwaggerDoc, borderStyl
         <th style="${borderStyle}text-align:left;">Required</th>
         <th style="${borderStyle}text-align:left;">Description</th>
       </tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody>${body}</tbody>
     </table>`;
 }
 
-/** Render a schema's properties as table rows, resolving $ref recursively. */
-function renderSchemaRows(
-  schema: SchemaObject,
-  doc: SwaggerDoc,
-  borderStyle: string,
-  requiredSet: Set<string>,
-  prefix = '',
-): string {
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, doc);
-    if (!resolved) return '';
-    return renderSchemaRows(
-      resolved,
-      doc,
-      borderStyle,
-      resolved.required ? new Set(resolved.required) : new Set<string>(),
-      prefix,
-    );
-  }
-  if (!schema.properties) return '';
-  return Object.entries(schema.properties)
-    .map(([name, prop]) => {
-      const fieldPath = prefix ? `${prefix}.${name}` : name;
-      const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
-      const nested = prop.properties || (prop.$ref ? resolveRef(prop.$ref, doc) : undefined)?.properties;
-      let rows = `
-    <tr>
-      <td style="${borderStyle}">${escapeHtml(fieldPath)}</td>
-      <td style="${borderStyle}">${escapeHtml(type)}${prop.items?.type ? `&lt;${escapeHtml(prop.items.type)}&gt;` : ''}</td>
-      <td style="${borderStyle}">${requiredSet.has(name) ? 'Yes' : 'No'}</td>
-      <td style="${borderStyle}">${escapeHtml(prop.description)}</td>
-    </tr>`;
-      if (nested || (prop.$ref && resolveRef(prop.$ref, doc)?.properties)) {
-        const resolved = prop.$ref ? resolveRef(prop.$ref, doc) : prop;
-        if (resolved?.properties) {
-          const childRequired = resolved.required ? new Set(resolved.required) : new Set<string>();
-          rows += renderSchemaRows(resolved, doc, borderStyle, childRequired, fieldPath);
-        }
-      }
-      return rows;
-    })
-    .join('');
+function renderRequestBodySection(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
+  const rb = op.requestBody;
+  if (!rb) return '';
+  const picked = pickContentSchema(rb.content);
+  if (!picked) return '';
+  const unwrapped = unwrapRef(picked.schema, doc);
+  const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
+  const typeDisplay = schemaDisplayType(picked.schema);
+  return `
+    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (${escapeHtml(picked.mediaType)}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(typeDisplay)}</code></span></p>
+    ${rows.length ? renderFieldTable(rows, borderStyle) : ''}`;
 }
 
-/** Render responses section for an operation (used by both HTML and Word exports). */
 function renderResponseSection(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
   const responses = op.responses;
   if (!responses || !Object.keys(responses).length) return '';
 
-  const entries = Object.entries(responses);
-  const parts: string[] = [];
+  const parts: string[] = ['<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Responses</p>'];
+  parts.push(`
+    <table style="width:100%;border-collapse:collapse;margin:4px 0 10px;font-size:13px;">
+      <thead><tr style="background:#f5f5f5;">
+        <th style="${borderStyle}text-align:left;width:90px;">Code</th>
+        <th style="${borderStyle}text-align:left;">Description</th>
+        <th style="${borderStyle}text-align:left;width:220px;">Schema</th>
+      </tr></thead>
+      <tbody>
+        ${Object.entries(responses)
+          .map(([code, resp]) => {
+            const r = resp as ResponseObject;
+            const picked = pickContentSchema(r.content, r.schema);
+            const typeDisplay = picked ? schemaDisplayType(picked.schema) : '—';
+            return `<tr>
+              <td style="${borderStyle}"><code>${escapeHtml(code)}</code></td>
+              <td style="${borderStyle}">${escapeHtml(r.description ?? '')}</td>
+              <td style="${borderStyle}"><code>${escapeHtml(typeDisplay)}</code></td>
+            </tr>`;
+          })
+          .join('')}
+      </tbody>
+    </table>`);
 
-  for (const [statusCode, resp] of entries) {
-    const response = resp as ResponseObject;
-    const desc = response.description ?? '';
-    // Try OAS3 first, then OAS2
-    const schema = response.content?.['application/json']?.schema ?? response.schema;
-
-    if (schema) {
-      let resolved = schema;
-      if (schema.$ref) {
-        const refResolved = resolveRef(schema.$ref, doc);
-        if (refResolved) resolved = refResolved;
-      }
-      const requiredSet = new Set(resolved.required ?? []);
-      const rows = renderSchemaRows(resolved, doc, borderStyle, requiredSet);
-      if (rows) {
-        parts.push(`
-      <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Response ${escapeHtml(statusCode)}${desc ? ' — ' + escapeHtml(desc) : ''} (application/json)</p>
-      <table style="width:100%;border-collapse:collapse;margin:4px 0;font-size:13px;">
-        <thead><tr style="background:#f5f5f5;">
-          <th style="${borderStyle}text-align:left;">Field</th>
-          <th style="${borderStyle}text-align:left;">Type</th>
-          <th style="${borderStyle}text-align:left;">Required</th>
-          <th style="${borderStyle}text-align:left;">Description</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`);
-        continue;
-      }
-    }
-    // No schema or no properties — just show status + description
-    parts.push(
-      `<p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Response ${escapeHtml(statusCode)}${desc ? ' — ' + escapeHtml(desc) : ''}</p>`,
-    );
+  for (const [code, resp] of Object.entries(responses)) {
+    const r = resp as ResponseObject;
+    const picked = pickContentSchema(r.content, r.schema);
+    if (!picked) continue;
+    const unwrapped = unwrapRef(picked.schema, doc);
+    const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
+    if (!rows.length) continue;
+    parts.push(`
+      <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Response <code>${escapeHtml(code)}</code> (${escapeHtml(picked.mediaType)}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(schemaDisplayType(picked.schema))}</code></span></p>
+      ${renderFieldTable(rows, borderStyle)}`);
   }
 
-  return parts.length ? parts.join('') : '';
+  return parts.join('');
 }
 
 function renderOperation(path: string, method: string, op: OperationObject, doc: SwaggerDoc): string {
   const color = methodColor(method);
   const params = op.parameters ?? [];
-  const bodyHtml = renderRequestBodyTable(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
+  const bodyHtml = renderRequestBodySection(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
+  const responseHtml = renderResponseSection(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
   return `
     <div style="margin:14px 0;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;">
       <div style="padding:8px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">
@@ -235,10 +327,7 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
       ${op.description ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(op.description)}</div>` : ''}
       ${params.length ? `<div style="padding:5px 12px;">${renderParamTable(params)}</div>` : ''}
       ${bodyHtml ? `<div style="padding:5px 12px;">${bodyHtml}</div>` : ''}
-      ${(() => {
-        const r = renderResponseSection(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
-        return r ? `<div style="padding:5px 12px;">${r}</div>` : '';
-      })()}
+      ${responseHtml ? `<div style="padding:5px 12px;">${responseHtml}</div>` : ''}
     </div>`;
 }
 
@@ -266,6 +355,7 @@ function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
     .wrap{max-width:960px;margin:0 auto;padding:24px;}
     h1{text-align:center;color:#00ab6d;}
     .info{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:4px;padding:14px;margin-bottom:20px;}
+    code{background:#f5f5f5;padding:1px 4px;border-radius:3px;font-size:12px;}
   </style>
 </head>
 <body>
@@ -282,6 +372,7 @@ function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 }
 
 function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
+  const border = 'border:1px solid #000;padding:4px 6px;';
   const sections = tags
     .map((t) => {
       const ops = t.operations
@@ -291,11 +382,11 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
             .map(
               (p) => `
         <tr>
-          <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.name)}</td>
-          <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.in)}</td>
-          <td style="border:1px solid #000;padding:4px 6px;">${p.required ? 'Yes' : 'No'}</td>
-          <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.schema?.type ?? p.type ?? '')}</td>
-          <td style="border:1px solid #000;padding:4px 6px;">${escapeHtml(p.description)}</td>
+          <td style="${border}">${escapeHtml(p.name)}</td>
+          <td style="${border}">${escapeHtml(p.in)}</td>
+          <td style="${border}">${p.required ? 'Yes' : 'No'}</td>
+          <td style="${border}">${escapeHtml(schemaDisplayType(p.schema) || p.type || '')}</td>
+          <td style="${border}">${escapeHtml(p.description)}</td>
         </tr>`,
             )
             .join('');
@@ -303,17 +394,17 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
             ? `
         <table style="width:100%;border-collapse:collapse;margin:6px 0;font-size:12px;">
           <thead><tr style="background:#e8e8e8;">
-            <th style="border:1px solid #000;padding:4px 6px;">Name</th>
-            <th style="border:1px solid #000;padding:4px 6px;">In</th>
-            <th style="border:1px solid #000;padding:4px 6px;">Required</th>
-            <th style="border:1px solid #000;padding:4px 6px;">Type</th>
-            <th style="border:1px solid #000;padding:4px 6px;">Description</th>
+            <th style="${border}">Name</th>
+            <th style="${border}">In</th>
+            <th style="${border}">Required</th>
+            <th style="${border}">Type</th>
+            <th style="${border}">Description</th>
           </tr></thead>
           <tbody>${paramRows}</tbody>
         </table>`
             : '';
-          const bodyHtml = renderRequestBodyTable(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
-          const responseHtml = renderResponseSection(op.operation, doc, 'border:1px solid #000;padding:4px 6px;');
+          const bodyHtml = renderRequestBodySection(op.operation, doc, border);
+          const responseHtml = renderResponseSection(op.operation, doc, border);
           return `
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
           <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(op.method.toUpperCase())}]</strong> <code>${escapeHtml(op.path)}</code>${op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''}</p>
@@ -351,7 +442,7 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 </html>`;
 }
 
-// ─── docx helpers ────────────────────────────────────────────────
+// ─── docx helpers ───────────────────────────────────────────────────────────
 
 const THIN_BORDER = {
   top: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
@@ -363,7 +454,6 @@ const THIN_BORDER = {
 function docxTextCell(text: string, opts?: { bold?: boolean; shading?: string }): DocxTableCell {
   return new DocxTableCell({
     borders: THIN_BORDER,
-    width: { size: 25, type: WidthType.PERCENTAGE },
     shading: opts?.shading ? { type: ShadingType.SOLID, color: opts.shading } : undefined,
     children: [
       new DocxParagraph({
@@ -374,40 +464,27 @@ function docxTextCell(text: string, opts?: { bold?: boolean; shading?: string })
   });
 }
 
-/** Build schema rows for docx table, resolving $ref recursively. */
-function docxSchemaRows(schema: SchemaObject, doc: SwaggerDoc, requiredSet: Set<string>, prefix = ''): DocxTableRow[] {
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, doc);
-    if (!resolved) return [];
-    return docxSchemaRows(resolved, doc, resolved.required ? new Set(resolved.required) : new Set<string>(), prefix);
-  }
-  if (!schema.properties) return [];
-  const rows: DocxTableRow[] = [];
-  for (const [name, prop] of Object.entries(schema.properties)) {
-    const fieldPath = prefix ? `${prefix}.${name}` : name;
-    const type = prop.type ?? (prop.$ref ? (prop.$ref.split('/').pop() ?? '$ref') : 'object');
-    const itemType = prop.items?.type ? `<${prop.items.type}>` : '';
-    rows.push(
+function docxFieldTable(rows: FieldRow[]): DocxTable {
+  const header = new DocxTableRow({
+    children: [
+      docxTextCell('Field', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+    ],
+  });
+  const dataRows = rows.map(
+    (r) =>
       new DocxTableRow({
         children: [
-          docxTextCell(fieldPath),
-          docxTextCell(`${type}${itemType}`),
-          docxTextCell(requiredSet.has(name) ? 'Yes' : 'No'),
-          docxTextCell(prop.description ?? ''),
+          docxTextCell(r.fieldPath),
+          docxTextCell(r.typeDisplay),
+          docxTextCell(r.required ? 'Yes' : 'No'),
+          docxTextCell(r.description),
         ],
       }),
-    );
-    // Recurse into nested objects
-    const nested = prop.properties || (prop.$ref ? resolveRef(prop.$ref, doc) : undefined)?.properties;
-    if (nested) {
-      const resolved = prop.$ref ? resolveRef(prop.$ref, doc) : prop;
-      if (resolved?.properties) {
-        const childRequired = resolved.required ? new Set(resolved.required) : new Set<string>();
-        rows.push(...docxSchemaRows(resolved, doc, childRequired, fieldPath));
-      }
-    }
-  }
-  return rows;
+  );
+  return new DocxTable({ rows: [header, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } });
 }
 
 function docxParamRows(params: ParameterObject[]): DocxTableRow[] {
@@ -418,7 +495,7 @@ function docxParamRows(params: ParameterObject[]): DocxTableRow[] {
           docxTextCell(p.name),
           docxTextCell(p.in),
           docxTextCell(p.required ? 'Yes' : 'No'),
-          docxTextCell(p.schema?.type ?? p.type ?? ''),
+          docxTextCell(schemaDisplayType(p.schema) || p.type || ''),
           docxTextCell(p.description ?? ''),
         ],
       }),
@@ -428,84 +505,82 @@ function docxParamRows(params: ParameterObject[]): DocxTableRow[] {
 function docxRequestBodySection(op: OperationObject, doc: SwaggerDoc): (DocxParagraph | DocxTable)[] {
   const rb = op.requestBody;
   if (!rb) return [];
-  const jsonContent = rb.content?.['application/json'];
-  if (!jsonContent?.schema) return [];
-  let schema = jsonContent.schema;
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, doc);
-    if (!resolved) return [];
-    schema = resolved;
-  }
-  if (!schema.properties) return [];
-  const requiredSet = new Set(schema.required ?? []);
-  const headerRow = new DocxTableRow({
-    children: [
-      docxTextCell('Field', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
-    ],
-  });
-  const dataRows = docxSchemaRows(schema, doc, requiredSet);
-  return [
+  const picked = pickContentSchema(rb.content);
+  if (!picked) return [];
+  const unwrapped = unwrapRef(picked.schema, doc);
+  const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
+  const typeDisplay = schemaDisplayType(picked.schema);
+  const children: (DocxParagraph | DocxTable)[] = [
     new DocxParagraph({
-      children: [new TextRun({ text: 'Request Body (application/json)', bold: true, size: 22 })],
+      children: [
+        new TextRun({ text: `Request Body (${picked.mediaType})  `, bold: true, size: 22 }),
+        new TextRun({ text: `Type: ${typeDisplay}`, size: 22 }),
+      ],
       spacing: { before: 120, after: 40 },
     }),
-    new DocxTable({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } }),
   ];
+  if (rows.length) children.push(docxFieldTable(rows));
+  return children;
 }
 
 function docxResponseSection(op: OperationObject, doc: SwaggerDoc): (DocxParagraph | DocxTable)[] {
   const responses = op.responses;
   if (!responses || !Object.keys(responses).length) return [];
-  const children: (DocxParagraph | DocxTable)[] = [];
-  for (const [statusCode, resp] of Object.entries(responses)) {
-    const response = resp as ResponseObject;
-    const desc = response.description ?? '';
-    const schema = response.content?.['application/json']?.schema ?? response.schema;
-    const label = desc ? `Response ${statusCode} — ${desc}` : `Response ${statusCode}`;
-    if (schema) {
-      let resolved = schema;
-      if (schema.$ref) {
-        const refResolved = resolveRef(schema.$ref, doc);
-        if (refResolved) resolved = refResolved;
-      }
-      const requiredSet = new Set(resolved.required ?? []);
-      const rows = docxSchemaRows(resolved, doc, requiredSet);
-      if (rows.length) {
-        const headerRow = new DocxTableRow({
-          children: [
-            docxTextCell('Field', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
-          ],
-        });
-        children.push(
-          new DocxParagraph({
-            children: [new TextRun({ text: `${label} (application/json)`, bold: true, size: 22 })],
-            spacing: { before: 120, after: 40 },
-          }),
-          new DocxTable({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } }),
-        );
-        continue;
-      }
-    }
+
+  const children: (DocxParagraph | DocxTable)[] = [
+    new DocxParagraph({
+      children: [new TextRun({ text: 'Responses', bold: true, size: 22 })],
+      spacing: { before: 160, after: 40 },
+    }),
+  ];
+
+  const summaryHeader = new DocxTableRow({
+    children: [
+      docxTextCell('Code', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell('Schema', { bold: true, shading: 'f5f5f5' }),
+    ],
+  });
+  const summaryRows = Object.entries(responses).map(([code, resp]) => {
+    const r = resp as ResponseObject;
+    const picked = pickContentSchema(r.content, r.schema);
+    const typeDisplay = picked ? schemaDisplayType(picked.schema) : '—';
+    return new DocxTableRow({
+      children: [docxTextCell(code), docxTextCell(r.description ?? ''), docxTextCell(typeDisplay)],
+    });
+  });
+  children.push(
+    new DocxTable({
+      rows: [summaryHeader, ...summaryRows],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+    }),
+  );
+
+  for (const [code, resp] of Object.entries(responses)) {
+    const r = resp as ResponseObject;
+    const picked = pickContentSchema(r.content, r.schema);
+    if (!picked) continue;
+    const unwrapped = unwrapRef(picked.schema, doc);
+    const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
+    if (!rows.length) continue;
     children.push(
       new DocxParagraph({
-        children: [new TextRun({ text: label, bold: true, size: 22 })],
+        children: [
+          new TextRun({ text: `Response ${code} (${picked.mediaType})  `, bold: true, size: 22 }),
+          new TextRun({ text: `Type: ${schemaDisplayType(picked.schema)}`, size: 22 }),
+        ],
         spacing: { before: 120, after: 40 },
       }),
+      docxFieldTable(rows),
     );
   }
+
   return children;
 }
 
 async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
   const children: (DocxParagraph | DocxTable)[] = [];
 
-  // Title & info
   children.push(
     new DocxParagraph({
       text: doc.info.title,
@@ -520,7 +595,7 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
       new DocxParagraph({ children: [new TextRun({ text: `Description: ${doc.info.description}`, size: 22 })] }),
     );
   }
-  children.push(new DocxParagraph({ text: '' })); // spacer
+  children.push(new DocxParagraph({ text: '' }));
 
   for (const t of tags) {
     children.push(
@@ -541,13 +616,11 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
 
     for (const op of t.operations) {
       const method = op.method.toUpperCase();
-      const path = op.path;
-      // Method + Path heading
       children.push(
         new DocxParagraph({
           children: [
             new TextRun({ text: `[${method}] `, bold: true, color: methodColor(op.method).replace('#', ''), size: 24 }),
-            new TextRun({ text: path, font: 'Courier New', size: 24 }),
+            new TextRun({ text: op.path, font: 'Courier New', size: 24 }),
             ...(op.operation.deprecated ? [new TextRun({ text: ' [Deprecated]', color: 'f93e3e', size: 22 })] : []),
           ],
           spacing: { before: 200, after: 60 },
@@ -557,7 +630,6 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
         children.push(new DocxParagraph({ children: [new TextRun({ text: op.operation.summary, size: 22 })] }));
       }
 
-      // Parameters table
       const params = op.operation.parameters ?? [];
       if (params.length) {
         const paramHeader = new DocxTableRow({
@@ -581,18 +653,12 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
         );
       }
 
-      // Request body
       children.push(...docxRequestBodySection(op.operation, doc));
-
-      // Responses
       children.push(...docxResponseSection(op.operation, doc));
     }
   }
 
-  const document = new Document({
-    sections: [{ children }],
-  });
-
+  const document = new Document({ sections: [{ children }] });
   return Packer.toBlob(document);
 }
 
