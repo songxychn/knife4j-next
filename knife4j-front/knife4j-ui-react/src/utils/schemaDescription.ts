@@ -83,7 +83,6 @@ function walk(
     const path = prefix ? `${prefix}[*]` : '[*]';
     walk(resolved.items, path, doc, map, depth + 1);
   }
-
 }
 
 /** One rendered line of annotated JSON. */
@@ -185,4 +184,3 @@ export function annotateJsonWithDescriptions(json: string, descMap: Map<string, 
 
   return result;
 }
-

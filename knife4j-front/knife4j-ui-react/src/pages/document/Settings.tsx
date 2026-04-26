@@ -71,10 +71,7 @@ export default function Settings() {
       {/* Host 覆盖 */}
       <div style={{ minHeight: 50, lineHeight: '50px' }}>
         <Space align="center" wrap>
-          <Checkbox
-            checked={settings.enableHost}
-            onChange={(e) => handleEnableHost(e.target.checked)}
-          >
+          <Checkbox checked={settings.enableHost} onChange={(e) => handleEnableHost(e.target.checked)}>
             <Text>Host:</Text>
           </Checkbox>
           <Input

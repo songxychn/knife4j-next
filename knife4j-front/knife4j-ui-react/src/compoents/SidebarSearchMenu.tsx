@@ -147,4 +147,3 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 };
 
 export default SidebarSearchMenu;
-

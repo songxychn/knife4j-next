@@ -1008,9 +1008,7 @@ export default function ApiDebug() {
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { settings } = useSettings();
   const [baseUrl, setBaseUrl] = useState(() =>
-    settings.enableHost && settings.enableHostText.trim()
-      ? settings.enableHostText.trim()
-      : currentOrigin(),
+    settings.enableHost && settings.enableHostText.trim() ? settings.enableHostText.trim() : currentOrigin(),
   );
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
@@ -1598,7 +1596,13 @@ export default function ApiDebug() {
       <Divider style={{ margin: '16px 0' }} />
 
       {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      <ResponsePanel response={response} error={error} builtRequest={builtRequest} operation={operation} swaggerDoc={swaggerDoc} />
+      <ResponsePanel
+        response={response}
+        error={error}
+        builtRequest={builtRequest}
+        operation={operation}
+        swaggerDoc={swaggerDoc}
+      />
     </div>
   );
 }
