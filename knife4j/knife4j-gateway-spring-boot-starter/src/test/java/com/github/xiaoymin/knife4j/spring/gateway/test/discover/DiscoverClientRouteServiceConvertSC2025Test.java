@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.github.xiaoymin.knife4j.spring.gateway.test.discover;
 
 import com.github.xiaoymin.knife4j.spring.gateway.Knife4jGatewayProperties;
@@ -55,6 +56,7 @@ public class DiscoverClientRouteServiceConvertSC2025Test {
      */
     private ReactiveDiscoveryClient stubDiscoveryClient(List<String> serviceIds) {
         return new ReactiveDiscoveryClient() {
+
             @Override
             public String description() {
                 return "stub";
@@ -140,18 +142,3 @@ public class DiscoverClientRouteServiceConvertSC2025Test {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
