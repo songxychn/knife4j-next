@@ -21,16 +21,14 @@
 
 1. 拉取最新仓库状态并检查工作区是否干净。
 2. 如果当前分支对应某个 `in_progress` 任务，先处理该任务。
-3. 如果没有进行中的任务，从 GitHub Issues 选择一个 `status:ready` 任务：
-   `gh issue list --repo songxychn/knife4j-next --label agent-task --label status:ready --state open`
+3. 如果没有进行中的任务，从 `.agent/TASKS.md` 选择一个 `ready` 任务。
 4. 判断任务是否符合 `.agent/AUTONOMY_POLICY.md` 中的安全条件。
 5. 决定直接执行还是委派给 worker。
 6. 完成最小改动后，运行最窄相关验证。
 7. 需要时启动 reviewer。
-8. 在对应 GitHub Issue 评论里记录进度、验证结果和下一步（不再写 .agent/TASKS.md 或 .agent/PROGRESS.md，这两个文件已冻结）。
+8. 更新 `.agent/PROGRESS.md` 与 `.agent/TASKS.md`。
 9. 满足条件时创建或更新 PR。
-10. 等待 PR CI 终态：`gh pr checks <N> --watch`。全绿后给 issue 加 `status:review` label；CI 红时同分支修复再等（单次唤醒最多 2 轮修复尝试）。
-11. 停止本次运行，不继续吞下一个新任务。
+10. 停止本次运行，不继续吞下一个新任务。
 
 ## 任务选择策略
 
@@ -56,7 +54,7 @@
 如果分支已存在：
 
 - 优先继续已有分支
-- 如果分支状态和任务状态不一致，通过 GitHub Issue label 和评论对齐
+- 如果分支状态和任务状态不一致，先更新 `.agent/TASKS.md` 和 `.agent/PROGRESS.md`
 
 ## 什么时候派 Worker
 
@@ -83,10 +81,10 @@
 
 只有满足以下条件时才应创建或更新 PR：
 
-- 至少完成该任务要求的最窄验证（含 `./scripts/test-*.sh`，不只用 `tsc` / `vite build` 单步替代）
-- 在对应 GitHub Issue 评论里已记录摘要、验证和下一步
+- 任务状态可进入 `review`
+- 至少完成该任务要求的最窄验证
+- `.agent/PROGRESS.md` 已记录摘要、验证和下一步
 - 没有未说明的高风险残留
-- 创建 PR 后必须等 CI 全绿，才把 issue 切为 `status:review`（见 .agent/RUNBOOK.md “PR 后 CI 验证”节）
 
 PR 描述应至少包含：
 
@@ -121,8 +119,8 @@ PR 描述应至少包含：
 如果是网络、依赖源、CI 凭据、本地环境损坏等环境问题：
 
 - 不要把环境问题当成代码问题反复重试
-- 在对应 GitHub Issue 评论里记录失败命令和环境现象
-- 给 issue 加 `status:blocked` label
+- 在 `.agent/PROGRESS.md` 记录失败命令和环境现象
+- 将任务标记为 `blocked`
 
 ## 重试规则
 
@@ -141,7 +139,7 @@ PR 描述应至少包含：
 - 已完成一个任务的可审查提交
 - 已记录 blocker，等待人工
 - 已完成一次失败后的合理重试
-- 已创建或更新 PR，CI 全绿（或 CI 红且已用完重试上限），且没有新的安全动作可做
+- 已创建或更新 PR，且没有新的安全动作可做
 - 工作区出现未预期冲突或状态异常
 
 ## 状态写回规则
