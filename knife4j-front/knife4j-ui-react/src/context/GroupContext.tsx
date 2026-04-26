@@ -129,6 +129,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGroup = (): GroupContextValue => {
   const ctx = useContext(GroupContext);
   if (!ctx) throw new Error('useGroup must be used inside GroupProvider');

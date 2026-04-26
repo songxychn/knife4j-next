@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Input, Menu } from 'antd';
+import { Input, Menu, MenuProps } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
@@ -40,7 +40,7 @@ function methodTag(method: string) {
 
 interface SidebarSearchMenuProps {
   selectedKey: string;
-  onMenuClick: (info: { key: string; item: { props: { title: string } } }) => void;
+  onMenuClick: MenuProps['onClick'];
 }
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick }) => {
@@ -70,7 +70,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   }, [activeGroup, searchText]);
 
   const menuItems = useMemo(() => {
-    const items: object[] = [];
+    const items: NonNullable<MenuProps['items']> = [];
     filteredByTag.forEach((apis, tag) => {
       items.push({
         key: `tag-${tag}`,
@@ -106,8 +106,8 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         theme="dark"
         mode="inline"
         selectedKeys={[selectedKey]}
-        onClick={onMenuClick as any}
-        items={menuItems as any}
+        onClick={onMenuClick}
+        items={menuItems}
         style={{ flex: 1, overflowY: 'auto', borderRight: 0 }}
       />
     </>

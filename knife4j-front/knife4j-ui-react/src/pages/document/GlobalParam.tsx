@@ -4,6 +4,7 @@ import { DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { GlobalParamItem, useGlobalParam } from '../../context/GlobalParamContext';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { useGlobalParam };
 
 function GlobalParamInner() {
