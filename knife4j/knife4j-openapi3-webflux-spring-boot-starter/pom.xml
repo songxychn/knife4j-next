@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.baizhukui</groupId>
         <artifactId>knife4j</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.1</version>
     </parent>
     <artifactId>knife4j-openapi3-webflux-spring-boot-starter</artifactId>
     <name>knife4j-openapi3-webflux-spring-boot-starter</name>
