@@ -718,6 +718,9 @@ notes:
 status: review
 area: ui-react
 title: 为 knife4j-ui-react 添加 Vite dev server proxy 配置（并含本地开发期 UI 修复）
+status: in_progress
+area: ui-react
+title: 为 knife4j-ui-react 添加 Vite dev server proxy 配置
 branch: agent/TASK-039-vite-dev-proxy
 depends_on:
 validation:

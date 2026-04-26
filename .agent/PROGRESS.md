@@ -827,18 +827,21 @@ notes:
 blockers:
 - none
 
-## 2026-04-25 18:08 UTC
-task: TASK-037
-agent: coordinator (heartbeat)
-branch: agent/TASK-037-format-rules-enforcement
-status: done
+## 2026-04-26 TASK-039
+task: TASK-039
+agent: coordinator (interactive)
+branch: agent/TASK-039-vite-dev-proxy
+status: review
 summary:
-- PR #52 已合并（merged_at: 2026-04-25T17:56:47Z）
-- TASKS.md 中 TASK-037 状态更新为 done
-- 无依赖 TASK-037 的 blocked 任务需要解锁
-- 当前队列：所有任务均为 done，无 ready/blocked/in_progress 任务
+- 在 vite.config.ts 中添加 server.proxy 配置，将 /v3/api-docs、/swagger-resources、/swagger-ui、/doc.html 代理到后端
+- 后端地址通过 VITE_BACKEND 环境变量可覆盖，默认 http://localhost:8080（与 knife4j-demo 一致）
+- 仅影响 vite dev server，不影响 build 产出
+validation:
+- `npx prettier --check vite.config.ts` → pass
+- `npx tsc --noEmit` → pass
+- `npx vite build` → pass (1462 kB)
 next:
-- 等待新任务加入队列
+- 推送分支 → 开 PR → review → merge
 blockers:
 - none
 ## 2026-04-26 TASK-039 review / vue2 对齐盘点
