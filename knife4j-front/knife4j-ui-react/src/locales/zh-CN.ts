@@ -3,7 +3,7 @@ const zhCN = {
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI 接口文档聚合中心',
   'app.tab.home': '主页',
-  'app.footer': 'Apache License 2.0 | Copyright 2019-Knife4j v5.0',
+  'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
 
   // Header language switch
   'header.lang.zh': '中',
