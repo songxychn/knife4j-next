@@ -69,13 +69,11 @@ const enUS = {
   'apiDoc.col.fieldName': 'Field Name',
 
   // ApiDoc — copy actions (TASK-042)
-  'apiDoc.copy.endpoint': 'Copy Endpoint',
-  'apiDoc.copy.endpoint.success': 'Endpoint copied',
-  'apiDoc.copy.markdown': 'Copy Markdown',
-  'apiDoc.copy.markdown.success': 'Markdown copied',
-  'apiDoc.copy.url': 'Copy URL',
-  'apiDoc.copy.url.success': 'URL copied',
-  'apiDoc.copy.failed': 'Copy failed, please select text manually',
+'apiDoc.copy.markdown': 'Copy Markdown',
+'apiDoc.copy.markdown.success': 'Markdown copied',
+'apiDoc.copy.url': 'Copy Page URL',
+'apiDoc.copy.url.success': 'Page URL copied',
+'apiDoc.copy.failed': 'Copy failed, please select text manually',
 
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'Doc',

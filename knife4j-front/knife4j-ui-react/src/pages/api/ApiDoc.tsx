@@ -106,14 +106,6 @@ export default function ApiDoc() {
   const method = operation.method.toUpperCase();
   const op = operation.operation;
 
-  const handleCopyEndpoint = () => {
-    copyToClipboard(
-      `${method} ${operation.path}`,
-      () => message.success(t('apiDoc.copy.endpoint.success')),
-      () => message.error(t('apiDoc.copy.failed')),
-    );
-  };
-
   const handleCopyMarkdown = () => {
     const md = generateApiMarkdown({
       method,
@@ -236,9 +228,6 @@ export default function ApiDoc() {
       <OperationModeTabs activeKey="doc" />
 
       <Space style={{ marginBottom: 8 }}>
-        <Button size="small" icon={<CopyOutlined />} onClick={handleCopyEndpoint}>
-          {t('apiDoc.copy.endpoint')}
-        </Button>
         <Button size="small" icon={<CopyOutlined />} onClick={handleCopyMarkdown}>
           {t('apiDoc.copy.markdown')}
         </Button>
