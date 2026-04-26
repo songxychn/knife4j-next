@@ -10,9 +10,28 @@ export interface SwaggerGroup {
   location?: string; // swagger-resources 格式
 }
 
+export interface SwaggerContact {
+  name?: string;
+  url?: string;
+  email?: string;
+}
+
+export interface SwaggerLicense {
+  name?: string;
+  url?: string;
+}
+
 export interface SwaggerInfo {
   title: string;
   version: string;
+  description?: string;
+  termsOfService?: string;
+  contact?: SwaggerContact;
+  license?: SwaggerLicense;
+}
+
+export interface SwaggerServer {
+  url: string;
   description?: string;
 }
 
@@ -112,6 +131,12 @@ export interface SwaggerDoc {
   info: SwaggerInfo;
   tags?: SwaggerTag[];
   paths: Record<string, PathItemObject>;
+  /** OAS3 servers */
+  servers?: SwaggerServer[];
+  /** OAS2 host / basePath / schemes */
+  host?: string;
+  basePath?: string;
+  schemes?: string[];
   components?: {
     schemas?: Record<string, SchemaObject>;
     securitySchemes?: Record<string, SecuritySchemeObject>;
