@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Layout, Button, Select, ConfigProvider, Tabs, theme } from 'antd';
+import { Button, ConfigProvider, Layout, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';

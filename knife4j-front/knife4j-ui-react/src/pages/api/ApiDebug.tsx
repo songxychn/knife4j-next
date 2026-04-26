@@ -1039,7 +1039,12 @@ export default function ApiDebug() {
 
     // 初始化参数值
     const initial: ParamValueMap = {};
-    const allParams = [...debugModel.pathParams, ...debugModel.queryParams, ...debugModel.headerParams, ...debugModel.cookieParams];
+    const allParams = [
+      ...debugModel.pathParams,
+      ...debugModel.queryParams,
+      ...debugModel.headerParams,
+      ...debugModel.cookieParams,
+    ];
     for (const p of allParams) {
       initial[paramKey(p)] = initialValueFor(p);
     }
