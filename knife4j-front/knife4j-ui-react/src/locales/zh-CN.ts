@@ -220,6 +220,11 @@ const zhCN = {
   'officeDoc.btn.html': '下载 HTML',
   'officeDoc.btn.word': '下载 Word (.doc)',
 
+  // Tab context menu
+  'tab.context.closeCurrent': '关闭当前',
+  'tab.context.closeOther': '关闭其他',
+  'tab.context.closeAll': '关闭全部',
+
   // SettingsDrawer
   'settings.title': '设置',
   'settings.tab.authorize': 'Authorize',
