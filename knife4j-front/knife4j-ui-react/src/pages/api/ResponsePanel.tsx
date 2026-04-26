@@ -121,6 +121,25 @@ const preStyle: React.CSSProperties = {
   wordBreak: 'break-all',
 };
 
+/** Monospace, normal color — matches the surrounding <pre>. */
+const jsonCodeStyle: React.CSSProperties = {
+  fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
+  color: '#24292e',
+};
+
+/**
+ * Inline schema description comments — uses a different font (sans-serif),
+ * smaller size, lighter color and italic so readers can tell at a glance
+ * that it is not part of the JSON payload.
+ */
+const jsonDescStyle: React.CSSProperties = {
+  fontFamily:
+    "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Helvetica, Arial, sans-serif",
+  fontSize: 12,
+  fontStyle: 'italic',
+  color: '#8c8c8c',
+};
+
 export default function ResponsePanel({ response, error, builtRequest, operation, swaggerDoc }: ResponsePanelProps) {
   const { t } = useTranslation();
   const [activeKey, setActiveKey] = useState<string>('content');
@@ -320,7 +339,7 @@ function ContentTab({
 
   if (response.kind === 'json') {
     const pretty = prettyJson(response.rawText);
-    const display = showDescription ? annotateJsonWithDescriptions(pretty, descMap) : pretty;
+    const lines = showDescription ? annotateJsonWithDescriptions(pretty, descMap) : null;
 
     return (
       <div>
@@ -333,7 +352,17 @@ function ContentTab({
             </Checkbox>
           </div>
         )}
-        <pre style={preStyle}>{display}</pre>
+        <pre style={preStyle}>
+          {lines
+            ? lines.map((line, i) => (
+                <span key={i}>
+                  <span style={jsonCodeStyle}>{line.code}</span>
+                  {line.description && <span style={jsonDescStyle}>{`  // ${line.description}`}</span>}
+                  {i < lines.length - 1 ? '\n' : ''}
+                </span>
+              ))
+            : pretty}
+        </pre>
       </div>
     );
   }

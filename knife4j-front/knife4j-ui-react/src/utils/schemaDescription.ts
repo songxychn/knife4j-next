@@ -86,52 +86,103 @@ function walk(
 
 }
 
+/** One rendered line of annotated JSON. */
+export interface AnnotatedJsonLine {
+  /** Original JSON line (pretty-printed) with trailing whitespace preserved. */
+  code: string;
+  /** Optional description to render as a subdued inline comment next to `code`. */
+  description?: string;
+}
+
 /**
- * Given a pretty-printed JSON string, return an array of rendered lines
- * with optional description annotations appended.
+ * Parse a pretty-printed JSON string and attach a schema description to each
+ * recognized field line. Returns an array of `{ code, description? }` so the
+ * caller can style the description separately from the JSON itself.
  *
- * The function walks the text line-by-line, maintaining a path stack so
- * that each JSON key can be mapped to its schema description.
+ * The walker maintains two parallel stacks:
+ *   - `pathStack`       — path fragments joined to look up a description
+ *   - `containerStack`  — frames describing each currently open container
+ *
+ * Path rules:
+ *   - inside an `object`, a `"key":` line contributes its key to the path
+ *   - inside an `array`, every element's opening `{` / `[` shares the
+ *     parent's `[*]` slot, so we don't push another path segment
+ *
+ * Path lookup tries both the exact path and `path[*]`, so array-of-primitives
+ * descriptions (keyed by `"field[*]"` in the schema map) also match.
  */
-export function annotateJsonWithDescriptions(json: string, descMap: Map<string, string>): string {
+export function annotateJsonWithDescriptions(json: string, descMap: Map<string, string>): AnnotatedJsonLine[] {
   const lines = json.split('\n');
+
+  /**
+   * Each entry describes one currently open container and how many path
+   * segments were pushed when it opened, so that closing it pops exactly
+   * as many segments from `pathStack`.
+   */
+  interface Frame {
+    kind: 'object' | 'array' | 'top-object' | 'top-array' | 'array-elem';
+    pushed: number;
+  }
   const pathStack: string[] = [];
-  const result: string[] = [];
+  const containerStack: Frame[] = [];
+  const result: AnnotatedJsonLine[] = [];
+
+  const isArrayLike = (f: Frame | undefined) => !!f && (f.kind === 'array' || f.kind === 'top-array');
 
   for (const line of lines) {
-    // Detect opening brace/bracket → push to stack
-    const openMatch = line.match(/[{[]\s*$/);
-    // Detect closing brace/bracket → pop from stack
-    const closeMatch = line.match(/^[ \t]*[}\]]/);
+    const trimmed = line.trim();
+    const opensObject = /{\s*$/.test(trimmed);
+    const opensArray = /\[\s*$/.test(trimmed);
+    const opensContainer = opensObject || opensArray;
+    const closesContainer = /^[}\]]/.test(trimmed);
 
-    if (closeMatch) {
-      pathStack.pop();
+    // 1) Close first (a closing line never carries a new key)
+    if (closesContainer) {
+      const frame = containerStack.pop();
+      if (frame) {
+        for (let i = 0; i < frame.pushed; i++) pathStack.pop();
+      }
     }
 
-    // Detect a key line:  "fieldName": value
-    const keyMatch = line.match(/^(\s*)"([^"]+)"\s*:/);
-    let annotation = '';
+    const parent = containerStack[containerStack.length - 1];
+    const keyMatch = /^"([^"]+)"\s*:/.exec(trimmed);
+    let description: string | undefined;
 
-    if (keyMatch) {
-      const key = keyMatch[2];
-      const currentPath = [...pathStack, key].join('.');
-      const desc = descMap.get(currentPath) ?? descMap.get(`${currentPath}[*]`);
-      if (desc) {
-        annotation = `  // ${desc}`;
-      }
+    if (keyMatch && !isArrayLike(parent)) {
+      // Normal object property — look up description and possibly open container
+      const key = keyMatch[1];
+      const currentPath = [...pathStack, key].join('.').replace(/\.\[/g, '[');
+      description = descMap.get(currentPath) ?? descMap.get(`${currentPath}[*]`);
 
-      // If the value is an opening object/array, push this key onto the stack
-      if (openMatch) {
+      if (opensContainer) {
         pathStack.push(key);
+        if (opensArray) {
+          pathStack.push('[*]');
+          containerStack.push({ kind: 'array', pushed: 2 });
+        } else {
+          containerStack.push({ kind: 'object', pushed: 1 });
+        }
       }
-    } else if (openMatch) {
-      // Opening brace/bracket without a key (top-level array)
-      pathStack.push('[*]');
+    } else if (opensContainer) {
+      // Opening brace/bracket with no key on the same line
+      if (isArrayLike(parent)) {
+        containerStack.push({ kind: 'array-elem', pushed: 0 });
+      } else if (containerStack.length === 0) {
+        if (opensArray) {
+          pathStack.push('[*]');
+          containerStack.push({ kind: 'top-array', pushed: 1 });
+        } else {
+          containerStack.push({ kind: 'top-object', pushed: 0 });
+        }
+      } else {
+        // Defensive fallback (shouldn't happen with well-formed JSON)
+        containerStack.push({ kind: 'array-elem', pushed: 0 });
+      }
     }
 
-    result.push(line + annotation);
+    result.push({ code: line, description });
   }
 
-  return result.join('\n');
+  return result;
 }
 
