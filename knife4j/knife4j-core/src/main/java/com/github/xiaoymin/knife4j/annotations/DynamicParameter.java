@@ -26,19 +26,19 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface DynamicParameter {
-    
+
     /**
      * Name of the parameter.
      * @return 属性名称
      */
     String name() default "";
-    
+
     /**
      * A brief description of the parameter.
      * @return 属性说明
      */
     String value() default "";
-    
+
     /**
      * Specifies if the parameter is required or not.
      * <p>
@@ -46,7 +46,7 @@ public @interface DynamicParameter {
      * @return 是否必传
      */
     boolean required() default false;
-    
+
     /**
      * The class of the parameter.
      * <p>
@@ -54,7 +54,7 @@ public @interface DynamicParameter {
      * @return 属性类型
      */
     Class<?> dataTypeClass() default Void.class;
-    
+
     /**
      * a single example for non-body type parameters
      *
@@ -63,5 +63,5 @@ public @interface DynamicParameter {
      * @return 属性示例
      */
     String example() default "";
-    
+
 }

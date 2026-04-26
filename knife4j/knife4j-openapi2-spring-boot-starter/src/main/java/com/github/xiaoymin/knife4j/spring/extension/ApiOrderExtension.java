@@ -26,18 +26,18 @@ import springfox.documentation.service.VendorExtension;
  * 2020/03/31 12:53
  */
 public class ApiOrderExtension implements VendorExtension<Integer> {
-    
+
     private final Integer order;
-    
+
     public ApiOrderExtension(Integer order) {
         this.order = order;
     }
-    
+
     @Override
     public String getName() {
         return "x-order";
     }
-    
+
     @Override
     public Integer getValue() {
         return order;

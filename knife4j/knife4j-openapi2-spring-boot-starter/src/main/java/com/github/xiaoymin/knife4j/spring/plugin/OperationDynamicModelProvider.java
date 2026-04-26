@@ -49,13 +49,13 @@ import java.util.Optional;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 101)
 public class OperationDynamicModelProvider implements OperationModelsProviderPlugin {
-    
+
     static Logger logger = LoggerFactory.getLogger(OperationDynamicModelProvider.class);
     @Autowired
     private TypeResolver typeResolver;
-    
+
     private final Map<String, String> cacheGenModelMaps = new HashMap<>();
-    
+
     @Override
     public void apply(RequestMappingContext context) {
         List<ResolvedMethodParameter> parameterTypes = context.getParameters();
@@ -80,12 +80,12 @@ public class OperationDynamicModelProvider implements OperationModelsProviderPlu
             }
         }
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;
     }
-    
+
     private void collectDynamicParameter(DynamicParameters dynamicParameters, RequestMappingContext context) {
         if (dynamicParameters != null) {
             // name是否包含
@@ -112,7 +112,7 @@ public class OperationDynamicModelProvider implements OperationModelsProviderPlu
             }
         }
     }
-    
+
     public String genClassName(RequestMappingContext context) {
         // gen
         String name = context.getName();

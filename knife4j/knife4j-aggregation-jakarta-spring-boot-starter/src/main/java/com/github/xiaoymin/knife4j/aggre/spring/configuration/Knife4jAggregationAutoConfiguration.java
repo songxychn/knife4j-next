@@ -51,50 +51,50 @@ import java.util.Objects;
         HttpConnectionSetting.class})
 @ConditionalOnProperty(name = "knife4j.enable-aggregation", havingValue = "true")
 public class Knife4jAggregationAutoConfiguration {
-    
+
     final Environment environment;
-    
+
     @Autowired
     public Knife4jAggregationAutoConfiguration(Environment environment) {
         this.environment = environment;
     }
-    
+
     @Bean
     public RouteCache<String, SwaggerRoute> routeCache() {
         return new RouteInMemoryCache();
     }
-    
+
     @Bean(initMethod = "start", destroyMethod = "close")
     @ConditionalOnProperty(name = "knife4j.cloud.enable", havingValue = "true")
     public CloudRepository cloudRepository(@Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         return new CloudRepository(knife4jAggregationProperties.getCloud());
     }
-    
+
     @Bean(initMethod = "start", destroyMethod = "close")
     @ConditionalOnProperty(name = "knife4j.eureka.enable", havingValue = "true")
     public EurekaRepository eurekaRepository(@Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         return new EurekaRepository(knife4jAggregationProperties.getEureka());
     }
-    
+
     @Bean(initMethod = "start", destroyMethod = "close")
     @ConditionalOnProperty(name = "knife4j.nacos.enable", havingValue = "true")
     public NacosRepository nacosRepository(@Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         return new NacosRepository(knife4jAggregationProperties.getNacos());
     }
-    
+
     @Bean(initMethod = "start", destroyMethod = "close")
     @Conditional(PolarisSettingCondition.class)
     @ConditionalOnProperty(name = "knife4j.polaris.enable", havingValue = "true")
     public PolarisRepository polarisRepository(@Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         return new PolarisRepository(knife4jAggregationProperties.getPolaris());
     }
-    
+
     @Bean
     @ConditionalOnProperty(name = "knife4j.disk.enable", havingValue = "true")
     public DiskRepository diskRepository(@Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         return new DiskRepository(knife4jAggregationProperties.getDisk());
     }
-    
+
     @Bean
     public RouteDispatcher routeDispatcher(@Autowired RouteRepository routeRepository,
                                            @Autowired RouteCache<String, SwaggerRoute> routeCache,
@@ -112,7 +112,7 @@ public class Knife4jAggregationAutoConfiguration {
         }
         return new RouteDispatcher(routeRepository, routeCache, ExecutorEnum.APACHE, contextPath, knife4jAggregationProperties.getOpenAPIV3());
     }
-    
+
     @Bean
     public FilterRegistrationBean routeProxyFilter(@Autowired RouteDispatcher routeDispatcher) {
         FilterRegistrationBean filterRegistrationBean = new FilterRegistrationBean();
@@ -122,7 +122,7 @@ public class Knife4jAggregationAutoConfiguration {
         filterRegistrationBean.addUrlPatterns("/*");
         return filterRegistrationBean;
     }
-    
+
     @Bean
     @ConditionalOnProperty(name = "knife4j.basic-auth.enable", havingValue = "true")
     public FilterRegistrationBean routeBasicFilter(@Autowired Knife4jAggregationProperties knife4jAggregationProperties) {

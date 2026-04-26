@@ -24,7 +24,7 @@ package com.github.xiaoymin.knife4j.spring.gateway.enums;
  * @since knife4j v4.2.0
  */
 public enum GroupOrderStrategy {
-    
+
     /**
      * 默认排序规则，官方swagger-ui默认实现
      */

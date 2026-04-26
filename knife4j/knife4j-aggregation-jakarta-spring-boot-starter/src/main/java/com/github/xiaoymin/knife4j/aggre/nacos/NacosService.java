@@ -43,7 +43,7 @@ import java.util.concurrent.Callable;
  * @since  2.0.8
  */
 public class NacosService extends PoolingConnectionManager implements Callable<Optional<NacosInstance>> {
-    
+
     Logger logger = LoggerFactory.getLogger(NacosService.class);
     /**
      * Nacos获取实例列表OpenAPI接口，详情参考：https://nacos.io/zh-cn/docs/open-api.html
@@ -62,13 +62,13 @@ public class NacosService extends PoolingConnectionManager implements Callable<O
      * Nacos配置
      */
     private final NacosRoute nacosRoute;
-    
+
     public NacosService(String serviceUrl, String accessToken, NacosRoute nacosRoute) {
         this.serviceUrl = serviceUrl;
         this.accessToken = accessToken;
         this.nacosRoute = nacosRoute;
     }
-    
+
     @Override
     public Optional<NacosInstance> call() throws Exception {
         List<String> params = new ArrayList<>();
@@ -127,5 +127,5 @@ public class NacosService extends PoolingConnectionManager implements Callable<O
         }
         return Optional.empty();
     }
-    
+
 }

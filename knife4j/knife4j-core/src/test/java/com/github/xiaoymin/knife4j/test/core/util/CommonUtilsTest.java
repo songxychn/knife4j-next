@@ -29,7 +29,7 @@ import org.junit.Test;
  */
 
 public class CommonUtilsTest {
-    
+
     @Test
     public void testDebugUrl() {
         String host = "192.168.0.11:9090";

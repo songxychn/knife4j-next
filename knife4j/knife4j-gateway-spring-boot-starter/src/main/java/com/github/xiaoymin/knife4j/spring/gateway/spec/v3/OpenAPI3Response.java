@@ -32,7 +32,7 @@ import java.util.List;
 @Setter
 @SuppressWarnings("unused")
 public class OpenAPI3Response implements Serializable {
-    
+
     /**
      * ConfigUrl，eg: /v3/api-docs/swagger-config
      */
@@ -41,26 +41,26 @@ public class OpenAPI3Response implements Serializable {
      * oauth2RedirectUrl,eg : <a href="http://192.168.10.103:17812/swagger-ui/oauth2-redirect.html">http://192.168.10.103:17812/swagger-ui/oauth2-redirect.html</a>
      */
     private String oauth2RedirectUrl;
-    
+
     /**
      * operation接口排序规则
      */
     private String operationsSorter = "alpha";
-    
+
     /**
      * tag排序规则
      */
     private String tagsSorter = "alpha";
-    
+
     /**
      * group
      */
     @SuppressWarnings("java:S1948")
     private List<?> urls;
-    
+
     /**
      * validatorUrl
      */
     private String validatorUrl;
-    
+
 }

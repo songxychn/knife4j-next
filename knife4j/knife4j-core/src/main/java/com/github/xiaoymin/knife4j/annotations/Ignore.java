@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.TYPE, ElementType.PARAMETER})
 public @interface Ignore {
-    
+
     /**
      * A brief description of why this parameter/operation is ignored
      * @return  the description of why it is ignored

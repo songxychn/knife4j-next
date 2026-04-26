@@ -39,7 +39,7 @@ import java.util.*;
  */
 @Slf4j
 public class ServiceDiscoverHandler implements EnvironmentAware, ApplicationContextAware {
-    
+
     /**
      * Knife4j gateway properties
      */
@@ -49,17 +49,17 @@ public class ServiceDiscoverHandler implements EnvironmentAware, ApplicationCont
      */
     @Getter
     final Set<OpenAPI2Resource> gatewayResources = new TreeSet<>();
-    
+
     /**
      * Spring Environment
      */
     private Environment environment;
     private ApplicationContext applicationContext;
-    
+
     public ServiceDiscoverHandler(Knife4jGatewayProperties knife4jGatewayProperties) {
         this.knife4jGatewayProperties = knife4jGatewayProperties;
     }
-    
+
     /**
      * 扩展排除服务列表的钩子函数，开发者自定义实现，since 4.2.0
      * @param service 注册中心服务列表
@@ -99,7 +99,7 @@ public class ServiceDiscoverHandler implements EnvironmentAware, ApplicationCont
             routerConvert.process(holder);
         }
     }
-    
+
     /**
      * 获取所有OpenAPI资源列表
      *
@@ -123,7 +123,7 @@ public class ServiceDiscoverHandler implements EnvironmentAware, ApplicationCont
         }
         return resourceList;
     }
-    
+
     @Override
     public void setEnvironment(Environment environment) {
         this.environment = environment;
@@ -132,7 +132,7 @@ public class ServiceDiscoverHandler implements EnvironmentAware, ApplicationCont
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
     }
-    
+
     /**
      * 添加分组资源
      * @param resource 资源
@@ -141,7 +141,7 @@ public class ServiceDiscoverHandler implements EnvironmentAware, ApplicationCont
     public void add(OpenAPI2Resource resource) {
         this.gatewayResources.add(resource);
     }
-    
+
     /**
      * 根据服务名称下线，作用于discover模式下
      * @param serviceName 服务名称

@@ -29,64 +29,64 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "knife4j.connection-setting")
 public class HttpConnectionSetting implements InitializingBean {
-    
+
     /**
      * 默认值
      */
     private final static int DEFAULT_TIMEOUT = 10000;
-    
+
     /**
      * SocketTimeout
      */
     private int socketTimeout = DEFAULT_TIMEOUT;
-    
+
     /**
      * ConnectTimeout
      */
     private int connectTimeout = DEFAULT_TIMEOUT;
-    
+
     /**
      * 最大连接上限数
      */
     private int maxConnectionTotal = 200;
-    
+
     /**
      * 单个路由基础连接数
      */
     private int maxPreRoute = 20;
-    
+
     public int getSocketTimeout() {
         return socketTimeout;
     }
-    
+
     public void setSocketTimeout(int socketTimeout) {
         this.socketTimeout = socketTimeout;
     }
-    
+
     public int getConnectTimeout() {
         return connectTimeout;
     }
-    
+
     public void setConnectTimeout(int connectTimeout) {
         this.connectTimeout = connectTimeout;
     }
-    
+
     public int getMaxConnectionTotal() {
         return maxConnectionTotal;
     }
-    
+
     public void setMaxConnectionTotal(int maxConnectionTotal) {
         this.maxConnectionTotal = maxConnectionTotal;
     }
-    
+
     public int getMaxPreRoute() {
         return maxPreRoute;
     }
-    
+
     public void setMaxPreRoute(int maxPreRoute) {
         this.maxPreRoute = maxPreRoute;
     }
-    
+
     @Override
     public void afterPropertiesSet() throws Exception {
         ConnectionSettingHolder.ME.setConnectionSetting(this);

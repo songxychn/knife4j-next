@@ -34,22 +34,22 @@ import java.net.URI;
 @Slf4j
 @RunWith(JUnit4.class)
 public class PathUtilsTest {
-    
+
     @Test
     public void test_contextPath() {
         log.info(PathUtils.processContextPath("/"));
         log.info(PathUtils.processContextPath("/abc"));
         log.info(PathUtils.processContextPath("/abc/"));
-        
+
     }
-    
+
     @Test
     public void test_ref() {
         String ref = "http://localhost:15013/s/doc.html";
         URI uri = URI.create(ref);
         log.info("path:{}", PathUtils.getContextPath(ref));
     }
-    
+
     @Test
     public void test_append() {
         String path = "/abc";
@@ -59,7 +59,7 @@ public class PathUtilsTest {
         Assert.assertEquals(PathUtils.append(null), "/");
         Assert.assertEquals(PathUtils.append("//abc"), "/abc");
     }
-    
+
     @Test
     public void test_processContextPath_leadingSlash() {
         // 无前导斜杠的 contextPath 应被修正，防止 host 拼接缺少 /
@@ -73,7 +73,7 @@ public class PathUtilsTest {
         // 空字符串不变
         Assert.assertEquals("", PathUtils.processContextPath(""));
     }
-    
+
     @Test
     public void test_append1() {
         String path = "//abc";

@@ -26,18 +26,18 @@ import springfox.documentation.service.VendorExtension;
  * @since  1.0
  */
 public class OpenApiSettingExtension implements VendorExtension<OpenApiExtendSetting> {
-    
+
     private final OpenApiExtendSetting openApiExtendSetting;
-    
+
     public OpenApiSettingExtension(OpenApiExtendSetting openApiExtendSetting) {
         this.openApiExtendSetting = openApiExtendSetting;
     }
-    
+
     @Override
     public String getName() {
         return "x-setting";
     }
-    
+
     @Override
     public OpenApiExtendSetting getValue() {
         return this.openApiExtendSetting;

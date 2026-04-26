@@ -26,29 +26,29 @@ import java.util.List;
  * @since  2.0.8
  */
 public class EurekaApplication {
-    
+
     /**
      * 服务列表
      */
     private String name;
-    
+
     /**
      * 实例列表
      */
     private List<EurekaInstance> instance;
-    
+
     public String getName() {
         return name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public List<EurekaInstance> getInstance() {
         return instance;
     }
-    
+
     public void setInstance(List<EurekaInstance> instance) {
         this.instance = instance;
     }

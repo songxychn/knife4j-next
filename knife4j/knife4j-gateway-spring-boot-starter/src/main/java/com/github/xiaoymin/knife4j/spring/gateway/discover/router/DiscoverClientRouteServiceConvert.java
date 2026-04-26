@@ -46,10 +46,10 @@ import java.util.Map;
 @Slf4j
 @Getter
 public class DiscoverClientRouteServiceConvert extends AbstactServiceRouterConvert {
-    
+
     protected final DiscoveryClientRouteDefinitionLocator discoveryClientRouteDefinitionLocator;
     protected final Knife4jGatewayProperties knife4jGatewayProperties;
-    
+
     @Override
     public void process(ServiceRouterHolder holder) {
         log.debug("Spring Cloud Gateway DiscoverClient process.");
@@ -60,7 +60,7 @@ public class DiscoverClientRouteServiceConvert extends AbstactServiceRouterConve
                 .subscribe(routeDefinition -> parseRouteDefinition(holder, routeDefinition.getPredicates(), routeDefinition.getUri().getHost(),
                         routeDefinition.getUri().getHost()));
     }
-    
+
     @Override
     String convertPathPrefix(Map<String, String> predicateArgs) {
         String value = predicateArgs.get(GatewayRouterStrategy.REACTIVE.getRule());
@@ -69,15 +69,15 @@ public class DiscoverClientRouteServiceConvert extends AbstactServiceRouterConve
         }
         return StringUtil.EMPTY_STRING;
     }
-    
+
     @Override
     public int order() {
         return GatewayRouterStrategy.REACTIVE.getOrder();
     }
-    
+
     @Override
     Knife4jGatewayProperties.Discover getDiscover() {
         return this.knife4jGatewayProperties.getDiscover();
     }
-    
+
 }

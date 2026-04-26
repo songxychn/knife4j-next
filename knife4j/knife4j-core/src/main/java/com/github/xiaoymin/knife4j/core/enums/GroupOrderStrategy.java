@@ -25,7 +25,7 @@ package com.github.xiaoymin.knife4j.core.enums;
  * @author neal @ Dec 12, 2025 迁移自 knife4j-gateway-spring-boot-starter-4.5.0
  */
 public enum GroupOrderStrategy {
-    
+
     /**
      * 默认排序规则，官方swagger-ui默认实现
      */

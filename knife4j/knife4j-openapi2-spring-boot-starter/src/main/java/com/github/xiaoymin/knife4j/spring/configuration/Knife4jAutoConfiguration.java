@@ -60,15 +60,15 @@ import java.util.Locale;
 @EnableConfigurationProperties({Knife4jProperties.class, Knife4jInfoProperties.class, Knife4jHttpBasic.class, Knife4jSetting.class, Knife4jAuthInfoProperties.class})
 @ConditionalOnProperty(name = "knife4j.enable", havingValue = "true")
 public class Knife4jAutoConfiguration {
-    
+
     private final Environment environment;
-    
+
     Logger logger = LoggerFactory.getLogger(Knife4jAutoConfiguration.class);
-    
+
     public Knife4jAutoConfiguration(Environment environment) {
         this.environment = environment;
     }
-    
+
     /**
      * Write an internal class. This class will be loaded only when `knife4j.enable` = true, without any processing
      * https://github.com/xiaoymin/swagger-bootstrap-ui/issues/394
@@ -80,7 +80,7 @@ public class Knife4jAutoConfiguration {
     })
     @EnableSwagger2WebMvc
     public class Knife4jEnhanceAutoConfiguration {
-        
+
         /**
          * Auto Register Springfox Docket Bean Information to Spring Context
          * @param knife4jProperties Knife4j properties
@@ -91,7 +91,7 @@ public class Knife4jAutoConfiguration {
         public Knife4jDocketAutoRegistry knife4jDocketAutoRegistry(Knife4jProperties knife4jProperties, OpenApiExtensionResolver openApiExtensionResolver) {
             return new Knife4jDocketAutoRegistry(knife4jProperties, openApiExtensionResolver);
         }
-        
+
         /**
          * Register Primary Bean with ServiceModelToSwagger2Mapper to Support i18n
          * @param knife4jProperties Knife4j properties
@@ -119,7 +119,7 @@ public class Knife4jAutoConfiguration {
             return new Knife4jI18nServiceModelToSwagger2MapperImpl(messageSource, locale, modelMapper, parameterMapper, securityMapper, licenseMapper, vendorExtensionsMapper);
         }
     }
-    
+
     /**
      * Configuration CorsFilter
      * @since 2.0.4
@@ -143,7 +143,7 @@ public class Knife4jAutoConfiguration {
         CorsFilter corsFilter = new CorsFilter(source);
         return corsFilter;
     }
-    
+
     /**
      * Auto register enhance Bean to process Knife4j function
      * @param knife4jProperties enhance properties
@@ -159,7 +159,7 @@ public class Knife4jAutoConfiguration {
         extendSetting.setLanguage(setting.getLanguage().getValue());
         return new OpenApiExtensionResolver(extendSetting, knife4jProperties.getDocuments());
     }
-    
+
     /**
      * Security with Basic Http
      * @param knife4jProperties Basic Properties
@@ -189,7 +189,7 @@ public class Knife4jAutoConfiguration {
         }
         return authFilter;
     }
-    
+
     @Bean
     @ConditionalOnMissingBean(ProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
@@ -205,5 +205,5 @@ public class Knife4jAutoConfiguration {
         }
         return p;
     }
-    
+
 }

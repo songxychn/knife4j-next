@@ -28,17 +28,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class OpenApi2UiResourceSmokeTest {
-    
+
     private static final Pattern ASSET_REFERENCE = Pattern.compile("(?:href|src)=([^\\s>]+)");
-    
+
     @Test
     public void shouldPackageDocHtmlAndReferencedAssets() throws IOException {
         String docHtml = readResource("META-INF/resources/doc.html");
-        
+
         assertReferencedWebjarAssets(docHtml);
         assertResource("META-INF/resources/webjars/oauth/oauth2.html");
     }
-    
+
     private void assertReferencedWebjarAssets(String docHtml) {
         Matcher matcher = ASSET_REFERENCE.matcher(docHtml);
         int cssAssets = 0;
@@ -58,7 +58,7 @@ public class OpenApi2UiResourceSmokeTest {
         Assert.assertTrue("doc.html should reference packaged CSS assets", cssAssets > 0);
         Assert.assertTrue("doc.html should reference packaged JS assets", jsAssets > 0);
     }
-    
+
     private String readResource(String path) throws IOException {
         try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
             Assert.assertNotNull("Missing packaged UI resource: " + path, input);
@@ -66,7 +66,7 @@ public class OpenApi2UiResourceSmokeTest {
             return new String(bytes, StandardCharsets.UTF_8);
         }
     }
-    
+
     private void assertResource(String path) {
         URL resource = Thread.currentThread().getContextClassLoader().getResource(path);
         Assert.assertNotNull("Missing packaged UI resource: " + path, resource);

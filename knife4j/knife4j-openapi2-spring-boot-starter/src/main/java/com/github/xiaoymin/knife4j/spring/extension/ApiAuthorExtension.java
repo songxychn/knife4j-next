@@ -26,18 +26,18 @@ import springfox.documentation.service.VendorExtension;
  * 2020/03/31 12:55
  */
 public class ApiAuthorExtension implements VendorExtension<String> {
-    
+
     private final String author;
-    
+
     public ApiAuthorExtension(String author) {
         this.author = author;
     }
-    
+
     @Override
     public String getName() {
         return "x-author";
     }
-    
+
     @Override
     public String getValue() {
         return author;

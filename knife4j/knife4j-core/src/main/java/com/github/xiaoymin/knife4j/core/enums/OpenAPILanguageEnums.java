@@ -23,27 +23,27 @@ package com.github.xiaoymin.knife4j.core.enums;
  * 2022/8/18 22:52
  */
 public enum OpenAPILanguageEnums {
-    
+
     /**
      * Chinese
      */
     ZH_CN("zh-CN"),
-    
+
     /**
      * English
      */
     EN("en-US");
-    
+
     private String value;
     OpenAPILanguageEnums(String value) {
         this.value = value;
     }
-    
+
     @Override
     public String toString() {
         return this.value;
     }
-    
+
     public String getValue() {
         return value;
     }

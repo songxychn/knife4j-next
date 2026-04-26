@@ -44,16 +44,16 @@ import static java.util.Optional.ofNullable;
  */
 @Slf4j
 public class RequestHandlerSelectorUtils {
-    
+
     /**
      * 无任何路径
      */
     static final Predicate<String> DEFAULT_PATHS_NONE = s -> false;
-    
+
     private static Function<Class<?>, Boolean> handlerPackage(final String basePackage) {
         return input -> ClassUtils.getPackageName(input).startsWith(basePackage);
     }
-    
+
     /**
      * Predicate that matches RequestHandler with given base package name for the class of the handler method.
      * This predicate includes all request handlers matching the provided basePackage
@@ -64,7 +64,7 @@ public class RequestHandlerSelectorUtils {
     public static Predicate<RequestHandler> basePackage(final String basePackage) {
         return input -> declaringClass(input).map(handlerPackage(basePackage)).orElse(true);
     }
-    
+
     /**
      * math multiple path selector,see{@link springfox.documentation.builders.PathSelectors}
      *
@@ -83,7 +83,7 @@ public class RequestHandlerSelectorUtils {
         }
         return predicate;
     }
-    
+
     /**
      * match multipart packages requestHandler
      *
@@ -104,7 +104,7 @@ public class RequestHandlerSelectorUtils {
         }
         return predicate;
     }
-    
+
     /**
      * Ant风格
      *
@@ -126,7 +126,7 @@ public class RequestHandlerSelectorUtils {
         }
         return first;
     }
-    
+
     /**
      * 正则表达式
      *
@@ -147,7 +147,7 @@ public class RequestHandlerSelectorUtils {
         }
         return first;
     }
-    
+
     /**
      * 基于注解
      *
@@ -158,7 +158,7 @@ public class RequestHandlerSelectorUtils {
     public static Predicate<RequestHandler> multipleAnnotations(List<String> annotations) {
         return multipleAnnotations(annotations, false);
     }
-    
+
     /**
      * 基于注解
      *
@@ -186,13 +186,13 @@ public class RequestHandlerSelectorUtils {
         }
         return first != null ? first : RequestHandlerSelectors.none();
     }
-    
+
     private static Optional<? extends Class<?>> declaringClass(RequestHandler input) {
         return ofNullable(input.declaringClass());
     }
-    
+
     public static void main(String[] args) throws ClassNotFoundException {
         // System.out.println(ApiOperation.class==ClassUtils.forName("io.swagger.annotations.ApiOperation",ClassUtils.getDefaultClassLoader()));
     }
-    
+
 }

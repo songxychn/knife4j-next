@@ -32,7 +32,7 @@ import java.util.Map;
 @Data
 @ConfigurationProperties(prefix = "knife4j.openapi")
 public class Knife4jInfoProperties {
-    
+
     /**
      * document title
      */
@@ -41,27 +41,27 @@ public class Knife4jInfoProperties {
      * description
      */
     private String description;
-    
+
     /**
      * email
      */
     private String email;
-    
+
     /**
      * homepage
      */
     private String url;
-    
+
     /**
      * concat
      */
     private String concat;
-    
+
     /**
      * current version
      */
     private String version;
-    
+
     /**
      * termsOfServiceUrl
      */
@@ -74,10 +74,10 @@ public class Knife4jInfoProperties {
      * licenseUrl
      */
     private String licenseUrl;
-    
+
     /**
      * the group of OpenAPI
      */
     private Map<String, Knife4jDocketInfo> group;
-    
+
 }

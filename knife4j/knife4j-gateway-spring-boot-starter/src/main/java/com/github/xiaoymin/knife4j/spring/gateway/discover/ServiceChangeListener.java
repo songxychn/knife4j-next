@@ -38,11 +38,11 @@ import java.util.Objects;
 @Slf4j
 @AllArgsConstructor
 public class ServiceChangeListener {
-    
+
     final DiscoveryClient discoveryClient;
     final ServiceDiscoverHandler serviceDiscoverHandler;
     final Knife4jGatewayProperties knife4jGatewayProperties;
-    
+
     @EventListener(classes = {ApplicationReadyEvent.class, HeartbeatEvent.class, RefreshRoutesEvent.class})
     public void discover() {
         log.debug("discover service.");

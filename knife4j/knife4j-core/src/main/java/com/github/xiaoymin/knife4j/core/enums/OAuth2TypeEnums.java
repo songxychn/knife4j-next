@@ -23,7 +23,7 @@ package com.github.xiaoymin.knife4j.core.enums;
  * 2022/11/28 21:03
  */
 public enum OAuth2TypeEnums {
-    
+
     /**
      * OAuth2 - implicit
      */

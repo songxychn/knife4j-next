@@ -49,9 +49,9 @@ import jakarta.servlet.http.Part;
  * 2020/10/29 20:35
  */
 public class ApacheClientExecutor extends PoolingConnectionManager implements RouteExecutor {
-    
+
     Logger logger = LoggerFactory.getLogger(ApacheClientExecutor.class);
-    
+
     private HttpUriRequest buildRequest(RouteRequestContext routeContext) {
         RequestBuilder builder = RequestBuilder.create(routeContext.getMethod());
         if (logger.isDebugEnabled()) {
@@ -102,7 +102,7 @@ public class ApacheClientExecutor extends PoolingConnectionManager implements Ro
         builder.setConfig(getRequestConfig());
         return builder.build();
     }
-    
+
     @Override
     public RouteResponse executor(RouteRequestContext routeContext) {
         RouteResponse routeResponse = null;
@@ -122,5 +122,5 @@ public class ApacheClientExecutor extends PoolingConnectionManager implements Ro
         }
         return routeResponse;
     }
-    
+
 }

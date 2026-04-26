@@ -35,7 +35,7 @@ import java.util.Set;
  */
 @Slf4j
 public class DefaultGatewayServiceExcludeService implements GatewayServiceExcludeService {
-    
+
     @Override
     public Set<String> exclude(Environment environment, Knife4jGatewayProperties gatewayProperties, List<String> services) {
         Set<String> excludeService = new HashSet<>();

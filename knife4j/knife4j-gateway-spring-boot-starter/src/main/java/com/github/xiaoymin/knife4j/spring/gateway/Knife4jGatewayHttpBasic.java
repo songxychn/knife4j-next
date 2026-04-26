@@ -31,22 +31,22 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "knife4j.gateway.basic")
 public class Knife4jGatewayHttpBasic {
-    
+
     /**
      * Whether to enable HTTP basic authentication, the default is false
      */
     private boolean enable = false;
-    
+
     /**
      * HTTP basic username
      */
     private String username;
-    
+
     /**
      * HTTP basic password
      */
     private String password;
-    
+
     /**
      * All configured urls need to be verified by basic，Only support Regex
      * since 4.1.0

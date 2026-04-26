@@ -40,22 +40,22 @@ import java.util.*;
  * @since  2.0.6
  */
 public class OpenApiExtensionResolver {
-    
+
     Logger logger = LoggerFactory.getLogger(OpenApiExtensionResolver.class);
-    
+
     private final ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
-    
+
     private final Map<String, List<OpenApiExtendMarkdownFile>> markdownFileMaps = new HashMap<>();
     /**
      * 个性化配置
      */
     private final OpenApiExtendSetting setting;
-    
+
     /**
      * 分组文档集合
      */
     private final List<MarkdownProperty> markdownProperties;
-    
+
     private void start() {
         if (logger.isDebugEnabled()) {
             logger.debug("Resolver method start...");
@@ -79,7 +79,7 @@ public class OpenApiExtensionResolver {
                                 if (CollectionUtils.isNotEmpty(childrenList)) {
                                     allChildrenLists.addAll(childrenList);
                                 }
-                                
+
                             }
                         }
                     }
@@ -106,7 +106,7 @@ public class OpenApiExtensionResolver {
             }
         }
     }
-    
+
     /**
      * 读取自定义主页markdown的内容
      * @param customHomeLocation 路径
@@ -126,7 +126,7 @@ public class OpenApiExtensionResolver {
         }
         return customHomeContent;
     }
-    
+
     /**
      * 根据路径读取markdown文件
      * @param locations markdown文件路径
@@ -150,11 +150,11 @@ public class OpenApiExtensionResolver {
         }
         return null;
     }
-    
+
     private OpenApiExtendMarkdownChildren readMarkdownChildren(Resource resource) {
         return MarkdownUtils.resolveMarkdownResource(resource);
     }
-    
+
     /**
      * 构造扩展插件
      * @param groupName Swagger分组名称
@@ -170,7 +170,7 @@ public class OpenApiExtensionResolver {
         vendorExtensions.add(openApiExtension);
         return vendorExtensions;
     }
-    
+
     /**
      * 构建个性化增强插件，个性化增强配置无需传递分组名称
      * @return 扩展插件集合
@@ -183,7 +183,7 @@ public class OpenApiExtensionResolver {
         vendorExtensions.add(openApiExtension);
         return vendorExtensions;
     }
-    
+
     public OpenApiExtensionResolver(OpenApiExtendSetting setting, List<MarkdownProperty> markdownProperties) {
         this.setting = setting;
         this.markdownProperties = markdownProperties;

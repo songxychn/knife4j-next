@@ -28,7 +28,7 @@ import com.github.xiaoymin.knife4j.aggre.core.RouteResponse;
  * 2020/10/29 20:40
  */
 public class OkHttpClientExecutor implements RouteExecutor {
-    
+
     @Override
     public RouteResponse executor(RouteRequestContext routeContext) {
         return null;

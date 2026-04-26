@@ -32,14 +32,14 @@ import java.util.stream.Collectors;
  * @since  2.0.8
  */
 public abstract class AbstractRepository extends PoolingConnectionManager implements RouteRepository {
-    
+
     /**
      * 心跳检测间隔(30s)
      */
     protected static final Long HEART_BEAT_DURATION = 30000L;
-    
+
     protected final Map<String, SwaggerRoute> routeMap = new HashMap<>();
-    
+
     @Override
     public boolean checkRoute(String header) {
         if (StrUtil.isNotBlank(header)) {
@@ -51,7 +51,7 @@ public abstract class AbstractRepository extends PoolingConnectionManager implem
     public SwaggerRoute getRoute(String header) {
         return routeMap.get(header);
     }
-    
+
     @Override
     public List<SwaggerRoute> getRoutes() {
         // 排序规则,asc
@@ -62,7 +62,7 @@ public abstract class AbstractRepository extends PoolingConnectionManager implem
         }
         return new ArrayList<>();
     }
-    
+
     /**
      * Nacos用户可能存在修改服务配置的情况，需要nacosSetting配置与缓存的routeMap做一次compare，避免出现重复服务的情况出现
      * https://gitee.com/xiaoym/knife4j/issues/I3ZPUS
@@ -77,5 +77,5 @@ public abstract class AbstractRepository extends PoolingConnectionManager implem
             }
         }
     }
-    
+
 }

@@ -34,7 +34,7 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(value = {Knife4jInsightProperties.class})
 @ConditionalOnProperty(name = "knife4j.insight.enable", havingValue = "true")
 public class Knife4jInsightAutoConfiguration {
-    
+
     @Bean
     @ConditionalOnMissingBean
     public Knife4jInsightDiscoveryBootstrapper knife4jInsightDiscoveryBootstrapper(Knife4jInsightProperties insightProperties) {

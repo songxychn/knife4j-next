@@ -33,39 +33,39 @@ import java.util.Optional;
  * 2020/10/29 20:09
  */
 public interface RouteRepository {
-    
+
     /**
      * start心跳监听程序
      */
     default void start() {
     }
-    
+
     /**
      * stop心跳监听乘车
      */
     default void close() {
     }
-    
+
     /**
      * 校验请求Header是否正确
      * @param header 请求头
      * @return 是否校验成功
      */
     boolean checkRoute(String header);
-    
+
     /**
      * 根据请求header获取
      * @param header 请求头
      * @return 服务Route
      */
     SwaggerRoute getRoute(String header);
-    
+
     /**
      * 获取所有
      * @return 返回所有Routes服务
      */
     List<SwaggerRoute> getRoutes();
-    
+
     /**
      * 根据Header请求头获取Basic基础信息
      * @param header 请求头
@@ -74,7 +74,7 @@ public interface RouteRepository {
     default BasicAuth getAuth(String header) {
         return null;
     }
-    
+
     /**
      * 获取route中配置的Basic信息
      * @param header 请求头

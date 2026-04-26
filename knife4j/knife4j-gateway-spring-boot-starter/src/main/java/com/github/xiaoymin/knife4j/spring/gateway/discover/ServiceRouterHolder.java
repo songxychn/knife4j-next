@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @Getter
 @AllArgsConstructor
 public class ServiceRouterHolder {
-    
+
     /**
      * 服务发现列表
      */
@@ -45,12 +45,12 @@ public class ServiceRouterHolder {
      * 需要排除的服务列表
      */
     final Set<String> excludeService;
-    
+
     /**
      * discoverHandler
      */
     final ServiceDiscoverHandler discoverHandler;
-    
+
     /**
      * 添加资源
      * @param resource 分组聚合资源
@@ -63,7 +63,7 @@ public class ServiceRouterHolder {
         log.debug("add resource:{}", resource);
         this.discoverHandler.add(resource);
     }
-    
+
     /**
      * 每次服务发现处理时，清除已经下线的服务
      */

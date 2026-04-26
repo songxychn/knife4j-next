@@ -42,16 +42,16 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class Boot2DocHttpSmokeTest {
-    
+
     private ConfigurableApplicationContext context;
-    
+
     @After
     public void closeContext() {
         if (context != null) {
             context.close();
         }
     }
-    
+
     @Test
     public void shouldServeDocHtmlAndSwaggerJson() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
@@ -63,19 +63,19 @@ public class Boot2DocHttpSmokeTest {
                         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
                         "logging.level.root=ERROR")
                 .run();
-        
+
         int port = ((WebServerApplicationContext) context).getWebServer().getPort();
-        
+
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
         Assert.assertTrue(docHtml.body.contains("webjars/js/"));
-        
+
         HttpResponse apiDocs = get(port, "/v2/api-docs");
         Assert.assertEquals(200, apiDocs.statusCode);
         Assert.assertTrue(apiDocs.body.contains("\"swagger\":\"2.0\""));
         Assert.assertTrue(apiDocs.body.contains("/hello"));
     }
-    
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
@@ -85,7 +85,7 @@ public class Boot2DocHttpSmokeTest {
         InputStream input = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
         return new HttpResponse(statusCode, read(input));
     }
-    
+
     private String read(InputStream input) throws IOException {
         if (input == null) {
             return "";
@@ -99,22 +99,22 @@ public class Boot2DocHttpSmokeTest {
             return output.toString(StandardCharsets.UTF_8.name());
         }
     }
-    
+
     private static class HttpResponse {
-        
+
         private final int statusCode;
         private final String body;
-        
+
         private HttpResponse(int statusCode, String body) {
             this.statusCode = statusCode;
             this.body = body;
         }
     }
-    
+
     @EnableKnife4j
     @SpringBootApplication
     public static class TestApplication {
-        
+
         @Bean
         public Docket testDocket() {
             return new Docket(DocumentationType.SWAGGER_2)
@@ -124,10 +124,10 @@ public class Boot2DocHttpSmokeTest {
                     .build();
         }
     }
-    
+
     @RestController
     public static class TestController {
-        
+
         @GetMapping("/hello")
         public String hello() {
             return "hello";

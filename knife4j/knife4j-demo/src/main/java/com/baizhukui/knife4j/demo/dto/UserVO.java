@@ -21,39 +21,39 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "用户视图对象")
 public class UserVO {
-    
+
     @Schema(description = "用户 ID", example = "1")
     private Long id;
-    
+
     @Schema(description = "用户名", example = "张三")
     private String name;
-    
+
     @Schema(description = "邮箱地址", example = "zhangsan@example.com")
     private String email;
-    
+
     public UserVO() {
     }
-    
+
     public UserVO(Long id, String name, String email) {
         this.id = id;
         this.name = name;
         this.email = email;
     }
-    
+
     public Long getId() {
         return id;
     }
     public void setId(Long id) {
         this.id = id;
     }
-    
+
     public String getName() {
         return name;
     }
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public String getEmail() {
         return email;
     }

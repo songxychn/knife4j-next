@@ -40,17 +40,17 @@ import java.util.List;
  * 2022/11/28 21:10
  */
 public class SecurityDocketUtils {
-    
+
     /**
      * Default token name
      */
     public static final String OAUTH2_TOKEN_NAME = "access_token";
     public static final String OAUTH2_NAME = "oauth2";
-    
+
     public static final String BASIC_AUTH_NAME = "Authorization";
-    
+
     public static final String API_KEY_DEFAULT_PASS = "header";
-    
+
     /**
      * Config Custom Authorization
      * @param docket docket instance
@@ -75,7 +75,7 @@ public class SecurityDocketUtils {
             docket.securityContexts(securityContexts).securitySchemes(securitySchemes);
         }
     }
-    
+
     /**
      * Config OAuth information
      * @param docket docket instance
@@ -106,7 +106,7 @@ public class SecurityDocketUtils {
             docket.securityContexts(securityContexts).securitySchemes(securitySchemes);
         }
     }
-    
+
     private static List<GrantType> password(Docket docket, OAuth2Properties oAuth2Properties) {
         // schema
         List<GrantType> grantTypes = new ArrayList<>();
@@ -116,7 +116,7 @@ public class SecurityDocketUtils {
         grantTypes.add(resourceOwnerPasswordCredentialsGrant);
         return grantTypes;
     }
-    
+
     private static List<GrantType> clientCredentials(Docket docket, OAuth2Properties oAuth2Properties) {
         // schema
         List<GrantType> grantTypes = new ArrayList<>();
@@ -126,7 +126,7 @@ public class SecurityDocketUtils {
         grantTypes.add(clientCredentialsGrant);
         return grantTypes;
     }
-    
+
     /**
      * Config implicit
      * @param docket
@@ -141,7 +141,7 @@ public class SecurityDocketUtils {
         grantTypes.add(implicitGrant);
         return grantTypes;
     }
-    
+
     public static List<GrantType> authorizationCode(Docket docket, OAuth2Properties oAuth2Properties) {
         // schema
         List<GrantType> grantTypes = new ArrayList<>();
@@ -153,15 +153,15 @@ public class SecurityDocketUtils {
         AuthorizationCodeGrant authorizationCodeGrant = new AuthorizationCodeGrant(tokenRequestEndpoint, tokenEndpoint);
         grantTypes.add(authorizationCodeGrant);
         return grantTypes;
-        
+
     }
-    
+
     public static OAuth createOAuth2(List<GrantType> grantTypes) {
         OAuth oAuth = new OAuthBuilder().name(OAUTH2_NAME)
                 .grantTypes(grantTypes).build();
         return oAuth;
     }
-    
+
     /**
      * build scope collection
      * @param auth2Scopes
@@ -183,5 +183,5 @@ public class SecurityDocketUtils {
         }
         return scopes;
     }
-    
+
 }

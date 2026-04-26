@@ -38,7 +38,7 @@ import java.util.*;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 101)
 public class OperationAuthorBuilderPlugin extends AbstractOperationBuilderPlugin {
-    
+
     /***
      * 添加作者属性
      * @param context 接口上下文
@@ -57,7 +57,7 @@ public class OperationAuthorBuilderPlugin extends AbstractOperationBuilderPlugin
             }
         }
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;

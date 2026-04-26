@@ -24,31 +24,31 @@ import com.github.xiaoymin.knife4j.aggre.core.pojo.CommonAuthRoute;
  * @date 2023/3/20 19:04
  */
 public class PolarisRoute extends CommonAuthRoute {
-    
+
     /**
      * 服务名称,不能为空,代表需要聚合的服务
      */
     private String service;
-    
+
     /**
      * 命名空间id
      */
     private String namespace;
-    
+
     public String getService() {
         return service;
     }
-    
+
     public void setService(String service) {
         this.service = service;
     }
-    
+
     public String getNamespace() {
         return namespace;
     }
-    
+
     public void setNamespace(String namespace) {
         this.namespace = namespace;
     }
-    
+
 }

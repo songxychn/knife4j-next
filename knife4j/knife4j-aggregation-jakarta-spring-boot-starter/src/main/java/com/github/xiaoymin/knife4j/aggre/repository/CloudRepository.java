@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  * 2020/10/29 20:11
  */
 public class CloudRepository extends AbstractRepository {
-    
+
     final Logger logger = LoggerFactory.getLogger(CloudRepository.class);
     private volatile boolean stop = false;
     private Thread thread;
@@ -74,11 +74,11 @@ public class CloudRepository extends AbstractRepository {
         }
         return basicAuth;
     }
-    
+
     public CloudSetting getCloudSetting() {
         return cloudSetting;
     }
-    
+
     @Override
     public void start() {
         logger.info("start Cloud hearbeat Holder thread.");
@@ -132,7 +132,7 @@ public class CloudRepository extends AbstractRepository {
                                     this.routeMap.remove(cloudRoute.pkId());
                                 }
                             }
-                            
+
                         });
                         // Nacos用户可能存在修改服务配置的情况，需要nacosSetting配置与缓存的routeMap做一次compare，避免出现重复服务的情况出现
                         // https://gitee.com/xiaoym/knife4j/issues/I3ZPUS
@@ -148,7 +148,7 @@ public class CloudRepository extends AbstractRepository {
         thread.setDaemon(true);
         thread.start();
     }
-    
+
     @Override
     public void close() {
         logger.info("stop Cloud heartbeat Holder thread.");

@@ -23,7 +23,7 @@ package com.github.xiaoymin.knife4j.core.conf;
  * @since knife4j
  */
 public class ExtensionsConstants {
-    
+
     /**
      * 作者
      */

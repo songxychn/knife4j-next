@@ -32,26 +32,26 @@ import java.util.Objects;
  */
 @Data
 public abstract class AbstractSecurityFilter extends BasicFilter {
-    
+
     /**
      * Spring过滤器顺序
      */
     public static final int SPRING_FILTER_ORDER = Integer.MAX_VALUE;
-    
+
     /***
      * 是否开启basic验证,默认不开启
      */
     private boolean enableBasicAuth = false;
-    
+
     private String userName;
-    
+
     private String password;
-    
+
     /**
      * 外部自定义包含过滤地址，避免BasicFilter父类中不满足的情况，交给开发者自定义传入
      */
     private List<String> include;
-    
+
     /**
      * // SpringMVC环境中,由此init方法初始化此Filter,SpringBoot环境中则不同
      *
@@ -67,7 +67,7 @@ public abstract class AbstractSecurityFilter extends BasicFilter {
             setPassword(initPassword);
         }
     }
-    
+
     /**
      * Basic验证
      *

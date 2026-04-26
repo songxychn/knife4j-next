@@ -25,7 +25,7 @@ import java.util.Map;
  * @since  2.0.8
  */
 public class NacosInstance {
-    
+
     private String serviceName;
     private boolean valid;
     private boolean marked;
@@ -34,67 +34,67 @@ public class NacosInstance {
     private String ip;
     private Double weight;
     private Map<String, Object> metadata;
-    
+
     public String getServiceName() {
         return serviceName;
     }
-    
+
     public void setServiceName(String serviceName) {
         this.serviceName = serviceName;
     }
-    
+
     public boolean isValid() {
         return valid;
     }
-    
+
     public void setValid(boolean valid) {
         this.valid = valid;
     }
-    
+
     public boolean isMarked() {
         return marked;
     }
-    
+
     public void setMarked(boolean marked) {
         this.marked = marked;
     }
-    
+
     public String getInstanceId() {
         return instanceId;
     }
-    
+
     public void setInstanceId(String instanceId) {
         this.instanceId = instanceId;
     }
-    
+
     public int getPort() {
         return port;
     }
-    
+
     public void setPort(int port) {
         this.port = port;
     }
-    
+
     public String getIp() {
         return ip;
     }
-    
+
     public void setIp(String ip) {
         this.ip = ip;
     }
-    
+
     public Double getWeight() {
         return weight;
     }
-    
+
     public void setWeight(Double weight) {
         this.weight = weight;
     }
-    
+
     public Map<String, Object> getMetadata() {
         return metadata;
     }
-    
+
     public void setMetadata(Map<String, Object> metadata) {
         this.metadata = metadata;
     }

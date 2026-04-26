@@ -40,12 +40,12 @@ import java.util.List;
  * @since  2.0.9
  */
 public class NacosOpenApi extends PoolingConnectionManager {
-    
+
     /**
      * Nacos鉴权地址，详情参考：https://nacos.io/zh-cn/docs/auth.html
      */
     private static final String NACOS_AUTH_API = "/v1/auth/login";
-    
+
     Logger logger = LoggerFactory.getLogger(NacosOpenApi.class);
     private static final NacosOpenApi INSTANCE = new NacosOpenApi();
     private NacosOpenApi() {
@@ -53,7 +53,7 @@ public class NacosOpenApi extends PoolingConnectionManager {
     public static NacosOpenApi me() {
         return INSTANCE;
     }
-    
+
     /**
      * 获取Nacos注册中心鉴权token
      * @param serviceUrl Nacos注册中心地址

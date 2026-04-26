@@ -26,5 +26,5 @@ import springfox.documentation.spi.service.OperationBuilderPlugin;
  * 2019/06/06 19:58
  */
 public abstract class AbstractOperationBuilderPlugin implements OperationBuilderPlugin {
-    
+
 }

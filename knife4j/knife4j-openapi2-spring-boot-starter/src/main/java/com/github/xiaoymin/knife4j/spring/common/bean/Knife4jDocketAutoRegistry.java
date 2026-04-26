@@ -57,21 +57,21 @@ import java.util.function.Predicate;
  */
 @Slf4j
 public class Knife4jDocketAutoRegistry implements BeanFactoryAware, InitializingBean {
-    
+
     public Knife4jDocketAutoRegistry(Knife4jProperties knife4jProperties, OpenApiExtensionResolver openApiExtensionResolver) {
         this.knife4jProperties = knife4jProperties;
         this.openApiExtensionResolver = openApiExtensionResolver;
     }
-    
+
     private final Knife4jProperties knife4jProperties;
     private final OpenApiExtensionResolver openApiExtensionResolver;
     private BeanFactory beanFactory;
-    
+
     @Override
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
         this.beanFactory = beanFactory;
     }
-    
+
     @Override
     public void afterPropertiesSet() throws Exception {
         Knife4jInfoProperties info = knife4jProperties.getOpenapi();

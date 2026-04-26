@@ -46,12 +46,12 @@ import java.util.Optional;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 12)
 public class OperationDynamicResponseModelProvider implements OperationModelsProviderPlugin {
-    
+
     @Autowired
     private TypeResolver typeResolver;
-    
+
     private final Map<String, String> cacheGenModelMaps = new HashMap<>();
-    
+
     @Override
     public void apply(RequestMappingContext context) {
         Optional<ApiOperationSupport> supportOptional = context.findAnnotation(ApiOperationSupport.class);
@@ -74,12 +74,12 @@ public class OperationDynamicResponseModelProvider implements OperationModelsPro
             }
         }
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;
     }
-    
+
     private void collectDynamicParameter(DynamicResponseParameters dynamicParameters, RequestMappingContext context) {
         if (dynamicParameters != null) {
             // name是否包含
@@ -107,7 +107,7 @@ public class OperationDynamicResponseModelProvider implements OperationModelsPro
             }
         }
     }
-    
+
     public String genClassName(RequestMappingContext context) {
         // gen
         String name = context.getName();

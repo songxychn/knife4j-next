@@ -52,11 +52,11 @@ import javax.servlet.DispatcherType;
 @EnableConfigurationProperties({Knife4jProperties.class, Knife4jHttpBasic.class, Knife4jSetting.class})
 @ConditionalOnProperty(name = "knife4j.enable", havingValue = "true")
 public class Knife4jAutoConfiguration {
-    
+
     @Autowired
     private Environment environment;
     Logger logger = LoggerFactory.getLogger(Knife4jAutoConfiguration.class);
-    
+
     /**
      * 增强自定义配置
      * @param knife4jProperties
@@ -70,7 +70,7 @@ public class Knife4jAutoConfiguration {
         logger.debug("Register Knife4jOpenApiCustomizer");
         return new Knife4jOpenApiCustomizer(knife4jProperties, docProperties);
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     public Knife4jOperationCustomizer knife4jOperationCustomizer() {
@@ -98,7 +98,7 @@ public class Knife4jAutoConfiguration {
         CorsFilter corsFilter = new CorsFilter(source);
         return corsFilter;
     }
-    
+
     /**
      * Security with Basic Http
      * @param knife4jProperties Basic Properties
@@ -132,7 +132,7 @@ public class Knife4jAutoConfiguration {
         registration.setOrder(AbstractSecurityFilter.SPRING_FILTER_ORDER);
         return registration;
     }
-    
+
     @Bean
     @ConditionalOnMissingBean(ProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
@@ -157,5 +157,5 @@ public class Knife4jAutoConfiguration {
         registration.setOrder(AbstractSecurityFilter.SPRING_FILTER_ORDER - 1);
         return registration;
     }
-    
+
 }

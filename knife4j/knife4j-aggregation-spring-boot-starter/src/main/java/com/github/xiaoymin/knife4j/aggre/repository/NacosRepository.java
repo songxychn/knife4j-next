@@ -39,17 +39,17 @@ import java.util.stream.Collectors;
  * @since  2.0.8
  */
 public class NacosRepository extends AbstractRepository {
-    
+
     private volatile boolean stop = false;
     private Thread thread;
     Logger logger = LoggerFactory.getLogger(NacosRepository.class);
-    
+
     private NacosSetting nacosSetting;
-    
+
     final ThreadPoolExecutor threadPoolExecutor = ThreadUtil.newExecutor(5, 5);
-    
+
     private Map<String, NacosInstance> nacosInstanceMap = new HashMap<>();
-    
+
     public NacosRepository(NacosSetting nacosSetting) {
         this.nacosSetting = nacosSetting;
         if (nacosSetting != null && CollectionUtils.isNotEmpty(nacosSetting.getRoutes())) {
@@ -57,7 +57,7 @@ public class NacosRepository extends AbstractRepository {
             applyRoutes(nacosSetting);
         }
     }
-    
+
     /**
      * 初始化
      * @param nacosSetting Nacos配置属性
@@ -91,7 +91,7 @@ public class NacosRepository extends AbstractRepository {
     public NacosSetting getNacosSetting() {
         return nacosSetting;
     }
-    
+
     @Override
     public BasicAuth getAuth(String header) {
         BasicAuth basicAuth = null;
@@ -109,7 +109,7 @@ public class NacosRepository extends AbstractRepository {
         }
         return basicAuth;
     }
-    
+
     @Override
     public void start() {
         logger.info("start Nacos hearbeat Holder thread.");
@@ -149,7 +149,7 @@ public class NacosRepository extends AbstractRepository {
         thread.setDaemon(true);
         thread.start();
     }
-    
+
     @Override
     public void close() {
         logger.info("stop Nacos heartbeat Holder thread.");

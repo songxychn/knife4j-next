@@ -30,7 +30,7 @@ import java.util.List;
 @Getter
 @Setter
 public class Knife4jInsightOpenAPI3Config {
-    
+
     private String configUrl;
     private String oauth2RedirectUrl;
     private String operationsSorter;

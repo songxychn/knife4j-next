@@ -35,41 +35,41 @@ import java.util.List;
  * 2019/04/17 19:54
  */
 public class MarkdownFiles {
-    
+
     private static final ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
-    
+
     Logger logger = LoggerFactory.getLogger(MarkdownFiles.class);
-    
+
     /***
      * markdown files dir
      */
     private String basePath;
-    
+
     private List<OpenApiExtendMarkdownChildren> markdownFiles = new ArrayList<>();
-    
+
     public List<OpenApiExtendMarkdownChildren> getMarkdownFiles() {
         return markdownFiles;
     }
-    
+
     public void setMarkdownFiles(List<OpenApiExtendMarkdownChildren> markdownFiles) {
         this.markdownFiles = markdownFiles;
     }
-    
+
     public String getBasePath() {
         return basePath;
     }
-    
+
     public void setBasePath(String basePath) {
         this.basePath = basePath;
     }
-    
+
     public MarkdownFiles() {
     }
-    
+
     public MarkdownFiles(String basePath) {
         this.basePath = basePath;
     }
-    
+
     public void init() {
         // 初始化
         if (basePath != null && basePath != "" && !"".equals(basePath)) {
@@ -88,7 +88,7 @@ public class MarkdownFiles {
             }
         }
     }
-    
+
     private OpenApiExtendMarkdownChildren createMarkdownFile(Resource resource) {
         return MarkdownUtils.resolveMarkdownResource(resource);
     }

@@ -21,33 +21,33 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "分页查询参数")
 public class PageQuery {
-    
+
     @Schema(description = "页码（从 1 开始）", example = "1", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private int pageNum = 1;
-    
+
     @Schema(description = "每页条数", example = "10", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private int pageSize = 10;
-    
+
     @Schema(description = "关键词（模糊搜索用户名或邮箱）", example = "张", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String keyword;
-    
+
     public PageQuery() {
     }
-    
+
     public int getPageNum() {
         return pageNum;
     }
     public void setPageNum(int pageNum) {
         this.pageNum = pageNum;
     }
-    
+
     public int getPageSize() {
         return pageSize;
     }
     public void setPageSize(int pageSize) {
         this.pageSize = pageSize;
     }
-    
+
     public String getKeyword() {
         return keyword;
     }

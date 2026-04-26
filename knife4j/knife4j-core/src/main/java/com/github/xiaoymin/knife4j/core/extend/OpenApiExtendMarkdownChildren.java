@@ -23,7 +23,7 @@ package com.github.xiaoymin.knife4j.core.extend;
  * @since  2.0.6
  */
 public class OpenApiExtendMarkdownChildren {
-    
+
     /**
      * 标题
      */
@@ -32,19 +32,19 @@ public class OpenApiExtendMarkdownChildren {
      * 文档内容
      */
     private String content;
-    
+
     public String getTitle() {
         return title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
-    
+
     public String getContent() {
         return content;
     }
-    
+
     public void setContent(String content) {
         this.content = content;
     }

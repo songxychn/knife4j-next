@@ -28,18 +28,18 @@ import java.util.List;
  * @since  1.0
  */
 public class OpenApiMarkdownExtension implements VendorExtension<List<OpenApiExtendMarkdownFile>> {
-    
+
     private final List<OpenApiExtendMarkdownFile> openApiExtendMarkdownFiles;
-    
+
     public OpenApiMarkdownExtension(List<OpenApiExtendMarkdownFile> openApiExtendMarkdownFiles) {
         this.openApiExtendMarkdownFiles = openApiExtendMarkdownFiles;
     }
-    
+
     @Override
     public String getName() {
         return "x-markdownFiles";
     }
-    
+
     @Override
     public List<OpenApiExtendMarkdownFile> getValue() {
         return this.openApiExtendMarkdownFiles;

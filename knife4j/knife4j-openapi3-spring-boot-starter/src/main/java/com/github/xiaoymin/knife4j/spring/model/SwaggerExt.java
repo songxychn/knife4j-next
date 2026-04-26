@@ -24,15 +24,15 @@ package com.github.xiaoymin.knife4j.spring.model;
  * 2018/10/11 16:30
  */
 public class SwaggerExt {
-    
+
     protected SwaggerBootstrapUi swaggerBootstrapUi;
-    
+
     public SwaggerBootstrapUi getSwaggerBootstrapUi() {
         return swaggerBootstrapUi;
     }
-    
+
     public void setSwaggerBootstrapUi(SwaggerBootstrapUi swaggerBootstrapUi) {
         this.swaggerBootstrapUi = swaggerBootstrapUi;
     }
-    
+
 }

@@ -35,10 +35,10 @@ import org.springframework.core.env.Environment;
  */
 @Slf4j
 public class Knife4jInsightDiscoveryBootstrapper implements CommandLineRunner, EnvironmentAware {
-    
+
     final Knife4jInsightProperties insightProperties;
     private Environment environment;
-    
+
     public Knife4jInsightDiscoveryBootstrapper(Knife4jInsightProperties insightProperties) {
         this.insightProperties = insightProperties;
     }
@@ -65,7 +65,7 @@ public class Knife4jInsightDiscoveryBootstrapper implements CommandLineRunner, E
         Knife4jInsightUploadRunner uploadRunner = new Knife4jInsightUploadRunner(commonInfo);
         new Thread(uploadRunner).start();
     }
-    
+
     @Override
     public void setEnvironment(Environment environment) {
         this.environment = environment;

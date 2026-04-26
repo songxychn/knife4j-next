@@ -33,7 +33,7 @@ import lombok.Setter;
 @Getter
 @ConfigurationProperties(prefix = "knife4j.openapiv3")
 public class OpenAPIV3Setting {
-    
+
     /**
      * OpenAPI数据源加载url地址,例如：/v3/api-docs?group=default
      */
@@ -52,12 +52,12 @@ public class OpenAPIV3Setting {
      * @since 4.5.0
      */
     private GroupOrderStrategy tagsSorter = GroupOrderStrategy.alpha;
-    
+
     /**
      * operation接口排序规则
      *
      * @since 4.5.0
      */
     private GroupOrderStrategy operationsSorter = GroupOrderStrategy.alpha;
-    
+
 }

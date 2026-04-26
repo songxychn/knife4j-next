@@ -41,7 +41,7 @@ import java.util.Optional;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 100)
 public class OperationOrderBuilderPlugin extends AbstractOperationBuilderPlugin {
-    
+
     /**
      * 扩展接口的排序规则,添加排序扩展字段
      * {@link ApiOperationSupport} field order
@@ -71,12 +71,12 @@ public class OperationOrderBuilderPlugin extends AbstractOperationBuilderPlugin 
         // context.operationBuilder().extensions(Lists.newArrayList(new StringVendorExtension("x-order",String.valueOf(position))));
         context.operationBuilder().extensions(vendorExtensions);
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;
     }
-    
+
     private int findPosition(OperationContext context) {
         int position = Integer.MAX_VALUE;
         Optional<ApiOperationSort> apiOperationSortOptional = context.findAnnotation(ApiOperationSort.class);

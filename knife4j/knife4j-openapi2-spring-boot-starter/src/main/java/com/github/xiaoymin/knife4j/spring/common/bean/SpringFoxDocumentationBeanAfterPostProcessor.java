@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class SpringFoxDocumentationBeanAfterPostProcessor implements BeanFactoryPostProcessor, BeanFactoryAware {
-    
+
     /**
      * springfox注入Spring Context容器的Bean名称
      */
@@ -43,7 +43,7 @@ public class SpringFoxDocumentationBeanAfterPostProcessor implements BeanFactory
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
         this.beanFactory = beanFactory;
     }
-    
+
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory configurableListableBeanFactory) throws BeansException {
         BeanDefinitionRegistry beanRegistry = (BeanDefinitionRegistry) beanFactory;

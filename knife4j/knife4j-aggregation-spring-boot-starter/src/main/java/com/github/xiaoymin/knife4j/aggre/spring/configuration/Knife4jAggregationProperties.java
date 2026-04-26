@@ -30,12 +30,12 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "knife4j")
 public class Knife4jAggregationProperties {
-    
+
     /**
      * 是否开启Knife4j聚合模式
      */
     private boolean enableAggregation = false;
-    
+
     /**
      * 文档Basic保护
      */
@@ -44,92 +44,92 @@ public class Knife4jAggregationProperties {
      * 本地json
      */
     private DiskSetting disk;
-    
+
     /**
      * HTTP接口聚合
      */
     private CloudSetting cloud;
-    
+
     /**
      * 从Eureka注册中心中获取
      */
     private EurekaSetting eureka;
-    
+
     /**
      * 从Nacos注册中心中获取
      */
     private NacosSetting nacos;
-    
+
     /**
      * 从腾讯北极星Polaris获取
      */
     private PolarisSetting polaris;
-    
+
     /**
      * http链接对象属性配置
      */
     private HttpConnectionSetting connectionSetting;
-    
+
     public HttpConnectionSetting getConnectionSetting() {
         return connectionSetting;
     }
-    
+
     public void setConnectionSetting(HttpConnectionSetting connectionSetting) {
         this.connectionSetting = connectionSetting;
     }
-    
+
     public boolean isEnableAggregation() {
         return enableAggregation;
     }
-    
+
     public void setEnableAggregation(boolean enableAggregation) {
         this.enableAggregation = enableAggregation;
     }
-    
+
     public BasicAuth getBasicAuth() {
         return basicAuth;
     }
-    
+
     public void setBasicAuth(BasicAuth basicAuth) {
         this.basicAuth = basicAuth;
     }
-    
+
     public DiskSetting getDisk() {
         return disk;
     }
-    
+
     public void setDisk(DiskSetting disk) {
         this.disk = disk;
     }
-    
+
     public CloudSetting getCloud() {
         return cloud;
     }
-    
+
     public void setCloud(CloudSetting cloud) {
         this.cloud = cloud;
     }
-    
+
     public EurekaSetting getEureka() {
         return eureka;
     }
-    
+
     public void setEureka(EurekaSetting eureka) {
         this.eureka = eureka;
     }
-    
+
     public NacosSetting getNacos() {
         return nacos;
     }
-    
+
     public void setNacos(NacosSetting nacos) {
         this.nacos = nacos;
     }
-    
+
     public PolarisSetting getPolaris() {
         return polaris;
     }
-    
+
     public void setPolaris(PolarisSetting polaris) {
         this.polaris = polaris;
     }

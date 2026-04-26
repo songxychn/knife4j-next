@@ -48,11 +48,11 @@ import static com.github.xiaoymin.knife4j.insight.InsightConstants.KNIFE4J_CLOUD
 @Slf4j
 @AllArgsConstructor
 public class Knife4jInsightDiscoveryRunnable implements Runnable {
-    
+
     final Environment environment;
     final Knife4jInsightProperties insightProperties;
     final BeanFactory beanFactory;
-    
+
     @Override
     public void run() {
         try {
@@ -108,7 +108,7 @@ public class Knife4jInsightDiscoveryRunnable implements Runnable {
             log.debug("Knife4jInsight register fail,message:{}", e.getMessage());
         }
     }
-    
+
     private void upload(Knife4jInsightDiscoveryInfo knife4jCloudDiscoveryInfo, JsonSerializer jsonSerializer) throws IOException {
         if (knife4jCloudDiscoveryInfo.getCloudRoutes() != null && !knife4jCloudDiscoveryInfo.getCloudRoutes().isEmpty()) {
             String cloudApi = insightProperties.getServer() + KNIFE4J_CLOUD_API;
@@ -122,6 +122,6 @@ public class Knife4jInsightDiscoveryRunnable implements Runnable {
         } else {
             log.debug("No Found Swagger Information");
         }
-        
+
     }
 }

@@ -23,16 +23,16 @@ package com.github.xiaoymin.knife4j.aggre.core.pojo;
  * @since  2.0.8
  */
 public abstract class CommonAuthRoute extends CommonRoute {
-    
+
     /**
      * Whether the OpenApi instance interface access implementation need to enable Basic verification?
      */
     private BasicAuth routeAuth;
-    
+
     public BasicAuth getRouteAuth() {
         return routeAuth;
     }
-    
+
     public void setRouteAuth(BasicAuth routeAuth) {
         this.routeAuth = routeAuth;
     }

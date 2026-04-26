@@ -41,13 +41,13 @@ import jakarta.servlet.http.HttpServletResponse;
  * 2020/11/25 19:55
  */
 public class Knife4jSecurityBasicAuthFilter implements Filter {
-    
+
     Logger logger = LoggerFactory.getLogger(Knife4jSecurityBasicAuthFilter.class);
     /***
      * basic auth验证
      */
     public static final String SwaggerBootstrapUiBasicAuthSession = "Knife4jAggregationBasicAuthSession";
-    
+
     /***
      * 是否开启basic验证,默认不开启
      */
@@ -55,7 +55,7 @@ public class Knife4jSecurityBasicAuthFilter implements Filter {
      * 文档Basic保护
      */
     private BasicAuth basicAuth;
-    
+
     protected String decodeBase64(String source) {
         String decodeStr = null;
         if (source != null) {
@@ -72,9 +72,9 @@ public class Knife4jSecurityBasicAuthFilter implements Filter {
     }
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        
+
     }
-    
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest servletRequest = (HttpServletRequest) request;
@@ -114,18 +114,18 @@ public class Knife4jSecurityBasicAuthFilter implements Filter {
             chain.doFilter(request, response);
         }
     }
-    
+
     @Override
     public void destroy() {
-        
+
     }
-    
+
     private void writeForbiddenCode(HttpServletResponse httpServletResponse) throws IOException {
         httpServletResponse.setStatus(401);
         httpServletResponse.setHeader("WWW-Authenticate", "Basic realm=\"input OpenAPI userName & password \"");
         httpServletResponse.getWriter().write("You do not have permission to access this resource");
     }
-    
+
     public Knife4jSecurityBasicAuthFilter(BasicAuth basicAuth) {
         this.basicAuth = basicAuth;
     }

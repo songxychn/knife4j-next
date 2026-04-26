@@ -29,7 +29,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 @ConfigurationProperties(prefix = "knife4j.insight")
 public class Knife4jInsightProperties {
-    
+
     /**
      * 是否启动Knife4jInsight自动上报功能
      */
@@ -42,7 +42,7 @@ public class Knife4jInsightProperties {
      * 上传用户凭证密钥，在Knife4jInsight用户中心获取
      */
     private String secret;
-    
+
     /**
      * 上传namespace,如果不指定，Knife4jInsight会默认根据当前应用的application-name生成，如果应用名称为空,那么会随机生成一个
      */

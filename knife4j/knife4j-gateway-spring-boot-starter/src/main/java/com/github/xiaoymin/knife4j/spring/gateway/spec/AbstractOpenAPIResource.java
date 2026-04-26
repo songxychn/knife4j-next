@@ -31,19 +31,19 @@ import java.util.Objects;
  */
 @Getter
 public abstract class AbstractOpenAPIResource implements Comparable<AbstractOpenAPIResource>, Serializable {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     @JsonIgnore
     protected final Integer order;
     @JsonIgnore
     protected final transient Boolean discovered;
-    
+
     protected AbstractOpenAPIResource(Integer order, Boolean discovered) {
         this.order = order;
         this.discovered = discovered;
     }
-    
+
     @Override
     public int compareTo(@NonNull AbstractOpenAPIResource swaggerResource) {
         int sort = this.order.compareTo(swaggerResource.getOrder());
@@ -52,9 +52,9 @@ public abstract class AbstractOpenAPIResource implements Comparable<AbstractOpen
         }
         return this.getName().compareTo(swaggerResource.getName());
     }
-    
+
     public abstract String getName();
-    
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -66,7 +66,7 @@ public abstract class AbstractOpenAPIResource implements Comparable<AbstractOpen
         AbstractOpenAPIResource that = (AbstractOpenAPIResource) o;
         return Objects.equals(order, that.order) && Objects.equals(discovered, that.discovered);
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(order, discovered);

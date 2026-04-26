@@ -24,25 +24,25 @@ package com.github.xiaoymin.knife4j.core.model;
  * 2019/07/31 15:00
  */
 public class DynamicClass {
-    
+
     private Class<?> targetClazz;
-    
+
     private Class<?> fieldClazz;
-    
+
     public Class<?> getTargetClazz() {
         return targetClazz;
     }
-    
+
     public void setTargetClazz(Class<?> targetClazz) {
         this.targetClazz = targetClazz;
     }
-    
+
     public Class<?> getFieldClazz() {
         return fieldClazz;
     }
-    
+
     public void setFieldClazz(Class<?> fieldClazz) {
         this.fieldClazz = fieldClazz;
     }
-    
+
 }

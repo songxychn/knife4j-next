@@ -31,26 +31,26 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "knife4j.basic")
 public class Knife4jHttpBasic {
-    
+
     /**
      * basick是否开启,默认为false
      */
     private boolean enable = false;
-    
+
     /**
      * basic 用户名
      */
     private String username;
-    
+
     /**
      * basic 密码
      */
     private String password;
-    
+
     /**
      * All configured urls need to be verified by basic，Only support Regex
      * since 4.1.0
      */
     private List<String> include;
-    
+
 }

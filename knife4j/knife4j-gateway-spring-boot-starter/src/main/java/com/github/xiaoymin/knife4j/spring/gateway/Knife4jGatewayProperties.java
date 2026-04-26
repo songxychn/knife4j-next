@@ -37,48 +37,48 @@ import java.util.*;
 @Setter
 @ConfigurationProperties(prefix = "knife4j.gateway")
 public class Knife4jGatewayProperties {
-    
+
     /**
      * 是否启用聚合OpenAPI规范文档聚合
      */
     private boolean enabled = false;
-    
+
     /**
      * Enable HTTP Basic authentication,default is false.
      */
     private Knife4jGatewayHttpBasic basic;
-    
+
     /**
      * 网关聚合策略,默认手动配置
      * @since 4.1.0
      */
     private GatewayStrategy strategy = GatewayStrategy.MANUAL;
-    
+
     /**
      * tag排序规则
      * @since 4.2.0
      */
     private GroupOrderStrategy tagsSorter = GroupOrderStrategy.alpha;
-    
+
     /**
      * operation接口排序规则
      * @since 4.2.0
      */
     private GroupOrderStrategy operationsSorter = GroupOrderStrategy.alpha;
-    
+
     /**
      * 服务发现模式
      * @since 4.1.0
      */
     private final Discover discover = new Discover();
-    
+
     /**
      * 聚合服务路由配置(如果是manual模式则配置此属性作为数据来源，服务发现模式则作为无法满足聚合要求的服务个性化定制配置)
      * 参考Discussions:<a href="https://github.com/xiaoymin/knife4j/discussions/547">GitHub-discussions#547</a>
      * @since 4.0.0
      */
     private final List<Router> routes = new ArrayList<>();
-    
+
     /**
      * 服务发现策略配置
      * @since 4.1.0
@@ -86,7 +86,7 @@ public class Knife4jGatewayProperties {
     @Getter
     @Setter
     public static class Discover {
-        
+
         /**
          * 是否开启服务发现
          */
@@ -96,12 +96,12 @@ public class Knife4jGatewayProperties {
          * @since v4.3.0 版本开始支持正则表达式
          */
         private Set<String> excludedServices = new HashSet<>();
-        
+
         /**
          * 当前规范版本，默认OpenAPI3
          */
         private OpenApiVersion version = OpenApiVersion.OpenAPI3;
-        
+
         /**
          * 针对OpenAPI3规范的个性化配置
          */
@@ -110,12 +110,12 @@ public class Knife4jGatewayProperties {
          * 针对Swagger2规范的个性化配置
          */
         private final OpenApiV2 swagger2 = new OpenApiV2();
-        
+
         /**
          * 各个子服务个性化配置，key：服务名称，value：当前服务的个性化配置
          */
         private final Map<String, ServiceConfigInfo> serviceConfig = new HashMap<>();
-        
+
         /**
          * 获取当前服务的URL，根据用户指定的版本类型获取
          * @return 当前地址
@@ -131,7 +131,7 @@ public class Knife4jGatewayProperties {
             return GlobalConstants.DEFAULT_OPEN_API_V2_PATH;
         }
     }
-    
+
     /**
      * 服务个性化配置
      * @since 4.1.0
@@ -139,23 +139,23 @@ public class Knife4jGatewayProperties {
     @Getter
     @Setter
     public static class ServiceConfigInfo {
-        
+
         /**
          * 当前服务排序
          */
         private Integer order = GlobalConstants.DEFAULT_ORDER;
-        
+
         /**
          * 当前服务的分组名称，用于前端Ui展示title
          */
         private String groupName;
-        
+
         /**
          * 组名称集合，如果微服务接口较多而进行了分组，则可以配置此参数，集合中的项应该和目标服务的 springdoc.group-configs指定的group参数一致
          * @since v4.2.0
          */
         private List<String> groupNames;
-        
+
         /**
          * 兼容OpenAPI3规范在聚合时丢失contextPath属性的异常情况，由开发者自己配置contextPath,Knife4j的前端Ui做兼容处理,与url属性独立不冲突，仅OpenAPI3规范聚合需要，OpenAPI2规范不需要设置此属性,默认为(apiPathPrefix)
          *
@@ -170,7 +170,7 @@ public class Knife4jGatewayProperties {
     @Getter
     @Setter
     public static class Router {
-        
+
         /**
          * 分组名称
          */
@@ -189,13 +189,13 @@ public class Knife4jGatewayProperties {
          * @since v4.1.0
          */
         private String contextPath = GlobalConstants.DEFAULT_API_PATH_PREFIX;
-        
+
         /**
          * 排序(asc),默认不排序
          */
         private Integer order = GlobalConstants.DEFAULT_ORDER;
     }
-    
+
     /**
      * Swagger2规范的个性化配置
      * @since 4.1.0
@@ -203,14 +203,14 @@ public class Knife4jGatewayProperties {
     @Getter
     @Setter
     public static class OpenApiV2 {
-        
+
         /**
          * OpenAPI数据源加载url地址,例如：/v2/api-docs?group=default
          */
         private String url = GlobalConstants.DEFAULT_OPEN_API_V2_PATH;
-        
+
     }
-    
+
     /**
      * OpenAPI3规范的个性化配置
      * @since 4.1.0
@@ -218,7 +218,7 @@ public class Knife4jGatewayProperties {
     @Getter
     @Setter
     public static class OpenApiV3 {
-        
+
         /**
          * OpenAPI数据源加载url地址,例如：/v3/api-docs?group=default
          */

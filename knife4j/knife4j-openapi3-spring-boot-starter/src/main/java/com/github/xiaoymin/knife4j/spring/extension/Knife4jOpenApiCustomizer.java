@@ -48,10 +48,10 @@ import java.util.stream.Collectors;
 @Slf4j
 @AllArgsConstructor
 public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
-    
+
     final Knife4jProperties knife4jProperties;
     final SpringDocConfigProperties properties;
-    
+
     @Override
     public void customise(OpenAPI openApi) {
         log.debug("Knife4j OpenApiCustomizer");
@@ -70,7 +70,7 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
             addOrderExtension(openApi);
         }
     }
-    
+
     /**
      * 往OpenAPI内tags字段添加x-order属性
      *
@@ -122,7 +122,7 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
             }
         }
     }
-    
+
     private Tag getTag(Class<?> clazz) {
         // 从类上获取
         Tag tag = clazz.getAnnotation(Tag.class);
@@ -141,7 +141,7 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
         }
         return tag;
     }
-    
+
     private Set<Class<?>> scanPackageByAnnotation(
                                                   String packageName, final Class<? extends Annotation> annotationClass) {
         ClassPathScanningCandidateComponentProvider scanner =
@@ -153,7 +153,7 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
                 Class<?> clazz = Class.forName(beanDefinition.getBeanClassName());
                 classes.add(clazz);
             } catch (ClassNotFoundException ignore) {
-                
+
             }
         }
         return classes;

@@ -25,9 +25,9 @@ import springfox.documentation.service.ObjectVendorExtension;
  * @since  1.0
  */
 public class OpenApiExtension extends ObjectVendorExtension {
-    
+
     public static final String EXTENSION_NAME = "x-openapi";
-    
+
     public OpenApiExtension(String name) {
         super(name);
     }

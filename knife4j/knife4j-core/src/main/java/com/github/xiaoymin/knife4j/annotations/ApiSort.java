@@ -28,7 +28,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface ApiSort {
-    
+
     /**
      * tag order value, Deprecated since 2.0.3,see {@link ApiSupport} order field
      * @return order

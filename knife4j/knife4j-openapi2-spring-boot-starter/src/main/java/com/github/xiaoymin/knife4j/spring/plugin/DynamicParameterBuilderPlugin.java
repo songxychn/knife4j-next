@@ -43,9 +43,9 @@ import java.util.Optional;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class DynamicParameterBuilderPlugin implements ParameterBuilderPlugin {
-    
+
     private final Map<String, String> cacheGenModelMaps = new HashMap<>();
-    
+
     @Override
     public void apply(ParameterContext parameterContext) {
         ResolvedMethodParameter resolvedMethodParameter = parameterContext.resolvedMethodParameter();
@@ -67,7 +67,7 @@ public class DynamicParameterBuilderPlugin implements ParameterBuilderPlugin {
             }
         }
     }
-    
+
     private void changeDynamicParameterType(DynamicParameters dynamicParameters, ParameterContext parameterContext) {
         if (dynamicParameters != null) {
             // name是否包含
@@ -92,13 +92,13 @@ public class DynamicParameterBuilderPlugin implements ParameterBuilderPlugin {
             }
         }
     }
-    
+
     public String genClassName(ParameterContext parameterContext) {
         // gen
         String name = parameterContext.getOperationContext().getName();
         return CommonUtils.genSupperName(name);
     }
-    
+
     @Override
     public boolean supports(DocumentationType delimiter) {
         return true;
