@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup, ApiItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
+import { SettingsProvider } from './context/SettingsContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
@@ -214,13 +215,15 @@ const AppInner: React.FC = () => {
 
 const App: React.FC = () => (
   <ConfigProvider>
-    <AuthProvider>
-      <GlobalParamProvider>
-        <GroupProvider>
-          <AppInner />
-        </GroupProvider>
-      </GlobalParamProvider>
-    </AuthProvider>
+    <SettingsProvider>
+      <AuthProvider>
+        <GlobalParamProvider>
+          <GroupProvider>
+            <AppInner />
+          </GroupProvider>
+        </GlobalParamProvider>
+      </AuthProvider>
+    </SettingsProvider>
   </ConfigProvider>
 );
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import Authorize from '../pages/Authorize';
 import GlobalParam from '../pages/document/GlobalParam';
 import OfficeDoc from '../pages/document/OfficeDoc';
+import Settings from '../pages/document/Settings';
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -17,6 +18,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose }) => {
     { key: 'authorize', label: t('settings.tab.authorize'), children: <Authorize /> },
     { key: 'globalParam', label: t('settings.tab.globalParam'), children: <GlobalParam /> },
     { key: 'officeDoc', label: t('settings.tab.offlineDoc'), children: <OfficeDoc /> },
+    { key: 'settings', label: t('settings.tab.settings'), children: <Settings /> },
   ];
 
   return (

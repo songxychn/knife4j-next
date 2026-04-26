@@ -3,6 +3,7 @@ import { Input, Menu, MenuProps } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
+import { useSettings } from '../context/SettingsContext';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: '#61affe',
@@ -47,11 +48,12 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const { activeGroup } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
+  const { settings } = useSettings();
 
   // Group apis by tag, filtered by search text
   const filteredByTag = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    const apis: ApiItem[] = q
+    let apis: ApiItem[] = q
       ? activeGroup.apis.filter(
           (api) =>
             api.summary.toLowerCase().includes(q) ||
@@ -60,6 +62,12 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         )
       : activeGroup.apis;
 
+    // Filter multipart/RequestMapping interfaces when enabled
+    if (settings.enableFilterMultipartApis) {
+      const allowedMethod = settings.enableFilterMultipartApiMethodType.toUpperCase();
+      apis = apis.filter((api) => api.method.toUpperCase() === allowedMethod);
+    }
+
     // Group by tag
     const tagMap = new Map<string, ApiItem[]>();
     for (const api of apis) {
@@ -67,7 +75,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       tagMap.get(api.tag)!.push(api);
     }
     return tagMap;
-  }, [activeGroup, searchText]);
+  }, [activeGroup, searchText, settings.enableFilterMultipartApis, settings.enableFilterMultipartApiMethodType]);
 
   const menuItems = useMemo(() => {
     const items: NonNullable<MenuProps['items']> = [];

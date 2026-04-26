@@ -215,6 +215,17 @@ const zhCN = {
   'settings.tab.authorize': 'Authorize',
   'settings.tab.globalParam': '全局参数',
   'settings.tab.offlineDoc': '离线文档',
+  'settings.tab.settings': '个性化',
+
+  // Settings page
+  'settings.tip': '启用个性化配置后，接口 Tab 标签需关闭后重新打开或者刷新当前页面',
+  'settings.enableRequestCache': '开启请求参数缓存（Debug 调试栏自动缓存上次填写的参数值）',
+  'settings.enableDynamicParameter': '开启动态参数（调试时请求参数支持动态注入）',
+  'settings.enableFilterMultipartApis': '过滤接口类型（针对 RequestMapping 未指定类型的接口，只展示指定类型）',
+  'settings.filterMethodType': '过滤保留的方法类型',
+  'settings.enableHost': '覆盖 Host（调试时使用指定 Host 替换接口 BaseURL）',
+  'settings.hostPlaceholder': '输入 Host，例如 http://localhost:8080',
+  'settings.hostEmptyError': '请先填写 Host 地址',
 } as const;
 
 export default zhCN;

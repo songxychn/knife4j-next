@@ -216,6 +216,17 @@ const enUS = {
   'settings.tab.authorize': 'Authorize',
   'settings.tab.globalParam': 'Global Parameters',
   'settings.tab.offlineDoc': 'Offline Docs',
+  'settings.tab.settings': 'Preferences',
+
+  // Settings page
+  'settings.tip': 'After enabling personalized settings, API tabs need to be closed and reopened or refresh the page',
+  'settings.enableRequestCache': 'Enable request parameter cache (Debug panel auto-caches last filled values)',
+  'settings.enableDynamicParameter': 'Enable dynamic parameters (Support dynamic injection in debug mode)',
+  'settings.enableFilterMultipartApis': 'Filter API types (For RequestMapping without specified type, show only selected type)',
+  'settings.filterMethodType': 'Filter method type',
+  'settings.enableHost': 'Override Host (Use specified Host to replace API BaseURL in debug mode)',
+  'settings.hostPlaceholder': 'Enter Host, e.g. http://localhost:8080',
+  'settings.hostEmptyError': 'Please enter Host address first',
 } as const;
 
 export default enUS;
