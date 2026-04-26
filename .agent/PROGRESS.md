@@ -944,3 +944,23 @@ next:
 - 推送分支 → 开 PR（描述说明 TASK-039 包含三项改动：vite proxy / demo pom Java 17 / logo 路径修复）
 blockers:
 - none
+
+## 2026-04-26 TASK-039 (supplement 3)
+task: TASK-039
+agent: coordinator (interactive, user-authorized scope extension)
+branch: agent/TASK-039-vite-dev-proxy
+status: review
+summary:
+- 维护者点击"调试"后整页崩溃：`useGlobalParam must be used inside GlobalParamProvider`
+- 根因：GlobalParamProvider 只包在 pages/document/GlobalParam.tsx 内部，但 pages/api/ApiDebug.tsx 也调用 useGlobalParam；ApiDebug 路由不在 GlobalParam 子树下，ctx 为 null 抛错
+- 修复：将 GlobalParamProvider 提升到 App.tsx 顶层 Provider 链（AuthProvider → GlobalParamProvider → GroupProvider），并去掉 GlobalParam 页面中的局部 Provider（否则会覆盖祖先 context，两页 state 不互通）
+- 该设计也更符合"全局参数跨页面持久共享"的语义
+validation:
+- `npx prettier --check src/App.tsx src/pages/document/GlobalParam.tsx` → pass
+- `npx tsc --noEmit` → pass
+- `npx eslint ...` → 仅 1 条 pre-existing warning（GlobalParam.tsx 混合导出组件与 hook，与本次改动无关）
+- `npx vite build` → pass
+next:
+- 推送分支 → 开 PR（描述说明 TASK-039 包含四项改动：vite proxy / demo pom Java 17 / logo 路径修复 / GlobalParamProvider 提升）
+blockers:
+- none
