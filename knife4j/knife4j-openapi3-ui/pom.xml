@@ -25,9 +25,42 @@
             <resource>
                 <directory>${project.basedir}/src/main/resources</directory>
                 <targetPath>META-INF/resources/</targetPath>
+                <!--
+                    Exclude legacy React build artifacts that may have been committed to src/main/resources/webjars/
+                    by mistake. They are now considered generated output (.gitignore covers them), and the canonical
+                    source of truth is the vite build that writes to ${knife4j-ui-react.outDir}. See the
+                    maven-clean-plugin execution below for the hard cleanup.
+                -->
+                <excludes>
+                    <exclude>webjars/knife4j-ui-react/**</exclude>
+                </excludes>
             </resource>
         </resources>
         <plugins>
+            <!-- Step 0: always wipe any stale React UI build artifacts checked out under src/main/resources/ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.3.2</version>
+                <executions>
+                    <execution>
+                        <id>wipe-stale-react-webjar</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.basedir}/src/main/resources/webjars/knife4j-ui-react</directory>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Step 1: vite build with outDir pointing to Maven target -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
