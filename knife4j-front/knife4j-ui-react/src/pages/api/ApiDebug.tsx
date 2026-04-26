@@ -1022,6 +1022,7 @@ export default function ApiDebug() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
 
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
@@ -1361,6 +1362,7 @@ export default function ApiDebug() {
       }
     }
     setResponse(null);
+    setBuiltRequest(built);
     const start = Date.now();
     try {
       const init: RequestInit = { method: built.method, headers: built.headers };
@@ -1590,7 +1592,7 @@ export default function ApiDebug() {
       <Divider style={{ margin: '16px 0' }} />
 
       {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      <ResponsePanel response={response} error={error} />
+      <ResponsePanel response={response} error={error} builtRequest={builtRequest} />
     </div>
   );
 }
