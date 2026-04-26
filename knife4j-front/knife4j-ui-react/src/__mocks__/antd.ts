@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Mock antd components
 const noop = () => null;
 module.exports = {

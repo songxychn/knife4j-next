@@ -1,3 +1,4 @@
+// @ts-nocheck
 const noop = () => null;
 module.exports = {
   FileTextOutlined: noop,
