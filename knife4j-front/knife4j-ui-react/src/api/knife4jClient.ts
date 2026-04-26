@@ -3,7 +3,7 @@
  * 负责拉取 group 列表和 api-docs 文档
  */
 
-import type { MenuOperation, MenuTag, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
+import type { SwaggerDoc, SwaggerGroup, MenuTag, MenuOperation, SwaggerUiConfig } from '../types/swagger';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
 
@@ -17,25 +17,6 @@ const METHOD_ORDER: Record<string, number> = {
   head: 5,
   options: 6,
 };
-
-/**
- * 字母序比较器：
- * - 中文字符按**拼音**排序（`zh-Hans-CN-u-co-pinyin`，例如「阿」<「吃」）
- * - ASCII / 拉丁字符按 locale 默认规则（与 `'abc'.localeCompare('abd')` 一致）
- * - `numeric` 让 "/api/v2" 排在 "/api/v10" 之前，符合直觉
- *
- * 当运行时（过旧的环境或 polyfill 不完整）不支持 `zh-Hans-CN-u-co-pinyin` 时，
- * Intl 会自动回退到最接近的可用 collation，不会抛异常。
- */
-const alphaCollator = new Intl.Collator('zh-Hans-CN-u-co-pinyin', {
-  sensitivity: 'base',
-  numeric: true,
-});
-
-/** 语义化字母比较器（拼音优先），供排序函数统一使用 */
-function compareAlpha(a: string, b: string): number {
-  return alphaCollator.compare(a, b);
-}
 
 /** tag 排序策略 */
 export type TagsSorter = 'alpha' | 'preserve';
@@ -127,13 +108,13 @@ function sortOperations(ops: MenuOperation[], sorter: OperationsSorter): MenuOpe
   if (sorter === 'preserve') return ops;
   const sorted = [...ops];
   if (sorter === 'alpha') {
-    sorted.sort((a, b) => compareAlpha(a.path, b.path) || compareAlpha(a.method, b.method));
+    sorted.sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
   } else if (sorter === 'method') {
     sorted.sort((a, b) => {
       const ma = METHOD_ORDER[a.method] ?? 99;
       const mb = METHOD_ORDER[b.method] ?? 99;
       if (ma !== mb) return ma - mb;
-      return compareAlpha(a.path, b.path);
+      return a.path.localeCompare(b.path);
     });
   }
   return sorted;
@@ -182,9 +163,9 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
     tags = tags.map((t) => ({ ...t, operations: sortOperations(t.operations, operationsSorter) }));
   }
 
-  // 按策略对 tag 排序（中文 tag 按拼音）
+  // 按策略对 tag 排序
   if (tagsSorter === 'alpha') {
-    tags = [...tags].sort((a, b) => compareAlpha(a.tag, b.tag));
+    tags = [...tags].sort((a, b) => a.tag.localeCompare(b.tag));
   }
 
   return tags;
