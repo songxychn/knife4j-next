@@ -40,9 +40,7 @@ function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | nul
     if (!rawItems) return null;
     const parsed = JSON.parse(rawItems);
     if (!Array.isArray(parsed)) return null;
-    const items: PersistedTab[] = parsed.filter(
-      (x) => x && typeof x.key === 'string' && typeof x.label === 'string',
-    );
+    const items: PersistedTab[] = parsed.filter((x) => x && typeof x.key === 'string' && typeof x.label === 'string');
     if (items.length === 0) return null;
     const activeKey = sessionStorage.getItem(STORAGE_KEY_ACTIVE) ?? items[0].key;
     return { items, activeKey };
@@ -90,9 +88,7 @@ const AppInner: React.FC = () => {
     const persisted = loadPersistedTabs();
     if (persisted) {
       const hasHome = persisted.items.some((p) => p.key === HOME_KEY);
-      const withHome = hasHome
-        ? persisted.items
-        : [{ label: t('app.tab.home'), key: HOME_KEY }, ...persisted.items];
+      const withHome = hasHome ? persisted.items : [{ label: t('app.tab.home'), key: HOME_KEY }, ...persisted.items];
       return withHome.map((p) => ({ label: p.label, children: '', key: p.key }));
     }
     return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
