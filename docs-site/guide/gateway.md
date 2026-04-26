@@ -35,7 +35,7 @@ Gateway 主工程 `pom.xml`：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-    <version>4.6.0.3</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -172,7 +172,7 @@ knife4j:
 
 历史 issue：下游应用设置了 `server.servlet.context-path=/api` 时，OpenAPI3 规范里不像 Swagger2 带 `basePath`，聚合到 Gateway 后调试请求会漏路径。
 
-- 修复版本：`4.6.0.2`（[#954](https://github.com/xiaoymin/knife4j/issues/954)）
+- 修复版本：`1.0.0`（[#954](https://github.com/xiaoymin/knife4j/issues/954)）
 - 推荐手动声明：在 `service-config.<serviceId>.context-path`（DISCOVER）或 `routes[].context-path`（MANUAL）显式配置，最稳妥。
 
 ## 验证

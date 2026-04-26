@@ -8,7 +8,7 @@ title: 路线图
 
 ---
 
-## 当前阶段：稳定维护 + React 前端对齐
+## 当前阶段：1.0.0 正式版已发布
 
 ### 已完成 ✅
 
@@ -22,22 +22,24 @@ title: 路线图
 | Demo | `knife4j-demo` 模块 + Docker 部署 | ✅ |
 | 文档 | VitePress 文档站全面重写 | ✅ |
 | React 前端 | 基础架构（路由、侧边栏、分组切换、搜索） | ✅ |
-| React 前端 | ApiDoc 接口文档展示（参数表格 + 响应结构） | ✅ |
-| React 前端 | ApiDebug 接口调试（表单填参 + 发请求 + 响应展示） | ✅ |
+| React 前端 | ApiDoc 接口文档展示（参数表格 + 响应结构 + 复制操作） | ✅ |
+| React 前端 | ApiDebug 接口调试（类型感知参数输入 + requestBody 多 content-type + cURL 预览 + 响应复制/下载） | ✅ |
 | React 前端 | SwaggerModels 数据模型展示 | ✅ |
-| React 前端 | Authorize 鉴权配置（Bearer / Basic） | ✅ |
+| React 前端 | Authorize 鉴权配置（securitySchemes 动态渲染 + OAuth2 授权码流程） | ✅ |
 | React 前端 | GlobalParam 全局参数 | ✅ |
-| React 前端 | Home 首页统计概览 | ✅ |
+| React 前端 | Home 首页统计概览（重设计） | ✅ |
 | React 前端 | 离线文档导出（HTML / Word） | ✅ |
 | React 前端 | 真实 API 数据对接（/v3/api-docs） | ✅ |
 | React 前端 | 集成到 `knife4j-openapi3-ui` webjar | ✅ |
-
-### 进行中 🔧
-
-| 领域 | 里程碑 | 关联任务 | 说明 |
-| --- | --- | --- | --- |
-| React 前端 | 调试层抽取到 knife4j-core | TASK-032 | 纯 TS 解析层，无框架依赖 |
-| React 前端 | 按参数定义渲染填参表单 | TASK-026 | 依赖 TASK-032 |
+| React 前端 | i18n 中英文切换 | ✅ |
+| React 前端 | 设置面板（Header 右上角整合） | ✅ |
+| React 前端 | Tab 右键菜单 + 刷新后状态持久化 | ✅ |
+| React 前端 | 侧边栏接口搜索高亮 + Method 过滤条 | ✅ |
+| React 前端 | Markdown 渲染（API/tag/info description） | ✅ |
+| knife4j-core | debug 解析层抽取（resolveRef / OperationDebugModel / requestBuilder） | ✅ |
+| knife4j-core | buildSchemaExample & buildSchemaFieldTree | ✅ |
+| 基础设施 | npm workspaces 统一 knife4j-front 包管理 | ✅ |
+| 基础设施 | Node.js 22 LTS + Prettier + Spotless 格式化规范 | ✅ |
 
 ---
 
@@ -50,32 +52,22 @@ title: 路线图
 | 功能 | Vue2 | React | 缺口说明 |
 | --- | --- | --- | --- |
 | 接口文档展示 | ✅ | ✅ | — |
-| 接口调试（基础） | ✅ | 🔲 | React 仅支持简化输入，缺少按 OpenAPI 参数定义渲染表单 |
+| 接口调试 | ✅ | ✅ | — |
 | 数据模型展示 | ✅ | ✅ | — |
 | 分组切换 | ✅ | ✅ | — |
 | 接口搜索 | ✅ | ✅ | — |
-| Authorize 鉴权 | ✅ | 🔲 | React 支持 Bearer/Basic，但不按 securitySchemes 动态渲染 |
+| Authorize 鉴权 | ✅ | 🔲 | React 支持 securitySchemes 动态渲染 + OAuth2 授权码流程，缺少 password/client_credentials |
 | 全局参数 | ✅ | ✅ | — |
-| 离线文档导出 | ✅ | ✅ | — |
+| 离线文档导出 | ✅ | 🔲 | React 支持 HTML/Word，缺少 Markdown |
 | 首页统计 | ✅ | ✅ | — |
 
 ### 调试页详细缺口
 
 | 功能 | Vue2 | React | 缺口说明 |
 | --- | --- | --- | --- |
-| 按参数定义渲染 path/query/header/cookie 表单 | ✅ | ⬜ | TASK-026 |
-| requestBody 多 Content-Type 切换 | ✅ | ⬜ | TASK-027 |
-| application/x-www-form-urlencoded 表单 | ✅ | ⬜ | TASK-027 |
-| multipart/form-data 文件上传 | ✅ | ⬜ | TASK-027 |
-| raw 模式（Text/JSON/XML 等） | ✅ | ⬜ | TASK-027 |
-| 发送前 required 校验 | ✅ | ⬜ | TASK-028 |
-| 请求预览（最终 URL/headers/body） | ✅ | ⬜ | TASK-028 |
-| 复制 curl 命令 | ✅ | ⬜ | TASK-028 |
-| 响应面板 Content/Raw/Headers/Curl Tab | ✅ | ⬜ | TASK-029 |
-| JSON 响应格式化 + 复制 | ✅ | 🔲 | React 仅展示原始 JSON，缺少格式化和复制 |
-| 二进制响应处理（图片预览/下载） | ✅ | ⬜ | TASK-029 |
-| 鉴权与全局参数自动合并 | ✅ | ⬜ | TASK-031 |
-| OAuth2 password/client_credentials | ✅ | ⬜ | TASK-033 |
+| multipart/form-data 文件上传 | ✅ | 🔲 | 基础表单可用，完整文件上传待优化 |
+| OAuth2 password/client_credentials | ✅ | ⬜ | — |
+| afterScript（请求后脚本） | ✅ | ⬜ | — |
 
 ### 增强功能
 
@@ -85,21 +77,20 @@ title: 路线图
 | `@ApiSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ | ⬜ | 后端已生效，UI 不排序 |
 | `@ApiOperationSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
-| 设置面板（Header 右上角整合） | ✅ | ⬜ | TASK-024 |
-| i18n 中英文切换 | ✅ | ⬜ | TASK-025 |
-| 自定义 Markdown 文档 | ✅ | ⬜ | 依赖 UI 设置面板 |
+| 自定义 Markdown 文档 | ✅ | ⬜ | 依赖 UI 设置面板读取 setting |
 | 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
 | TypeScript 代码生成 | ✅ | ⬜ | — |
+| Postman 导出 | ✅ | ⬜ | — |
 
-### knife4j-core 抽取
+### knife4j-core 已抽取模块
 
 | 模块 | 状态 | 说明 |
 | --- | --- | --- |
-| `resolveRef(ref, doc)` | ⬜ | 统一 OAS2/OAS3 $ref 解析 |
-| `OperationDebugModel` | ⬜ | 从 operation 解析参数模型 |
-| `requestBuilder` | ⬜ | 统一请求构造 + curl 输出 |
-| `buildSchemaExample` | ⬜ | schema 示例生成（TASK-030） |
-| `buildSchemaFieldTree` | ⬜ | schema 字段树（TASK-030） |
+| `resolveRef(ref, doc)` | ✅ | 统一 OAS2/OAS3 $ref 解析 |
+| `OperationDebugModel` | ✅ | 从 operation 解析参数模型 |
+| `requestBuilder` | ✅ | 统一请求构造 + curl 输出 |
+| `buildSchemaExample` | ✅ | schema 示例生成 |
+| `buildSchemaFieldTree` | ✅ | schema 字段树 |
 
 ---
 
@@ -125,11 +116,10 @@ title: 路线图
 
 ## 下一步
 
-1. **完成 TASK-032**：抽取调试/解析层到 knife4j-core
-2. **完成 TASK-026 ~ TASK-031**：React 调试页对齐 Vue2 能力
-3. **完成 TASK-023 review**：React 前端集成到 starter
-4. **补齐 i18n**（TASK-025）
-5. **补齐设置面板**（TASK-024）
-6. **评估 knife4j-core 的 OAS2/OAS3 统一解析层**（TASK-030）
+1. **补齐 `knife4j.setting.*` UI 开关联动**：React 前端读取后端注入的 x-knife4j setting
+2. **补齐 OAuth2 password / client_credentials** 调试流程
+3. **补齐 Postman 导出**
+4. **补齐 Markdown 离线文档导出**
+5. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
 
 如果你想参与某个任务的实现，欢迎提 Issue 或 PR。详见 [GitHub 仓库](https://github.com/songxychn/knife4j-next)。
