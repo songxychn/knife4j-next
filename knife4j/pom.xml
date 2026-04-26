@@ -267,6 +267,16 @@
                         <target>${knife4j-java.version}</target>
                         <encoding>UTF-8</encoding>
                         <compilerArgument>-Xlint:unchecked</compilerArgument>
+                        <!--
+                          Enable -parameters so frameworks that rely on reflection
+                          (Spring MVC / Springdoc-OpenAPI / Jackson) can derive
+                          method parameter names without requiring @PathVariable("id"),
+                          @RequestParam("foo") or @Parameter(name="...") everywhere.
+                          Spring Boot's own starter-parent enables this by default;
+                          knife4j does NOT inherit spring-boot-starter-parent, so we
+                          opt in explicitly here.
+                        -->
+                        <parameters>true</parameters>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>
