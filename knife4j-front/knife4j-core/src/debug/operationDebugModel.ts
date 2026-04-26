@@ -383,6 +383,27 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     }
   }
 
+  // ── 兜底：从 path 模板中提取未声明的 path 参数 ──
+  // 某些 OpenAPI 文档（如 Springdoc 在特定配置下）可能遗漏 path 参数声明，
+  // 但 URL 模板中存在 {xxx} 占位符。为避免调试页所有 tab 全部灰掉，
+  // 我们从 path 模板自动补充缺失的 path 参数。
+  const existingPathNames = new Set(pathParams.map((p) => p.name));
+  const templateParamRe = /\{([^}]+)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = templateParamRe.exec(path)) !== null) {
+    const name = match[1];
+    if (!existingPathNames.has(name)) {
+      pathParams.push({
+        name,
+        in: 'path',
+        required: true,
+        description: undefined,
+        type: 'string',
+      });
+      existingPathNames.add(name);
+    }
+  }
+
   return {
     pathParams,
     queryParams,
