@@ -17,12 +17,39 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const HOME_KEY = '/group/home';
 
+/** sessionStorage keys for persisting opened tabs across page refresh. */
+const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
+const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
+
 /**
  * Strip the trailing `/doc` or `/debug` mode segment from a route key to
  * obtain the corresponding sidebar menu key.
  */
 const routeKeyToMenuKey = (key: string) =>
   key.endsWith('/doc') ? key.slice(0, -4) : key.endsWith('/debug') ? key.slice(0, -6) : key;
+
+interface PersistedTab {
+  key: string;
+  label: string;
+}
+
+/** Read persisted tabs from sessionStorage, filtering out anything invalid. */
+function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | null {
+  try {
+    const rawItems = sessionStorage.getItem(STORAGE_KEY_ITEMS);
+    if (!rawItems) return null;
+    const parsed = JSON.parse(rawItems);
+    if (!Array.isArray(parsed)) return null;
+    const items: PersistedTab[] = parsed.filter(
+      (x) => x && typeof x.key === 'string' && typeof x.label === 'string',
+    );
+    if (items.length === 0) return null;
+    const activeKey = sessionStorage.getItem(STORAGE_KEY_ACTIVE) ?? items[0].key;
+    return { items, activeKey };
+  } catch {
+    return null;
+  }
+}
 
 const footerStyle: React.CSSProperties = {
   textAlign: 'center',
@@ -46,19 +73,51 @@ const AppInner: React.FC = () => {
     token: { colorBgContainer },
   } = theme.useToken();
 
-  const [selectedKey, setSelectedKey] = useState(HOME_KEY);
-  const [activeKey, setActiveKey] = useState(HOME_KEY);
-  const [items, setItems] = useState([{ label: t('app.tab.home'), children: '', key: HOME_KEY }]);
+  /**
+   * Initialize tab state from sessionStorage so that a page refresh keeps
+   * every previously opened tab (Home is always guaranteed to exist). If
+   * no persisted state exists, fall back to a fresh Home-only layout.
+   */
+  const [selectedKey, setSelectedKey] = useState<string>(() => {
+    const persisted = loadPersistedTabs();
+    return persisted ? routeKeyToMenuKey(persisted.activeKey) : HOME_KEY;
+  });
+  const [activeKey, setActiveKey] = useState<string>(() => {
+    const persisted = loadPersistedTabs();
+    return persisted ? persisted.activeKey : HOME_KEY;
+  });
+  const [items, setItems] = useState<Array<{ label: string; children: string; key: string }>>(() => {
+    const persisted = loadPersistedTabs();
+    if (persisted) {
+      const hasHome = persisted.items.some((p) => p.key === HOME_KEY);
+      const withHome = hasHome
+        ? persisted.items
+        : [{ label: t('app.tab.home'), key: HOME_KEY }, ...persisted.items];
+      return withHome.map((p) => ({ label: p.label, children: '', key: p.key }));
+    }
+    return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
+  });
   const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
 
   /**
-   * Restore the open tab from the URL on first load (or hard refresh).
-   *
-   * Without this, a deep-linked route like `/group/tag/op/debug` would render
-   * its page but leave the Tabs bar showing only "Home" because `items` is
-   * seeded from an empty initial state. We wait until `activeGroup.apis` is
-   * populated (OpenAPI fetch completed) so we can derive the proper tab title,
-   * then inject the matching tab once per page load.
+   * Persist `items` and `activeKey` to sessionStorage on every change so the
+   * next hard refresh can rebuild the Tabs bar. `children` is excluded — it
+   * holds rendered JSX (and is always replaced by the <Outlet/> at render).
+   */
+  useEffect(() => {
+    try {
+      const payload: PersistedTab[] = items.map((p) => ({ key: p.key, label: p.label }));
+      sessionStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(payload));
+      sessionStorage.setItem(STORAGE_KEY_ACTIVE, activeKey);
+    } catch {
+      // storage might be disabled or quota exceeded — not fatal
+    }
+  }, [items, activeKey]);
+
+  /**
+   * If the URL points at an operation route but the corresponding tab was
+   * not restored from sessionStorage (e.g. direct deep-link from another
+   * place), inject it once `activeGroup.apis` is loaded.
    */
   const restoredRef = useRef(false);
   useEffect(() => {
