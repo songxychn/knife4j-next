@@ -68,6 +68,8 @@ export interface SchemaObject {
   $ref?: string;
   required?: string[];
   enum?: unknown[];
+  readOnly?: boolean;
+  writeOnly?: boolean;
 }
 
 export interface ParameterObject {

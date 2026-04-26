@@ -18,7 +18,7 @@ import type {
   SchemaResolveContext,
 } from './types';
 import { resolveRef, dereference } from './resolveRef';
-import { buildSchemaExample } from './schemaExample';
+import { buildSchemaExample, filterSchemaByAccessMode } from './schemaExample';
 
 // ─── 内部类型 ─────────────────────────────────────────
 
@@ -157,6 +157,21 @@ function extractFileFields(schema: Record<string, unknown> | undefined): string[
   return files;
 }
 
+/** 从 OAS3 requestBody encoding 中提取 contentType=application/json 的字段名 */
+function extractJsonEncodingFields(encoding: Record<string, unknown> | undefined): string[] {
+  if (!encoding) return [];
+  const jsonFields: string[] = [];
+  for (const [fieldName, enc] of Object.entries(encoding)) {
+    if (enc && typeof enc === 'object') {
+      const ct = (enc as Record<string, unknown>).contentType;
+      if (typeof ct === 'string' && ct.toLowerCase().includes('application/json')) {
+        jsonFields.push(fieldName);
+      }
+    }
+  }
+  return jsonFields;
+}
+
 /** 解析 $ref 参数 */
 function resolveParameter(param: OAS3Param | OAS2Param, doc: DocLike): OAS3Param | OAS2Param {
   if (!param.$ref) return param;
@@ -255,7 +270,9 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
         mediaType,
         category: classifyContentType(mediaType),
         schema: schema ?? raw.schema,
-        exampleValue: schema ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2) : undefined,
+        exampleValue: schema
+          ? JSON.stringify(buildSchemaExample(filterSchemaByAccessMode(schema, 'request') ?? schema, ctx), null, 2)
+          : undefined,
       });
       bodyRequired = Boolean(raw.required);
       continue;
@@ -367,17 +384,24 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     if (rb.content) {
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
         const schema = mediaObj.schema ? dereference(mediaObj.schema, doc as Record<string, unknown>) : undefined;
+        const isMultipart = classifyContentType(mediaType) === 'multipart';
+        const encoding = mediaObj.encoding as Record<string, unknown> | undefined;
 
         bodyContents.push({
           mediaType,
           category: classifyContentType(mediaType),
           schema,
           exampleValue: schema
-            ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2)
+            ? JSON.stringify(
+                buildSchemaExample(filterSchemaByAccessMode(schema, 'request') ?? schema, ctx),
+                null,
+                2,
+              )
             : mediaObj.example
             ? JSON.stringify(mediaObj.example, null, 2)
             : undefined,
-          fileFields: classifyContentType(mediaType) === 'multipart' ? extractFileFields(schema) : undefined,
+          fileFields: isMultipart ? extractFileFields(schema) : undefined,
+          jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
         });
       }
     }

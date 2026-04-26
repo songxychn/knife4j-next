@@ -51,4 +51,4 @@ export {
 export type { BuildRequestOptions } from './requestBuilder';
 
 // schemaExample
-export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';
+export { buildSchemaExample, buildSchemaFieldTree, filterSchemaByAccessMode } from './schemaExample';

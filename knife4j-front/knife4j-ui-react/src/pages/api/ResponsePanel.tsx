@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -37,6 +37,13 @@ export interface DebugResponsePayload {
   kind: 'json' | 'image' | 'text' | 'binary';
 }
 
+/** A single SSE data event received from a text/event-stream response. */
+export interface SseEvent {
+  id: number;
+  data: string;
+  timestamp: number;
+}
+
 interface ResponsePanelProps {
   /** completed response payload; `null` means no response yet */
   response: DebugResponsePayload | null;
@@ -48,6 +55,10 @@ interface ResponsePanelProps {
   operation?: MenuOperation;
   /** full swagger doc (for $ref resolution) */
   swaggerDoc?: SwaggerDoc | null;
+  /** SSE events received so far (text/event-stream responses) */
+  sseEvents?: SseEvent[];
+  /** true while SSE stream is still open */
+  sseStreaming?: boolean;
 }
 
 const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
@@ -140,7 +151,7 @@ const jsonDescStyle: React.CSSProperties = {
   color: '#8c8c8c',
 };
 
-export default function ResponsePanel({ response, error, builtRequest, operation, swaggerDoc }: ResponsePanelProps) {
+export default function ResponsePanel({ response, error, builtRequest, operation, swaggerDoc, sseEvents = [], sseStreaming = false }: ResponsePanelProps) {
   const { t } = useTranslation();
   const [activeKey, setActiveKey] = useState<string>('content');
   const [showDescription, setShowDescription] = useState(true);
@@ -198,7 +209,7 @@ export default function ResponsePanel({ response, error, builtRequest, operation
     [response],
   );
 
-  if (!response && !error) return null;
+  if (!response && !error && sseEvents.length === 0 && !sseStreaming) return null;
 
   return (
     <div>
@@ -210,6 +221,10 @@ export default function ResponsePanel({ response, error, builtRequest, operation
           message={t('apiDebug.error.title')}
           description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>}
         />
+      )}
+
+      {(sseEvents.length > 0 || sseStreaming) && (
+        <SsePanel events={sseEvents} streaming={sseStreaming} />
       )}
 
       {response && (
@@ -369,4 +384,71 @@ function ContentTab({
 
   // text & unknown textual fallback
   return <pre style={preStyle}>{response.rawText}</pre>;
+}
+
+const sseContainerStyle: React.CSSProperties = {
+  background: '#0d1117',
+  borderRadius: 6,
+  padding: '12px 16px',
+  maxHeight: 480,
+  overflowY: 'auto',
+  fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
+  fontSize: 13,
+  lineHeight: 1.6,
+};
+
+const sseLineStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  borderBottom: '1px solid #21262d',
+  padding: '4px 0',
+};
+
+const sseTimestampStyle: React.CSSProperties = {
+  color: '#8b949e',
+  flexShrink: 0,
+  userSelect: 'none',
+};
+
+const sseDataStyle: React.CSSProperties = {
+  color: '#e6edf3',
+  wordBreak: 'break-all',
+  whiteSpace: 'pre-wrap',
+};
+
+function formatTimestamp(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+}
+
+function SsePanel({ events, streaming }: { events: SseEvent[]; streaming: boolean }) {
+  const { t } = useTranslation();
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [events.length]);
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 8 }}>
+        <Text strong>{t('apiDebug.sse.title')}</Text>
+        {streaming && <Tag color="processing">{t('apiDebug.sse.streaming')}</Tag>}
+        {!streaming && events.length > 0 && <Tag color="success">{t('apiDebug.sse.done')}</Tag>}
+        <Text type="secondary">{t('apiDebug.sse.eventCount', { count: events.length })}</Text>
+      </Space>
+      <div style={sseContainerStyle}>
+        {events.length === 0 && streaming && (
+          <span style={{ color: '#8b949e' }}>{t('apiDebug.sse.waiting')}</span>
+        )}
+        {events.map((ev) => (
+          <div key={ev.id} style={sseLineStyle}>
+            <span style={sseTimestampStyle}>{formatTimestamp(ev.timestamp)}</span>
+            <span style={sseDataStyle}>{ev.data}</span>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
 }

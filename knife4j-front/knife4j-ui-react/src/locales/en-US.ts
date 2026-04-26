@@ -67,6 +67,10 @@ const enUS = {
   'apiDoc.col.statusCode': 'Status Code',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': 'Field Name',
+  'apiDoc.col.accessMode': 'Access',
+  'apiDoc.accessMode.readOnly': 'ReadOnly',
+  'apiDoc.accessMode.writeOnly': 'WriteOnly',
+  'apiDoc.responseBodyFields': 'Response Body Fields',
 
   // ApiDoc — copy actions (TASK-042)
   'apiDoc.copy.markdown': 'Copy Markdown',
@@ -103,6 +107,12 @@ const enUS = {
   'apiDebug.noHeaderParams': 'No header parameters',
   'apiDebug.noBody': 'This API has no request body',
   'apiDebug.send': 'Send',
+  'apiDebug.sse.abort': 'Abort',
+  'apiDebug.sse.title': 'SSE Event Stream',
+  'apiDebug.sse.streaming': 'Streaming',
+  'apiDebug.sse.done': 'Done',
+  'apiDebug.sse.waiting': 'Waiting for events...',
+  'apiDebug.sse.eventCount': '{{count}} event(s)',
   'apiDebug.sending': 'Sending...',
   'apiDebug.error.title': 'Request failed',
   'apiDebug.response.headers': 'Response Headers',
@@ -135,6 +145,7 @@ const enUS = {
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
+  'apiDebug.body.jsonPart.placeholder': 'Enter JSON for this part',
 
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': 'Preview',

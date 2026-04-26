@@ -2,6 +2,7 @@
  * Schema 示例值生成与字段树递归（TASK-030 完整实现）
  *
  * 同时兼容 OAS2（definitions）与 OAS3（components.schemas），通过 resolveRef 统一引用解析。
+ * 提供 filterSchemaByAccessMode 用于按请求/响应模式过滤 readOnly/writeOnly 字段。
  *
  * 规则：
  * - 优先级：example > default > enum[0] > 按 type/format 推断
@@ -476,4 +477,32 @@ function buildSingleFieldNode(
   }
 
   return node;
+}
+
+// ─── filterSchemaByAccessMode ─────────────────────────────────────────────────
+
+/**
+ * 按访问模式过滤 schema 的 properties：
+ * - 'request'：移除 readOnly: true 的字段（客户端不应发送）
+ * - 'response'：移除 writeOnly: true 的字段（服务端不应返回）
+ *
+ * 只处理顶层 properties，不递归（调用方可在需要时递归调用）。
+ * 返回新对象，不修改原始 schema。
+ */
+export function filterSchemaByAccessMode(
+  schema: Record<string, unknown> | undefined,
+  mode: 'request' | 'response',
+): Record<string, unknown> | undefined {
+  if (!schema) return schema;
+  const props = schema.properties as Record<string, Record<string, unknown>> | undefined;
+  if (!props) return schema;
+
+  const filtered: Record<string, Record<string, unknown>> = {};
+  for (const [key, propSchema] of Object.entries(props)) {
+    if (mode === 'request' && propSchema.readOnly === true) continue;
+    if (mode === 'response' && propSchema.writeOnly === true) continue;
+    filtered[key] = propSchema;
+  }
+
+  return { ...schema, properties: filtered };
 }

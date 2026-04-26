@@ -67,6 +67,10 @@ const zhCN = {
   'apiDoc.col.statusCode': '状态码',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': '字段名',
+  'apiDoc.col.accessMode': '访问模式',
+  'apiDoc.accessMode.readOnly': '只读',
+  'apiDoc.accessMode.writeOnly': '只写',
+  'apiDoc.responseBodyFields': '响应体字段',
 
   // ApiDoc — 复制操作 (TASK-042)
   'apiDoc.copy.markdown': '复制文档 Markdown',
@@ -103,6 +107,12 @@ const zhCN = {
   'apiDebug.noHeaderParams': '无 header 参数',
   'apiDebug.noBody': '该接口无请求体',
   'apiDebug.send': '发送',
+  'apiDebug.sse.abort': '终止连接',
+  'apiDebug.sse.title': 'SSE 事件流',
+  'apiDebug.sse.streaming': '接收中',
+  'apiDebug.sse.done': '已完成',
+  'apiDebug.sse.waiting': '等待事件...',
+  'apiDebug.sse.eventCount': '共 {{count}} 条事件',
   'apiDebug.sending': '请求中...',
   'apiDebug.error.title': '请求失败',
   'apiDebug.response.headers': '响应 Headers',
@@ -135,6 +145,7 @@ const zhCN = {
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',
+  'apiDebug.body.jsonPart.placeholder': '请输入此 part 的 JSON 内容',
 
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': '请求预览',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -18,7 +18,7 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import { SendOutlined, UploadOutlined } from '@ant-design/icons';
+import { SendOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
@@ -44,7 +44,7 @@ import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
-import ResponsePanel, { type DebugResponsePayload } from './ResponsePanel';
+import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -184,6 +184,8 @@ interface SchemaFieldRow {
   example?: unknown;
   enum?: unknown[];
   isFile: boolean;
+  /** encoding.contentType=application/json — render as JSON TextArea */
+  isJson: boolean;
 }
 
 /**
@@ -196,8 +198,11 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   const props = schema.properties as Record<string, Record<string, unknown>>;
   const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
   const fileFields = new Set(bodyContent.fileFields ?? []);
+  const jsonFields = new Set(bodyContent.jsonFields ?? []);
 
-  return Object.entries(props).map(([name, prop]) => {
+  return Object.entries(props)
+    .filter(([, prop]) => prop.readOnly !== true)
+    .map(([name, prop]) => {
     const t = (prop.type as string) ?? 'string';
     const isFile =
       fileFields.has(name) ||
@@ -215,6 +220,7 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
       example: prop.example,
       enum: Array.isArray(prop.enum) ? prop.enum : undefined,
       isFile,
+      isJson: !isFile && jsonFields.has(name),
     };
   });
 }
@@ -222,6 +228,7 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
 /** 根据 SchemaFieldRow 的类型推断初始值 */
 function initialFieldValue(field: SchemaFieldRow): string {
   if (field.isFile) return '';
+  if (field.isJson) return field.example !== undefined ? JSON.stringify(field.example, null, 2) : '{}';
   if (field.example !== undefined && field.example !== null) return String(field.example);
   if (field.default !== undefined && field.default !== null) return String(field.default);
   if (field.enum && field.enum.length > 0) return String(field.enum[0]);
@@ -734,6 +741,11 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
               {t('apiDebug.body.file')}
             </Tag>
           )}
+          {record.isJson && (
+            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
+              JSON
+            </Tag>
+          )}
         </Space>
       ),
     },
@@ -764,6 +776,18 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
                 {t('apiDebug.body.selectFile')}
               </Button>
             </Upload>
+          );
+        }
+        if (record.isJson) {
+          return (
+            <TextArea
+              size="small"
+              value={formFields[record.name] ?? '{}'}
+              onChange={(event) => updateField(record.name, event.target.value)}
+              placeholder={t('apiDebug.body.jsonPart.placeholder')}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
+            />
           );
         }
         return (
@@ -1030,6 +1054,11 @@ export default function ApiDebug() {
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
 
+  // ── SSE streaming state ──
+  const [sseEvents, setSseEvents] = useState<SseEvent[]>([]);
+  const [sseStreaming, setSseStreaming] = useState(false);
+  const sseAbortRef = useRef<AbortController | null>(null);
+
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
@@ -1099,6 +1128,12 @@ export default function ApiDebug() {
     setError(null);
     setValidationErrors([]);
     setActiveTab(undefined);
+    setSseEvents([]);
+    setSseStreaming(false);
+    if (sseAbortRef.current) {
+      sseAbortRef.current.abort();
+      sseAbortRef.current = null;
+    }
   }, [debugModel, operation]);
 
   const updateValue = (param: DebugParam, next: string) => {
@@ -1307,6 +1342,7 @@ export default function ApiDebug() {
 
   const collectFormValues = (): DebugFormValues => {
     const category = getCurrentCategory();
+    const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
     return {
       pathParams: collectForIn(debugModel.pathParams),
       queryParams: collectForIn(debugModel.queryParams),
@@ -1316,6 +1352,7 @@ export default function ApiDebug() {
       body: category === 'json' || category === 'raw' ? body : undefined,
       formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
+      jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
     };
   };
 
@@ -1376,10 +1413,16 @@ export default function ApiDebug() {
       if (isMultipart) {
         // 构建 FormData
         const fd = new FormData();
-        // 添加普通字段
+        const jsonFieldSet = new Set(formValues.jsonFields ?? []);
+        // 添加普通字段（非 JSON part）
         for (const [name, value] of Object.entries(formFields)) {
           if (value !== undefined && value !== '') {
-            fd.append(name, value);
+            if (jsonFieldSet.has(name)) {
+              // JSON-encoded part: append as Blob with application/json content type
+              fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
+            } else {
+              fd.append(name, value);
+            }
           }
         }
         // 添加文件字段
@@ -1398,15 +1441,61 @@ export default function ApiDebug() {
         }
       }
 
+      // SSE: use AbortController so user can cancel
+      const abortCtrl = new AbortController();
+      sseAbortRef.current = abortCtrl;
+      init.signal = abortCtrl.signal;
+
       const res = await fetch(built.url, init);
       const responseHeaders: Record<string, string> = {};
       res.headers.forEach((value, key) => {
         responseHeaders[key] = value;
       });
 
-      // Read once as blob so we can branch by content-type without draining the stream twice.
+      const contentType = responseHeaders['content-type'] ?? '';
+
+      // SSE path: stream text/event-stream line by line
+      if (contentType.includes('text/event-stream')) {
+        setLoading(false);
+        setSseStreaming(true);
+        setSseEvents([]);
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error('Response body is not readable');
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventId = 0;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+              if (line.startsWith('data:')) {
+                const data = line.slice(5).trimStart();
+                setSseEvents((prev) => [
+                  ...prev,
+                  { id: eventId++, data, timestamp: Date.now() },
+                ]);
+              }
+            }
+          }
+          // flush remaining buffer
+          if (buffer.startsWith('data:')) {
+            const data = buffer.slice(5).trimStart();
+            setSseEvents((prev) => [...prev, { id: eventId++, data, timestamp: Date.now() }]);
+          }
+        } finally {
+          reader.releaseLock();
+          setSseStreaming(false);
+          sseAbortRef.current = null;
+        }
+        return;
+      }
+
+      // Non-SSE path: read once as blob
       const blob = await res.blob();
-      const contentType = responseHeaders['content-type'] ?? blob.type ?? '';
       const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(blob, contentType, built.url);
 
       setResponse({
@@ -1423,11 +1512,24 @@ export default function ApiDebug() {
         kind,
       });
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (reason instanceof Error && reason.name === 'AbortError') {
+        // user aborted SSE — not an error
+      } else {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
     } finally {
       setLoading(false);
+      setSseStreaming(false);
     }
   };
+
+  const handleAbortSse = useCallback(() => {
+    if (sseAbortRef.current) {
+      sseAbortRef.current.abort();
+      sseAbortRef.current = null;
+    }
+    setSseStreaming(false);
+  }, []);
 
   /** 复制 curl 命令到剪贴板 */
   const handleCopyCurl = (curl: string) => {
@@ -1582,9 +1684,14 @@ export default function ApiDebug() {
           onChange={(event) => handlePathInputChange(event.target.value)}
           style={{ flex: 1 }}
         />
-        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
+        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading} disabled={sseStreaming}>
           {t('apiDebug.send')}
         </Button>
+        {sseStreaming && (
+          <Button danger icon={<StopOutlined />} onClick={handleAbortSse}>
+            {t('apiDebug.sse.abort')}
+          </Button>
+        )}
       </Space.Compact>
 
       <Tabs
@@ -1604,6 +1711,8 @@ export default function ApiDebug() {
         builtRequest={builtRequest}
         operation={operation}
         swaggerDoc={swaggerDoc}
+        sseEvents={sseEvents}
+        sseStreaming={sseStreaming}
       />
     </div>
   );

@@ -26,6 +26,7 @@ import io.swagger.v3.oas.models.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.customizers.GlobalOperationCustomizer;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.method.HandlerMethod;
 
 /**
@@ -38,6 +39,12 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
 
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {
+        // Unwrap CGLIB proxy (e.g. created by @Validated) to get the original user class.
+        // Without this, getBeanType() returns "Foo$$SpringCGLIB$$0" and annotation lookups
+        // on the proxy class may miss annotations declared on the original class.
+        // See: upstream #811
+        Class<?> beanType = ClassUtils.getUserClass(handlerMethod.getBeanType());
+
         // 解析支持作者、接口排序
         // https://gitee.com/xiaoym/knife4j/issues/I6FB9I
         ApiOperationSupport operationSupport = AnnotationUtils.findAnnotation(handlerMethod.getMethod(), ApiOperationSupport.class);
@@ -51,7 +58,7 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
             }
         } else {
             // 如果方法级别不存在，再找一次class级别的
-            ApiSupport apiSupport = AnnotationUtils.findAnnotation(handlerMethod.getBeanType(), ApiSupport.class);
+            ApiSupport apiSupport = AnnotationUtils.findAnnotation(beanType, ApiSupport.class);
             if (apiSupport != null) {
                 String author = ExtensionUtils.getAuthor(apiSupport);
                 if (StrUtil.isNotBlank(author)) {
@@ -64,7 +71,7 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
         }
 
         // 方法重名则进行处理，防止url覆盖
-        String className = handlerMethod.getBeanType().getSimpleName();
+        String className = beanType.getSimpleName();
         String existingId = operation.getOperationId();
         String methodName = handlerMethod.getMethod().getName();
 

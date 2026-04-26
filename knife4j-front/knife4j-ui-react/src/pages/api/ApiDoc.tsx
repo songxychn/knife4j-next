@@ -32,6 +32,8 @@ interface BodyRow {
   type: string;
   required: boolean;
   description: string;
+  readOnly?: boolean;
+  writeOnly?: boolean;
 }
 
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
@@ -55,13 +57,35 @@ function schemaToBodyRows(schema: SchemaObject, doc: Pick<SwaggerDoc, 'component
   const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
   if (!resolved?.properties) return [];
   const requiredSet = new Set(resolved.required ?? []);
-  return Object.entries(resolved.properties).map(([name, prop]) => ({
-    key: name,
-    name,
-    type: schemaName(prop),
-    required: requiredSet.has(name),
-    description: prop.description ?? '',
-  }));
+  return Object.entries(resolved.properties)
+    .filter(([, prop]) => !prop.writeOnly)
+    .map(([name, prop]) => ({
+      key: name,
+      name,
+      type: schemaName(prop),
+      required: requiredSet.has(name),
+      description: prop.description ?? '',
+      readOnly: prop.readOnly ? true : undefined,
+    }));
+}
+
+function schemaToResponseBodyRows(
+  schema: SchemaObject,
+  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
+): BodyRow[] {
+  const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
+  if (!resolved?.properties) return [];
+  const requiredSet = new Set(resolved.required ?? []);
+  return Object.entries(resolved.properties)
+    .filter(([, prop]) => !prop.readOnly)
+    .map(([name, prop]) => ({
+      key: name,
+      name,
+      type: schemaName(prop),
+      required: requiredSet.has(name),
+      description: prop.description ?? '',
+      writeOnly: prop.writeOnly ? true : undefined,
+    }));
 }
 
 function firstRequestSchema(
@@ -184,6 +208,17 @@ export default function ApiDoc() {
           <Badge status="default" text={t('schema.required.no')} />
         ),
     },
+    {
+      title: t('apiDoc.col.accessMode'),
+      dataIndex: 'readOnly',
+      width: 90,
+      render: (_value, record) =>
+        record.readOnly ? (
+          <Tag color="orange">{t('apiDoc.accessMode.readOnly')}</Tag>
+        ) : record.writeOnly ? (
+          <Tag color="blue">{t('apiDoc.accessMode.writeOnly')}</Tag>
+        ) : null,
+    },
     { title: t('apiDoc.col.description'), dataIndex: 'description' },
   ];
 
@@ -216,6 +251,7 @@ export default function ApiDoc() {
   }));
   const bodySchema = firstRequestSchema(op.requestBody);
   const bodyRows = bodySchema ? schemaToBodyRows(bodySchema, swaggerDoc) : [];
+  const responseBodyRows = bodySchema ? schemaToResponseBodyRows(bodySchema, swaggerDoc) : [];
   const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
     key: statusCode,
     statusCode,
@@ -274,6 +310,21 @@ export default function ApiDoc() {
         bordered
         locale={{ emptyText: bodySchema ? t('apiDoc.body.notExpandable') : t('apiDoc.noBody') }}
       />
+
+      {responseBodyRows.length > 0 && (
+        <>
+          <Title level={5} style={{ marginTop: 24 }}>
+            {t('apiDoc.responseBodyFields')}
+          </Title>
+          <Table<BodyRow>
+            columns={bodyColumns}
+            dataSource={responseBodyRows}
+            pagination={false}
+            size="small"
+            bordered
+          />
+        </>
+      )}
 
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.responseStructure')}
