@@ -41,9 +41,14 @@
     - 追加审查分配字段：Task id / Branch or diff to review / Changed files / Claimed behavior change / Validation already run / Known risks / Reviewer constraints
     - reviewer 返回 findings + recommendation（approve/revise/block）
     - revise 时打回 worker 修复，block 时通知维护者，approve 时继续开 PR
-11. coordinator 根据 worker handoff 结果，更新 issue 状态（label + 评论），不再修改 .agent/TASKS.md 或 .agent/PROGRESS.md。
+11. coordinator 根据 worker handoff 结果，在 issue 评论里记录进度（不再修改 .agent/TASKS.md 或 .agent/PROGRESS.md）。注意此时还不要打 `status:review`，等 CI 结果。
 12. 任务可审查时创建或更新 PR。创建 PR 后，立即通过 Telegram 通知维护者：
     `openclaw message send --account knife4j-next-bot --channel telegram --target 6358501334 --message "[TASK-XXX] PR #N 已创建：<PR 链接>"`
+13. 等待 PR CI 达到终态（见 .agent/RUNBOOK.md “PR 后 CI 验证”节）：
+    - 轮询：`gh pr checks <N> --watch`
+    - 全绿：`gh issue edit <N> --remove-label status:in-progress --add-label status:review`，并在 issue 评论声称实现完成
+    - 任一 check 红：`gh run view <run-id> --log-failed` 定位后在**同一分支**修复，重新等 CI；第二次仍红则按 .agent/SERVER_PLAYBOOK.md 的重试上限执行
+    - 不要在 CI 红的情况下把 issue 标为 `status:review`。CI 未终态前也不要切下一个任务
 
 安全规则：
 - 不要直接 push 到 master。
@@ -58,11 +63,12 @@
 - 任务状态通过 GitHub Issue label 操作，不再写入 .agent/TASKS.md 或 .agent/PROGRESS.md。
 - 状态变更命令：
   - 拾取：`gh issue edit <N> --add-label status:in-progress`
-  - 完成：`gh issue edit <N> --remove-label status:in-progress --add-label status:review`
+  - 完成（**仅在 PR CI 全绿后**）：`gh issue edit <N> --remove-label status:in-progress --add-label status:review`
   - 阻塞：`gh issue edit <N> --remove-label status:in-progress --add-label status:blocked`
   - 关闭：PR 合并后 `gh issue close <N>`
   - 进度评论：`gh issue comment <N> --body "..."`
 - 代码变更仍然走 feature branch → PR → merge 流程。
+- 本地验证 ≠ CI 验证。创建或更新 PR 后必须 `gh pr checks <N> --watch`，CI 红时同分支修复再推，不绕过。
 
 委派规则：
 - 对重文件阅读、有边界实现或独立探索使用 worker。
