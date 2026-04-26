@@ -8,6 +8,7 @@ import { GroupProvider, useGroup } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
+import knife4jMark from './assets/logo/knife4j-next-mark.svg';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -125,7 +126,7 @@ const AppInner: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            <img src="webjars/knife4j-ui-react/knife4j-next-mark.svg" style={{ width: 28, height: 28 }} />
+            <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
             {!collapsed && <span>{t('app.brand')}</span>}
           </div>
 

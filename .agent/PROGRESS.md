@@ -923,3 +923,24 @@ next:
 - 推送分支 → 开 PR（描述说明 TASK-039 包含两项改动）
 blockers:
 - none
+
+## 2026-04-26 TASK-039 (supplement 2)
+task: TASK-039
+agent: coordinator (interactive, user-authorized scope extension)
+branch: agent/TASK-039-vite-dev-proxy
+status: review
+summary:
+- 维护者本地启动 demo + vite dev server 后，左上角 logo 404
+- 根因：App.tsx 把 logo 硬编码成 webjars/knife4j-ui-react/knife4j-next-mark.svg 相对路径；该路径只在 Java webjar 挂载后才成立，且相对路径还会被 SPA 路由嵌套（/group/home/doc）污染
+- 修复：把 svg 搬到 src/assets/logo/，在 App.tsx 中通过 ES module import，Vite 会生成 new URL('...', import.meta.url)，在 dev 与 prod（base: './'）下都能正确解析
+- 同时删除了未被引用的 src/assets/logo/knife4j-next-logo.svg 拷贝（避免冗余）
+- 维护者授权将该修复一并合入 TASK-039 分支
+validation:
+- `npx prettier --check src/App.tsx` → pass
+- `npx tsc --noEmit` → pass
+- `npx eslint src/App.tsx` → pass
+- `npx vite build` → pass；产物多出 dist/assets/knife4j-next-mark.svg（0.63 kB）
+next:
+- 推送分支 → 开 PR（描述说明 TASK-039 包含三项改动：vite proxy / demo pom Java 17 / logo 路径修复）
+blockers:
+- none
