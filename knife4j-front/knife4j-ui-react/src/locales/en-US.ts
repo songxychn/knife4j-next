@@ -221,6 +221,11 @@ const enUS = {
   'officeDoc.btn.html': 'Download HTML',
   'officeDoc.btn.word': 'Download Word (.doc)',
 
+  // Tab context menu
+  'tab.context.closeCurrent': 'Close Current',
+  'tab.context.closeOther': 'Close Others',
+  'tab.context.closeAll': 'Close All',
+
   // SettingsDrawer
   'settings.title': 'Settings',
   'settings.tab.authorize': 'Authorize',
