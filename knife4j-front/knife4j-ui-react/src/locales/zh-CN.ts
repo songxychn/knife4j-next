@@ -69,12 +69,10 @@ const zhCN = {
   'apiDoc.col.fieldName': '字段名',
 
   // ApiDoc — 复制操作 (TASK-042)
-  'apiDoc.copy.endpoint': '复制接口',
-  'apiDoc.copy.endpoint.success': '接口已复制',
   'apiDoc.copy.markdown': '复制文档 Markdown',
   'apiDoc.copy.markdown.success': 'Markdown 已复制',
-  'apiDoc.copy.url': '复制地址',
-  'apiDoc.copy.url.success': '地址已复制',
+  'apiDoc.copy.url': '复制本页地址',
+  'apiDoc.copy.url.success': '本页地址已复制',
   'apiDoc.copy.failed': '复制失败，请手动选择文本',
 
   // Operation mode tabs (doc / debug)
