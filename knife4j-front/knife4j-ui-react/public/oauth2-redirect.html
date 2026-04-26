@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>OAuth2 Redirect — Knife4j</title>
+</head>
+<body>
+<script>
+(function () {
+  /**
+   * OAuth2 redirect handler for Knife4j Next (React UI).
+   *
+   * Supports:
+   *   - implicit flow:           access_token in URL fragment (#access_token=...)
+   *   - authorization_code flow: code in URL query (?code=...)
+   *
+   * Protocol:
+   *   Parent window opens this page as a popup and listens for a postMessage.
+   *   This page resolves the token (or exchanges the code) then posts the result
+   *   back to window.opener and closes itself.
+   *
+   * postMessage payload (success):
+   *   { type: 'knife4j:oauth2:token', accessToken: string, tokenType: string }
+   *
+   * postMessage payload (error):
+   *   { type: 'knife4j:oauth2:error', error: string, errorDescription?: string }
+   *
+   * For authorization_code flow the parent must have stored exchange config in
+   * sessionStorage under the key "knife4j:oauth2:pending:<state>" before opening
+   * the popup:
+   *   { tokenUrl, clientId, clientSecret, redirectUri }
+   */
+
+  var MSG_TOKEN = 'knife4j:oauth2:token';
+  var MSG_ERROR = 'knife4j:oauth2:error';
+  var STORAGE_PREFIX = 'knife4j:oauth2:pending:';
+
+  function getFromQuery(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  function getFromFragment(name) {
+    var hash = window.location.hash;
+    var fragment = hash.startsWith('#') ? hash.slice(1) : hash;
+    return new URLSearchParams(fragment).get(name);
+  }
+
+  // Legacy helper for error params (present in both flows via query string)
+  function getParam(name) {
+    return getFromQuery(name);
+  }
+
+  function postToOpener(payload) {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(payload, window.location.origin);
+    }
+    window.close();
+  }
+
+  function handleError(error, desc) {
+    postToOpener({ type: MSG_ERROR, error: error, errorDescription: desc || '' });
+  }
+
+  var href = window.location.href;
+
+  // Check for OAuth2 error response first (errors come via query string in both flows)
+  var oauthError = getParam('error');
+  if (oauthError) {
+    handleError(oauthError, getParam('error_description') || '');
+    return;
+  }
+
+  // implicit flow: access_token is in URL fragment only
+  var accessToken = getFromFragment('access_token');
+  var tokenType = getFromFragment('token_type') || 'Bearer';
+
+  // authorizationCode flow: code and state are in URL query string only
+  var code = getFromQuery('code');
+  var state = getFromQuery('state');
+
+  // ── Implicit flow ──────────────────────────────────────────────────────────
+  if (accessToken) {
+    // Send raw token only; requestBuilder.ts will prepend tokenType
+    postToOpener({
+      type: MSG_TOKEN,
+      accessToken: accessToken,
+      tokenType: tokenType
+    });
+    return;
+  }
+
+  // ── Authorization Code flow ────────────────────────────────────────────────
+  if (code) {
+    // Load exchange config stored by parent before opening popup
+    var configRaw = null;
+    if (state) {
+      try { configRaw = sessionStorage.getItem(STORAGE_PREFIX + state); } catch (e) {}
+    }
+    if (!configRaw) {
+      // Fallback: try without state key (single pending entry)
+      try { configRaw = sessionStorage.getItem(STORAGE_PREFIX + 'default'); } catch (e) {}
+    }
+
+    if (!configRaw) {
+      handleError('missing_config', 'No pending OAuth2 config found in sessionStorage');
+      return;
+    }
+
+    var config;
+    try { config = JSON.parse(configRaw); } catch (e) {
+      handleError('invalid_config', 'Failed to parse OAuth2 config from sessionStorage');
+      return;
+    }
+
+    // Clean up storage
+    if (state) {
+      try { sessionStorage.removeItem(STORAGE_PREFIX + state); } catch (e) {}
+    }
+    try { sessionStorage.removeItem(STORAGE_PREFIX + 'default'); } catch (e) {}
+
+    // Exchange code for token
+    var tokenUrl = config.tokenUrl;
+    var params = new URLSearchParams();
+    params.set('grant_type', 'authorization_code');
+    params.set('code', code);
+    params.set('redirect_uri', config.redirectUri || window.location.origin + window.location.pathname);
+    if (config.clientId) params.set('client_id', config.clientId);
+    if (config.clientSecret) params.set('client_secret', config.clientSecret);
+
+    fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.access_token) {
+          var tt = data.token_type || 'Bearer';
+          // Send raw token only; requestBuilder.ts will prepend tokenType
+          postToOpener({
+            type: MSG_TOKEN,
+            accessToken: data.access_token,
+            tokenType: tt
+          });
+        } else {
+          handleError(data.error || 'token_error', data.error_description || 'No access_token in response');
+        }
+      })
+      .catch(function (err) {
+        handleError('network_error', String(err));
+      });
+    return;
+  }
+
+  // Nothing useful in the URL
+  handleError('no_token_or_code', 'Neither access_token nor code found in redirect URL');
+})();
+</script>
+</body>
+</html>
