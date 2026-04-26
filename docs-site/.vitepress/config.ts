@@ -55,7 +55,8 @@ export default defineConfig({
           { text: '功能概览', link: '/guide/features' },
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '在线 Demo', link: '/guide/demo' },
-          { text: '迁移指引', link: '/guide/migration' }
+          { text: '从 upstream 迁移', link: '/guide/migration' },
+          { text: '从 Springfox 迁移到 OpenAPI3', link: '/guide/springfox-migration' }
         ]
       },
       {
@@ -63,7 +64,8 @@ export default defineConfig({
         items: [
           { text: 'Spring Cloud Gateway 聚合', link: '/guide/gateway' },
           { text: 'Disk / Nacos / Eureka 聚合', link: '/guide/aggregation' },
-          { text: 'Spring WebFlux 接入', link: '/guide/webflux' }
+          { text: 'Spring WebFlux 接入', link: '/guide/webflux' },
+          { text: '前端独立部署', link: '/guide/deployment' }
         ]
       },
       {
