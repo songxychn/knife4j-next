@@ -11,6 +11,7 @@ const enUS = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'Search API name/path...',
+  'sidebar.filter.all': 'All',
 
   // Home
   'home.noData': 'No data',

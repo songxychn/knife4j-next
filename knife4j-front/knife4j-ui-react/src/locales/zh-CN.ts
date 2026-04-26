@@ -11,6 +11,7 @@ const zhCN = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': '搜索接口名/路径...',
+  'sidebar.filter.all': '全部',
 
   // Home
   'home.noData': '暂无数据',
