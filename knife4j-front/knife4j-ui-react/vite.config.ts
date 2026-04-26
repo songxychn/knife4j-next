@@ -22,6 +22,9 @@ export default defineConfig({
       '/swagger-resources': { target: BACKEND, changeOrigin: true },
       '/swagger-ui': { target: BACKEND, changeOrigin: true },
       '/doc.html': { target: BACKEND, changeOrigin: true },
+      // Demo 后端业务接口（UserController 的 /api/user/**），
+      // 供「接口文档调试」在 dev 下直接命中后端。
+      '/api': { target: BACKEND, changeOrigin: true },
     },
   },
   build: {
