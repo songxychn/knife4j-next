@@ -715,12 +715,11 @@ notes:
 - 回滚路径：删除两份 `.npmrc`、还原 `knife4j-front/package-lock.json` 即可
 
 ### TASK-039
-status: review
+status: done
+merged_into: master@2026-04-26T06:53:17Z
+PR: https://github.com/songxychn/knife4j-next/pull/53
 area: ui-react
 title: 为 knife4j-ui-react 添加 Vite dev server proxy 配置（并含本地开发期 UI 修复）
-status: in_progress
-area: ui-react
-title: 为 knife4j-ui-react 添加 Vite dev server proxy 配置
 branch: agent/TASK-039-vite-dev-proxy
 depends_on:
 validation:
@@ -741,10 +740,11 @@ notes:
 - 随 PR 顺带修复：knife4j-demo pom Java 17、logo 在 Vite dev 下 404、GlobalParamProvider 作用域、ApiDebug "未找到调试接口" 一闪、左侧 DELETE 标签把接口名顶出对齐
 
 ### TASK-040
-status: in_progress
+status: review
+PR: https://github.com/songxychn/knife4j-next/pull/57
 area: ui-react
 title: React 前端接入 Markdown 渲染（接口描述 / tag 描述 / info.description）
-branch: agent/TASK-040-react-markdown
+branch: task040-markdown
 depends_on:
 validation:
 - `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`

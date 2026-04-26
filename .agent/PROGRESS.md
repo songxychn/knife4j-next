@@ -949,3 +949,19 @@ next:
 - reviewer 通过后开 PR
 blockers:
 - none
+
+---
+date: 2026-04-26T08:01Z
+task: TASK-039
+status: done
+summary: PR #53 merged into master at 2026-04-26T06:53:17Z. Vite dev proxy config complete.
+
+---
+date: 2026-04-26T08:05Z
+task: TASK-040
+status: review
+branch: task040-markdown
+PR: https://github.com/songxychn/knife4j-next/pull/57
+summary: Previous worker (SIGKILL) had completed implementation but not committed. Recovered: added marked+dompurify, Markdown.tsx component, updated Home.tsx and ApiDoc.tsx. Fixed unused Paragraph import. tsc --noEmit clean, vite build passed. PR #57 opened.
+next: await PR review/merge
+blockers: none
