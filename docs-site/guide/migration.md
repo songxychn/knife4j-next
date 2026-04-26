@@ -35,7 +35,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>4.6.0.3</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -57,7 +57,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>4.6.0.3</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -79,7 +79,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>4.6.0.3</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -125,7 +125,7 @@ knife4j:
 ## 迁移步骤
 
 1. **更新 Maven 依赖坐标**：全部 `com.github.xiaoymin` → `com.baizhukui`。
-2. **确认版本**：升到 `4.6.0.3`（包含 `/v2/api-docs;` 分号绕过修复、gateway context-path 修复、springdoc 2.8.9 兼容等）。
+2. **确认版本**：升到 `1.0.0`（正式版，包含全部 fork 安全修复、Boot 3.4/3.5 兼容、React UI 等）。
 3. **刷新依赖**：`mvn -U clean verify` 或 `mvn dependency:tree | grep knife4j` 检查无残留旧坐标。
 4. **启动验证**：访问 `/doc.html`，确认能看到接口列表。
 5. **如切到 OpenAPI3 系列 starter**：额外检查是否用了 Springfox 专属注解（`@DynamicParameters` 等），必要时替换为 DTO 实体类方式（参考 [注解速查](../reference/annotations)）。
@@ -174,4 +174,4 @@ curl -I http://localhost:8080/doc.html   # 403 即正确
 - **找不到 `com.baizhukui` 坐标**：刷新 Maven 中央仓库镜像；企业私服需要手动同步（Central 已发布）。
 - **doc.html 404**：见 [FAQ / SpringBoot 访问 doc.html 404](./faq#doc-html-404)。
 - **`enable-version` / `enable-debug` 等开关对新前端无效**：见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
-- **Gateway context-path 下聚合出错**：升级到 `4.6.0.2` 或以上即修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
+- **Gateway context-path 下聚合出错**：升级到 `1.0.0` 即修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。

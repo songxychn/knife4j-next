@@ -4,17 +4,65 @@ title: 发布说明
 
 # 发布说明
 
-本页记录 knife4j-next（`com.baizhukui` 坐标）所有版本的变更，以及上游 knife4j 的历史版本供参考。
+本页记录 knife4j-next 所有版本的变更。
 
 > 判断"值不值得升"？对照 [兼容矩阵](/reference/compatibility) 和 [迁移指引](/guide/migration)。
 
 ---
 
-## knife4j-next 版本（com.baizhukui）
+## knife4j-next 版本
 
-### 4.6.0.3
+### 1.0.0 <Badge type="tip" text="即将发布" />
+
+**knife4j-next 正式版** — 相比 Preview 版本新增了大量前端功能，是第一个推荐生产试用的版本。
+
+**前端（knife4j-ui-react）**
+
+- 国际化：接入 react-i18next，支持 zh-CN / en-US 双语
+- ApiDebug 参数渲染：类型感知输入（enum→Select, boolean→Switch, number→InputNumber, array→TextArea…）
+- ApiDebug 请求体：多 content-type 表单支持（JSON / form-data / x-www-form-urlencoded）
+- ApiDebug 请求预览：发送前校验 + cURL 预览 Tab
+- ApiDebug 响应面板：对齐 Vue2 版本，支持复制 Raw / cURL、下载、响应体大小显示
+- ApiDebug 认证 & 全局参数：合并注入请求（来源标签 interface / global / auth）
+- Authorize：按 securitySchemes 动态渲染，支持 OAuth2 授权码流程
+- ApiDoc 工具栏：复制 endpoint / Markdown / URL
+- 侧边栏：接口搜索结果高亮 + HTTP Method 过滤条
+- Tab 标签页：右键菜单（关闭当前 / 关闭其他 / 关闭全部）+ 刷新后状态持久化（sessionStorage）
+- Home 页：重设计，更丰富的 OpenAPI 概览（接口统计、分组信息、扩展属性）
+- OfficeDoc 离线文档：增强 responses 渲染 + schema description 工具函数
+- GlobalParam：布局改进
+- Settings 设置面板：新增 SettingsContext，整合更多配置项
+- Markdown 渲染：API / tag / info description 支持 Markdown 格式
+- 品牌标识：knife4j-next logo 替换旧 logo
+
+**前端基础设施**
+
+- knife4j-core：提取 debug 解析层到独立包（82 项单元测试覆盖 OAS2/OAS3 参数解析、路径替换、header 合并等）
+- knife4j-core：新增 buildSchemaExample & buildSchemaFieldTree（schema 示例构建器）
+- npm workspaces：统一 knife4j-front 包管理，workspace symlink 替代 tgz
+- Node.js 22 LTS：CI 和本地开发环境统一升级至 Node 22
+- Vite dev proxy：`/api` 转发到 demo 后端，本地开发无需手动配代理
+- Prettier + Spotless 格式化规范落地，CI 增加格式检查
+- `-parameters` 编译参数：修复 Springdoc 路径参数识别
+
+**Bug 修复**
+
+- 修复 core 层路径参数从 URL 模板兜底提取（处理 Springdoc 未声明的 path param）
+- 修复 ApiDebug notFound 闪烁 & 侧边栏 method 标签对齐
+- 修复 GlobalParamProvider 需提升到 app root 才能跨页面生效
+- 修复 Vite dev server 下品牌 logo 不显示
+- 修复 knife4j-demo 需设置 `knife4j-java.version=17`
+- 修复 CI npm registry URL 泄露私有源
+- 修复 Spotless `indentEmptyLines` 导致空行缩进不一致
+
+---
+
+### 4.6.0.3 <Badge type="warning" text="Preview" />
+
+> Preview 版本：前端首次集成 React UI 到 `knife4j-openapi3-ui` webjar。仅包含基础功能，不推荐生产使用。请升级到 `1.0.0`。
 
 **前端**
+
 - 集成 knife4j-ui-react（React 下一代前端）到 `knife4j-openapi3-ui` webjar
 - 新增设置面板（Header 右上角），整合 Authorize / GlobalParam / OfflineDoc 三个 Tab
 - 实现离线文档导出（HTML / Word）
@@ -24,40 +72,15 @@ title: 发布说明
 - 接入真实 API 数据层（OpenAPI 解析）
 
 **其他**
+
 - demo 模块：根路径 `/` 重定向至 `/doc.html`
 - demo 模块：接口示例改用 DTO + `@Schema` 注解
 
 ---
 
-### 4.6.0.2
-
-**Bug 修复**
-- 修复 `/v2/api-docs` 路径加分号可绕过 Basic 认证的安全漏洞（#886）
-- 修复 gateway `context-path` 配置导致聚合 host 缺少斜杠的问题（#954）
-
-**兼容性**
-- 兼容 Spring Boot 3.4.x / 3.5.x（升级 springdoc-openapi-jakarta 至 2.8.9）
-- 新增 Boot 3.5.0 smoke 测试模块
-
-**新增**
-- 新增 `knife4j-demo` 在线预览模块，支持 Docker 部署
-- 新增 KUtils 单元测试覆盖
-- 文档站（docs-site）导航修复
-- CI 全面迁移至 Node.js 24
-
----
-
-### 4.6.0.1
-
-- Maven `groupId` 已切到 `com.baizhukui`
-- 仓库已经补齐 GitHub Actions 构建与发布流程
-- 当前优先处理兼容性、回归问题和发版恢复
-
----
-
 ## 上游 knife4j 版本（com.github.xiaoymin）
 
-> 以下版本来自上游 `xiaoymin/knife4j`，knife4j-next 基于最后的 4.5.0 版本 fork。
+> 以下版本来自上游 `xiaoymin/knife4j`，knife4j-next 基于最后的 4.5.0 版本 fork。仅作历史参考。
 
 ### 4.5.0（2024-01-08）— 上游最终版本
 
@@ -74,113 +97,21 @@ title: 发布说明
 
 ---
 
-### 4.4.0（2023-12-10）— OpenAPI 自动注册
-
-- 修复 Eureka 大写服务名导致 gateway 聚合失败（Gitee#93）
-- 修复调试 body 请求文件下载乱码
-- 修复 gateway 聚合中 springdoc 子服务默认 `/default` 路径 404（Gitee#I7RAP7）
-- 修复 Boot 3 下 gateway Basic 认证密码不兼容（GitHub#PR652）
-- 修复 Boot 3 `javax.filter` 兼容性（GitHub#667）
-- 无默认分组时 UI 显示分组名称
-- 修复 `SecurityDocketUtils` 绑定 `SecurityContext` 到错误引用（Gitee#I88IYH）
-- 离线 HTML 文档改用国内 CDN（Gitee#I8C85P）
-- 升级 springdoc-openapi 至 **2.3.0**
-- 修复 `EnvironmentPostProcessor` 与用户 `defaultProperties` 冲突（GitHub#686）
-
----
-
-### 4.3.0（2023-08-06）— Gateway 极简配置
-
-- `excluded-services` 支持正则匹配（如 `order.*`）
-- 修复两个子服务根路由转发时只聚合一个的问题
-- 修复 `DiscoveryClient` 作为默认转发路由时聚合失败
-- 修复 Swagger 2 聚合失败
-- 手动模式支持 Swagger 2 与 OpenAPI 3 **混合聚合**
-- 修复全部子服务为 Swagger 2 时的 `contextPath` 错误
-- 重构 gateway 内部，`discover` 模式提供 4 种路由来源策略
-- 修复 `@ApiSupport` 不生效（Gitee#PR89）
-- 修复 Swagger model 枚举值不展开（Gitee#PR90）
-- 修复组件冲突（GitHub#620）
-- 新增 `title` 属性支持（Gitee#I7KUYP）
-
----
-
-### 4.2.0（2023-07-31）— Gateway 增强
-
-- 升级 Spring Boot 3 至 **3.0.7**，springdoc 至 **1.7.0** / **2.1.0**
-- `discover` 模式自动读取 gateway 路由 `prefix`
-- 支持多 group 类型（非仅 `default`）
-- 新增 `GatewayServiceExcludeService` SPI 用于排除服务（Gitee#I6YLMB）
-- 修复 Nginx / 二级代理路径问题（Gitee#I73AOG, #I6KYUJ; GitHub#609, #603, #586）
-- 新增 `tags-sorter` / `operations-sorter` 排序配置
-- gateway 组件支持 Basic 认证（GitHub#555）
-- 生成的 TypeScript 代码包含注释（Gitee#I6T78E, GitHub#568）
-- OpenAPI 2 `allOf` 支持（GitHub#PR589）
-- `jakarta` Basic 属性提示修复（GitHub#578）
-- **OpenAPI 3 开始支持 `@ApiSupport` 增强注解**（Gitee#I79WIJ）
-- `lombok`、`slf4j` 改为 `provided` scope（GitHub#591）
-
----
-
-### 4.1.0（2023-03-23）— 16 项 Bug 修复 + Gateway 发现模式
-
-- 修复 gateway 聚合 OpenAPI 3 丢失 `context-path`
-- 升级 springdoc-openapi 至 **1.6.15** / **2.0.4**
-- 修复 `knife4j-openapi3-jakarta-spring-boot-starter` IDEA 属性提示
-- 修复自定义文档分组加载 Bug（GitHub#PR525）
-- 修复 `knife4j-dependencies` 模块缺少版本号
-- 修复缺少 `springdoc-openapi-ui` 依赖时的 NPE
-- 修复 OAS3 参数缺少 `field-description`
-- 修复 OAS3 扩展属性（order、author 等）不生效（Gitee#I6FB9I）
-- 修复部分字段翻译问题（GitHub#540）
-- 修复 `production` 模式启用增强属性时的 NPE（GitHub#527）
-- 修复 OpenAPI 3 tag-name 兼容性（Gitee#I6JATP）
-- 修复 URL 参数实体类不展示参数描述（Gitee#I6H8CD）
-- 修复 OAS3 上传组件识别（Gitee#I6HAW0, GitHub#538）
-- **新增 Spring WebFlux starter 打包**（GitHub#521）
-- Basic 认证新增 `include` 属性用于自定义包含路径（GitHub#530）
-- 全局搜索支持 tag-name 模糊搜索（Gitee#I6NWV6）
-- **Gateway 新增 `discover` 服务发现聚合模式**
-
----
-
-### 4.0.0（2022-12-20）— 架构重写（大版本）
-
-- 统一所有模块版本号，**`artifactId` 名称变更**（Breaking Change）
-- **新增 Spring Boot 3 支持**，通过 `jakarta` starter
-- 采用 **springdoc-openapi** 作为 OpenAPI 3 底层框架（替代 springfox 3.0）
-- 保留 springfox 2.10.5 用于 OpenAPI 2 / Boot 2 路径
-- 重写 Knife4j-Desktop 聚合架构，发布官方 Docker 镜像
-- 全新模块布局：
-  - `knife4j-core`、`knife4j-dependencies`
-  - `knife4j-openapi2-ui`、`knife4j-openapi3-ui`
-  - `knife4j-openapi2-spring-boot-starter`（Boot < 3 + OAS2）
-  - `knife4j-openapi3-spring-boot-starter`（Boot < 3 + OAS3）
-  - `knife4j-openapi3-jakarta-spring-boot-starter`（Boot ≥ 3 + OAS3）
-  - `knife4j-gateway-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter`
-- **配置属性命名改为 kebab-case**（Breaking Change）
-  - 如 `enableSwaggerModels` → `enable-swagger-models`
-  - 如 `footerCustomContent` → `footer-custom-content`
-
----
-
 ## 版本号说明
 
-knife4j-next 的版本号遵循 `<upstream-version>.<patch>` 格式：
+knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号：
 
 ```
-4.5.0 → 上游 knife4j 4.5.0（最后上游版本）
-4.6.0.1 → fork 后第一个补丁版本
-4.6.0.2 → fork 后第二个补丁版本（安全修复 + Boot 3.4/3.5 兼容）
-4.6.0.3 → fork 后第三个补丁版本（React 前端集成）
+1.0.0 → knife4j-next 正式版（首个推荐生产试用的版本）
+4.6.0.3 → Preview 版本（仅包含基础 React 前端，不推荐生产使用）
 ```
 
-从 4.6.0.1 开始，Maven 坐标变更为 `com.baizhukui`：
+从 `1.0.0` 起，Maven 坐标为 `com.baizhukui`：
 ```xml
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>4.6.0.3</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 

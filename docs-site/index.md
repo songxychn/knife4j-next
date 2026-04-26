@@ -28,10 +28,10 @@ features:
     details: 4 个 smoke 模块（Boot 2.7.18、Boot 3.4.0、Boot 3.5.0）随每次构建回归，springdoc-openapi-jakarta 已对齐 2.8.9。
     link: /reference/compatibility
     linkText: 兼容矩阵
-  - title: 配置项按前缀整理
-    details: knife4j.setting / knife4j.basic / knife4j.gateway / knife4j.cloud / knife4j.nacos ... 全部 YAML 选项、默认值、所属模块有据可查。
-    link: /reference/configuration
-    linkText: 配置参考
+  - title: React + Vite 新前端
+    details: knife4j-openapi3-ui webjar 已集成 React 前端，支持国际化、类型感知参数输入、OAuth2 授权码流程、响应复制/下载等。
+    link: /release-notes/
+    linkText: 发布说明
   - title: Gateway 与多服务聚合
     details: knife4j-gateway-spring-boot-starter 支持 DISCOVER / MANUAL 两种策略；aggregation starter 另外提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
     link: /guide/gateway
@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>4.6.0.3</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -76,18 +76,21 @@ springdoc:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 本次版本亮点（4.6.0.3）
+## 1.0.0 版本亮点 <Badge type="tip" text="即将发布" />
 
-- 🧩 React + Vite 构建的新前端已集成到 `knife4j-openapi3-ui` webjar（旧 Vue2 产物仍由 `knife4j-openapi2-ui` 使用）。
-- 🛡️ 修复 `/v2/api-docs;xxx` 分号绕过 Basic 认证（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。
-- 🌉 修复 gateway `context-path` 下聚合 host 缺斜杠（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
-- 🧱 升级 springdoc-openapi-jakarta 至 `2.8.9`，兼容 Boot 3.4.x / 3.5.x。
-- 🐳 `knife4j-demo` 模块提供 Docker Compose 在线预览。
+- 🌐 国际化：zh-CN / en-US 双语切换
+- 🔐 Authorize 支持 OAuth2 授权码流程 + securitySchemes 动态渲染
+- 📋 ApiDebug 类型感知参数输入、cURL 预览、响应复制/下载
+- 🗂️ Tab 右键菜单 + 刷新后状态持久化
+- 🔍 侧边栏接口搜索高亮 + Method 过滤条
+- 📄 ApiDoc 工具栏：复制 endpoint / Markdown / URL
+- 🧱 knife4j-core 提取 debug 解析层（82 项单元测试）
+- 🐳 `knife4j-demo` 模块提供 Docker Compose 在线预览
 
 完整更新列表见 [发布说明](/release-notes/)。
 
 ::: warning 关于新前端覆盖范围
-新 React 前端当前**仅覆盖部分** upstream 增强特性。如果你依赖的是 `knife4j.setting.enable-debug=false`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script`、`enable-version`、Postman 导出或 OAuth2 调试的完整授权流程，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 仍是 Vue2 旧前端，所有 upstream 特性继续可用。
+新 React 前端当前**仅覆盖部分** upstream 增强特性。如果你依赖的是 `knife4j.setting.enable-debug=false`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script`、`enable-version`、Postman 导出，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 仍是 Vue2 旧前端，所有 upstream 特性继续可用。
 :::
 
 ## 文档导航

@@ -22,17 +22,18 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
-1. 版本发布节奏：upstream 最新是 `4.6.0`，fork 是 `4.6.0.3`；fork 额外带 3 个 patch 的兼容/安全修复。
+1. 版本发布节奏：upstream 最新是 `4.6.0`，fork 是 `1.0.0`（采用独立 SemVer 版本号）；fork 包含全部兼容/安全修复和 React 新前端。
 2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、自定义 Footer、版本小蓝点等），本 fork 的新 React 前端尚未全部覆盖。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-| 版本 | 修复内容 | 对应 upstream issue |
+| 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
-| `4.6.0.1` | `/v2/api-docs;xxx` 分号绕过 Basic 认证漏洞 | [#886](https://github.com/xiaoymin/knife4j/issues/886) |
-| `4.6.0.2` | Gateway context-path 导致 host 缺少斜杠 | [#954](https://github.com/xiaoymin/knife4j/issues/954) |
-| `4.6.0.3` | Spring Boot 3.4/3.5 兼容（springdoc 版本升级） | [#874](https://github.com/xiaoymin/knife4j/issues/874) [#882](https://github.com/xiaoymin/knife4j/issues/882) [#913](https://github.com/xiaoymin/knife4j/issues/913) |
-| `4.6.0.3` | 新 React 前端集成 | — |
+| `1.0.0` | 正式版：全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI 完整集成 | — |
+| `4.6.0.3` (Preview) | `/v2/api-docs;xxx` 分号绕过 Basic 认证漏洞 | [#886](https://github.com/xiaoymin/knife4j/issues/886) |
+| `4.6.0.3` (Preview) | Gateway context-path 导致 host 缺少斜杠 | [#954](https://github.com/xiaoymin/knife4j/issues/954) |
+| `4.6.0.3` (Preview) | Spring Boot 3.4/3.5 兼容（springdoc 版本升级） | [#874](https://github.com/xiaoymin/knife4j/issues/874) [#882](https://github.com/xiaoymin/knife4j/issues/882) [#913](https://github.com/xiaoymin/knife4j/issues/913) |
+| `4.6.0.3` (Preview) | 新 React 前端首次集成 | — |
 
 ## 访问与路径
 
@@ -126,7 +127,7 @@ knife4j:
 
 ### 有安全修复吗
 
-`4.6.0.1` 修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议至少升到 `4.6.0.1`**，更稳妥是 `4.6.0.3`。
+本 fork 修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议升级到 `1.0.0`**。
 
 ### CSP（Content-Security-Policy）限制导致 UI 白屏
 
@@ -183,7 +184,7 @@ springdoc:
 
 OpenAPI3 starter 下，前端会请求 `/v3/api-docs/swagger-config`。如果 404，通常是：
 
-1. **未引入 `springdoc-openapi-*-ui` 依赖**——应由 starter 自动带入。如果你用的是本 fork `4.6.0.3`，starter 已包含该依赖，无需手动添加。如果你用的是 upstream `4.0.0`，需要手动加 `springdoc-openapi-ui`（已在 `4.1.0` 修复）。
+1. **未引入 `springdoc-openapi-*-ui` 依赖**——应由 starter 自动带入。如果你用的是本 fork `1.0.0`，starter 已包含该依赖，无需手动添加。如果你用的是 upstream `4.0.0`，需要手动加 `springdoc-openapi-ui`（已在 `4.1.0` 修复）。
 2. **网关层把 `/v3/api-docs/**` 拦截了**。
 3. **应用启动失败**，接口还未注册。
 
@@ -211,7 +212,7 @@ public class CommonWebMvcConfig implements WebMvcConfigurer {
 }
 ```
 
-使用最新版本（`4.6.0.3`）且未自定义 MessageConverter 时不会遇到此问题。
+使用最新版本（`1.0.0`）且未自定义 MessageConverter 时不会遇到此问题。
 
 ### `@ParameterObject` 展开的参数在 UI 上是扁平列表
 
@@ -258,13 +259,13 @@ public UserVO getById(
     @PathVariable("id") Long id) { ... }
 ```
 
-**降级兜底**：Knife4j UI（自 `4.6.0.3` 后续版本起）会在 OpenAPI 文档里 `parameters: []` 但 URL 模板含 `{xxx}` 时，自动把占位符补成 `string` 类型的 path 参数输入框——因此**即便后端 OpenAPI 文档不完整，调试页也不会再整页灰掉**。但补出来的参数丢失了原始 `description` / `type` / `example`，仍建议按上面两种方式从源头修复。
+**降级兜底**：Knife4j UI 会在 OpenAPI 文档里 `parameters: []` 但 URL 模板含 `{xxx}` 时，自动把占位符补成 `string` 类型的 path 参数输入框——因此**即便后端 OpenAPI 文档不完整，调试页也不会再整页灰掉**。但补出来的参数丢失了原始 `description` / `type` / `example`，仍建议按上面两种方式从源头修复。
 
 ### Spring Boot 3.4 / 3.5 启动报错
 
-如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `4.6.0.3` 已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
+如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `1.0.0` 已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:4.6.0.3`。
+修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:1.0.0`。
 
 ## 全局响应封装导致文档异常
 
@@ -368,9 +369,9 @@ public void upload(@RequestPart("file") MultipartFile file) { ... }
 
 ### Spring Boot 3.4 / 3.5 启动报错 {#spring-boot-34-35}
 
-upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `4.6.0.3` 已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
+upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `1.0.0` 已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-**修复**：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:4.6.0.3`。
+**修复**：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:1.0.0`。
 
 ### `Servlet` 相关的 ClassNotFoundException（WebFlux 环境）
 
