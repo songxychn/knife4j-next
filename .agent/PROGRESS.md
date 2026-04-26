@@ -965,3 +965,11 @@ PR: https://github.com/songxychn/knife4j-next/pull/57
 summary: Previous worker (SIGKILL) had completed implementation but not committed. Recovered: added marked+dompurify, Markdown.tsx component, updated Home.tsx and ApiDoc.tsx. Fixed unused Paragraph import. tsc --noEmit clean, vite build passed. PR #57 opened.
 next: await PR review/merge
 blockers: none
+
+---
+date: 2026-04-26T08:25Z
+task: TASK-040
+status: done
+summary: PR #57 merged into master at 2026-04-26T08:18:25Z. Markdown rendering complete.
+next: TASK-041 (ready) - ApiDebug response panel copy/cURL/download actions
+blockers: none

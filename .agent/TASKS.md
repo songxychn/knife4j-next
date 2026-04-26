@@ -740,7 +740,7 @@ notes:
 - 随 PR 顺带修复：knife4j-demo pom Java 17、logo 在 Vite dev 下 404、GlobalParamProvider 作用域、ApiDebug "未找到调试接口" 一闪、左侧 DELETE 标签把接口名顶出对齐
 
 ### TASK-040
-status: review
+status: done
 PR: https://github.com/songxychn/knife4j-next/pull/57
 area: ui-react
 title: React 前端接入 Markdown 渲染（接口描述 / tag 描述 / info.description）
