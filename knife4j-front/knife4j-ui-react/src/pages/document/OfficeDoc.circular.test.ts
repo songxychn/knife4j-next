@@ -41,7 +41,14 @@ const CIRCULAR_REF_PLACEHOLDER = '... circular reference ...';
 const MAX_FLATTEN_DEPTH = 30;
 
 function circularPlaceholder(prefix: string): FieldRow[] {
-  return [{ fieldPath: prefix || CIRCULAR_REF_PLACEHOLDER, typeDisplay: CIRCULAR_REF_PLACEHOLDER, required: false, description: '' }];
+  return [
+    {
+      fieldPath: prefix || CIRCULAR_REF_PLACEHOLDER,
+      typeDisplay: CIRCULAR_REF_PLACEHOLDER,
+      required: false,
+      description: '',
+    },
+  ];
 }
 
 function resolveRef(ref: string, doc: SwaggerDoc): SchemaObject | undefined {
@@ -82,11 +89,18 @@ function flattenSchemaFields(
       const path = prefix ? `${prefix}.${key}` : key;
       const isRequired = req.has(key) || requiredSet.has(key);
       if (val.$ref || (val.type === 'object' && val.properties)) {
-        const row: FieldRow = { fieldPath: path, typeDisplay: val.$ref ? val.$ref.split('/').pop()! : 'object', required: isRequired, description: val.description ?? '' };
+        const row: FieldRow = {
+          fieldPath: path,
+          typeDisplay: val.$ref ? val.$ref.split('/').pop()! : 'object',
+          required: isRequired,
+          description: val.description ?? '',
+        };
         const children = flattenSchemaFields(val, doc, path, new Set(), depth + 1, seenRefs);
         return [row, ...children];
       }
-      return [{ fieldPath: path, typeDisplay: typeLabel(val), required: isRequired, description: val.description ?? '' }];
+      return [
+        { fieldPath: path, typeDisplay: typeLabel(val), required: isRequired, description: val.description ?? '' },
+      ];
     });
   }
 

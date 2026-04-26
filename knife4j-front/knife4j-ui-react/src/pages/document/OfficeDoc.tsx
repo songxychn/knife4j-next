@@ -127,7 +127,14 @@ const CIRCULAR_REF_PLACEHOLDER = '... circular reference ...';
 const MAX_FLATTEN_DEPTH = 30;
 
 function circularPlaceholder(prefix: string): FieldRow[] {
-  return [{ fieldPath: prefix || CIRCULAR_REF_PLACEHOLDER, typeDisplay: CIRCULAR_REF_PLACEHOLDER, required: false, description: '' }];
+  return [
+    {
+      fieldPath: prefix || CIRCULAR_REF_PLACEHOLDER,
+      typeDisplay: CIRCULAR_REF_PLACEHOLDER,
+      required: false,
+      description: '',
+    },
+  ];
 }
 
 /**
