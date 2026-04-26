@@ -217,6 +217,49 @@ public class CommonWebMvcConfig implements WebMvcConfigurer {
 
 这是 springdoc 默认行为。`@ParameterObject` 会把对象内每个字段展开成独立 query 参数。这是**设计如此**，不是 bug。如果你希望作为整体 JSON 传入，用 `@RequestBody`。
 
+### `GET /foo/{id}` 在调试页上所有 tab 都灰掉，无法编辑 path 参数 {#missing-path-variable}
+
+**症状**：形如 `@GetMapping("/{id}") public Xxx get(@PathVariable Long id)` 的接口，调试页 Path / Query / Header / Body 全部 tab 都是灰的，点不开。查看 `/v3/api-docs` 发现该操作的 `parameters` 是 `[]`。
+
+**根因**：编译时没开 `-parameters`，导致 class 文件里没有 `MethodParameters` 属性。Spring / Springdoc 无法通过反射拿到参数名 `id`，在参数没显式写 `name` 的情况下会**丢弃整个参数**。`@PathVariable` 不写 `value` / `@Parameter` 不写 `name` 时尤其明显。
+
+**诊断**（任选其一）：
+
+```bash
+# 1. 看 OpenAPI 文档
+curl -s http://localhost:8080/v3/api-docs | jq '.paths."/your/path/{id}".get.parameters'
+# 输出 [] 就是这个问题
+
+# 2. 看 class 字节码
+javap -v target/classes/com/your/YourController.class | grep MethodParameters
+# 没有任何输出就是没开 -parameters
+```
+
+**修复（推荐）**：在 Maven `maven-compiler-plugin` 里开启 `-parameters`：
+
+```xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <configuration>
+    <parameters>true</parameters>
+  </configuration>
+</plugin>
+```
+
+继承 `spring-boot-starter-parent` 的项目默认已经带 `-parameters`，无需额外配置。如果你没继承、或者用的是 Gradle，自行在各自构建工具中开启即可（Gradle：`tasks.withType(JavaCompile) { options.compilerArgs << '-parameters' }`）。
+
+**替代方案**：在注解里显式写参数名。适合不方便改构建配置的场景，但侵入代码：
+
+```java
+@GetMapping("/{id}")
+public UserVO getById(
+    @Parameter(name = "id", description = "用户 ID")
+    @PathVariable("id") Long id) { ... }
+```
+
+**降级兜底**：Knife4j UI（自 `4.6.0.3` 后续版本起）会在 OpenAPI 文档里 `parameters: []` 但 URL 模板含 `{xxx}` 时，自动把占位符补成 `string` 类型的 path 参数输入框——因此**即便后端 OpenAPI 文档不完整，调试页也不会再整页灰掉**。但补出来的参数丢失了原始 `description` / `type` / `example`，仍建议按上面两种方式从源头修复。
+
 ### Spring Boot 3.4 / 3.5 启动报错
 
 如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `4.6.0.3` 已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
