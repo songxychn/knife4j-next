@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import path from 'path';
 
 const BACKEND = process.env.VITE_BACKEND ?? 'http://localhost:8080';
 
@@ -7,6 +8,11 @@ const BACKEND = process.env.VITE_BACKEND ?? 'http://localhost:8080';
 export default defineConfig({
   plugins: [react()],
   base: './',
+  resolve: {
+    alias: {
+      'knife4j-core': path.resolve(__dirname, '../knife4j-core/lib'),
+    },
+  },
   optimizeDeps: {
     include: ['knife4j-core'],
   },

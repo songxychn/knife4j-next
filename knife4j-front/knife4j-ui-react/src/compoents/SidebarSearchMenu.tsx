@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Input, Menu, MenuProps } from 'antd';
+import { Input, Menu, MenuProps, Tooltip } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
+import Markdown from '../components/Markdown';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: '#61affe',
@@ -44,7 +45,7 @@ interface SidebarSearchMenuProps {
 }
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick }) => {
-  const { activeGroup } = useGroup();
+  const { activeGroup, menuTags } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
@@ -71,10 +72,21 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 
   const menuItems = useMemo(() => {
     const items: NonNullable<MenuProps['items']> = [];
+    const tagDescMap = new Map(menuTags.map((t) => [t.tag, t.description]));
+
     filteredByTag.forEach((apis, tag) => {
+      const tagDesc = tagDescMap.get(tag);
+      const labelContent = tagDesc ? (
+        <Tooltip title={<Markdown source={tagDesc} />} placement="right" overlayStyle={{ maxWidth: 400 }}>
+          <span>{tag}</span>
+        </Tooltip>
+      ) : (
+        tag
+      );
+
       items.push({
         key: `tag-${tag}`,
-        label: tag,
+        label: labelContent,
         children: apis.map((api) => ({
           key: api.key,
           title: `${api.method.toUpperCase()} ${api.summary}`,
@@ -88,7 +100,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       });
     });
     return items;
-  }, [filteredByTag]);
+  }, [filteredByTag, menuTags]);
 
   return (
     <>
