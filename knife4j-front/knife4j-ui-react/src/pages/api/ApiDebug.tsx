@@ -1004,7 +1004,15 @@ export default function ApiDebug() {
   const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
   const [body, setBody] = useState('');
-  const [debugModel, setDebugModel] = useState<OperationDebugModel | null>(null);
+  const debugModel = useMemo<OperationDebugModel | null>(() => {
+    if (!operation || !swaggerDoc) return null;
+    return buildOperationDebugModel({
+      doc: swaggerDoc as unknown as Record<string, unknown>,
+      path: operation.path,
+      method: operation.method,
+      isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
+    });
+  }, [operation, swaggerDoc]);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1022,30 +1030,23 @@ export default function ApiDebug() {
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
   const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
+  // 当 debugModel 变化时，同步初始化表单状态
   useEffect(() => {
-    if (!operation || !swaggerDoc) return;
-
-    const model = buildOperationDebugModel({
-      doc: swaggerDoc as unknown as Record<string, unknown>,
-      path: operation.path,
-      method: operation.method,
-      isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
-    });
-    setDebugModel(model);
+    if (!debugModel || !operation) return;
 
     setMethod(operation.method.toUpperCase());
     setPath(operation.path);
 
     // 初始化参数值
     const initial: ParamValueMap = {};
-    const allParams = [...model.pathParams, ...model.queryParams, ...model.headerParams, ...model.cookieParams];
+    const allParams = [...debugModel.pathParams, ...debugModel.queryParams, ...debugModel.headerParams, ...debugModel.cookieParams];
     for (const p of allParams) {
       initial[paramKey(p)] = initialValueFor(p);
     }
     setParamValues(initial);
 
     // body 初始值
-    const firstBody = model.bodyContents[0];
+    const firstBody = debugModel.bodyContents[0];
     const firstMediaType = firstBody?.mediaType ?? '';
     setSelectedContentType(firstMediaType);
     setBody(firstBody?.exampleValue ?? '');
@@ -1080,7 +1081,7 @@ export default function ApiDebug() {
     setError(null);
     setValidationErrors([]);
     setActiveTab(undefined);
-  }, [operation, swaggerDoc]);
+  }, [debugModel, operation]);
 
   const updateValue = (param: DebugParam, next: string) => {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
