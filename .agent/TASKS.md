@@ -741,7 +741,7 @@ notes:
 - 随 PR 顺带修复：knife4j-demo pom Java 17、logo 在 Vite dev 下 404、GlobalParamProvider 作用域、ApiDebug "未找到调试接口" 一闪、左侧 DELETE 标签把接口名顶出对齐
 
 ### TASK-040
-status: ready
+status: in_progress
 area: ui-react
 title: React 前端接入 Markdown 渲染（接口描述 / tag 描述 / info.description）
 branch: agent/TASK-040-react-markdown
@@ -887,11 +887,12 @@ notes:
 - 本任务实现后，Sidebar 可关闭 TASK-044 的 filter 特性回退
 
 ### TASK-048
-status: review
+status: done
+merged_into: master@2026-04-26T07:42:33Z
+PR: https://github.com/songxychn/knife4j-next/pull/55
 area: repo
 title: 关闭 Spotless indentEmptyLines，全量格式化 Java 空行
 branch: agent/TASK-048-spotless-indent-empty-lines
-pr: https://github.com/songxychn/knife4j-next/pull/55
 depends_on:
 validation:
 - `JAVA_HOME=... mvn spotless:check` → passes

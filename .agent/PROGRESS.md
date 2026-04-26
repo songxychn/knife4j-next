@@ -827,21 +827,18 @@ notes:
 blockers:
 - none
 
-## 2026-04-26 TASK-039
-task: TASK-039
-agent: coordinator (interactive)
-branch: agent/TASK-039-vite-dev-proxy
-status: review
+## 2026-04-25 18:08 UTC
+task: TASK-037
+agent: coordinator (heartbeat)
+branch: agent/TASK-037-format-rules-enforcement
+status: done
 summary:
-- 在 vite.config.ts 中添加 server.proxy 配置，将 /v3/api-docs、/swagger-resources、/swagger-ui、/doc.html 代理到后端
-- 后端地址通过 VITE_BACKEND 环境变量可覆盖，默认 http://localhost:8080（与 knife4j-demo 一致）
-- 仅影响 vite dev server，不影响 build 产出
-validation:
-- `npx prettier --check vite.config.ts` → pass
-- `npx tsc --noEmit` → pass
-- `npx vite build` → pass (1462 kB)
+- PR #52 已合并（merged_at: 2026-04-25T17:56:47Z）
+- TASKS.md 中 TASK-037 状态更新为 done
+- 无依赖 TASK-037 的 blocked 任务需要解锁
+- 当前队列：所有任务均为 done，无 ready/blocked/in_progress 任务
 next:
-- 推送分支 → 开 PR → review → merge
+- 等待新任务加入队列
 blockers:
 - none
 ## 2026-04-26 TASK-039 review / vue2 对齐盘点
@@ -905,62 +902,50 @@ notes:
 - 本地 Java 8 环境下 spotless 插件无法运行（PluginContainerException），需 JAVA_HOME 指向 Java 17+
 - PR #53 的 Java spotless 问题将在 PR #55 合并后自动解决（空行不再需要缩进）
 
-## 2026-04-26 TASK-039 (supplement)
-task: TASK-039
-agent: coordinator (interactive, user-authorized scope extension)
-branch: agent/TASK-039-vite-dev-proxy
-status: review
+## 2026-04-26 07:47 UTC
+task: TASK-048
+agent: coordinator
+branch: agent/TASK-048-spotless-indent-empty-lines
+status: done
 summary:
-- 维护者在本地用 IDEA 启动 knife4j-demo 时编译报错：UserController 的 List.of 在 Java 8 源码级别找不到
-- 根因：knife4j 父 pom 默认 knife4j-java.version=1.8，knife4j-demo 未覆盖，继承为 1.8
-- UserController 使用了 Java 9+ 的 List.of 静态工厂方法
-- 修复：在 knife4j-demo/pom.xml properties 中新增 <knife4j-java.version>17</knife4j-java.version>，只影响 demo 模块
-- 用户显式授权将该修复并入当前 TASK-039 分支，范围偏离有书面授权
-validation:
-- JAVA_HOME=corretto-17 mvn -pl knife4j-demo -am -DskipTests -Dspotless.skip=true compile → BUILD SUCCESS
-- （spotless.skip=true 仅因本地终端误用 JDK 8 启动 maven 时会触发 spotless class file 55 不兼容；与改动无关）
+- PR #55 已合并（2026-04-26T07:42:33Z）
+- TASKS.md 状态更新为 done
+
+## 2026-04-26 07:47 UTC
+task: TASK-040
+agent: coordinator → worker (claude-worker)
+branch: agent/TASK-040-react-markdown
+status: in_progress
+summary:
+- spawn worker 处理 TASK-040：React 前端接入 Markdown 渲染
+- 目标：新增 Markdown.tsx 组件（memoize + XSS 清洗），接入 ApiDoc / Home / tag 描述
+- 选型：markdown-it 或 marked + DOMPurify
 next:
-- 推送分支 → 开 PR（描述说明 TASK-039 包含两项改动）
+- 等待 worker 完成后 spawn reviewer
+- reviewer 通过后开 PR
 blockers:
 - none
 
-## 2026-04-26 TASK-039 (supplement 2)
-task: TASK-039
-agent: coordinator (interactive, user-authorized scope extension)
-branch: agent/TASK-039-vite-dev-proxy
-status: review
+## 2026-04-26 07:47 UTC
+task: TASK-048
+agent: coordinator
+branch: agent/TASK-048-spotless-indent-empty-lines
+status: done
 summary:
-- 维护者本地启动 demo + vite dev server 后，左上角 logo 404
-- 根因：App.tsx 把 logo 硬编码成 webjars/knife4j-ui-react/knife4j-next-mark.svg 相对路径；该路径只在 Java webjar 挂载后才成立，且相对路径还会被 SPA 路由嵌套（/group/home/doc）污染
-- 修复：把 svg 搬到 src/assets/logo/，在 App.tsx 中通过 ES module import，Vite 会生成 new URL('...', import.meta.url)，在 dev 与 prod（base: './'）下都能正确解析
-- 同时删除了未被引用的 src/assets/logo/knife4j-next-logo.svg 拷贝（避免冗余）
-- 维护者授权将该修复一并合入 TASK-039 分支
-validation:
-- `npx prettier --check src/App.tsx` → pass
-- `npx tsc --noEmit` → pass
-- `npx eslint src/App.tsx` → pass
-- `npx vite build` → pass；产物多出 dist/assets/knife4j-next-mark.svg（0.63 kB）
-next:
-- 推送分支 → 开 PR（描述说明 TASK-039 包含三项改动：vite proxy / demo pom Java 17 / logo 路径修复）
-blockers:
-- none
+- PR #55 已合并（2026-04-26T07:42:33Z）
+- TASKS.md 状态更新为 done
 
-## 2026-04-26 TASK-039 (supplement 3)
-task: TASK-039
-agent: coordinator (interactive, user-authorized scope extension)
-branch: agent/TASK-039-vite-dev-proxy
-status: review
+## 2026-04-26 07:47 UTC
+task: TASK-040
+agent: coordinator → worker (claude-worker)
+branch: agent/TASK-040-react-markdown
+status: in_progress
 summary:
-- 维护者点击"调试"后整页崩溃：`useGlobalParam must be used inside GlobalParamProvider`
-- 根因：GlobalParamProvider 只包在 pages/document/GlobalParam.tsx 内部，但 pages/api/ApiDebug.tsx 也调用 useGlobalParam；ApiDebug 路由不在 GlobalParam 子树下，ctx 为 null 抛错
-- 修复：将 GlobalParamProvider 提升到 App.tsx 顶层 Provider 链（AuthProvider → GlobalParamProvider → GroupProvider），并去掉 GlobalParam 页面中的局部 Provider（否则会覆盖祖先 context，两页 state 不互通）
-- 该设计也更符合"全局参数跨页面持久共享"的语义
-validation:
-- `npx prettier --check src/App.tsx src/pages/document/GlobalParam.tsx` → pass
-- `npx tsc --noEmit` → pass
-- `npx eslint ...` → 仅 1 条 pre-existing warning（GlobalParam.tsx 混合导出组件与 hook，与本次改动无关）
-- `npx vite build` → pass
+- spawn worker 处理 TASK-040：React 前端接入 Markdown 渲染
+- 目标：新增 Markdown.tsx 组件（memoize + XSS 清洗），接入 ApiDoc / Home / tag 描述
+- 选型：markdown-it 或 marked + DOMPurify
 next:
-- 推送分支 → 开 PR（描述说明 TASK-039 包含四项改动：vite proxy / demo pom Java 17 / logo 路径修复 / GlobalParamProvider 提升）
+- 等待 worker 完成后 spawn reviewer
+- reviewer 通过后开 PR
 blockers:
 - none
