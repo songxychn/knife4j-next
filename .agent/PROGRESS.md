@@ -841,3 +841,49 @@ next:
 - 等待新任务加入队列
 blockers:
 - none
+## 2026-04-26 TASK-039 review / vue2 对齐盘点
+task: TASK-039
+agent: coordinator
+branch: agent/TASK-039-vite-dev-proxy
+status: review
+summary:
+- 将 TASK-039 追加提交推送并开 PR #53：https://github.com/songxychn/knife4j-next/pull/53
+- PR 总共 6 项改动：vite dev proxy、demo pom Java 17、logo 404、GlobalParamProvider 作用域、ApiDebug notFound 一闪、sidebar DELETE 对齐
+- 盘点 knife4j-vue（vue2 线上版本）与 knife4j-ui-react 的功能差距，输出 TASK-040 ~ TASK-047 八项 ready 任务
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit` → pass
+- `cd knife4j-front/knife4j-ui-react && npx vite build` → pass
+next:
+- TASK-039 等待人工 review / 合并
+- 新任务按优先级由 coordinator 依次排期；建议顺序 TASK-040 (Markdown 基础能力) → TASK-041/042 (复制/响应动作) → TASK-043 (离线导出扩展) → TASK-044/047 (Settings + Sidebar) → TASK-045 (tab 右键) → TASK-046 (OAuth2 复杂流程)
+blockers:
+- none
+pr: https://github.com/songxychn/knife4j-next/pull/53
+
+## 2026-04-26 vue2 ↔ React 功能对齐盘点
+agent: coordinator
+branch: (N/A, 仅更新 .agent)
+status: done
+summary:
+- 对比源：vue2 = knife4j-front/knife4j-vue (9k+ 行, 实际为线上 bundle 源)
+- 对比对象：React = knife4j-front/knife4j-ui-react
+- React 已覆盖：Home 概览 / Schema 数据模型 / ApiDoc 文档模式 / ApiDebug 调试（含 preview + cURL / 多 contentType / multipart / validation）/ Authorize（apiKey + http basic/bearer + OAuth2 password+client_credentials）/ GlobalParam / OfficeDoc (HTML + Word) / i18n (zh/en) / tab 页
+- React 仍缺（登记为 TASK-040~047）：
+  1. Markdown 渲染（TASK-040）
+  2. 调试响应面板按钮（TASK-041）
+  3. ApiDoc 顶部复制动作（TASK-042）
+  4. 离线导出 Markdown + OpenAPI JSON（TASK-043）
+  5. 个性化设置面板 + host 覆盖 / 请求缓存 / method 过滤（TASK-044）
+  6. tab 右键菜单（TASK-045）
+  7. OAuth2 authorizationCode + implicit 真实回跳（TASK-046）
+  8. Sidebar 搜索高亮 + method 过滤条（TASK-047）
+- 明确不做（与 vue2 差异但已评估不必对齐）：
+  * 日语 i18n（vue2 有 jp.js，当前 React 只做 zh/en，等用户需求再补）
+  * PDF 离线导出（浏览器端生成不稳定，vue2 也是外部工具）
+  * AfterScript（调试后脚本）、ScriptView（客户端代码生成）—— 低频高复杂，留后续专项
+  * enableSwaggerBootstrapUi 增强模式（依赖后端 @EnableKnife4j 特殊字段，不是主路径）
+next:
+- 按优先级拆分 PR；TASK-040 建议作为首个独立 PR，后续多任务可按表驱动
+blockers:
+- none
+
