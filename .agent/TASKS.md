@@ -713,3 +713,172 @@ notes:
 - 子项目级 `.npmrc` 会覆盖 user-level `.npmrc`，保证任何人在任何环境 `npm install` 写出的 lock 都走公共 registry
 - 不引入 `ignore-scripts` 等额外策略；只加一行 `registry=...`
 - 回滚路径：删除两份 `.npmrc`、还原 `knife4j-front/package-lock.json` 即可
+
+### TASK-039
+status: review
+area: ui-react
+title: 为 knife4j-ui-react 添加 Vite dev server proxy 配置（并含本地开发期 UI 修复）
+branch: agent/TASK-039-vite-dev-proxy
+depends_on:
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx prettier --check vite.config.ts`
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+done_when:
+- vite.config.ts 包含 server.proxy，将 /v3/api-docs、/swagger-resources、/swagger-ui、/doc.html 代理到后端（默认 http://localhost:8080）
+- 后端地址可通过环境变量 VITE_BACKEND 覆盖
+- npm run build 产出不受影响（proxy 仅 dev server 行为）
+- 开发者只需 npm run dev + 启动 knife4j-demo 即可端到端联调
+notes:
+- 目的：降低本地开发门槛，开箱即用地对接 knife4j-demo 后端
+- 不改变任何运行时行为，仅影响 vite dev server
+- 默认代理 http://localhost:8080 与 knife4j-demo 的 application.yml 一致
+- 回滚路径：还原 vite.config.ts 即可
+- PR：https://github.com/songxychn/knife4j-next/pull/53
+- 随 PR 顺带修复：knife4j-demo pom Java 17、logo 在 Vite dev 下 404、GlobalParamProvider 作用域、ApiDebug "未找到调试接口" 一闪、左侧 DELETE 标签把接口名顶出对齐
+
+### TASK-040
+status: ready
+area: ui-react
+title: React 前端接入 Markdown 渲染（接口描述 / tag 描述 / info.description）
+branch: agent/TASK-040-react-markdown
+depends_on:
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：Home / ApiDoc 中含 Markdown 的描述字段可渲染链接、代码块、表格
+done_when:
+- 选定一个 Markdown 渲染库（如 markdown-it 或 marked + DOMPurify）并在 package.json 中加入依赖
+- ApiDoc 的 `op.description` / `op.summary` 若为 Markdown 可正常渲染，纯文本场景无视觉退化
+- Home 页的 `info.description`、Sider/菜单中 tag 描述同样使用 Markdown 渲染
+- 输出必须经过 XSS 清洗（DOMPurify 或等价方案）
+notes:
+- 对齐 vue2：knife4j-vue/src/components/Markdown/index.vue 及 Document.vue 中 description 均以 Markdown 方式渲染
+- 建议集中到 src/components/Markdown.tsx，接口 `{ source: string }`，内部 memoize
+- 不引入代码高亮以控制体积，后续再补
+
+### TASK-041
+status: ready
+area: ui-react
+title: ApiDebug 调试响应面板增加 "复制 Raw / 复制 cURL" 与体积格式化
+branch: agent/TASK-041-debug-response-actions
+depends_on: TASK-040?
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：发送一次调试请求后，响应面板出现 "复制 Raw"、"复制 cURL"、"下载"；状态栏显示耗时 ms 与字节/KB
+done_when:
+- 响应面板提供：复制响应原文、复制请求 cURL（复用已有 buildCurl）、下载响应为文件
+- 响应状态栏显示耗时（ms）与大小（自动单位：B/KB/MB）
+- 复制使用 navigator.clipboard，失败降级 execCommand 并给 message.error 提示
+notes:
+- 对齐 vue2：Debug.vue 中 `knife4j-debug-response` 区块、DebugResponse.vue 提供的 CURL/原文拷贝与 header/status 栏
+- 已有 cURL 预览（TASK-028），本任务聚焦响应面板按钮化
+
+### TASK-042
+status: ready
+area: ui-react
+title: ApiDoc 顶部加入 "复制接口" / "复制文档 Markdown" / "复制地址" 三个操作
+branch: agent/TASK-042-apidoc-copy-actions
+depends_on: TASK-040
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：三个按钮均可复制到剪贴板，点击后出现 message.success
+done_when:
+- ApiDoc.tsx 顶部工具栏新增三个按钮：复制 `METHOD PATH`、复制整篇接口的 Markdown、复制当前页面 URL
+- Markdown 生成逻辑抽到 knife4j-core（或 ui-react 本地 util），保证可在 OfficeDoc 导出里复用
+- 复制行为与 TASK-041 统一走同一 clipboard util
+notes:
+- 对齐 vue2：Document.vue 顶部 `$t('doc.copyMethod') / $t('doc.copy') / $t('doc.copyHash')`
+- 为后续 TASK-043 离线 Markdown 导出打基础
+
+### TASK-043
+status: ready
+area: ui-react
+title: 离线文档导出新增 Markdown 与 OpenAPI JSON 两种格式
+branch: agent/TASK-043-office-md-openapi
+depends_on: TASK-042
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：OfficeDoc 页面可下载 .md 与 .json，.md 在常见渲染器中结构正确，.json 可被 Swagger Editor 加载
+done_when:
+- OfficeDoc.tsx 增加 "下载 Markdown" 与 "下载 OpenAPI JSON" 按钮
+- Markdown 渲染逻辑与 TASK-042 共享一套接口转 Markdown 函数
+- OpenAPI JSON 即原始 swaggerDoc 的 pretty-print 产物
+notes:
+- 对齐 vue2：DownloadHtml.vue / OfficelineDocument.vue + `offline.download.{markdown,html,word,pdf}` 语言包
+- PDF 不做（浏览器侧实现不稳定，vue2 也是通过外部工具转换）
+
+### TASK-044
+status: ready
+area: ui-react
+title: 个性化设置抽屉补齐可操作开关（host 覆盖 / 动态参数 / 请求缓存 / 过滤开关）
+branch: agent/TASK-044-settings-drawer
+depends_on:
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：开关变更持久化到 localStorage，刷新后保留；ApiDebug 发送时可读到 hostOverride
+done_when:
+- 将 pages/document/Settings.tsx 从占位改为真正的设置页（嵌入 SettingsDrawer 的第四个 tab 或独立页）
+- 至少提供：enableHost + hostOverride 文本、enableRequestCache（决定是否缓存 paramValues）、enableFilterMultipartApis（过滤展示 method）
+- 所有设置走一个 SettingsContext，持久化 localStorage
+- ApiDebug 发送时读取 hostOverride 替换 baseUrl；sidebar 按 filter method 过滤
+notes:
+- 对齐 vue2：views/settings/Settings.vue 的各 checkbox；constants.defaultSettings
+- 为后续可能的 enableSwaggerBootstrapUi（增强模式）留钩子，但当前不对接
+
+### TASK-045
+status: ready
+area: ui-react
+title: 全局 Tab 增加右键菜单：关闭当前 / 关闭其他 / 关闭全部
+branch: agent/TASK-045-tab-context-menu
+depends_on:
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：右键任意 tab，三个命令均按预期生效
+done_when:
+- App.tsx 顶部 Tabs 支持右键 -> antd Dropdown 菜单
+- 关闭当前 / 关闭其他 / 关闭全部（保留 home）三项均正确
+- 菜单项 i18n，中英文齐备
+notes:
+- 对齐 vue2：lang/zh.js 的 tab.closeCurrent / closeOther / closeAll；components/common/ContextMenu.vue
+
+### TASK-046
+status: ready
+area: ui-react
+title: ApiDebug 支持 OAuth2 授权码 / 隐式模式（弹窗走真实授权回跳）
+branch: agent/TASK-046-oauth2-authcode
+depends_on:
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：配置一个 authorizationCode scheme，点 "获取 Token" 能跳转授权服务器并回跳拿到 token
+done_when:
+- Authorize.tsx 中 authorizationCode / implicit 不再只是 "暂不支持"
+- 新增 public/oauth2-redirect.html（或 vite 等价物），处理回跳 URL，把 token 通过 postMessage 传回父窗
+- 和 vue2 的 public/oauth/oauth2.html 行为保持一致
+notes:
+- 对齐 vue2：views/settings/OAuth2.vue + knife4j-vue/public/oauth/oauth2.html
+- PKCE 可选；第一期仅做 implicit + authorizationCode（非 PKCE）
+
+### TASK-047
+status: ready
+area: ui-react
+title: 左侧菜单引入接口搜索结果高亮 + method 过滤条
+branch: agent/TASK-047-sidebar-enhance
+depends_on: TASK-044
+validation:
+- `cd knife4j-front/knife4j-ui-react && npx tsc --noEmit`
+- `cd knife4j-front/knife4j-ui-react && npx vite build`
+- 手动验证：搜索"user" 时命中关键字高亮；顶部过滤条可单选 GET/POST 等只保留对应接口
+done_when:
+- SidebarSearchMenu 接入 method 过滤 chips（受 TASK-044 Settings 控制默认值）
+- 搜索结果中 summary/path 命中字段 `<mark>`/样式高亮
+- 不破坏现有分组折叠行为
+notes:
+- 对齐 vue2：HeaderSearch + SiderMenu 组合的过滤和 highlight
+- 本任务实现后，Sidebar 可关闭 TASK-044 的 filter 特性回退
