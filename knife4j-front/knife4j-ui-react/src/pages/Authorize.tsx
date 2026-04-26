@@ -1,5 +1,5 @@
 import { Alert, Button, Card, Collapse, Input, message, Space, Tag, Typography } from 'antd';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
@@ -69,6 +69,138 @@ async function fetchOAuth2Token(params: {
     throw new Error(`Token request failed: ${resp.status} ${text}`);
   }
   return (await resp.json()) as { access_token: string; token_type?: string };
+}
+
+// ─── OAuth2 Popup (implicit / authorizationCode) ──────
+
+const OAUTH2_PENDING_PREFIX = 'knife4j:oauth2:pending:';
+
+interface OAuth2PopupConfig {
+  tokenUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  redirectUri: string;
+}
+
+/**
+ * Open an OAuth2 authorization popup and wait for the postMessage result.
+ * Returns the access token string (e.g. "Bearer xxx") or throws on error/timeout.
+ */
+function openOAuth2Popup(
+  authorizationUrl: string,
+  state: string,
+  config: OAuth2PopupConfig,
+  timeoutMs = 120_000,
+): Promise<{ accessToken: string; tokenType: string }> {
+  return new Promise((resolve, reject) => {
+    // Store exchange config for authorization_code flow
+    try {
+      sessionStorage.setItem(OAUTH2_PENDING_PREFIX + state, JSON.stringify(config));
+      sessionStorage.setItem(OAUTH2_PENDING_PREFIX + 'default', JSON.stringify(config));
+    } catch {
+      // sessionStorage unavailable — code exchange will fail gracefully
+    }
+
+    const popup = window.open(authorizationUrl, 'knife4j_oauth2', 'width=600,height=700,scrollbars=yes,resizable=yes');
+
+    if (!popup) {
+      reject(new Error('Popup blocked. Please allow popups for this page.'));
+      return;
+    }
+
+    let settled = false;
+
+    const cleanup = () => {
+      settled = true;
+      window.removeEventListener('message', onMessage);
+      clearInterval(closedPoll);
+      clearTimeout(timer);
+    };
+
+    const onMessage = (evt: MessageEvent) => {
+      // Only accept messages from same origin
+      if (evt.origin !== window.location.origin) return;
+      const data = evt.data as {
+        type?: string;
+        accessToken?: string;
+        tokenType?: string;
+        error?: string;
+        errorDescription?: string;
+      };
+      if (!data || !data.type) return;
+      if (data.type === 'knife4j:oauth2:token') {
+        cleanup();
+        resolve({ accessToken: data.accessToken ?? '', tokenType: data.tokenType ?? 'Bearer' });
+      } else if (data.type === 'knife4j:oauth2:error') {
+        cleanup();
+        reject(new Error(data.error + (data.errorDescription ? ': ' + data.errorDescription : '')));
+      }
+    };
+
+    // Poll for popup closed without postMessage (user closed manually)
+    const closedPoll = setInterval(() => {
+      if (!settled && popup.closed) {
+        cleanup();
+        // Clean up sessionStorage — popup was closed before redirect page ran
+        try {
+          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + state);
+        } catch {
+          /* ignore */
+        }
+        try {
+          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + 'default');
+        } catch {
+          /* ignore */
+        }
+        reject(new Error('OAuth2 popup closed by user'));
+      }
+    }, 500);
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        cleanup();
+        // Clean up sessionStorage on timeout — popup never ran the redirect page
+        try {
+          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + state);
+        } catch {
+          /* ignore */
+        }
+        try {
+          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + 'default');
+        } catch {
+          /* ignore */
+        }
+        popup.close();
+        reject(new Error('OAuth2 popup timed out'));
+      }
+    }, timeoutMs);
+
+    window.addEventListener('message', onMessage);
+  });
+}
+
+/** Build the redirect URI pointing to our oauth2-redirect.html */
+function buildRedirectUri(): string {
+  const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
+  return base + 'oauth2-redirect.html';
+}
+
+/** Build the authorization URL with required query params */
+function buildAuthorizationUrl(params: {
+  authorizationUrl: string;
+  clientId: string;
+  redirectUri: string;
+  scope?: string;
+  state: string;
+  responseType: 'code' | 'token';
+}): string {
+  const url = new URL(params.authorizationUrl);
+  url.searchParams.set('response_type', params.responseType);
+  url.searchParams.set('client_id', params.clientId);
+  url.searchParams.set('redirect_uri', params.redirectUri);
+  if (params.scope) url.searchParams.set('scope', params.scope);
+  url.searchParams.set('state', params.state);
+  return url.toString();
 }
 
 // ─── Sub Components ────────────────────────────────────
@@ -265,18 +397,13 @@ function OAuth2SchemeForm({
   const { t } = useTranslation();
   const flows = getOauth2Flows(scheme);
 
-  // 支持的 flow
-  const supportedFlows = flows.filter((f) => f.flowType === 'password' || f.flowType === 'clientCredentials');
-  const unsupportedFlows = flows.filter((f) => f.flowType === 'implicit' || f.flowType === 'authorizationCode');
-
-  // 如果没有任何 flow，显示提示
   if (flows.length === 0) {
     return <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
   }
 
   return (
     <div style={{ marginBottom: 12 }}>
-      {supportedFlows.map(({ flowType, flow }) => (
+      {flows.map(({ flowType, flow }) => (
         <OAuth2FlowForm
           key={flowType}
           securityKey={securityKey}
@@ -285,15 +412,6 @@ function OAuth2SchemeForm({
           existingValue={existingValue}
           onSave={onSave}
           onRemove={onRemove}
-        />
-      ))}
-      {unsupportedFlows.map(({ flowType }) => (
-        <Alert
-          key={flowType}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 8 }}
-          message={`${flowType === 'implicit' ? t('auth.schemes.oauth2.implicit') : t('auth.schemes.oauth2.authorizationCode')} — ${t('auth.schemes.oauth2.unsupported')}`}
         />
       ))}
     </div>
@@ -317,6 +435,7 @@ function OAuth2FlowForm({
 }) {
   const { t } = useTranslation();
   const isPassword = flowType === 'password';
+  const isPopupFlow = flowType === 'implicit' || flowType === 'authorizationCode';
 
   const [tokenUrl, setTokenUrl] = useState(flow.tokenUrl ?? '');
   const [username, setUsername] = useState('');
@@ -327,9 +446,69 @@ function OAuth2FlowForm({
   const [accessToken, setAccessToken] = useState(existingValue?.type === 'oauth2' ? existingValue.accessToken : '');
   const [obtaining, setObtaining] = useState(false);
 
-  const flowLabel =
-    flowType === 'password' ? t('auth.schemes.oauth2.password') : t('auth.schemes.oauth2.clientCredentials');
+  // Sync accessToken when existingValue changes externally
+  useEffect(() => {
+    if (existingValue?.type === 'oauth2') {
+      setAccessToken(existingValue.accessToken);
+    }
+  }, [existingValue]);
 
+  const flowLabel =
+    {
+      password: t('auth.schemes.oauth2.password'),
+      clientCredentials: t('auth.schemes.oauth2.clientCredentials'),
+      implicit: t('auth.schemes.oauth2.implicit'),
+      authorizationCode: t('auth.schemes.oauth2.authorizationCode'),
+    }[flowType] ?? flowType;
+
+  // ── Popup-based flow (implicit / authorizationCode) ──────────────────────
+  const handleOpenPopup = async () => {
+    const authUrl = flow.authorizationUrl;
+    if (!authUrl) {
+      message.error('authorizationUrl is not configured');
+      return;
+    }
+    if (!clientId) {
+      message.error(t('auth.schemes.oauth2.clientId.placeholder'));
+      return;
+    }
+
+    setObtaining(true);
+    try {
+      const state = Math.random().toString(36).slice(2);
+      const redirectUri = buildRedirectUri();
+      const responseType = flowType === 'implicit' ? 'token' : 'code';
+
+      const fullAuthUrl = buildAuthorizationUrl({
+        authorizationUrl: authUrl,
+        clientId,
+        redirectUri,
+        scope: scope || undefined,
+        state,
+        responseType,
+      });
+
+      const config: OAuth2PopupConfig = {
+        tokenUrl: flow.tokenUrl,
+        clientId,
+        clientSecret: clientSecret || undefined,
+        redirectUri,
+      };
+
+      const result = await openOAuth2Popup(fullAuthUrl, state, config);
+      setAccessToken(result.accessToken);
+      // Auto-save after successful popup auth
+      onSave(securityKey, { type: 'oauth2', accessToken: result.accessToken, tokenType: result.tokenType });
+      message.success(t('auth.msg.tokenObtained'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      message.error(msg || t('auth.msg.tokenFailed'));
+    } finally {
+      setObtaining(false);
+    }
+  };
+
+  // ── Direct token fetch (password / clientCredentials) ────────────────────
   const handleObtainToken = async () => {
     if (!tokenUrl) return;
     setObtaining(true);
@@ -361,12 +540,19 @@ function OAuth2FlowForm({
   return (
     <Card size="small" title={flowLabel} style={{ marginBottom: 8 }}>
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Input
-          value={tokenUrl}
-          onChange={(e) => setTokenUrl(e.target.value)}
-          placeholder={t('auth.schemes.oauth2.tokenUrl.placeholder')}
-          addonBefore={t('auth.schemes.oauth2.tokenUrl')}
-        />
+        {/* Token URL — only for non-popup flows (password / clientCredentials) */}
+        {!isPopupFlow && (
+          <Input
+            value={tokenUrl}
+            onChange={(e) => setTokenUrl(e.target.value)}
+            placeholder={t('auth.schemes.oauth2.tokenUrl.placeholder')}
+            addonBefore={t('auth.schemes.oauth2.tokenUrl')}
+          />
+        )}
+        {/* Authorization URL info for popup flows */}
+        {isPopupFlow && flow.authorizationUrl && (
+          <Input value={flow.authorizationUrl} readOnly addonBefore="Authorization URL" style={{ color: '#888' }} />
+        )}
         {isPassword && (
           <>
             <Input
@@ -386,11 +572,14 @@ function OAuth2FlowForm({
           onChange={(e) => setClientId(e.target.value)}
           placeholder={t('auth.schemes.oauth2.clientId.placeholder')}
         />
-        <Input.Password
-          value={clientSecret}
-          onChange={(e) => setClientSecret(e.target.value)}
-          placeholder={t('auth.schemes.oauth2.clientSecret.placeholder')}
-        />
+        {/* clientSecret only for non-implicit flows */}
+        {flowType !== 'implicit' && (
+          <Input.Password
+            value={clientSecret}
+            onChange={(e) => setClientSecret(e.target.value)}
+            placeholder={t('auth.schemes.oauth2.clientSecret.placeholder')}
+          />
+        )}
         <Input
           value={scope}
           onChange={(e) => setScope(e.target.value)}
@@ -402,9 +591,20 @@ function OAuth2FlowForm({
           placeholder={t('auth.schemes.oauth2.accessToken.placeholder')}
         />
         <Space>
-          <Button size="small" loading={obtaining} onClick={handleObtainToken} disabled={!tokenUrl}>
-            {obtaining ? t('auth.schemes.oauth2.obtaining') : t('auth.schemes.oauth2.obtainToken')}
-          </Button>
+          {isPopupFlow ? (
+            <Button
+              size="small"
+              loading={obtaining}
+              onClick={handleOpenPopup}
+              disabled={!flow.authorizationUrl || !clientId}
+            >
+              {obtaining ? t('auth.schemes.oauth2.obtaining') : t('auth.schemes.oauth2.obtainToken')}
+            </Button>
+          ) : (
+            <Button size="small" loading={obtaining} onClick={handleObtainToken} disabled={!tokenUrl}>
+              {obtaining ? t('auth.schemes.oauth2.obtaining') : t('auth.schemes.oauth2.obtainToken')}
+            </Button>
+          )}
           <Button type="primary" size="small" onClick={handleSave} disabled={!accessToken}>
             {t('auth.btn.authorize')}
           </Button>

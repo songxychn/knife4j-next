@@ -43,6 +43,7 @@ import {
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
+import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload } from './ResponsePanel';
 
 const { TextArea } = Input;
@@ -315,7 +316,9 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
         status={status}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={`${param.type === 'array' ? t('apiDebug.json.array') : t('apiDebug.json.object')} — ${t('apiDebug.json.placeholder')}`}
+        placeholder={`${param.type === 'array' ? t('apiDebug.json.array') : t('apiDebug.json.object')} — ${t(
+          'apiDebug.json.placeholder',
+        )}`}
         autoSize={{ minRows: 2, maxRows: 6 }}
         style={{ fontFamily: 'monospace', fontSize: 12 }}
       />
@@ -1005,7 +1008,10 @@ const previewBoxStyle: React.CSSProperties = {
 export default function ApiDebug() {
   const { t } = useTranslation();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
-  const [baseUrl, setBaseUrl] = useState(currentOrigin());
+  const { settings } = useSettings();
+  const [baseUrl, setBaseUrl] = useState(() =>
+    settings.enableHost && settings.enableHostText.trim() ? settings.enableHostText.trim() : currentOrigin(),
+  );
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
@@ -1592,7 +1598,13 @@ export default function ApiDebug() {
       <Divider style={{ margin: '16px 0' }} />
 
       {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      <ResponsePanel response={response} error={error} builtRequest={builtRequest} />
+      <ResponsePanel
+        response={response}
+        error={error}
+        builtRequest={builtRequest}
+        operation={operation}
+        swaggerDoc={swaggerDoc}
+      />
     </div>
   );
 }

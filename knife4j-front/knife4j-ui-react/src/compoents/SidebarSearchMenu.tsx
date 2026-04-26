@@ -70,7 +70,25 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     return tagMap;
   }, [activeGroup, searchText]);
 
+  // Highlight matching text
+  const highlightText = (text: string, query: string) => {
+    if (!query) return text;
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const index = lowerText.indexOf(lowerQuery);
+    if (index === -1) return text;
+
+    return (
+      <>
+        {text.slice(0, index)}
+        <span style={{ backgroundColor: '#ffc069', color: '#000' }}>{text.slice(index, index + query.length)}</span>
+        {text.slice(index + query.length)}
+      </>
+    );
+  };
+
   const menuItems = useMemo(() => {
+    const q = searchText.trim();
     const items: NonNullable<MenuProps['items']> = [];
     const tagDescMap = new Map(menuTags.map((t) => [t.tag, t.description]));
 
@@ -93,14 +111,16 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           label: (
             <span style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
               {methodTag(api.method)}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{api.summary}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {highlightText(api.summary, q)}
+              </span>
             </span>
           ),
         })),
       });
     });
     return items;
-  }, [filteredByTag, menuTags]);
+  }, [filteredByTag, menuTags, searchText]);
 
   return (
     <>

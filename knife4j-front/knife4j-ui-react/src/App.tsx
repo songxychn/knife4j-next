@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup, ApiItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
+import { SettingsProvider } from './context/SettingsContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
@@ -16,7 +17,37 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const HOME_KEY = '/group/home';
 
-const routeKeyToMenuKey = (key: string) => (key.endsWith('/doc') ? key.slice(0, -4) : key);
+/** sessionStorage keys for persisting opened tabs across page refresh. */
+const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
+const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
+
+/**
+ * Strip the trailing `/doc` or `/debug` mode segment from a route key to
+ * obtain the corresponding sidebar menu key.
+ */
+const routeKeyToMenuKey = (key: string) =>
+  key.endsWith('/doc') ? key.slice(0, -4) : key.endsWith('/debug') ? key.slice(0, -6) : key;
+
+interface PersistedTab {
+  key: string;
+  label: string;
+}
+
+/** Read persisted tabs from sessionStorage, filtering out anything invalid. */
+function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | null {
+  try {
+    const rawItems = sessionStorage.getItem(STORAGE_KEY_ITEMS);
+    if (!rawItems) return null;
+    const parsed = JSON.parse(rawItems);
+    if (!Array.isArray(parsed)) return null;
+    const items: PersistedTab[] = parsed.filter((x) => x && typeof x.key === 'string' && typeof x.label === 'string');
+    if (items.length === 0) return null;
+    const activeKey = sessionStorage.getItem(STORAGE_KEY_ACTIVE) ?? items[0].key;
+    return { items, activeKey };
+  } catch {
+    return null;
+  }
+}
 
 const footerStyle: React.CSSProperties = {
   textAlign: 'center',
@@ -32,6 +63,7 @@ const AppInner: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
+  const location = useLocation();
   const { groups, activeGroup, setActiveGroupValue } = useGroup();
   const { t, i18n } = useTranslation();
 
@@ -39,10 +71,82 @@ const AppInner: React.FC = () => {
     token: { colorBgContainer },
   } = theme.useToken();
 
-  const [selectedKey, setSelectedKey] = useState(HOME_KEY);
-  const [activeKey, setActiveKey] = useState(HOME_KEY);
-  const [items, setItems] = useState([{ label: t('app.tab.home'), children: '', key: HOME_KEY }]);
+  /**
+   * Initialize tab state from sessionStorage so that a page refresh keeps
+   * every previously opened tab (Home is always guaranteed to exist). If
+   * no persisted state exists, fall back to a fresh Home-only layout.
+   */
+  const [selectedKey, setSelectedKey] = useState<string>(() => {
+    const persisted = loadPersistedTabs();
+    return persisted ? routeKeyToMenuKey(persisted.activeKey) : HOME_KEY;
+  });
+  const [activeKey, setActiveKey] = useState<string>(() => {
+    const persisted = loadPersistedTabs();
+    return persisted ? persisted.activeKey : HOME_KEY;
+  });
+  const [items, setItems] = useState<Array<{ label: string; children: string; key: string }>>(() => {
+    const persisted = loadPersistedTabs();
+    if (persisted) {
+      const hasHome = persisted.items.some((p) => p.key === HOME_KEY);
+      const withHome = hasHome ? persisted.items : [{ label: t('app.tab.home'), key: HOME_KEY }, ...persisted.items];
+      return withHome.map((p) => ({ label: p.label, children: '', key: p.key }));
+    }
+    return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
+  });
   const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
+
+  /**
+   * Persist `items` and `activeKey` to sessionStorage on every change so the
+   * next hard refresh can rebuild the Tabs bar. `children` is excluded — it
+   * holds rendered JSX (and is always replaced by the <Outlet/> at render).
+   */
+  useEffect(() => {
+    try {
+      const payload: PersistedTab[] = items.map((p) => ({ key: p.key, label: p.label }));
+      sessionStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(payload));
+      sessionStorage.setItem(STORAGE_KEY_ACTIVE, activeKey);
+    } catch {
+      // storage might be disabled or quota exceeded — not fatal
+    }
+  }, [items, activeKey]);
+
+  /**
+   * If the URL points at an operation route but the corresponding tab was
+   * not restored from sessionStorage (e.g. direct deep-link from another
+   * place), inject it once `activeGroup.apis` is loaded.
+   */
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (activeGroup.apis.length === 0) return;
+
+    // `useLocation().pathname` is URL-encoded; ApiItem.key stores the decoded
+    // form (e.g. Chinese tag names), so normalize before matching.
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(location.pathname);
+    } catch {
+      pathname = location.pathname;
+    }
+
+    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug');
+    if (!isApiRoute) {
+      restoredRef.current = true;
+      return;
+    }
+
+    const menuKey = routeKeyToMenuKey(pathname);
+    const api = activeGroup.apis.find((a) => a.key === menuKey);
+    if (!api) return; // apis loaded but this one didn't match; wait for other groups
+
+    restoredRef.current = true;
+    const title = `${api.method.toUpperCase()} ${api.summary}`;
+    setItems((prev) =>
+      prev.some((p) => p.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+    );
+    setActiveKey(pathname);
+    setSelectedKey(menuKey);
+  }, [activeGroup.apis, location.pathname]);
 
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
@@ -69,11 +173,15 @@ const AppInner: React.FC = () => {
   };
 
   const remove = (targetKey: TargetKey) => {
+    // Home tab is not closable – it acts as the persistent entry point.
+    if (targetKey === HOME_KEY) return;
     const targetIndex = items.findIndex((pane) => pane.key === targetKey);
     const newPanes = items.filter((pane) => pane.key !== targetKey);
     if (newPanes.length && targetKey === activeKey) {
       const { key } = newPanes[targetIndex === newPanes.length ? targetIndex - 1 : targetIndex];
       setActiveKey(key);
+      setSelectedKey(routeKeyToMenuKey(key));
+      navigate(key);
     }
     setItems(newPanes);
   };
@@ -125,6 +233,7 @@ const AppInner: React.FC = () => {
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const tabItems = items.map((item) => ({
     ...item,
+    closable: item.key !== HOME_KEY,
     children: item.key === activeKey ? <Outlet /> : item.children,
   }));
 
@@ -253,13 +362,15 @@ const AppInner: React.FC = () => {
 
 const App: React.FC = () => (
   <ConfigProvider>
-    <AuthProvider>
-      <GlobalParamProvider>
-        <GroupProvider>
-          <AppInner />
-        </GroupProvider>
-      </GlobalParamProvider>
-    </AuthProvider>
+    <SettingsProvider>
+      <AuthProvider>
+        <GlobalParamProvider>
+          <GroupProvider>
+            <AppInner />
+          </GroupProvider>
+        </GlobalParamProvider>
+      </AuthProvider>
+    </SettingsProvider>
   </ConfigProvider>
 );
 
