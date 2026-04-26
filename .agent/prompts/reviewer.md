@@ -16,7 +16,8 @@
 - 读取 .agent/COORDINATION.md。
 - 读取 .agent/RUNBOOK.md。
 - 读取 .agent/REVIEW_POLICY.md。
-- 读取 .agent/TASKS.md 中的目标任务。
+- 读取目标任务的 GitHub Issue（coordinator 会提供 issue 编号）。
+- ⚠️ .agent/TASKS.md 已冻结，不要从中读取任务状态。
 
 审查重点：
 - diff 是否满足目标任务，且只满足这个任务？
