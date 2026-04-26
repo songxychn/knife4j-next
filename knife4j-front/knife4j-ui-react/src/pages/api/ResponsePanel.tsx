@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { copyToClipboard } from '../../utils/clipboard';
 
 const { Text } = Typography;
 
@@ -81,35 +82,6 @@ const preStyle: React.CSSProperties = {
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-all',
 };
-
-/**
- * Copies text via navigator.clipboard, with a hidden-textarea fallback
- * for older browsers / non-secure contexts. Mirrors the copy helper
- * already used by the request preview panel.
- */
-function copyToClipboard(text: string, onDone: () => void, onFail: () => void): void {
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(onDone).catch(onFail);
-      return;
-    }
-  } catch {
-    // fall through to textarea fallback
-  }
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    onDone();
-  } catch {
-    onFail();
-  }
-}
 
 export default function ResponsePanel({ response, error }: ResponsePanelProps) {
   const { t } = useTranslation();
