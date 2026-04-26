@@ -887,3 +887,17 @@ next:
 blockers:
 - none
 
+## 2026-04-27 TASK-048
+task: TASK-048
+agent: coordinator
+branch: agent/TASK-048-spotless-indent-empty-lines
+status: review
+summary:
+- 关闭 Spotless Eclipse formatter 的 `indent_empty_lines` 设置（true → false）
+- 用 Java 17 运行 `mvn spotless:apply`，全量格式化 290 个 Java 文件（纯空白变更：移除空行上的缩进空白）
+- `mvn spotless:check` 通过
+- 创建 PR #55: https://github.com/songxychn/knife4j-next/pull/55
+- 同时修复了 PR #53 的 prettier 格式问题并推送（commit 32ad42b5）
+notes:
+- 本地 Java 8 环境下 spotless 插件无法运行（PluginContainerException），需 JAVA_HOME 指向 Java 17+
+- PR #53 的 Java spotless 问题将在 PR #55 合并后自动解决（空行不再需要缩进）

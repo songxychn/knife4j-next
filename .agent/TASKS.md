@@ -882,3 +882,22 @@ done_when:
 notes:
 - 对齐 vue2：HeaderSearch + SiderMenu 组合的过滤和 highlight
 - 本任务实现后，Sidebar 可关闭 TASK-044 的 filter 特性回退
+
+### TASK-048
+status: review
+area: repo
+title: 关闭 Spotless indentEmptyLines，全量格式化 Java 空行
+branch: agent/TASK-048-spotless-indent-empty-lines
+pr: https://github.com/songxychn/knife4j-next/pull/55
+depends_on:
+validation:
+- `JAVA_HOME=... mvn spotless:check` → passes
+done_when:
+- `spotless_knife4j_formatter.xml` 中 `indent_empty_lines` 设为 `false`
+- 所有 Java 文件空行不再携带缩进空白
+- CI `java-build-test` 的 spotless:check 通过
+notes:
+- 触发：PR #53 CI 因 `OpenApi3UiResourceSmokeTest.java` 空行缺少缩进而 spotless:check 失败
+- 根因：Eclipse formatter 设置 `indent_empty_lines=true`，要求空行也带缩进空白，这违反直觉且 diff-noisy
+- 改动：`indent_empty_lines` → `false`，`spotless:apply` 全量格式化 290 个文件（纯空白变更）
+- PR #53 的 Java 格式问题将在本 PR 合并后自动解决（空行不再需要缩进）
