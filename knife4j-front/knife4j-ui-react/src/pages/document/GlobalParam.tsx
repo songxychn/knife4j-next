@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Form, Input, Select, Space, Table } from 'antd';
+import { Button, Form, Input, Select, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { GlobalParamItem, useGlobalParam } from '../../context/GlobalParamContext';
@@ -40,26 +40,32 @@ function GlobalParamInner() {
         layout="inline"
         onFinish={onFinish}
         initialValues={{ in: 'header' }}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}
       >
-        <Form.Item name="name" rules={[{ required: true, message: t('globalParam.validation.name') }]}>
+        <Form.Item
+          name="name"
+          rules={[{ required: true, message: t('globalParam.validation.name') }]}
+          style={{ flex: '1 1 160px', minWidth: 120 }}
+        >
           <Input placeholder={t('globalParam.placeholder.name')} />
         </Form.Item>
-        <Form.Item name="value" rules={[{ required: true, message: t('globalParam.validation.value') }]}>
+        <Form.Item
+          name="value"
+          rules={[{ required: true, message: t('globalParam.validation.value') }]}
+          style={{ flex: '1 1 160px', minWidth: 120 }}
+        >
           <Input placeholder={t('globalParam.placeholder.value')} />
         </Form.Item>
-        <Form.Item name="in">
-          <Select style={{ width: 100 }}>
+        <Form.Item name="in" style={{ flex: '0 0 110px' }}>
+          <Select style={{ width: '100%' }}>
             <Select.Option value="header">header</Select.Option>
             <Select.Option value="query">query</Select.Option>
           </Select>
         </Form.Item>
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {t('globalParam.btn.add')}
-            </Button>
-          </Space>
+        <Form.Item style={{ flex: '0 0 auto' }}>
+          <Button type="primary" htmlType="submit" loading={loading}>
+            {t('globalParam.btn.add')}
+          </Button>
         </Form.Item>
       </Form>
 
