@@ -33,7 +33,13 @@ import type {
   SchemeValue,
   ValidationError,
 } from 'knife4j-core';
-import { buildCurl, buildOperationDebugModel, buildRequest as coreBuildRequest, validateRequired } from 'knife4j-core';
+import {
+  buildCurl,
+  buildOperationDebugModel,
+  buildRequest as coreBuildRequest,
+  replacePathParams,
+  validateRequired,
+} from 'knife4j-core';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
@@ -1092,6 +1098,47 @@ export default function ApiDebug() {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
   };
 
+  // ── Path 参数实时回写到 URL 显示 ──
+  // originalPathTemplate 始终保存 OpenAPI 里的模板路径（如 /users/{id}），供 buildRequest 使用
+  const originalPathTemplate = operation?.path ?? '/';
+  const displayPath = useMemo(() => {
+    if (!debugModel) return path;
+    const pathParamValues: Record<string, string> = {};
+    for (const p of debugModel.pathParams) {
+      const v = paramValues[paramKey(p)];
+      if (v !== undefined && v !== '') pathParamValues[p.name] = v;
+    }
+    // 如果 path 还包含 {xxx} 占位符，说明用户没有手动覆盖 URL，用 replacePathParams 实时替换
+    // 如果 path 已不包含任何占位符，说明用户手动编辑了 URL，直接显示
+    const hasPlaceholders = debugModel.pathParams.some((p) => path.includes(`{${p.name}}`));
+    return hasPlaceholders ? replacePathParams(path, pathParamValues) : path;
+  }, [path, debugModel, paramValues]);
+
+  /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
+  const handlePathInputChange = (newPath: string) => {
+    setPath(newPath);
+    if (!debugModel) return;
+    // 逐个 path 参数检测：基于模板路径结构，从 newPath 中提取占位符对应位置的实际值
+    for (const p of debugModel.pathParams) {
+      const placeholder = `{${p.name}}`;
+      // 如果 newPath 仍然包含占位符，说明用户只是在编辑非 path 参数部分，跳过反向同步
+      if (newPath.includes(placeholder)) continue;
+      const placeholderIdx = originalPathTemplate.indexOf(placeholder);
+      if (placeholderIdx === -1) continue;
+      // 模板中占位符后面紧跟的分隔符（如 / 或 ? 或末尾）
+      const afterPlaceholder = originalPathTemplate.slice(placeholderIdx + placeholder.length);
+      const nextDelimIdx = afterPlaceholder.length > 0 ? newPath.indexOf(afterPlaceholder, placeholderIdx) : -1;
+      const valueEnd = nextDelimIdx === -1 ? newPath.length : nextDelimIdx;
+      const extractedValue = newPath.slice(placeholderIdx, valueEnd);
+      try {
+        const decoded = decodeURIComponent(extractedValue);
+        setParamValues((prev) => ({ ...prev, [paramKey(p)]: decoded }));
+      } catch {
+        setParamValues((prev) => ({ ...prev, [paramKey(p)]: extractedValue }));
+      }
+    }
+  };
+
   // ── 所有 hooks 必须在 early return 之前 ──
 
   // ── 从 AuthContext 获取鉴权数据 ──
@@ -1499,7 +1546,7 @@ export default function ApiDebug() {
   const currentActiveTab = activeTab ?? defaultTab;
 
   return (
-    <div id="knife4j-api-debug-page" style={{ padding: '24px', maxWidth: 1080 }}>
+    <div id="knife4j-api-debug-page" style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
       <OperationModeTabs activeKey="debug" />
 
       <Space align="center" style={{ marginBottom: 12 }}>
@@ -1522,7 +1569,11 @@ export default function ApiDebug() {
           }))}
         />
         <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
-        <Input value={path} onChange={(event) => setPath(event.target.value)} style={{ flex: 1 }} />
+        <Input
+          value={displayPath}
+          onChange={(event) => handlePathInputChange(event.target.value)}
+          style={{ flex: 1 }}
+        />
         <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
           {t('apiDebug.send')}
         </Button>
