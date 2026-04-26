@@ -65,6 +65,8 @@ title: 配置参考
 
 > 标 ⚠️ 的配置在 React 新前端中暂不生效（后端会写入 OpenAPI extension，但前端不读取）。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
+> 各配置项的功能说明和示例见 [功能详解](../guide/features#功能详解)。
+
 ### `knife4j.documents`（列表）
 
 ```yaml
