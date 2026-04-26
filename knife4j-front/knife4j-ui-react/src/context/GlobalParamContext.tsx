@@ -46,6 +46,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGlobalParam = (): GlobalParamContextValue => {
   const ctx = useContext(GlobalParamContext);
   if (!ctx) throw new Error('useGlobalParam must be used inside GlobalParamProvider');

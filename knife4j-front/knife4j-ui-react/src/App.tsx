@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Layout, Select, Tabs, theme } from 'antd';
+import { Button, ConfigProvider, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { GroupProvider, useGroup } from './context/GroupContext';
+import { GroupProvider, useGroup, ApiItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
@@ -32,7 +32,7 @@ const AppInner: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
-  const { groups, setActiveGroupValue } = useGroup();
+  const { groups, activeGroup, setActiveGroupValue } = useGroup();
   const { t, i18n } = useTranslation();
 
   const {
@@ -47,14 +47,16 @@ const AppInner: React.FC = () => {
     setSiderWidth(data.size.width);
   };
 
-  const menuClick = (menu: { key: string; item: { props: { title: string } } }) => {
-    const newActiveKey = `${menu.key}/doc`;
+  const menuClick: MenuProps['onClick'] = (info) => {
+    const newActiveKey = `${info.key}/doc`;
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
-      const title = menu.item.props.title;
+      // Find the matching API to use its summary as tab title
+      const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === info.key);
+      const title = api ? `${api.method.toUpperCase()} ${api.summary}` : info.key;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
-    setSelectedKey(menu.key);
+    setSelectedKey(info.key);
     setActiveKey(newActiveKey);
     navigate(newActiveKey);
   };

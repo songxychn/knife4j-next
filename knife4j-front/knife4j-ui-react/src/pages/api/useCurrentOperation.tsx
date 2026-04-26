@@ -12,6 +12,7 @@ interface CurrentOperation {
   operation?: MenuOperation;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCurrentOperation(): CurrentOperation {
   const { tag, operaterId } = useParams();
   const { loading, swaggerDoc, menuTags } = useGroup();
