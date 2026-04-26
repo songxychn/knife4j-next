@@ -116,7 +116,7 @@ function unwrapRef(schema: SchemaObject, doc: SwaggerDoc, seen: Set<string> = ne
   return current;
 }
 
-export interface FieldRow {
+interface FieldRow {
   fieldPath: string;
   typeDisplay: string;
   required: boolean;
@@ -146,7 +146,7 @@ function circularPlaceholder(prefix: string): FieldRow[] {
  *
  * 循环引用保护：seenRefs 检测 $ref 环；depth > MAX_FLATTEN_DEPTH 时渲染占位节点。
  */
-export function flattenSchemaFields(
+function flattenSchemaFields(
   schema: SchemaObject,
   doc: SwaggerDoc,
   prefix = '',
