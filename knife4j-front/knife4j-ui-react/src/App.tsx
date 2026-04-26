@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup, ApiItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
@@ -17,7 +17,12 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const HOME_KEY = '/group/home';
 
-const routeKeyToMenuKey = (key: string) => (key.endsWith('/doc') ? key.slice(0, -4) : key);
+/**
+ * Strip the trailing `/doc` or `/debug` mode segment from a route key to
+ * obtain the corresponding sidebar menu key.
+ */
+const routeKeyToMenuKey = (key: string) =>
+  key.endsWith('/doc') ? key.slice(0, -4) : key.endsWith('/debug') ? key.slice(0, -6) : key;
 
 const footerStyle: React.CSSProperties = {
   textAlign: 'center',
@@ -33,6 +38,7 @@ const AppInner: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
+  const location = useLocation();
   const { groups, activeGroup, setActiveGroupValue } = useGroup();
   const { t, i18n } = useTranslation();
 
@@ -44,6 +50,48 @@ const AppInner: React.FC = () => {
   const [activeKey, setActiveKey] = useState(HOME_KEY);
   const [items, setItems] = useState([{ label: t('app.tab.home'), children: '', key: HOME_KEY }]);
   const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
+
+  /**
+   * Restore the open tab from the URL on first load (or hard refresh).
+   *
+   * Without this, a deep-linked route like `/group/tag/op/debug` would render
+   * its page but leave the Tabs bar showing only "Home" because `items` is
+   * seeded from an empty initial state. We wait until `activeGroup.apis` is
+   * populated (OpenAPI fetch completed) so we can derive the proper tab title,
+   * then inject the matching tab once per page load.
+   */
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (activeGroup.apis.length === 0) return;
+
+    // `useLocation().pathname` is URL-encoded; ApiItem.key stores the decoded
+    // form (e.g. Chinese tag names), so normalize before matching.
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(location.pathname);
+    } catch {
+      pathname = location.pathname;
+    }
+
+    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug');
+    if (!isApiRoute) {
+      restoredRef.current = true;
+      return;
+    }
+
+    const menuKey = routeKeyToMenuKey(pathname);
+    const api = activeGroup.apis.find((a) => a.key === menuKey);
+    if (!api) return; // apis loaded but this one didn't match; wait for other groups
+
+    restoredRef.current = true;
+    const title = `${api.method.toUpperCase()} ${api.summary}`;
+    setItems((prev) =>
+      prev.some((p) => p.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+    );
+    setActiveKey(pathname);
+    setSelectedKey(menuKey);
+  }, [activeGroup.apis, location.pathname]);
 
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
