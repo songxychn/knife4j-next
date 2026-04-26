@@ -21,6 +21,8 @@ import com.github.xiaoymin.knife4j.core.enums.OpenAPILanguageEnums;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.List;
+
 /**
  * @since  4.0.0
  * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
@@ -150,5 +152,12 @@ public class Knife4jSetting {
      * @since v4.0.0
      */
     private boolean enableResponseCode = true;
+
+    /**
+     * Explicit package paths for x-order scanning. When set, takes priority over springdoc
+     * packagesToScan and the RequestMappingHandlerMapping reflection fallback.
+     * @since v4.4.0
+     */
+    private List<String> apiOrderPackageScan;
 
 }

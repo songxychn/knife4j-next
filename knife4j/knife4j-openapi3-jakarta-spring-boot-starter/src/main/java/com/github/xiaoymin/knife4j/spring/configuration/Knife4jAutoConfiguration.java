@@ -28,6 +28,7 @@ import jakarta.servlet.DispatcherType;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.properties.SpringDocConfigProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,9 +37,11 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.lang.Nullable;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /***
  * Knife4j 基础自动配置类
@@ -63,9 +66,10 @@ public class Knife4jAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public Knife4jOpenApiCustomizer knife4jOpenApiCustomizer(SpringDocConfigProperties docProperties) {
+    public Knife4jOpenApiCustomizer knife4jOpenApiCustomizer(SpringDocConfigProperties docProperties,
+                                                             @Autowired(required = false) @Nullable RequestMappingHandlerMapping requestMappingHandlerMapping) {
         log.debug("Register Knife4jOpenApiCustomizer");
-        return new Knife4jOpenApiCustomizer(this.properties, docProperties);
+        return new Knife4jOpenApiCustomizer(this.properties, docProperties, requestMappingHandlerMapping);
     }
 
     @Bean

@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.spring.extension;
 
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import com.github.xiaoymin.knife4j.core.conf.ExtensionsConstants;
 import com.github.xiaoymin.knife4j.core.conf.GlobalConstants;
@@ -24,7 +25,8 @@ import com.github.xiaoymin.knife4j.spring.configuration.Knife4jProperties;
 import com.github.xiaoymin.knife4j.spring.configuration.Knife4jSetting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.models.OpenAPI;
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springdoc.core.customizers.GlobalOpenApiCustomizer;
@@ -34,8 +36,10 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,11 +50,27 @@ import java.util.stream.Collectors;
  * 2022/12/11 22:40
  */
 @Slf4j
-@AllArgsConstructor
 public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
 
     final Knife4jProperties knife4jProperties;
     final SpringDocConfigProperties properties;
+    /** Optional — may be null when not running in a servlet context (e.g. reactive). */
+    final RequestMappingHandlerMapping requestMappingHandlerMapping;
+
+    public Knife4jOpenApiCustomizer(Knife4jProperties knife4jProperties,
+                                    SpringDocConfigProperties properties,
+                                    RequestMappingHandlerMapping requestMappingHandlerMapping) {
+        this.knife4jProperties = knife4jProperties;
+        this.properties = properties;
+        this.requestMappingHandlerMapping = requestMappingHandlerMapping;
+    }
+
+    /** Backwards-compatible constructor for callers that don't supply the mapping. */
+    public Knife4jOpenApiCustomizer(Knife4jProperties knife4jProperties,
+                                    SpringDocConfigProperties properties) {
+        this(knife4jProperties, properties, null);
+    }
+
     @Override
     public void customise(OpenAPI openApi) {
         log.debug("Knife4j OpenApiCustomizer");
@@ -66,57 +86,142 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
             addOrderExtension(openApi);
         }
     }
+
     /**
-     * 往OpenAPI内tags字段添加x-order属性
-     *
-     * @param openApi openApi
+     * 往OpenAPI内tags字段添加x-order属性，并为每个Operation添加x-order属性
      */
     private void addOrderExtension(OpenAPI openApi) {
-        if (Objects.isNull(properties.getGroupConfigs())
-                || properties.getGroupConfigs().isEmpty()) {
-            return;
+        Set<String> packagesToScan = resolvePackagesToScan();
+        Set<Class<?>> controllers = resolveControllerClasses(packagesToScan);
+        applyTagOrder(openApi, controllers);
+        applyOperationOrder(openApi, controllers);
+    }
+
+    /**
+     * Resolve the effective set of packages to scan for @ApiSupport controllers.
+     * Priority: knife4j.setting.api-order-package-scan > springdoc packagesToScan > reflection fallback.
+     */
+    private Set<String> resolvePackagesToScan() {
+        Knife4jSetting setting = knife4jProperties.getSetting();
+        // 1. Explicit user config takes highest priority
+        if (setting != null && !CollectionUtils.isEmpty(setting.getApiOrderPackageScan())) {
+            return new HashSet<>(setting.getApiOrderPackageScan());
         }
-        // 获取包扫描路径
-        Set<String> packagesToScan =
-                properties.getGroupConfigs().stream()
-                        .map(SpringDocConfigProperties.GroupConfig::getPackagesToScan)
-                        .filter(toScan -> !CollectionUtils.isEmpty(toScan))
-                        .flatMap(List::stream)
-                        .collect(Collectors.toSet());
-        if (CollectionUtils.isEmpty(packagesToScan)) {
-            return;
-        }
-        // 扫描包下被ApiSupport注解的RestController Class
-        Set<Class<?>> classes =
-                packagesToScan.stream()
-                        .map(packageToScan -> scanPackageByAnnotation(packageToScan, RestController.class))
-                        .flatMap(Set::stream)
-                        .filter(clazz -> clazz.isAnnotationPresent(ApiSupport.class))
-                        .collect(Collectors.toSet());
-        if (!CollectionUtils.isEmpty(classes)) {
-            // ApiSupport oder值存入tagSortMap<Tag.name,ApiSupport.order>
-            Map<String, Integer> tagOrderMap = new HashMap<>();
-            classes.forEach(
-                    clazz -> {
-                        Tag tag = getTag(clazz);
-                        if (Objects.nonNull(tag)) {
-                            ApiSupport apiSupport = clazz.getAnnotation(ApiSupport.class);
-                            tagOrderMap.putIfAbsent(tag.name(), apiSupport.order());
-                        }
-                    });
-            // 往openApi tags字段添加x-order增强属性
-            if (openApi.getTags() != null) {
-                openApi
-                        .getTags()
-                        .forEach(
-                                tag -> {
-                                    if (tagOrderMap.containsKey(tag.getName())) {
-                                        tag.addExtension(
-                                                ExtensionsConstants.EXTENSION_ORDER, tagOrderMap.get(tag.getName()));
-                                    }
-                                });
+        // 2. springdoc group packagesToScan
+        if (!CollectionUtils.isEmpty(properties.getGroupConfigs())) {
+            Set<String> fromGroups = properties.getGroupConfigs().stream()
+                    .map(SpringDocConfigProperties.GroupConfig::getPackagesToScan)
+                    .filter(toScan -> !CollectionUtils.isEmpty(toScan))
+                    .flatMap(List::stream)
+                    .collect(Collectors.toSet());
+            if (!CollectionUtils.isEmpty(fromGroups)) {
+                return fromGroups;
             }
         }
+        // 3. Reflection fallback via RequestMappingHandlerMapping
+        return Collections.emptySet();
+    }
+
+    /**
+     * Collect controller classes that carry @ApiSupport.
+     * When packagesToScan is empty, fall back to RequestMappingHandlerMapping.
+     */
+    private Set<Class<?>> resolveControllerClasses(Set<String> packagesToScan) {
+        if (!CollectionUtils.isEmpty(packagesToScan)) {
+            return packagesToScan.stream()
+                    .map(pkg -> scanPackageByAnnotation(pkg, RestController.class))
+                    .flatMap(Set::stream)
+                    .filter(clazz -> clazz.isAnnotationPresent(ApiSupport.class))
+                    .collect(Collectors.toSet());
+        }
+        // Fallback: inspect handler methods registered in the application context
+        if (requestMappingHandlerMapping != null) {
+            try {
+                return requestMappingHandlerMapping.getHandlerMethods().keySet().stream()
+                        .map(info -> requestMappingHandlerMapping.getHandlerMethods().get(info).getBeanType())
+                        .filter(clazz -> clazz.isAnnotationPresent(ApiSupport.class))
+                        .collect(Collectors.toSet());
+            } catch (Exception e) {
+                log.warn("Knife4j: failed to collect controllers via RequestMappingHandlerMapping", e);
+            }
+        }
+        return Collections.emptySet();
+    }
+
+    /**
+     * Apply x-order to OpenAPI tags based on @ApiSupport.order on controller classes.
+     */
+    private void applyTagOrder(OpenAPI openApi, Set<Class<?>> controllers) {
+        if (CollectionUtils.isEmpty(controllers) || openApi.getTags() == null) {
+            return;
+        }
+        Map<String, Integer> tagOrderMap = new HashMap<>();
+        controllers.forEach(clazz -> {
+            Tag tag = getTag(clazz);
+            if (tag != null) {
+                ApiSupport apiSupport = clazz.getAnnotation(ApiSupport.class);
+                tagOrderMap.putIfAbsent(tag.name(), apiSupport.order());
+            }
+        });
+        openApi.getTags().forEach(tag -> {
+            if (tagOrderMap.containsKey(tag.getName())) {
+                tag.addExtension(ExtensionsConstants.EXTENSION_ORDER, tagOrderMap.get(tag.getName()));
+            }
+        });
+    }
+
+    /**
+     * Apply x-order to each Operation based on @ApiOperationSupport.order on handler methods.
+     */
+    private void applyOperationOrder(OpenAPI openApi, Set<Class<?>> controllers) {
+        if (openApi.getPaths() == null || CollectionUtils.isEmpty(controllers)) {
+            return;
+        }
+        // Build a map: operationId -> order value, derived from @ApiOperationSupport on methods
+        Map<String, Integer> operationOrderMap = new HashMap<>();
+        for (Class<?> clazz : controllers) {
+            for (Method method : clazz.getMethods()) {
+                ApiOperationSupport support = method.getAnnotation(ApiOperationSupport.class);
+                if (support != null && support.order() != 0) {
+                    // springdoc uses method name as operationId by default; also try explicit id
+                    operationOrderMap.put(method.getName(), support.order());
+                }
+            }
+        }
+        if (operationOrderMap.isEmpty()) {
+            return;
+        }
+        openApi.getPaths().forEach((path, pathItem) -> {
+            for (Operation operation : collectOperations(pathItem)) {
+                if (operation != null && operation.getOperationId() != null) {
+                    Integer order = operationOrderMap.get(operation.getOperationId());
+                    if (order != null) {
+                        operation.addExtension(ExtensionsConstants.EXTENSION_ORDER, order);
+                    }
+                }
+            }
+        });
+    }
+
+    private List<Operation> collectOperations(PathItem pathItem) {
+        List<Operation> ops = new ArrayList<>();
+        if (pathItem.getGet() != null)
+            ops.add(pathItem.getGet());
+        if (pathItem.getPost() != null)
+            ops.add(pathItem.getPost());
+        if (pathItem.getPut() != null)
+            ops.add(pathItem.getPut());
+        if (pathItem.getDelete() != null)
+            ops.add(pathItem.getDelete());
+        if (pathItem.getPatch() != null)
+            ops.add(pathItem.getPatch());
+        if (pathItem.getOptions() != null)
+            ops.add(pathItem.getOptions());
+        if (pathItem.getHead() != null)
+            ops.add(pathItem.getHead());
+        if (pathItem.getTrace() != null)
+            ops.add(pathItem.getTrace());
+        return ops;
     }
 
     private Tag getTag(Class<?> clazz) {
@@ -138,8 +243,8 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
         return tag;
     }
 
-    private Set<Class<?>> scanPackageByAnnotation(
-                                                  String packageName, final Class<? extends Annotation> annotationClass) {
+    private Set<Class<?>> scanPackageByAnnotation(String packageName,
+                                                  final Class<? extends Annotation> annotationClass) {
         ClassPathScanningCandidateComponentProvider scanner =
                 new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(annotationClass));
@@ -149,7 +254,6 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
                 Class<?> clazz = Class.forName(beanDefinition.getBeanClassName());
                 classes.add(clazz);
             } catch (ClassNotFoundException ignore) {
-
             }
         }
         return classes;
