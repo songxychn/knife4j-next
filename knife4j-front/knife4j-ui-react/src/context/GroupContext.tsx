@@ -156,10 +156,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
-  // 关键区分：
-  //   - loading 中（swaggerDoc 为 null 且 usingMock 为 false）→ 空数组，让 UI 显示 loading
-  //   - 有真实数据 → 从 rawGroups 转换
-  //   注意：不再在 groups 里暴露 MOCK_GROUPS，彻底杜绝 petstore 闪烁
+  // loading 期间 swaggerDoc 为 null → 返回空数组，让 UI 显示 loading
   const groups: ApiGroup[] = swaggerDoc
     ? rawGroups.map((g) => {
         const isActive = g.name === activeGroupValue;

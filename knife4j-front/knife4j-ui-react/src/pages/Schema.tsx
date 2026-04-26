@@ -52,80 +52,6 @@ function schemasToModels(schemas: Record<string, SchemaObject>): ModelDef[] {
   }));
 }
 
-// ---- mock 数据 fallback ----
-
-const MOCK_SCHEMAS: ModelDef[] = [
-  {
-    name: 'UserVO',
-    description: '用户视图对象',
-    fields: [
-      { key: 'id', name: 'id', type: 'integer', format: 'int64', required: true, description: '用户 ID' },
-      { key: 'username', name: 'username', type: 'string', required: true, description: '用户名' },
-      { key: 'email', name: 'email', type: 'string', format: 'email', required: false, description: '邮箱地址' },
-      { key: 'role', name: 'role', type: 'string', required: false, description: '角色，枚举：ADMIN / USER' },
-      {
-        key: 'createdAt',
-        name: 'createdAt',
-        type: 'string',
-        format: 'date-time',
-        required: false,
-        description: '创建时间',
-      },
-    ],
-  },
-  {
-    name: 'PageResult',
-    description: '分页结果包装',
-    fields: [
-      { key: 'total', name: 'total', type: 'integer', format: 'int64', required: true, description: '总记录数' },
-      { key: 'pageNum', name: 'pageNum', type: 'integer', format: 'int32', required: true, description: '当前页码' },
-      { key: 'pageSize', name: 'pageSize', type: 'integer', format: 'int32', required: true, description: '每页大小' },
-      {
-        key: 'list',
-        name: 'list',
-        type: 'array',
-        required: false,
-        description: '数据列表',
-        children: [{ key: 'list.item', name: 'item', type: 'object', required: false, description: '列表元素' }],
-      },
-    ],
-  },
-  {
-    name: 'ApiResponse',
-    description: '统一响应结构',
-    fields: [
-      { key: 'code', name: 'code', type: 'integer', format: 'int32', required: true, description: '业务状态码' },
-      { key: 'message', name: 'message', type: 'string', required: false, description: '提示信息' },
-      { key: 'data', name: 'data', type: 'object', required: false, description: '响应数据' },
-      {
-        key: 'timestamp',
-        name: 'timestamp',
-        type: 'integer',
-        format: 'int64',
-        required: false,
-        description: '响应时间戳',
-      },
-    ],
-  },
-  {
-    name: 'CreateUserRequest',
-    description: '创建用户请求体',
-    fields: [
-      { key: 'username', name: 'username', type: 'string', required: true, description: '用户名，3-32 字符' },
-      {
-        key: 'password',
-        name: 'password',
-        type: 'string',
-        format: 'password',
-        required: true,
-        description: '密码，至少 8 位',
-      },
-      { key: 'email', name: 'email', type: 'string', format: 'email', required: false, description: '邮箱' },
-      { key: 'role', name: 'role', type: 'string', required: false, description: '角色，默认 USER' },
-    ],
-  },
-];
-
 // ---- 类型颜色映射 ----
 
 const TYPE_COLOR: Record<string, string> = {
@@ -141,8 +67,9 @@ const TYPE_COLOR: Record<string, string> = {
 
 export default function Schema() {
   const { t } = useTranslation();
-  const { schemas, loading, usingMock } = useGroup();
-  const models: ModelDef[] = usingMock || Object.keys(schemas).length === 0 ? MOCK_SCHEMAS : schemasToModels(schemas);
+  const { schemas, loading } = useGroup();
+  // loading 期间 schemas 为空对象，不展示 mock，让 Spin 占位；数据加载完后用真实 schemas
+  const models: ModelDef[] = loading ? [] : schemasToModels(schemas);
 
   const fieldColumns: ColumnsType<SchemaField> = [
     {
@@ -216,11 +143,6 @@ export default function Schema() {
     <div style={{ padding: '24px', maxWidth: 1100 }}>
       <Title level={4} style={{ marginBottom: 16 }}>
         {t('schema.title')}
-        {usingMock && (
-          <Tag color="orange" style={{ marginLeft: 8, fontSize: 11 }}>
-            {t('schema.tag.mock')}
-          </Tag>
-        )}
       </Title>
       {loading ? <Spin /> : <Collapse items={collapseItems} defaultActiveKey={models.map((m) => m.name)} />}
     </div>

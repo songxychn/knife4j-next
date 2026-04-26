@@ -2,8 +2,18 @@ name: Build and Deploy Demo
 
 on:
   push:
+    branches:
+      - master
+    paths:
+      - 'knife4j/**'
+      - 'knife4j-front/knife4j-core/**'
+      - 'knife4j-front/knife4j-ui-react/**'
+      - 'knife4j-front/package.json'
+      - 'knife4j-front/package-lock.json'
+      - '.github/workflows/deploy-demo.yml'
     tags:
       - 'v*'
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -24,6 +34,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: knife4j-front/package-lock.json
+
+      - name: Install knife4j-front workspace dependencies
+        run: npm ci
+        working-directory: knife4j-front
 
       - name: Build jar
         working-directory: knife4j
