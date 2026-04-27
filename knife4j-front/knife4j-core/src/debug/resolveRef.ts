@@ -32,6 +32,19 @@ export function resolveRef(ref: string, doc: Record<string, unknown>): Record<st
   return current as Record<string, unknown>;
 }
 
+/** 从 $ref 目标 schema 中提取 description 和 title（不递归解析 $ref） */
+export function resolveRefMeta(
+  ref: string,
+  doc: Record<string, unknown>,
+): { refDescription?: string; refTitle?: string } {
+  const schema = resolveRef(ref, doc);
+  if (!schema) return {};
+  return {
+    refDescription: typeof schema.description === 'string' ? schema.description : undefined,
+    refTitle: typeof schema.title === 'string' ? schema.title : undefined,
+  };
+}
+
 /**
  * 如果对象含 $ref，则解析为实际对象；否则原样返回。
  * 递归解析直到不再出现 $ref 或达到最大深度。

@@ -1,3 +1,4 @@
 /lib/
 **/__tests__/*
 .eslintrc.cjs
+src/debug_old/
