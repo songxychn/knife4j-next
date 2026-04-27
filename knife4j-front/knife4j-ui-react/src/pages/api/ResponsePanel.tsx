@@ -7,6 +7,7 @@ import { buildSchemaDescriptionMap, annotateJsonWithDescriptions } from '../../u
 import type { BuiltRequest } from 'knife4j-core';
 import { buildCurl } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
+import CodeBlock from './CodeBlock';
 
 const { Text } = Typography;
 
@@ -298,7 +299,7 @@ export default function ResponsePanel({ response, error, builtRequest, operation
  * Content rendering dispatch based on the pre-classified `kind`:
  *  - `image`  → inline <img> preview using the object URL
  *  - `binary` → download link (browsers cannot display it inline)
- *  - `json`   → pretty-printed JSON with optional schema description annotations
+ *  - `json`   → syntax-highlighted JSON via CodeBlock with optional schema description annotations
  *  - `text`   → plain text / html source in <pre>
  */
 function ContentTab({
@@ -350,6 +351,33 @@ function ContentTab({
     const pretty = prettyJson(response.rawText);
     const lines = showDescription ? annotateJsonWithDescriptions(pretty, descMap) : null;
 
+    // When description annotations are active, fall back to the annotated <pre> renderer
+    // so inline comments can be styled differently from the JSON code.
+    if (lines) {
+      return (
+        <div>
+          {hasDescriptions && (
+            <div style={{ marginBottom: 6 }}>
+              <Checkbox checked={showDescription} onChange={onToggleDescription}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {t('apiDebug.response.showDescription')}
+                </Text>
+              </Checkbox>
+            </div>
+          )}
+          <pre style={preStyle}>
+            {lines.map((line, i) => (
+              <span key={i}>
+                <span style={jsonCodeStyle}>{line.code}</span>
+                {line.description && <span style={jsonDescStyle}>{`  // ${line.description}`}</span>}
+                {i < lines.length - 1 ? '\n' : ''}
+              </span>
+            ))}
+          </pre>
+        </div>
+      );
+    }
+
     return (
       <div>
         {hasDescriptions && (
@@ -361,17 +389,7 @@ function ContentTab({
             </Checkbox>
           </div>
         )}
-        <pre style={preStyle}>
-          {lines
-            ? lines.map((line, i) => (
-                <span key={i}>
-                  <span style={jsonCodeStyle}>{line.code}</span>
-                  {line.description && <span style={jsonDescStyle}>{`  // ${line.description}`}</span>}
-                  {i < lines.length - 1 ? '\n' : ''}
-                </span>
-              ))
-            : pretty}
-        </pre>
+        <CodeBlock code={pretty} />
       </div>
     );
   }
