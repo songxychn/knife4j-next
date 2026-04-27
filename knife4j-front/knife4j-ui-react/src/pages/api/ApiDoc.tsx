@@ -2,7 +2,6 @@ import { Alert, Badge, Button, Space, Spin, Table, Tag, Typography, message } fr
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
-import { Link as RouterLink, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
@@ -141,7 +140,6 @@ const METHOD_COLOR: Record<string, string> = {
 
 export default function ApiDoc() {
   const { t } = useTranslation();
-  const { group } = useParams();
   const { loading, swaggerDoc, operation } = useCurrentOperation();
 
   if (loading) {
@@ -296,11 +294,7 @@ export default function ApiDoc() {
         <Space size={6} wrap style={{ marginTop: 4, marginBottom: 8 }}>
           <Text type="secondary">{t('apiDoc.relatedModels')}</Text>
           {relatedModelNames.map((name) => (
-            <RouterLink key={name} to={`/${encodeURIComponent(group ?? '')}/schema/${encodeURIComponent(name)}`}>
-              <Tag color="geekblue" style={{ cursor: 'pointer' }}>
-                {name}
-              </Tag>
-            </RouterLink>
+            <SchemaTypeLink key={name} node={{ name: '', type: 'object', required: false, refName: name }} />
           ))}
         </Space>
       )}
