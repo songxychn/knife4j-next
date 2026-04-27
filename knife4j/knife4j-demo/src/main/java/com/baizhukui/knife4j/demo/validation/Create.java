@@ -15,25 +15,10 @@
  */
 
 
-package com.github.xiaoymin.knife4j.core.conf;
+package com.baizhukui.knife4j.demo.validation;
 
 /**
- * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
- * 2023/2/26 16:05
- * @since knife4j
+ * Validation group marker for create operations.
  */
-public class ExtensionsConstants {
-
-    /**
-     * 作者
-     */
-    public static final String EXTENSION_AUTHOR = "x-author";
-    /**
-     * 排序
-     */
-    public static final String EXTENSION_ORDER = "x-order";
-    /**
-     * Validation groups — maps group simple name to required field names
-     */
-    public static final String EXTENSION_VALIDATION_GROUPS = "x-validation-groups";
+public interface Create {
 }
