@@ -130,8 +130,8 @@ export default function Home() {
   const specLabel = swaggerDoc.openapi
     ? `OpenAPI ${swaggerDoc.openapi}`
     : swaggerDoc.swagger
-    ? `Swagger ${swaggerDoc.swagger}`
-    : 'OpenAPI';
+      ? `Swagger ${swaggerDoc.swagger}`
+      : 'OpenAPI';
 
   const versionLabel = info.version ? (/^v/i.test(info.version) ? info.version : `v${info.version}`) : '-';
 
