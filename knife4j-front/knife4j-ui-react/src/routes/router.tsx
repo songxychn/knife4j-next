@@ -30,6 +30,10 @@ const router = createHashRouter([
         element: <Schema />,
       },
       {
+        path: ':group/schema/:schemaName',
+        element: <Schema />,
+      },
+      {
         path: ':group/authorize',
         element: <Authorize />,
       },

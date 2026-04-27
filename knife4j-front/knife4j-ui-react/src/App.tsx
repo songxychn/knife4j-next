@@ -26,7 +26,22 @@ const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
  * obtain the corresponding sidebar menu key.
  */
 const routeKeyToMenuKey = (key: string) =>
-  key.endsWith('/doc') ? key.slice(0, -4) : key.endsWith('/debug') ? key.slice(0, -6) : key;
+  key.endsWith('/doc')
+    ? key.slice(0, -4)
+    : key.endsWith('/debug')
+      ? key.slice(0, -6)
+      : key.includes('/schema')
+        ? key.replace(/\/schema\/.*$/, '/schema')
+        : key;
+
+const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
+  const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
+  if (!match) return null;
+  return {
+    menuKey: `/${match[1]}/schema`,
+    labelSchema: match[2] ? decodeURIComponent(match[2]) : undefined,
+  };
+};
 
 interface PersistedTab {
   key: string;
@@ -148,20 +163,45 @@ const AppInner: React.FC = () => {
     setSelectedKey(menuKey);
   }, [activeGroup.apis, location.pathname]);
 
+  /**
+   * Programmatic navigation from a schema type link should become a real tab,
+   * not silently replace the content of the previously active API tab.
+   */
+  useEffect(() => {
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(location.pathname);
+    } catch {
+      pathname = location.pathname;
+    }
+
+    const info = schemaRouteInfo(pathname);
+    if (!info) return;
+
+    const title = info.labelSchema ? `${t('schema.title')} / ${info.labelSchema}` : t('schema.title');
+    setItems((prev) =>
+      prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+    );
+    setActiveKey(pathname);
+    setSelectedKey(info.menuKey);
+  }, [location.pathname, t]);
+
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
   };
 
   const menuClick: MenuProps['onClick'] = (info) => {
-    const newActiveKey = `${info.key}/doc`;
+    const rawKey = String(info.key);
+    const schemaInfo = schemaRouteInfo(rawKey);
+    const newActiveKey = schemaInfo ? rawKey : `${rawKey}/doc`;
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
       // Find the matching API to use its summary as tab title
-      const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === info.key);
-      const title = api ? `${api.method.toUpperCase()} ${api.summary}` : info.key;
+      const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
+      const title = schemaInfo ? t('schema.title') : api ? `${api.method.toUpperCase()} ${api.summary}` : rawKey;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
-    setSelectedKey(info.key);
+    setSelectedKey(routeKeyToMenuKey(newActiveKey));
     setActiveKey(newActiveKey);
     navigate(newActiveKey);
   };

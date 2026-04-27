@@ -48,6 +48,13 @@ const zhCN = {
   'schema.required.yes': '是',
   'schema.required.no': '否',
   'schema.fields': '字段',
+  'schema.noFields': '无字段',
+  'schema.empty': '暂无数据模型',
+  'schema.search.placeholder': '搜索模型名/说明...',
+  'schema.flag.deprecated': '已废弃',
+  'schema.flag.readOnly': '只读',
+  'schema.flag.writeOnly': '只写',
+  'schema.flag.truncated': '已截断',
 
   // ApiDoc
   'apiDoc.notFound.title': '未找到接口文档',
@@ -64,6 +71,7 @@ const zhCN = {
   'apiDoc.body.notExpandable': '当前请求体暂不支持字段展开',
   'apiDoc.noBody': '无请求体',
   'apiDoc.responseStructure': '响应结构',
+  'apiDoc.relatedModels': '相关模型：',
   'apiDoc.col.statusCode': '状态码',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': '字段名',

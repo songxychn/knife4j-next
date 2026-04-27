@@ -1,1 +1,4 @@
-module.exports = { generateApiMarkdown: () => '' };
+module.exports = {
+  generateApiMarkdown: () => '',
+  buildSchemaFieldTree: () => [],
+};

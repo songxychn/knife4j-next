@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Input, Menu, MenuProps, Tooltip } from 'antd';
-import { ApiOutlined, SearchOutlined } from '@ant-design/icons';
+import { ApiOutlined, DatabaseOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
 import Markdown from '../components/Markdown';
@@ -46,7 +46,7 @@ interface SidebarSearchMenuProps {
 }
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
-  const { activeGroup, menuTags } = useGroup();
+  const { activeGroup, menuTags, schemas } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
@@ -91,6 +91,22 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const menuItems = useMemo(() => {
     const q = searchText.trim();
     const items: NonNullable<MenuProps['items']> = [];
+    if (activeGroup.value) {
+      items.push({
+        key: `/${activeGroup.value}/schema`,
+        label: (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <DatabaseOutlined />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {t('schema.title')}
+            </span>
+            <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>
+              {Object.keys(schemas).length}
+            </span>
+          </span>
+        ),
+      });
+    }
     const tagDescMap = new Map(menuTags.map((t) => [t.tag, t.description]));
 
     filteredByTag.forEach((apis, tag) => {
@@ -122,7 +138,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       });
     });
     return items;
-  }, [filteredByTag, menuTags, searchText]);
+  }, [activeGroup.value, filteredByTag, menuTags, schemas, searchText, t]);
 
   return (
     <>

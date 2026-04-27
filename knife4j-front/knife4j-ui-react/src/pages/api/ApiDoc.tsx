@@ -1,12 +1,15 @@
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
-import { generateApiMarkdown, buildSchemaExample } from 'knife4j-core';
+import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
+import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
+import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 
 const { Title, Text } = Typography;
 
@@ -23,15 +26,7 @@ interface ResponseRow {
   key: string;
   statusCode: string;
   description: string;
-  schema: string;
-}
-
-interface BodyRow {
-  key: string;
-  name: string;
-  type: string;
-  required: boolean;
-  description: string;
+  schema?: SchemaObject;
 }
 
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
@@ -51,32 +46,86 @@ function parameterType(parameter: ParameterObject): string {
   return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
 }
 
-function schemaToBodyRows(schema: SchemaObject, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): BodyRow[] {
-  const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
-  if (!resolved?.properties) return [];
-  const requiredSet = new Set(resolved.required ?? []);
-  return Object.entries(resolved.properties).map(([name, prop]) => ({
-    key: name,
-    name,
-    type: schemaName(prop),
-    required: requiredSet.has(name),
-    description: prop.description ?? '',
-  }));
-}
-
 function firstRequestSchema(
   requestBody: { content?: Record<string, { schema?: SchemaObject }> } | undefined,
+  parameters: ParameterObject[] | undefined,
 ): SchemaObject | undefined {
-  if (!requestBody?.content) return undefined;
-  return requestBody.content['application/json']?.schema ?? Object.values(requestBody.content)[0]?.schema;
+  const bodyParameter = parameters?.find((parameter) => parameter.in === 'body')?.schema;
+  if (!requestBody?.content) return bodyParameter;
+  return (
+    requestBody.content['application/json']?.schema ?? Object.values(requestBody.content)[0]?.schema ?? bodyParameter
+  );
 }
 
-function responseSchema(response: ResponseObject): string {
-  const schema =
+function responseSchema(response: ResponseObject): SchemaObject | undefined {
+  return (
     response.content?.['application/json']?.schema ??
     response.schema ??
-    Object.values(response.content ?? {})[0]?.schema;
-  return schemaName(schema);
+    Object.values(response.content ?? {})[0]?.schema
+  );
+}
+
+function schemaToFieldNodes(schema: SchemaObject, doc: SwaggerDoc): SchemaFieldNode[] {
+  return buildSchemaFieldTree(schema as Record<string, unknown>, {
+    doc: doc as unknown as Record<string, unknown>,
+    maxDepth: 8,
+  });
+}
+
+function schemaToTypeNode(schema: SchemaObject | undefined): SchemaFieldNode {
+  if (!schema) return { name: '', type: 'unknown', required: false };
+  if (schema.$ref) {
+    return { name: '', type: 'object', required: false, refName: schemaNameFromRef(schema.$ref) };
+  }
+  if (schema.type === 'array') {
+    return {
+      name: '',
+      type: 'array',
+      required: false,
+      children: schema.items ? [schemaToTypeNode(schema.items)] : undefined,
+    };
+  }
+  return {
+    name: '',
+    type: schema.type ?? 'object',
+    format: schema.format,
+    required: false,
+  };
+}
+
+function collectSchemaRefs(
+  schema: SchemaObject | undefined,
+  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
+  refs: Set<string>,
+  seenRefs = new Set<string>(),
+  depth = 0,
+) {
+  if (!schema || depth > 12) return;
+  if (schema.$ref) {
+    const refName = schemaNameFromRef(schema.$ref);
+    if (refName) refs.add(refName);
+    if (seenRefs.has(schema.$ref)) return;
+    const resolved = resolveRef(schema.$ref, doc);
+    if (resolved) {
+      collectSchemaRefs(resolved, doc, refs, new Set([...seenRefs, schema.$ref]), depth + 1);
+    }
+  }
+  if (schema.items) collectSchemaRefs(schema.items, doc, refs, seenRefs, depth + 1);
+  Object.values(schema.properties ?? {}).forEach((prop) => collectSchemaRefs(prop, doc, refs, seenRefs, depth + 1));
+
+  const recordSchema = schema as Record<string, unknown>;
+  const compositionKeys = ['allOf', 'oneOf', 'anyOf'] as const;
+  compositionKeys.forEach((key) => {
+    const parts = recordSchema[key];
+    if (Array.isArray(parts)) {
+      parts.forEach((part) => collectSchemaRefs(part as SchemaObject, doc, refs, seenRefs, depth + 1));
+    }
+  });
+
+  const additionalProperties = recordSchema.additionalProperties;
+  if (additionalProperties && typeof additionalProperties === 'object') {
+    collectSchemaRefs(additionalProperties as SchemaObject, doc, refs, seenRefs, depth + 1);
+  }
 }
 
 /** Build a pretty-printed JSON example string from a schema, or return null. */
@@ -222,28 +271,6 @@ export default function ApiDoc() {
     { title: t('apiDoc.col.description'), dataIndex: 'description' },
   ];
 
-  const bodyColumns: ColumnsType<BodyRow> = [
-    {
-      title: t('schema.col.fieldName'),
-      dataIndex: 'name',
-      width: 180,
-      render: (value) => <Text code>{value}</Text>,
-    },
-    { title: t('apiDoc.col.type'), dataIndex: 'type', width: 130 },
-    {
-      title: t('apiDoc.col.required'),
-      dataIndex: 'required',
-      width: 80,
-      render: (value) =>
-        value ? (
-          <Badge status="error" text={t('schema.required.yes')} />
-        ) : (
-          <Badge status="default" text={t('schema.required.no')} />
-        ),
-    },
-    { title: t('apiDoc.col.description'), dataIndex: 'description' },
-  ];
-
   const responseColumns: ColumnsType<ResponseRow> = [
     {
       title: t('apiDoc.col.statusCode'),
@@ -259,7 +286,8 @@ export default function ApiDoc() {
       title: t('apiDoc.col.schema'),
       dataIndex: 'schema',
       width: 180,
-      render: (value) => (value ? <Text code>{value}</Text> : <Text type="secondary">—</Text>),
+      render: (value: SchemaObject | undefined) =>
+        value ? <SchemaTypeLink node={schemaToTypeNode(value)} /> : <Text type="secondary">—</Text>,
     },
   ];
 
@@ -271,14 +299,25 @@ export default function ApiDoc() {
     required: Boolean(parameter.required),
     description: parameter.description ?? '',
   }));
-  const bodySchema = firstRequestSchema(op.requestBody);
-  const bodyRows = bodySchema ? schemaToBodyRows(bodySchema, swaggerDoc) : [];
+  const bodySchema = firstRequestSchema(op.requestBody, op.parameters);
+  const bodyFields = bodySchema ? schemaToFieldNodes(bodySchema, swaggerDoc) : [];
   const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
     key: statusCode,
     statusCode,
     description: response.description ?? '',
     schema: responseSchema(response),
   }));
+  const relatedModelNames = (() => {
+    const refs = new Set<string>();
+    (op.parameters ?? []).forEach((parameter) => collectSchemaRefs(parameter.schema, swaggerDoc, refs));
+    collectSchemaRefs(bodySchema, swaggerDoc, refs);
+    Object.values(op.responses ?? {}).forEach((response) =>
+      collectSchemaRefs(responseSchema(response), swaggerDoc, refs),
+    );
+    return Array.from(refs).filter((name) =>
+      Boolean(swaggerDoc.components?.schemas?.[name] ?? swaggerDoc.definitions?.[name]),
+    );
+  })();
 
   const requestExample = buildJsonExample(bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
@@ -312,6 +351,15 @@ export default function ApiDoc() {
       </div>
       {op.description && <Markdown source={op.description} />}
 
+      {relatedModelNames.length > 0 && (
+        <Space size={6} wrap style={{ marginTop: 4, marginBottom: 8 }}>
+          <Text type="secondary">{t('apiDoc.relatedModels')}</Text>
+          {relatedModelNames.map((name) => (
+            <SchemaTypeLink key={name} node={{ name: '', type: 'object', required: false, refName: name }} />
+          ))}
+        </Space>
+      )}
+
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestParams')}
       </Title>
@@ -334,16 +382,7 @@ export default function ApiDoc() {
             {
               key: 'schema',
               label: t('apiDoc.tab.schema'),
-              children: (
-                <Table<BodyRow>
-                  columns={bodyColumns}
-                  dataSource={bodyRows}
-                  pagination={false}
-                  size="small"
-                  bordered
-                  locale={{ emptyText: t('apiDoc.body.notExpandable') }}
-                />
-              ),
+              children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
             },
             ...(requestExample
               ? [
@@ -368,14 +407,7 @@ export default function ApiDoc() {
           ]}
         />
       ) : (
-        <Table<BodyRow>
-          columns={bodyColumns}
-          dataSource={[]}
-          pagination={false}
-          size="small"
-          bordered
-          locale={{ emptyText: t('apiDoc.noBody') }}
-        />
+        <SchemaFieldTable fields={[]} emptyText={t('apiDoc.noBody')} />
       )}
 
       <Title level={5} style={{ marginTop: 24 }}>
