@@ -83,7 +83,7 @@ function currentOrigin(): string {
  * Parse filename from Content-Disposition header.
  * Supports both `filename*=UTF-8''...` (RFC 5987) and plain `filename=...` forms.
  */
-export function parseContentDispositionFilename(header: string): string | undefined {
+function parseContentDispositionFilename(header: string): string | undefined {
   if (!header) return undefined;
 
   // RFC 5987: filename*=UTF-8''encoded%20name
