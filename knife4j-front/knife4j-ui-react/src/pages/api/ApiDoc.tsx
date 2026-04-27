@@ -83,7 +83,9 @@ function responseSchema(response: ResponseObject): string {
 function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerDoc): string | null {
   if (!schema) return null;
   try {
-    const example = buildSchemaExample(schema as Record<string, unknown>, { doc: doc as unknown as Record<string, unknown> });
+    const example = buildSchemaExample(schema as Record<string, unknown>, {
+      doc: doc as unknown as Record<string, unknown>,
+    });
     if (example === null || example === undefined) return null;
     return JSON.stringify(example, null, 2);
   } catch {
@@ -100,9 +102,7 @@ function responseExamples(
   return Object.entries(responses)
     .map(([statusCode, resp]) => {
       const schema =
-        resp.content?.['application/json']?.schema ??
-        resp.schema ??
-        Object.values(resp.content ?? {})[0]?.schema;
+        resp.content?.['application/json']?.schema ?? resp.schema ?? Object.values(resp.content ?? {})[0]?.schema;
       const example = buildJsonExample(schema, doc);
       return example ? { statusCode, example } : null;
     })
@@ -129,7 +129,17 @@ function JsonExampleBlock({ code, onCopy }: { code: string; onCopy: () => void }
         style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
         onClick={onCopy}
       />
-      <pre style={{ borderRadius: 4, fontSize: 13, maxHeight: 400, margin: 0, overflow: 'auto', background: '#f6f8fa', padding: '12px 16px' }}>
+      <pre
+        style={{
+          borderRadius: 4,
+          fontSize: 13,
+          maxHeight: 400,
+          margin: 0,
+          overflow: 'auto',
+          background: '#f6f8fa',
+          padding: '12px 16px',
+        }}
+      >
         {code}
       </pre>
     </div>
