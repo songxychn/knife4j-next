@@ -16,6 +16,8 @@ cd knife4j-front && npm ci && cd ..
 cd knife4j && mvn -B -ntp verify && cd ..
 ```
 
+On a first clone, run `npm install` or `npm ci` in `knife4j-front/`; the root `prepare` script installs Lefthook automatically so staged front-end files are formatted before commit.
+
 ## Code Formatting
 
 The repository enforces consistent formatting through a combination of tool-side and CI-side checks. **All PRs must pass these checks before merge.**
@@ -113,4 +115,3 @@ Before submitting a PR, verify:
 ## Questions?
 
 Feel free to open an issue or discussion on GitHub.
-

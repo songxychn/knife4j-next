@@ -3,12 +3,22 @@
   "version": "5.0.0-snapshot",
   "private": true,
   "description": "knife4j front-end monorepo (npm workspaces)",
+  "scripts": {
+    "prepare": "lefthook install"
+  },
   "workspaces": [
     "knife4j-core",
     "knife4j-ui-react"
   ],
   "engines": {
     "node": ">=22"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "prettier --write",
+    "*.{css,json}": "prettier --write"
+  },
+  "devDependencies": {
+    "lefthook": "^2.1.6",
+    "lint-staged": "^16.4.0"
   }
 }
-
