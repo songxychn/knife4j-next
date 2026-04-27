@@ -79,12 +79,48 @@ function currentOrigin(): string {
  * decoded into `rawText` so the Raw tab can show something even for
  * image / binary responses that choose to embed ASCII.
  */
+/**
+ * Parse filename from Content-Disposition header.
+ * Supports both `filename*=UTF-8''...` (RFC 5987) and plain `filename=...` forms.
+ */
+function parseContentDispositionFilename(header: string): string | undefined {
+  if (!header) return undefined;
+
+  // RFC 5987: filename*=UTF-8''encoded%20name
+  const rfc5987Match = header.match(/filename\*\s*=\s*([^']*)'[^']*'([^;,\s]+)/i);
+  if (rfc5987Match) {
+    try {
+      return decodeURIComponent(rfc5987Match[2]);
+    } catch {
+      // fall through to plain filename
+    }
+  }
+
+  // Plain: filename="foo.xlsx" or filename=foo.xlsx
+  const plainMatch = header.match(/filename\s*=\s*"?([^";,\s]+)"?/i);
+  if (plainMatch) {
+    return plainMatch[1];
+  }
+
+  return undefined;
+}
+
 async function interpretResponseBlob(
   blob: Blob,
   contentType: string,
   requestUrl: string,
+  contentDisposition?: string,
 ): Promise<{ kind: DebugResponsePayload['kind']; rawText: string; objectUrl?: string; filename?: string }> {
   const ct = (contentType || '').toLowerCase();
+
+  // Content-Disposition: attachment → treat as binary download regardless of content-type
+  const isAttachment = contentDisposition ? /attachment/i.test(contentDisposition) : false;
+  const cdFilename = contentDisposition ? parseContentDispositionFilename(contentDisposition) : undefined;
+
+  if (isAttachment) {
+    const filename = cdFilename ?? extractFilenameFromUrl(requestUrl) ?? 'download';
+    return { kind: 'binary', rawText: '', objectUrl: URL.createObjectURL(blob), filename };
+  }
 
   // image/* → inline preview via object URL, keep rawText empty (binary)
   if (ct.startsWith('image/')) {
@@ -109,8 +145,8 @@ async function interpretResponseBlob(
     return { kind: rawText ? 'text' : 'binary', rawText };
   }
 
-  // Binary payload (pdf, octet-stream, zip, ...) → download link.
-  const filename = extractFilenameFromUrl(requestUrl) ?? 'download';
+  // Binary payload (pdf, octet-stream, zip, xlsx, ...) → download link.
+  const filename = cdFilename ?? extractFilenameFromUrl(requestUrl) ?? 'download';
   return { kind: 'binary', rawText: '', objectUrl: URL.createObjectURL(blob), filename };
 }
 
@@ -1437,7 +1473,13 @@ export default function ApiDebug() {
       // Read once as blob so we can branch by content-type without draining the stream twice.
       const blob = await res.blob();
       const contentType = responseHeaders['content-type'] ?? blob.type ?? '';
-      const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(blob, contentType, built.url);
+      const contentDisposition = responseHeaders['content-disposition'];
+      const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(
+        blob,
+        contentType,
+        built.url,
+        contentDisposition,
+      );
 
       setResponse({
         status: res.status,

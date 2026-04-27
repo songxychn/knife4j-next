@@ -281,7 +281,9 @@ function renderRequestBodySection(op: OperationObject, doc: SwaggerDoc, borderSt
   const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
   const typeDisplay = schemaDisplayType(picked.schema);
   return `
-    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (${escapeHtml(picked.mediaType)}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(typeDisplay)}</code></span></p>
+    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (${escapeHtml(
+      picked.mediaType,
+    )}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(typeDisplay)}</code></span></p>
     ${rows.length ? renderFieldTable(rows, borderStyle) : ''}`;
 }
 
@@ -321,7 +323,13 @@ function renderResponseSection(op: OperationObject, doc: SwaggerDoc, borderStyle
     const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
     if (!rows.length) continue;
     parts.push(`
-      <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Response <code>${escapeHtml(code)}</code> (${escapeHtml(picked.mediaType)}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(schemaDisplayType(picked.schema))}</code></span></p>
+      <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Response <code>${escapeHtml(
+        code,
+      )}</code> (${escapeHtml(
+        picked.mediaType,
+      )}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(
+        schemaDisplayType(picked.schema),
+      )}</code></span></p>
       ${renderFieldTable(rows, borderStyle)}`);
   }
 
