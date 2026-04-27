@@ -75,6 +75,8 @@ const enUS = {
   'apiDoc.col.statusCode': 'Status Code',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': 'Field Name',
+  'apiDoc.noResponse': 'No response information',
+  'apiDoc.response.notExpandable': 'This response type is not expandable',
 
   // ApiDoc — copy actions (TASK-042)
   'apiDoc.copy.markdown': 'Copy Markdown',

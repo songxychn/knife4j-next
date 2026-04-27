@@ -75,6 +75,8 @@ const zhCN = {
   'apiDoc.col.statusCode': '状态码',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': '字段名',
+  'apiDoc.noResponse': '暂无响应信息',
+  'apiDoc.response.notExpandable': '该响应类型不支持展开',
 
   // ApiDoc — 复制操作 (TASK-042)
   'apiDoc.copy.markdown': '复制文档 Markdown',
