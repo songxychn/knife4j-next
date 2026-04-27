@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.core.util;
 
+import com.github.xiaoymin.knife4j.core.spi.ValidatorAnnotationResolverRegistry;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -136,5 +137,43 @@ public final class ValidationGroupsUtils {
         String name = group.getName();
         return "javax.validation.groups.Default".equals(name)
                 || "jakarta.validation.groups.Default".equals(name);
+    }
+
+    /**
+     * Scans {@code modelClass} for all constraint annotations on each field and
+     * resolves them via {@link ValidatorAnnotationResolverRegistry} into OpenAPI
+     * schema property increments.
+     *
+     * <p>Returns a map of {@code fieldName -> {schemaProperty -> value}} for every
+     * field that has at least one resolvable constraint. Fields with no resolvable
+     * constraints are omitted.
+     *
+     * @param modelClass the request-body class to inspect
+     * @return map of field name to schema property increments; never {@code null}
+     * @since knife4j-next (issue #118)
+     */
+    public static Map<String, Map<String, Object>> resolveFieldSchemaExtensions(Class<?> modelClass) {
+        if (modelClass == null) {
+            return Collections.emptyMap();
+        }
+        ValidatorAnnotationResolverRegistry registry = ValidatorAnnotationResolverRegistry.getInstance();
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        Class<?> cursor = modelClass;
+        while (cursor != null && cursor != Object.class) {
+            for (Field field : cursor.getDeclaredFields()) {
+                Map<String, Object> merged = new LinkedHashMap<>();
+                for (Annotation ann : field.getDeclaredAnnotations()) {
+                    Map<String, Object> increment = registry.resolve(ann);
+                    if (increment != null && !increment.isEmpty()) {
+                        merged.putAll(increment);
+                    }
+                }
+                if (!merged.isEmpty()) {
+                    result.put(field.getName(), merged);
+                }
+            }
+            cursor = cursor.getSuperclass();
+        }
+        return result;
     }
 }
