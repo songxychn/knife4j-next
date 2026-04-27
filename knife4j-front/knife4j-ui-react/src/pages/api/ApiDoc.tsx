@@ -72,6 +72,17 @@ function schemaToFieldNodes(schema: SchemaObject, doc: SwaggerDoc): SchemaFieldN
   });
 }
 
+/** Recursively filter field nodes by access mode. */
+function filterFieldNodes(nodes: SchemaFieldNode[], mode: 'request' | 'response'): SchemaFieldNode[] {
+  return nodes
+    .filter((node) => {
+      if (mode === 'request' && node.readOnly) return false;
+      if (mode === 'response' && node.writeOnly) return false;
+      return true;
+    })
+    .map((node) => (node.children ? { ...node, children: filterFieldNodes(node.children, mode) } : node));
+}
+
 function schemaToTypeNode(schema: SchemaObject | undefined): SchemaFieldNode {
   if (!schema) return { name: '', type: 'unknown', required: false };
   if (schema.$ref) {
@@ -271,26 +282,6 @@ export default function ApiDoc() {
     { title: t('apiDoc.col.description'), dataIndex: 'description' },
   ];
 
-  const responseColumns: ColumnsType<ResponseRow> = [
-    {
-      title: t('apiDoc.col.statusCode'),
-      dataIndex: 'statusCode',
-      width: 100,
-      render: (value) => {
-        const color = value.startsWith('2') ? 'success' : value.startsWith('4') ? 'warning' : 'error';
-        return <Tag color={color}>{value}</Tag>;
-      },
-    },
-    { title: t('apiDoc.col.description'), dataIndex: 'description' },
-    {
-      title: t('apiDoc.col.schema'),
-      dataIndex: 'schema',
-      width: 180,
-      render: (value: SchemaObject | undefined) =>
-        value ? <SchemaTypeLink node={schemaToTypeNode(value)} /> : <Text type="secondary">—</Text>,
-    },
-  ];
-
   const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => ({
     key: `${parameter.in}-${parameter.name}-${index}`,
     name: parameter.name,
@@ -300,7 +291,7 @@ export default function ApiDoc() {
     description: parameter.description ?? '',
   }));
   const bodySchema = firstRequestSchema(op.requestBody, op.parameters);
-  const bodyFields = bodySchema ? schemaToFieldNodes(bodySchema, swaggerDoc) : [];
+  const bodyFields = bodySchema ? filterFieldNodes(schemaToFieldNodes(bodySchema, swaggerDoc), 'request') : [];
   const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
     key: statusCode,
     statusCode,
@@ -420,13 +411,36 @@ export default function ApiDoc() {
             key: 'schema',
             label: t('apiDoc.tab.schema'),
             children: (
-              <Table<ResponseRow>
-                columns={responseColumns}
-                dataSource={responses}
-                pagination={false}
-                size="small"
-                bordered
-              />
+              <div>
+                {responses.length === 0 ? (
+                  <SchemaFieldTable fields={[]} emptyText={t('apiDoc.noResponse')} />
+                ) : (
+                  responses.map((row) => {
+                    const color = row.statusCode.startsWith('2')
+                      ? 'success'
+                      : row.statusCode.startsWith('4')
+                      ? 'warning'
+                      : 'error';
+                    const fields = row.schema
+                      ? filterFieldNodes(schemaToFieldNodes(row.schema, swaggerDoc), 'response')
+                      : [];
+                    return (
+                      <div key={row.key} style={{ marginBottom: 16 }}>
+                        <Space size={8} style={{ marginBottom: 6 }}>
+                          <Tag color={color}>{row.statusCode}</Tag>
+                          {row.description && (
+                            <Text type="secondary" style={{ fontSize: 13 }}>
+                              {row.description}
+                            </Text>
+                          )}
+                          {row.schema && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
+                        </Space>
+                        <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             ),
           },
           ...respExamples.map(({ statusCode, example }) => ({

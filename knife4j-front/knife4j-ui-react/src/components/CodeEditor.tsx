@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, placeholder } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';
@@ -47,28 +47,6 @@ const baseTheme = EditorView.theme({
   },
 });
 
-function buildExtensions(language: CodeEditorLanguage, onChange: (v: string) => void, placeholderText?: string) {
-  const langExt = language === 'json' ? json() : language === 'xml' ? xml() : [];
-  return [
-    lineNumbers(),
-    drawSelection(),
-    highlightActiveLine(),
-    history(),
-    indentOnInput(),
-    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    bracketMatching(),
-    keymap.of([...defaultKeymap, ...historyKeymap]),
-    langExt,
-    baseTheme,
-    ...(placeholderText ? [placeholder(placeholderText)] : []),
-    EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        onChange(update.state.doc.toString());
-      }
-    }),
-  ];
-}
-
 export default function CodeEditor({
   value,
   onChange,
@@ -82,14 +60,39 @@ export default function CodeEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // Mount / remount when language changes
+  const buildExtensions = useCallback(
+    (onChange: (v: string) => void) => {
+      const langExt = language === 'json' ? json() : language === 'xml' ? xml() : [];
+      return [
+        lineNumbers(),
+        drawSelection(),
+        highlightActiveLine(),
+        history(),
+        indentOnInput(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        bracketMatching(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        langExt,
+        baseTheme,
+        ...(placeholderText ? [placeholder(placeholderText)] : []),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChange(update.state.doc.toString());
+          }
+        }),
+      ];
+    },
+    [language, placeholderText],
+  );
+
+  // Mount / remount when language or placeholderText changes
   useEffect(() => {
     if (!containerRef.current) return;
 
     const view = new EditorView({
       state: EditorState.create({
         doc: value,
-        extensions: buildExtensions(language, (v) => onChangeRef.current(v), placeholderText),
+        extensions: buildExtensions((v) => onChangeRef.current(v)),
       }),
       parent: containerRef.current,
     });
@@ -99,8 +102,7 @@ export default function CodeEditor({
       view.destroy();
       viewRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
+  }, [buildExtensions]);
 
   // Sync external value changes (beautify, operation switch)
   useEffect(() => {
