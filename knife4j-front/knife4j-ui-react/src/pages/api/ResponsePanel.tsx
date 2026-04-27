@@ -172,15 +172,24 @@ export default function ResponsePanel({ response, error, builtRequest, operation
 
   const handleDownload = () => {
     if (!response) return;
-    const blob = new Blob([response.rawText], { type: response.contentType || 'text/plain' });
-    const url = URL.createObjectURL(blob);
+    let url: string;
+    let needsRevoke = false;
+    if (response.objectUrl) {
+      // Binary/image: use the pre-created object URL directly to avoid re-encoding corruption
+      url = response.objectUrl;
+    } else {
+      // Text payloads: create a temporary object URL from rawText
+      const blob = new Blob([response.rawText], { type: response.contentType || 'text/plain' });
+      url = URL.createObjectURL(blob);
+      needsRevoke = true;
+    }
     const a = document.createElement('a');
     a.href = url;
     a.download = response.filename || 'response.txt';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (needsRevoke) URL.revokeObjectURL(url);
   };
 
   // Build schema description map from operation response schema
