@@ -85,13 +85,16 @@ export default function CodeEditor({
     [language, placeholderText],
   );
 
-  // Mount / remount when language or placeholderText changes
+  // Mount / remount when language or placeholderText changes.
+  // value is intentionally read only on first mount; subsequent changes are
+  // handled by the sync effect below, so we capture it via a ref here.
+  const initialValueRef = useRef(value);
   useEffect(() => {
     if (!containerRef.current) return;
 
     const view = new EditorView({
       state: EditorState.create({
-        doc: value,
+        doc: initialValueRef.current,
         extensions: buildExtensions((v) => onChangeRef.current(v)),
       }),
       parent: containerRef.current,
