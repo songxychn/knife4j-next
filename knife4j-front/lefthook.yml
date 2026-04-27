@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    lint-staged:
+      run: cd knife4j-front && npx lint-staged
