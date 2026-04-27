@@ -75,8 +75,12 @@ const zhCN = {
   'apiDoc.col.statusCode': '状态码',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': '字段名',
-  'apiDoc.noResponse': '暂无响应信息',
-  'apiDoc.response.notExpandable': '该响应类型不支持展开',
+  'apiDoc.tab.schema': 'Schema',
+  'apiDoc.tab.requestExample': '请求示例',
+  'apiDoc.tab.responseExample': '响应示例',
+  'apiDoc.example.copied': '示例已复制',
+  'apiDoc.noResponse': '无响应结构',
+  'apiDoc.response.notExpandable': '当前响应暂不支持字段展开',
 
   // ApiDoc — 复制操作 (TASK-042)
   'apiDoc.copy.markdown': '复制文档 Markdown',
@@ -130,6 +134,11 @@ const zhCN = {
   'apiDebug.response.copied': '已复制到剪贴板',
   'apiDebug.response.copyFailed': '复制失败，请手动选择文本',
   'apiDebug.response.showDescription': '显示字段说明',
+  'apiDebug.sse.streaming': '流式接收中\u2026',
+  'apiDebug.sse.done': '流已关闭',
+  'apiDebug.sse.eventCount': '{{count}} 条事件',
+  'apiDebug.sse.abort': '终止',
+  'apiDebug.sse.waiting': '等待事件\u2026',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': '值',
   'apiDebug.desc.default': '默认：',
@@ -285,3 +294,5 @@ const zhCN = {
 } as const;
 
 export default zhCN;
+
+// TASK-120-4

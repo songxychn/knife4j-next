@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Space, Table, Tabs, Tag, Typography, message } from 'antd';
-import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { CopyOutlined, DownloadOutlined, StopOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { copyToClipboard } from '../../utils/clipboard';
 import { buildSchemaDescriptionMap, annotateJsonWithDescriptions } from '../../utils/schemaDescription';
@@ -10,6 +10,14 @@ import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import CodeBlock from './CodeBlock';
 
 const { Text } = Typography;
+
+/**
+ * A single SSE event received from a text/event-stream response.
+ */
+export interface SseEvent {
+  data: string;
+  timestamp: number;
+}
 
 /**
  * Shape of a completed debug response (success or failure w/ payload).
@@ -49,6 +57,12 @@ interface ResponsePanelProps {
   operation?: MenuOperation;
   /** full swagger doc (for $ref resolution) */
   swaggerDoc?: SwaggerDoc | null;
+  /** SSE events received so far; non-null means SSE mode */
+  sseEvents?: SseEvent[] | null;
+  /** callback to abort the SSE stream */
+  onSseAbort?: () => void;
+  /** true while SSE stream is still open */
+  sseStreaming?: boolean;
 }
 
 const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
@@ -141,16 +155,33 @@ const jsonDescStyle: React.CSSProperties = {
   color: '#8c8c8c',
 };
 
-export default function ResponsePanel({ response, error, builtRequest, operation, swaggerDoc }: ResponsePanelProps) {
+export default function ResponsePanel({
+  response,
+  error,
+  builtRequest,
+  operation,
+  swaggerDoc,
+  sseEvents,
+  onSseAbort,
+  sseStreaming,
+}: ResponsePanelProps) {
   const { t } = useTranslation();
   const [activeKey, setActiveKey] = useState<string>('content');
   const [showDescription, setShowDescription] = useState(true);
+  const sseLogRef = useRef<HTMLDivElement>(null);
 
   // When a new response arrives, reset focus back to the Content tab so
   // the user sees the decoded body first.
   useEffect(() => {
     if (response) setActiveKey('content');
   }, [response]);
+
+  // Auto-scroll SSE log to bottom as new events arrive.
+  useEffect(() => {
+    if (sseEvents && sseLogRef.current) {
+      sseLogRef.current.scrollTop = sseLogRef.current.scrollHeight;
+    }
+  }, [sseEvents]);
 
   const handleCopyRaw = () => {
     if (!response) return;
@@ -208,7 +239,7 @@ export default function ResponsePanel({ response, error, builtRequest, operation
     [response],
   );
 
-  if (!response && !error) return null;
+  if (!response && !error && sseEvents == null) return null;
 
   return (
     <div>
@@ -220,6 +251,49 @@ export default function ResponsePanel({ response, error, builtRequest, operation
           message={t('apiDebug.error.title')}
           description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>}
         />
+      )}
+
+      {sseEvents != null && (
+        <div style={{ marginBottom: 16 }}>
+          <Space style={{ marginBottom: 8 }}>
+            <Tag color="blue">text/event-stream</Tag>
+            <Tag color={sseStreaming ? 'processing' : 'default'}>
+              {sseStreaming ? t('apiDebug.sse.streaming') : t('apiDebug.sse.done')}
+            </Tag>
+            <Tag>{t('apiDebug.sse.eventCount', { count: sseEvents.length })}</Tag>
+            {sseStreaming && (
+              <Button size="small" danger icon={<StopOutlined />} onClick={onSseAbort}>
+                {t('apiDebug.sse.abort')}
+              </Button>
+            )}
+          </Space>
+          <div
+            ref={sseLogRef}
+            style={{
+              background: '#0d1117',
+              borderRadius: 4,
+              padding: '8px 12px',
+              maxHeight: 400,
+              overflowY: 'auto',
+              fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
+              fontSize: 12,
+              lineHeight: 1.6,
+            }}
+          >
+            {sseEvents.length === 0 ? (
+              <span style={{ color: '#8b949e' }}>{t('apiDebug.sse.waiting')}</span>
+            ) : (
+              sseEvents.map((ev, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #21262d', padding: '2px 0' }}>
+                  <span style={{ color: '#8b949e', flexShrink: 0, userSelect: 'none' }}>
+                    {new Date(ev.timestamp).toISOString().slice(11, 23)}
+                  </span>
+                  <span style={{ color: '#e6edf3', wordBreak: 'break-all' }}>{ev.data}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {response && (
@@ -397,3 +471,5 @@ function ContentTab({
   // text & unknown textual fallback
   return <pre style={preStyle}>{response.rawText}</pre>;
 }
+
+// TASK-120-8
