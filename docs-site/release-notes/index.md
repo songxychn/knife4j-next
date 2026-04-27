@@ -12,7 +12,7 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 1.0.1 <Badge type="tip" text="最新" />
+### 5.0.0-SNAPSHOT <Badge type="tip" text="最新" />
 
 **Bug 修复 & 功能增强** — 修复 petstore 闪烁、侧边栏排序、OAuth2 授权码流程等回归问题。
 
@@ -82,7 +82,7 @@ title: 发布说明
 
 ### 4.6.0.3 <Badge type="warning" text="Preview" />
 
-> Preview 版本：前端首次集成 React UI 到 `knife4j-openapi3-ui` webjar。仅包含基础功能，不推荐生产使用。请升级到 `1.0.1`。
+> Preview 版本：前端首次集成 React UI 到 `knife4j-openapi3-ui` webjar。仅包含基础功能，不推荐生产使用。请升级到 `5.0.0-SNAPSHOT`。
 
 **前端**
 
@@ -125,7 +125,7 @@ title: 发布说明
 knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号：
 
 ```
-1.0.1 → Bug 修复 & 功能增强
+5.0.0-SNAPSHOT → Bug 修复 & 功能增强
 1.0.0 → knife4j-next 正式版（首个推荐生产试用的版本）
 4.6.0.3 → Preview 版本（仅包含基础 React 前端，不推荐生产使用）
 ```
@@ -135,7 +135,7 @@ knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>5.0.0-SNAPSHOT</version>
 </dependency>
 ```
 

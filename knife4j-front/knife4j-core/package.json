@@ -1,6 +1,6 @@
 {
   "name": "knife4j-core",
-  "version": "1.0.0",
+  "version": "5.0.0-snapshot",
   "description": "Base Adapter core library parse Swagger2/OpenAPI3/AsyncAPI etc.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

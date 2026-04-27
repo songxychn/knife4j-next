@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>5.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -76,7 +76,7 @@ springdoc:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 1.0.1 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.0-SNAPSHOT 版本亮点 <Badge type="tip" text="最新" />
 
 - 🐛 修复页面加载时 Petstore 示例数据一闪而过
 - 🔐 OAuth2 授权码 / 隐式模式弹窗流程

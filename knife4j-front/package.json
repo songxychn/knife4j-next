@@ -1,6 +1,6 @@
 {
   "name": "knife4j-front",
-  "version": "0.0.0",
+  "version": "5.0.0-snapshot",
   "private": true,
   "description": "knife4j front-end monorepo (npm workspaces)",
   "workspaces": [
