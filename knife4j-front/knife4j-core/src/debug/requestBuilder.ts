@@ -328,6 +328,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     body,
     contentType: selectedContentType,
     sourceMap,
+    jsonFields: formValues.jsonFields,
   };
 }
 
@@ -367,11 +368,17 @@ export function buildCurl(req: BuiltRequest): string {
         fieldObj = null;
       }
     }
+    const jsonFieldSet = new Set(req.jsonFields ?? []);
     if (fieldObj && Object.keys(fieldObj).length > 0) {
       for (const [name, value] of Object.entries(fieldObj)) {
         if (value === undefined || value === '') continue;
         const escaped = String(value).replace(/'/g, "'\\''");
-        parts.push('-F', `'${name}=${escaped}'`);
+        if (jsonFieldSet.has(name)) {
+          // JSON-encoded part: append ;type=application/json
+          parts.push('-F', `'${name}=${escaped};type=application/json'`);
+        } else {
+          parts.push('-F', `'${name}=${escaped}'`);
+        }
       }
     }
     // 文件字段占位（UI 层调用方会在 body 外通过 curlFileFields 注入，

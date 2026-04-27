@@ -135,6 +135,7 @@ const zhCN = {
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',
+  'apiDebug.body.jsonPart.placeholder': '请输入此 part 的 JSON 内容',
 
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': '请求预览',

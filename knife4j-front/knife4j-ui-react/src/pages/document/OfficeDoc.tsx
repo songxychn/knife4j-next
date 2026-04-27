@@ -123,12 +123,28 @@ interface FieldRow {
   description: string;
 }
 
+const CIRCULAR_REF_PLACEHOLDER = '... circular reference ...';
+const MAX_FLATTEN_DEPTH = 30;
+
+function circularPlaceholder(prefix: string): FieldRow[] {
+  return [
+    {
+      fieldPath: prefix || CIRCULAR_REF_PLACEHOLDER,
+      typeDisplay: CIRCULAR_REF_PLACEHOLDER,
+      required: false,
+      description: '',
+    },
+  ];
+}
+
 /**
  * 把 schema 展开成字段行列表：
  *   object     -> 遍历 properties
  *   array      -> 进入 items；若 items 是 object 就展开字段（路径加 []）
  *   $ref       -> 先解 ref 再处理
- *   原子类型   -> 返回空数组，交给外部“Type:”行单独表达
+ *   原子类型   -> 返回空数组，交给外部”Type:”行单独表达
+ *
+ * 循环引用保护：seenRefs 检测 $ref 环；depth > MAX_FLATTEN_DEPTH 时渲染占位节点。
  */
 function flattenSchemaFields(
   schema: SchemaObject,
@@ -138,10 +154,10 @@ function flattenSchemaFields(
   depth = 0,
   seenRefs: Set<string> = new Set(),
 ): FieldRow[] {
-  if (depth > 6) return [];
+  if (depth > MAX_FLATTEN_DEPTH) return circularPlaceholder(prefix);
 
   if (schema.$ref) {
-    if (seenRefs.has(schema.$ref)) return [];
+    if (seenRefs.has(schema.$ref)) return circularPlaceholder(prefix);
     const nextSeen = new Set(seenRefs);
     nextSeen.add(schema.$ref);
     const resolved = resolveRef(schema.$ref, doc);
