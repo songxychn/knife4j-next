@@ -49,7 +49,7 @@ function toRows(fields: SchemaFieldNode[], parentKey = ""): SchemaFieldRow[] {
 
 function modelPreviewFields(
   schema: SchemaObject,
-  swaggerDoc: SwaggerDoc
+  swaggerDoc: SwaggerDoc,
 ): SchemaFieldNode[] {
   return buildSchemaFieldTree(schema as Record<string, unknown>, {
     doc: swaggerDoc as unknown as Record<string, unknown>,
@@ -104,9 +104,7 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
     </div>
   );
 
-  const target = `/${encodeURIComponent(
-    activeGroup.value
-  )}/schema/${encodeURIComponent(refName)}`;
+  const target = `/${encodeURIComponent(activeGroup.value)}/schema/${encodeURIComponent(refName)}`;
 
   return (
     <Popover
