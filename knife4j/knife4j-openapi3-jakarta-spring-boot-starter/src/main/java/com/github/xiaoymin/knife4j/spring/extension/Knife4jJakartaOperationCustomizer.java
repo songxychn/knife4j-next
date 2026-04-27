@@ -103,5 +103,10 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
         if (!groupMap.isEmpty()) {
             operation.addExtension(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS, groupMap);
         }
+        Map<String, Map<String, Object>> fieldConstraints =
+                ValidationGroupsUtils.resolveFieldSchemaExtensions(bodyType);
+        if (!fieldConstraints.isEmpty()) {
+            operation.addExtension(ExtensionsConstants.EXTENSION_FIELD_CONSTRAINTS, fieldConstraints);
+        }
     }
 }

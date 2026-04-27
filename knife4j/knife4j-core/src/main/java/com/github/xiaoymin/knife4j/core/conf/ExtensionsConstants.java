@@ -36,4 +36,9 @@ public class ExtensionsConstants {
      * Validation groups — maps group simple name to required field names
      */
     public static final String EXTENSION_VALIDATION_GROUPS = "x-validation-groups";
+    /**
+     * Field constraints — maps field name to schema property increments resolved via
+     * {@link com.github.xiaoymin.knife4j.core.spi.Knife4jValidatorAnnotationResolver}
+     */
+    public static final String EXTENSION_FIELD_CONSTRAINTS = "x-field-constraints";
 }
