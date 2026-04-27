@@ -15,7 +15,7 @@
 - 仓库来源：fork 自 `xiaoymin/knife4j`
 - 当前定位：社区维护分支，不是 upstream 官方仓库
 - Java 主坐标：`com.baizhukui`
-- 当前版本：`1.0.1`
+- 当前版本：`5.0.0-SNAPSHOT`
 - 对外访问入口：`http://ip:port/doc.html`
 
 > `doc.html` 仍然是默认访问入口，这一点保持与原项目兼容。
@@ -48,7 +48,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>5.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -59,7 +59,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>5.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>5.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -81,7 +81,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>5.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
