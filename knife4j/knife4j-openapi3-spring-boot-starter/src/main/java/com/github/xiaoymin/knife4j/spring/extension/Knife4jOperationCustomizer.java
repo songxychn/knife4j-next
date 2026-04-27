@@ -21,12 +21,16 @@ import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import com.github.xiaoymin.knife4j.core.conf.ExtensionsConstants;
 import com.github.xiaoymin.knife4j.core.util.StrUtil;
+import com.github.xiaoymin.knife4j.core.util.ValidationGroupsUtils;
 import com.github.xiaoymin.knife4j.extend.util.ExtensionUtils;
 import io.swagger.v3.oas.models.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.customizers.GlobalOperationCustomizer;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.web.method.HandlerMethod;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
@@ -49,6 +53,8 @@ public class Knife4jOperationCustomizer implements GlobalOperationCustomizer {
             if (operationSupport.order() != 0) {
                 operation.addExtension(ExtensionsConstants.EXTENSION_ORDER, operationSupport.order());
             }
+            // x-validation-groups extension
+            applyValidationGroupsExtension(operation, handlerMethod, operationSupport);
         } else {
             // 如果方法级别不存在，再找一次class级别的
             ApiSupport apiSupport = AnnotationUtils.findAnnotation(handlerMethod.getBeanType(), ApiSupport.class);
@@ -63,5 +69,30 @@ public class Knife4jOperationCustomizer implements GlobalOperationCustomizer {
             }
         }
         return operation;
+    }
+
+    private void applyValidationGroupsExtension(
+                                                Operation operation,
+                                                HandlerMethod handlerMethod,
+                                                ApiOperationSupport operationSupport) {
+        Class<?>[] groups = operationSupport.validationGroups();
+        if (groups == null || groups.length == 0) {
+            return;
+        }
+        Class<?> bodyType = null;
+        java.lang.reflect.Parameter[] params = handlerMethod.getMethod().getParameters();
+        for (java.lang.reflect.Parameter p : params) {
+            if (p.isAnnotationPresent(org.springframework.web.bind.annotation.RequestBody.class)) {
+                bodyType = p.getType();
+                break;
+            }
+        }
+        if (bodyType == null) {
+            return;
+        }
+        Map<String, List<String>> groupMap = ValidationGroupsUtils.resolveRequiredFields(bodyType, groups);
+        if (!groupMap.isEmpty()) {
+            operation.addExtension(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS, groupMap);
+        }
     }
 }

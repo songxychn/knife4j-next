@@ -53,3 +53,30 @@ export function dereference(
   }
   return current;
 }
+
+/**
+ * 解析 $ref 并将目标的 description / title 透传到结果中。
+ * 父字段自身的 description / title 优先，不会被 ref 目标覆盖。
+ *
+ * 使用场景：字段类型是 $ref 时，调用方可以把 ref 目标的 description/title
+ * 作为二级说明展示，而不丢失父字段自身的描述。
+ *
+ * @returns 包含 refDescription / refTitle 的对象（若 ref 目标有对应字段）
+ */
+export function resolveRefMeta(
+  ref: string,
+  doc: Record<string, unknown>,
+): { refDescription?: string; refTitle?: string } {
+  const target = resolveRef(ref, doc);
+  if (!target) return {};
+  const result: { refDescription?: string; refTitle?: string } = {};
+  if (typeof target.description === 'string' && target.description) {
+    result.refDescription = target.description;
+  }
+  if (typeof target.title === 'string' && target.title) {
+    result.refTitle = target.title;
+  }
+  return result;
+}
+
+

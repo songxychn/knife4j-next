@@ -32,6 +32,7 @@ interface BodyRow {
   type: string;
   required: boolean;
   description: string;
+  refDescription?: string;
 }
 
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
@@ -55,13 +56,17 @@ function schemaToBodyRows(schema: SchemaObject, doc: Pick<SwaggerDoc, 'component
   const resolved = schema.$ref ? resolveRef(schema.$ref, doc) : schema;
   if (!resolved?.properties) return [];
   const requiredSet = new Set(resolved.required ?? []);
-  return Object.entries(resolved.properties).map(([name, prop]) => ({
-    key: name,
-    name,
-    type: schemaName(prop),
-    required: requiredSet.has(name),
-    description: prop.description ?? '',
-  }));
+  return Object.entries(resolved.properties).map(([name, prop]) => {
+    const refTarget = prop.$ref ? resolveRef(prop.$ref, doc) : undefined;
+    return {
+      key: name,
+      name,
+      type: schemaName(prop),
+      required: requiredSet.has(name),
+      description: prop.description ?? '',
+      refDescription: refTarget?.description,
+    };
+  });
 }
 
 function firstRequestSchema(
@@ -184,7 +189,21 @@ export default function ApiDoc() {
           <Badge status="default" text={t('schema.required.no')} />
         ),
     },
-    { title: t('apiDoc.col.description'), dataIndex: 'description' },
+    {
+      title: t('apiDoc.col.description'),
+      dataIndex: 'description',
+      render: (_: string, row: BodyRow) => (
+        <>
+          {row.description && <span>{row.description}</span>}
+          {row.refDescription && (
+            <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+              {row.refDescription}
+            </Text>
+          )}
+          {!row.description && !row.refDescription && null}
+        </>
+      ),
+    },
   ];
 
   const responseColumns: ColumnsType<ResponseRow> = [
