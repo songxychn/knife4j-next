@@ -383,7 +383,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
         const schema = mediaObj.schema ? dereference(mediaObj.schema, doc as Record<string, unknown>) : undefined;
         const isMultipart = classifyContentType(mediaType) === 'multipart';
-        const encoding = mediaObj.encoding as Record<string, unknown> | undefined;
+        const encoding = mediaObj.encoding;
 
         bodyContents.push({
           mediaType,

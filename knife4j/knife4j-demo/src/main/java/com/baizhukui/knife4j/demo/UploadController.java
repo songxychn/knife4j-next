@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo;
 
 import com.baizhukui.knife4j.demo.dto.UploadMetaDTO;
@@ -52,64 +53,41 @@ public class UploadController {
      * knife4j-ui 应将其渲染为 JSON 文本框而非展开为普通表单字段。
      */
     @PostMapping(value = "/file-with-meta", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-        summary = "上传文件 + JSON 元数据",
-        description = "演示 multipart/form-data 中 meta 字段以 application/json 编码提交（encoding.contentType=application/json）",
-        requestBody = @RequestBody(
-            content = @Content(
-                mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-                schema = @Schema(implementation = UploadFileWithMetaRequest.class),
-                encoding = {
-                    @Encoding(name = "meta", contentType = "application/json")
-                }
-            )
-        )
-    )
+    @Operation(summary = "上传文件 + JSON 元数据", description = "演示 multipart/form-data 中 meta 字段以 application/json 编码提交（encoding.contentType=application/json）", requestBody = @RequestBody(content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(implementation = UploadFileWithMetaRequest.class), encoding = {
+            @Encoding(name = "meta", contentType = "application/json")
+    })))
     public ResponseEntity<Map<String, Object>> uploadFileWithMeta(
-        @RequestPart("file") MultipartFile file,
-        @RequestPart("meta") UploadMetaDTO meta
-    ) {
+                                                                  @RequestPart("file") MultipartFile file,
+                                                                  @RequestPart("meta") UploadMetaDTO meta) {
         return ResponseEntity.ok(Map.of(
-            "filename", file.getOriginalFilename(),
-            "size", file.getSize(),
-            "description", meta.getDescription(),
-            "category", meta.getCategory(),
-            "isPublic", Boolean.TRUE.equals(meta.getIsPublic())
-        ));
+                "filename", file.getOriginalFilename(),
+                "size", file.getSize(),
+                "description", meta.getDescription(),
+                "category", meta.getCategory(),
+                "isPublic", Boolean.TRUE.equals(meta.getIsPublic())));
     }
 
     /**
      * 多文件 + JSON 元数据上传。
      */
     @PostMapping(value = "/files-with-meta", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-        summary = "批量上传文件 + JSON 元数据",
-        description = "演示多文件 multipart/form-data 中 meta 字段以 application/json 编码提交",
-        requestBody = @RequestBody(
-            content = @Content(
-                mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-                schema = @Schema(implementation = UploadFilesWithMetaRequest.class),
-                encoding = {
-                    @Encoding(name = "meta", contentType = "application/json")
-                }
-            )
-        )
-    )
+    @Operation(summary = "批量上传文件 + JSON 元数据", description = "演示多文件 multipart/form-data 中 meta 字段以 application/json 编码提交", requestBody = @RequestBody(content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE, schema = @Schema(implementation = UploadFilesWithMetaRequest.class), encoding = {
+            @Encoding(name = "meta", contentType = "application/json")
+    })))
     public ResponseEntity<Map<String, Object>> uploadFilesWithMeta(
-        @RequestPart("files") MultipartFile[] files,
-        @RequestPart("meta") UploadMetaDTO meta
-    ) {
+                                                                   @RequestPart("files") MultipartFile[] files,
+                                                                   @RequestPart("meta") UploadMetaDTO meta) {
         return ResponseEntity.ok(Map.of(
-            "count", files.length,
-            "description", meta.getDescription(),
-            "category", meta.getCategory()
-        ));
+                "count", files.length,
+                "description", meta.getDescription(),
+                "category", meta.getCategory()));
     }
 
     // ─── Inner schema classes for Swagger UI ─────────────────────────────────
 
     @Schema(description = "单文件 + JSON 元数据上传请求体")
     static class UploadFileWithMetaRequest {
+
         @Schema(description = "上传的文件", type = "string", format = "binary", requiredMode = Schema.RequiredMode.REQUIRED)
         public MultipartFile file;
 
@@ -119,6 +97,7 @@ public class UploadController {
 
     @Schema(description = "多文件 + JSON 元数据上传请求体")
     static class UploadFilesWithMetaRequest {
+
         @Schema(description = "上传的文件列表", type = "array", requiredMode = Schema.RequiredMode.REQUIRED)
         public MultipartFile[] files;
 
