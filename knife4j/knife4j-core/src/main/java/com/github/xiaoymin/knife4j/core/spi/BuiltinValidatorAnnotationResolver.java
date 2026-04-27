@@ -84,6 +84,7 @@ public class BuiltinValidatorAnnotationResolver implements Knife4jValidatorAnnot
     private Object invokeAttribute(Annotation annotation, String attributeName) {
         try {
             Method m = annotation.annotationType().getMethod(attributeName);
+            m.setAccessible(true);
             return m.invoke(annotation);
         } catch (Exception ignored) {
             return null;
