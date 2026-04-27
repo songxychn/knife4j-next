@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Input, Menu, MenuProps, Tooltip } from 'antd';
-import { DatabaseOutlined, SearchOutlined } from '@ant-design/icons';
+import { ApiOutlined, DatabaseOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
 import Markdown from '../components/Markdown';
@@ -42,9 +42,10 @@ function methodTag(method: string) {
 interface SidebarSearchMenuProps {
   selectedKey: string;
   onMenuClick: MenuProps['onClick'];
+  collapsed?: boolean;
 }
 
-const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick }) => {
+const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
   const { activeGroup, menuTags, schemas } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
@@ -120,6 +121,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 
       items.push({
         key: `tag-${tag}`,
+        icon: <ApiOutlined />,
         label: labelContent,
         children: apis.map((api) => ({
           key: api.key,
@@ -140,19 +142,22 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 
   return (
     <>
-      <div style={{ padding: '8px 8px 4px' }}>
-        <Input
-          className="knife4j-sidebar-search"
-          placeholder={t('sidebar.search.placeholder')}
-          prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          allowClear
-        />
-      </div>
+      {!collapsed && (
+        <div style={{ padding: '8px 8px 4px' }}>
+          <Input
+            className="knife4j-sidebar-search"
+            placeholder={t('sidebar.search.placeholder')}
+            prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+          />
+        </div>
+      )}
       <Menu
         theme="dark"
         mode="inline"
+        inlineCollapsed={collapsed}
         selectedKeys={[selectedKey]}
         onClick={onMenuClick}
         items={menuItems}

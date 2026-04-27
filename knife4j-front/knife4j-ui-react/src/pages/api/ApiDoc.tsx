@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
@@ -7,7 +7,7 @@ import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
-import { generateApiMarkdown } from 'knife4j-core';
+import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 
@@ -128,6 +128,36 @@ function collectSchemaRefs(
   }
 }
 
+/** Build a pretty-printed JSON example string from a schema, or return null. */
+function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerDoc): string | null {
+  if (!schema) return null;
+  try {
+    const example = buildSchemaExample(schema as Record<string, unknown>, {
+      doc: doc as unknown as Record<string, unknown>,
+    });
+    if (example === null || example === undefined) return null;
+    return JSON.stringify(example, null, 2);
+  } catch {
+    return null;
+  }
+}
+
+/** Extract per-status-code response schemas for example generation. */
+function responseExamples(
+  responses: Record<string, ResponseObject> | undefined,
+  doc: SwaggerDoc,
+): Array<{ statusCode: string; example: string }> {
+  if (!responses) return [];
+  return Object.entries(responses)
+    .map(([statusCode, resp]) => {
+      const schema =
+        resp.content?.['application/json']?.schema ?? resp.schema ?? Object.values(resp.content ?? {})[0]?.schema;
+      const example = buildJsonExample(schema, doc);
+      return example ? { statusCode, example } : null;
+    })
+    .filter((x): x is { statusCode: string; example: string } => x !== null);
+}
+
 const METHOD_COLOR: Record<string, string> = {
   GET: 'green',
   POST: 'blue',
@@ -137,6 +167,33 @@ const METHOD_COLOR: Record<string, string> = {
   HEAD: 'purple',
   OPTIONS: 'default',
 };
+
+/** JSON block with copy button. */
+function JsonExampleBlock({ code, onCopy }: { code: string; onCopy: () => void }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <Button
+        size="small"
+        icon={<CopyOutlined />}
+        style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
+        onClick={onCopy}
+      />
+      <pre
+        style={{
+          borderRadius: 4,
+          fontSize: 13,
+          maxHeight: 400,
+          margin: 0,
+          overflow: 'auto',
+          background: '#f6f8fa',
+          padding: '12px 16px',
+        }}
+      >
+        {code}
+      </pre>
+    </div>
+  );
+}
 
 export default function ApiDoc() {
   const { t } = useTranslation();
@@ -262,18 +319,26 @@ export default function ApiDoc() {
     );
   })();
 
+  const requestExample = buildJsonExample(bodySchema, swaggerDoc);
+  const respExamples = responseExamples(op.responses, swaggerDoc);
+
   return (
     <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
       <OperationModeTabs activeKey="doc" />
 
-      <Space style={{ marginBottom: 8 }}>
-        <Button size="small" icon={<CopyOutlined />} onClick={handleCopyMarkdown}>
-          {t('apiDoc.copy.markdown')}
-        </Button>
-        <Button size="small" icon={<CopyOutlined />} onClick={handleCopyUrl}>
-          {t('apiDoc.copy.url')}
-        </Button>
-      </Space>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          {op.summary ?? operation.path}
+        </Title>
+        <Space>
+          <Button size="small" icon={<CopyOutlined />} onClick={handleCopyMarkdown}>
+            {t('apiDoc.copy.markdown')}
+          </Button>
+          <Button size="small" icon={<CopyOutlined />} onClick={handleCopyUrl}>
+            {t('apiDoc.copy.url')}
+          </Button>
+        </Space>
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
@@ -284,10 +349,6 @@ export default function ApiDoc() {
         </Text>
         {op.deprecated && <Tag color="red">{t('apiDoc.deprecated')}</Tag>}
       </div>
-
-      <Title level={4} style={{ marginTop: 0 }}>
-        {op.summary ?? operation.path}
-      </Title>
       {op.description && <Markdown source={op.description} />}
 
       {relatedModelNames.length > 0 && (
@@ -314,15 +375,78 @@ export default function ApiDoc() {
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestBody')}
       </Title>
-      <SchemaFieldTable
-        fields={bodyFields}
-        emptyText={bodySchema ? t('apiDoc.body.notExpandable') : t('apiDoc.noBody')}
-      />
+      {bodySchema ? (
+        <Tabs
+          size="small"
+          items={[
+            {
+              key: 'schema',
+              label: t('apiDoc.tab.schema'),
+              children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
+            },
+            ...(requestExample
+              ? [
+                  {
+                    key: 'example',
+                    label: t('apiDoc.tab.requestExample'),
+                    children: (
+                      <JsonExampleBlock
+                        code={requestExample}
+                        onCopy={() =>
+                          copyToClipboard(
+                            requestExample,
+                            () => message.success(t('apiDoc.example.copied')),
+                            () => message.error(t('apiDoc.copy.failed')),
+                          )
+                        }
+                      />
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      ) : (
+        <SchemaFieldTable fields={[]} emptyText={t('apiDoc.noBody')} />
+      )}
 
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.responseStructure')}
       </Title>
-      <Table<ResponseRow> columns={responseColumns} dataSource={responses} pagination={false} size="small" bordered />
+      <Tabs
+        size="small"
+        items={[
+          {
+            key: 'schema',
+            label: t('apiDoc.tab.schema'),
+            children: (
+              <Table<ResponseRow>
+                columns={responseColumns}
+                dataSource={responses}
+                pagination={false}
+                size="small"
+                bordered
+              />
+            ),
+          },
+          ...respExamples.map(({ statusCode, example }) => ({
+            key: `resp-${statusCode}`,
+            label: `${t('apiDoc.tab.responseExample')} ${statusCode}`,
+            children: (
+              <JsonExampleBlock
+                code={example}
+                onCopy={() =>
+                  copyToClipboard(
+                    example,
+                    () => message.success(t('apiDoc.example.copied')),
+                    () => message.error(t('apiDoc.copy.failed')),
+                  )
+                }
+              />
+            ),
+          })),
+        ]}
+      />
     </div>
   );
 }

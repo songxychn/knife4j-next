@@ -29,10 +29,10 @@ const routeKeyToMenuKey = (key: string) =>
   key.endsWith('/doc')
     ? key.slice(0, -4)
     : key.endsWith('/debug')
-      ? key.slice(0, -6)
-      : key.includes('/schema')
-        ? key.replace(/\/schema\/.*$/, '/schema')
-        : key;
+    ? key.slice(0, -6)
+    : key.includes('/schema')
+    ? key.replace(/\/schema\/.*$/, '/schema')
+    : key;
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
@@ -293,6 +293,7 @@ const AppInner: React.FC = () => {
           trigger={null}
           collapsible
           collapsed={collapsed}
+          collapsedWidth={56}
           width={siderWidth}
           style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         >
@@ -329,7 +330,7 @@ const AppInner: React.FC = () => {
           )}
 
           {/* Search + Menu */}
-          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} />
+          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={collapsed} />
         </Sider>
       </Resizable>
 
