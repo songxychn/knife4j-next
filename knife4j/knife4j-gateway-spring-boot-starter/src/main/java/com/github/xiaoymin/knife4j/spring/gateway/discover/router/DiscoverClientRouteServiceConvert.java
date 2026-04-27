@@ -28,6 +28,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.gateway.discovery.DiscoveryClientRouteDefinitionLocator;
+import org.springframework.cloud.gateway.route.RouteDefinition;
+import reactor.core.scheduler.Schedulers;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -53,12 +56,21 @@ public class DiscoverClientRouteServiceConvert extends AbstactServiceRouterConve
     @Override
     public void process(ServiceRouterHolder holder) {
         log.debug("Spring Cloud Gateway DiscoverClient process.");
-        // 取默认子服务的路径规则
-        discoveryClientRouteDefinitionLocator.getRouteDefinitions()
+        // SC 2025 compatibility: collect route definitions on a bounded-elastic thread to avoid
+        // blocking-on-reactor-thread errors introduced in Spring Cloud 2025 / Spring Boot 3.5+.
+        // See: https://github.com/xiaoymin/knife4j/issues/939
+        List<RouteDefinition> routes = discoveryClientRouteDefinitionLocator.getRouteDefinitions()
                 .filter(routeDefinition -> ServiceUtils.startLoadBalance(routeDefinition.getUri()))
                 .filter(routeDefinition -> ServiceUtils.includeService(routeDefinition.getUri(), holder.getService(), holder.getExcludeService()))
-                .subscribe(routeDefinition -> parseRouteDefinition(holder, routeDefinition.getPredicates(), routeDefinition.getUri().getHost(),
-                        routeDefinition.getUri().getHost()));
+                .collectList()
+                .subscribeOn(Schedulers.boundedElastic())
+                .block();
+        if (routes != null) {
+            for (RouteDefinition routeDefinition : routes) {
+                parseRouteDefinition(holder, routeDefinition.getPredicates(), routeDefinition.getUri().getHost(),
+                        routeDefinition.getUri().getHost());
+            }
+        }
     }
 
     @Override
