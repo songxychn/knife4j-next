@@ -48,6 +48,13 @@ const enUS = {
   'schema.required.yes': 'Yes',
   'schema.required.no': 'No',
   'schema.fields': 'fields',
+  'schema.noFields': 'No fields',
+  'schema.empty': 'No data models',
+  'schema.search.placeholder': 'Search model name/description...',
+  'schema.flag.deprecated': 'Deprecated',
+  'schema.flag.readOnly': 'ReadOnly',
+  'schema.flag.writeOnly': 'WriteOnly',
+  'schema.flag.truncated': 'Truncated',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API doc not found',
@@ -64,6 +71,7 @@ const enUS = {
   'apiDoc.body.notExpandable': 'Field expansion is not supported for this request body',
   'apiDoc.noBody': 'No request body',
   'apiDoc.responseStructure': 'Response Structure',
+  'apiDoc.relatedModels': 'Related models:',
   'apiDoc.col.statusCode': 'Status Code',
   'apiDoc.col.schema': 'Schema',
   'apiDoc.col.fieldName': 'Field Name',

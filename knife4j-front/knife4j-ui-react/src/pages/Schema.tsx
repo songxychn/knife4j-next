@@ -1,116 +1,76 @@
-import { Badge, Collapse, Spin, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
+import { Collapse, Empty, Input, Space, Spin, Tag, Typography } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import SchemaFieldTable from '../components/schema/SchemaFieldTable';
 import { useGroup } from '../context/GroupContext';
-import type { SchemaObject } from '../types/swagger';
+import type { SchemaObject, SwaggerDoc } from '../types/swagger';
 
 const { Title, Text } = Typography;
-
-// ---- 类型定义 ----
-
-interface SchemaField {
-  key: string;
-  name: string;
-  type: string;
-  format?: string;
-  required: boolean;
-  description: string;
-  children?: SchemaField[];
-}
 
 interface ModelDef {
   name: string;
   description?: string;
-  fields: SchemaField[];
+  fields: SchemaFieldNode[];
 }
 
-// ---- 将 SchemaObject 转换为字段列表 ----
+function modelDomId(name: string): string {
+  return `schema-${encodeURIComponent(name)}`;
+}
 
-function schemaToFields(schema: SchemaObject, requiredSet: Set<string>): SchemaField[] {
-  const props = schema.properties ?? {};
-  return Object.entries(props).map(([name, prop]) => {
-    const field: SchemaField = {
-      key: name,
-      name,
-      type: prop.type ?? (prop.$ref ? 'object' : 'string'),
-      format: prop.format,
-      required: requiredSet.has(name),
-      description: prop.description ?? '',
-    };
-    if (prop.type === 'object' && prop.properties) {
-      field.children = schemaToFields(prop, new Set(prop.required ?? []));
-    }
-    return field;
+function schemaToFields(schema: SchemaObject, swaggerDoc: SwaggerDoc): SchemaFieldNode[] {
+  return buildSchemaFieldTree(schema as Record<string, unknown>, {
+    doc: swaggerDoc as unknown as Record<string, unknown>,
+    maxDepth: 8,
   });
 }
 
-function schemasToModels(schemas: Record<string, SchemaObject>): ModelDef[] {
+function schemasToModels(schemas: Record<string, SchemaObject>, swaggerDoc: SwaggerDoc): ModelDef[] {
   return Object.entries(schemas).map(([name, schema]) => ({
     name,
     description: schema.description,
-    fields: schemaToFields(schema, new Set(schema.required ?? [])),
+    fields: schemaToFields(schema, swaggerDoc),
   }));
 }
 
-// ---- 类型颜色映射 ----
-
-const TYPE_COLOR: Record<string, string> = {
-  integer: 'blue',
-  number: 'cyan',
-  string: 'green',
-  boolean: 'orange',
-  array: 'purple',
-  object: 'geekblue',
-};
-
-// ---- 页面 ----
-
 export default function Schema() {
   const { t } = useTranslation();
-  const { schemas, loading } = useGroup();
-  // loading 期间 schemas 为空对象，不展示 mock，让 Spin 占位；数据加载完后用真实 schemas
-  const models: ModelDef[] = loading ? [] : schemasToModels(schemas);
+  const { schemaName } = useParams<{ schemaName?: string }>();
+  const { schemas, swaggerDoc, loading } = useGroup();
+  const selectedSchemaName = schemaName ? decodeURIComponent(schemaName) : undefined;
+  const [searchText, setSearchText] = useState('');
 
-  const fieldColumns: ColumnsType<SchemaField> = [
-    {
-      title: t('schema.col.fieldName'),
-      dataIndex: 'name',
-      width: 180,
-      render: (v) => <Text code>{v}</Text>,
-    },
-    {
-      title: t('schema.col.type'),
-      dataIndex: 'type',
-      width: 100,
-      render: (v) => <Tag color={TYPE_COLOR[v] ?? 'default'}>{v}</Tag>,
-    },
-    {
-      title: t('schema.col.format'),
-      dataIndex: 'format',
-      width: 110,
-      render: (v) => (v ? <Text type="secondary">{v}</Text> : <Text type="secondary">—</Text>),
-    },
-    {
-      title: t('schema.col.required'),
-      dataIndex: 'required',
-      width: 70,
-      render: (v) =>
-        v ? (
-          <Badge status="error" text={t('schema.required.yes')} />
-        ) : (
-          <Badge status="default" text={t('schema.required.no')} />
-        ),
-    },
-    {
-      title: t('schema.col.description'),
-      dataIndex: 'description',
-    },
-  ];
+  const models: ModelDef[] = useMemo(() => {
+    if (loading || !swaggerDoc) return [];
+    return schemasToModels(schemas, swaggerDoc);
+  }, [loading, schemas, swaggerDoc]);
 
-  const collapseItems = models.map((model) => ({
+  const filteredModels = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return models;
+    return models.filter(
+      (model) => model.name.toLowerCase().includes(q) || (model.description ?? '').toLowerCase().includes(q),
+    );
+  }, [models, searchText]);
+
+  const [activeKeys, setActiveKeys] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (selectedSchemaName) {
+      setActiveKeys([selectedSchemaName]);
+      window.setTimeout(() => {
+        document.getElementById(modelDomId(selectedSchemaName))?.scrollIntoView({ block: 'start' });
+      }, 0);
+      return;
+    }
+    setActiveKeys(filteredModels.map((model) => model.name));
+  }, [filteredModels, selectedSchemaName]);
+
+  const collapseItems = filteredModels.map((model) => ({
     key: model.name,
     label: (
-      <span>
+      <span id={modelDomId(model.name)}>
         <Text strong style={{ fontSize: 14 }}>
           {model.name}
         </Text>
@@ -124,27 +84,35 @@ export default function Schema() {
         </Tag>
       </span>
     ),
-    children: (
-      <Table<SchemaField>
-        columns={fieldColumns}
-        dataSource={model.fields}
-        pagination={false}
-        size="small"
-        bordered
-        expandable={{
-          childrenColumnName: 'children',
-          defaultExpandAllRows: true,
-        }}
-      />
-    ),
+    children: <SchemaFieldTable fields={model.fields} />,
   }));
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1100 }}>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        {t('schema.title')}
-      </Title>
-      {loading ? <Spin /> : <Collapse items={collapseItems} defaultActiveKey={models.map((m) => m.name)} />}
+    <div style={{ padding: '24px', maxWidth: 1180 }}>
+      <Space align="center" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          {t('schema.title')}
+        </Title>
+        <Input.Search
+          allowClear
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder={t('schema.search.placeholder')}
+          style={{ width: 280 }}
+        />
+      </Space>
+
+      {loading ? (
+        <Spin />
+      ) : filteredModels.length === 0 ? (
+        <Empty description={t('schema.empty')} />
+      ) : (
+        <Collapse
+          items={collapseItems}
+          activeKey={activeKeys}
+          onChange={(keys) => setActiveKeys(Array.isArray(keys) ? keys.map(String) : [String(keys)])}
+        />
+      )}
     </div>
   );
 }
