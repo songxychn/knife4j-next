@@ -63,6 +63,12 @@ After：
 
 ### Spring Boot 2.x + Springfox（OpenAPI2）
 
+::: warning 维护模式
+`knife4j-openapi2-spring-boot-starter` 处于**兼容维护模式**，不再接收新功能。前端仍使用 upstream 冻结的 Vue 2 webjars，无法享受 `knife4j-ui-react` 的新特性（SSE 流式响应、allOf/oneOf 渲染、二进制下载修复等）。
+
+若需使用新 UI 特性，请迁移到 OAS3 starter，参考 [从 Springfox 迁移到 OpenAPI3](./springfox-migration)。
+:::
+
 Before：
 
 ```xml
