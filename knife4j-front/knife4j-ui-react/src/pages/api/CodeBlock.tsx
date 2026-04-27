@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { Button } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
-// Use the full highlight.js bundle (includes all languages) for simplicity.
-// Tree-shaking via lib/core sub-path is not needed at this scale.
 import hljs from 'highlight.js';
+import 'highlight.js/styles/github-gist.css';
 
 interface CodeBlockProps {
   /** Pre-formatted code string to display */
