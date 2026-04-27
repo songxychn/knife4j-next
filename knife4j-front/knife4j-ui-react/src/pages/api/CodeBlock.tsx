@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Button } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import hljs from 'highlight.js';
-import 'highlight.js/styles/github-gist.css';
+import 'highlight.js/styles/github.css';
 
 interface CodeBlockProps {
   /** Pre-formatted code string to display */
