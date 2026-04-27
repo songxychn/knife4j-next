@@ -87,4 +87,13 @@ public @interface ApiOperationSupport {
      */
     String[] includeParameters() default {};
 
+    /**
+     * Bean Validation groups to apply for this operation.
+     * When specified, the OpenAPI extension {@code x-validation-groups} will be
+     * emitted, mapping each group's simple name to its required field names.
+     * @since knife4j-next (issue #117)
+     * @return validation groups
+     */
+    Class<?>[] validationGroups() default {};
+
 }

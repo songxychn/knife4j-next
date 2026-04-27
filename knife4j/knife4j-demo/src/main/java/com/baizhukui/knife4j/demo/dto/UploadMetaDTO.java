@@ -14,26 +14,24 @@
  * limitations under the License.
  */
 
+package com.baizhukui.knife4j.demo.dto;
 
-package com.github.xiaoymin.knife4j.core.conf;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 
 /**
- * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
- * 2023/2/26 16:05
- * @since knife4j
+ * 文件上传附带的 JSON 元数据 DTO（用于演示 multipart + JSON part 场景）
  */
-public class ExtensionsConstants {
+@Data
+@Schema(description = "文件上传元数据")
+public class UploadMetaDTO {
 
-    /**
-     * 作者
-     */
-    public static final String EXTENSION_AUTHOR = "x-author";
-    /**
-     * 排序
-     */
-    public static final String EXTENSION_ORDER = "x-order";
-    /**
-     * Validation groups — maps group simple name to required field names
-     */
-    public static final String EXTENSION_VALIDATION_GROUPS = "x-validation-groups";
+    @Schema(description = "文件描述", example = "用户头像")
+    private String description;
+
+    @Schema(description = "文件分类标签", example = "avatar")
+    private String category;
+
+    @Schema(description = "是否公开", example = "true")
+    private Boolean isPublic;
 }

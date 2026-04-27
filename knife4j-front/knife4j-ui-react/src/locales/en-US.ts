@@ -135,6 +135,7 @@ const enUS = {
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
+  'apiDebug.body.jsonPart.placeholder': 'Enter JSON for this part',
 
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': 'Preview',
