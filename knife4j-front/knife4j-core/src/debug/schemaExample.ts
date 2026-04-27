@@ -401,7 +401,7 @@ function buildSingleFieldNode(
   // 循环检测：$ref 重复命中 → truncated
   if (typeof rawSchema.$ref === 'string' && ctx.refChain.includes(rawSchema.$ref)) {
     // Shallow-resolve the ref target to get its description/title without recursing
-    const circularTarget = resolveRef(rawSchema.$ref, ctx.doc as Record<string, unknown>);
+    const circularTarget = resolveRef(rawSchema.$ref, ctx.doc);
     const circularOwnDesc = typeof rawSchema.description === 'string' ? rawSchema.description : undefined;
     const circularRefDesc =
       circularTarget && typeof circularTarget.description === 'string' ? circularTarget.description : undefined;
