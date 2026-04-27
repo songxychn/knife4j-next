@@ -253,6 +253,7 @@ const AppInner: React.FC = () => {
           trigger={null}
           collapsible
           collapsed={collapsed}
+          collapsedWidth={56}
           width={siderWidth}
           style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         >
@@ -289,7 +290,7 @@ const AppInner: React.FC = () => {
           )}
 
           {/* Search + Menu */}
-          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} />
+          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={collapsed} />
         </Sider>
       </Resizable>
 
