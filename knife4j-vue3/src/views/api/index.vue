@@ -36,10 +36,10 @@
 import Debug from "./Debug"; */
 import Constants from "@/store/constants";
 import KUtils from "@/core/utils";
-import { useGlobalsStore } from '@/store/modules/global.js'
-import { computed, defineAsyncComponent } from 'vue'
+import {useGlobalsStore} from '@/store/modules/global.js'
+import {computed, defineAsyncComponent} from 'vue'
 import localStore from '@/store/local.js'
-import { FileTextOutlined } from '@ant-design/icons-vue'
+import {FileTextOutlined} from '@ant-design/icons-vue'
 
 export default {
   name: "APIDoc",
