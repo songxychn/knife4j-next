@@ -1,0 +1,5 @@
+[sandbox]
+base_container_image = "knife4j-sandbox"
+
+[core.runtime_startup_env_vars]
+JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
