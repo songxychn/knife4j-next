@@ -62,6 +62,7 @@ export interface SwaggerTag {
 export interface SchemaObject {
   type?: string;
   format?: string;
+  title?: string;
   description?: string;
   properties?: Record<string, SchemaObject>;
   items?: SchemaObject;
