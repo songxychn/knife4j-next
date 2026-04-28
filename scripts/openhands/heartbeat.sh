@@ -61,6 +61,11 @@ check_dependencies() {
     err "jq 未安装，请先安装 jq"
     exit 1
   fi
+
+  if [[ "$DRY_RUN" == "false" && -z "${OPENHANDS_PASS:-}" ]]; then
+    err "非 dry-run 模式需要设置 OPENHANDS_PASS 环境变量"
+    exit 1
+  fi
 }
 
 check_workspace_clean() {
@@ -164,9 +169,16 @@ main() {
     info "  4. gh issue edit ${issue_number} --remove-label status:in-progress --add-label status:review"
     info "[DRY-RUN] 完成，未做任何实际修改。"
   else
-    warn "非 dry-run 模式暂未实现（本阶段为 dry-run only）"
-    warn "请使用 --dry-run 标志运行"
-    exit 1
+    info "调用 trigger-task.sh 处理 Issue #${issue_number}..."
+    local trigger_script="${SCRIPT_DIR}/trigger-task.sh"
+    if [[ ! -x "$trigger_script" ]]; then
+      chmod +x "$trigger_script"
+    fi
+    OPENHANDS_PASS="${OPENHANDS_PASS:-}" \
+      "$trigger_script" "$issue_number" || {
+        local exit_code=$?
+        warn "trigger-task.sh 退出码: ${exit_code}（已在 issue 上留评论）"
+      }
   fi
 
   info "=== Heartbeat 完成 ==="

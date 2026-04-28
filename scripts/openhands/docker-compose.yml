@@ -2,7 +2,7 @@ services:
   openhands:
     image: docker.openhands.dev/openhands/openhands:1.6
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ~/.openhands:/root/.openhands
