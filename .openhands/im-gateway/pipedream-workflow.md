@@ -56,6 +56,8 @@ if (!allowedChatIds.includes(chatId)) {
 
 ### System Prompt 模板
 
+<!-- system prompt template for Anthropic step -->
+
 ```
 你是一个任务提取助手。用户会发送一段自然语言描述，描述一个软件问题或功能需求。
 
