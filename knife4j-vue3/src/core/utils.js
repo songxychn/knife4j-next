@@ -3,6 +3,9 @@ import md5 from 'js-md5'
 import JSON5 from './json5.js'
 import isObject from 'lodash/isObject'
 import isNumber from 'lodash/isNumber'
+import IncludeAssemble from './IncludeAssemble'
+import has from 'lodash/has'
+import unset from 'lodash/unset'
 
 const reg = /(((^https?:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)$/g;
 const binaryContentType = {
@@ -154,11 +157,88 @@ function isUrl(path) {
 }
 
 const utils = {
+  insightUrl(url) {
+    let newUrl = url;
+    var pathname = window.location.pathname;
+    var reg = new RegExp('(.*?)/doc\.html.*$', 'ig');
+    var tempPath = '';
+    if (reg.test(pathname)) {
+      tempPath = RegExp.$1;
+    }
+    if (tempPath != '') {
+      newUrl = url.replace(tempPath, '');
+    }
+    return newUrl;
+  },
+  /**
+   * 判断类型，是否为JSON格式
+   * @param {*} produces produces
+   */
+  assertProducesJson(produces) {
+    if (!this.checkUndefined(produces)) {
+      return false;
+    }
+    // 追加一个自定义json的MIME类型实现，issues：https://github.com/xiaoymin/knife4j/issues/597
+    if (produces == "application/json" ||
+      produces == "application/xml" ||
+      produces == "text/html" ||
+      produces == "text/plain") {
+      return true;
+    } else {
+      //判断自定义扩展的MIME类型
+      if (produces.toLowerCase().indexOf("json") > -1) {
+        return true;
+      }
+    }
+    return false;
+  },
+  getLocationParams(name) {
+    var url = window.location.href;
+    let paramIndex = url.indexOf('?')
+    if (url.indexOf('?') == 1) { return false; }
+    url = url.substr(paramIndex + 1);
+    url = url.split('&');
+    var name = name || '';
+    var nameres;
+    // 获取全部参数及其值
+    for (var i = 0; i < url.length; i++) {
+      var info = url[i].split('=');
+      var obj = {};
+      obj[info[0]] = decodeURI(info[1]);
+      url[i] = obj;
+    }
+    // 如果传入一个参数名称，就匹配其值
+    if (name) {
+      for (var i = 0; i < url.length; i++) {
+        for (const key in url[i]) {
+          if (key == name) {
+            nameres = url[i][key];
+          }
+        }
+      }
+    } else {
+      nameres = url;
+    }
+    return nameres;
+  },
   getOAuth2Html(production) {
     if (production) {
       return "webjars/oauth/oauth2.html";
     }
     return "oauth/oauth2.html";
+  },
+  getDesktopCode() {
+    var loc = window.location.pathname;
+    // 默认根目录
+    var code = 'ROOT';
+    var reg = new RegExp('(?:/(.*?))?/doc.html', 'ig');
+    if (reg.exec(loc)) {
+      var c = RegExp.$1;
+      if (this.strNotBlank(c)) {
+        code = c;
+      }
+    }
+    return code;
   },
   getOAuth2BearerValue(schema, defaultValue) {
     if (schema == "bearer") {
@@ -369,6 +449,16 @@ const utils = {
     return md5(new Date().getTime().toString() +
       Math.floor(Math.random() * 10000).toString() + str);
   },
+  numberFormat(obj) {
+    let items = obj["items"];
+    if (this.checkUndefined(items)) {
+      let format = items["format"];
+      if (this.checkUndefined(format)) {
+        return format;
+      }
+    }
+    return null;
+  },
   formatter: function (data, parentPath = "/", parentAuthority) {
     return data.map(item => {
       let {
@@ -521,7 +611,7 @@ const utils = {
   getJsonKeyLength: function (json) {
     var size = 0;
     if (json != null) {
-      for (key in json) {
+      for (var key in json) {
         if (json.hasOwnProperty(key)) size++;
       }
     }
@@ -687,6 +777,28 @@ const utils = {
 
     return null;
   },
+  ignoreJsonValue: function (_jsonValue, _ignoreParameters, _includeParameters) {
+    const newValue = (() => {
+      if (isObject(_jsonValue)) {
+        let cloneValue = null;
+        var tmpJson = this.json5parse(this.json5stringify(_jsonValue)); //  深拷贝对象或数组
+        // 判断include是否不为空
+        if (_includeParameters != null) {
+          cloneValue = new IncludeAssemble(tmpJson, _includeParameters).result();
+        } else {
+          cloneValue = tmpJson;
+          if (_ignoreParameters && isObject(_jsonValue)) {
+            Object.keys(_ignoreParameters || {}).forEach(key => {
+              unset(cloneValue, key);
+            });
+          }
+        }
+        return cloneValue;
+      }
+      return null;
+    })();
+    return newValue;
+  },
   getRefParameterName: function (item) {
     var regex = new RegExp("#/components/parameters/(.*)$", "ig");
     if (regex.test(item)) {
@@ -749,6 +861,16 @@ const utils = {
     }
     return "";
   },
+  camelUpperCase: function (str) {
+    if (str != null && str != undefined && str != "") {
+      if (str.length == 1) {
+        return str.toUpperCase();
+      } else {
+        return str.substr(0, 1).toUpperCase() + str.substr(1);
+      }
+    }
+    return "";
+  },
   generUUID: function () {
     return (utils.randomNumber() + utils.randomNumber() + "-" + utils.randomNumber() + "-" + utils.randomNumber() + "-" + utils.randomNumber() + "-" + utils.randomNumber() + utils.randomNumber() + utils.randomNumber());
   },
@@ -804,6 +926,30 @@ const utils = {
   },
   getExtensions: function (obj) {
     return this.checkExtensionsUndefined(obj) ? (obj['extensions'] || obj['x-extensions']) : undefined
+  },
+  /**
+   * 处理枚举类型的标签显示方法，针对i18n
+   * @param {*} i18n 当前i18n对象，从Knife4j对象的上下文获取
+   * @param {*} enumCollection 枚举集合
+   */
+  enumAvalibleLabel(i18n, enumCollection, description) {
+    let avalibArr = []
+    if (this.checkUndefined(description)) {
+      avalibArr.push(description)
+    }
+    //处理枚举类型的标签显示方法，针对i18n
+    if (this.checkUndefined(i18n) && this.checkUndefined(enumCollection)) {
+      try {
+        avalibArr.push(i18n.doc.enumAvalible + ":" + enumCollection.join(","));
+        return avalibArr.join(",")
+      } catch (e) {
+        //ignore.
+      }
+    }
+    if (this.checkUndefined(enumCollection)) {
+      avalibArr.push("可用值:" + enumCollection.join(","))
+      return avalibArr.join(",")
+    }
   }
 }
 
