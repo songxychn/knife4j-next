@@ -166,6 +166,8 @@ export default parsed; // { title, body, area, priority }
 **目的**：将创建的 GitHub Issue 链接回复给用户。
 
 ```javascript
+const axios = require("axios");
+
 const issueUrl = steps.github_create_issue.$return_value.html_url;
 const issueNumber = steps.github_create_issue.$return_value.number;
 const title = steps.anthropic_parse.$return_value.title;
@@ -177,7 +179,7 @@ await axios.post(
   {
     chat_id: steps.trigger.event.message.chat.id,
     text,
-    parse_mode: "HTML",
+    parse_mode: "Markdown",
   }
 );
 ```
@@ -226,15 +228,20 @@ await axios.post(process.env.INTERNAL_WEBHOOK_URL, payload, {
 ```javascript
 const store = await $.service.db;
 const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-const key = `issue_count_${today}`;
-const count = (await store.get(key)) || 0;
+const chatId = steps.trigger.event.message.chat.id.toString();
+const perChatKey = `issue_count_${chatId}_${today}`;
+const globalKey = `issue_count_global_${today}`;
+const perChatCount = (await store.get(perChatKey)) || 0;
+const globalCount = (await store.get(globalKey)) || 0;
 
-const DAILY_LIMIT = 50;
-if (count >= DAILY_LIMIT) {
+const PER_CHAT_LIMIT = 10;
+const GLOBAL_LIMIT = 50;
+if (perChatCount >= PER_CHAT_LIMIT || globalCount >= GLOBAL_LIMIT) {
   // 回复用户并终止
   $flow.exit("daily_limit_exceeded");
 }
-await store.set(key, count + 1);
+await store.set(perChatKey, perChatCount + 1);
+await store.set(globalKey, globalCount + 1);
 ```
 
 ### 3. 关键词黑名单
@@ -248,12 +255,19 @@ await store.set(key, count + 1);
 | `force push` | 强制推送需人工确认 |
 
 ```javascript
+const axios = require("axios");
 const BLACKLIST = ["release", "delete module", "force push"];
 const text = steps.trigger.event.message.text.toLowerCase();
 
 for (const keyword of BLACKLIST) {
   if (text.includes(keyword)) {
-    // 回复用户并终止
+    await axios.post(
+      `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`,
+      {
+        chat_id: steps.trigger.event.message.chat.id,
+        text: `⚠️ 请求被拒绝：消息包含受限关键词「${keyword}」，此操作需人工审批。`,
+      }
+    );
     $flow.exit(`blocked_keyword: ${keyword}`);
   }
 }
