@@ -36,3 +36,4 @@ nbdist/
 .nb-gradle/
 
 /swagger-bootstrap-ui-front/.idea/
+scripts/openhands/.env
