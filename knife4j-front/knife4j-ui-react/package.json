@@ -34,15 +34,15 @@
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@types/react-resizable": "^3.0.4",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.6.0",
+    "@typescript-eslint/parser": "^7.6.0",
     "@vitejs/plugin-react-swc": "^3.3.2",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "prettier": "^2.8.8",
     "typescript": "^5.0.2",
-    "vite": "^4.4.5",
+    "vite": "^6.0.0",
     "vitest": "^4.1.5"
   }
 }
