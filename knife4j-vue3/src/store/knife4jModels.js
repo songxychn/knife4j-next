@@ -17,7 +17,6 @@ export const useknife4jModels = defineStore('knife4jModels', {
 
       },
       setValue(key, value) {
-        console.log(this)
         // 该方法是递归Models的方法
         // 判断是否已经赋值
         var that = this;

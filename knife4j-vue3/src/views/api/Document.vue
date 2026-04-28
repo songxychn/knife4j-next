@@ -20,6 +20,7 @@
       <a-row :class="'knife4j-api-' + api.methodType.toLowerCase()">
         <div class="knife4j-api-summary">
           <span class="knife4j-api-summary-method">
+            <UnlockOutlined v-if="api.securityFlag" style="font-size:16px;" />
             {{ api.methodType }}
           </span>
           <span class="knife4j-api-summary-path">{{ api.showUrl }}</span>
@@ -95,8 +96,8 @@
     </div>
     <!--响应参数需要判断是否存在多个code-schema的情况-->
     <div v-if="api.multipartResponseSchema">
-      <a-tabs @change="multipartTabCodeChanges">
-        <a-tab-pane v-for="resp in multipCodeDatas" :key="resp.code" :tab="$t('doc.responseHeaderParams')">
+        <a-tabs @change="multipartTabCodeChanges">
+          <a-tab-pane v-for="resp in multipCodeDatas" :key="resp.code" :tab="resp.code">
           <!--判断响应头-->
           <div v-if="resp.responseHeaderParameters">
               <!-- 响应Header -->
@@ -175,11 +176,13 @@
  import { useknife4jModels } from '@/store/knife4jModels.js'
  import { useI18n } from 'vue-i18n'
  import { message } from 'ant-design-vue'
+ import { UnlockOutlined } from '@ant-design/icons-vue'
 
  export default {
    name: "Document",
    components: {
      editor: VAceEditor,
+     UnlockOutlined,
      "DataType": defineAsyncComponent(() => import('./DataType.vue')),
      "EditorShow": defineAsyncComponent(() => import('./EditorShow.vue'))
    },
@@ -703,7 +706,7 @@
        // console.log("rcodes")
        // console.log(rcodes)
        if (rcodes != null && rcodes != undefined) {
-         rcodes.forEach(function (rc) {
+         rcodes.forEach(function (rc, i) {
            // 遍历
            if (rc.schema != undefined && rc.schema != null) {
              var respdata = [];
@@ -769,6 +772,12 @@
                that.multipData = nresobj;
              }
              that.multipCodeDatas.push(nresobj);
+           } else {
+             // 非 schema 响应：仅 fallback 第一条（与 knife4j-vue 行为保持一致）
+             // https://gitee.com/xiaoym/knife4j/issues/I5W145
+             if (i == 0) {
+               that.multipData = rc;
+             }
            }
          });
          var multipKeys = Object.keys(that.multipData);
