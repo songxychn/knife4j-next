@@ -72,7 +72,7 @@ public class Knife4jAggregationProperties {
 
     /**
      * 单个 provider /v3/api-docs 请求超时时间（毫秒），默认 5000ms
-     * 配置项：knife4j.aggregation.provider-timeout-ms
+     * 配置项：knife4j.provider-timeout-ms
      */
     private int providerTimeoutMs = 5000;
 

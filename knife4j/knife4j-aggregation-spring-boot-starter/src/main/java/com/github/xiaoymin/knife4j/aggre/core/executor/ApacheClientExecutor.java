@@ -53,7 +53,7 @@ public class ApacheClientExecutor extends PoolingConnectionManager implements Ro
 
     /**
      * 单个 provider 请求超时（毫秒），默认 5000ms
-     * 通过 knife4j.aggregation.provider-timeout-ms 配置
+     * 通过 knife4j.provider-timeout-ms 配置
      */
     private final int providerTimeoutMs;
 
