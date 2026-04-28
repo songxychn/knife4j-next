@@ -21,6 +21,8 @@ interface ParamRow {
   type: string;
   required: boolean;
   description: string;
+  refDescription?: string;
+  refTitle?: string;
 }
 
 interface ResponseRow {
@@ -253,17 +255,38 @@ export default function ApiDoc() {
           <Badge status="default" text={t('schema.required.no')} />
         ),
     },
-    { title: t('apiDoc.col.description'), dataIndex: 'description' },
+    {
+      title: t('apiDoc.col.description'),
+      dataIndex: 'description',
+      render: (value: string, record: ParamRow) => (
+        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+          {value ? <span>{value}</span> : <Text type="secondary">-</Text>}
+          {record.refDescription && record.refDescription !== value && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.refTitle ? `[${record.refTitle}] ` : ''}
+              {record.refDescription}
+            </Text>
+          )}
+        </Space>
+      ),
+    },
   ];
 
-  const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => ({
-    key: `${parameter.in}-${parameter.name}-${index}`,
-    name: parameter.name,
-    in: parameter.in,
-    type: parameterType(parameter),
-    required: Boolean(parameter.required),
-    description: parameter.description ?? '',
-  }));
+  const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => {
+    const refTarget = parameter.schema?.$ref ? resolveRef(parameter.schema.$ref, swaggerDoc) : undefined;
+    const refDescription = refTarget && typeof refTarget.description === 'string' ? refTarget.description : undefined;
+    const refTitle = refTarget && typeof refTarget.title === 'string' ? refTarget.title : undefined;
+    return {
+      key: `${parameter.in}-${parameter.name}-${index}`,
+      name: parameter.name,
+      in: parameter.in,
+      type: parameterType(parameter),
+      required: Boolean(parameter.required),
+      description: parameter.description ?? '',
+      refDescription: refDescription !== parameter.description ? refDescription : undefined,
+      refTitle,
+    };
+  });
   const bodySchema = firstRequestSchema(op.requestBody, op.parameters);
   const bodyFields = bodySchema ? filterFieldNodes(schemaToFieldNodes(bodySchema, swaggerDoc), 'request') : [];
   const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
@@ -393,8 +416,8 @@ export default function ApiDoc() {
                     const color = row.statusCode.startsWith('2')
                       ? 'success'
                       : row.statusCode.startsWith('4')
-                        ? 'warning'
-                        : 'error';
+                      ? 'warning'
+                      : 'error';
                     const fields = row.schema
                       ? filterFieldNodes(schemaToFieldNodes(row.schema, swaggerDoc), 'response')
                       : [];
