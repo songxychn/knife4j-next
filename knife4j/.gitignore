@@ -35,3 +35,11 @@ nbdist/
 
 # Generated React UI build artifacts (produced by Maven build, not committed)
 knife4j-openapi3-ui/src/main/resources/webjars/knife4j-ui-react/
+
+# Generated Vue 3 UI build artifacts (produced by Maven build, not committed)
+knife4j-openapi2-ui/src/main/resources/webjars/js/
+knife4j-openapi2-ui/src/main/resources/webjars/css/
+knife4j-openapi2-ui/src/main/resources/webjars/img/
+knife4j-openapi2-ui/src/main/resources/webjars/fonts/
+knife4j-openapi2-ui/src/main/resources/webjars/oauth/
+knife4j-openapi2-ui/src/main/resources/doc.html

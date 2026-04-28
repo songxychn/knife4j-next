@@ -13,8 +13,9 @@
     <description>前端Swagger文档ui模块-20221202-2350</description>
 
     <properties>
-        <!--<destDir>${project.build.outputDirectory}/META-INF/resources/webjars/${project.artifactId}/${project.version}</destDir>-->
         <destDir>${project.build.outputDirectory}/META-INF/resources/</destDir>
+        <knife4j-vue3.dir>${project.basedir}/../../knife4j-vue3</knife4j-vue3.dir>
+        <knife4j-vue3.outDir>${project.build.directory}/knife4j-vue3-dist</knife4j-vue3.outDir>
     </properties>
 
     <build>
@@ -22,8 +23,161 @@
             <resource>
                 <directory>${project.basedir}/src/main/resources</directory>
                 <targetPath>META-INF/resources/</targetPath>
+                <!--
+                    Exclude legacy Vue 2 build artifacts that may have been committed to
+                    src/main/resources/webjars/ by mistake. They are now considered generated
+                    output (.gitignore covers them), and the canonical source of truth is the
+                    vite build that writes to ${knife4j-vue3.outDir}. See the maven-clean-plugin
+                    execution below for the hard cleanup.
+                -->
+                <excludes>
+                    <exclude>doc.html</exclude>
+                    <exclude>webjars/js/**</exclude>
+                    <exclude>webjars/css/**</exclude>
+                    <exclude>webjars/img/**</exclude>
+                    <exclude>webjars/fonts/**</exclude>
+                    <exclude>webjars/oauth/**</exclude>
+                </excludes>
             </resource>
         </resources>
+        <plugins>
+            <!-- Step 0: always wipe any stale Vue 2 build artifacts checked out under src/main/resources/ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.3.2</version>
+                <executions>
+                    <execution>
+                        <id>wipe-stale-vue2-webjar</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.basedir}/src/main/resources/webjars</directory>
+                                    <includes>
+                                        <include>js/**</include>
+                                        <include>css/**</include>
+                                        <include>img/**</include>
+                                        <include>fonts/**</include>
+                                        <include>oauth/**</include>
+                                    </includes>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Step 1: vite build with outDir pointing to Maven target -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>npm-install</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npm</executable>
+                            <arguments>
+                                <argument>install</argument>
+                            </arguments>
+                            <workingDirectory>${knife4j-vue3.dir}</workingDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>vite-build</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npx</executable>
+                            <arguments>
+                                <argument>vite</argument>
+                                <argument>build</argument>
+                                <argument>--outDir=${knife4j-vue3.outDir}</argument>
+                                <argument>--emptyOutDir</argument>
+                            </arguments>
+                            <workingDirectory>${knife4j-vue3.dir}</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Step 2: copy dist output to META-INF/resources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <!-- 2a: copy doc.html from vite output -->
+                    <execution>
+                        <id>copy-vue3-doc-html</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/resources</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <resources>
+                                <resource>
+                                    <directory>${knife4j-vue3.outDir}</directory>
+                                    <includes>
+                                        <include>doc.html</include>
+                                        <include>favicon.ico</include>
+                                    </includes>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                    <!-- 2b: copy img/icons from vite output -->
+                    <execution>
+                        <id>copy-vue3-img-icons</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/resources/img/icons</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <resources>
+                                <resource>
+                                    <directory>${knife4j-vue3.outDir}/img/icons</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                    <!-- 2c: copy webjars from vite output -->
+                    <execution>
+                        <id>copy-vue3-webjars</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/resources/webjars</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <resources>
+                                <resource>
+                                    <directory>${knife4j-vue3.outDir}/webjars</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <dependencies>

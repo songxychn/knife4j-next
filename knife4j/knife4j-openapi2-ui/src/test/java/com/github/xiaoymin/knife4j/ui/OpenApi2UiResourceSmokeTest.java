@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 
 public class OpenApi2UiResourceSmokeTest {
 
-    private static final Pattern ASSET_REFERENCE = Pattern.compile("(?:href|src)=([^\\s>]+)");
+    private static final Pattern ASSET_REFERENCE = Pattern.compile("(?:href|src)=[\"']?([^\"'\\s>]+)[\"']?");
 
     @Test
     public void shouldPackageDocHtmlAndReferencedAssets() throws IOException {
@@ -45,6 +45,11 @@ public class OpenApi2UiResourceSmokeTest {
         int jsAssets = 0;
         while (matcher.find()) {
             String asset = matcher.group(1);
+            // vite emits `./webjars/...` relative references; strip the leading `./` so the
+            // path can be resolved against META-INF/resources.
+            if (asset.startsWith("./")) {
+                asset = asset.substring(2);
+            }
             if (asset.startsWith("webjars/css/") || asset.startsWith("webjars/js/")) {
                 assertResource("META-INF/resources/" + asset);
                 if (asset.startsWith("webjars/css/")) {
