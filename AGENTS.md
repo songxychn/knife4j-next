@@ -18,6 +18,14 @@
 
 > ⚠️ `.agent/TASKS.md` 和 `.agent/PROGRESS.md` 已于 2026-04-26 冻结，仅作历史参考。新任务状态通过 GitHub Issues 管理。
 
+## 工作模式过渡
+
+当前项目正在从 **OpenClaw** 迁移到 **self-hosted OpenHands**。过渡期间请注意以下事项：
+
+1. **权威源**：`.agent/` 目录仍是所有 agent 规则和策略的权威源。`.openhands/` 是 OpenHands 读取的等价副本，两者内容应保持一致。
+2. **并行运行期间的同步要求**：OpenClaw 与 OpenHands 并行运行期间，任一侧的规则修改（包括 `.agent/` 或 `.openhands/`）必须同步到另一侧，避免两套规则出现分歧。
+3. **OpenHands 入口**：OpenHands agent 读取的仓库级规则位于 [`.openhands/microagents/repo.md`](.openhands/microagents/repo.md)，其内容应与 `.agent/` 保持同步。
+
 ## 项目使命
 
 `knife4j-next` 是 `knife4j` 的社区维护 fork。当前目标不是重写项目，而是保持 `doc.html` 体验稳定、修复回归、维护兼容性、建立可重复发布流程，并以增量方式推进下一代前端。
