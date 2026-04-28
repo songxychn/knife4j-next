@@ -79,15 +79,16 @@
                 <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>npm-ci</id>
+                        <id>pnpm-install</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>npm</executable>
+                            <executable>pnpm</executable>
                             <arguments>
-                                <argument>ci</argument>
+                                <argument>install</argument>
+                                <argument>--frozen-lockfile</argument>
                             </arguments>
                             <workingDirectory>${knife4j-vue3.dir}</workingDirectory>
                         </configuration>
@@ -99,8 +100,9 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>npx</executable>
+                            <executable>pnpm</executable>
                             <arguments>
+                                <argument>exec</argument>
                                 <argument>vite</argument>
                                 <argument>build</argument>
                                 <argument>--outDir=${knife4j-vue3.outDir}</argument>

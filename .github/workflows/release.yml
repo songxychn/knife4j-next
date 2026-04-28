@@ -38,17 +38,29 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: |
-            knife4j-front/package-lock.json
-            knife4j-vue3/package-lock.json
+          cache-dependency-path: knife4j-front/package-lock.json
 
-      - name: Install knife4j-vue3 dependencies
-        run: npm ci
+      - name: Set up pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('knife4j-vue3/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install knife4j-vue3 dependencies (pnpm)
+        run: pnpm install --frozen-lockfile
         working-directory: knife4j-vue3
 
       - name: Install knife4j-front workspace dependencies
