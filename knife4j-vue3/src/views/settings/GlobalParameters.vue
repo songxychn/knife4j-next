@@ -208,11 +208,13 @@ export default {
         const dfv = val;
         dfv[this.groupId] = this.globalParameters;
         localStore.setItem(Constants.globalParameter, dfv);
-        // 发送全局参数更新事件，使用Vue根实例作为事件总线
-        this.$root.$emit('global-parameters-updated', { 
-          groupId: this.groupId, 
-          parameters: this.globalParameters 
-        });
+        // 发送全局参数更新事件（Vue 3 移除了实例 event bus，这里通过 window CustomEvent 广播）
+        window.dispatchEvent(new CustomEvent('global-parameters-updated', {
+          detail: {
+            groupId: this.groupId,
+            parameters: this.globalParameters
+          }
+        }));
       })
     },
     deleteParam(record) {
@@ -241,11 +243,13 @@ export default {
             const dfv = val;
             dfv[key] = this.globalParameters;
             localStore.setItem(Constants.globalParameter, dfv);
-            // 发送全局参数更新事件，使用Vue根实例作为事件总线
-            gpInstance.$root.$emit('global-parameters-updated', { 
-              groupId: key, 
-              parameters: gpInstance.globalParameters 
-            })
+            // 发送全局参数更新事件（Vue 3 移除了实例 event bus，这里通过 window CustomEvent 广播）
+            window.dispatchEvent(new CustomEvent('global-parameters-updated', {
+              detail: {
+                groupId: key,
+                parameters: this.globalParameters
+              }
+            }));
           })
           this.visible = false;
         } else {
@@ -258,7 +262,6 @@ export default {
       this.visible = false;
     },
     addGlobalParameters() {
-      console.log(this.form)
       this.formRef.resetFields();
       this.visible = true;
       // this.$emit("childrenMethods", "addGlobalParameters", data);

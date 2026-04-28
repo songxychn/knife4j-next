@@ -30,16 +30,19 @@ export const routes = [{
       path: '/SwaggerModels/:groupName',
       component: () => import('@/views/settings/SwaggerModels.vue')
     }, {
-      path: '/documentManager/GlobalParameters-:groupName',
+      path: '/documentManager/GlobalParameters$:groupName',
+      alias: '/documentManager/GlobalParameters-:groupName',
       component: () => import('@/views/settings/GlobalParameters.vue')
     }, {
-      path: '/documentManager/OfficelineDocument-:groupName',
+      path: '/documentManager/OfficelineDocument$:groupName',
+      alias: '/documentManager/OfficelineDocument-:groupName',
       component: () => import('@/views/settings/OfficelineDocument.vue')
     }, {
       path: '/documentManager/Settings',
       component: () => import('@/views/settings/Settings.vue')
     }, {
-      path: '/:groupName-:mdid-omd/:id',
+      path: '/:groupName$:mdid$omd/:id',
+      alias: '/:groupName-:mdid-omd/:id',
       component: () => import('@/views/othermarkdown/index.vue')
     }
   ]
