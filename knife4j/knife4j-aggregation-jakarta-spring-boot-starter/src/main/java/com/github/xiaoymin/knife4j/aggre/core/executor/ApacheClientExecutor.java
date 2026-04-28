@@ -24,6 +24,7 @@ import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.HeaderWrapper;
 
 import org.apache.http.Header;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -45,12 +46,33 @@ import jakarta.servlet.http.Part;
 /***
  * 基于HttpClient组件的转发策略
  * @since  2.0.8
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
+ * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2020/10/29 20:35
  */
 public class ApacheClientExecutor extends PoolingConnectionManager implements RouteExecutor {
 
     Logger logger = LoggerFactory.getLogger(ApacheClientExecutor.class);
+
+    /**
+     * 单个 provider 请求超时（毫秒），默认 5000ms
+     * 通过 knife4j.aggregation.provider-timeout-ms 配置
+     */
+    private final int providerTimeoutMs;
+
+    public ApacheClientExecutor() {
+        this.providerTimeoutMs = 5000;
+    }
+
+    public ApacheClientExecutor(int providerTimeoutMs) {
+        this.providerTimeoutMs = providerTimeoutMs;
+    }
+
+    private RequestConfig buildProviderRequestConfig() {
+        return RequestConfig.custom()
+                .setSocketTimeout(providerTimeoutMs)
+                .setConnectTimeout(providerTimeoutMs)
+                .build();
+    }
 
     private HttpUriRequest buildRequest(RouteRequestContext routeContext) {
         RequestBuilder builder = RequestBuilder.create(routeContext.getMethod());
@@ -99,7 +121,7 @@ public class ApacheClientExecutor extends PoolingConnectionManager implements Ro
                 builder.setEntity(basicHttpEntity);
             }
         }
-        builder.setConfig(getRequestConfig());
+        builder.setConfig(buildProviderRequestConfig());
         return builder.build();
     }
 

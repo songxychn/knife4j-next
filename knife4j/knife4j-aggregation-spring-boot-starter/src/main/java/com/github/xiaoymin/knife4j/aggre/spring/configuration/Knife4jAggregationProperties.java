@@ -70,12 +70,26 @@ public class Knife4jAggregationProperties {
      */
     private HttpConnectionSetting connectionSetting;
 
+    /**
+     * 单个 provider /v3/api-docs 请求超时时间（毫秒），默认 5000ms
+     * 配置项：knife4j.aggregation.provider-timeout-ms
+     */
+    private int providerTimeoutMs = 5000;
+
     public HttpConnectionSetting getConnectionSetting() {
         return connectionSetting;
     }
 
     public void setConnectionSetting(HttpConnectionSetting connectionSetting) {
         this.connectionSetting = connectionSetting;
+    }
+
+    public int getProviderTimeoutMs() {
+        return providerTimeoutMs;
+    }
+
+    public void setProviderTimeoutMs(int providerTimeoutMs) {
+        this.providerTimeoutMs = providerTimeoutMs;
     }
 
     public boolean isEnableAggregation() {
