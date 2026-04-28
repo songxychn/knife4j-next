@@ -193,6 +193,8 @@ await axios.post(
 **目的**：将事件推送到内部系统（如 OpenClaw / OpenHands 调度器）。
 
 ```javascript
+const axios = require("axios");
+
 const payload = {
   event: "issue_created",
   issue_number: steps.github_create_issue.$return_value.number,
