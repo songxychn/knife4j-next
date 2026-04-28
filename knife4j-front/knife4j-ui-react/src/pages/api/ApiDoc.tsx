@@ -1,7 +1,7 @@
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
+import { buildSchemaFieldTree, resolveRefMeta, type SchemaFieldNode } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
@@ -273,9 +273,10 @@ export default function ApiDoc() {
   ];
 
   const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => {
-    const refTarget = parameter.schema?.$ref ? resolveRef(parameter.schema.$ref, swaggerDoc) : undefined;
-    const refDescription = refTarget && typeof refTarget.description === 'string' ? refTarget.description : undefined;
-    const refTitle = refTarget && typeof refTarget.title === 'string' ? refTarget.title : undefined;
+    const ref = (parameter as ParameterObject & { $ref?: string }).$ref ?? parameter.schema?.$ref;
+    const { refDescription, refTitle } = ref
+      ? resolveRefMeta(ref, swaggerDoc as unknown as Record<string, unknown>)
+      : {};
     return {
       key: `${parameter.in}-${parameter.name}-${index}`,
       name: parameter.name,

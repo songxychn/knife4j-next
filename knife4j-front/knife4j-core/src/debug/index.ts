@@ -30,7 +30,7 @@ export type {
 } from './types';
 
 // resolveRef
-export { resolveRef, dereference } from './resolveRef';
+export { resolveRef, resolveRefMeta, dereference } from './resolveRef';
 
 // operationDebugModel
 export { buildOperationDebugModel } from './operationDebugModel';
