@@ -41,6 +41,7 @@ import {
   validateRequired,
 } from 'knife4j-core';
 import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -599,12 +600,11 @@ function BodyTab({
               {t('apiDebug.body.beautify')}
             </Button>
           </div>
-          <TextArea
+          <CodeEditor
             value={body}
-            onChange={(event) => setBody(event.target.value)}
-            rows={10}
-            style={{ fontFamily: 'monospace', fontSize: 13 }}
-            placeholder={`${currentBody.mediaType} request body`}
+            onChange={setBody}
+            language={selectedContentType.includes('xml') ? 'xml' : 'json'}
+            placeholderText={`${currentBody.mediaType} request body`}
           />
         </div>
       )}
@@ -858,8 +858,17 @@ interface RawEditorProps {
   onBeautify: () => void;
 }
 
+const RAW_MODE_LANGUAGE: Record<RawMode, CodeEditorLanguage> = {
+  json: 'json',
+  xml: 'xml',
+  text: 'text',
+  javascript: 'text',
+  html: 'text',
+};
+
 function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditorProps) {
   const { t } = useTranslation();
+  const useCodeEditor = rawMode === 'json' || rawMode === 'xml';
 
   return (
     <div>
@@ -883,13 +892,22 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
           </Button>
         )}
       </div>
-      <TextArea
-        value={body}
-        onChange={(event) => setBody(event.target.value)}
-        rows={10}
-        style={{ fontFamily: 'monospace', fontSize: 13 }}
-        placeholder={`${RAW_CONTENT_TYPES[rawMode]} request body`}
-      />
+      {useCodeEditor ? (
+        <CodeEditor
+          value={body}
+          onChange={setBody}
+          language={RAW_MODE_LANGUAGE[rawMode]}
+          placeholderText={`${RAW_CONTENT_TYPES[rawMode]} request body`}
+        />
+      ) : (
+        <TextArea
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          rows={10}
+          style={{ fontFamily: 'monospace', fontSize: 13 }}
+          placeholder={`${RAW_CONTENT_TYPES[rawMode]} request body`}
+        />
+      )}
     </div>
   );
 }
