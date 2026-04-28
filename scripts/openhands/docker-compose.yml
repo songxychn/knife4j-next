@@ -1,0 +1,14 @@
+services:
+  openhands:
+    image: docker.openhands.dev/openhands/openhands:1.6
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.openhands:/root/.openhands
+    environment:
+      SANDBOX_BASE_CONTAINER_IMAGE: knife4j-sandbox
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      GH_TOKEN: ${GH_TOKEN}
+    restart: unless-stopped
