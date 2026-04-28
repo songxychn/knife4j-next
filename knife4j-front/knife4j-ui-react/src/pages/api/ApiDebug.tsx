@@ -376,7 +376,7 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
       status={status}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={param.required ? t('apiDebug.inputNumber.required') : param.description ?? ''}
+      placeholder={param.required ? t('apiDebug.inputNumber.required') : (param.description ?? '')}
       readOnly={param.readOnly}
     />
   );
@@ -598,10 +598,10 @@ function BodyTab({
                 {bc.category === 'json'
                   ? 'JSON'
                   : bc.category === 'urlencoded'
-                  ? 'x-www-form-urlencoded'
-                  : bc.category === 'multipart'
-                  ? 'multipart/form-data'
-                  : 'raw'}
+                    ? 'x-www-form-urlencoded'
+                    : bc.category === 'multipart'
+                      ? 'multipart/form-data'
+                      : 'raw'}
               </Radio.Button>
             ))}
           </Radio.Group>
@@ -1060,7 +1060,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
         <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
-            {built.contentType.includes('json') ? prettyJson(built.body ?? '') : built.body ?? ''}
+            {built.contentType.includes('json') ? prettyJson(built.body ?? '') : (built.body ?? '')}
           </pre>
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
@@ -1412,7 +1412,7 @@ export default function ApiDebug() {
       body: category === 'json' || category === 'raw' ? body : undefined,
       formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
-      jsonFields: category === 'multipart' ? currentBody?.jsonFields ?? [] : undefined,
+      jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
     };
   };
 
