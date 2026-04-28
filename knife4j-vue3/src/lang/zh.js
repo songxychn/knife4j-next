@@ -25,7 +25,6 @@ const langOptions = {
         title: '说明',
         width: '35%',
         dataIndex: 'description',
-        scopedSlots: { customRender: 'descriptionValueTemplate' }
       },
       {
         title: 'schema',
@@ -43,23 +42,19 @@ const langOptions = {
       {
         title: '参数说明',
         dataIndex: 'description',
-        width: '25%',
-        scopedSlots: { customRender: 'descriptionValueTemplate' }
+        width: '25%'
       },
       {
         title: '请求类型',
-        dataIndex: 'in',
-        scopedSlots: { customRender: 'typeTemplate' }
+        dataIndex: 'in'
       },
       {
         title: '是否必须',
-        dataIndex: 'require',
-        scopedSlots: { customRender: 'requireTemplate' }
+        dataIndex: 'require'
       },
       {
         title: '数据类型',
-        dataIndex: 'type',
-        scopedSlots: { customRender: 'datatypeTemplate' }
+        dataIndex: 'type'
       },
       {
         title: 'schema',
@@ -78,12 +73,10 @@ const langOptions = {
         title: '说明',
         dataIndex: 'description',
         width: '55%',
-        scopedSlots: { customRender: 'descriptionTemplate' }
       },
       {
         title: 'schema',
-        dataIndex: 'schema',
-        scopedSlots: { customRender: 'schemaTemplate' }
+        dataIndex: 'schema'
       }
     ],
     //文档说明-响应Header
@@ -113,7 +106,6 @@ const langOptions = {
       {
         title: '参数说明',
         dataIndex: 'description',
-        scopedSlots: { customRender: 'descriptionTemplate' },
         width: '40%'
       },
       {
@@ -132,24 +124,15 @@ const langOptions = {
         title: '请求头',
         dataIndex: 'name',
         width: '20%',
-        scopedSlots: {
-          customRender: 'headerName'
-        }
       },
       {
         title: '内容',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'headerValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: '操作',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-FormData类型请求头
@@ -158,32 +141,20 @@ const langOptions = {
         title: '参数名称',
         dataIndex: 'name',
         width: '20%',
-        scopedSlots: {
-          customRender: 'formName'
-        }
       },
       {
         title: '类型',
         dataIndex: 'type',
-        width: '12%',
-        scopedSlots: {
-          customRender: 'formType'
-        }
+        width: '12%'
       },
       {
         title: '参数值',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'formValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: '操作',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-url-form类型请求参数头
@@ -192,24 +163,15 @@ const langOptions = {
         title: '参数名称',
         dataIndex: 'name',
         width: '20%',
-        scopedSlots: {
-          customRender: 'urlFormName'
-        }
       },
       {
         title: '参数值',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'urlFormValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: '操作',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-响应Header
@@ -245,9 +207,7 @@ const langOptions = {
       {
         title: '参数值',
         dataIndex: 'value',
-        scopedSlots: {
-          customRender: 'paramIpt'
-        }
+
       }
     ]
   },
@@ -354,33 +314,21 @@ const langOptions = {
         title: '参数名称',
         dataIndex: 'name',
         width: '15%',
-        scopedSlots: {
-          customRender: 'name'
-        }
-      },
+        },
       {
         title: '参数值',
         className: 'column-money',
         dataIndex: 'value',
-        width: '65%',
-        scopedSlots: {
-          customRender: 'paramContentLabel'
-        }
+        width: '65%'
       },
       {
         title: '参数类型',
         dataIndex: 'in',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'paramTypeLable'
-        }
+        width: '10%'
       },
       {
         title: '操作',
-        dataIndex: 'operation',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        dataIndex: 'operation'
       }
     ],
     form:{

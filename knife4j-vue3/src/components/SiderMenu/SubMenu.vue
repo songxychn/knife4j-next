@@ -1,8 +1,8 @@
-<template functional>
+<template>
   <a-sub-menu :key="menuInfo.key">
-    <span slot="title">
+    <template #title>
       <mail-outlined /><span>{{ menuInfo.name }}</span>
-    </span>
+    </template>
     <template v-for="item in menuInfo.children">
       <a-menu-item v-if="!item.children" :key="item.key">
         <pie-chart-outlined />

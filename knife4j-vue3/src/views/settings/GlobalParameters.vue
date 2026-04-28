@@ -12,19 +12,21 @@
     <div class="globalparameters">
       <a-table :columns="columns" rowKey="pkid" size="small" :dataSource="globalParameters" :pagination="pagination"
                bordered>
-        <a-row slot="operation" slot-scope="text,record">
-          <a-button icon="delete" type="danger" @click="deleteParam(record)" style="margin-left:10px;"
-          >{{ $t('global.delete') }}</a-button>
-        </a-row>
-        <template slot="paramContentLabel" slot-scope="text,record">
-          <a-textarea @change="headerContentChange" :data-key="record.pkid" :defaultValue="text"
-                      :autoSize="{ minRows: 2, maxRows: 6 }" allowClear />
-        </template>
-        <template slot="paramTypeLable" slot-scope="text,record">
-          <a-select :defaultValue="text" @change="globalParamTypeChange">
-            <a-select-option :data-name="record.name" :data-key="record.pkid" value="header">header</a-select-option>
-            <a-select-option :data-name="record.name" :data-key="record.pkid" value="query">query</a-select-option>
-          </a-select>
+        <template #bodyCell="{ column, text, record }">
+          <template v-if="column.dataIndex === 'operation'">
+            <a-button icon="delete" type="danger" @click="deleteParam(record)" style="margin-left:10px;"
+            >{{ $t('global.delete') }}</a-button>
+          </template>
+          <template v-else-if="column.dataIndex === 'paramContentLabel'">
+            <a-textarea @change="headerContentChange" :data-key="record.pkid" :defaultValue="text"
+                        :autoSize="{ minRows: 2, maxRows: 6 }" allowClear />
+          </template>
+          <template v-else-if="column.dataIndex === 'paramTypeLable'">
+            <a-select :defaultValue="text" @change="globalParamTypeChange">
+              <a-select-option :data-name="record.name" :data-key="record.pkid" value="header">header</a-select-option>
+              <a-select-option :data-name="record.name" :data-key="record.pkid" value="query">query</a-select-option>
+            </a-select>
+          </template>
         </template>
       </a-table>
     </div>

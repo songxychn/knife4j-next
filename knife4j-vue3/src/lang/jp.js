@@ -24,8 +24,7 @@ const langOptions = {
       {
         title: '説明',
         width: '35%',
-        dataIndex: 'description',
-        scopedSlots: { customRender: 'descriptionValueTemplate' }
+        dataIndex: 'description'
       },
       {
         title: 'schema',
@@ -43,23 +42,19 @@ const langOptions = {
       {
         title: 'パラメータの説明',
         dataIndex: 'description',
-        width: '25%',
-        scopedSlots: { customRender: 'descriptionValueTemplate' }
+        width: '25%'
       },
       {
         title: 'リクエストタイプ',
-        dataIndex: 'in',
-        scopedSlots: { customRender: 'typeTemplate' }
+        dataIndex: 'in'
       },
       {
         title: '必須かどうか',
-        dataIndex: 'require',
-        scopedSlots: { customRender: 'requireTemplate' }
+        dataIndex: 'require'
       },
       {
         title: 'データタイプ',
-        dataIndex: 'type',
-        scopedSlots: { customRender: 'datatypeTemplate' }
+        dataIndex: 'type'
       },
       {
         title: 'schema',
@@ -77,13 +72,11 @@ const langOptions = {
       {
         title: '説明',
         dataIndex: 'description',
-        width: '55%',
-        scopedSlots: { customRender: 'descriptionTemplate' }
+        width: '55%'
       },
       {
         title: 'schema',
-        dataIndex: 'schema',
-        scopedSlots: { customRender: 'schemaTemplate' }
+        dataIndex: 'schema'
       }
     ],
     //文档说明-响应Header
@@ -113,7 +106,6 @@ const langOptions = {
       {
         title: 'パラメータの説明',
         dataIndex: 'description',
-        scopedSlots: { customRender: 'descriptionTemplate' },
         width: '40%'
       },
       {
@@ -131,25 +123,16 @@ const langOptions = {
       {
         title: 'リクエストヘッダ',
         dataIndex: 'name',
-        width: '20%',
-        scopedSlots: {
-          customRender: 'headerName'
-        }
+        width: '20%'
       },
       {
         title: 'コンテンツ',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'headerValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: 'オプション',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-FormData类型请求头
@@ -157,33 +140,21 @@ const langOptions = {
       {
         title: 'パラメータ名',
         dataIndex: 'name',
-        width: '20%',
-        scopedSlots: {
-          customRender: 'formName'
-        }
+        width: '20%'
       },
       {
         title: 'タイプ',
         dataIndex: 'type',
-        width: '12%',
-        scopedSlots: {
-          customRender: 'formType'
-        }
+        width: '12%'
       },
       {
         title: 'パラメータ値',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'formValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: 'オプション',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-url-form类型请求参数头
@@ -191,25 +162,16 @@ const langOptions = {
       {
         title: 'パラメータ名',
         dataIndex: 'name',
-        width: '20%',
-        scopedSlots: {
-          customRender: 'urlFormName'
-        }
+        width: '20%'
       },
       {
         title: 'パラメータ値',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'urlFormValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: 'オプション',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-响应Header
@@ -244,10 +206,7 @@ const langOptions = {
       },
       {
         title: 'パラメータ値',
-        dataIndex: 'value',
-        scopedSlots: {
-          customRender: 'paramIpt'
-        }
+        dataIndex: 'value'
       }
     ]
   },
@@ -353,34 +312,22 @@ const langOptions = {
     tableHeader: [{
       title: 'パラメータ名',
       dataIndex: 'name',
-      width: '15%',
-      scopedSlots: {
-        customRender: 'name'
-      }
+      width: '15%'
     },
     {
       title: 'パラメータ値',
       className: 'column-money',
       dataIndex: 'value',
-      width: '65%',
-      scopedSlots: {
-        customRender: 'paramContentLabel'
-      }
+      width: '65%'
     },
     {
       title: 'パラメータのタイプ',
       dataIndex: 'in',
-      width: '10%',
-      scopedSlots: {
-        customRender: 'paramTypeLable'
-      }
+      width: '10%'
     },
     {
       title: 'オプション',
-      dataIndex: 'operation',
-      scopedSlots: {
-        customRender: 'operation'
-      }
+      dataIndex: 'operation'
     }
     ],
     form: {

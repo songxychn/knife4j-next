@@ -8,34 +8,22 @@ const constants = {
   globalParameterTableColumns: [{
     title: '参数名称',
     dataIndex: 'name',
-    width: '15%',
-    scopedSlots: {
-      customRender: 'name'
-    }
+    width: '15%'
   },
   {
     title: '参数值',
     className: 'column-money',
     dataIndex: 'value',
-    width: '65%',
-    scopedSlots: {
-      customRender: 'paramContentLabel'
-    }
+    width: '65%'
   },
   {
     title: '参数类型',
     dataIndex: 'in',
-    width: '10%',
-    scopedSlots: {
-      customRender: 'paramTypeLable'
-    }
+    width: '10%'
   },
   {
     title: '操作',
-    dataIndex: 'operation',
-    scopedSlots: {
-      customRender: 'operation'
-    }
+    dataIndex: 'operation'
   }
   ],
   globalSecurityParameters: 'Knife4jGlobalSecurityParameters',
@@ -300,81 +288,51 @@ const constants = {
   debugRequestHeaderColumn: [{
     title: '请求头',
     dataIndex: 'name',
-    width: '20%',
-    scopedSlots: {
-      customRender: 'headerName'
-    }
+    width: '20%'
   },
   {
     title: '内容',
-    dataIndex: 'content',
-    scopedSlots: {
-      customRender: 'headerValue'
-    }
+    dataIndex: 'content'
   },
   {
     title: '操作',
     dataIndex: 'operation',
-    width: '10%',
-    scopedSlots: {
-      customRender: 'operation'
-    }
+    width: '10%'
   }
   ],
   debugFormRequestHeader: [{
     title: '参数名称',
     dataIndex: 'name',
-    width: '20%',
-    scopedSlots: {
-      customRender: 'formName'
-    }
+    width: '20%'
   },
   {
     title: '类型',
     dataIndex: 'type',
-    width: '12%',
-    scopedSlots: {
-      customRender: 'formType'
-    }
+    width: '12%'
   },
   {
     title: '参数值',
-    dataIndex: 'content',
-    scopedSlots: {
-      customRender: 'formValue'
-    }
+    dataIndex: 'content'
   },
   {
     title: '操作',
     dataIndex: 'operation',
-    width: '10%',
-    scopedSlots: {
-      customRender: 'operation'
-    }
+    width: '10%'
   }
   ],
   debugUrlFormRequestHeader: [{
     title: '参数名称',
     dataIndex: 'name',
-    width: '20%',
-    scopedSlots: {
-      customRender: 'urlFormName'
-    }
+    width: '20%'
   },
   {
     title: '参数值',
-    dataIndex: 'content',
-    scopedSlots: {
-      customRender: 'urlFormValue'
-    }
+    dataIndex: 'content'
   },
   {
     title: '操作',
     dataIndex: 'operation',
-    width: '10%',
-    scopedSlots: {
-      customRender: 'operation'
-    }
+    width: '10%'
   }
   ],
   debugCacheApiId: 'Knife4jCacheApi'
