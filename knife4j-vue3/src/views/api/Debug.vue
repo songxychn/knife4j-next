@@ -277,13 +277,13 @@ import DebugResponse from "./DebugResponse"; */
 import DebugAxios from "axios";
 import cloneDeep from 'lodash/cloneDeep'
 import vkbeautify from "@/components/utils/vkbeautify";
-import { computed, defineAsyncComponent } from 'vue'
-import { useGlobalsStore } from '@/store/modules/global.js'
-import { useknife4jModels } from '@/store/knife4jModels.js'
-import { useI18n } from 'vue-i18n'
-import { message } from 'ant-design-vue'
+import {computed, defineAsyncComponent} from 'vue'
+import {useGlobalsStore} from '@/store/modules/global.js'
+import {useknife4jModels} from '@/store/knife4jModels.js'
+import {useI18n} from 'vue-i18n'
+import {message} from 'ant-design-vue'
 import localStore from '@/store/local.js'
-import { UnlockOutlined, DownOutlined } from '@ant-design/icons-vue'
+import {DownOutlined, UnlockOutlined} from '@ant-design/icons-vue'
 
 export default {
   name: "Debug",
@@ -445,11 +445,18 @@ export default {
       this.debugUrlStyle = "width: 80%;"
     }
     // 监听全局参数更新事件
-    this.$root.$on('global-parameters-updated', this.handleGlobalParametersUpdate);
+    // Vue 3 移除了实例事件总线（$on/$off/$emit），与 GlobalParameters.vue 的 window.dispatchEvent 保持一致
+    this._handleGlobalParametersUpdate = (e) => {
+      this.handleGlobalParametersUpdate(e && e.detail);
+    };
+    window.addEventListener('global-parameters-updated', this._handleGlobalParametersUpdate);
   },
   beforeUnmount() {
     // 组件销毁前移除事件监听
-    this.$root.$off('global-parameters-updated', this.handleGlobalParametersUpdate);
+    if (this._handleGlobalParametersUpdate) {
+      window.removeEventListener('global-parameters-updated', this._handleGlobalParametersUpdate);
+      this._handleGlobalParametersUpdate = null;
+    }
   },
   watch: {
     language: function (val, oldval) {

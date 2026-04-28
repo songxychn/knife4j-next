@@ -11,6 +11,7 @@ on:
       - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-front/package.json"
       - "knife4j-front/package-lock.json"
+      - "knife4j-vue3/**"
       - "docs-site/**"
       - "scripts/**"
       - ".github/workflows/build.yml"
@@ -29,6 +30,7 @@ on:
       - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-front/package.json"
       - "knife4j-front/package-lock.json"
+      - "knife4j-vue3/**"
       - "docs-site/**"
       - "scripts/**"
       - ".github/workflows/build.yml"
@@ -56,6 +58,12 @@ jobs:
           java-version: "17"
           cache: maven
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -63,9 +71,21 @@ jobs:
           cache: npm
           cache-dependency-path: knife4j-front/package-lock.json
 
+      - name: Set up pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('knife4j-vue3/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install knife4j-front workspace dependencies
         run: npm ci
         working-directory: knife4j-front
+
+      - name: Install knife4j-vue3 dependencies (pnpm)
+        run: pnpm install --frozen-lockfile
+        working-directory: knife4j-vue3
 
       - name: Verify Java modules
         run: scripts/test-java.sh

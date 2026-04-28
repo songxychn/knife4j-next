@@ -1,14 +1,13 @@
-import { defineConfig } from 'vite'
+import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import Components from 'unplugin-vue-components/vite'
-import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers'
+import {AntDesignVueResolver} from 'unplugin-vue-components/resolvers'
 import viteCompression from 'vite-plugin-compression';
 import removeConsole from 'vite-plugin-remove-console';
-import { resolve } from 'path'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import path, {resolve} from 'path'
+import {nodePolyfills} from 'vite-plugin-node-polyfills'
 import fs from 'fs'
-import path from 'path'
 
 /**
  * 把 Vite 默认把 public/oauth 复制到 dist/oauth 的产物
@@ -80,8 +79,11 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
+      // 开发期将 /api/** 代理到本地 Spring Boot 后端（默认 knife4j-demo 端口 8080）
+      // 可通过设置 KNIFE4J_BACKEND 环境变量覆盖，例如:
+      //   KNIFE4J_BACKEND=http://localhost:9000 pnpm dev
       '/api': {
-        target: `http://localhost:8990`,
+        target: process.env.KNIFE4J_BACKEND || 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }
