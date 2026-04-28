@@ -1,4 +1,5 @@
-import { Badge, Popover, Space, Table, Tag, Typography } from 'antd';
+import React from 'react';
+import { Badge, Popover, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
 import { Link as RouterLink } from 'react-router-dom';
@@ -61,7 +62,11 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
   const color = TYPE_COLOR[node.type] ?? 'default';
 
   if (!refName || !schema || !swaggerDoc) {
-    return <Tag color={color}>{label}</Tag>;
+    return (
+      <ConstraintTooltip node={node}>
+        <Tag color={color}>{label}</Tag>
+      </ConstraintTooltip>
+    );
   }
 
   const previewFields = modelPreviewFields(schema, swaggerDoc);
@@ -100,13 +105,43 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
   const target = `/${encodeURIComponent(activeGroup.value)}/schema/${encodeURIComponent(refName)}`;
 
   return (
-    <Popover title={refName} content={content} placement="right" overlayStyle={{ maxWidth: 460 }}>
-      <RouterLink to={target}>
-        <Tag color={color} style={{ cursor: 'pointer' }}>
-          {label}
-        </Tag>
-      </RouterLink>
-    </Popover>
+    <ConstraintTooltip node={node}>
+      <Popover title={refName} content={content} placement="right" overlayStyle={{ maxWidth: 460 }}>
+        <RouterLink to={target}>
+          <Tag color={color} style={{ cursor: 'pointer' }}>
+            {label}
+          </Tag>
+        </RouterLink>
+      </Popover>
+    </ConstraintTooltip>
+  );
+}
+
+function buildConstraintLines(node: SchemaFieldNode): string[] {
+  const lines: string[] = [];
+  if (node.minLength !== undefined) lines.push(`minLength: ${node.minLength}`);
+  if (node.maxLength !== undefined) lines.push(`maxLength: ${node.maxLength}`);
+  if (node.minimum !== undefined) lines.push(`minimum: ${node.minimum}`);
+  if (node.maximum !== undefined) lines.push(`maximum: ${node.maximum}`);
+  if (node.pattern !== undefined) lines.push(`pattern: ${node.pattern}`);
+  if (node.enum !== undefined && node.enum.length > 0) lines.push(`enum: ${node.enum.join(', ')}`);
+  return lines;
+}
+
+function ConstraintTooltip({ node, children }: { node: SchemaFieldNode; children: React.ReactNode }) {
+  const lines = buildConstraintLines(node);
+  if (lines.length === 0) return <>{children}</>;
+  const title = (
+    <div>
+      {lines.map((line) => (
+        <div key={line}>{line}</div>
+      ))}
+    </div>
+  );
+  return (
+    <Tooltip title={title} placement="top">
+      <span>{children}</span>
+    </Tooltip>
   );
 }
 
