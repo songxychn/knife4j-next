@@ -76,6 +76,21 @@ follow_up:
 - item or none
 ```
 
+## Reviewer Handoff 格式
+
+```md
+task:
+reviewed_scope:
+findings:
+- severity, file, line, explanation
+validation_gaps:
+- gap or none
+scope_drift:
+- drift or none
+recommendation:
+- approve | revise | block
+```
+
 ## 冲突避免
 
 - 多个 worker 时，分配互不重叠的文件所有权

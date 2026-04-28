@@ -25,10 +25,10 @@
 
 | 场景 | 命令 |
 |------|------|
-| Java 快速编译 | `cd knife4j && mvn -T4 -q clean package -DskipTests` |
+| Java 快速编译 | `./scripts/test-java.sh` |
 | Java 单模块测试 | `cd knife4j && mvn -pl <module> test` |
-| front-core 测试 | `cd knife4j-front/knife4j-core && pnpm test --run` |
-| ui-react 构建 | `cd knife4j-front/knife4j-ui-react && pnpm build` |
+| front-core 测试 | `./scripts/test-front-core.sh` |
+| ui-react 构建 | `./scripts/test-front-core.sh` |
 | TOML 合法性 | `python3 -c "import tomllib; tomllib.load(open('.openhands/config.toml','rb'))"` |
 
 ## 安全红线
