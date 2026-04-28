@@ -45,7 +45,7 @@ import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
-import ResponsePanel, { type DebugResponsePayload } from './ResponsePanel';
+import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -226,7 +226,7 @@ interface SchemaFieldRow {
 }
 
 /**
- * 从 BodyContent 的 schema.properties 提取字段行
+ * 从 BodyContent 的 schema.properties 提取字段行，过滤 readOnly 字段（请求不应包含只读字段）
  */
 function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   const schema = bodyContent.schema;
@@ -237,27 +237,29 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   const fileFields = new Set(bodyContent.fileFields ?? []);
   const jsonFields = new Set(bodyContent.jsonFields ?? []);
 
-  return Object.entries(props).map(([name, prop]) => {
-    const t = (prop.type as string) ?? 'string';
-    const isFile =
-      fileFields.has(name) ||
-      t === 'file' ||
-      (t === 'string' && prop.format === 'binary') ||
-      (t === 'string' && prop.format === 'base64');
+  return Object.entries(props)
+    .filter(([, prop]) => !prop.readOnly)
+    .map(([name, prop]) => {
+      const t = (prop.type as string) ?? 'string';
+      const isFile =
+        fileFields.has(name) ||
+        t === 'file' ||
+        (t === 'string' && prop.format === 'binary') ||
+        (t === 'string' && prop.format === 'base64');
 
-    return {
-      name,
-      type: isFile ? 'file' : t,
-      format: typeof prop.format === 'string' ? prop.format : undefined,
-      required: requiredSet.has(name),
-      description: typeof prop.description === 'string' ? prop.description : undefined,
-      default: prop.default,
-      example: prop.example,
-      enum: Array.isArray(prop.enum) ? prop.enum : undefined,
-      isFile,
-      isJson: !isFile && jsonFields.has(name),
-    };
-  });
+      return {
+        name,
+        type: isFile ? 'file' : t,
+        format: typeof prop.format === 'string' ? prop.format : undefined,
+        required: requiredSet.has(name),
+        description: typeof prop.description === 'string' ? prop.description : undefined,
+        default: prop.default,
+        example: prop.example,
+        enum: Array.isArray(prop.enum) ? prop.enum : undefined,
+        isFile,
+        isJson: !isFile && jsonFields.has(name),
+      };
+    });
 }
 
 /** 根据 SchemaFieldRow 的类型推断初始值 */
@@ -1105,6 +1107,8 @@ export default function ApiDebug() {
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
+  const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
+  const sseAbortRef = useRef<AbortController | null>(null);
 
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
@@ -1173,6 +1177,7 @@ export default function ApiDebug() {
 
     setResponse(null);
     setError(null);
+    setSseEvents(null);
     setValidationErrors([]);
     setActiveTab(undefined);
   }, [debugModel, operation]);
@@ -1446,10 +1451,14 @@ export default function ApiDebug() {
       }
     }
     setResponse(null);
+    setSseEvents(null);
     setBuiltRequest(built);
     const start = Date.now();
     try {
-      const init: RequestInit = { method: built.method, headers: built.headers };
+      const abortController = new AbortController();
+      sseAbortRef.current = abortController;
+
+      const init: RequestInit = { method: built.method, headers: built.headers, signal: abortController.signal };
 
       if (isMultipart) {
         // 构建 FormData
@@ -1488,13 +1497,65 @@ export default function ApiDebug() {
         responseHeaders[key] = value;
       });
 
-      // Read once as blob so we can branch by content-type without draining the stream twice.
+      const contentType = responseHeaders['content-type'] ?? '';
+
+      // SSE path: text/event-stream → stream via ReadableStream reader
+      if (contentType.toLowerCase().includes('text/event-stream')) {
+        setLoading(false);
+        if (!res.body) {
+          setError('SSE response has no body');
+          sseAbortRef.current = null;
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        setSseEvents([]);
+
+        const processChunk = (chunk: string) => {
+          buffer += chunk;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            const trimmed = line.trimEnd();
+            if (trimmed.startsWith('data:')) {
+              const data = trimmed.slice(5).trimStart();
+              setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
+            }
+          }
+        };
+
+        try {
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            processChunk(decoder.decode(value, { stream: true }));
+          }
+          // flush remaining buffer
+          if (buffer.trim().startsWith('data:')) {
+            const data = buffer.trim().slice(5).trimStart();
+            if (data) setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
+          }
+        } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            // user aborted — not an error
+          } else {
+            setError(err instanceof Error ? err.message : String(err));
+          }
+        } finally {
+          sseAbortRef.current = null;
+        }
+        return;
+      }
+
+      // Non-SSE path: read once as blob so we can branch by content-type without draining the stream twice.
       const blob = await res.blob();
-      const contentType = responseHeaders['content-type'] ?? blob.type ?? '';
+      const blobContentType = contentType || blob.type;
       const contentDisposition = responseHeaders['content-disposition'];
       const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(
         blob,
-        contentType,
+        blobContentType,
         built.url,
         contentDisposition,
       );
@@ -1504,7 +1565,7 @@ export default function ApiDebug() {
         statusText: res.statusText,
         method: built.method,
         duration: Date.now() - start,
-        contentType,
+        contentType: blobContentType,
         size: blob.size,
         headers: responseHeaders,
         rawText,
@@ -1516,7 +1577,13 @@ export default function ApiDebug() {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
+      sseAbortRef.current = null;
     }
+  };
+
+  const handleSseAbort = () => {
+    sseAbortRef.current?.abort();
+    sseAbortRef.current = null;
   };
 
   /** 复制 curl 命令到剪贴板 */
@@ -1559,7 +1626,7 @@ export default function ApiDebug() {
       children: (
         <Table
           size="small"
-          dataSource={debugModel.pathParams}
+          dataSource={debugModel.pathParams.filter((p) => !p.readOnly)}
           columns={paramColumns}
           pagination={false}
           rowKey={paramKey}
@@ -1573,7 +1640,7 @@ export default function ApiDebug() {
       children: (
         <Table
           size="small"
-          dataSource={debugModel.queryParams}
+          dataSource={debugModel.queryParams.filter((p) => !p.readOnly)}
           columns={paramColumns}
           pagination={false}
           rowKey={paramKey}
@@ -1587,7 +1654,7 @@ export default function ApiDebug() {
       children: (
         <Table
           size="small"
-          dataSource={debugModel.headerParams}
+          dataSource={debugModel.headerParams.filter((p) => !p.readOnly)}
           columns={paramColumns}
           pagination={false}
           rowKey={paramKey}
@@ -1605,7 +1672,7 @@ export default function ApiDebug() {
       children: (
         <Table
           size="small"
-          dataSource={debugModel.cookieParams}
+          dataSource={debugModel.cookieParams.filter((p) => !p.readOnly)}
           columns={paramColumns}
           pagination={false}
           rowKey={paramKey}
@@ -1694,7 +1761,12 @@ export default function ApiDebug() {
         builtRequest={builtRequest}
         operation={operation}
         swaggerDoc={swaggerDoc}
+        sseEvents={sseEvents}
+        onSseAbort={handleSseAbort}
+        sseStreaming={sseAbortRef.current !== null}
       />
     </div>
   );
 }
+
+// TASK-120-16
