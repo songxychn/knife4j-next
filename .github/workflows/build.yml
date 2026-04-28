@@ -11,6 +11,7 @@ on:
       - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-front/package.json"
       - "knife4j-front/package-lock.json"
+      - "knife4j-vue3/**"
       - "docs-site/**"
       - "scripts/**"
       - ".github/workflows/build.yml"
@@ -29,6 +30,7 @@ on:
       - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-front/package.json"
       - "knife4j-front/package-lock.json"
+      - "knife4j-vue3/**"
       - "docs-site/**"
       - "scripts/**"
       - ".github/workflows/build.yml"
@@ -61,11 +63,17 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: knife4j-front/package-lock.json
+          cache-dependency-path: |
+            knife4j-front/package-lock.json
+            knife4j-vue3/package-lock.json
 
       - name: Install knife4j-front workspace dependencies
         run: npm ci
         working-directory: knife4j-front
+
+      - name: Install knife4j-vue3 dependencies
+        run: npm ci
+        working-directory: knife4j-vue3
 
       - name: Verify Java modules
         run: scripts/test-java.sh

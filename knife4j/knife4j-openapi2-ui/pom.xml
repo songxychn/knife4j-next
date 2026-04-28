@@ -79,7 +79,7 @@
                 <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>npm-install</id>
+                        <id>npm-ci</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>exec</goal>
@@ -87,7 +87,7 @@
                         <configuration>
                             <executable>npm</executable>
                             <arguments>
-                                <argument>install</argument>
+                                <argument>ci</argument>
                             </arguments>
                             <workingDirectory>${knife4j-vue3.dir}</workingDirectory>
                         </configuration>
