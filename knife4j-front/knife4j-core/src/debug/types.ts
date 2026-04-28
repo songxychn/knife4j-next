@@ -242,6 +242,16 @@ export interface SchemaFieldNode {
   example?: unknown;
   /** 枚举值 */
   enum?: unknown[];
+  /** 字符串最小长度 */
+  minLength?: number;
+  /** 字符串最大长度 */
+  maxLength?: number;
+  /** 数值最小值 */
+  minimum?: number;
+  /** 数值最大值 */
+  maximum?: number;
+  /** 字符串正则模式 */
+  pattern?: string;
   /** 是否只读 */
   readOnly?: boolean;
   /** 是否只写 */
