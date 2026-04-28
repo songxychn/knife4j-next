@@ -20,9 +20,9 @@
           </template>
           <OpenApi :api="api" :swaggerInstance="swaggerInstance" />
         </a-tab-pane>
-        <a-tab-pane v-if="settings.enableOpenApi" key="script" tab="Script">-->
-          <ScriptView :api="api" :swaggerInstance="swaggerInstance" />-->
-        </a-tab-pane>-->
+        <a-tab-pane v-if="settings.enableOpenApi" key="script" tab="Script">
+          <ScriptView :api="api" :swaggerInstance="swaggerInstance" />
+        </a-tab-pane>
 
       </a-tabs>
     </a-row>
