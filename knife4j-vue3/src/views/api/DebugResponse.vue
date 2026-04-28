@@ -2,7 +2,7 @@
   <a-row class="knife4j-debug-response">
     <a-row v-if="debugSend">
       <a-tabs defaultActiveKey="debugResponse">
-        <template slot="tabBarExtraContent">
+        <template #tabBarExtraContent>
           <a-row v-if="responseStatus" class="knife4j-debug-status">
             <span>
               <a-checkbox :defaultChecked="responseFieldDescriptionChecked" @change="showFieldDesChange"><span

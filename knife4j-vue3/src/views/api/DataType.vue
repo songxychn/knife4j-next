@@ -3,7 +3,7 @@
     <span v-if="!record.validateStatus">{{text==null||text==''?'string':text}}</span>
     <span v-else class="knife4j-request-validate-jsr">
       <a-tooltip placement="right">
-        <template slot="title">
+        <template #title>
           <div v-for="pt in validators" :key="pt.key">{{pt.val}}</div>
         </template>
         {{text}}

@@ -47,17 +47,17 @@
     </div>
     <a-table defaultExpandAllRows :columns="columns" :dataSource="reqParameters" :rowKey="genUnionTableKey" size="small"
       :pagination="page">
-      <template slot="requireTemplate" slot-scope="text">
-        <span v-if="text" style="color:red">{{ text.toLocaleString() }}</span>
-        <span v-else>{{ text.toLocaleString() }}</span>
-      </template>
-
-      <template slot="typeTemplate" slot-scope="text">
-        <span :class="'knife4j-request-' + text">{{ text }}</span>
-      </template>
-
-      <template slot="datatypeTemplate" slot-scope="text, record">
-        <data-type :text="text" :record="record"></data-type>
+      <template #bodyCell="{ column, text, record }">
+        <template v-if="column.dataIndex === 'require'">
+          <span v-if="text" style="color:red">{{ text.toLocaleString() }}</span>
+          <span v-else>{{ text.toLocaleString() }}</span>
+        </template>
+        <template v-else-if="column.dataIndex === 'in'">
+          <span :class="'knife4j-request-' + text">{{ text }}</span>
+        </template>
+        <template v-else-if="column.dataIndex === 'type'">
+          <data-type :text="text" :record="record"></data-type>
+        </template>
       </template>
     </a-table>
     <div class="api-title">
@@ -65,8 +65,10 @@
     </div>
     <a-table :defaultExpandAllRows="expanRows" :columns="responseStatuscolumns" :dataSource="api.responseCodes"
       rowKey="code" size="small" :pagination="page">
-      <template slot="descriptionTemplate" slot-scope="text">
-        <div v-html="text"></div>
+      <template #bodyCell="{ column, text }">
+        <template v-if="column.dataIndex === 'description'">
+          <div v-html="text"></div>
+        </template>
       </template>
     </a-table>
     <!--响应参数需要判断是否存在多个code-schema的情况-->
@@ -134,6 +136,7 @@
 <script>
 import KUtils from "@/core/utils";
 import Constants from "@/store/constants";
+import localStore from '@/store/local.js'
 import { VAceEditor } from 'vue3-ace-editor'
 import { defineAsyncComponent } from 'vue'
 /* import DataType from "./DataType";
@@ -153,17 +156,14 @@ const requestcolumns = [
   {
     title: "请求类型",
     dataIndex: "in",
-    scopedSlots: { customRender: "typeTemplate" }
   },
   {
     title: "是否必须",
-    dataIndex: "require",
-    scopedSlots: { customRender: "requireTemplate" }
+    dataIndex: "require"
   },
   {
     title: "数据类型",
-    dataIndex: "type",
-    scopedSlots: { customRender: "datatypeTemplate" }
+    dataIndex: "type"
   },
   {
     title: "schema",
@@ -182,7 +182,6 @@ const responseStatuscolumns = [
     title: "说明",
     dataIndex: "description",
     width: "55%",
-    scopedSlots: { customRender: "descriptionTemplate" }
   },
   {
     title: "schema",
@@ -358,7 +357,7 @@ export default {
     },
     storeCacheModels(val) {
       var key = Constants.globalTreeTableModelParams + this.api.instanceId;
-      this.$localStore.setItem(key, val);
+      localStore.setItem(key, val);
     },
     deepTreeTableSchemaModel(param, treeTableModel, rootParam) {
       var that = this;

@@ -121,7 +121,7 @@ export function getDocumentVueTemplatesUS(title, resumecss, dataStr) {
               </div>
             </a-col>
           </a-row>
-    
+
           <!--目录-->
           <a-row id="knife4j-doc-m" class="knife4j-doc-m">
             <a-row style="float: right;width: 57px;z-index: 10000;overflow: hidden;">
@@ -324,7 +324,7 @@ export function getDocumentVueTemplatesUS(title, resumecss, dataStr) {
                   v-html="formaterJson(api.multipData.responseValue)"
                 ></pre>
               </div>
-              
+
 
             <!--接口遍历结束-->
             </div>
@@ -359,18 +359,15 @@ export function getDocumentVueTemplatesUS(title, resumecss, dataStr) {
           },
           {
             title: "in",
-            dataIndex: "in",
-            scopedSlots: { customRender: "typeTemplate" }
+            dataIndex: "in"
           },
           {
             title: "require",
-            dataIndex: "require",
-            scopedSlots: { customRender: "requireTemplate" }
+            dataIndex: "require"
           },
           {
             title: "type",
-            dataIndex: "type",
-            scopedSlots: { customRender: "datatypeTemplate" }
+            dataIndex: "type"
           },
           {
             title: "schema",
@@ -388,8 +385,7 @@ export function getDocumentVueTemplatesUS(title, resumecss, dataStr) {
           {
             title: "description",
             dataIndex: "description",
-            width: "55%",
-            scopedSlots: { customRender: "descriptionTemplate" }
+            width: "55%"
           },
           {
             title: "schema",
@@ -525,7 +521,7 @@ export function getDocumentVueTemplatesUS(title, resumecss, dataStr) {
             })
           },
           created(){
-           
+
           },
           methods:{
             genUnionTableKey() {
@@ -569,8 +565,8 @@ export function getDocumentVueTemplatesUS(title, resumecss, dataStr) {
       }
 
       main();
-      
-      
+
+
     </script>
   </body>
   </html>`

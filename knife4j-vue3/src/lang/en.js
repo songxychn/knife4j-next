@@ -23,8 +23,7 @@ const langOptions = {
       {
         title: 'description',
         width: '35%',
-        dataIndex: 'description',
-        scopedSlots: { customRender: 'descriptionValueTemplate' }
+        dataIndex: 'description'
       },
       {
         title: 'schema',
@@ -42,23 +41,19 @@ const langOptions = {
       {
         title: 'description',
         dataIndex: 'description',
-        width: '25%',
-        scopedSlots: { customRender: 'descriptionValueTemplate' }
+        width: '25%'
       },
       {
         title: 'in',
-        dataIndex: 'in',
-        scopedSlots: { customRender: 'typeTemplate' }
+        dataIndex: 'in'
       },
       {
         title: 'require',
-        dataIndex: 'require',
-        scopedSlots: { customRender: 'requireTemplate' }
+        dataIndex: 'require'
       },
       {
         title: 'type',
-        dataIndex: 'type',
-        scopedSlots: { customRender: 'datatypeTemplate' }
+        dataIndex: 'type'
       },
       {
         title: 'schema',
@@ -76,13 +71,11 @@ const langOptions = {
       {
         title: 'description',
         dataIndex: 'description',
-        width: '55%',
-        scopedSlots: { customRender: 'descriptionTemplate' }
+        width: '55%'
       },
       {
         title: 'schema',
-        dataIndex: 'schema',
-        scopedSlots: { customRender: 'schemaTemplate' }
+        dataIndex: 'schema'
       }
     ],
     //文档说明-响应Header
@@ -112,7 +105,6 @@ const langOptions = {
       {
         title: 'description',
         dataIndex: 'description',
-        scopedSlots: { customRender: 'descriptionTemplate' },
         width: '40%'
       },
       {
@@ -130,25 +122,16 @@ const langOptions = {
       {
         title: 'name',
         dataIndex: 'name',
-        width: '20%',
-        scopedSlots: {
-          customRender: 'headerName'
-        }
+        width: '20%'
       },
       {
         title: 'value',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'headerValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: 'operation',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-FormData类型请求头
@@ -156,33 +139,21 @@ const langOptions = {
       {
         title: 'name',
         dataIndex: 'name',
-        width: '20%',
-        scopedSlots: {
-          customRender: 'formName'
-        }
+        width: '20%'
       },
       {
         title: 'type',
         dataIndex: 'type',
-        width: '12%',
-        scopedSlots: {
-          customRender: 'formType'
-        }
+        width: '12%'
       },
       {
         title: 'value',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'formValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: 'operation',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-url-form类型请求参数头
@@ -190,25 +161,16 @@ const langOptions = {
       {
         title: 'name',
         dataIndex: 'name',
-        width: '20%',
-        scopedSlots: {
-          customRender: 'urlFormName'
-        }
+        width: '20%'
       },
       {
         title: 'value',
-        dataIndex: 'content',
-        scopedSlots: {
-          customRender: 'urlFormValue'
-        }
+        dataIndex: 'content'
       },
       {
         title: 'operation',
         dataIndex: 'operation',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        width: '10%'
       }
     ],
     //调试-响应Header
@@ -243,10 +205,7 @@ const langOptions = {
       },
       {
         title: 'value',
-        dataIndex: 'value',
-        scopedSlots: {
-          customRender: 'paramIpt'
-        }
+        dataIndex: 'value'
       }
     ]
   },
@@ -363,34 +322,22 @@ const langOptions = {
     tableHeader: [{
         title: 'name',
         dataIndex: 'name',
-        width: '15%',
-        scopedSlots: {
-          customRender: 'name'
-        }
+        width: '15%'
       },
       {
         title: 'value',
         className: 'column-money',
         dataIndex: 'value',
-        width: '65%',
-        scopedSlots: {
-          customRender: 'paramContentLabel'
-        }
+        width: '65%'
       },
       {
         title: 'type',
         dataIndex: 'in',
-        width: '10%',
-        scopedSlots: {
-          customRender: 'paramTypeLable'
-        }
+        width: '10%'
       },
       {
         title: 'operation',
-        dataIndex: 'operation',
-        scopedSlots: {
-          customRender: 'operation'
-        }
+        dataIndex: 'operation'
       }
     ],
     form:{

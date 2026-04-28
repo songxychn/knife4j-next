@@ -3,11 +3,13 @@
     <div class="swaggermododel">
       <a-collapse @change="modelChange">
         <a-collapse-panel v-for="model in modelNames" :header="model.name" :key="model.id" :class="model.modelClass()">
-          <a-table v-if="model.load" :columns="columns" :dataSource="model.data"
+          <a-table v-if="model.load" :defaultExpandAllRows="expanRows" :columns="columns" :dataSource="model.data"
                    :rowKey="(r) => r.id + r.name" size="middle" :pagination="page">
-<!--            <template #expandedRowRender="{ column, record }">-->
-<!--              {{ `column` + column}}-->
-<!--            </template>-->
+            <template #bodyCell="{ column, text }">
+              <template v-if="column.dataIndex === 'description'">
+                <span v-html="text"></span>
+              </template>
+            </template>
           </a-table>
         </a-collapse-panel>
       </a-collapse>
