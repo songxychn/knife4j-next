@@ -25,6 +25,7 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,6 +45,26 @@ public class Boot35JakartaDocHttpSmokeTest {
         if (context != null) {
             context.close();
         }
+    }
+
+    @Test
+    public void shouldScanValidatedCglibProxiedController() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        // The @Validated controller is CGLIB-proxied; its endpoint must still appear in api-docs
+        Assert.assertTrue(
+                "Expected /validated/ping in api-docs but was: " + apiDocs.body,
+                apiDocs.body.contains("/validated/ping"));
     }
 
     @Test
@@ -114,6 +135,16 @@ public class Boot35JakartaDocHttpSmokeTest {
         @GetMapping("/hello")
         public String hello() {
             return "hello";
+        }
+    }
+
+    @Validated
+    @RestController
+    public static class ValidatedTestController {
+
+        @GetMapping("/validated/ping")
+        public String ping() {
+            return "pong";
         }
     }
 }

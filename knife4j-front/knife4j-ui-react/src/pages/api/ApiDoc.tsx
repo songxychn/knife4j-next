@@ -10,6 +10,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
+import CodeBlock from './CodeBlock';
 
 const { Title, Text } = Typography;
 
@@ -167,33 +168,6 @@ const METHOD_COLOR: Record<string, string> = {
   HEAD: 'purple',
   OPTIONS: 'default',
 };
-
-/** JSON block with copy button. */
-function JsonExampleBlock({ code, onCopy }: { code: string; onCopy: () => void }) {
-  return (
-    <div style={{ position: 'relative' }}>
-      <Button
-        size="small"
-        icon={<CopyOutlined />}
-        style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
-        onClick={onCopy}
-      />
-      <pre
-        style={{
-          borderRadius: 4,
-          fontSize: 13,
-          maxHeight: 400,
-          margin: 0,
-          overflow: 'auto',
-          background: '#f6f8fa',
-          padding: '12px 16px',
-        }}
-      >
-        {code}
-      </pre>
-    </div>
-  );
-}
 
 export default function ApiDoc() {
   const { t } = useTranslation();
@@ -390,7 +364,7 @@ export default function ApiDoc() {
                     key: 'example',
                     label: t('apiDoc.tab.requestExample'),
                     children: (
-                      <JsonExampleBlock
+                      <CodeBlock
                         code={requestExample}
                         onCopy={() =>
                           copyToClipboard(
@@ -433,7 +407,7 @@ export default function ApiDoc() {
             key: `resp-${statusCode}`,
             label: `${t('apiDoc.tab.responseExample')} ${statusCode}`,
             children: (
-              <JsonExampleBlock
+              <CodeBlock
                 code={example}
                 onCopy={() =>
                   copyToClipboard(
