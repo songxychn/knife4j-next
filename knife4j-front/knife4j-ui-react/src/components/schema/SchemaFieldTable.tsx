@@ -143,6 +143,11 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       render: (value, record) => (
         <Space size={6} wrap>
           {value ? <span>{value}</span> : <Text type="secondary">-</Text>}
+          {record.refDescription && record.refDescription !== value && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.refDescription}
+            </Text>
+          )}
           {record.deprecated && <Tag color="red">{t('schema.flag.deprecated')}</Tag>}
           {record.readOnly && <Tag color="default">{t('schema.flag.readOnly')}</Tag>}
           {record.writeOnly && <Tag color="default">{t('schema.flag.writeOnly')}</Tag>}

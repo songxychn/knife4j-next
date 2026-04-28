@@ -81,6 +81,62 @@ const doc: Record<string, unknown> = {
         type: 'array',
         items: { type: 'string' },
       },
+      Animal: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string' },
+          sound: { type: 'string' },
+        },
+      },
+      Pet2: {
+        allOf: [
+          { $ref: '#/components/schemas/Animal' },
+          {
+            type: 'object',
+            properties: {
+              tag: { type: 'string' },
+            },
+          },
+        ],
+      },
+      Dog: {
+        allOf: [
+          { $ref: '#/components/schemas/Animal' },
+          { $ref: '#/components/schemas/Pet2' },
+          {
+            type: 'object',
+            properties: {
+              breed: { type: 'string' },
+            },
+          },
+        ],
+      },
+      PolyShape: {
+        oneOf: [
+          {
+            type: 'object',
+            properties: { radius: { type: 'number' } },
+          },
+          {
+            type: 'object',
+            properties: { width: { type: 'number' }, height: { type: 'number' } },
+          },
+        ],
+      },
+      PolyAny: {
+        anyOf: [
+          {
+            type: 'object',
+            properties: { x: { type: 'integer' } },
+          },
+          { type: 'string' },
+        ],
+      },
+      MapOnly: {
+        type: 'object',
+        additionalProperties: { type: 'integer' },
+      },
     },
   },
   definitions: {
@@ -441,5 +497,96 @@ describe('buildSchemaFieldTree', () => {
     expect(nodes).toHaveLength(1);
     expect(nodes[0].name).toBe('*');
     expect(nodes[0].type).toBe('string');
+  });
+});
+
+// ─── TASK-114 专项测试 ────────────────────────────────
+
+describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {
+  // 1. 单继承 allOf: [Parent, self]
+  test('allOf single inheritance merges parent properties', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Pet2' }, ctx());
+    const names = nodes.map((n) => n.name);
+    expect(names).toContain('name'); // from Animal
+    expect(names).toContain('sound'); // from Animal
+    expect(names).toContain('tag'); // own
+  });
+
+  test('allOf single inheritance example includes parent fields', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/Pet2' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('name');
+    expect(result).toHaveProperty('sound');
+    expect(result).toHaveProperty('tag');
+  });
+
+  // 2. 双继承 allOf: [A, B, self]
+  test('allOf double inheritance merges all ancestor properties', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Dog' }, ctx());
+    const names = nodes.map((n) => n.name);
+    expect(names).toContain('name'); // from Animal
+    expect(names).toContain('sound'); // from Animal
+    expect(names).toContain('breed'); // own
+  });
+
+  test('allOf double inheritance example includes all ancestor fields', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/Dog' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('name');
+    expect(result).toHaveProperty('sound');
+    expect(result).toHaveProperty('breed');
+  });
+
+  // 3. oneOf 多态场景
+  test('oneOf polymorphism uses first branch properties', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/PolyShape' }, ctx());
+    const names = nodes.map((n) => n.name);
+    // first branch has radius
+    expect(names).toContain('radius');
+  });
+
+  test('oneOf example uses first branch', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/PolyShape' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('radius');
+  });
+
+  // 4. anyOf 多态场景
+  test('anyOf polymorphism uses first branch properties', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/PolyAny' }, ctx());
+    const names = nodes.map((n) => n.name);
+    expect(names).toContain('x');
+  });
+
+  test('anyOf example uses first branch', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/PolyAny' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('x');
+  });
+
+  // 5. 无 properties 但有 additionalProperties
+  test('schema with only additionalProperties renders as * field', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/MapOnly' }, ctx());
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe('*');
+    expect(nodes[0].type).toBe('integer');
+  });
+
+  test('schema with only additionalProperties generates map example', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/MapOnly' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('additionalProp1');
+    expect(result['additionalProp1']).toBe(0);
+  });
+
+  // 6. inline allOf (not via $ref)
+  test('inline allOf merges properties without $ref', () => {
+    const schema = {
+      allOf: [
+        { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] },
+        { type: 'object', properties: { b: { type: 'integer' } } },
+      ],
+    };
+    const nodes = buildSchemaFieldTree(schema, ctx());
+    const names = nodes.map((n) => n.name);
+    expect(names).toContain('a');
+    expect(names).toContain('b');
+    const aNode = nodes.find((n) => n.name === 'a')!;
+    expect(aNode.required).toBe(true);
   });
 });

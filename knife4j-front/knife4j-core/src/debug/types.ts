@@ -250,6 +250,10 @@ export interface SchemaFieldNode {
   deprecated?: boolean;
   /** 当 type 为 $ref 指向的具名类型时，保留类型名便于 UI 提示 */
   refName?: string;
+  /** $ref 目标 schema 的 description（不覆盖字段自身 description，用于二级展示） */
+  refDescription?: string;
+  /** $ref 目标 schema 的 title（不覆盖字段自身 description，用于二级展示） */
+  refTitle?: string;
   /** 因循环引用或达到最大深度被截断时标记 */
   truncated?: boolean;
   /** 子字段（object.properties 或 array.items） */

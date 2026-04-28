@@ -400,12 +400,23 @@ function buildSingleFieldNode(
 
   // 循环检测：$ref 重复命中 → truncated
   if (typeof rawSchema.$ref === 'string' && ctx.refChain.includes(rawSchema.$ref)) {
+    // Shallow-resolve the ref target to get its description/title without recursing
+    const circularTarget = resolveRef(rawSchema.$ref, ctx.doc);
+    const circularOwnDesc = typeof rawSchema.description === 'string' ? rawSchema.description : undefined;
+    const circularRefDesc =
+      circularTarget && typeof circularTarget.description === 'string' ? circularTarget.description : undefined;
     return {
       name,
       type: 'object',
       refName: refToName(rawSchema.$ref),
       required,
       truncated: true,
+      // Primary description: own description if present, otherwise fall back to ref target's description
+      description: circularOwnDesc ?? circularRefDesc,
+      // refDescription: only when field has own description AND ref target also has a different description
+      refDescription:
+        circularOwnDesc && circularRefDesc && circularRefDesc !== circularOwnDesc ? circularRefDesc : undefined,
+      refTitle: circularTarget && typeof circularTarget.title === 'string' ? circularTarget.title : undefined,
     };
   }
 
@@ -422,7 +433,18 @@ function buildSingleFieldNode(
 
   const type = normalizeType(resolved.type);
   const format = typeof resolved.format === 'string' ? resolved.format : undefined;
-  const description = typeof resolved.description === 'string' ? resolved.description : undefined;
+  // Field's own description takes priority; ref target description is kept as refDescription for secondary display
+  const ownDescription = typeof rawSchema.description === 'string' ? rawSchema.description : undefined;
+  const refTargetDescription = typeof resolved.description === 'string' ? resolved.description : undefined;
+  // Primary description: own description if present, otherwise fall back to ref target's description
+  const description = ownDescription ?? refTargetDescription;
+  // refDescription: only set when the field has its own description AND the ref target also has a description
+  // (so the UI can show the ref target's description as secondary info alongside the field's own description)
+  const refDescription =
+    ref && ownDescription && refTargetDescription && refTargetDescription !== ownDescription
+      ? refTargetDescription
+      : undefined;
+  const refTitle = ref ? (typeof resolved.title === 'string' ? resolved.title : undefined) : undefined;
 
   const node: SchemaFieldNode = {
     name,
@@ -430,6 +452,8 @@ function buildSingleFieldNode(
     format,
     required,
     description,
+    refDescription,
+    refTitle,
     default: resolved.default,
     example: resolved.example,
     enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
