@@ -405,6 +405,20 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
     );
   }
 
+  // JSON part (encoding.contentType = application/json) → TextArea
+  if (field.isJson) {
+    return (
+      <Input.TextArea
+        size="small"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={field.description ?? 'JSON'}
+        autoSize={{ minRows: 3, maxRows: 10 }}
+        style={{ fontFamily: 'monospace', fontSize: 12 }}
+      />
+    );
+  }
+
   // enum → Select
   if (field.enum && field.enum.length > 0) {
     return (
