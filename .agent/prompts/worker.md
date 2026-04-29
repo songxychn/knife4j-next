@@ -46,6 +46,8 @@ risks:
 - risk or none
 follow_up:
 - item or none
+
+完成后，调用 finish 工具结束会话。不要等待用户回复。
 ```
 
 ## Coordinator 追加的任务分配

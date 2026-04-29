@@ -11,4 +11,6 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       TG_BOT_TOKEN: ${TG_BOT_TOKEN}
       GH_TOKEN: ${GH_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped

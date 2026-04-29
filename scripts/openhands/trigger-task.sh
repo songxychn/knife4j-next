@@ -54,7 +54,7 @@ oh_get() {
 create_conversation() {
   local message="$1"
   local resp
-  resp="$(oh_post "/api/conversations" "$(jq -n --arg m "$message" '{"initial_message":$m}')")"
+  resp="$(oh_post "/api/conversations" "$(jq -n --arg m "$message" '{"initial_user_msg":$m}')")"
   echo "$resp" | jq -r '.conversation_id // empty'
 }
 
