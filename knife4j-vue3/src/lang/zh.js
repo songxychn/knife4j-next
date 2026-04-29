@@ -485,6 +485,10 @@ const langOptions = {
   script: {
     JSExample: 'JS模板示例',
     TSExample: 'TS模板示例',
+  },
+  app: {
+    brand: 'Knife4j Next',
+    footer: 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors'
   }
 }
 

@@ -180,59 +180,32 @@
 */
 
 
-.knife4j-logo {
-  height: 64px;
-  position: relative;
-  line-height: 64px;
-  padding-left: (@menu-collapsed-width - 32px) / 2;
-  transition: all 0.3s;
+.knife4j-brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 56px;
+  padding: 12px 16px;
+  color: #fff;
   background: @GlobalBackgroundColor;
-  overflow: hidden;
-
-  img {
-    display: inline-block;
-    vertical-align: middle;
-    height: 32px;
-  }
-
-  h1 {
-    color: white;
-    display: inline-block;
-    vertical-align: middle;
-    font-size: 20px;
-    margin: 0 0 0 12px;
-    font-family: "Myriad Pro", "Helvetica Neue", Arial, Helvetica,
-    sans-serif;
-    font-weight: 600;
-  }
+  white-space: nowrap;
+  transition: all 0.3s;
 }
 
+.ant-layout-sider-collapsed .knife4j-brand {
+  padding: 12px 0;
+}
 
-.knife4j-logo-data {
-  height: 64px;
-  position: relative;
-  line-height: 64px;
-  padding-left: (@menu-collapsed-width - 48px) / 2;
-  transition: all 0.3s;
+.knife4j-brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #fff;
+}
+
+.knife4j-group-select {
+  padding: 0 8px 8px;
   background: @GlobalBackgroundColor;
-  overflow: hidden;
-
-  img {
-    display: inline-block;
-    vertical-align: middle;
-    height: 32px;
-  }
-
-  h1 {
-    color: white;
-    display: inline-block;
-    vertical-align: middle;
-    font-size: 20px;
-    margin: 0 0 0 12px;
-    font-family: "Myriad Pro", "Helvetica Neue", Arial, Helvetica,
-    sans-serif;
-    font-weight: 600;
-  }
 }
 
 

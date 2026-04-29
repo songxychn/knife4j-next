@@ -73,7 +73,7 @@ export default {
   props: {
     documentTitle: {
       type: String,
-      default: "Knife4j接口文档",
+      default: "Knife4j Next",
     },
     headerClass: {
       type: String,

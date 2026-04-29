@@ -4,17 +4,18 @@
       <a-layout-sider :trigger="null" collapsible :collapsed="state.collapsed" breakpoint="lg"
                       @collapse="handleMenuCollapse"
                       :width="state.menuWidth" class="sider" style="background: #1e282c;">
-        <div class="knife4j-logo-data" key="logo" v-if="!state.collapsed && settings.enableGroup">
-          <a to="/" style="float:left;">
-            <a-select show-search :value="defaultServiceOption" style="width: 300px" :options="serviceOptions"
-                      optionFilterProp="children" @change="serviceChange">
-            </a-select>
-          </a>
+        <!-- Brand: logo + product name, always visible -->
+        <div class="knife4j-brand">
+          <router-link to="/" style="display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;">
+            <img :src="state.logo" alt="logo" style="width:28px;height:28px;"/>
+            <span v-if="!state.collapsed" class="knife4j-brand-title">{{ $t('app.brand') }}</span>
+          </router-link>
         </div>
-        <div class="knife4j-logo" key="logo" v-if="state.collapsed && settings.enableGroup">
-          <a to="/" style="float:left;" v-if="state.collapsed">
-            <img :src="state.logo" alt="logo"/>
-          </a>
+        <!-- Group switcher (only when expanded) -->
+        <div class="knife4j-group-select" v-if="!state.collapsed && settings.enableGroup">
+          <a-select show-search :value="defaultServiceOption" style="width: 100%" :options="serviceOptions"
+                    optionFilterProp="children" @change="serviceChange">
+          </a-select>
         </div>
         <div :class="settings.enableGroup ? 'knife4j-menu' : 'knife4j-menu-all'">
           <a-menu key="Menu" theme="dark" mode="inline" :collapsed="state.collapsed"
@@ -49,7 +50,7 @@
 </template>
 <script setup>
 //import logo from "@/assets/logo.png";
-import logo from "@/core/logo.js";
+import logo from "/knife4j-next-mark.svg";
 import GlobalHeader from "@/components/GlobalHeader/index.vue";
 import GlobalFooter from "@/components/GlobalFooter/index.vue";
 import KUtils from "@/core/utils";
@@ -534,7 +535,7 @@ watch(() => MenuData.value, () => {
 watch(() => swaggerCurrentInstance.value, () => {
   let title = swaggerCurrentInstance.value.title
   if (!title) {
-    title = "Knife4j 接口文档";
+    title = "Knife4j Next";
   }
   state.documentTitle = title;
   window.document.title = title;

@@ -105,7 +105,7 @@ function SwaggerBootstrapUi(options) {
   this.menuData = null;
   this.store = options.store || {};
   this.localStore = options.localStore || {};
-  //  
+  //
   this.plus = options.plus;
   //  文档id
   this.docId = 'content';
@@ -144,7 +144,7 @@ function SwaggerBootstrapUi(options) {
     footerCustomContent: '',// 自定义footer内容
     enableSearch: true,// 是否显示搜索框
     enableOpenApi: true,// 是否显示OpenApi原始规范结构
-    enableHomeCustom: false,//  是否开启主页自定义配置，默认false 
+    enableHomeCustom: false,//  是否开启主页自定义配置，默认false
     homeCustomLocation: '',// 自定义主页的Markdown文档内容
     enableGroup: true,// 是否显示分组下拉框，默认true(即显示)，一般情况下，如果是单个分组的情况下，可以设置该属性为false，即不显示分组，那么也就不用选择了
 
@@ -415,8 +415,11 @@ SwaggerBootstrapUi.prototype.analysisSpringDocOpenApiGroupSuccess = function (da
   } else {
     // https://gitee.com/xiaoym/knife4j/issues/I5L440#note_12238431
     // 如果开发者没有创建bean对象，urls对象为空，取而代之的是直接返回url
+    // 当 swagger-config 只返回单个 url（没有 urls 数组）时，分组名称使用
+    // swagger-config 中的 name 字段；若后端也没有提供 name，则兜底为 'default'，
+    // 避免直接使用 url 作为 name 导致显示为 "-v3-api-docs" 之类被截断的值。
     newGroupData.push({
-      name: KUtils.getValue(groupData, 'url', 'default', true),
+      name: KUtils.getValue(groupData, 'name', 'default', true),
       url: KUtils.getValue(groupData, 'url', '', true),
       location: KUtils.getValue(groupData, 'url', '', true),
       swaggerVersion: '3.0.3'
@@ -2791,7 +2794,7 @@ SwaggerBootstrapUi.prototype.readSecurityContextSchemesCommon = function (securi
                           }
                       }
                   }
-              } 
+              }
           }
           */
           //OAS3 oauth2认证
@@ -3445,7 +3448,7 @@ SwaggerBootstrapUi.prototype.initApiInfoAsync = function (swpinfo) {
 
 /**
  * analysisAllOfOAS2 解析allOf OAS2
- * @param {*} allOf 
+ * @param {*} allOf
  * @returns {string} 返回新的模型名
  */
 SwaggerBootstrapUi.prototype.analysisAllOfOAS2 = function (allOf) {
@@ -3502,9 +3505,9 @@ SwaggerBootstrapUi.prototype.analysisAllOfOAS2 = function (allOf) {
   const patchPropertiesName = patchPropertiesNames.join(',');
   const newModelName = `${originalObjName}<${patchPropertiesName}>`;
   // 检查definitions是否已有
-  if (definitions[newModelName]) 
+  if (definitions[newModelName])
     return newModelName;
-  
+
   // 放入原始definitions
   definitions[newModelName] = originalObjCopy;
   // 放入difarrs对象中
