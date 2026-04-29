@@ -493,6 +493,10 @@ const langOptions = {
   script: {
     JSExample: 'JSExample',
     TSExample: 'TSExample',
+  },
+  app: {
+    brand: 'Knife4j Next',
+    footer: 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors'
   }
 };
 

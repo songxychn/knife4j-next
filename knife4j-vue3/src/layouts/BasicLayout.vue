@@ -49,7 +49,7 @@
 </template>
 <script setup>
 //import logo from "@/assets/logo.png";
-import logo from "@/core/logo.js";
+import logo from "/knife4j-next-mark.svg";
 import GlobalHeader from "@/components/GlobalHeader/index.vue";
 import GlobalFooter from "@/components/GlobalFooter/index.vue";
 import KUtils from "@/core/utils";
@@ -534,7 +534,7 @@ watch(() => MenuData.value, () => {
 watch(() => swaggerCurrentInstance.value, () => {
   let title = swaggerCurrentInstance.value.title
   if (!title) {
-    title = "Knife4j 接口文档";
+    title = "Knife4j Next";
   }
   state.documentTitle = title;
   window.document.title = title;

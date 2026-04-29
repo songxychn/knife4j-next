@@ -5,7 +5,7 @@
     </a-row>
     <div style="text-align: center" v-else-if="settings.enableFooter">
       <div class="copyright">Apache License 2.0 | Copyright
-        <copyright-outlined /> 2019-<a target="_blank" href="https://gitee.com/xiaoym/knife4j">Knife4j</a>
+        <copyright-outlined /> 2019-2026 Knife4j Next Contributors
       </div>
     </div>
   </div>

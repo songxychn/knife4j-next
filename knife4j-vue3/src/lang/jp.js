@@ -484,6 +484,10 @@ const langOptions = {
   script: {
     JSExample: 'JSテンプレートの例',
     TSExample: 'TSテンプレートの例',
+  },
+  app: {
+    brand: 'Knife4j Next',
+    footer: 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors'
   }
 }
 
