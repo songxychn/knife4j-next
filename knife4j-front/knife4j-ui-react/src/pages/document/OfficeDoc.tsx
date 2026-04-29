@@ -326,10 +326,10 @@ function renderResponseSection(op: OperationObject, doc: SwaggerDoc, borderStyle
       <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Response <code>${escapeHtml(
         code,
       )}</code> (${escapeHtml(
-        picked.mediaType,
-      )}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(
-        schemaDisplayType(picked.schema),
-      )}</code></span></p>
+      picked.mediaType,
+    )}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(
+      schemaDisplayType(picked.schema),
+    )}</code></span></p>
       ${renderFieldTable(rows, borderStyle)}`);
   }
 
@@ -345,8 +345,8 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
     <div style="margin:14px 0;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;">
       <div style="padding:8px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">
         <span style="background:${color};color:#fff;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;min-width:56px;text-align:center;">${escapeHtml(
-          method.toUpperCase(),
-        )}</span>
+    method.toUpperCase(),
+  )}</span>
         <span style="font-family:monospace;font-size:14px;">${escapeHtml(path)}</span>
         ${op.deprecated ? '<span style="color:#f93e3e;font-size:12px;margin-left:8px;">[Deprecated]</span>' : ''}
       </div>
