@@ -4,7 +4,7 @@ title: OAS2 UI Issue 盘点（knife4j-vue3）
 
 # OAS2 UI Issue 盘点（knife4j-vue3）
 
-本文汇总 upstream `xiaoymin/knife4j` 中属于 **OAS2 / Swagger 2 场景**的 UI issue，并按 knife4j-next 的[前端分工策略](/guide/migration#spring-boot-2x-springfox-openapi2)给出处置结论。
+本文汇总 upstream `xiaoymin/knife4j` 中属于 **OAS2 / Swagger 2 场景**的 UI issue，并按 knife4j-next 的[前端分工策略](/guide/migration#spring-boot-2-x-springfox-openapi2)给出处置结论。
 
 > **前端分工策略摘要**：`knife4j-vue3` 只做回归修复、安全补丁、显示层 bug 修复，不做功能扩张。OAS2 场景的新功能请求一律按 `wontfix: scope-policy` 关闭，引导用户迁移到 OAS3 starter。
 
@@ -49,9 +49,9 @@ title: OAS2 UI Issue 盘点（knife4j-vue3）
 
 | upstream issue | 摘要 | 处置方向 |
 |---|---|---|
-| [#503](https://github.com/xiaoymin/knife4j/issues/503) | Tomcat `Http11Nio2Protocol` 时文档页面不显示 | 纳入 #198 启动期 bug 子分组，Java 侧修复 |
-| [#687](https://github.com/xiaoymin/knife4j/issues/687) | 测试环境访问 `doc.html` 返回 500 | 同上 |
-| [#666](https://github.com/xiaoymin/knife4j/issues/666) | 静态资源 `Content-type` 响应不对 | 同上 |
+| [#503](https://github.com/xiaoymin/knife4j/issues/503) | Tomcat `Http11Nio2Protocol` 时文档页面不显示 | 纳入 [#198](https://github.com/songxychn/knife4j-next/issues/198) 启动期 bug 子分组，Java 侧修复 |
+| [#687](https://github.com/xiaoymin/knife4j/issues/687) | 测试环境访问 `doc.html` 返回 500 | 同上（[#198](https://github.com/songxychn/knife4j-next/issues/198)） |
+| [#666](https://github.com/xiaoymin/knife4j/issues/666) | 静态资源 `Content-type` 响应不对 | 同上（[#198](https://github.com/songxychn/knife4j-next/issues/198)） |
 
 ---
 
@@ -69,10 +69,10 @@ title: OAS2 UI Issue 盘点（knife4j-vue3）
 
 **建议**：迁移到 `knife4j-openapi3-*-spring-boot-starter` 即可使用新 UI 特性。迁移成本很低，只需替换 Maven 依赖坐标：
 
-- 迁移指南：https://knife4j-next.baizhukui.com/guide/migration
-- Springfox → OpenAPI3 完整迁移：https://knife4j-next.baizhukui.com/guide/springfox-migration
+- 迁移指南：https://knife4jnext.com/guide/migration
+- Springfox → OpenAPI3 完整迁移：https://knife4jnext.com/guide/springfox-migration
 
-如果您有强烈的 OAS2 保留需求，欢迎提交 PR 到 https://github.com/baizhukui/knife4j-next，范围限于 `knife4j-vue3/src/` 显示层修复。
+如果您有强烈的 OAS2 保留需求，欢迎提交 PR 到 https://github.com/songxychn/knife4j-next，范围限于 `knife4j-vue3/src/` 显示层修复。
 ```
 
 ---
