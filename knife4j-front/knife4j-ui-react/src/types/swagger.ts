@@ -145,6 +145,19 @@ export interface PathItemObject {
   options?: OperationObject;
 }
 
+/** 自定义 Markdown 文档子项（对应 x-markdownFiles[].children[]） */
+export interface MarkdownFileItem {
+  title: string;
+  content?: string;
+}
+
+/** 自定义 Markdown 文档分组（对应 x-markdownFiles[]） */
+export interface MarkdownFileGroup {
+  group?: string;
+  name: string;
+  children?: MarkdownFileItem[];
+}
+
 export interface SwaggerDoc {
   openapi?: string; // OAS3
   swagger?: string; // OAS2
@@ -165,6 +178,8 @@ export interface SwaggerDoc {
   securityDefinitions?: Record<string, SecuritySchemeObject>; // OAS2
   /** 文档级默认 security */
   security?: Record<string, string[]>[];
+  /** knife4j 自定义 Markdown 文档扩展 */
+  'x-markdownFiles'?: MarkdownFileGroup[];
 }
 
 /** 解析后的菜单项（tag + operations） */

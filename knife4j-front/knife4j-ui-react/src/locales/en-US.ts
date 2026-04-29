@@ -11,6 +11,7 @@ const enUS = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'Search API name/path...',
+  'markdownDoc.menu.group': 'Markdown Docs',
 
   // Home
   'home.noData': 'No data',

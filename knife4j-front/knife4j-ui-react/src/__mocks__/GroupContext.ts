@@ -1,1 +1,3 @@
-module.exports = { useGroup: () => ({ swaggerDoc: null, menuTags: [], loading: false, usingMock: false }) };
+module.exports = {
+  useGroup: () => ({ swaggerDoc: null, menuTags: [], markdownDocs: [], loading: false, usingMock: false }),
+};
