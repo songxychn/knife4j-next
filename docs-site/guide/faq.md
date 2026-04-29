@@ -23,7 +23,7 @@ title: 常见问题
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
 1. 版本发布节奏：upstream 最新是 `4.6.0`，fork 是 `5.0.0-SNAPSHOT`（采用独立 SemVer 版本号）；fork 包含全部兼容/安全修复和 React 新前端。
-2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、自定义 Footer、版本小蓝点等），本 fork 的新 React 前端尚未全部覆盖。详见下文 [React 配置不生效](#react-setting-not-effective)。
+2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、自定义 Footer、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；这些功能在本仓库 `knife4j-vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
@@ -166,7 +166,7 @@ connect-src 'self';
 
 过渡方案：
 
-- 如果你重度依赖这些 UI 能力，暂时使用 `knife4j-openapi2-spring-boot-starter`（Vue2 UI），或 upstream `com.github.xiaoymin` 的同名依赖。
+- 如果你重度依赖这些 UI 能力，暂时使用 `knife4j-openapi2-spring-boot-starter`（前端为本仓库 `knife4j-vue3`），或 upstream `com.github.xiaoymin` 的同名依赖（前端为 upstream Vue 2 webjar）。
 - 或者在 [路线图](../roadmap/#react-ui-coverage) 跟进覆盖进度。
 
 ### `knife4j.enable=true` 了但 UI 上看不到接口
@@ -538,7 +538,7 @@ private LocalDateTime createdAt;
 OpenAPI3 规范对自由格式 Map 的描述有限。推荐做法：
 
 1. **定义明确的 DTO**：替代 `Map<String, Object>`，使用强类型字段。
-2. **`@DynamicParameters`**：仅在 openapi2 starter 中可用（Vue2 UI），详见 [Springfox 迁移](./springfox-migration)。
+2. **`@DynamicParameters`**：仅在 openapi2 starter 中可用（前端为本仓库 `knife4j-vue3`），详见 [Springfox 迁移](./springfox-migration)。
 3. **`additionalProperties`**：OpenAPI3 的 Map 描述方式：
 
 ```java

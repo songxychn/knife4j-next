@@ -10,8 +10,8 @@ title: 模块说明
 | --- | --- |
 | `knife4j/` | Java 主工程——用户实际引入的 starter 和 webjar 都在这里构建 |
 | `knife4j-front/` | 下一代前端工作区（React UI + parser-core） |
-| `knife4j-vue/` | 当前历史 Vue2 前端实现，承担"现有行为参考"角色 |
-| `knife4j-vue3/` | 社区贡献的实验性 Vue3 实现，暂不作为主线发布 |
+| `knife4j-vue/` | 历史 Vue2 前端实现（upstream 旧版），仅作为"现有行为参考"留存，不再预期改动 |
+| `knife4j-vue3/` | OAS2 兼容维护 UI，打包进 `knife4j-openapi2-ui` webjar，只接收回归修复与显示层 bug |
 | `knife4j-insight/` | 独立渲染 / 聚合方向的扩展能力 |
 | `knife4j-doc/` | 历史 Docusaurus 文档站（已废弃，内容迁移到 `docs-site/`） |
 | `docs-site/` | 当前 VitePress 文档站 |
@@ -29,14 +29,14 @@ title: 模块说明
 
 | 模块 | 说明 | 前端技术 |
 | --- | --- | --- |
-| `knife4j-openapi2-ui` | Swagger 2 专用 UI webjar，`doc.html` 入口 | Vue2 |
-| `knife4j-openapi3-ui` | OpenAPI 3 专用 UI webjar，`doc.html` 入口 | React |
+| `knife4j-openapi2-ui` | Swagger 2 专用 UI webjar，`doc.html` 入口；打包本仓库 `knife4j-vue3` 的 vite 构建产物 | Vue 3 |
+| `knife4j-openapi3-ui` | OpenAPI 3 专用 UI webjar，`doc.html` 入口；打包 `knife4j-front/knife4j-ui-react` 的 vite 构建产物 | React |
 
 ### Starter（WebMvc）
 
 | 模块 | 适用 Boot 版本 | 依赖的 springdoc | 依赖的 UI |
 | --- | --- | --- | --- |
-| `knife4j-openapi2-spring-boot-starter` | 2.x | —（用 Springfox） | `knife4j-openapi2-ui`（Vue2） |
+| `knife4j-openapi2-spring-boot-starter` | 2.x | —（用 Springfox） | `knife4j-openapi2-ui`（Vue 3） |
 | `knife4j-openapi3-spring-boot-starter` | 2.x | `springdoc-openapi-ui 1.8.0` | `knife4j-openapi3-ui`（React） |
 | `knife4j-openapi3-jakarta-spring-boot-starter` | 3.x | `springdoc-openapi-starter-webmvc-ui 2.8.9` | `knife4j-openapi3-ui`（React） |
 

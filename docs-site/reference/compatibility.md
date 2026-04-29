@@ -17,7 +17,7 @@ title: 兼容矩阵
 | Java 最低版本 | `1.8`（openapi2 / openapi3 非 Jakarta）；`17`（Jakarta） |
 | Springfox | `2.10.5`（openapi2 starter） |
 | springdoc-openapi | `1.8.0`（Boot 2.x）；`2.8.9`（Boot 3.x Jakarta） |
-| 前端 UI | React（openapi3 starter）；Vue2（openapi2 starter） |
+| 前端 UI | React（openapi3 starter，打包 `knife4j-front/knife4j-ui-react`）；Vue 3（openapi2 starter，打包本仓库 `knife4j-vue3`） |
 
 ## Starter 兼容矩阵
 
@@ -27,7 +27,7 @@ title: 兼容矩阵
 
 | Starter | Boot 2.7 | Boot 3.4 | Boot 3.5 | UI | 验证状态 |
 | --- | --- | --- | --- | --- | --- |
-| `knife4j-openapi2-spring-boot-starter` | ✅ | ❌ | ❌ | Vue2 | [boot2-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot2-app) |
+| `knife4j-openapi2-spring-boot-starter` | ✅ | ❌ | ❌ | Vue 3 | [boot2-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot2-app) |
 | `knife4j-openapi3-spring-boot-starter` | ✅ | ❌ | ❌ | React | [boot3-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-app) |
 | `knife4j-openapi3-jakarta-spring-boot-starter` | ❌ | ✅ | ✅ | React | [boot3-jakarta-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-jakarta-app) / [boot35-jakarta-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot35-jakarta-app) |
 
@@ -79,7 +79,7 @@ title: 兼容矩阵
 你的 Spring Boot 版本是？
 ├── 2.x
 │   ├── 需要继续用 Swagger 2 / Springfox？
-│   │   └── knife4j-openapi2-spring-boot-starter（Vue2 UI）
+│   │   └── knife4j-openapi2-spring-boot-starter（Vue 3 UI）
 │   └── 用 OpenAPI 3 / springdoc？
 │       ├── WebMvc → knife4j-openapi3-spring-boot-starter（React UI）
 │       └── WebFlux → knife4j-openapi3-webflux-spring-boot-starter（React UI）

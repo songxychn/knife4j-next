@@ -142,7 +142,7 @@ title: 注解速查表
 public class UserController { ... }
 ```
 
-> ⚠️ **React UI 注意**：`order` 排序在 React 前端暂不生效，`author`/`authors` 展示暂未实现。Vue2 前端完整支持。
+> ⚠️ **React UI 注意**：`order` 排序在 React 前端暂不生效，`author`/`authors` 展示暂未实现。本仓库 `knife4j-vue3`（OAS2 starter）完整支持。
 
 ### 3.2 `@ApiOperationSupport` — 接口增强
 
@@ -351,7 +351,7 @@ public class UserController {
 
 Knife4j 专有注解的后端增强逻辑通过 `Knife4jOpenApiCustomizer` / `Knife4jOperationCustomizer` 修改 OpenAPI spec，React 前端理论上可以消费修改后的 spec。但以下增强在 **React 前端 UI 层面**暂未实现：
 
-| 增强功能 | 后端是否生效 | Vue2 UI | React UI | 说明 |
+| 增强功能 | 后端是否生效 | Vue 3 UI（OAS2） | React UI（OAS3） | 说明 |
 | --- | --- | --- | --- | --- |
 | `@ApiSupport.order` Tag 排序 | ✅ 写入 spec | ✅ | ❌ | React 侧边栏暂不按 order 排序 |
 | `@ApiSupport.author/authors` | ✅ 写入 spec | ✅ | ❌ | React 暂不展示开发者信息 |
@@ -393,7 +393,7 @@ private String name;
 
 1. 确认 `knife4j.enable=true` 已配置。
 2. 确认使用的是 WebMvc Starter（非 WebFlux，WebFlux 不支持后端增强）。
-3. React 前端暂不支持按 `order` 排序，切换到 Vue2 前端验证。
+3. React 前端暂不支持按 `order` 排序，切换到本仓库 `knife4j-vue3`（OAS2 starter）验证。
 
 ### `@Ignore` vs `@Hidden` 用哪个？
 

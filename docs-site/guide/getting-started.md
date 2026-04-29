@@ -8,7 +8,7 @@ title: 快速开始
 
 ::: tip 先决定走哪条路径
 - **新项目、Spring Boot 3.x、不想踩 javax/jakarta 雷**：用 **OpenAPI3 Jakarta**，UI 是新 React 版本。
-- **还在 Spring Boot 2.7.x**：可以继续用 OpenAPI2（Springfox）或 OpenAPI3（springdoc-openapi 非 Jakarta），UI 对应上游 Vue2 版本。
+- **还在 Spring Boot 2.7.x**：可以继续用 OpenAPI2（Springfox），UI 是本仓库 `knife4j-vue3` 构建产物（兼容维护）；或 OpenAPI3（springdoc-openapi 非 Jakarta），UI 是 React 新前端。
 - **已经在 upstream knife4j**：先看 [迁移指引](./migration)，只改 `groupId` 即可，不必换路径。
 
 如果不确定哪个版本合适，先看 [版本参考表](../reference/version-ref)。
@@ -131,12 +131,12 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 
 ---
 
-## 路径三：Spring Boot 2.x + OpenAPI2（Springfox，Vue2 UI）
+## 路径三：Spring Boot 2.x + OpenAPI2（Springfox，Vue 3 UI）
 
 ::: info 何时选这条
 - 项目深度依赖 Springfox 专属注解（`@ApiOperationSupport(ignoreParameters/includeParameters)`、`@DynamicParameters`、`@DynamicResponseParameters`）。
 - 需要 upstream knife4j 文档上提到的完整 UI 能力（自定义 Footer/Home、OAuth2 调试、Postman 导出、版本小蓝点、afterScript）。
-- 这些特性在本 fork 的新 React 前端中尚未覆盖，但在 Vue2 UI 中完整保留。
+- 这些特性在本 fork 的新 React 前端中尚未覆盖，但在本仓库 `knife4j-vue3`（`knife4j-openapi2-ui` 打包产物）中完整保留。
 :::
 
 ### 依赖
