@@ -92,6 +92,14 @@ const enUS = {
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'Doc',
   'operation.tab.debug': 'Debug',
+  'operation.tab.script': 'Script',
+
+  // ApiScript (ISSUE-207)
+  'apiScript.notFound.title': 'API doc not found',
+  'apiScript.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
+  'apiScript.title': 'Code Generation',
+  'apiScript.copied': 'Code copied',
+  'apiScript.noCode': 'No code can be generated for this operation',
 
   // ApiDebug
   'apiDebug.notFound.title': 'Debug interface not found',
