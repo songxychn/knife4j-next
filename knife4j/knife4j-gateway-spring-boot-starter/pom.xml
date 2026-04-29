@@ -38,6 +38,10 @@
             <artifactId>knife4j-openapi3-ui</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.baizhukui</groupId>
+            <artifactId>knife4j-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.2</version>
