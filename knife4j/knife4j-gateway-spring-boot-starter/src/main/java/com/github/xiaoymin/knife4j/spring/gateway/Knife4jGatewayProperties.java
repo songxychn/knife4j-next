@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.spring.gateway;
 
+import com.github.xiaoymin.knife4j.core.extend.OpenApiExtendSetting;
 import com.github.xiaoymin.knife4j.spring.gateway.conf.GlobalConstants;
 import com.github.xiaoymin.knife4j.spring.gateway.enums.GatewayStrategy;
 import com.github.xiaoymin.knife4j.spring.gateway.enums.GroupOrderStrategy;
@@ -65,6 +66,13 @@ public class Knife4jGatewayProperties {
      * @since 4.2.0
      */
     private GroupOrderStrategy operationsSorter = GroupOrderStrategy.alpha;
+
+    /**
+     * Knife4j UI 增强配置，对应 knife4j.setting.* 属性
+     * 修复 upstream#710：网关模式下 knife4j.setting 配置不生效
+     * @since 4.4.0
+     */
+    private OpenApiExtendSetting setting = new OpenApiExtendSetting();
 
     /**
      * 服务发现模式

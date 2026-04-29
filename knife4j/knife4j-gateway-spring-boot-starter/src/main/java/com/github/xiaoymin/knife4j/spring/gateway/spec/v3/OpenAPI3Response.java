@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.spring.gateway.spec.v3;
 
+import com.github.xiaoymin.knife4j.core.extend.OpenApiExtendSetting;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -62,5 +63,12 @@ public class OpenAPI3Response implements Serializable {
      * validatorUrl
      */
     private String validatorUrl;
+
+    /**
+     * Knife4j UI 增强配置，对应 knife4j.gateway.setting.* 属性
+     * 修复 upstream#710：网关模式下 knife4j.setting 配置不生效
+     * @since 4.4.0
+     */
+    private OpenApiExtendSetting setting;
 
 }

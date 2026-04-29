@@ -64,6 +64,8 @@ public class OpenAPIEndpoint {
         // 设置排序规则,add at 2023/07/02 11:30:00
         response.setTagsSorter(this.knife4jGatewayProperties.getTagsSorter().name());
         response.setOperationsSorter(this.knife4jGatewayProperties.getOperationsSorter().name());
+        // 注入 knife4j.gateway.setting 配置，修复 upstream#710：网关模式下 knife4j.setting 配置不生效
+        response.setSetting(this.knife4jGatewayProperties.getSetting());
         log.debug("forward-path:{}", basePath);
         // 判断当前模式是手动还是服务发现
         if (knife4jGatewayProperties.getStrategy() == GatewayStrategy.MANUAL) {
