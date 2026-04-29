@@ -22,17 +22,19 @@ const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
 const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
 
 /**
- * Strip the trailing `/doc` or `/debug` mode segment from a route key to
- * obtain the corresponding sidebar menu key.
+ * Strip the trailing `/doc`, `/debug`, or `/script` mode segment from a route
+ * key to obtain the corresponding sidebar menu key.
  */
 const routeKeyToMenuKey = (key: string) =>
   key.endsWith('/doc')
     ? key.slice(0, -4)
     : key.endsWith('/debug')
-      ? key.slice(0, -6)
-      : key.includes('/schema')
-        ? key.replace(/\/schema\/.*$/, '/schema')
-        : key;
+    ? key.slice(0, -6)
+    : key.endsWith('/script')
+    ? key.slice(0, -7)
+    : key.includes('/schema')
+    ? key.replace(/\/schema\/.*$/, '/schema')
+    : key;
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
@@ -144,7 +146,7 @@ const AppInner: React.FC = () => {
       pathname = location.pathname;
     }
 
-    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug');
+    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug') || pathname.endsWith('/script');
     if (!isApiRoute) {
       restoredRef.current = true;
       return;
