@@ -180,6 +180,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
           {value ? <span>{value}</span> : <Text type="secondary">-</Text>}
           {record.refDescription && record.refDescription !== value && (
             <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.refTitle ? `[${record.refTitle}] ` : ''}
               {record.refDescription}
             </Text>
           )}
