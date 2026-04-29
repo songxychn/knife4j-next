@@ -186,6 +186,17 @@ const AppInner: React.FC = () => {
     setSelectedKey(info.menuKey);
   }, [location.pathname, t]);
 
+  // Keep a ref to markdownDocs so the pathname-change effect below can read
+  // the latest value without adding markdownDocs to its dependency array.
+  // Adding markdownDocs directly would cause the effect to re-fire on every
+  // language switch (markdownDocs is recomputed from i18n context), which
+  // would forcibly reset activeKey/selectedKey and interrupt the user's
+  // current tab.
+  const markdownDocsRef = useRef(markdownDocs);
+  useEffect(() => {
+    markdownDocsRef.current = markdownDocs;
+  }, [markdownDocs]);
+
   useEffect(() => {
     let pathname: string;
     try {
@@ -194,7 +205,7 @@ const AppInner: React.FC = () => {
       pathname = location.pathname;
     }
 
-    const markdownDoc = markdownDocs.find((doc) => doc.key === pathname);
+    const markdownDoc = markdownDocsRef.current.find((doc) => doc.key === pathname);
     if (!markdownDoc) return;
 
     setItems((prev) =>
@@ -204,7 +215,7 @@ const AppInner: React.FC = () => {
     );
     setActiveKey(pathname);
     setSelectedKey(pathname);
-  }, [location.pathname, markdownDocs]);
+  }, [location.pathname]);
 
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
