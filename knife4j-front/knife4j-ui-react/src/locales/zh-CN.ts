@@ -93,6 +93,13 @@ const zhCN = {
   'operation.tab.doc': '文档',
   'operation.tab.debug': '调试',
   'operation.tab.script': '代码',
+  'operation.tab.openapi': 'OpenAPI',
+
+  // ApiOpenApi (ISSUE-206)
+  'apiOpenApi.notFound.title': '未找到接口文档',
+  'apiOpenApi.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
+  'apiOpenApi.copied': 'OpenAPI JSON 已复制',
+  'apiOpenApi.noData': '当前接口暂无 OpenAPI 数据',
 
   // ApiScript (ISSUE-207)
   'apiScript.notFound.title': '未找到接口文档',

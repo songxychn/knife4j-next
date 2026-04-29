@@ -37,7 +37,7 @@ export function useCurrentOperation(): CurrentOperation {
 }
 
 interface OperationModeTabsProps {
-  activeKey: 'doc' | 'debug' | 'script';
+  activeKey: 'doc' | 'debug' | 'script' | 'openapi';
 }
 
 export function OperationModeTabs({ activeKey }: OperationModeTabsProps) {
@@ -56,6 +56,7 @@ export function OperationModeTabs({ activeKey }: OperationModeTabsProps) {
         { key: 'doc', label: t('operation.tab.doc') },
         { key: 'debug', label: t('operation.tab.debug') },
         { key: 'script', label: t('operation.tab.script') },
+        { key: 'openapi', label: t('operation.tab.openapi') },
       ]}
     />
   );
