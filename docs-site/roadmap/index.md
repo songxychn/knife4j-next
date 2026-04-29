@@ -46,13 +46,15 @@ title: 路线图
 
 ---
 
-## React UI 对齐 Vue2 功能缺口清单
+## React UI 对齐 Vue3 功能缺口清单
 
-以下表格对比 Vue2 前端（`knife4j-vue`）与 React 前端（`knife4j-ui-react`）的功能覆盖。⬜ = 未实现，🔲 = 部分实现，✅ = 已实现。
+以下表格对比本仓库 `knife4j-vue3`（Vue 3，OAS2 starter 前端）与 `knife4j-ui-react`（React，OAS3 starter 前端）的功能覆盖。⬜ = 未实现，🔲 = 部分实现，✅ = 已实现。
+
+> 注：`knife4j-vue3` 的功能基线与 upstream `knife4j-vue`（Vue 2）基本一致，下面 Vue3 列的状态等同于 upstream Vue2 的功能覆盖。
 
 ### 核心功能
 
-| 功能 | Vue2 | React | 缺口说明 |
+| 功能 | Vue3 | React | 缺口说明 |
 | --- | --- | --- | --- |
 | 接口文档展示 | ✅ | ✅ | — |
 | 接口调试 | ✅ | ✅ | — |
@@ -66,7 +68,7 @@ title: 路线图
 
 ### 调试页详细缺口
 
-| 功能 | Vue2 | React | 缺口说明 |
+| 功能 | Vue3 | React | 缺口说明 |
 | --- | --- | --- | --- |
 | multipart/form-data 文件上传 | ✅ | 🔲 | 基础表单可用，完整文件上传待优化 |
 | OAuth2 password/client_credentials | ✅ | ⬜ | — |
@@ -74,7 +76,7 @@ title: 路线图
 
 ### 增强功能
 
-| 功能 | Vue2 | React | 缺口说明 |
+| 功能 | Vue3 | React | 缺口说明 |
 | --- | --- | --- | --- |
 | `@ApiSupport.order` Tag 排序 | ✅ | ⬜ | 后端已生效，UI 不排序 |
 | `@ApiSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
@@ -100,7 +102,7 @@ title: 路线图
 ## 优先级排序原则
 
 1. **稳定性优先**：Bug 修复和兼容性回归永远优先于新功能
-2. **调试能力对齐**：Vue2 能做的调试流程，React 也必须能做
+2. **调试能力对齐**：Vue3（OAS2 starter）能做的调试流程，React 也必须能做
 3. **核心层先行**：knife4j-core 抽取完成后，UI 层改动才可控
 4. **小步快跑**：一个 PR 只做一件事，可独立验证和回滚
 5. **不破坏现有体验**：任何改动不能让 `doc.html` 用户降级
@@ -113,7 +115,7 @@ title: 路线图
 - 不要假设所有历史文档都要立刻迁完
 - 不要把实验性的 UI 线写成当前默认实现
 - 不要为了代码优雅牺牲向后兼容
-- 不要一次性迁移到 React（Vue2 前端仍然可用）
+- 不要一次性停掉 OAS2 兼容维护（`knife4j-vue3` 仍然可用）
 
 ---
 
@@ -122,7 +124,6 @@ title: 路线图
 1. **补齐 `knife4j.setting.*` UI 开关联动**：React 前端读取后端注入的 x-knife4j setting
 2. **补齐 OAuth2 password / client_credentials** 调试流程
 3. **补齐 Postman 导出**
-4. **补齐 Markdown 离线文档导出**
-5. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
+4. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
 
 如果你想参与某个任务的实现，欢迎提 Issue 或 PR。详见 [GitHub 仓库](https://github.com/songxychn/knife4j-next)。

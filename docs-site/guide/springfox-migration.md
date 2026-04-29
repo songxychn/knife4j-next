@@ -362,7 +362,7 @@ public class UserController {/* ... */}
 `knife4j-openapi2-spring-boot-starter` 目前处于**兼容维护模式**，不再接收新功能。具体影响：
 
 - 底层 Springfox 停留在 `2.10.5`，不再更新。
-- 前端仍使用 upstream 冻结的 **Vue 2 webjars**（`knife4j-openapi2-ui`），无法享受 `knife4j-ui-react` 的新特性。
+- 前端是本仓库 `knife4j-vue3`（Vue 3 + Vite）的构建产物，打包进 `knife4j-openapi2-ui` webjar，只接收回归修复与显示层 bug；无法享受 `knife4j-ui-react` 的新特性。
 - 新建的 UI 类 issue（SSE 流式响应、allOf/oneOf 渲染、二进制下载修复等）的修复**不会覆盖** OAS2 场景。
 
 若需使用 `knife4j-ui-react` 的新特性（tags/operations 排序、OAuth2 popup、Markdown 渲染、设置持久化、copy endpoint/url 等），请迁移到 OAS3 starter：
