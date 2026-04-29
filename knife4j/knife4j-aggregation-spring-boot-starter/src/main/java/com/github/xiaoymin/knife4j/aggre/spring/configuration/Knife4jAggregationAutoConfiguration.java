@@ -97,7 +97,8 @@ public class Knife4jAggregationAutoConfiguration {
 
     @Bean
     public RouteDispatcher routeDispatcher(@Autowired RouteRepository routeRepository,
-                                           @Autowired RouteCache<String, SwaggerRoute> routeCache) {
+                                           @Autowired RouteCache<String, SwaggerRoute> routeCache,
+                                           @Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         // 获取当前项目的contextPath
         String contextPath = Objects.toString(environment.getProperty("server.servlet.context-path"), "");
         if (StrUtil.isBlank(contextPath)) {
@@ -109,7 +110,8 @@ public class Knife4jAggregationAutoConfiguration {
                 contextPath = RouteDispatcher.ROUTE_BASE_PATH + contextPath;
             }
         }
-        return new RouteDispatcher(routeRepository, routeCache, ExecutorEnum.APACHE, contextPath);
+        return new RouteDispatcher(routeRepository, routeCache, ExecutorEnum.APACHE, contextPath,
+                knife4jAggregationProperties.getProviderTimeoutMs());
     }
 
     @Bean

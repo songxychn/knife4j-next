@@ -48,6 +48,8 @@ interface GroupContextValue {
   schemas: Record<string, SchemaObject>;
   loading: boolean;
   usingMock: boolean;
+  /** 当前激活 group 的加载错误信息，null 表示无错误 */
+  groupError: string | null;
 }
 
 const GroupContext = createContext<GroupContextValue | null>(null);
@@ -59,6 +61,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [swaggerDoc, setSwaggerDoc] = useState<SwaggerDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   const { settings } = useSettings();
 
@@ -116,11 +119,14 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!group) return;
 
     setLoading(true);
+    setGroupError(null);
     fetchSwaggerDoc(group.url).then((doc) => {
       if (doc) {
         setSwaggerDoc(doc);
       } else {
-        setUsingMock(true);
+        // 单个 provider 加载失败：保留其他 group 可用，仅标记当前 group 错误
+        setSwaggerDoc(null);
+        setGroupError('加载失败，请检查后端服务');
       }
       setLoading(false);
     });
@@ -182,6 +188,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeGroup = groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? EMPTY_GROUP;
 
   const handleSetActiveGroup = useCallback((value: string) => {
+    setGroupError(null);
     setActiveGroupValue(value);
   }, []);
 
@@ -197,6 +204,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         schemas,
         loading,
         usingMock,
+        groupError,
       }}
     >
       {children}

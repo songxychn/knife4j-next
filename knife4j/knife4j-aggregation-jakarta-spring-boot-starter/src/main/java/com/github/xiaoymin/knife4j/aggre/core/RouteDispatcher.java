@@ -96,23 +96,28 @@ public class RouteDispatcher {
 
     public RouteDispatcher(RouteRepository routeRepository, RouteCache<String, SwaggerRoute> routeRouteCache,
                            ExecutorEnum executorEnum, String rootPath, OpenAPIV3Setting openAPIV3Setting) {
+        this(routeRepository, routeRouteCache, executorEnum, rootPath, openAPIV3Setting, 5000);
+    }
+
+    public RouteDispatcher(RouteRepository routeRepository, RouteCache<String, SwaggerRoute> routeRouteCache,
+                           ExecutorEnum executorEnum, String rootPath, OpenAPIV3Setting openAPIV3Setting, int providerTimeoutMs) {
         this.routeRepository = routeRepository;
         this.routeCache = routeRouteCache;
         this.rootPath = rootPath;
         this.openAPIV3Setting = openAPIV3Setting;
-        initExecutor(executorEnum);
+        initExecutor(executorEnum, providerTimeoutMs);
         ignoreHeaders.addAll(Arrays.asList(new String[]{
                 "host", "content-length", ROUTE_PROXY_HEADER_NAME, ROUTE_PROXY_HEADER_BASIC_NAME, "Request-Origion", "language", "knife4j-gateway-code"
         }));
     }
 
-    private void initExecutor(ExecutorEnum executorEnum) {
+    private void initExecutor(ExecutorEnum executorEnum, int providerTimeoutMs) {
         if (executorEnum == null) {
             throw new IllegalArgumentException("ExecutorEnum can not be empty");
         }
         switch (executorEnum) {
             case APACHE:
-                this.routeExecutor = new ApacheClientExecutor();
+                this.routeExecutor = new ApacheClientExecutor(providerTimeoutMs);
                 break;
             case OKHTTP:
                 this.routeExecutor = new OkHttpClientExecutor();
