@@ -47,6 +47,16 @@
 
 触碰这些边界必须停下来找维护者确认。
 
+### 关于 `knife4j-ui-react` 中已存在的 OAS2 类型字段
+
+`knife4j-front/knife4j-ui-react/src/types/swagger.ts` 目前保留了若干 OAS2 字段：`definitions`、`securityDefinitions`、`host`、`basePath`、`schemes`、`in: 'body'` 等。少数渲染代码也为这些字段写了回退分支（例如 `Home.tsx` 的 servers 回退、`ApiDoc.tsx` 的 `$ref` 双正则）。
+
+这些是 React UI 早期开发时遗留的**类型兼容**，**不构成对 OAS2 的功能承诺**：
+
+- 入口层 `knife4jClient.fetchGroups()` 只请求 `v3/api-docs/swagger-config` 和 `swagger-resources`，不会主动拉 `v2/api-docs`；真实 springfox 后端从未在 React UI 上跑过端到端回归。
+- 当前决议是**不主动清理也不主动扩展**这些字段：清理会触发连锁改动且无收益，扩展则属于上述硬约束禁止范围。
+- 任何"顺手让 React 也支持一下 OAS2"的改动（新增数据源、补 `v2/api-docs` fallback、加 OAS2 专有解析逻辑等）都按 OAS2 兼容层处理，需维护者明确批准。
+
 ## 主要区域
 
 ### `knife4j`
