@@ -21,6 +21,32 @@
 - 不要一次性迁移到 React。
 - 不要为了代码优雅牺牲向后兼容。
 
+## 前端分工策略（必读）
+
+本仓库前端 UI 分为两条独立产物线，职责明确：
+
+| 前端源码 | 产物 webjar | 对应 starter | OpenAPI 版本 | 维护策略 |
+|---|---|---|---|---|
+| `knife4j-front/knife4j-ui-react` (React + Vite) | `knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`、`knife4j-gateway-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter` | **OpenAPI 3.x only** | **主线**：承接所有新功能、UX 改进、调试器增强 |
+| `knife4j-vue3` (Vue 3 + Vite) | `knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only** | **兼容维护**：只接收回归修复、安全补丁与显示层 bug；不做功能扩张 |
+
+### 处理 upstream issue / 社区反馈的固定规则
+
+1. **OAS3-only 场景** → 归入 `area:ui-react`，在 `knife4j-front/knife4j-ui-react` 修。
+2. **OAS2-only / Swagger 2 注解相关** → 归入 `area:ui-vue3`，只在 `knife4j-vue3` 修显示与兼容性 bug。
+3. **OAS2 + OAS3 都存在的共性 bug** → 优先在 OAS3 主线修；OAS2 侧仅做最小兼容修复或接受现状。
+4. **OAS2 侧的新功能请求（sorter、OAuth2 弹窗授权、Markdown 新特性、导出等）** → 一律按 `wontfix: scope-policy` 关闭，并引导用户迁移到 OAS3 starter。
+5. **`knife4j-core`（TypeScript 解析库）** 是 OAS3 主线的依赖，不为 OAS2 扩展。OAS2 语义由 `knife4j-vue3` 内部 `src/core/oas2` 自行处理。
+
+### 不允许 Agent 自主推翻的边界
+
+- 不允许把 OAS2 starter 切回 upstream Vue 2 webjar。
+- 不允许让 `knife4j-vue3` 接入 OAS3 数据源。
+- 不允许让 `knife4j-ui-react` 增加 OAS2 兼容层，除非维护者明确批准。
+- 不允许在 `knife4j-openapi2-ui` 的 pom/plugin 里引入 React 产物。
+
+触碰这些边界必须停下来找维护者确认。
+
 ## 主要区域
 
 ### `knife4j`
@@ -29,15 +55,19 @@ Java 多模块主工程。这里是最关键的维护面，因为它影响下游
 
 ### `knife4j-front/knife4j-core`
 
-TypeScript 解析核心。只要测试能证明行为，适合做窄范围自治任务。
-
-### `knife4j-doc`
-
-文档站。适合自治清理、迁移说明和 release note 改进，前提是文档构建通过。
+TypeScript 解析核心，服务于 `knife4j-ui-react`（OAS3 主线）。只要测试能证明行为，适合做窄范围自治任务。不为 OAS2 扩展。
 
 ### `knife4j-front/knife4j-ui-react`
 
-下一代 UI 探索区。Agent 在这里的改动必须保持增量，不要隐含产品承诺。
+**OAS3 主线 UI**。所有新功能、UX 改进、调试器增强都在这里落地。Agent 改动必须保持增量，不要隐含产品承诺。
+
+### `knife4j-vue3`
+
+**OAS2 兼容维护 UI**。只做回归修复、安全补丁、显示层 bug 修复，不做功能扩张。新功能请求一律指向 OAS3 迁移。
+
+### `docs-site`
+
+当前维护的文档站（VitePress）。适合自治清理、迁移说明和 release note 改进，前提是文档构建通过。
 
 ## 稳定性优先
 
