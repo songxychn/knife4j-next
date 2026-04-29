@@ -92,6 +92,13 @@ const enUS = {
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'Doc',
   'operation.tab.debug': 'Debug',
+  'operation.tab.openapi': 'OpenAPI',
+
+  // ApiOpenApi (ISSUE-206)
+  'apiOpenApi.notFound.title': 'API doc not found',
+  'apiOpenApi.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
+  'apiOpenApi.copied': 'OpenAPI JSON copied',
+  'apiOpenApi.noData': 'No OpenAPI data available for this operation',
 
   // ApiDebug
   'apiDebug.notFound.title': 'Debug interface not found',
