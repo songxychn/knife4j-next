@@ -29,12 +29,12 @@ const routeKeyToMenuKey = (key: string) =>
   key.endsWith('/doc')
     ? key.slice(0, -4)
     : key.endsWith('/debug')
-    ? key.slice(0, -6)
-    : key.endsWith('/openapi')
-    ? key.slice(0, -8)
-    : key.includes('/schema')
-    ? key.replace(/\/schema\/.*$/, '/schema')
-    : key;
+      ? key.slice(0, -6)
+      : key.endsWith('/openapi')
+        ? key.slice(0, -8)
+        : key.includes('/schema')
+          ? key.replace(/\/schema\/.*$/, '/schema')
+          : key;
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);

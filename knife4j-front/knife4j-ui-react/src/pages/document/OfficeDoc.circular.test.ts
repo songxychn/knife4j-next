@@ -61,7 +61,7 @@ function resolveRef(ref: string, doc: SwaggerDoc): SchemaObject | undefined {
 
 function typeLabel(schema: SchemaObject): string {
   if (schema.type === 'array' && schema.items) return `array[${typeLabel(schema.items)}]`;
-  return schema.format ? `${schema.type}(${schema.format})` : schema.type ?? 'object';
+  return schema.format ? `${schema.type}(${schema.format})` : (schema.type ?? 'object');
 }
 
 function flattenSchemaFields(

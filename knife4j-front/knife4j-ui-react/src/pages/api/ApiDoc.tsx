@@ -417,8 +417,8 @@ export default function ApiDoc() {
                     const color = row.statusCode.startsWith('2')
                       ? 'success'
                       : row.statusCode.startsWith('4')
-                      ? 'warning'
-                      : 'error';
+                        ? 'warning'
+                        : 'error';
                     const fields = row.schema
                       ? filterFieldNodes(schemaToFieldNodes(row.schema, swaggerDoc), 'response')
                       : [];
