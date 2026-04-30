@@ -283,7 +283,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       const consumes = operation.consumes ?? doc.consumes ?? ['application/x-www-form-urlencoded'];
       const mediaType = consumes.includes('multipart/form-data')
         ? 'multipart/form-data'
-        : consumes[0] ?? 'application/x-www-form-urlencoded';
+        : (consumes[0] ?? 'application/x-www-form-urlencoded');
       const category = classifyContentType(mediaType);
 
       let existingBody = bodyContents.find((b) => b.category === category);
@@ -392,8 +392,8 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           exampleValue: schema
             ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2)
             : mediaObj.example
-            ? JSON.stringify(mediaObj.example, null, 2)
-            : undefined,
+              ? JSON.stringify(mediaObj.example, null, 2)
+              : undefined,
           fileFields: isMultipart ? extractFileFields(schema) : undefined,
           jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
         });
