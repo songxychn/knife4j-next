@@ -92,6 +92,13 @@ const zhCN = {
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': '文档',
   'operation.tab.debug': '调试',
+  'operation.tab.openapi': 'OpenAPI',
+
+  // ApiOpenApi (ISSUE-206)
+  'apiOpenApi.notFound.title': '未找到接口文档',
+  'apiOpenApi.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
+  'apiOpenApi.copied': 'OpenAPI JSON 已复制',
+  'apiOpenApi.noData': '当前接口暂无 OpenAPI 数据',
 
   // ApiDebug
   'apiDebug.notFound.title': '未找到调试接口',
@@ -115,6 +122,10 @@ const zhCN = {
   'apiDebug.tab.body': 'Body',
   'apiDebug.header.autoInject': 'Content-Type 由所选 Body 类型自动注入（在发送时可见于 cURL）',
   'apiDebug.noHeaderParams': '无 header 参数',
+  'apiDebug.customHeaders.title': '自定义请求头',
+  'apiDebug.customHeaders.add': '添加',
+  'apiDebug.customHeaders.namePlaceholder': '请求头名称',
+  'apiDebug.customHeaders.valuePlaceholder': '值',
   'apiDebug.noBody': '该接口无请求体',
   'apiDebug.send': '发送',
   'apiDebug.sending': '请求中...',
