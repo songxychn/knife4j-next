@@ -238,6 +238,7 @@ const zhCN = {
   'auth.btn.authorize': '授权',
   'auth.btn.unauthorize': '取消授权',
   'auth.btn.clearAll': '清除全部',
+  'apiDebug.auth.modal.title': '请求返回 401 — 请先完成认证',
 
   // GlobalParam
   'globalParam.col.name': '名称',

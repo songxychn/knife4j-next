@@ -6,6 +6,7 @@ import {
   Input,
   InputNumber,
   message,
+  Modal,
   Radio,
   Select,
   Space,
@@ -46,6 +47,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
+import Authorize from '../Authorize';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -1134,6 +1136,9 @@ export default function ApiDebug() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
+  // ── issue-226: 401 自动弹出认证对话框 ──
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
   const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
@@ -1587,6 +1592,11 @@ export default function ApiDebug() {
         filename,
         kind,
       });
+
+      // 401 → 自动弹出认证对话框
+      if (res.status === 401) {
+        setAuthModalOpen(true);
+      }
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -1779,6 +1789,17 @@ export default function ApiDebug() {
         onSseAbort={handleSseAbort}
         sseStreaming={sseAbortRef.current !== null}
       />
+
+      <Modal
+        open={authModalOpen}
+        onCancel={() => setAuthModalOpen(false)}
+        footer={null}
+        title={t('apiDebug.auth.modal.title')}
+        width={680}
+        destroyOnClose
+      >
+        <Authorize />
+      </Modal>
     </div>
   );
 }

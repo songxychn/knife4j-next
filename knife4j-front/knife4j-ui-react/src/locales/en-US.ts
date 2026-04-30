@@ -238,6 +238,7 @@ const enUS = {
   'auth.btn.authorize': 'Authorize',
   'auth.btn.unauthorize': 'Unauthorize',
   'auth.btn.clearAll': 'Clear All',
+  'apiDebug.auth.modal.title': '401 Unauthorized — please configure authentication',
 
   // GlobalParam
   'globalParam.col.name': 'Name',
