@@ -139,9 +139,19 @@ ${diff}
 parse_recommendation() {
   local output="$1"
   local rec
+  # Pattern 1: "recommendation: approve" on same line
   rec=$(echo "${output}" | grep -iP 'recommendation[:\s]+\K(approve|revise|block)' | head -1 || true)
   if [[ -z "$rec" ]]; then
+    # Pattern 2: YAML list style — "recommendation:" then "- approve" on next line
+    rec=$(echo "${output}" | grep -iA1 '^recommendation:' | grep -oiP '(approve|revise|block)' | head -1 || true)
+  fi
+  if [[ -z "$rec" ]]; then
+    # Pattern 3: standalone bullet "- approve" / "* approve"
     rec=$(echo "${output}" | grep -iP '^[-*]\s*(approve|revise|block)\s*$' | head -1 | grep -oiP 'approve|revise|block' || true)
+  fi
+  if [[ -z "$rec" ]]; then
+    # Pattern 4: any line containing only the keyword (e.g. bold markdown **approve**)
+    rec=$(echo "${output}" | grep -oiP '\b(approve|revise|block)\b' | tail -1 || true)
   fi
   echo "${rec}" | tr '[:upper:]' '[:lower:]' | tr -d ' '
 }
