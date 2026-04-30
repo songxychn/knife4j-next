@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,17 +40,34 @@ public class GetQueryObject {
     @Schema(description = "排序方向", example = "desc", allowableValues = {"asc", "desc"})
     private String sortOrder;
 
-    public GetQueryObject() {}
+    public GetQueryObject() {
+    }
 
-    public String getKeyword() { return keyword; }
-    public void setKeyword(String keyword) { this.keyword = keyword; }
+    public String getKeyword() {
+        return keyword;
+    }
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
 
-    public Integer getStatus() { return status; }
-    public void setStatus(Integer status) { this.status = status; }
+    public Integer getStatus() {
+        return status;
+    }
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
 
-    public String getSortField() { return sortField; }
-    public void setSortField(String sortField) { this.sortField = sortField; }
+    public String getSortField() {
+        return sortField;
+    }
+    public void setSortField(String sortField) {
+        this.sortField = sortField;
+    }
 
-    public String getSortOrder() { return sortOrder; }
-    public void setSortOrder(String sortOrder) { this.sortOrder = sortOrder; }
+    public String getSortOrder() {
+        return sortOrder;
+    }
+    public void setSortOrder(String sortOrder) {
+        this.sortOrder = sortOrder;
+    }
 }

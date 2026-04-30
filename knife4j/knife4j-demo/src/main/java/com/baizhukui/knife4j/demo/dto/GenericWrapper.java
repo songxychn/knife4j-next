@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -43,7 +44,8 @@ public class GenericWrapper<T> {
     @Schema(description = "泛型数据体（#826: @Schema 对泛型字段不生效）")
     private T data;
 
-    public GenericWrapper() {}
+    public GenericWrapper() {
+    }
 
     public GenericWrapper(int code, String message, T data) {
         this.code = code;
@@ -51,12 +53,24 @@ public class GenericWrapper<T> {
         this.data = data;
     }
 
-    public int getCode() { return code; }
-    public void setCode(int code) { this.code = code; }
+    public int getCode() {
+        return code;
+    }
+    public void setCode(int code) {
+        this.code = code;
+    }
 
-    public String getMessage() { return message; }
-    public void setMessage(String message) { this.message = message; }
+    public String getMessage() {
+        return message;
+    }
+    public void setMessage(String message) {
+        this.message = message;
+    }
 
-    public T getData() { return data; }
-    public void setData(T data) { this.data = data; }
+    public T getData() {
+        return data;
+    }
+    public void setData(T data) {
+        this.data = data;
+    }
 }

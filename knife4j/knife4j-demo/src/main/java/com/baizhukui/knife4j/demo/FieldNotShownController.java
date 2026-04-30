@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo;
 
 import com.baizhukui.knife4j.demo.dto.MultiPropertyDTO;
@@ -43,8 +44,7 @@ import java.util.List;
  * For each endpoint, verify that ALL declared fields appear in the schema with
  * their descriptions. If any field is missing, the upstream issue is reproduced.
  */
-@Tag(name = "字段不显示复现（#828 #754 #911 #895 #889）",
-        description = "复现 upstream 字段不显示、文档展示异常相关 issue")
+@Tag(name = "字段不显示复现（#828 #754 #911 #895 #889）", description = "复现 upstream 字段不显示、文档展示异常相关 issue")
 @RestController
 @RequestMapping("/api/issue/fields")
 public class FieldNotShownController {
@@ -53,8 +53,7 @@ public class FieldNotShownController {
      * Issue #754 / #828: multiple object properties.
      * Expected: all 9 fields of MultiPropertyDTO appear in the response schema.
      */
-    @Operation(summary = "#754/#828 多属性对象返回",
-            description = "返回含多个属性的 DTO，验证所有字段是否全部显示")
+    @Operation(summary = "#754/#828 多属性对象返回", description = "返回含多个属性的 DTO，验证所有字段是否全部显示")
     @GetMapping("/multi-property")
     public MultiPropertyDTO multiProperty() {
         MultiPropertyDTO dto = new MultiPropertyDTO();
@@ -74,8 +73,7 @@ public class FieldNotShownController {
      * Issue #911: entity as request body parameter.
      * Expected: all fields of MultiPropertyDTO appear in the request body schema.
      */
-    @Operation(summary = "#911 实体作为请求体参数",
-            description = "用实体接收请求体参数，验证接口文档前端展示是否正常")
+    @Operation(summary = "#911 实体作为请求体参数", description = "用实体接收请求体参数，验证接口文档前端展示是否正常")
     @PostMapping("/entity-param")
     public MultiPropertyDTO entityParam(@RequestBody MultiPropertyDTO dto) {
         return dto;
@@ -87,8 +85,7 @@ public class FieldNotShownController {
      * Actual (upstream): some fields may be missing or descriptions may differ from
      * what swagger-ui shows.
      */
-    @Operation(summary = "#895/#889 实体列表返回",
-            description = "返回实体列表，验证文档与 swagger 标准展示是否一致")
+    @Operation(summary = "#895/#889 实体列表返回", description = "返回实体列表，验证文档与 swagger 标准展示是否一致")
     @GetMapping("/entity-list")
     public List<UserVO> entityList() {
         return List.of(
@@ -100,8 +97,7 @@ public class FieldNotShownController {
      * Issue #828: single entity return.
      * Expected: all fields of UserVO appear in the response schema.
      */
-    @Operation(summary = "#828 单实体返回字段显示",
-            description = "返回单个实体，验证所有字段是否显示")
+    @Operation(summary = "#828 单实体返回字段显示", description = "返回单个实体，验证所有字段是否显示")
     @GetMapping("/single-entity")
     public UserVO singleEntity() {
         return new UserVO(1L, "张三", "zhangsan@example.com");

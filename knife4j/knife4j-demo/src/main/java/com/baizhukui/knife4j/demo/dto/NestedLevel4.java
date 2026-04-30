@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,8 +31,13 @@ public class NestedLevel4 {
     @Schema(description = "四级字段", example = "level4-value")
     private String level4Field;
 
-    public NestedLevel4() {}
+    public NestedLevel4() {
+    }
 
-    public String getLevel4Field() { return level4Field; }
-    public void setLevel4Field(String level4Field) { this.level4Field = level4Field; }
+    public String getLevel4Field() {
+        return level4Field;
+    }
+    public void setLevel4Field(String level4Field) {
+        this.level4Field = level4Field;
+    }
 }

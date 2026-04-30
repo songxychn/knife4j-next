@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -59,32 +60,69 @@ public class MultiPropertyDTO {
     @Schema(description = "扩展字段2", example = "ext2-value")
     private String ext2;
 
-    public MultiPropertyDTO() {}
+    public MultiPropertyDTO() {
+    }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getDescription() {
+        return description;
+    }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public Integer getStatus() { return status; }
-    public void setStatus(Integer status) { this.status = status; }
+    public Integer getStatus() {
+        return status;
+    }
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
 
-    public Integer getSortOrder() { return sortOrder; }
-    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
+    public Integer getSortOrder() {
+        return sortOrder;
+    }
+    public void setSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder;
+    }
 
-    public Long getCreateTime() { return createTime; }
-    public void setCreateTime(Long createTime) { this.createTime = createTime; }
+    public Long getCreateTime() {
+        return createTime;
+    }
+    public void setCreateTime(Long createTime) {
+        this.createTime = createTime;
+    }
 
-    public Long getUpdateTime() { return updateTime; }
-    public void setUpdateTime(Long updateTime) { this.updateTime = updateTime; }
+    public Long getUpdateTime() {
+        return updateTime;
+    }
+    public void setUpdateTime(Long updateTime) {
+        this.updateTime = updateTime;
+    }
 
-    public String getExt1() { return ext1; }
-    public void setExt1(String ext1) { this.ext1 = ext1; }
+    public String getExt1() {
+        return ext1;
+    }
+    public void setExt1(String ext1) {
+        this.ext1 = ext1;
+    }
 
-    public String getExt2() { return ext2; }
-    public void setExt2(String ext2) { this.ext2 = ext2; }
+    public String getExt2() {
+        return ext2;
+    }
+    public void setExt2(String ext2) {
+        this.ext2 = ext2;
+    }
 }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo.dto;
 
 import com.fasterxml.jackson.annotation.JsonView;
@@ -32,8 +33,11 @@ public class AnnotationIssueDTO {
 
     /** JsonView markers for #743. */
     public interface Views {
-        interface Public {}
-        interface Internal extends Public {}
+
+        interface Public {
+        }
+        interface Internal extends Public {
+        }
     }
 
     /**
@@ -70,20 +74,41 @@ public class AnnotationIssueDTO {
     @Schema(description = "无视图限制字段（始终可见）", example = "always-visible")
     private String alwaysVisible;
 
-    public AnnotationIssueDTO() {}
+    public AnnotationIssueDTO() {
+    }
 
-    public String getiCode() { return iCode; }
-    public void setiCode(String iCode) { this.iCode = iCode; }
+    public String getiCode() {
+        return iCode;
+    }
+    public void setiCode(String iCode) {
+        this.iCode = iCode;
+    }
 
-    public String geteTag() { return eTag; }
-    public void seteTag(String eTag) { this.eTag = eTag; }
+    public String geteTag() {
+        return eTag;
+    }
+    public void seteTag(String eTag) {
+        this.eTag = eTag;
+    }
 
-    public String getPublicField() { return publicField; }
-    public void setPublicField(String publicField) { this.publicField = publicField; }
+    public String getPublicField() {
+        return publicField;
+    }
+    public void setPublicField(String publicField) {
+        this.publicField = publicField;
+    }
 
-    public String getInternalField() { return internalField; }
-    public void setInternalField(String internalField) { this.internalField = internalField; }
+    public String getInternalField() {
+        return internalField;
+    }
+    public void setInternalField(String internalField) {
+        this.internalField = internalField;
+    }
 
-    public String getAlwaysVisible() { return alwaysVisible; }
-    public void setAlwaysVisible(String alwaysVisible) { this.alwaysVisible = alwaysVisible; }
+    public String getAlwaysVisible() {
+        return alwaysVisible;
+    }
+    public void setAlwaysVisible(String alwaysVisible) {
+        this.alwaysVisible = alwaysVisible;
+    }
 }

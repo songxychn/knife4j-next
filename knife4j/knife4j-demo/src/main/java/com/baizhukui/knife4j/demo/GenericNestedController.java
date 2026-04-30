@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo;
 
 import com.baizhukui.knife4j.demo.dto.GenericWrapper;
@@ -55,8 +56,7 @@ import java.util.List;
  *       is fully expanded.</li>
  * </ol>
  */
-@Tag(name = "泛型/嵌套/$ref 复现（#683 #826 #677 #649 #757）",
-        description = "复现 upstream 泛型展示、嵌套文档、$ref 相关 issue")
+@Tag(name = "泛型/嵌套/$ref 复现（#683 #826 #677 #649 #757）", description = "复现 upstream 泛型展示、嵌套文档、$ref 相关 issue")
 @RestController
 @RequestMapping("/api/issue/generic")
 public class GenericNestedController {
@@ -65,8 +65,7 @@ public class GenericNestedController {
      * Issue #683 / #826: generic wrapper with a simple VO.
      * Expected: {@code data} field description "泛型数据体" is visible in the schema.
      */
-    @Operation(summary = "#683/#826 泛型包装 UserVO",
-            description = "返回 GenericWrapper<UserVO>，验证泛型字段 @Schema 是否生效")
+    @Operation(summary = "#683/#826 泛型包装 UserVO", description = "返回 GenericWrapper<UserVO>，验证泛型字段 @Schema 是否生效")
     @GetMapping("/wrapped-user")
     public GenericWrapper<UserVO> wrappedUser() {
         return new GenericWrapper<>(200, "success",
@@ -77,8 +76,7 @@ public class GenericNestedController {
      * Issue #683 / #826: generic wrapper with a List.
      * Expected: {@code data} field resolves to an array of UserVO with descriptions.
      */
-    @Operation(summary = "#683/#826 泛型包装 List<UserVO>",
-            description = "返回 GenericWrapper<List<UserVO>>，验证泛型列表字段 @Schema 是否生效")
+    @Operation(summary = "#683/#826 泛型包装 List<UserVO>", description = "返回 GenericWrapper<List<UserVO>>，验证泛型列表字段 @Schema 是否生效")
     @GetMapping("/wrapped-list")
     public GenericWrapper<List<UserVO>> wrappedList() {
         return new GenericWrapper<>(200, "success",
@@ -90,8 +88,7 @@ public class GenericNestedController {
      * Expected: all four levels appear in the schema tree with their descriptions.
      * For #649: the {@code title} on NestedLevel3 and NestedLevel4 should be visible.
      */
-    @Operation(summary = "#677/#649 四层嵌套对象",
-            description = "返回四层嵌套 DTO，验证多层嵌套文档是否全部显示，以及超过三层后 @Schema(title) 是否仍然可见")
+    @Operation(summary = "#677/#649 四层嵌套对象", description = "返回四层嵌套 DTO，验证多层嵌套文档是否全部显示，以及超过三层后 @Schema(title) 是否仍然可见")
     @GetMapping("/deep-nested")
     public NestedLevel1 deepNested() {
         NestedLevel4 l4 = new NestedLevel4();
@@ -113,10 +110,8 @@ public class GenericNestedController {
      * Expected: the response content schema correctly resolves the $ref to UserVO
      * and displays all its fields.
      */
-    @Operation(summary = "#757 @ApiResponse 显式 $ref",
-            description = "通过 @ApiResponse 显式声明响应 schema，验证 $ref 是否正确展开")
-    @ApiResponse(responseCode = "200", description = "成功",
-            content = @Content(schema = @Schema(implementation = UserVO.class)))
+    @Operation(summary = "#757 @ApiResponse 显式 $ref", description = "通过 @ApiResponse 显式声明响应 schema，验证 $ref 是否正确展开")
+    @ApiResponse(responseCode = "200", description = "成功", content = @Content(schema = @Schema(implementation = UserVO.class)))
     @GetMapping("/explicit-ref")
     public UserVO explicitRef() {
         return new UserVO(1L, "张三", "zhangsan@example.com");
@@ -126,8 +121,7 @@ public class GenericNestedController {
      * Issue #812: List<List<Object>> 2D structure.
      * Expected: the response schema shows a 2D array (array of arrays).
      */
-    @Operation(summary = "#812 二维 List<List<String>>",
-            description = "返回二维列表，验证 List<List<Object>> 结构是否正确解析")
+    @Operation(summary = "#812 二维 List<List<String>>", description = "返回二维列表，验证 List<List<Object>> 结构是否正确解析")
     @GetMapping("/2d-list")
     public List<List<String>> twoDimensionalList() {
         return List.of(

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -36,11 +37,20 @@ public class NestedLevel3 {
     @Schema(description = "四级嵌套对象（#649: 超过三层后 title 不显示）")
     private NestedLevel4 nested;
 
-    public NestedLevel3() {}
+    public NestedLevel3() {
+    }
 
-    public String getLevel3Field() { return level3Field; }
-    public void setLevel3Field(String level3Field) { this.level3Field = level3Field; }
+    public String getLevel3Field() {
+        return level3Field;
+    }
+    public void setLevel3Field(String level3Field) {
+        this.level3Field = level3Field;
+    }
 
-    public NestedLevel4 getNested() { return nested; }
-    public void setNested(NestedLevel4 nested) { this.nested = nested; }
+    public NestedLevel4 getNested() {
+        return nested;
+    }
+    public void setNested(NestedLevel4 nested) {
+        this.nested = nested;
+    }
 }

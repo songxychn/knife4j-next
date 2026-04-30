@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.baizhukui.knife4j.demo;
 
 import com.baizhukui.knife4j.demo.dto.AnnotationIssueDTO;
@@ -49,8 +50,7 @@ import java.util.List;
  * #887 ({@code @RestControllerAdvice}) require knife4j-openapi2 (Swagger 2) and
  * are not reproducible in this OAS3 demo. They are marked as planned in the triage doc.
  */
-@Tag(name = "注解解析复现（#717 #675 #745 #743 #767）",
-        description = "复现 upstream 注解解析、参数展开相关 issue")
+@Tag(name = "注解解析复现（#717 #675 #745 #743 #767）", description = "复现 upstream 注解解析、参数展开相关 issue")
 @RestController
 @RequestMapping("/api/issue/annotation")
 public class AnnotationIssueController {
@@ -60,8 +60,7 @@ public class AnnotationIssueController {
      * Expected: {@code iCode} and {@code eTag} fields show their {@code @Schema} descriptions.
      * Actual (upstream): springdoc may not match the getter to the field, so description is blank.
      */
-    @Operation(summary = "#675 单小写字母驼峰字段 @Schema",
-            description = "返回含 iCode/eTag 字段的 DTO，验证单小写字母驼峰字段的 @Schema 描述是否显示")
+    @Operation(summary = "#675 单小写字母驼峰字段 @Schema", description = "返回含 iCode/eTag 字段的 DTO，验证单小写字母驼峰字段的 @Schema 描述是否显示")
     @GetMapping("/camel-field")
     public AnnotationIssueDTO camelField() {
         AnnotationIssueDTO dto = new AnnotationIssueDTO();
@@ -76,8 +75,7 @@ public class AnnotationIssueController {
      * Expected: when the endpoint declares a JsonView, only fields annotated with
      * that view (or no view) should appear in the schema.
      */
-    @Operation(summary = "#743 @JsonView 视图字段过滤",
-            description = "返回含 @JsonView 注解字段的 DTO，验证视图过滤是否在文档中正确体现")
+    @Operation(summary = "#743 @JsonView 视图字段过滤", description = "返回含 @JsonView 注解字段的 DTO，验证视图过滤是否在文档中正确体现")
     @GetMapping("/json-view")
     public AnnotationIssueDTO jsonView() {
         AnnotationIssueDTO dto = new AnnotationIssueDTO();
@@ -92,13 +90,10 @@ public class AnnotationIssueController {
      * Expected: the 200 response schema shows UserVO with all field descriptions.
      * Actual (upstream): the content defined in @ApiResponse may not be rendered.
      */
-    @Operation(summary = "#745 @ApiResponse 显式 Content 定义",
-            description = "通过 @ApiResponse 显式声明响应 Content，验证是否正确展示")
+    @Operation(summary = "#745 @ApiResponse 显式 Content 定义", description = "通过 @ApiResponse 显式声明响应 Content，验证是否正确展示")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功",
-                content = @Content(schema = @Schema(implementation = UserVO.class))),
-        @ApiResponse(responseCode = "400", description = "参数错误",
-                content = @Content(schema = @Schema(description = "错误信息")))
+            @ApiResponse(responseCode = "200", description = "成功", content = @Content(schema = @Schema(implementation = UserVO.class))),
+            @ApiResponse(responseCode = "400", description = "参数错误", content = @Content(schema = @Schema(description = "错误信息")))
     })
     @GetMapping("/api-response-content")
     public UserVO apiResponseContent() {
@@ -112,8 +107,7 @@ public class AnnotationIssueController {
      * opaque body parameter.
      * Expected: keyword, status, sortField, sortOrder appear as separate query params.
      */
-    @Operation(summary = "#767 对象作为 GET 参数展开",
-            description = "使用 @ParameterObject 将对象展开为单个 GET 参数，验证是否正确展开")
+    @Operation(summary = "#767 对象作为 GET 参数展开", description = "使用 @ParameterObject 将对象展开为单个 GET 参数，验证是否正确展开")
     @GetMapping("/get-object-param")
     public List<UserVO> getObjectParam(@ParameterObject GetQueryObject query) {
         return List.of(new UserVO(1L, "张三", "zhangsan@example.com"));
@@ -124,8 +118,7 @@ public class AnnotationIssueController {
      * Expected: springdoc renders it as a request body (incorrect for GET).
      * This demonstrates the difference.
      */
-    @Operation(summary = "#767 对象作为 GET 参数（无 @ParameterObject，对照组）",
-            description = "不使用 @ParameterObject，对照验证参数是否被错误渲染为 body")
+    @Operation(summary = "#767 对象作为 GET 参数（无 @ParameterObject，对照组）", description = "不使用 @ParameterObject，对照验证参数是否被错误渲染为 body")
     @GetMapping("/get-object-param-no-expand")
     public List<UserVO> getObjectParamNoExpand(GetQueryObject query) {
         return List.of(new UserVO(1L, "张三", "zhangsan@example.com"));
@@ -140,8 +133,7 @@ public class AnnotationIssueController {
      * Actual (upstream): when ResponseBodyAdvice wraps the response, field descriptions
      * from the original entity may not appear.
      */
-    @Operation(summary = "#717 ResponseBodyAdvice 统一返回实体字段说明",
-            description = "模拟 ResponseBodyAdvice 包装场景，验证实体类属性说明是否显示（实际运行时由 advice 包装）")
+    @Operation(summary = "#717 ResponseBodyAdvice 统一返回实体字段说明", description = "模拟 ResponseBodyAdvice 包装场景，验证实体类属性说明是否显示（实际运行时由 advice 包装）")
     @PostMapping("/advice-wrapped")
     public UserVO adviceWrapped(@RequestBody UserVO user) {
         return user;
