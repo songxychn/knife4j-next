@@ -25,6 +25,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -61,9 +62,12 @@ public class JakartaProductionSecurityFilter extends BasicFilter implements Filt
             if (!match(uri)) {
                 chain.doFilter(request, response);
             } else {
-                response.setContentType("text/palin;charset=UTF-8");
-                PrintWriter pw = response.getWriter();
-                pw.write("You do not have permission to access this page");
+                // Return JSON to avoid servlet container rendering an HTML error page (#666, #859)
+                HttpServletResponse resp = (HttpServletResponse) response;
+                resp.setStatus(403);
+                resp.setContentType("application/json;charset=UTF-8");
+                PrintWriter pw = resp.getWriter();
+                pw.write("{\"code\":403,\"message\":\"You do not have permission to access this page\"}");
                 pw.flush();
             }
         } else {

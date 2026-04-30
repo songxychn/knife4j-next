@@ -76,6 +76,29 @@ public class Boot2DocHttpSmokeTest {
         Assert.assertTrue(apiDocs.body.contains("/hello"));
     }
 
+    @Test
+    public void shouldBlockApiDocsWhenProductionTrue() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "knife4j.production=true",
+                        "spring.mvc.pathmatch.matching-strategy=ant_path_matcher",
+                        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = ((WebServerApplicationContext) context).getWebServer().getPort();
+
+        // production=true should block /v2/api-docs and return JSON (not HTML) (#666, #859)
+        HttpResponse apiDocs = get(port, "/v2/api-docs");
+        Assert.assertFalse("Response should not be HTML when production=true (#666, #859)",
+                apiDocs.body.contains("<!DOCTYPE"));
+        Assert.assertTrue("Response should be JSON when production=true (#666, #859)",
+                apiDocs.body.contains("\"code\"") || apiDocs.body.contains("\"message\""));
+    }
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");

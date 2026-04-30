@@ -68,6 +68,52 @@ public class Boot3JakartaDocHttpSmokeTest {
         Assert.assertTrue(apiDocs.body.contains("/hello"));
     }
 
+    @Test
+    public void shouldBlockApiDocsWhenProductionTrue() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "knife4j.production=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        // production=true should block /v3/api-docs and return JSON (not HTML) (#666, #859)
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertFalse("Response should not be HTML when production=true (#666, #859)",
+                apiDocs.body.contains("<!DOCTYPE"));
+        Assert.assertTrue("Response should be JSON when production=true (#666, #859)",
+                apiDocs.body.contains("\"code\"") || apiDocs.body.contains("\"message\""));
+
+        // doc.html should also be blocked
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertFalse("doc.html should not return HTML content when production=true",
+                docHtml.body.contains("webjars/knife4j-ui-react/"));
+    }
+
+    @Test
+    public void shouldServeCustomApiDocsPath() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "springdoc.api-docs.path=/api/openapi",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        // Custom springdoc.api-docs.path should be accessible (#573, #849)
+        HttpResponse apiDocs = get(port, "/api/openapi");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        Assert.assertTrue("Custom api-docs path should return OpenAPI JSON (#573, #849)",
+                apiDocs.body.contains("\"openapi\""));
+    }
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
