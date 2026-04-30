@@ -104,6 +104,7 @@ const zhCN = {
   'apiDebug.notFound.title': '未找到调试接口',
   'apiDebug.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
   'apiDebug.col.paramName': '参数名',
+  'apiDebug.col.enabled': '启用',
   'apiDebug.col.type': '类型',
   'apiDebug.col.value': '值',
   'apiDebug.col.description': '说明',

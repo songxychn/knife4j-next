@@ -104,6 +104,7 @@ const enUS = {
   'apiDebug.notFound.title': 'Debug interface not found',
   'apiDebug.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
   'apiDebug.col.paramName': 'Name',
+  'apiDebug.col.enabled': 'Enabled',
   'apiDebug.col.type': 'Type',
   'apiDebug.col.value': 'Value',
   'apiDebug.col.description': 'Description',

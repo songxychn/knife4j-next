@@ -3,6 +3,7 @@ import {
   Alert,
   AutoComplete,
   Button,
+  Checkbox,
   Divider,
   Input,
   InputNumber,
@@ -1222,6 +1223,8 @@ export default function ApiDebug() {
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
+  // enabled state: keyed by paramKey; GET/DELETE query params default true, all others also true
+  const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
   const [body, setBody] = useState('');
   const [customHeaders, setCustomHeaders] = useState<CustomHeaderRow[]>([]);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
@@ -1272,6 +1275,13 @@ export default function ApiDebug() {
       initial[paramKey(p)] = initialValueFor(p);
     }
     setParamValues(initial);
+
+    // 初始化 enabled 状态：query 参数在 GET/DELETE 下默认勾选，其余参数也默认勾选
+    const initialEnabled: Record<string, boolean> = {};
+    for (const p of allParams) {
+      initialEnabled[paramKey(p)] = true;
+    }
+    setParamEnabled(initialEnabled);
 
     // body 初始值
     const firstBody = debugModel.bodyContents[0];
@@ -1405,6 +1415,17 @@ export default function ApiDebug() {
   const paramColumns = useMemo<ColumnsType<DebugParam>>(
     () => [
       {
+        title: t('apiDebug.col.enabled'),
+        key: 'enabled',
+        width: 48,
+        render: (_value: unknown, record: DebugParam) => (
+          <Checkbox
+            checked={paramEnabled[paramKey(record)] !== false}
+            onChange={(e) => setParamEnabled((prev) => ({ ...prev, [paramKey(record)]: e.target.checked }))}
+          />
+        ),
+      },
+      {
         title: t('apiDebug.col.paramName'),
         dataIndex: 'name',
         key: 'name',
@@ -1479,7 +1500,7 @@ export default function ApiDebug() {
         ),
       },
     ],
-    [paramValues, t, errorKeys],
+    [paramValues, paramEnabled, t, errorKeys],
   );
 
   if (docLoading) {
@@ -1492,10 +1513,11 @@ export default function ApiDebug() {
     );
   }
 
-  /** 按 in 过滤已填值 */
+  /** 按 in 过滤已填值，跳过 enabled=false 的参数 */
   const collectForIn = (params: DebugParam[]): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const p of params) {
+      if (paramEnabled[paramKey(p)] === false) continue;
       const v = paramValues[paramKey(p)];
       if (v !== undefined && v !== '') result[p.name] = v;
     }
