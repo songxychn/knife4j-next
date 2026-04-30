@@ -25,9 +25,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Enumeration;
 
 /***
@@ -61,10 +61,9 @@ public class JakartaProductionSecurityFilter extends BasicFilter implements Filt
             if (!match(uri)) {
                 chain.doFilter(request, response);
             } else {
-                response.setContentType("text/palin;charset=UTF-8");
-                PrintWriter pw = response.getWriter();
-                pw.write("You do not have permission to access this page");
-                pw.flush();
+                // Fix #666: use proper HTTP 403 status and correct content-type (#859: avoid returning HTML)
+                HttpServletResponse resp = (HttpServletResponse) response;
+                resp.sendError(HttpServletResponse.SC_FORBIDDEN, "You do not have permission to access this page");
             }
         } else {
             chain.doFilter(request, response);

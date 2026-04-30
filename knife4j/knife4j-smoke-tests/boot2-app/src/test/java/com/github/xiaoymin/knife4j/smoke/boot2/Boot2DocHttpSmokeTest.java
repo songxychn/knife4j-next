@@ -53,6 +53,30 @@ public class Boot2DocHttpSmokeTest {
     }
 
     @Test
+    public void shouldReturn403WhenProductionModeEnabled() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "knife4j.production=true",
+                        "spring.mvc.pathmatch.matching-strategy=ant_path_matcher",
+                        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = ((WebServerApplicationContext) context).getWebServer().getPort();
+
+        // production=true should block doc.html with 403 (#816, #666, #859)
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(403, docHtml.statusCode);
+
+        // production=true should also block api-docs
+        HttpResponse apiDocs = get(port, "/v2/api-docs");
+        Assert.assertEquals(403, apiDocs.statusCode);
+    }
+
+    @Test
     public void shouldServeDocHtmlAndSwaggerJson() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)

@@ -21,8 +21,8 @@ import com.github.xiaoymin.knife4j.extend.filter.BasicFilter;
 
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Enumeration;
 
 /***
@@ -56,10 +56,10 @@ public class ProductionSecurityFilter extends BasicFilter implements Filter {
             if (!match(uri)) {
                 chain.doFilter(request, response);
             } else {
-                response.setContentType("text/palin;charset=UTF-8");
-                PrintWriter pw = response.getWriter();
-                pw.write("You do not have permission to access this page");
-                pw.flush();
+                // Fix #666: use proper HTTP 403 status instead of writing plain text with wrong content-type
+                // Fix #859: returning proper HTTP error prevents static resource handler from returning HTML
+                HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+                httpServletResponse.sendError(403, "You do not have permission to access this page");
             }
         } else {
             chain.doFilter(request, response);

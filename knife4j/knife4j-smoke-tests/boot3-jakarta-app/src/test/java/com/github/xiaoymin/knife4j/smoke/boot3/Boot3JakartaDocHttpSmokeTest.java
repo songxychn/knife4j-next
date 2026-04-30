@@ -47,6 +47,28 @@ public class Boot3JakartaDocHttpSmokeTest {
     }
 
     @Test
+    public void shouldReturn403WhenProductionModeEnabled() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "knife4j.production=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        // production=true should block doc.html with 403 (#816, #666, #859)
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(403, docHtml.statusCode);
+
+        // production=true should also block api-docs
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(403, apiDocs.statusCode);
+    }
+
+    @Test
     public void shouldServeDocHtmlAndOpenApiJson() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)
