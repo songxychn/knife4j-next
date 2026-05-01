@@ -1518,6 +1518,15 @@ export default function ApiDebug() {
 
       const contentType = responseHeaders['content-type'] ?? '';
 
+      // 401 check must come before SSE/non-SSE branching:
+      // a 401 response typically has Content-Type: application/json or text/html,
+      // so it would never enter the SSE branch and the modal would never open.
+      if (res.status === 401) {
+        setAuthModalOpen(true);
+        setLoading(false);
+        return;
+      }
+
       // SSE path: text/event-stream → stream via ReadableStream reader
       if (contentType.toLowerCase().includes('text/event-stream')) {
         setLoading(false);
@@ -1593,10 +1602,7 @@ export default function ApiDebug() {
         kind,
       });
 
-      // 401 → 自动弹出认证对话框
-      if (res.status === 401) {
-        setAuthModalOpen(true);
-      }
+      // 401 is handled above (before SSE/non-SSE branching); no duplicate check needed here.
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
