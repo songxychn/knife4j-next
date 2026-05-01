@@ -11,7 +11,7 @@
 # 退出码:
 #   0 - PR 已开，reviewer approve
 #   1 - 脚本错误
-#   2 - reviewer block/revise，需人工介入
+#   2 - reviewer block，需人工介入
 
 set -euo pipefail
 
@@ -20,6 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CLAUDE_USER="claude-worker"
 CLAUDE_CMD="claude --permission-mode bypassPermissions --print"
+MAX_REVISE_ROUNDS=3
 
 log()  { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
 err()  { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] [ERROR] $*" >&2; }
@@ -33,8 +34,16 @@ ISSUE_NUMBER="${1:?用法: trigger-task.sh <issue_number>}"
 
 run_claude() {
   local prompt="$1"
+  # 用临时文件传 prompt，避免命令行参数转义/长度问题导致 Claude Code 收到空 prompt
+  local tmpfile
+  tmpfile=$(mktemp /tmp/claude-prompt-XXXXXX.txt)
+  printf '%s' "$prompt" > "$tmpfile"
+  chmod 644 "$tmpfile"
   su -s /bin/bash "${CLAUDE_USER}" -c \
-    "cd '${REPO_ROOT}' && ${CLAUDE_CMD} $(printf '%q' "$prompt")"
+    "cd '${REPO_ROOT}' && cat '${tmpfile}' | claude --permission-mode bypassPermissions --print"
+  local rc=$?
+  rm -f "$tmpfile"
+  return $rc
 }
 
 # ── 获取 issue 信息 ───────────────────────────────────────────────────────────
@@ -59,11 +68,32 @@ gh issue edit "${ISSUE_NUMBER}" --repo "${REPO}" \
 WORKER_TEMPLATE=$(cat "${REPO_ROOT}/.agent/prompts/worker.md")
 REVIEWER_TEMPLATE=$(cat "${REPO_ROOT}/.agent/prompts/reviewer.md")
 
-# ── Phase 1: Worker ───────────────────────────────────────────────────────────
+# ── run_worker: 执行 worker，可选传入 reviewer findings ──────────────────────
+# 用法: run_worker [reviewer_findings]
+# 输出: worker handoff（stdout）
 
-info "=== Phase 1: Worker ==="
+run_worker() {
+  local findings="${1:-}"
+  local revise_section=""
 
-WORKER_PROMPT="${WORKER_TEMPLATE}
+  if [[ -n "$findings" ]]; then
+    revise_section="
+## Reviewer Findings（需修改后重新提交）
+
+上一轮 reviewer 审查发现以下问题，请逐条修复后重新提交 handoff：
+
+\`\`\`
+${findings}
+\`\`\`
+
+修复要求：
+- 针对每条 finding 说明你的处理方式
+- 修改完成后重新运行验证命令确认通过
+- 返回更新后的 handoff
+"
+  fi
+
+  local prompt="${WORKER_TEMPLATE}
 
 Task id: issue-${ISSUE_NUMBER}
 Task title: ${ISSUE_TITLE}
@@ -72,41 +102,30 @@ Assigned scope: 见 issue 描述
 Disallowed files: .agent/TASKS.md, .agent/PROGRESS.md
 Validation command: 见 issue 描述或 .agent/RUNBOOK.md
 Done condition: 代码改动完成，验证通过，返回标准 handoff
-
+${revise_section}
 Issue body:
 $(echo "${ISSUE_JSON}" | jq -r '.body // ""')
 "
 
-info "启动 worker..."
-WORKER_OUTPUT=$(run_claude "${WORKER_PROMPT}") || {
-  err "Worker 执行失败"
-  gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
-    --body "❌ Worker 执行失败，需人工介入。" 2>/dev/null || true
-  exit 1
+  run_claude "$prompt"
 }
 
-info "Worker 完成，输出长度: ${#WORKER_OUTPUT}"
-echo "${WORKER_OUTPUT}" | tail -50
+# ── run_reviewer: 执行 reviewer ───────────────────────────────────────────────
+# 用法: run_reviewer <worker_output> <branch>
+# 输出: reviewer findings（stdout）
 
-# 从 worker 输出提取分支名（如果有）
-BRANCH=$(echo "${WORKER_OUTPUT}" | grep -oP 'feat/issue-\d+[^\s"]*' | head -1 || true)
-if [[ -z "$BRANCH" ]]; then
-  BRANCH="feat/issue-${ISSUE_NUMBER}"
-fi
-info "推断分支: ${BRANCH}"
+run_reviewer() {
+  local worker_output="$1"
+  local branch="$2"
 
-# ── Phase 2: Reviewer ─────────────────────────────────────────────────────────
+  local diff
+  diff=$(cd "${REPO_ROOT}" && git diff "master...origin/${branch}" 2>/dev/null | head -500 || \
+         git diff "master...${branch}" 2>/dev/null | head -500 || echo "(diff unavailable)")
 
-info "=== Phase 2: Reviewer ==="
-
-# 获取 diff
-DIFF=$(cd "${REPO_ROOT}" && git diff "master...origin/${BRANCH}" 2>/dev/null | head -500 || \
-       git diff "master...${BRANCH}" 2>/dev/null | head -500 || echo "(diff unavailable)")
-
-REVIEWER_PROMPT="${REVIEWER_TEMPLATE}
+  local prompt="${REVIEWER_TEMPLATE}
 
 Task id: issue-${ISSUE_NUMBER}
-Branch or diff to review: ${BRANCH}
+Branch or diff to review: ${branch}
 Issue URL: https://github.com/${REPO}/issues/${ISSUE_NUMBER}
 Claimed behavior change: 见 worker handoff summary
 Validation already run: 见 worker handoff validation
@@ -114,37 +133,132 @@ Known risks: 见 worker handoff risks
 Reviewer constraints: 只返回 findings，不修改代码
 
 Worker handoff:
-${WORKER_OUTPUT}
+${worker_output}
 
 Diff (first 500 lines):
-${DIFF}
+${diff}
 "
 
-info "启动 reviewer..."
-REVIEWER_OUTPUT=$(run_claude "${REVIEWER_PROMPT}") || {
-  err "Reviewer 执行失败"
-  exit 1
+  run_claude "$prompt"
 }
 
-info "Reviewer 完成"
-echo "${REVIEWER_OUTPUT}" | tail -30
+# ── parse_recommendation ──────────────────────────────────────────────────────
 
-# ── 解析 reviewer 结论 ────────────────────────────────────────────────────────
+parse_recommendation() {
+  local output="$1"
+  local rec
+  # Pattern 1: "recommendation: approve" on same line
+  rec=$(echo "${output}" | grep -oiP 'recommendation[:\s]+\K(approve|revise|block)' | head -1 || true)
+  if [[ -z "$rec" ]]; then
+    # Pattern 2: YAML list style — "recommendation:" then "- approve" on next line
+    rec=$(echo "${output}" | grep -iA1 '^recommendation:' | grep -oiP '(approve|revise|block)' | head -1 || true)
+  fi
+  if [[ -z "$rec" ]]; then
+    # Pattern 3: standalone bullet "- approve" / "* approve"
+    rec=$(echo "${output}" | grep -iP '^[-*]\s*(approve|revise|block)\s*$' | head -1 | grep -oiP 'approve|revise|block' || true)
+  fi
+  if [[ -z "$rec" ]]; then
+    # Pattern 4: "Review Result: REVISE" style (reviewer 常用格式)
+    rec=$(echo "${output}" | grep -oiP 'Review\s+Result[:\s]+\K(approve|revise|block)' | head -1 || true)
+  fi
+  if [[ -z "$rec" ]]; then
+    # Pattern 5: any line containing only the keyword (e.g. bold markdown **approve**)
+    rec=$(echo "${output}" | grep -oiP '\b(approve|revise|block)\b' | tail -1 || true)
+  fi
+  echo "${rec}" | tr '[:upper:]' '[:lower:]' | tr -d ' '
+}
 
-RECOMMENDATION=$(echo "${REVIEWER_OUTPUT}" | grep -iP 'recommendation[:\s]+\K(approve|revise|block)' | head -1 || \
-                 echo "${REVIEWER_OUTPUT}" | grep -iP '^- (approve|revise|block)$' | head -1 | tr -d '- ' || \
-                 echo "unknown")
-RECOMMENDATION=$(echo "${RECOMMENDATION}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+# ── 主循环：worker → reviewer，最多 MAX_REVISE_ROUNDS 轮 ─────────────────────
 
-info "Reviewer recommendation: ${RECOMMENDATION}"
+WORKER_OUTPUT=""
+REVIEWER_OUTPUT=""
+RECOMMENDATION=""
+BRANCH=""
+ROUND=0
+REVIEWER_FINDINGS=""
 
-# ── 根据结论决策 ──────────────────────────────────────────────────────────────
+while [[ $ROUND -lt $MAX_REVISE_ROUNDS ]]; do
+  ROUND=$(( ROUND + 1 ))
+  info "=== Round ${ROUND}/${MAX_REVISE_ROUNDS} ==="
+
+  # Phase 1: Worker
+  info "--- Phase 1: Worker ---"
+  WORKER_OUTPUT=$(run_worker "${REVIEWER_FINDINGS}") || {
+    err "Worker 执行失败（round ${ROUND}）"
+    gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
+      --body "❌ Worker 执行失败（round ${ROUND}），需人工介入。" 2>/dev/null || true
+    exit 1
+  }
+  info "Worker 完成，输出长度: ${#WORKER_OUTPUT}"
+  echo "${WORKER_OUTPUT}" | tail -30
+
+  # 提取分支名
+  BRANCH=$(echo "${WORKER_OUTPUT}" | grep -oP '(feat|fix|chore|agent)/issue-\d+[^\s"]*' | head -1 || true)
+  if [[ -z "$BRANCH" ]]; then
+    BRANCH="feat/issue-${ISSUE_NUMBER}"
+  fi
+  info "推断分支: ${BRANCH}"
+
+  # Phase 2: Reviewer
+  info "--- Phase 2: Reviewer ---"
+  REVIEWER_OUTPUT=$(run_reviewer "${WORKER_OUTPUT}" "${BRANCH}") || {
+    err "Reviewer 执行失败（round ${ROUND}）"
+    exit 1
+  }
+  info "Reviewer 完成"
+  echo "${REVIEWER_OUTPUT}" | tail -20
+
+  RECOMMENDATION=$(parse_recommendation "${REVIEWER_OUTPUT}")
+  info "Reviewer recommendation: ${RECOMMENDATION}"
+
+  case "${RECOMMENDATION}" in
+    approve)
+      info "Reviewer approve，跳出循环"
+      break
+      ;;
+    revise)
+      if [[ $ROUND -lt $MAX_REVISE_ROUNDS ]]; then
+        warn "Reviewer revise（round ${ROUND}），将 findings 反馈给 worker 重新修改..."
+        REVIEWER_FINDINGS="${REVIEWER_OUTPUT}"
+        gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
+          --body "🔄 Round ${ROUND}: Reviewer 要求修改，worker 重新处理中...
+
+<details><summary>Reviewer findings</summary>
+
+\`\`\`
+${REVIEWER_OUTPUT}
+\`\`\`
+</details>" 2>/dev/null || true
+      else
+        warn "已达最大轮次（${MAX_REVISE_ROUNDS}），reviewer 仍要求修改，转人工介入"
+        RECOMMENDATION="block"
+      fi
+      ;;
+    block)
+      warn "Reviewer block，转人工介入"
+      break
+      ;;
+    *)
+      warn "无法解析 reviewer recommendation（${RECOMMENDATION}），转人工介入"
+      RECOMMENDATION="block"
+      break
+      ;;
+  esac
+done
+
+# ── 根据最终结论决策 ──────────────────────────────────────────────────────────
 
 case "${RECOMMENDATION}" in
   approve)
-    info "Reviewer approve，准备开 PR..."
+    info "准备开 PR..."
 
-    # 开 PR
+    # 确保 branch 已推到远端（worker 可能只在本地创建了 branch）
+    cd "${REPO_ROOT}"
+    if git show-ref --verify --quiet "refs/heads/${BRANCH}" 2>/dev/null; then
+      info "推送分支 ${BRANCH} 到远端..."
+      git push -u origin "${BRANCH}" 2>&1 || true
+    fi
+
     PR_URL=$(cd "${REPO_ROOT}" && gh pr create \
       --repo "${REPO}" \
       --head "${BRANCH}" \
@@ -170,14 +284,12 @@ ${REVIEWER_OUTPUT}
     PR_NUMBER=$(echo "${PR_URL}" | grep -oP '\d+$')
     info "PR #${PR_NUMBER} 已开: ${PR_URL}"
 
-    # 通知
     openclaw message send \
       --account knife4j-next-bot \
       --channel telegram \
       --target 6358501334 \
       --message "🔪 [Issue #${ISSUE_NUMBER}] PR #${PR_NUMBER} 已创建：${PR_URL}" 2>/dev/null || true
 
-    # 等 CI
     info "等待 CI..."
     cd "${REPO_ROOT}" && gh pr checks "${PR_NUMBER}" --repo "${REPO}" --watch || {
       warn "CI 有失败，需人工检查"
@@ -186,7 +298,6 @@ ${REVIEWER_OUTPUT}
       exit 1
     }
 
-    # CI 全绿
     gh issue edit "${ISSUE_NUMBER}" --repo "${REPO}" \
       --remove-label "status:in-progress" \
       --add-label "status:review" 2>/dev/null || true
@@ -198,30 +309,30 @@ ${REVIEWER_OUTPUT}
     exit 0
     ;;
 
-  revise|block)
-    warn "Reviewer ${RECOMMENDATION}，需人工介入"
+  *)
+    # revise（超轮次）或 block 或 unknown
+    warn "最终结论: ${RECOMMENDATION}，需人工介入"
+
     gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
-      --body "🔍 Reviewer recommendation: **${RECOMMENDATION}**
+      --body "🔍 Reviewer recommendation: **${RECOMMENDATION}**（经过 ${ROUND} 轮）
+
+<details><summary>最后一轮 Reviewer findings</summary>
 
 \`\`\`
 ${REVIEWER_OUTPUT}
-\`\`\`" 2>/dev/null || true
+\`\`\`
+</details>" 2>/dev/null || true
 
     gh issue edit "${ISSUE_NUMBER}" --repo "${REPO}" \
       --remove-label "status:in-progress" \
       --add-label "status:blocked" 2>/dev/null || true
 
+    openclaw message send \
+      --account knife4j-next-bot \
+      --channel telegram \
+      --target 6358501334 \
+      --message "🚫 [Issue #${ISSUE_NUMBER}] Reviewer ${RECOMMENDATION}（${ROUND} 轮后），需人工介入" 2>/dev/null || true
+
     exit 2
-    ;;
-
-  *)
-    warn "无法解析 reviewer recommendation（${RECOMMENDATION}），需人工检查"
-    gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
-      --body "⚠️ 无法解析 reviewer recommendation，需人工检查。
-
-\`\`\`
-${REVIEWER_OUTPUT}
-\`\`\`" 2>/dev/null || true
-    exit 1
     ;;
 esac

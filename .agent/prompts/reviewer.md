@@ -39,8 +39,9 @@ validation_gaps:
 - gap or none
 scope_drift:
 - drift or none
-recommendation:
-- approve | revise | block
+recommendation: approve | revise | block
+
+（在 recommendation: 后面直接写 approve、revise 或 block，不要换行或加 - 前缀）
 ```
 
 ## Coordinator 追加的审查分配

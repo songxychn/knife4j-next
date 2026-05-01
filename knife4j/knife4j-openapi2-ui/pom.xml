@@ -85,7 +85,7 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>pnpm</executable>
+                            <executable>bun</executable>
                             <arguments>
                                 <argument>install</argument>
                                 <argument>--frozen-lockfile</argument>
@@ -100,10 +100,9 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>pnpm</executable>
+                            <executable>bun</executable>
                             <arguments>
-                                <argument>exec</argument>
-                                <argument>vite</argument>
+                                <argument>run</argument>
                                 <argument>build</argument>
                                 <argument>--outDir=${knife4j-vue3.outDir}</argument>
                                 <argument>--emptyOutDir</argument>

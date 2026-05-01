@@ -176,6 +176,90 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.bodyContents[0].fileFields).not.toContain('description');
   });
 
+  // WebFlux + springdoc: Flux<FilePart> generates {type:array, items:{type:string,format:binary}}
+  // This test verifies extractFileFields() correctly identifies array-of-binary as a file field
+  // (upstream xiaoymin/knife4j#733)
+  test('parses OAS3 multipart with Flux<FilePart> — array-of-binary schema', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/upload/flux': {
+          post: {
+            requestBody: {
+              required: true,
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      // Flux<FilePart> → springdoc generates array of binary
+                      files: { type: 'array', items: { type: 'string', format: 'binary' } },
+                      // FilePart (single) → string/binary
+                      avatar: { type: 'string', format: 'binary' },
+                      // plain text field — must NOT be treated as file
+                      description: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/upload/flux',
+      method: 'post',
+    });
+
+    expect(model.bodyContents).toHaveLength(1);
+    expect(model.bodyContents[0].category).toBe('multipart');
+    // array-of-binary (Flux<FilePart>) must be in fileFields
+    expect(model.bodyContents[0].fileFields).toContain('files');
+    // single binary (FilePart) must be in fileFields
+    expect(model.bodyContents[0].fileFields).toContain('avatar');
+    // plain string must NOT be in fileFields
+    expect(model.bodyContents[0].fileFields).not.toContain('description');
+  });
+
+  test('parses OAS3 multipart with array-of-base64 schema as file field', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/upload/b64': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      attachments: { type: 'array', items: { type: 'string', format: 'base64' } },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/upload/b64',
+      method: 'post',
+    });
+
+    expect(model.bodyContents[0].fileFields).toContain('attachments');
+  });
+
   test('parses OAS3 with multiple content types in requestBody', () => {
     const doc = {
       openapi: '3.0.1',

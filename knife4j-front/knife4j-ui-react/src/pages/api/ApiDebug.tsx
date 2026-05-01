@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AutoComplete,
   Button,
+  Checkbox,
   Divider,
   Input,
   InputNumber,
@@ -19,7 +21,7 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import { SendOutlined, UploadOutlined } from '@ant-design/icons';
+import { SendOutlined, DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
@@ -296,6 +298,120 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
   xml: 'application/xml',
   html: 'text/html',
 };
+
+// ─── Common HTTP header names for autocomplete ────────
+
+const COMMON_HEADER_NAMES = [
+  'Accept',
+  'Accept-Charset',
+  'Accept-Encoding',
+  'Accept-Language',
+  'Authorization',
+  'Cache-Control',
+  'Connection',
+  'Content-Disposition',
+  'Content-Encoding',
+  'Content-Language',
+  'Content-Length',
+  'Content-Type',
+  'Cookie',
+  'Date',
+  'ETag',
+  'Expect',
+  'Expires',
+  'Host',
+  'If-Match',
+  'If-Modified-Since',
+  'If-None-Match',
+  'If-Unmodified-Since',
+  'Last-Modified',
+  'Origin',
+  'Pragma',
+  'Referer',
+  'Retry-After',
+  'Set-Cookie',
+  'Transfer-Encoding',
+  'User-Agent',
+  'Vary',
+  'WWW-Authenticate',
+  'X-Api-Key',
+  'X-Auth-Token',
+  'X-Forwarded-For',
+  'X-Forwarded-Host',
+  'X-Forwarded-Proto',
+  'X-Request-Id',
+  'X-Requested-With',
+];
+
+// ─── Custom headers section ───────────────────────────
+
+interface CustomHeaderRow {
+  id: string;
+  name: string;
+  value: string;
+}
+
+interface CustomHeadersSectionProps {
+  rows: CustomHeaderRow[];
+  onChange: (rows: CustomHeaderRow[]) => void;
+}
+
+function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
+  const { t } = useTranslation();
+
+  const updateRow = (id: string, field: 'name' | 'value', val: string) => {
+    onChange(rows.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
+  };
+
+  const deleteRow = (id: string) => {
+    onChange(rows.filter((r) => r.id !== id));
+  };
+
+  const addRow = () => {
+    onChange([...rows, { id: `custom-${Date.now()}`, name: '', value: '' }]);
+  };
+
+  const headerOptions = (input: string) =>
+    COMMON_HEADER_NAMES.filter((h) => h.toLowerCase().includes(input.toLowerCase())).map((h) => ({
+      value: h,
+      label: h,
+    }));
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <Space style={{ marginBottom: 4 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {t('apiDebug.customHeaders.title')}
+        </Text>
+        <Button size="small" icon={<PlusOutlined />} onClick={addRow}>
+          {t('apiDebug.customHeaders.add')}
+        </Button>
+      </Space>
+      {rows.map((row) => (
+        <Space key={row.id} style={{ display: 'flex', marginBottom: 4 }} align="center">
+          <AutoComplete
+            size="small"
+            value={row.name}
+            options={headerOptions(row.name)}
+            onChange={(val) => updateRow(row.id, 'name', val)}
+            onSelect={(val) => updateRow(row.id, 'name', val)}
+            placeholder={t('apiDebug.customHeaders.namePlaceholder')}
+            style={{ width: 200 }}
+            filterOption={false}
+          />
+          <Input
+            size="small"
+            value={row.value}
+            onChange={(e) => updateRow(row.id, 'value', e.target.value)}
+            placeholder={t('apiDebug.customHeaders.valuePlaceholder')}
+            style={{ width: 260 }}
+          />
+          <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteRow(row.id)} />
+        </Space>
+      ))}
+    </div>
+  );
+}
 
 // ─── Param input dispatcher ───────────────────────────
 
@@ -1109,7 +1225,10 @@ export default function ApiDebug() {
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
+  // enabled state: keyed by paramKey; GET/DELETE query params default true, all others also true
+  const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
   const [body, setBody] = useState('');
+  const [customHeaders, setCustomHeaders] = useState<CustomHeaderRow[]>([]);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
     return buildOperationDebugModel({
@@ -1161,6 +1280,13 @@ export default function ApiDebug() {
       initial[paramKey(p)] = initialValueFor(p);
     }
     setParamValues(initial);
+
+    // 初始化 enabled 状态：query 参数在 GET/DELETE 下默认勾选，其余参数也默认勾选
+    const initialEnabled: Record<string, boolean> = {};
+    for (const p of allParams) {
+      initialEnabled[paramKey(p)] = true;
+    }
+    setParamEnabled(initialEnabled);
 
     // body 初始值
     const firstBody = debugModel.bodyContents[0];
@@ -1294,6 +1420,17 @@ export default function ApiDebug() {
   const paramColumns = useMemo<ColumnsType<DebugParam>>(
     () => [
       {
+        title: t('apiDebug.col.enabled'),
+        key: 'enabled',
+        width: 48,
+        render: (_value: unknown, record: DebugParam) => (
+          <Checkbox
+            checked={paramEnabled[paramKey(record)] !== false}
+            onChange={(e) => setParamEnabled((prev) => ({ ...prev, [paramKey(record)]: e.target.checked }))}
+          />
+        ),
+      },
+      {
         title: t('apiDebug.col.paramName'),
         dataIndex: 'name',
         key: 'name',
@@ -1368,7 +1505,7 @@ export default function ApiDebug() {
         ),
       },
     ],
-    [paramValues, t, errorKeys],
+    [paramValues, paramEnabled, t, errorKeys],
   );
 
   if (docLoading) {
@@ -1381,10 +1518,11 @@ export default function ApiDebug() {
     );
   }
 
-  /** 按 in 过滤已填值 */
+  /** 按 in 过滤已填值，跳过 enabled=false 的参数 */
   const collectForIn = (params: DebugParam[]): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const p of params) {
+      if (paramEnabled[paramKey(p)] === false) continue;
       const v = paramValues[paramKey(p)];
       if (v !== undefined && v !== '') result[p.name] = v;
     }
@@ -1408,10 +1546,17 @@ export default function ApiDebug() {
   const collectFormValues = (): DebugFormValues => {
     const category = getCurrentCategory();
     const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+    const specHeaders = collectForIn(debugModel.headerParams);
+    const extraHeaders: Record<string, string> = {};
+    for (const row of customHeaders) {
+      if (row.name.trim() && row.value.trim()) {
+        extraHeaders[row.name.trim()] = row.value.trim();
+      }
+    }
     return {
       pathParams: collectForIn(debugModel.pathParams),
       queryParams: collectForIn(debugModel.queryParams),
-      headerParams: collectForIn(debugModel.headerParams),
+      headerParams: { ...extraHeaders, ...specHeaders },
       cookieParams: collectForIn(debugModel.cookieParams),
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
@@ -1679,20 +1824,25 @@ export default function ApiDebug() {
     },
     {
       key: 'header',
-      label: `${t('apiDebug.tab.header')} (${debugModel.headerParams.length})`,
-      disabled: debugModel.headerParams.length === 0 && debugModel.bodyContents.length === 0,
+      label: `${t('apiDebug.tab.header')} (${
+        debugModel.headerParams.length + customHeaders.filter((r) => r.name.trim()).length
+      })`,
+      disabled: false,
       children: (
-        <Table
-          size="small"
-          dataSource={debugModel.headerParams.filter((p) => !p.readOnly)}
-          columns={paramColumns}
-          pagination={false}
-          rowKey={paramKey}
-          locale={{
-            emptyText:
-              debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
-          }}
-        />
+        <>
+          <Table
+            size="small"
+            dataSource={debugModel.headerParams.filter((p) => !p.readOnly)}
+            columns={paramColumns}
+            pagination={false}
+            rowKey={paramKey}
+            locale={{
+              emptyText:
+                debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
+            }}
+          />
+          <CustomHeadersSection rows={customHeaders} onChange={setCustomHeaders} />
+        </>
       ),
     },
     {
