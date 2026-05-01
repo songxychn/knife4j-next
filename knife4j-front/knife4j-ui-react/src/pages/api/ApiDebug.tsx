@@ -8,6 +8,7 @@ import {
   Input,
   InputNumber,
   message,
+  Modal,
   Radio,
   Select,
   Space,
@@ -48,6 +49,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
+import Authorize from '../Authorize';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 
 const { TextArea } = Input;
@@ -1194,6 +1196,7 @@ export default function ApiDebug() {
     });
   }, [operation, swaggerDoc]);
   const [loading, setLoading] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
@@ -1895,6 +1898,31 @@ export default function ApiDebug() {
         onSseAbort={handleSseAbort}
         sseStreaming={sseAbortRef.current !== null}
       />
+      <Modal
+        open={authModalOpen}
+        onCancel={() => setAuthModalOpen(false)}
+        title={t('auth.modal401.title')}
+        footer={[
+          <Button
+            key="resend"
+            type="primary"
+            onClick={() => {
+              setAuthModalOpen(false);
+              void handleSend();
+            }}
+          >
+            {t('auth.modal401.resend')}
+          </Button>,
+          <Button key="close" onClick={() => setAuthModalOpen(false)}>
+            {t('auth.modal401.close')}
+          </Button>,
+        ]}
+        width={680}
+        destroyOnClose
+      >
+        <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
+        <Authorize />
+      </Modal>
     </div>
   );
 }

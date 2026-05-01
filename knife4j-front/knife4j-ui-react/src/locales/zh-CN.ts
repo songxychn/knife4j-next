@@ -312,6 +312,10 @@ const zhCN = {
   'settings.sorter.alpha': '字母序（alpha）',
   'settings.sorter.method': '按方法（method）',
   'settings.sorter.preserve': '保持原序',
+  'auth.modal401.title': '401 未授权 — 需要认证',
+  'auth.modal401.description': '请求返回 401，请在下方配置认证信息后重新发送。',
+  'auth.modal401.resend': '重新发送',
+  'auth.modal401.close': '关闭',
 } as const;
 
 export default zhCN;
