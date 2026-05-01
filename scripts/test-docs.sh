@@ -3,5 +3,5 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../docs-site"
 
-npm ci
-npm run build
+bun install --frozen-lockfile
+bun run build
