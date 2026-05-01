@@ -34,8 +34,16 @@ ISSUE_NUMBER="${1:?用法: trigger-task.sh <issue_number>}"
 
 run_claude() {
   local prompt="$1"
+  # 用临时文件传 prompt，避免命令行参数转义/长度问题导致 Claude Code 收到空 prompt
+  local tmpfile
+  tmpfile=$(mktemp /tmp/claude-prompt-XXXXXX.txt)
+  printf '%s' "$prompt" > "$tmpfile"
+  chmod 644 "$tmpfile"
   su -s /bin/bash "${CLAUDE_USER}" -c \
-    "cd '${REPO_ROOT}' && ${CLAUDE_CMD} $(printf '%q' "$prompt")"
+    "cd '${REPO_ROOT}' && cat '${tmpfile}' | claude --permission-mode bypassPermissions --print"
+  local rc=$?
+  rm -f "$tmpfile"
+  return $rc
 }
 
 # ── 获取 issue 信息 ───────────────────────────────────────────────────────────
@@ -140,7 +148,7 @@ parse_recommendation() {
   local output="$1"
   local rec
   # Pattern 1: "recommendation: approve" on same line
-  rec=$(echo "${output}" | grep -iP 'recommendation[:\s]+\K(approve|revise|block)' | head -1 || true)
+  rec=$(echo "${output}" | grep -oiP 'recommendation[:\s]+\K(approve|revise|block)' | head -1 || true)
   if [[ -z "$rec" ]]; then
     # Pattern 2: YAML list style — "recommendation:" then "- approve" on next line
     rec=$(echo "${output}" | grep -iA1 '^recommendation:' | grep -oiP '(approve|revise|block)' | head -1 || true)
@@ -150,7 +158,11 @@ parse_recommendation() {
     rec=$(echo "${output}" | grep -iP '^[-*]\s*(approve|revise|block)\s*$' | head -1 | grep -oiP 'approve|revise|block' || true)
   fi
   if [[ -z "$rec" ]]; then
-    # Pattern 4: any line containing only the keyword (e.g. bold markdown **approve**)
+    # Pattern 4: "Review Result: REVISE" style (reviewer 常用格式)
+    rec=$(echo "${output}" | grep -oiP 'Review\s+Result[:\s]+\K(approve|revise|block)' | head -1 || true)
+  fi
+  if [[ -z "$rec" ]]; then
+    # Pattern 5: any line containing only the keyword (e.g. bold markdown **approve**)
     rec=$(echo "${output}" | grep -oiP '\b(approve|revise|block)\b' | tail -1 || true)
   fi
   echo "${rec}" | tr '[:upper:]' '[:lower:]' | tr -d ' '
