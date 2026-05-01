@@ -94,11 +94,27 @@ const enUS = {
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'Doc',
   'operation.tab.debug': 'Debug',
+  'operation.tab.openapi': 'OpenAPI',
+  'operation.tab.script': 'Script',
+
+  // ApiOpenApi (ISSUE-206)
+  'apiOpenApi.notFound.title': 'API doc not found',
+  'apiOpenApi.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
+  'apiOpenApi.copied': 'OpenAPI JSON copied',
+  'apiOpenApi.noData': 'No OpenAPI data available for this operation',
+
+  // ApiScript (ISSUE-207)
+  'apiScript.notFound.title': 'API doc not found',
+  'apiScript.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
+  'apiScript.title': 'Code Generation',
+  'apiScript.copied': 'Code copied',
+  'apiScript.noCode': 'No code can be generated for this operation',
 
   // ApiDebug
   'apiDebug.notFound.title': 'Debug interface not found',
   'apiDebug.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
   'apiDebug.col.paramName': 'Name',
+  'apiDebug.col.enabled': 'Enabled',
   'apiDebug.col.type': 'Type',
   'apiDebug.col.value': 'Value',
   'apiDebug.col.description': 'Description',
@@ -117,6 +133,10 @@ const enUS = {
   'apiDebug.tab.body': 'Body',
   'apiDebug.header.autoInject': 'Content-Type is auto-injected by the selected Body type (visible in cURL on send)',
   'apiDebug.noHeaderParams': 'No header parameters',
+  'apiDebug.customHeaders.title': 'Custom Headers',
+  'apiDebug.customHeaders.add': 'Add',
+  'apiDebug.customHeaders.namePlaceholder': 'Header name',
+  'apiDebug.customHeaders.valuePlaceholder': 'Value',
   'apiDebug.noBody': 'This API has no request body',
   'apiDebug.send': 'Send',
   'apiDebug.sending': 'Sending...',

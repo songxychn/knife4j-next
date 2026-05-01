@@ -56,7 +56,8 @@ export default defineConfig({
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '在线 Demo', link: '/guide/demo' },
           { text: '从 upstream 迁移', link: '/guide/migration' },
-          { text: '从 Springfox 迁移到 OpenAPI3', link: '/guide/springfox-migration' }
+          { text: '从 Springfox 迁移到 OpenAPI3', link: '/guide/springfox-migration' },
+          { text: 'OAS2 UI Issue 盘点', link: '/guide/oas2-issue-triage' }
         ]
       },
       {

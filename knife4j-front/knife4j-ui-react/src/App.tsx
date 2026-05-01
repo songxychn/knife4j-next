@@ -29,10 +29,14 @@ const routeKeyToMenuKey = (key: string) =>
   key.endsWith('/doc')
     ? key.slice(0, -4)
     : key.endsWith('/debug')
-    ? key.slice(0, -6)
-    : key.includes('/schema')
-    ? key.replace(/\/schema\/.*$/, '/schema')
-    : key;
+      ? key.slice(0, -6)
+      : key.endsWith('/openapi')
+        ? key.slice(0, -8)
+        : key.endsWith('/script')
+          ? key.slice(0, -7)
+          : key.includes('/schema')
+            ? key.replace(/\/schema\/.*$/, '/schema')
+            : key;
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
@@ -144,7 +148,7 @@ const AppInner: React.FC = () => {
       pathname = location.pathname;
     }
 
-    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug');
+    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug') || pathname.endsWith('/openapi') || pathname.endsWith('/script');
     if (!isApiRoute) {
       restoredRef.current = true;
       return;

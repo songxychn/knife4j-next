@@ -19,6 +19,7 @@ package com.baizhukui.knife4j.demo;
 
 import com.baizhukui.knife4j.demo.dto.UploadMetaDTO;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -98,7 +99,11 @@ public class UploadController {
     @Schema(description = "多文件 + JSON 元数据上传请求体")
     static class UploadFilesWithMetaRequest {
 
-        @Schema(description = "上传的文件列表", type = "array", requiredMode = Schema.RequiredMode.REQUIRED)
+        // @ArraySchema with items format=binary — matches what springdoc generates for
+        // MultipartFile[] and Flux<FilePart> in WebFlux (upstream xiaoymin/knife4j#733).
+        // knife4j-ui extractFileFields() detects {type:array, items:{type:string,format:binary}}
+        // and renders a multi-file Upload widget.
+        @ArraySchema(schema = @Schema(type = "string", format = "binary", description = "上传的文件列表"), minItems = 1)
         public MultipartFile[] files;
 
         @Schema(description = "文件元数据（JSON 格式）", requiredMode = Schema.RequiredMode.REQUIRED)

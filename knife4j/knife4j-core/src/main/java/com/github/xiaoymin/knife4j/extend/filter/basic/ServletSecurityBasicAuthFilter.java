@@ -24,6 +24,7 @@ import lombok.Data;
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 
 /**
@@ -48,11 +49,16 @@ public class ServletSecurityBasicAuthFilter extends AbstractSecurityFilter imple
         HttpServletResponse response = (HttpServletResponse) servletResponse;
         String url = request.getRequestURI();
         if (this.isEnableBasicAuth() && this.match(url)) {
-            Object sessionObject = request.getSession().getAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION);
+            // Use getSession(false) to avoid creating a new session just to check auth state (#816)
+            Object sessionObject = null;
+            HttpSession existingSession = request.getSession(false);
+            if (existingSession != null) {
+                sessionObject = existingSession.getAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION);
+            }
             String auth = request.getHeader(GlobalConstants.AUTH_HEADER_NAME);
             if (this.tryCommonBasic(url, sessionObject, auth)) {
                 if (sessionObject == null) {
-                    request.getSession().setAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION, getUserName());
+                    request.getSession(true).setAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION, getUserName());
                 }
                 chain.doFilter(servletRequest, servletResponse);
             } else {

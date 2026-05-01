@@ -22,6 +22,7 @@ import com.github.xiaoymin.knife4j.extend.util.FilterUtils;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.Data;
 
 import java.io.IOException;
@@ -48,11 +49,16 @@ public class JakartaServletSecurityBasicAuthFilter extends AbstractSecurityFilte
         HttpServletResponse response = (HttpServletResponse) servletResponse;
         String url = request.getRequestURI();
         if (this.isEnableBasicAuth() && this.match(url)) {
-            Object sessionObject = request.getSession().getAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION);
+            // Use getSession(false) to avoid creating a new session just to check auth state (#816)
+            Object sessionObject = null;
+            HttpSession existingSession = request.getSession(false);
+            if (existingSession != null) {
+                sessionObject = existingSession.getAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION);
+            }
             String auth = request.getHeader(GlobalConstants.AUTH_HEADER_NAME);
             if (this.tryCommonBasic(url, sessionObject, auth)) {
                 if (sessionObject == null) {
-                    request.getSession().setAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION, getUserName());
+                    request.getSession(true).setAttribute(GlobalConstants.KNIFE4J_BASIC_AUTH_SESSION, getUserName());
                 }
                 filterChain.doFilter(servletRequest, servletResponse);
             } else {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Button, Form, Input, Select, Table } from 'antd';
+import { AutoComplete, Button, Form, Input, Select, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { GlobalParamItem, useGlobalParam } from '../../context/GlobalParamContext';
+import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { useGlobalParam };
@@ -12,6 +13,8 @@ function GlobalParamInner() {
   const { params, addParam, removeParam } = useGlobalParam();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const paramIn: string = Form.useWatch('in', form) ?? 'header';
 
   const columns = [
     { title: t('globalParam.col.name'), dataIndex: 'name', key: 'name' },
@@ -30,8 +33,13 @@ function GlobalParamInner() {
     setLoading(true);
     addParam(values);
     form.resetFields();
+    setNameInput('');
     setLoading(false);
   };
+
+  const headerOptions = COMMON_HEADER_NAMES.filter((h) =>
+    nameInput ? h.toLowerCase().includes(nameInput.toLowerCase()) : true,
+  ).map((h) => ({ value: h }));
 
   return (
     <div id="knife4j-global-param-page" style={{ padding: 16 }}>
@@ -46,7 +54,16 @@ function GlobalParamInner() {
             rules={[{ required: true, message: t('globalParam.validation.name') }]}
             style={{ flex: 1, minWidth: 0, marginBottom: 0 }}
           >
-            <Input placeholder={t('globalParam.placeholder.name')} />
+            {paramIn === 'header' ? (
+              <AutoComplete
+                options={headerOptions}
+                onSearch={setNameInput}
+                placeholder={t('globalParam.placeholder.name')}
+                allowClear
+              />
+            ) : (
+              <Input placeholder={t('globalParam.placeholder.name')} />
+            )}
           </Form.Item>
           <Form.Item
             name="value"

@@ -56,9 +56,12 @@ public class ProductionSecurityFilter extends BasicFilter implements Filter {
             if (!match(uri)) {
                 chain.doFilter(request, response);
             } else {
-                response.setContentType("text/palin;charset=UTF-8");
-                PrintWriter pw = response.getWriter();
-                pw.write("You do not have permission to access this page");
+                // Return JSON to avoid servlet container rendering an HTML error page (#666, #859)
+                javax.servlet.http.HttpServletResponse resp = (javax.servlet.http.HttpServletResponse) response;
+                resp.setStatus(403);
+                resp.setContentType("application/json;charset=UTF-8");
+                PrintWriter pw = resp.getWriter();
+                pw.write("{\"code\":403,\"message\":\"You do not have permission to access this page\"}");
                 pw.flush();
             }
         } else {
