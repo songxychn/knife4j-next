@@ -48,6 +48,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
+import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -296,50 +297,6 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
   xml: 'application/xml',
   html: 'text/html',
 };
-
-// ─── Common HTTP header names for autocomplete ────────
-
-const COMMON_HEADER_NAMES = [
-  'Accept',
-  'Accept-Charset',
-  'Accept-Encoding',
-  'Accept-Language',
-  'Authorization',
-  'Cache-Control',
-  'Connection',
-  'Content-Disposition',
-  'Content-Encoding',
-  'Content-Language',
-  'Content-Length',
-  'Content-Type',
-  'Cookie',
-  'Date',
-  'ETag',
-  'Expect',
-  'Expires',
-  'Host',
-  'If-Match',
-  'If-Modified-Since',
-  'If-None-Match',
-  'If-Unmodified-Since',
-  'Last-Modified',
-  'Origin',
-  'Pragma',
-  'Referer',
-  'Retry-After',
-  'Set-Cookie',
-  'Transfer-Encoding',
-  'User-Agent',
-  'Vary',
-  'WWW-Authenticate',
-  'X-Api-Key',
-  'X-Auth-Token',
-  'X-Forwarded-For',
-  'X-Forwarded-Host',
-  'X-Forwarded-Proto',
-  'X-Request-Id',
-  'X-Requested-With',
-];
 
 // ─── Custom headers section ───────────────────────────
 
