@@ -15,8 +15,11 @@
 - 只读取 .agent/RUNBOOK.md 中与你分配范围相关的验证部分。
 - ⚠️ .agent/TASKS.md 和 .agent/PROGRESS.md 已冻结，不要读取或修改。任务详情从 coordinator 的分配中获取。
 
-范围规则：
-- 停留在分配的文件、目录或模块内。
+范围规则（硬性约束，不得违反）：
+- ⚠️ 只修改 coordinator 在 "Allowed files or modules" 中明确列出的文件和目录。
+- ⚠️ 如果完成任务必须修改范围外的文件，立即停止，在 handoff 的 risks 里说明原因，等 coordinator 决定。不要自行修改。
+- ⚠️ 发现范围外的 bug、改进点或相关功能机会，记录到 handoff 的 follow_up，不要动手实现。
+- ⚠️ 不要在同一个 branch 上实现其他 issue 的功能，即使它们看起来相似或相关。
 - 不要修改 GitHub Issue label（只有 coordinator 可以变更任务状态）。
 - 不要修改 .agent/TASKS.md、.agent/PROGRESS.md（已冻结）或 PR 描述。
 - 不要做无关清理。

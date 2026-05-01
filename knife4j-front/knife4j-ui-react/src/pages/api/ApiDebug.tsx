@@ -8,7 +8,6 @@ import {
   Input,
   InputNumber,
   message,
-  Modal,
   Radio,
   Select,
   Space,
@@ -49,7 +48,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
-import Authorize from '../Authorize';
+import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -298,50 +297,6 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
   xml: 'application/xml',
   html: 'text/html',
 };
-
-// ─── Common HTTP header names for autocomplete ────────
-
-const COMMON_HEADER_NAMES = [
-  'Accept',
-  'Accept-Charset',
-  'Accept-Encoding',
-  'Accept-Language',
-  'Authorization',
-  'Cache-Control',
-  'Connection',
-  'Content-Disposition',
-  'Content-Encoding',
-  'Content-Language',
-  'Content-Length',
-  'Content-Type',
-  'Cookie',
-  'Date',
-  'ETag',
-  'Expect',
-  'Expires',
-  'Host',
-  'If-Match',
-  'If-Modified-Since',
-  'If-None-Match',
-  'If-Unmodified-Since',
-  'Last-Modified',
-  'Origin',
-  'Pragma',
-  'Referer',
-  'Retry-After',
-  'Set-Cookie',
-  'Transfer-Encoding',
-  'User-Agent',
-  'Vary',
-  'WWW-Authenticate',
-  'X-Api-Key',
-  'X-Auth-Token',
-  'X-Forwarded-For',
-  'X-Forwarded-Host',
-  'X-Forwarded-Proto',
-  'X-Request-Id',
-  'X-Requested-With',
-];
 
 // ─── Custom headers section ───────────────────────────
 
@@ -1255,9 +1210,6 @@ export default function ApiDebug() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
-  // ── issue-226: 401 自动弹出认证对话框 ──
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
   const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
@@ -1746,8 +1698,6 @@ export default function ApiDebug() {
         filename,
         kind,
       });
-
-      // 401 is handled above (before SSE/non-SSE branching); no duplicate check needed here.
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -1945,17 +1895,6 @@ export default function ApiDebug() {
         onSseAbort={handleSseAbort}
         sseStreaming={sseAbortRef.current !== null}
       />
-
-      <Modal
-        open={authModalOpen}
-        onCancel={() => setAuthModalOpen(false)}
-        footer={null}
-        title={t('apiDebug.auth.modal.title')}
-        width={680}
-        destroyOnClose
-      >
-        <Authorize />
-      </Modal>
     </div>
   );
 }

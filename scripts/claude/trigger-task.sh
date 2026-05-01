@@ -29,22 +29,6 @@ warn() { log "[WARN] $*"; }
 # ── 参数 ──────────────────────────────────────────────────────────────────────
 ISSUE_NUMBER="${1:?用法: trigger-task.sh <issue_number>}"
 
-# ── Claude Code 调用（每次都是独立的新进程）──────────────────────────────────
-
-run_claude() {
-  local prompt="$1"
-  local tmpfile
-  tmpfile=$(mktemp /tmp/claude-prompt-XXXXXX.txt)
-  printf '%s' "$prompt" > "$tmpfile"
-  chmod 644 "$tmpfile"
-  # 每次调用都是全新的 su + claude 进程，不共享上下文
-  su -s /bin/bash "${CLAUDE_USER}" -c \
-    "cd '${REPO_ROOT}' && cat '${tmpfile}' | claude --permission-mode bypassPermissions --print"
-  local rc=$?
-  rm -f "$tmpfile"
-  return $rc
-}
-
 # ── 获取 issue 信息 ───────────────────────────────────────────────────────────
 
 info "获取 issue #${ISSUE_NUMBER} 信息..."
@@ -67,6 +51,65 @@ gh issue edit "${ISSUE_NUMBER}" --repo "${REPO}" \
 WORKER_TEMPLATE=$(cat "${REPO_ROOT}/.agent/prompts/worker.md")
 REVIEWER_TEMPLATE=$(cat "${REPO_ROOT}/.agent/prompts/reviewer.md")
 
+# ── Git worktree 管理 ─────────────────────────────────────────────────────────
+# 每次从干净的 master 创建独立 worktree，避免旧 branch 上的历史 commit 污染
+
+BRANCH="agent/issue-${ISSUE_NUMBER}-$(date +%s)"
+WORKTREE_DIR="/tmp/worktree-issue-${ISSUE_NUMBER}"
+
+setup_worktree() {
+  # 清理可能残留的旧 worktree
+  if [[ -d "${WORKTREE_DIR}" ]]; then
+    warn "清理残留 worktree: ${WORKTREE_DIR}"
+    git -C "${REPO_ROOT}" worktree remove --force "${WORKTREE_DIR}" 2>/dev/null || true
+    rm -rf "${WORKTREE_DIR}"
+  fi
+
+  # 确保本地 master 是最新的
+  info "更新 master..."
+  git -C "${REPO_ROOT}" fetch origin master
+  git -C "${REPO_ROOT}" checkout master
+  git -C "${REPO_ROOT}" merge --ff-only origin/master 2>/dev/null || true
+
+  # 创建新 worktree，从 master 开一个干净的新 branch
+  info "创建 worktree: ${WORKTREE_DIR} (branch: ${BRANCH})"
+  git -C "${REPO_ROOT}" worktree add "${WORKTREE_DIR}" -b "${BRANCH}" master
+
+  # worktree 里的 git remote 和 SSH 配置继承自主仓库，无需额外配置
+  info "Worktree 就绪"
+}
+
+cleanup_worktree() {
+  if [[ -d "${WORKTREE_DIR}" ]]; then
+    info "清理 worktree: ${WORKTREE_DIR}"
+    git -C "${REPO_ROOT}" worktree remove --force "${WORKTREE_DIR}" 2>/dev/null || true
+    rm -rf "${WORKTREE_DIR}"
+  fi
+}
+
+# 确保退出时清理 worktree
+trap cleanup_worktree EXIT
+
+setup_worktree
+
+# ── Claude Code 调用（每次都是独立的新进程）──────────────────────────────────
+
+run_claude() {
+  local prompt="$1"
+  local workdir="${2:-${WORKTREE_DIR}}"
+  local tmpfile
+  tmpfile=$(mktemp /tmp/claude-prompt-XXXXXX.txt)
+  printf '%s' "$prompt" > "$tmpfile"
+  chmod 644 "$tmpfile"
+  # 每次调用都是全新的 su + claude 进程，不共享上下文
+  # worker 在 worktree 目录里工作，reviewer 在主仓库目录里工作
+  su -s /bin/bash "${CLAUDE_USER}" -c \
+    "cd '${workdir}' && cat '${tmpfile}' | claude --permission-mode bypassPermissions --print"
+  local rc=$?
+  rm -f "$tmpfile"
+  return $rc
+}
+
 # ── run_worker ────────────────────────────────────────────────────────────────
 
 run_worker() {
@@ -85,6 +128,7 @@ ${findings}
 
 修复要求：
 - 针对每条 finding 说明你的处理方式
+- 只修改 Allowed files 范围内的文件
 - 修改完成后重新运行验证命令确认通过
 - 返回更新后的 handoff
 "
@@ -96,32 +140,38 @@ Task id: issue-${ISSUE_NUMBER}
 Task title: ${ISSUE_TITLE}
 Issue URL: https://github.com/${REPO}/issues/${ISSUE_NUMBER}
 Assigned scope: 见 issue 描述
-Disallowed files: .agent/TASKS.md, .agent/PROGRESS.md
+Allowed files or modules: 见 issue 描述中的「相关文件」部分；如未列出，默认只允许修改与 issue 直接相关的文件
+Disallowed files: .agent/TASKS.md, .agent/PROGRESS.md，以及所有与本 issue 无关的文件
 Validation command: 见 issue 描述或 .agent/RUNBOOK.md
 Done condition: 代码改动完成，验证通过，返回标准 handoff
+Extra constraints: 你在独立的 git worktree 中工作（${WORKTREE_DIR}），branch 是 ${BRANCH}，从干净的 master 开始。不要切换 branch，不要操作主仓库目录。
 ${revise_section}
 Issue body:
 $(echo "${ISSUE_JSON}" | jq -r '.body // ""')
 "
 
-  run_claude "$prompt"
+  # worker 在 worktree 里工作
+  run_claude "$prompt" "${WORKTREE_DIR}"
 }
 
-# ── run_reviewer（独立新进程，不继承 worker 上下文）──────────────────────────
+# ── run_reviewer（独立新进程，在主仓库目录工作）──────────────────────────────
 
 run_reviewer() {
   local worker_output="$1"
-  local branch="$2"
+
+  # 推送 branch 到远端，reviewer 通过 fetch 拿到最新 diff
+  info "推送 branch ${BRANCH} 到远端供 reviewer 使用..."
+  git -C "${WORKTREE_DIR}" push -u origin "${BRANCH}" 2>&1 || true
 
   local diff
-  diff=$(cd "${REPO_ROOT}" && git fetch origin "${branch}" 2>/dev/null && \
-         git diff "master...origin/${branch}" 2>/dev/null | head -500 || \
-         git diff "master...${branch}" 2>/dev/null | head -500 || echo "(diff unavailable)")
+  diff=$(git -C "${REPO_ROOT}" fetch origin "${BRANCH}" 2>/dev/null && \
+         git -C "${REPO_ROOT}" diff "master...origin/${BRANCH}" 2>/dev/null | head -500 || \
+         echo "(diff unavailable)")
 
   local prompt="${REVIEWER_TEMPLATE}
 
 Task id: issue-${ISSUE_NUMBER}
-Branch to review: ${branch}
+Branch to review: ${BRANCH}
 Issue URL: https://github.com/${REPO}/issues/${ISSUE_NUMBER}
 Reviewer constraints: 只返回 findings，不修改代码
 
@@ -132,8 +182,8 @@ Diff (first 500 lines):
 ${diff}
 "
 
-  # 独立的新 claude 进程，与 worker 完全隔离
-  run_claude "$prompt"
+  # reviewer 在主仓库目录工作（独立进程，不继承 worker 上下文）
+  run_claude "$prompt" "${REPO_ROOT}"
 }
 
 # ── parse_recommendation ──────────────────────────────────────────────────────
@@ -162,7 +212,6 @@ parse_recommendation() {
 WORKER_OUTPUT=""
 REVIEWER_OUTPUT=""
 RECOMMENDATION=""
-BRANCH=""
 ROUND=0
 REVIEWER_FINDINGS=""
 
@@ -170,8 +219,8 @@ while [[ $ROUND -lt $MAX_REVISE_ROUNDS ]]; do
   ROUND=$(( ROUND + 1 ))
   info "=== Round ${ROUND}/${MAX_REVISE_ROUNDS} ==="
 
-  # Phase 1: Worker（独立进程）
-  info "--- Phase 1: Worker ---"
+  # Phase 1: Worker（在 worktree 里工作）
+  info "--- Phase 1: Worker (worktree: ${WORKTREE_DIR}) ---"
   WORKER_OUTPUT=$(run_worker "${REVIEWER_FINDINGS}") || {
     err "Worker 执行失败（round ${ROUND}）"
     gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
@@ -181,23 +230,9 @@ while [[ $ROUND -lt $MAX_REVISE_ROUNDS ]]; do
   info "Worker 完成，输出长度: ${#WORKER_OUTPUT}"
   echo "${WORKER_OUTPUT}" | tail -30
 
-  # 提取分支名
-  BRANCH=$(echo "${WORKER_OUTPUT}" | grep -oP '(feat|fix|chore|agent)/issue-\d+[^\s"]*' | head -1 || true)
-  if [[ -z "$BRANCH" ]]; then
-    BRANCH="feat/issue-${ISSUE_NUMBER}"
-  fi
-  info "推断分支: ${BRANCH}"
-
-  # 确保 branch 已推到远端（reviewer 需要 fetch）
-  cd "${REPO_ROOT}"
-  if git show-ref --verify --quiet "refs/heads/${BRANCH}" 2>/dev/null; then
-    info "推送分支 ${BRANCH} 到远端..."
-    git push -u origin "${BRANCH}" 2>&1 || true
-  fi
-
-  # Phase 2: Reviewer（全新独立进程，不继承 worker 上下文）
-  info "--- Phase 2: Reviewer (new process) ---"
-  REVIEWER_OUTPUT=$(run_reviewer "${WORKER_OUTPUT}" "${BRANCH}") || {
+  # Phase 2: Reviewer（在主仓库目录，独立新进程）
+  info "--- Phase 2: Reviewer (new process, main repo) ---"
+  REVIEWER_OUTPUT=$(run_reviewer "${WORKER_OUTPUT}") || {
     err "Reviewer 执行失败（round ${ROUND}）"
     exit 1
   }
@@ -248,7 +283,7 @@ case "${RECOMMENDATION}" in
   approve)
     info "准备开 PR..."
 
-    PR_URL=$(cd "${REPO_ROOT}" && gh pr create \
+    PR_URL=$(gh pr create \
       --repo "${REPO}" \
       --head "${BRANCH}" \
       --base master \
@@ -280,7 +315,7 @@ ${REVIEWER_OUTPUT}
       --message "🔪 [Issue #${ISSUE_NUMBER}] PR #${PR_NUMBER} 已创建：${PR_URL}" 2>/dev/null || true
 
     info "等待 CI..."
-    cd "${REPO_ROOT}" && gh pr checks "${PR_NUMBER}" --repo "${REPO}" --watch || {
+    gh pr checks "${PR_NUMBER}" --repo "${REPO}" --watch || {
       warn "CI 有失败，需人工检查"
       gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
         --body "⚠️ PR #${PR_NUMBER} CI 失败，需人工检查。" 2>/dev/null || true

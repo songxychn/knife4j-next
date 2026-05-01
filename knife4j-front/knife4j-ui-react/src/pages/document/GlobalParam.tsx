@@ -3,49 +3,7 @@ import { AutoComplete, Button, Form, Input, Select, Table } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { GlobalParamItem, useGlobalParam } from '../../context/GlobalParamContext';
-
-const COMMON_HEADER_NAMES = [
-  'Accept',
-  'Accept-Charset',
-  'Accept-Encoding',
-  'Accept-Language',
-  'Accept-Ranges',
-  'Authorization',
-  'Cache-Control',
-  'Connection',
-  'Content-Encoding',
-  'Content-Language',
-  'Content-Length',
-  'Content-Location',
-  'Content-MD5',
-  'Content-Range',
-  'Content-Type',
-  'Cookie',
-  'Date',
-  'Expect',
-  'From',
-  'Host',
-  'If-Match',
-  'If-Modified-Since',
-  'If-None-Match',
-  'If-Range',
-  'If-Unmodified-Since',
-  'Max-Forwards',
-  'Origin',
-  'Pragma',
-  'Proxy-Authorization',
-  'Range',
-  'Referer',
-  'TE',
-  'Upgrade',
-  'User-Agent',
-  'Via',
-  'Warning',
-  'X-Forwarded-For',
-  'X-Forwarded-Host',
-  'X-Forwarded-Proto',
-  'X-Requested-With',
-];
+import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export { useGlobalParam };
