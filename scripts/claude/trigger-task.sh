@@ -252,6 +252,13 @@ case "${RECOMMENDATION}" in
   approve)
     info "准备开 PR..."
 
+    # 确保 branch 已推到远端（worker 可能只在本地创建了 branch）
+    cd "${REPO_ROOT}"
+    if git show-ref --verify --quiet "refs/heads/${BRANCH}" 2>/dev/null; then
+      info "推送分支 ${BRANCH} 到远端..."
+      git push -u origin "${BRANCH}" 2>&1 || true
+    fi
+
     PR_URL=$(cd "${REPO_ROOT}" && gh pr create \
       --repo "${REPO}" \
       --head "${BRANCH}" \
