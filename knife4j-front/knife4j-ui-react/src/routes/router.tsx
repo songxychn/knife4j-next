@@ -12,6 +12,7 @@ import ApiHome from '../pages/api/ApiHome.tsx';
 import ApiDoc from '../pages/api/ApiDoc.tsx';
 import ApiDebug from '../pages/api/ApiDebug.tsx';
 import OpenApiView from '../pages/api/OpenApiView.tsx';
+import ScriptView from '../pages/api/ScriptView.tsx';
 
 const router = createHashRouter([
   {
@@ -65,6 +66,10 @@ const router = createHashRouter([
       {
         path: ':group/:tag/:operaterId/openapi',
         element: <OpenApiView />,
+      },
+      {
+        path: ':group/:tag/:operaterId/script',
+        element: <ScriptView />,
       },
     ],
   },
