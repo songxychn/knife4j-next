@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# trigger-task.sh - 执行 worker 阶段，完成后由 coordinator 做 review
+# run-worker.sh - 只跑 worker 阶段，输出 handoff 到 stdout
 #
 # 用法:
-#   trigger-task.sh <issue_number> [reviewer_findings_file]
+#   run-worker.sh <issue_number> [reviewer_findings_file]
 #
 # 退出码:
-#   0 - worker 完成，handoff 已写入 /tmp/handoff-<issue>.txt，等待 coordinator review
+#   0 - worker 完成，handoff 已输出
 #   1 - 执行失败
 
 set -euo pipefail
@@ -15,12 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CLAUDE_USER="claude-worker"
 
-log()  { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
+log()  { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*" >&2; }
 err()  { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] [ERROR] $*" >&2; }
 info() { log "[INFO] $*"; }
-warn() { log "[WARN] $*"; }
 
-ISSUE_NUMBER="${1:?用法: trigger-task.sh <issue_number> [reviewer_findings_file]}"
+ISSUE_NUMBER="${1:?用法: run-worker.sh <issue_number> [reviewer_findings_file]}"
 FINDINGS_FILE="${2:-}"
 
 # ── 获取 issue 信息 ───────────────────────────────────────────────────────────
@@ -86,47 +85,9 @@ printf '%s' "$PROMPT" > "$TMPFILE"
 chmod 644 "$TMPFILE"
 
 info "启动 worker..."
-HANDOFF_FILE="/tmp/handoff-${ISSUE_NUMBER}.txt"
 su -s /bin/bash "${CLAUDE_USER}" -c \
-  "cd '${REPO_ROOT}' && cat '${TMPFILE}' | claude --permission-mode bypassPermissions --print" \
-  > "$HANDOFF_FILE" 2>&1
+  "cd '${REPO_ROOT}' && cat '${TMPFILE}' | claude --permission-mode bypassPermissions --print"
 RC=$?
 rm -f "$TMPFILE"
 
-if [[ $RC -ne 0 ]]; then
-  err "Worker 执行失败（exit $RC）"
-  gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" \
-    --body "🚫 Worker phase failed. Manual intervention required." 2>/dev/null || true
-  gh issue edit "${ISSUE_NUMBER}" --repo "${REPO}" \
-    --remove-label "status:in-progress" \
-    --add-label "status:blocked" 2>/dev/null || true
-  exit 1
-fi
-
-# ── 提取分支名 ────────────────────────────────────────────────────────────────
-
-BRANCH=$(grep -oP '(feat|fix|chore|agent)/issue-\d+[^\s"]*' "$HANDOFF_FILE" | head -1 || true)
-if [[ -z "$BRANCH" ]]; then
-  BRANCH="feat/issue-${ISSUE_NUMBER}"
-fi
-info "推断分支: ${BRANCH}"
-
-# ── 确保 branch 已推到远端 ────────────────────────────────────────────────────
-
-cd "${REPO_ROOT}"
-if git show-ref --verify --quiet "refs/heads/${BRANCH}" 2>/dev/null; then
-  info "推送分支 ${BRANCH} 到远端..."
-  git push -u origin "${BRANCH}" 2>&1 || true
-fi
-
-# ── 输出 handoff 摘要，通知 coordinator 来做 review ──────────────────────────
-
-info "Worker 完成，handoff 已写入 ${HANDOFF_FILE}"
-info "Branch: ${BRANCH}"
-info "等待 coordinator review..."
-
-# 输出 handoff 内容（coordinator 读取）
-cat "$HANDOFF_FILE"
-
-echo ""
-echo "WORKER_DONE issue=${ISSUE_NUMBER} branch=${BRANCH} handoff=${HANDOFF_FILE}"
+exit $RC
