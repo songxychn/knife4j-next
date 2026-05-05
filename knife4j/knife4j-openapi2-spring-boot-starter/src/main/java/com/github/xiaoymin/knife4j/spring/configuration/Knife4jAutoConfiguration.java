@@ -194,16 +194,13 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnMissingBean(ProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
     public ProductionSecurityFilter productionSecurityFilter(Knife4jProperties knife4jProperties) {
-        Knife4jSetting setting = knife4jProperties.getSetting() != null ? knife4jProperties.getSetting() : new Knife4jSetting();
-        ProductionSecurityFilter p = null;
         if (knife4jProperties == null) {
             int customCode = EnvironmentUtils.resolveInt(environment, "knife4j.setting.custom-code", 200);
             boolean prod = EnvironmentUtils.resolveBool(environment, "knife4j.production", Boolean.FALSE);
-            p = new ProductionSecurityFilter(prod, customCode);
-        } else {
-            p = new ProductionSecurityFilter(knife4jProperties.isProduction(), setting.getCustomCode());
+            return new ProductionSecurityFilter(prod, customCode);
         }
-        return p;
+        Knife4jSetting setting = knife4jProperties.getSetting() != null ? knife4jProperties.getSetting() : new Knife4jSetting();
+        return new ProductionSecurityFilter(knife4jProperties.isProduction(), setting.getCustomCode());
     }
 
 }
