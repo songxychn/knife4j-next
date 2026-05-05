@@ -24,6 +24,30 @@ title: 发布说明
 - ApiDoc 工具栏：移除 Copy Endpoint，Copy URL 改名为 Copy Page URL
 - GlobalParam：新增按钮与表单控件同行，窄 Drawer 不再溢出
 
+**OAS2 前端产物切换到 Vue 3**
+
+从 5.0.0-SNAPSHOT 起，`knife4j-openapi2-ui` webjar 和
+`knife4j-aggregation-spring-boot-starter` 的 doc.html 产物不再来自 upstream Vue 2 源码
+（仓库内 `knife4j-vue/`），而是由本仓库 `knife4j-vue3/`（Vue 3 + Vite）构建产出。
+
+- 对下游用户：`doc.html` 访问入口、URL 格式（`$` 分隔符保留）、`localStorage` key 保持兼容，
+  默认场景下无感知。
+- 依赖栈升级：Vue 2.6 → Vue 3.3、`ant-design-vue` 1.x → 3.x、Vuex → Pinia、`vue-cli` → Vite、
+  `vue-i18n` 8 → 9.14+、Mermaid 升级至 11.x。
+- Maven 构建：`knife4j/knife4j-openapi2-ui/pom.xml` 通过 `exec-maven-plugin` 调用
+  `bun install --frozen-lockfile` + `bun run build` 生成产物并拷贝至
+  `META-INF/resources/`。构建机需要 [Bun](https://bun.com/) 1.3.13+，Java CI 已启用。
+- `knife4j-vue/` 作为历史参考保留，不再参与任何 Maven 构建，详见 `knife4j-vue/README.md`。
+- 影响范围表：
+
+  | 模块 | 前端产物来源 |
+  | --- | --- |
+  | `knife4j-openapi2-ui`（webjar） | `knife4j-vue3`（本次切换） |
+  | `knife4j-aggregation-spring-boot-starter` | `knife4j-openapi2-ui`，间接切换 |
+  | `knife4j-openapi3-ui`（webjar） | `knife4j-front/knife4j-ui-react`，未变 |
+  | `knife4j-aggregation-jakarta-spring-boot-starter` | `knife4j-openapi3-ui`，未变 |
+  | `knife4j-gateway-spring-boot-starter` | `knife4j-openapi3-ui`，未变 |
+
 **新功能**
 
 - OAuth2 授权码 / 隐式模式弹窗流程（`oauth2-redirect.html` 回跳页面）
