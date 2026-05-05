@@ -18,6 +18,8 @@
 package com.github.xiaoymin.knife4j.smoke.boot3;
 
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,7 +28,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,6 +39,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 public class Boot3JakartaDocHttpSmokeTest {
 
@@ -92,6 +98,58 @@ public class Boot3JakartaDocHttpSmokeTest {
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertFalse("doc.html should not return HTML content when production=true",
                 docHtml.body.contains("webjars/knife4j-ui-react/"));
+    }
+
+    /**
+     * Lock the springdoc schema contract that
+     * {@code @ArraySchema(schema = @Schema(type = "string", format = "binary"))} on a
+     * {@link MultipartFile}[] field (the canonical way to declare a multi-file upload, equivalent
+     * to what springdoc emits for WebFlux {@code Flux<FilePart>}) produces the
+     * {@code {"type":"array","items":{"type":"string","format":"binary"}}} OAS3 schema consumed by
+     * {@code knife4j-core}'s {@code extractFileFields()} (upstream xiaoymin/knife4j#733).
+     *
+     * <p>This closes the loop for issue #227: the front-end unit tests in
+     * {@code knife4j-front/knife4j-core/src/__tests__/debug/operationDebugModel.test.ts} assert the
+     * parser side of this schema; this smoke assertion guarantees springdoc on the server side
+     * actually emits that shape.
+     */
+    @Test
+    public void shouldExposeArrayOfBinarySchemaForMultipartArrayUpload() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        String body = apiDocs.body;
+        // The upload endpoint must be present.
+        Assert.assertTrue("api-docs should contain /upload-array path (#227)", body.contains("/upload-array"));
+        // The 'files' property must be an array whose items carry format:"binary".
+        //
+        // Important: springdoc 2.x (3.1 OAS) collapses @ArraySchema(schema=@Schema(type="string",
+        // format="binary")) to {items:{format:"binary", description:...}}, i.e. it drops an explicit
+        // type:"string" inside items. knife4j-core's extractFileFields() treats any items with
+        // format:"binary" as a file field, so this shape is still the upload schema contract the
+        // front-end consumes (upstream xiaoymin/knife4j#733).
+        //
+        // The regex matches the property declaration on one line, tolerating any field order inside
+        // items but requiring the array+binary+files-property triple to be co-located. DOTALL lets
+        // '.' span whatever whitespace springdoc emits.
+        Pattern filesArrayOfBinary = Pattern.compile(
+                "\"files\"\\s*:\\s*\\{[^{}]*\"type\"\\s*:\\s*\"array\"[^{}]*\"items\"\\s*:\\s*\\{[^{}]*\"format\"\\s*:\\s*\"binary\"",
+                Pattern.DOTALL);
+        Assert.assertTrue(
+                "springdoc should emit array-of-binary schema for the 'files' property annotated with "
+                        + "@ArraySchema(schema=@Schema(type=\"string\",format=\"binary\")). Full api-docs excerpt:\n"
+                        + body,
+                filesArrayOfBinary.matcher(body).find());
     }
 
     @Test
@@ -161,5 +219,27 @@ public class Boot3JakartaDocHttpSmokeTest {
         public String hello() {
             return "hello";
         }
+
+        /**
+         * Multi-file upload endpoint used to assert the springdoc schema contract in
+         * {@link #shouldExposeArrayOfBinarySchemaForMultipartArrayUpload()}. The
+         * {@code @ArraySchema(schema = @Schema(type = "string", format = "binary"))} annotation is
+         * the canonical pattern for declaring a multi-file upload and produces the OAS3 schema that
+         * {@code knife4j-core}'s {@code extractFileFields()} detects as a file field.
+         *
+         * <p>The actual request handling is irrelevant for a schema-only smoke; the method only
+         * needs to be reachable to springdoc's class scan.
+         */
+        @PostMapping(path = "/upload-array", consumes = "multipart/form-data")
+        public String uploadArray(@RequestBody UploadArrayRequest request) {
+            return "ok";
+        }
+    }
+
+    @Schema(description = "Multipart request body with an array of files")
+    public static class UploadArrayRequest {
+
+        @ArraySchema(schema = @Schema(type = "string", format = "binary", description = "Files to upload"))
+        public MultipartFile[] files;
     }
 }
