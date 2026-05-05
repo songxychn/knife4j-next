@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import zhCN from './locales/zh-CN';
 import enUS from './locales/en-US';
+import jaJP from './locales/ja-JP';
 
 i18n
   .use(LanguageDetector)
@@ -11,6 +12,7 @@ i18n
     resources: {
       'zh-CN': { translation: zhCN },
       'en-US': { translation: enUS },
+      'ja-JP': { translation: jaJP },
     },
     fallbackLng: 'zh-CN',
     interpolation: {
