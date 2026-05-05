@@ -148,7 +148,11 @@ const AppInner: React.FC = () => {
       pathname = location.pathname;
     }
 
-    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug') || pathname.endsWith('/openapi') || pathname.endsWith('/script');
+    const isApiRoute =
+      pathname.endsWith('/doc') ||
+      pathname.endsWith('/debug') ||
+      pathname.endsWith('/openapi') ||
+      pathname.endsWith('/script');
     if (!isApiRoute) {
       restoredRef.current = true;
       return;
@@ -236,10 +240,10 @@ const AppInner: React.FC = () => {
       const title = schemaInfo
         ? t('schema.title')
         : markdownDoc
-        ? markdownDoc.title
-        : api
-        ? `${api.method.toUpperCase()} ${api.summary}`
-        : rawKey;
+          ? markdownDoc.title
+          : api
+            ? `${api.method.toUpperCase()} ${api.summary}`
+            : rawKey;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
     setSelectedKey(routeKeyToMenuKey(newActiveKey));
