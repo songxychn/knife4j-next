@@ -58,6 +58,19 @@ export interface BodyContent {
   /** multipart 场景中标记哪些字段是 file / binary */
   fileFields?: string[];
   /**
+   * `fileFields` 中允许多文件（schema `type:"array"` + `items.format:"binary"`，对应
+   * 后端 `MultipartFile[]` / `Flux<FilePart>`）的字段名子集。
+   *
+   * 之所以用旁路字段而不是把 `fileFields` 改成 `{name, multiple}[]`：`fileFields:
+   * string[]` 已被 `requestBuilder.validateRequired` 等外部调用方消费，改变形状会引入
+   * 连锁破坏。UI 层只需同时查两张表：字段在 `fileFields` 里即文件字段，在
+   * `fileFieldsMultiple` 里即允许多选；否则为单文件（`<Upload multiple={false}>`，
+   * FormData 组装时只追加一份）。
+   *
+   * 上游参考：xiaoymin/knife4j#733；本仓 issue #227、#251。
+   */
+  fileFieldsMultiple?: string[];
+  /**
    * multipart 场景中标记哪些字段的 encoding.contentType = application/json，
    * 这些字段在 UI 中以 JSON 文本框形式提交，发送时作为独立 JSON part 附加。
    */
