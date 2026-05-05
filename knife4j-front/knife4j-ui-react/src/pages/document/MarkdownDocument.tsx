@@ -10,14 +10,20 @@ const MarkdownDocument: React.FC = () => {
     groupIndex: string;
     itemIndex: string;
   }>();
-  const { markdownDocs } = useGroup();
+  const { markdownDocs, loading } = useGroup();
   const { t } = useTranslation();
 
   const key = `/${group}/markdown/${groupIndex}/${itemIndex}`;
   const doc = markdownDocs.find((d) => d.key === key);
 
   if (!doc) {
-    return <div style={{ padding: 24, color: '#999', textAlign: 'center' }}>{t('markdownDocNotFound')}</div>;
+    // `loading=true` means either the group list or the swaggerDoc for the
+    // active group is still being fetched. In that window `markdownDocs` is
+    // always empty, so rendering the "not found" message would flash on every
+    // page load/refresh. Surface a neutral loading state instead; switch to
+    // the "not found" copy only once loading has completed.
+    const emptyCopy = loading ? t('markdownDocLoading') : t('markdownDocNotFound');
+    return <div style={{ padding: 24, color: '#999', textAlign: 'center' }}>{emptyCopy}</div>;
   }
 
   return (

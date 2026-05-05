@@ -12,6 +12,7 @@ const enUS = {
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'Search API name/path...',
   'markdownDoc.menu.group': 'Markdown Docs',
+  markdownDocLoading: 'Loading document…',
   markdownDocNotFound: 'Document not found',
 
   // Home
