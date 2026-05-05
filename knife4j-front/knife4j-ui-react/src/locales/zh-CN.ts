@@ -8,6 +8,7 @@ const zhCN = {
   // Header language switch
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
+  'header.lang.ja': '日',
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': '搜索接口名/路径...',

@@ -21,6 +21,20 @@ const HOME_KEY = '/group/home';
 const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
 const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
 
+/** Languages supported by the React UI i18n layer. Keep in sync with `src/i18n.ts` resources. */
+const SUPPORTED_LANGS = ['zh-CN', 'en-US', 'ja-JP'] as const;
+type SupportedLang = (typeof SUPPORTED_LANGS)[number];
+
+/** Normalise the raw i18next language (which may be `zh`, `ja-jp`, etc.) into one of our supported tags. */
+const normalizeLang = (raw: string | undefined): SupportedLang => {
+  if (!raw) return 'zh-CN';
+  if ((SUPPORTED_LANGS as readonly string[]).includes(raw)) return raw as SupportedLang;
+  const lower = raw.toLowerCase();
+  if (lower.startsWith('ja')) return 'ja-JP';
+  if (lower.startsWith('en')) return 'en-US';
+  return 'zh-CN';
+};
+
 /**
  * Strip the trailing `/doc` or `/debug` mode segment from a route key to
  * obtain the corresponding sidebar menu key.
@@ -308,12 +322,28 @@ const AppInner: React.FC = () => {
     { key: 'closeAll', label: t('tab.context.closeAll'), onClick: closeAll },
   ];
 
-  const toggleLang = () => {
-    const next = i18n.language === 'zh-CN' ? 'en-US' : 'zh-CN';
-    i18n.changeLanguage(next);
+  const currentLang = normalizeLang(i18n.language);
+
+  const langLabelMap: Record<SupportedLang, string> = {
+    'zh-CN': t('header.lang.zh'),
+    'en-US': t('header.lang.en'),
+    'ja-JP': t('header.lang.ja'),
   };
 
-  const langLabel = i18n.language === 'zh-CN' ? t('header.lang.en') : t('header.lang.zh');
+  const langMenuItems: MenuProps['items'] = [
+    { key: 'zh-CN', label: '中文' },
+    { key: 'en-US', label: 'English' },
+    { key: 'ja-JP', label: '日本語' },
+  ];
+
+  const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
+    const next = normalizeLang(key);
+    if (next !== currentLang) {
+      i18n.changeLanguage(next);
+    }
+  };
+
+  const langLabel = langLabelMap[currentLang];
 
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const tabItems = items.map((item) => ({
@@ -396,13 +426,18 @@ const AppInner: React.FC = () => {
           />
           {t('app.header.title')}
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-            <Button
-              type="text"
-              onClick={toggleLang}
-              style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}
+            <Dropdown
+              menu={{
+                items: langMenuItems,
+                selectedKeys: [currentLang],
+                onClick: onLangMenuClick,
+              }}
+              trigger={['click']}
             >
-              {langLabel}
-            </Button>
+              <Button type="text" style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}>
+                {langLabel}
+              </Button>
+            </Dropdown>
             <Button
               type="text"
               icon={<SettingOutlined />}
