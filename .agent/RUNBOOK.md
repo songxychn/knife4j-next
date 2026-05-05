@@ -29,6 +29,16 @@
 - 修改 Java 兼容性行为
 - 触碰 starter 模块、UI webjar 打包或发布敏感 Java 代码
 
+> **Smoke 证据要求（issue #241 / #198 FU-3）**：
+> 任何涉及 `knife4j/**` Java 代码，或 `knife4j-*-spring-boot-starter/**`、`knife4j-openapi*-ui/**`、`knife4j-gateway-spring-boot-starter/**` 配置的改动，agent 必须在对应 issue 评论或 PR 描述里附上以下任一证据：
+>
+> - 本地 `./scripts/test-java.sh` 尾部的 `==> Smoke-tests evidence OK (N modules)` 行；或
+> - CI 上 `java-build-test` job 内 `Smoke-tests evidence summary` step 的绿色链接。
+>
+> `scripts/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
+>
+> 如果未来有模块被有意下线，须同步更新 `scripts/test-java.sh` 中的 `SMOKE_MODULES` 列表和 `.github/workflows/build.yml` 里 `Smoke-tests evidence summary` 的循环列表，并在 PR 描述里说明原因。
+
 ### Front Core / UI React
 
 从仓库根目录运行：
