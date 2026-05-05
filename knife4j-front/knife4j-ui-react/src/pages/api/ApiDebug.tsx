@@ -267,13 +267,21 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
       // fileFieldsMultiple, or (b) it has the explicit array-of-binary/base64 shape.
       // (b) is a defence-in-depth: older documents produced before fileFieldsMultiple
       // existed still render correctly.
+      //
+      // Important: springdoc 2.x (OAS 3.1) drops `type:"string"` from items, emitting
+      // `{ items: { format: "binary", description: ... } }` for @ArraySchema(schema=
+      // @Schema(type="string", format="binary")). So the fallback must NOT require
+      // items.type === 'string'; only the format matters. Matches knife4j-core's
+      // isBinaryItems() (issue #251 live repro against knife4j-demo).
       let isMultipleFile = false;
       if (isFile) {
         if (multipleFileFields.has(name)) {
           isMultipleFile = true;
         } else if (t === 'array' && prop.items && typeof prop.items === 'object') {
           const items = prop.items as Record<string, unknown>;
-          if (items.type === 'string' && (items.format === 'binary' || items.format === 'base64')) {
+          const hasBinaryFormat = items.format === 'binary' || items.format === 'base64';
+          const typeOk = items.type === undefined || items.type === 'string';
+          if (hasBinaryFormat && typeOk) {
             isMultipleFile = true;
           }
         }

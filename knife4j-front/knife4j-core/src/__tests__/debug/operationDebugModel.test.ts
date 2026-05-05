@@ -274,6 +274,106 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.bodyContents[0].fileFieldsMultiple ?? []).toContain('attachments');
   });
 
+  // Regression guard for issue #251 live repro against knife4j-demo:
+  //
+  //   springdoc 2.x (OAS 3.1) emits `@ArraySchema(schema=@Schema(type="string",
+  //   format="binary"))` as `{ items: { format: "binary", description: ... } }` —
+  //   it DROPS `type:"string"` from items. Matching `items.type === 'string'`
+  //   silently fails, the 'files' field falls out of both fileFields and
+  //   fileFieldsMultiple, and the React UI renders a plain text input instead of
+  //   a multi-file Upload widget.
+  //
+  //   This test uses the exact shape produced by `curl /v3/api-docs` against the
+  //   knife4j-demo `POST /upload/files-with-meta` endpoint (UploadController).
+  test('parses OAS3 multipart with items.type omitted (springdoc 2.x reality) — array-of-binary still detected', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/upload/files-with-meta': {
+          post: {
+            requestBody: {
+              required: true,
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      // NOTE: no `type: 'string'` inside items — matches springdoc 2.x output.
+                      files: {
+                        type: 'array',
+                        items: { format: 'binary', description: 'Files to upload' },
+                        minItems: 1,
+                      },
+                      meta: { type: 'object', description: 'JSON meta' },
+                    },
+                    required: ['meta'],
+                  },
+                  encoding: { meta: { contentType: 'application/json' } },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/upload/files-with-meta',
+      method: 'post',
+    });
+
+    expect(model.bodyContents[0].fileFields).toContain('files');
+    expect(model.bodyContents[0].fileFieldsMultiple ?? []).toContain('files');
+    // meta is not a file field.
+    expect(model.bodyContents[0].fileFields).not.toContain('meta');
+  });
+
+  // Negative case to make sure we don't over-trigger: a plain number[] array
+  // must not be mistaken for a file just because the loosened items check no
+  // longer requires type:"string".
+  test('does not mistake non-binary array for file field', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/x': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      // Explicit non-string items — must stay out of fileFields.
+                      ids: { type: 'array', items: { type: 'integer' } },
+                      // No format — must stay out.
+                      tags: { type: 'array', items: { type: 'string' } },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/x',
+      method: 'post',
+    });
+
+    expect(model.bodyContents[0].fileFields ?? []).not.toContain('ids');
+    expect(model.bodyContents[0].fileFields ?? []).not.toContain('tags');
+    expect(model.bodyContents[0].fileFieldsMultiple ?? []).not.toContain('ids');
+    expect(model.bodyContents[0].fileFieldsMultiple ?? []).not.toContain('tags');
+  });
+
   test('parses OAS3 with multiple content types in requestBody', () => {
     const doc = {
       openapi: '3.0.1',

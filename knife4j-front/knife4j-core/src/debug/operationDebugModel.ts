@@ -135,6 +135,25 @@ function classifyContentType(mediaType: string): BodyContentType {
   return 'raw';
 }
 
+/**
+ * 判断某个 `items` schema 是否代表二进制文件。
+ *
+ * springdoc 2.x（OAS 3.1）对 `@ArraySchema(schema=@Schema(type="string", format="binary"))`
+ * 会 **丢掉 items 里的 `type:"string"`**，实际吐出的是
+ * `{ items: { format: "binary", description: "..." } }`（真实请求参见
+ * `boot3-jakarta-app` 的 `shouldExposeArrayOfBinarySchemaForMultipartArrayUpload`
+ * smoke test 正则，以及 issue #251 的 live 复现）。
+ *
+ * 因此这里只看 `format` 是否为 `binary` / `base64`，不强求 `type === "string"`——
+ * 否则 React UI 会把实际的文件数组字段渲染成普通文本输入框。
+ */
+function isBinaryItems(items: Record<string, unknown>): boolean {
+  if (items.format !== 'binary' && items.format !== 'base64') return false;
+  // 如果 items.type 存在但显式不是 'string'，说明是其他数组（例如 number[]），不算文件。
+  // 没有 type 字段 / type === 'string' 都接受。
+  return items.type === undefined || items.type === 'string';
+}
+
 /** 从 OAS3 requestBody 中提取 file 字段名 */
 function extractFileFields(schema: Record<string, unknown> | undefined): string[] {
   if (!schema || schema.type !== 'object' || !schema.properties) return [];
@@ -144,9 +163,8 @@ function extractFileFields(schema: Record<string, unknown> | undefined): string[
     if (prop.type === 'string' && (prop.format === 'binary' || prop.format === 'base64')) {
       files.push(name);
     }
-    if (prop.type === 'array' && prop.items) {
-      const items = prop.items as Record<string, unknown>;
-      if (items.type === 'string' && (items.format === 'binary' || items.format === 'base64')) {
+    if (prop.type === 'array' && prop.items && typeof prop.items === 'object') {
+      if (isBinaryItems(prop.items as Record<string, unknown>)) {
         files.push(name);
       }
     }
@@ -173,9 +191,8 @@ function extractMultipleFileFields(schema: Record<string, unknown> | undefined):
   const props = schema.properties as Record<string, Record<string, unknown>>;
   const multiple: string[] = [];
   for (const [name, prop] of Object.entries(props)) {
-    if (prop.type === 'array' && prop.items) {
-      const items = prop.items as Record<string, unknown>;
-      if (items.type === 'string' && (items.format === 'binary' || items.format === 'base64')) {
+    if (prop.type === 'array' && prop.items && typeof prop.items === 'object') {
+      if (isBinaryItems(prop.items as Record<string, unknown>)) {
         multiple.push(name);
       }
     }
