@@ -40,6 +40,10 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Boot2DocHttpSmokeTest {
 
@@ -68,12 +72,92 @@ public class Boot2DocHttpSmokeTest {
 
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
-        Assert.assertTrue(docHtml.body.contains("webjars/js/"));
+        // Vue 3 production bundle entry is hashed under webjars/js/ (see knife4j-vue3/vite.config.js
+        // rollupOptions output.entryFileNames).
+        Assert.assertTrue(
+                "doc.html should reference a hashed webjars/js/ entry produced by the Vue 3 vite build",
+                docHtml.body.contains("webjars/js/"));
 
         HttpResponse apiDocs = get(port, "/v2/api-docs");
         Assert.assertEquals(200, apiDocs.statusCode);
         Assert.assertTrue(apiDocs.body.contains("\"swagger\":\"2.0\""));
         Assert.assertTrue(apiDocs.body.contains("/hello"));
+    }
+
+    /**
+     * Lock the fact that {@code knife4j-openapi2-ui} serves the Vue 3 bundle built from
+     * {@code knife4j-vue3/}, not the legacy Vue 2 upstream bundle. If someone accidentally
+     * reverts PR-5 or wires a different UI into the webjar, these markers disappear and the
+     * test fails.
+     *
+     * <p>This also exercises one more layer than the basic doc.html smoke: it fetches the
+     * first hashed JS entry referenced by doc.html to catch webjar packaging regressions
+     * (e.g. dist copy missing) that would leave doc.html served but JS 404.
+     */
+    @Test
+    public void shouldServeVue3UiAssetsAndSwaggerResources() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "spring.mvc.pathmatch.matching-strategy=ant_path_matcher",
+                        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = ((WebServerApplicationContext) context).getWebServer().getPort();
+
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(200, docHtml.statusCode);
+
+        // Vue 3 product markers: title text and the knife4j-next favicon reference both come from
+        // knife4j-vue3/doc.html. Neither exists in the upstream Vue 2 template.
+        Assert.assertTrue(
+                "doc.html should carry the Vue 3 Knife4j Next title (see knife4j-vue3/doc.html)",
+                docHtml.body.contains("<title>Knife4j Next</title>"));
+        Assert.assertTrue(
+                "doc.html should reference knife4j-next-mark.svg favicon (Vue 3 template only)",
+                docHtml.body.contains("knife4j-next-mark.svg"));
+
+        // Fetch the first hashed JS entry referenced from doc.html and assert it is actually
+        // served. This catches packaging regressions where vite dist wasn't copied into
+        // META-INF/resources/webjars/.
+        List<String> jsAssets = extractAssetPaths(docHtml.body);
+        Assert.assertFalse(
+                "doc.html should reference at least one webjars/js/ bundle",
+                jsAssets.isEmpty());
+        String firstAsset = jsAssets.get(0);
+        HttpResponse assetResponse = get(port, "/" + firstAsset);
+        Assert.assertEquals(
+                "First JS asset referenced by doc.html (" + firstAsset + ") must be reachable",
+                200, assetResponse.statusCode);
+
+        // /swagger-resources is the group listing endpoint that knife4j-aggregation-spring-boot-starter
+        // and the Vue 3 UI both rely on. Lock it down to a 200 + JSON array shape.
+        HttpResponse swaggerResources = get(port, "/swagger-resources");
+        Assert.assertEquals(200, swaggerResources.statusCode);
+        Assert.assertTrue(
+                "swagger-resources should return a JSON array",
+                swaggerResources.body.trim().startsWith("["));
+    }
+
+    /**
+     * Extract webjars/js/*.js asset paths referenced from a doc.html body. Only captures
+     * relative paths starting with {@code webjars/js/} to avoid matching external CDNs.
+     */
+    private static List<String> extractAssetPaths(String html) {
+        List<String> result = new ArrayList<>();
+        Pattern pattern = Pattern.compile("(?:src|href)=\"((?:\\./)?webjars/js/[^\"]+\\.js)\"");
+        Matcher matcher = pattern.matcher(html);
+        while (matcher.find()) {
+            String path = matcher.group(1);
+            if (path.startsWith("./")) {
+                path = path.substring(2);
+            }
+            result.add(path);
+        }
+        return result;
     }
 
     @Test
