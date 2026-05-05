@@ -18,6 +18,39 @@ cd knife4j && mvn -B -ntp verify && cd ..
 
 On a first clone, run `npm install` or `npm ci` in `knife4j-front/`; the root `prepare` script installs Lefthook automatically so staged front-end files are formatted before commit.
 
+## Front-End Layout
+
+There are two independent front-end product lines. Work in the one that matches the issue's `area:*` label:
+
+| Source | Package manager | Build output (webjar) | Downstream starter | OpenAPI |
+|---|---|---|---|---|
+| `knife4j-front/knife4j-ui-react` (React + Vite) | npm workspaces (see `knife4j-front/package.json`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
+| `knife4j-vue3` (Vue 3 + Vite) | Bun (`packageManager: "bun@1.3.13"`, see `knife4j-vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
+
+The upstream Vue 2 source under `knife4j-vue/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `knife4j-vue/README.md`.
+
+### OAS 3 main line (`knife4j-front/knife4j-ui-react`)
+
+```bash
+cd knife4j-front
+npm ci
+npm run dev -w knife4j-ui-react
+```
+
+Maven pipeline: `knife4j/knife4j-openapi3-ui/pom.xml` drives `npm install` + `npx vite build` during `generate-resources` and copies the dist into `META-INF/resources/`.
+
+### OAS 2 compatibility line (`knife4j-vue3`)
+
+```bash
+cd knife4j-vue3
+bun install --frozen-lockfile
+bun run dev
+```
+
+Maven pipeline: `knife4j/knife4j-openapi2-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun run build --outDir=...` during `generate-resources` and copies the dist into `META-INF/resources/`.
+
+Scope reminder (also in `.agent/PROJECT.md`): the OAS 2 line only takes regression fixes, security patches, and display-layer bugs. New features go to the OAS 3 main line.
+
 ## Code Formatting
 
 The repository enforces consistent formatting through a combination of tool-side and CI-side checks. **All PRs must pass these checks before merge.**
