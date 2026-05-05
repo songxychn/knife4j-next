@@ -3,15 +3,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../knife4j-front"
 
-npm ci
+bun install --frozen-lockfile
 
 # --- knife4j-core ---
-npm run format:check -w knife4j-core
-npm test -w knife4j-core
-npm run lint -w knife4j-core
-npm run build -w knife4j-core
+bun run --filter knife4j-core format:check
+bun run --filter knife4j-core test
+bun run --filter knife4j-core lint
+bun run --filter knife4j-core build
 
 # --- knife4j-ui-react ---
-npm run format:check -w knife4j-ui-react
-npm run build -w knife4j-ui-react
-npm run lint -w knife4j-ui-react
+bun run --filter knife4j-ui-react format:check
+bun run --filter knife4j-ui-react build
+bun run --filter knife4j-ui-react lint

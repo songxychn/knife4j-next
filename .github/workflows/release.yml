@@ -42,8 +42,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: knife4j-front/package-lock.json
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
@@ -53,7 +51,7 @@ jobs:
         working-directory: knife4j-vue3
 
       - name: Install knife4j-front workspace dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
         working-directory: knife4j-front
 
       - name: Publish to Maven Central

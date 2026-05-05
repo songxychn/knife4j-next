@@ -135,6 +135,7 @@ Caddyfile       text
 package-lock.json merge=ours
 yarn.lock         merge=ours
 pnpm-lock.yaml    merge=ours
+bun.lock          merge=ours
 
 # -----------------------------------------------------------------------------
 # 5. GitHub 语言统计（linguist）
