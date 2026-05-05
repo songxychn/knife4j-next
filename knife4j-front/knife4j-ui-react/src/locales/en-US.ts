@@ -258,6 +258,7 @@ const enUS = {
   'auth.btn.authorize': 'Authorize',
   'auth.btn.unauthorize': 'Unauthorize',
   'auth.btn.clearAll': 'Clear All',
+  'apiDebug.auth.modal.title': '401 Unauthorized — please configure authentication',
 
   // GlobalParam
   'globalParam.col.name': 'Name',
@@ -314,6 +315,10 @@ const enUS = {
   'settings.sorter.alpha': 'Alphabetic (alpha)',
   'settings.sorter.method': 'By HTTP method',
   'settings.sorter.preserve': 'Preserve source order',
+  'auth.modal401.title': '401 Unauthorized — Authentication Required',
+  'auth.modal401.description': 'The request was rejected with 401. Please configure your credentials below and resend.',
+  'auth.modal401.resend': 'Resend',
+  'auth.modal401.close': 'Close',
 } as const;
 
 export default enUS;
