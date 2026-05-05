@@ -174,6 +174,10 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.bodyContents[0].category).toBe('multipart');
     expect(model.bodyContents[0].fileFields).toContain('file');
     expect(model.bodyContents[0].fileFields).not.toContain('description');
+    // Single-binary (not array) must NOT appear in fileFieldsMultiple (issue #251).
+    // Without this, the React UI renders <Upload multiple /> for single-file endpoints
+    // and happily sends multiple parts that the server silently drops.
+    expect(model.bodyContents[0].fileFieldsMultiple ?? []).not.toContain('file');
   });
 
   // WebFlux + springdoc: Flux<FilePart> generates {type:array, items:{type:string,format:binary}}
@@ -224,6 +228,14 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.bodyContents[0].fileFields).toContain('avatar');
     // plain string must NOT be in fileFields
     expect(model.bodyContents[0].fileFields).not.toContain('description');
+
+    // issue #251: the array / non-array distinction must be preserved so the UI can
+    // decide between <Upload multiple /> and <Upload /> (single). fileFields alone
+    // cannot carry this (it is string[] consumed by existing callers).
+    const multiple = model.bodyContents[0].fileFieldsMultiple ?? [];
+    expect(multiple).toContain('files'); // Flux<FilePart> / MultipartFile[]
+    expect(multiple).not.toContain('avatar'); // single FilePart / MultipartFile
+    expect(multiple).not.toContain('description'); // not a file field at all
   });
 
   test('parses OAS3 multipart with array-of-base64 schema as file field', () => {
@@ -258,6 +270,8 @@ describe('buildOperationDebugModel — OAS3', () => {
     });
 
     expect(model.bodyContents[0].fileFields).toContain('attachments');
+    // base64 array should also be treated as a multi-file field (issue #251).
+    expect(model.bodyContents[0].fileFieldsMultiple ?? []).toContain('attachments');
   });
 
   test('parses OAS3 with multiple content types in requestBody', () => {

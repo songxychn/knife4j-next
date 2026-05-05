@@ -157,6 +157,32 @@ function extractFileFields(schema: Record<string, unknown> | undefined): string[
   return files;
 }
 
+/**
+ * 从 OAS3 requestBody 中提取「允许多文件」的字段名子集（`fileFields` 的真子集）。
+ *
+ * 识别规则：`type:"array"` 且 `items.format` 为 `"binary"` 或 `"base64"`。这正是
+ * springdoc 为后端 `MultipartFile[]` 和 WebFlux `Flux<FilePart>` 发射的 schema
+ * 形状（参考 boot3-jakarta-app 的 `shouldExposeArrayOfBinarySchemaForMultipartArrayUpload`
+ * smoke 测试）。不在此列表内的文件字段即单文件，UI 层应按 `<Upload multiple={false}>`
+ * 渲染，并在 FormData 组装时只追加 1 份 part。
+ *
+ * 上游参考：xiaoymin/knife4j#733；本仓 issue #227、#251。
+ */
+function extractMultipleFileFields(schema: Record<string, unknown> | undefined): string[] {
+  if (!schema || schema.type !== 'object' || !schema.properties) return [];
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  const multiple: string[] = [];
+  for (const [name, prop] of Object.entries(props)) {
+    if (prop.type === 'array' && prop.items) {
+      const items = prop.items as Record<string, unknown>;
+      if (items.type === 'string' && (items.format === 'binary' || items.format === 'base64')) {
+        multiple.push(name);
+      }
+    }
+  }
+  return multiple;
+}
+
 /** 从 OAS3 requestBody encoding 中提取 contentType=application/json 的字段名 */
 function extractJsonEncodingFields(encoding: Record<string, unknown> | undefined): string[] {
   if (!encoding) return [];
@@ -395,6 +421,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
               ? JSON.stringify(mediaObj.example, null, 2)
               : undefined,
           fileFields: isMultipart ? extractFileFields(schema) : undefined,
+          // 区分「单文件」与「多文件」语义（issue #251）：
+          // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录
+          // 其中允许多选的子集。UI 层据此决定 `<Upload multiple>` 和 FormData
+          // 组装时 append 几次。
+          fileFieldsMultiple: isMultipart ? extractMultipleFileFields(schema) : undefined,
           jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
         });
       }

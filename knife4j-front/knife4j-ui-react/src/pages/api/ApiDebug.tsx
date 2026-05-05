@@ -226,6 +226,13 @@ interface SchemaFieldRow {
   example?: unknown;
   enum?: unknown[];
   isFile: boolean;
+  /**
+   * File field backed by an array schema (`type:"array"` + `items.format:"binary"|"base64"`)
+   * — the UI renders `<Upload multiple />` and the send handler appends every file
+   * as a separate part. When `false`, the field is a single-file upload and **must**
+   * only send one part even if the user somehow staged more (issue #251).
+   */
+  isMultipleFile: boolean;
   /** encoding.contentType=application/json — render as JSON TextArea */
   isJson: boolean;
 }
@@ -240,6 +247,10 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   const props = schema.properties as Record<string, Record<string, unknown>>;
   const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
   const fileFields = new Set(bodyContent.fileFields ?? []);
+  // issue #251: multi-file field names are a subset of fileFields, derived from
+  // `type:"array"` + `items.format:"binary"|"base64"`. This set is what lets us
+  // distinguish MultipartFile / FilePart (single) from MultipartFile[] / Flux<FilePart>.
+  const multipleFileFields = new Set(bodyContent.fileFieldsMultiple ?? []);
   const jsonFields = new Set(bodyContent.jsonFields ?? []);
 
   return Object.entries(props)
@@ -252,6 +263,22 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
         (t === 'string' && prop.format === 'binary') ||
         (t === 'string' && prop.format === 'base64');
 
+      // A field is considered multi-file if either (a) knife4j-core marked it in
+      // fileFieldsMultiple, or (b) it has the explicit array-of-binary/base64 shape.
+      // (b) is a defence-in-depth: older documents produced before fileFieldsMultiple
+      // existed still render correctly.
+      let isMultipleFile = false;
+      if (isFile) {
+        if (multipleFileFields.has(name)) {
+          isMultipleFile = true;
+        } else if (t === 'array' && prop.items && typeof prop.items === 'object') {
+          const items = prop.items as Record<string, unknown>;
+          if (items.type === 'string' && (items.format === 'binary' || items.format === 'base64')) {
+            isMultipleFile = true;
+          }
+        }
+      }
+
       return {
         name,
         type: isFile ? 'file' : t,
@@ -262,6 +289,7 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
         example: prop.example,
         enum: Array.isArray(prop.enum) ? prop.enum : undefined,
         isFile,
+        isMultipleFile,
         isJson: !isFile && jsonFields.has(name),
       };
     });
@@ -890,10 +918,19 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
       key: 'value',
       render: (_value, record: SchemaFieldRow) => {
         if (record.isFile) {
+          // issue #251: only enable multi-select for schemas that are actually array
+          // of binary/base64. Otherwise the server endpoint is a single-file handler
+          // (e.g. `@RequestPart("file") MultipartFile file`) and extra parts get
+          // silently dropped, which looks like success but isn't.
+          //
+          // `maxCount={1}` on top of `multiple={false}` makes the UI replace the
+          // previously staged file on re-select instead of appending — matches user
+          // expectation for a single-file control.
           return (
             <Upload
               beforeUpload={() => false} // 阻止自动上传
-              multiple
+              multiple={record.isMultipleFile}
+              maxCount={record.isMultipleFile ? undefined : 1}
               fileList={fileListMap[record.name] ?? []}
               onChange={(info) => handleFileChange(record.name, info)}
             >
@@ -1595,10 +1632,26 @@ export default function ApiDebug() {
           }
         }
         // 添加文件字段
+        //
+        // issue #251: single-file fields must only append ONE part even if the user
+        // (or a Upload control bug) staged multiple. The server-side contract for
+        // `@RequestPart("file") MultipartFile file` binds to the first part and
+        // silently drops the rest, which is an invisible data-loss bug. We use
+        // `fileFieldsMultiple` from knife4j-core to decide, matching the UI control
+        // rendered in MultipartForm.
+        const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+        const multipleFileNames = new Set(currentBody?.fileFieldsMultiple ?? []);
         const files = fileFieldsRef.current;
         for (const [name, fileList] of Object.entries(files)) {
-          for (const file of fileList) {
-            fd.append(name, file);
+          if (fileList.length === 0) continue;
+          if (multipleFileNames.has(name)) {
+            for (const file of fileList) {
+              fd.append(name, file);
+            }
+          } else {
+            // Single-file: only the first staged file is sent. Belt-and-braces alongside
+            // <Upload maxCount={1}>.
+            fd.append(name, fileList[0]);
           }
         }
         init.body = fd;
