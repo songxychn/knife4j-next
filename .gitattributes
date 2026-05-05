@@ -142,9 +142,6 @@ pnpm-lock.yaml    merge=ours
 # 历史 Vue2 前端：不计入主语言统计
 knife4j-vue/**                                linguist-vendored
 
-# Ant Design Pro 脚手架派生的老 UI：不计入主语言统计
-knife4j-front/knife4j-ui/**                   linguist-vendored
-
 # 已打包进仓库的 webjar 产物（压缩 JS/CSS/字体等）：视为生成物
 knife4j-openapi2-ui/src/main/resources/webjars/**  linguist-generated
 knife4j-openapi3-ui/src/main/resources/webjars/**  linguist-generated

@@ -8,8 +8,7 @@
 #
 # 层叠规则说明：
 #   本文件置于仓库根目录且未设 `root = true`，因此子项目里已有的
-#   `.editorconfig`（例如 `knife4j-vue/`、`knife4j-front/knife4j-ui/`）
-#   会继续覆盖根级规则，保持子项目自治。
+#   `.editorconfig`（例如 `knife4j-vue/`）会继续覆盖根级规则，保持子项目自治。
 #
 # 注意：
 #   - 本文件不强制 Java 代码的大括号风格、方法空行等，那些交给

@@ -8,7 +8,7 @@
 - knife4j-extension-chrome:Chrome浏览器扩展程序
 - knife4j-extension-firefox:firefox浏览器扩展程序
 - knife4j-extension-edge:edge浏览器扩展程序
-- knife4j-ui:基于React+Antd框架编写的前端Ui层呈现
+- knife4j-ui-react:基于React+Vite+Antd编写的前端Ui层呈现（OpenAPI 3 主线）
 
 # 架构设计
 
@@ -49,6 +49,6 @@
 目前主要考虑的三个主流浏览器插件实现：chrome、firefox、edge
 
 
-## knife4j-ui
+## knife4j-ui-react
 
-基于React+Antd编写的前端ui呈现，提供文档预览、接口调试等两个核心功能
+基于 React + Vite + Antd 编写的前端 UI 呈现，面向 OpenAPI 3.x，作为下一代 `doc.html` 主线，提供文档预览、接口调试等核心功能。
