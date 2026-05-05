@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Input, Menu, MenuProps, Tooltip } from 'antd';
-import { ApiOutlined, DatabaseOutlined, SearchOutlined } from '@ant-design/icons';
+import { ApiOutlined, DatabaseOutlined, FileMarkdownOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
 import Markdown from '../components/Markdown';
@@ -46,7 +46,7 @@ interface SidebarSearchMenuProps {
 }
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
-  const { activeGroup, menuTags, schemas } = useGroup();
+  const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
@@ -137,8 +137,25 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         })),
       });
     });
+
+    if (markdownDocs.length > 0) {
+      items.push({
+        key: `markdown-group-${activeGroup.value}`,
+        icon: <FileMarkdownOutlined />,
+        label: t('markdownDoc.menu.group'),
+        children: markdownDocs.map((doc) => ({
+          key: doc.key,
+          title: doc.title,
+          label: (
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {highlightText(doc.title, q)}
+            </span>
+          ),
+        })),
+      });
+    }
     return items;
-  }, [activeGroup.value, filteredByTag, menuTags, schemas, searchText, t]);
+  }, [activeGroup.value, filteredByTag, markdownDocs, menuTags, schemas, searchText, t]);
 
   return (
     <>

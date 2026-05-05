@@ -10,7 +10,14 @@ import {
   type OperationsSorter,
   type TagsSorter,
 } from '../api/knife4jClient';
-import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
+import type {
+  MarkdownFileGroup,
+  MenuTag,
+  SchemaObject,
+  SwaggerDoc,
+  SwaggerGroup,
+  SwaggerUiConfig,
+} from '../types/swagger';
 import { useSettings } from './SettingsContext';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
@@ -31,6 +38,14 @@ export interface ApiGroup {
   apis: ApiItem[];
 }
 
+export interface MarkdownDocItem {
+  key: string;
+  title: string;
+  content: string;
+  groupName?: string;
+  folderName?: string;
+}
+
 // ---- mock fallback（真实接口不可用时降级） ----
 
 // ---- context 类型 ----
@@ -45,6 +60,7 @@ interface GroupContextValue {
   swaggerDoc: SwaggerDoc | null;
   swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
+  markdownDocs: MarkdownDocItem[];
   schemas: Record<string, SchemaObject>;
   loading: boolean;
   usingMock: boolean;
@@ -161,6 +177,19 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
+  const markdownDocs: MarkdownDocItem[] = useMemo(() => {
+    const markdownGroups: MarkdownFileGroup[] = swaggerDoc?.['x-markdownFiles'] ?? [];
+    return markdownGroups.flatMap((group, groupIndex) =>
+      (group.children ?? []).map((item, itemIndex) => ({
+        key: `/${activeGroupValue}/markdown/${groupIndex}/${itemIndex}`,
+        title: item.title,
+        content: item.content ?? '',
+        groupName: group.group,
+        folderName: group.name,
+      })),
+    );
+  }, [activeGroupValue, swaggerDoc]);
+
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
   // loading 期间 swaggerDoc 为 null → 返回空数组，让 UI 显示 loading
   const groups: ApiGroup[] = swaggerDoc
@@ -201,6 +230,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         swaggerDoc,
         swaggerUiConfig,
         menuTags,
+        markdownDocs,
         schemas,
         loading,
         usingMock,

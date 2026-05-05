@@ -4,7 +4,7 @@ import { Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, them
 import { Resizable } from 'react-resizable';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { GroupProvider, useGroup, ApiItem } from './context/GroupContext';
+import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
 import { SettingsProvider } from './context/SettingsContext';
@@ -32,9 +32,11 @@ const routeKeyToMenuKey = (key: string) =>
       ? key.slice(0, -6)
       : key.endsWith('/openapi')
         ? key.slice(0, -8)
-        : key.includes('/schema')
-          ? key.replace(/\/schema\/.*$/, '/schema')
-          : key;
+        : key.endsWith('/script')
+          ? key.slice(0, -7)
+          : key.includes('/schema')
+            ? key.replace(/\/schema\/.*$/, '/schema')
+            : key;
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
@@ -81,7 +83,7 @@ const AppInner: React.FC = () => {
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
   const location = useLocation();
-  const { groups, activeGroup, setActiveGroupValue } = useGroup();
+  const { groups, activeGroup, markdownDocs, setActiveGroupValue } = useGroup();
   const { t, i18n } = useTranslation();
 
   const {
@@ -146,7 +148,11 @@ const AppInner: React.FC = () => {
       pathname = location.pathname;
     }
 
-    const isApiRoute = pathname.endsWith('/doc') || pathname.endsWith('/debug') || pathname.endsWith('/openapi');
+    const isApiRoute =
+      pathname.endsWith('/doc') ||
+      pathname.endsWith('/debug') ||
+      pathname.endsWith('/openapi') ||
+      pathname.endsWith('/script');
     if (!isApiRoute) {
       restoredRef.current = true;
       return;
@@ -188,6 +194,37 @@ const AppInner: React.FC = () => {
     setSelectedKey(info.menuKey);
   }, [location.pathname, t]);
 
+  // Keep a ref to markdownDocs so the pathname-change effect below can read
+  // the latest value without adding markdownDocs to its dependency array.
+  // Adding markdownDocs directly would cause the effect to re-fire on every
+  // language switch (markdownDocs is recomputed from i18n context), which
+  // would forcibly reset activeKey/selectedKey and interrupt the user's
+  // current tab.
+  const markdownDocsRef = useRef(markdownDocs);
+  useEffect(() => {
+    markdownDocsRef.current = markdownDocs;
+  }, [markdownDocs]);
+
+  useEffect(() => {
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(location.pathname);
+    } catch {
+      pathname = location.pathname;
+    }
+
+    const markdownDoc = markdownDocsRef.current.find((doc) => doc.key === pathname);
+    if (!markdownDoc) return;
+
+    setItems((prev) =>
+      prev.some((pane) => pane.key === pathname)
+        ? prev
+        : [...prev, { label: markdownDoc.title, children: '', key: pathname }],
+    );
+    setActiveKey(pathname);
+    setSelectedKey(pathname);
+  }, [location.pathname]);
+
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
   };
@@ -195,12 +232,18 @@ const AppInner: React.FC = () => {
   const menuClick: MenuProps['onClick'] = (info) => {
     const rawKey = String(info.key);
     const schemaInfo = schemaRouteInfo(rawKey);
-    const newActiveKey = schemaInfo ? rawKey : `${rawKey}/doc`;
+    const markdownDoc: MarkdownDocItem | undefined = markdownDocs.find((doc) => doc.key === rawKey);
+    const newActiveKey = schemaInfo || markdownDoc ? rawKey : `${rawKey}/doc`;
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
-      // Find the matching API to use its summary as tab title
       const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
-      const title = schemaInfo ? t('schema.title') : api ? `${api.method.toUpperCase()} ${api.summary}` : rawKey;
+      const title = schemaInfo
+        ? t('schema.title')
+        : markdownDoc
+          ? markdownDoc.title
+          : api
+            ? `${api.method.toUpperCase()} ${api.summary}`
+            : rawKey;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
     setSelectedKey(routeKeyToMenuKey(newActiveKey));

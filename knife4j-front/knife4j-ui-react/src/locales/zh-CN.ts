@@ -11,6 +11,8 @@ const zhCN = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': '搜索接口名/路径...',
+  'markdownDoc.menu.group': 'Markdown 文档',
+  markdownDocNotFound: '文档未找到',
 
   // Home
   'home.noData': '暂无数据',

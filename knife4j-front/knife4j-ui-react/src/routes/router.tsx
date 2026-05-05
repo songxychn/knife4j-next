@@ -7,6 +7,7 @@ import Authorize from '../pages/Authorize.tsx';
 import GlobalParam from '../pages/document/GlobalParam.tsx';
 import OfficeDoc from '../pages/document/OfficeDoc.tsx';
 import Settings from '../pages/document/Settings.tsx';
+import MarkdownDocument from '../pages/document/MarkdownDocument.tsx';
 
 import ApiHome from '../pages/api/ApiHome.tsx';
 import ApiDoc from '../pages/api/ApiDoc.tsx';
@@ -50,6 +51,10 @@ const router = createHashRouter([
       {
         path: ':group/Settings',
         element: <Settings />,
+      },
+      {
+        path: ':group/markdown/:groupIndex/:itemIndex',
+        element: <MarkdownDocument />,
       },
       {
         path: ':group/:tag/:operaterId',
