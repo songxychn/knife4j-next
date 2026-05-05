@@ -28,3 +28,4 @@
 - 不要让任务存在理由只保存在临时聊天上下文里。
 - 不要把“修一个点”静默扩大成“顺手清理相关区域”。
 - 不确定时，把不确定性写下来，并停在安全检查点。
+- **Reviewer 声称某改动 "revert 了 X" / "删除了 Y" 时，coordinator 必须在接受结论前用 `git show <commit> -- <file>` 核对真实 diff**。历史案例：#198 三次 reviewer `block` 指控 commit `8f0d3b6f` 把 `ProductionSecurityFilter` revert 回 `sendError`、默认值 `knife4j.basic.enable` 翻转、删除 `addCustomApiDocsPathRule`，经人工复核**全部与 master 实际代码相反**；推测 reviewer 对照了 worker 未提交的 stash 或错误 base。不先核对 diff 就按 reviewer 描述动代码，会把正确修复改回 bug。
