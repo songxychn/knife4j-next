@@ -79,6 +79,47 @@ jobs:
       - name: Verify Java modules
         run: scripts/test-java.sh
 
+      # issue #241 / #198 FU-3: make smoke-tests coverage visible in PR checks.
+      # The gate inside scripts/test-java.sh already fails the build if a smoke
+      # module is missing; this step surfaces the per-module counts as a
+      # dedicated summary and persists surefire reports on failure.
+      - name: Smoke-tests evidence summary
+        if: always()
+        run: |
+          set -euo pipefail
+          root="knife4j/knife4j-smoke-tests"
+          {
+            echo "### Smoke-tests evidence"
+            echo ""
+            echo "| module | tests | failures | errors |"
+            echo "| --- | ---: | ---: | ---: |"
+            for module in boot2-app boot3-app boot3-jakarta-app boot35-jakarta-app; do
+              dir="$root/$module/target/surefire-reports"
+              if [ ! -d "$dir" ]; then
+                echo "| $module | (missing) | - | - |"
+                continue
+              fi
+              tests=0; failures=0; errors=0
+              shopt -s nullglob
+              for xml in "$dir"/TEST-*.xml; do
+                t=$(grep -oE 'tests="[0-9]+"' "$xml" | head -n1 | grep -oE '[0-9]+' || echo 0)
+                f=$(grep -oE 'failures="[0-9]+"' "$xml" | head -n1 | grep -oE '[0-9]+' || echo 0)
+                e=$(grep -oE 'errors="[0-9]+"' "$xml" | head -n1 | grep -oE '[0-9]+' || echo 0)
+                tests=$((tests + t)); failures=$((failures + f)); errors=$((errors + e))
+              done
+              shopt -u nullglob
+              echo "| $module | $tests | $failures | $errors |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload smoke-tests surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-tests-surefire-reports
+          path: knife4j/knife4j-smoke-tests/*/target/surefire-reports/**
+          if-no-files-found: ignore
+
   front-core-test:
     runs-on: ubuntu-latest
     defaults:
