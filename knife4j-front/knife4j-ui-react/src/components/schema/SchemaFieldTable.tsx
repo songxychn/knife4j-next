@@ -6,7 +6,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
-import { schemaNodeRefName, schemaNodeTypeLabel } from './schemaUtils';
+import { normalizeGenericTitle, schemaNodeRefName, schemaNodeTypeLabel } from './schemaUtils';
 
 const { Text } = Typography;
 
@@ -69,6 +69,16 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
     );
   }
 
+  // Use the schema's title (normalized from guillemets) as the display label when available
+  const normalizedTitle = normalizeGenericTitle(schema.title);
+  const displayLabel =
+    normalizedTitle && normalizedTitle !== refName
+      ? node.type === 'array'
+        ? `${normalizedTitle}[]`
+        : normalizedTitle
+      : label;
+  const popoverTitle = normalizedTitle && normalizedTitle !== refName ? normalizedTitle : refName;
+
   const previewFields = modelPreviewFields(schema, swaggerDoc);
   const content = (
     <div style={{ maxWidth: 420 }}>
@@ -106,10 +116,10 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
 
   return (
     <ConstraintTooltip node={node}>
-      <Popover title={refName} content={content} placement="right" overlayStyle={{ maxWidth: 460 }}>
+      <Popover title={popoverTitle} content={content} placement="right" overlayStyle={{ maxWidth: 460 }}>
         <RouterLink to={target}>
           <Tag color={color} style={{ cursor: 'pointer' }}>
-            {label}
+            {displayLabel}
           </Tag>
         </RouterLink>
       </Popover>

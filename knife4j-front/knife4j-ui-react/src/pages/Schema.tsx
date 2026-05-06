@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SchemaFieldTable from '../components/schema/SchemaFieldTable';
+import { normalizeGenericTitle } from '../components/schema/schemaUtils';
 import { useGroup } from '../context/GroupContext';
 import type { SchemaObject, SwaggerDoc } from '../types/swagger';
 
@@ -11,6 +12,7 @@ const { Title, Text } = Typography;
 
 interface ModelDef {
   name: string;
+  title?: string;
   description?: string;
   fields: SchemaFieldNode[];
 }
@@ -29,6 +31,7 @@ function schemaToFields(schema: SchemaObject, swaggerDoc: SwaggerDoc): SchemaFie
 function schemasToModels(schemas: Record<string, SchemaObject>, swaggerDoc: SwaggerDoc): ModelDef[] {
   return Object.entries(schemas).map(([name, schema]) => ({
     name,
+    title: normalizeGenericTitle(schema.title),
     description: schema.description,
     fields: schemaToFields(schema, swaggerDoc),
   }));
@@ -50,7 +53,10 @@ export default function Schema() {
     const q = searchText.trim().toLowerCase();
     if (!q) return models;
     return models.filter(
-      (model) => model.name.toLowerCase().includes(q) || (model.description ?? '').toLowerCase().includes(q),
+      (model) =>
+        model.name.toLowerCase().includes(q) ||
+        (model.title ?? '').toLowerCase().includes(q) ||
+        (model.description ?? '').toLowerCase().includes(q),
     );
   }, [models, searchText]);
 
@@ -67,25 +73,34 @@ export default function Schema() {
     setActiveKeys(filteredModels.map((model) => model.name));
   }, [filteredModels, selectedSchemaName]);
 
-  const collapseItems = filteredModels.map((model) => ({
-    key: model.name,
-    label: (
-      <span id={modelDomId(model.name)}>
-        <Text strong style={{ fontSize: 14 }}>
-          {model.name}
-        </Text>
-        {model.description && (
-          <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
-            {model.description}
+  const collapseItems = filteredModels.map((model) => {
+    const displayName = model.title && model.title !== model.name ? model.title : model.name;
+    const showKey = model.title && model.title !== model.name;
+    return {
+      key: model.name,
+      label: (
+        <span id={modelDomId(model.name)}>
+          <Text strong style={{ fontSize: 14 }}>
+            {displayName}
           </Text>
-        )}
-        <Tag style={{ marginLeft: 12 }} color="default">
-          {model.fields.length} {t('schema.fields')}
-        </Tag>
-      </span>
-    ),
-    children: <SchemaFieldTable fields={model.fields} />,
-  }));
+          {showKey && (
+            <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+              ({model.name})
+            </Text>
+          )}
+          {model.description && (
+            <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
+              {model.description}
+            </Text>
+          )}
+          <Tag style={{ marginLeft: 12 }} color="default">
+            {model.fields.length} {t('schema.fields')}
+          </Tag>
+        </span>
+      ),
+      children: <SchemaFieldTable fields={model.fields} />,
+    };
+  });
 
   return (
     <div style={{ padding: '24px', maxWidth: 1180 }}>
