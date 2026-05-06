@@ -69,11 +69,15 @@ function schemaName(schema?: MdSchemaObject): string {
   if (!schema) return '';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
   if (schema.type === 'array') return `${schemaName(schema.items) || 'object'}[]`;
-  return [schema.type, schema.format].filter(Boolean).join('/') || 'object';
+  if (schema.type === 'object' || schema.properties) return 'object';
+  const parts = [schema.type, schema.format].filter((v): v is string => typeof v === 'string' && v.length > 0);
+  return parts.join('/') || 'object';
 }
 
 function paramType(p: MdParameterObject): string {
-  return schemaName(p.schema) || [p.type, p.format].filter(Boolean).join('/') || '-';
+  if (p.schema) return schemaName(p.schema);
+  const parts = [p.type, p.format].filter((v): v is string => typeof v === 'string' && v.length > 0);
+  return parts.join('/') || '-';
 }
 
 function firstRequestSchema(rb: MdRequestBodyObject | undefined): MdSchemaObject | undefined {
