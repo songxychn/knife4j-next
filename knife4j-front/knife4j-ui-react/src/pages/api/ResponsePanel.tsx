@@ -140,12 +140,15 @@ const preStyle: React.CSSProperties = {
 const jsonCodeStyle: React.CSSProperties = {
   fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
   color: '#24292e',
+  flex: '1 1 auto',
+  minWidth: 0,
 };
 
 /**
- * Inline schema description comments — uses a different font (sans-serif),
- * smaller size, lighter color and italic so readers can tell at a glance
- * that it is not part of the JSON payload.
+ * Schema description annotation — floated to the right in its own column,
+ * visually separated from the JSON code. Uses a different font, smaller size,
+ * and lighter color. `userSelect: none` keeps it out of clipboard copies,
+ * matching the Vue2 `position: absolute` approach.
  */
 const jsonDescStyle: React.CSSProperties = {
   fontFamily:
@@ -154,6 +157,9 @@ const jsonDescStyle: React.CSSProperties = {
   fontStyle: 'italic',
   color: '#8c8c8c',
   userSelect: 'none',
+  flex: '0 0 auto',
+  marginLeft: 24,
+  whiteSpace: 'nowrap',
 };
 
 export default function ResponsePanel({
@@ -440,11 +446,20 @@ function ContentTab({
               </Checkbox>
             </div>
           )}
-          <pre style={preStyle}>
+          <pre style={{ ...preStyle, whiteSpace: 'pre' }}>
             {lines.map((line, i) => (
-              <span key={i}>
+              <span
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  // newline is handled by the block itself; pre whitespace preserved via parent
+                }}
+              >
                 <span style={jsonCodeStyle}>{line.code}</span>
-                {line.description && <span style={jsonDescStyle}>{`  // ${line.description}`}</span>}
+                {line.description ? (
+                  <span style={jsonDescStyle}>{line.description}</span>
+                ) : null}
                 {i < lines.length - 1 ? '\n' : ''}
               </span>
             ))}
