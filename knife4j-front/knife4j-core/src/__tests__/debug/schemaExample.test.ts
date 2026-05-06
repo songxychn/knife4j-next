@@ -1,5 +1,8 @@
-import { buildSchemaExample, buildSchemaFieldTree } from '../../debug/schemaExample';
-import type { SchemaResolveContext, SchemaFieldNode } from '../../debug/types';
+import {
+  buildSchemaExample,
+  buildSchemaFieldTree,
+} from "../../debug/schemaExample";
+import type { SchemaResolveContext, SchemaFieldNode } from "../../debug/types";
 
 // ─── 测试文档 ─────────────────────────────────────────
 
@@ -7,107 +10,110 @@ const doc: Record<string, unknown> = {
   components: {
     schemas: {
       User: {
-        type: 'object',
-        required: ['id', 'name'],
+        type: "object",
+        required: ["id", "name"],
         properties: {
-          id: { type: 'integer', format: 'int64' },
-          name: { type: 'string' },
-          email: { type: 'string', format: 'email' },
-          role: { type: 'string', enum: ['ADMIN', 'USER'] },
+          id: { type: "integer", format: "int64" },
+          name: { type: "string" },
+          email: { type: "string", format: "email" },
+          role: { type: "string", enum: ["ADMIN", "USER"] },
         },
       },
       Pet: {
-        type: 'object',
+        type: "object",
         properties: {
-          name: { type: 'string', example: 'Buddy' },
-          tag: { type: 'string' },
+          name: { type: "string", example: "Buddy" },
+          tag: { type: "string" },
         },
       },
       Order: {
-        type: 'object',
-        required: ['id', 'user'],
+        type: "object",
+        required: ["id", "user"],
         properties: {
-          id: { type: 'integer' },
-          user: { $ref: '#/components/schemas/User' },
+          id: { type: "integer" },
+          user: { $ref: "#/components/schemas/User" },
           items: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/Pet' },
+            type: "array",
+            items: { $ref: "#/components/schemas/Pet" },
           },
         },
       },
       SelfRef: {
-        type: 'object',
+        type: "object",
         properties: {
-          id: { type: 'integer' },
-          parent: { $ref: '#/components/schemas/SelfRef' },
+          id: { type: "integer" },
+          parent: { $ref: "#/components/schemas/SelfRef" },
         },
       },
       MutualA: {
-        type: 'object',
+        type: "object",
         properties: {
-          id: { type: 'integer' },
-          b: { $ref: '#/components/schemas/MutualB' },
+          id: { type: "integer" },
+          b: { $ref: "#/components/schemas/MutualB" },
         },
       },
       MutualB: {
-        type: 'object',
+        type: "object",
         properties: {
-          id: { type: 'integer' },
-          a: { $ref: '#/components/schemas/MutualA' },
+          id: { type: "integer" },
+          a: { $ref: "#/components/schemas/MutualA" },
         },
       },
       AllOfDemo: {
         allOf: [
-          { $ref: '#/components/schemas/User' },
+          { $ref: "#/components/schemas/User" },
           {
-            type: 'object',
+            type: "object",
             properties: {
-              avatar: { type: 'string', format: 'url' },
+              avatar: { type: "string", format: "url" },
             },
           },
         ],
       },
       OneOfDemo: {
-        oneOf: [{ $ref: '#/components/schemas/User' }, { $ref: '#/components/schemas/Pet' }],
+        oneOf: [
+          { $ref: "#/components/schemas/User" },
+          { $ref: "#/components/schemas/Pet" },
+        ],
       },
       AnyOfDemo: {
-        anyOf: [{ $ref: '#/components/schemas/Pet' }, { type: 'string' }],
+        anyOf: [{ $ref: "#/components/schemas/Pet" }, { type: "string" }],
       },
       FreeFormMap: {
-        type: 'object',
-        additionalProperties: { type: 'string' },
+        type: "object",
+        additionalProperties: { type: "string" },
       },
       ArrayOfPrimitives: {
-        type: 'array',
-        items: { type: 'string' },
+        type: "array",
+        items: { type: "string" },
       },
       Animal: {
-        type: 'object',
-        required: ['name'],
+        type: "object",
+        required: ["name"],
         properties: {
-          name: { type: 'string' },
-          sound: { type: 'string' },
+          name: { type: "string" },
+          sound: { type: "string" },
         },
       },
       Pet2: {
         allOf: [
-          { $ref: '#/components/schemas/Animal' },
+          { $ref: "#/components/schemas/Animal" },
           {
-            type: 'object',
+            type: "object",
             properties: {
-              tag: { type: 'string' },
+              tag: { type: "string" },
             },
           },
         ],
       },
       Dog: {
         allOf: [
-          { $ref: '#/components/schemas/Animal' },
-          { $ref: '#/components/schemas/Pet2' },
+          { $ref: "#/components/schemas/Animal" },
+          { $ref: "#/components/schemas/Pet2" },
           {
-            type: 'object',
+            type: "object",
             properties: {
-              breed: { type: 'string' },
+              breed: { type: "string" },
             },
           },
         ],
@@ -115,36 +121,60 @@ const doc: Record<string, unknown> = {
       PolyShape: {
         oneOf: [
           {
-            type: 'object',
-            properties: { radius: { type: 'number' } },
+            type: "object",
+            properties: { radius: { type: "number" } },
           },
           {
-            type: 'object',
-            properties: { width: { type: 'number' }, height: { type: 'number' } },
+            type: "object",
+            properties: {
+              width: { type: "number" },
+              height: { type: "number" },
+            },
           },
         ],
       },
       PolyAny: {
         anyOf: [
           {
-            type: 'object',
-            properties: { x: { type: 'integer' } },
+            type: "object",
+            properties: { x: { type: "integer" } },
           },
-          { type: 'string' },
+          { type: "string" },
         ],
       },
       MapOnly: {
-        type: 'object',
-        additionalProperties: { type: 'integer' },
+        type: "object",
+        additionalProperties: { type: "integer" },
+      },
+      // issue-291: Map<K, List<V>> — additionalProperties with array items
+      MapOfLists: {
+        type: "object",
+        additionalProperties: {
+          type: "array",
+          items: { $ref: "#/components/schemas/Pet" },
+        },
+      },
+      // issue-291: Map-like schema without explicit "type" field
+      MapNoType: {
+        additionalProperties: { type: "string" },
+      },
+      // issue-291: explicit "type:object" + empty "properties:{}" + additionalProperties
+      MapEmptyProps: {
+        type: "object",
+        properties: {},
+        additionalProperties: {
+          type: "array",
+          items: { $ref: "#/components/schemas/Pet" },
+        },
       },
     },
   },
   definitions: {
     LegacyCar: {
-      type: 'object',
+      type: "object",
       properties: {
-        brand: { type: 'string' },
-        model: { type: 'string' },
+        brand: { type: "string" },
+        model: { type: "string" },
       },
     },
   },
@@ -156,101 +186,133 @@ function ctx(overrides?: Partial<SchemaResolveContext>): SchemaResolveContext {
 
 // ─── buildSchemaExample 测试 ──────────────────────────
 
-describe('buildSchemaExample', () => {
+describe("buildSchemaExample", () => {
   // 1. primitive 类型
-  test('generates example for string type', () => {
-    const result = buildSchemaExample({ type: 'string' }, ctx());
-    expect(result).toBe('string');
+  test("generates example for string type", () => {
+    const result = buildSchemaExample({ type: "string" }, ctx());
+    expect(result).toBe("string");
   });
 
-  test('generates example for string format date-time', () => {
-    const result = buildSchemaExample({ type: 'string', format: 'date-time' }, ctx());
-    expect(result).toBe('2024-01-01T00:00:00Z');
+  test("generates example for string format date-time", () => {
+    const result = buildSchemaExample(
+      { type: "string", format: "date-time" },
+      ctx(),
+    );
+    expect(result).toBe("2024-01-01T00:00:00Z");
   });
 
-  test('generates example for integer type', () => {
-    const result = buildSchemaExample({ type: 'integer' }, ctx());
+  test("generates example for integer type", () => {
+    const result = buildSchemaExample({ type: "integer" }, ctx());
     expect(result).toBe(0);
   });
 
-  test('generates example for boolean type', () => {
-    const result = buildSchemaExample({ type: 'boolean' }, ctx());
+  test("generates example for boolean type", () => {
+    const result = buildSchemaExample({ type: "boolean" }, ctx());
     expect(result).toBe(true);
   });
 
   // 2. enum
-  test('uses first enum value as example', () => {
-    const result = buildSchemaExample({ type: 'string', enum: ['cat', 'dog'] }, ctx());
-    expect(result).toBe('cat');
+  test("uses first enum value as example", () => {
+    const result = buildSchemaExample(
+      { type: "string", enum: ["cat", "dog"] },
+      ctx(),
+    );
+    expect(result).toBe("cat");
   });
 
   // 3. example/default 优先级
-  test('explicit example takes highest priority', () => {
+  test("explicit example takes highest priority", () => {
     const result = buildSchemaExample(
-      { type: 'string', enum: ['a', 'b'], default: 'default', example: 'explicit' },
+      {
+        type: "string",
+        enum: ["a", "b"],
+        default: "default",
+        example: "explicit",
+      },
       ctx(),
     );
-    expect(result).toBe('explicit');
+    expect(result).toBe("explicit");
   });
 
-  test('default takes priority over enum and type inference', () => {
-    const result = buildSchemaExample({ type: 'string', enum: ['a'], default: 'my-default' }, ctx());
-    expect(result).toBe('my-default');
+  test("default takes priority over enum and type inference", () => {
+    const result = buildSchemaExample(
+      { type: "string", enum: ["a"], default: "my-default" },
+      ctx(),
+    );
+    expect(result).toBe("my-default");
   });
 
   // 4. $ref 解析
-  test('resolves $ref to OAS3 components.schemas', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/User' }, ctx());
+  test("resolves $ref to OAS3 components.schemas", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/User" },
+      ctx(),
+    );
     expect(result).toEqual({
       id: 0,
-      name: 'string',
-      email: 'user@example.com',
-      role: 'ADMIN',
+      name: "string",
+      email: "user@example.com",
+      role: "ADMIN",
     });
   });
 
-  test('resolves $ref to OAS2 definitions', () => {
-    const result = buildSchemaExample({ $ref: '#/definitions/LegacyCar' }, ctx());
+  test("resolves $ref to OAS2 definitions", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/definitions/LegacyCar" },
+      ctx(),
+    );
     expect(result).toEqual({
-      brand: 'string',
-      model: 'string',
+      brand: "string",
+      model: "string",
     });
   });
 
   // 5. object
-  test('generates example for inline object with properties', () => {
+  test("generates example for inline object with properties", () => {
     const result = buildSchemaExample(
       {
-        type: 'object',
+        type: "object",
         properties: {
-          name: { type: 'string' },
-          age: { type: 'integer' },
+          name: { type: "string" },
+          age: { type: "integer" },
         },
       },
       ctx(),
     );
-    expect(result).toEqual({ name: 'string', age: 0 });
+    expect(result).toEqual({ name: "string", age: 0 });
   });
 
   // 6. array
-  test('generates example for array of primitives', () => {
-    const result = buildSchemaExample({ type: 'array', items: { type: 'string' } }, ctx());
-    expect(result).toEqual(['string']);
+  test("generates example for array of primitives", () => {
+    const result = buildSchemaExample(
+      { type: "array", items: { type: "string" } },
+      ctx(),
+    );
+    expect(result).toEqual(["string"]);
   });
 
-  test('generates example for array of $ref items', () => {
-    const result = buildSchemaExample({ type: 'array', items: { $ref: '#/components/schemas/Pet' } }, ctx());
-    expect(result).toEqual([{ name: 'Buddy', tag: 'string' }]);
+  test("generates example for array of $ref items", () => {
+    const result = buildSchemaExample(
+      { type: "array", items: { $ref: "#/components/schemas/Pet" } },
+      ctx(),
+    );
+    expect(result).toEqual([{ name: "Buddy", tag: "string" }]);
   });
 
   // 7. 循环引用
-  test('handles self-referencing schema without infinite loop', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/SelfRef' }, ctx());
+  test("handles self-referencing schema without infinite loop", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/SelfRef" },
+      ctx(),
+    );
     expect(result).toEqual({ id: 0, parent: null });
   });
 
-  test('handles mutual circular references', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/MutualA' }, ctx());
+  test("handles mutual circular references", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/MutualA" },
+      ctx(),
+    );
     // MutualA.id=0, MutualA.b → MutualB (展开), MutualB.a → MutualA (截断为null)
     expect(result).toEqual({
       id: 0,
@@ -259,232 +321,297 @@ describe('buildSchemaExample', () => {
   });
 
   // 8. allOf
-  test('merges allOf schemas', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/AllOfDemo' }, ctx());
+  test("merges allOf schemas", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/AllOfDemo" },
+      ctx(),
+    );
     expect(result).toEqual({
       id: 0,
-      name: 'string',
-      email: 'user@example.com',
-      role: 'ADMIN',
-      avatar: 'https://example.com',
+      name: "string",
+      email: "user@example.com",
+      role: "ADMIN",
+      avatar: "https://example.com",
     });
   });
 
   // 9. oneOf
-  test('uses first resolvable branch of oneOf', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/OneOfDemo' }, ctx());
+  test("uses first resolvable branch of oneOf", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/OneOfDemo" },
+      ctx(),
+    );
     // First branch is User
-    expect(result).toHaveProperty('id');
-    expect(result).toHaveProperty('name');
+    expect(result).toHaveProperty("id");
+    expect(result).toHaveProperty("name");
   });
 
   // 10. anyOf
-  test('uses first resolvable branch of anyOf', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/AnyOfDemo' }, ctx());
-    expect(result).toHaveProperty('name');
-    expect(result).toHaveProperty('tag');
+  test("uses first resolvable branch of anyOf", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/AnyOfDemo" },
+      ctx(),
+    );
+    expect(result).toHaveProperty("name");
+    expect(result).toHaveProperty("tag");
   });
 
   // 11. additionalProperties (map)
-  test('generates example for additionalProperties map', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/FreeFormMap' }, ctx());
-    expect(result).toEqual({ additionalProp1: 'string' });
+  test("generates example for additionalProperties map", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/FreeFormMap" },
+      ctx(),
+    );
+    expect(result).toEqual({ additionalProp1: "string" });
   });
 
   // 12. maxDepth 保护
-  test('respects maxDepth and returns null beyond it', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/User' }, ctx({ maxDepth: 0 }));
+  test("respects maxDepth and returns null beyond it", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/User" },
+      ctx({ maxDepth: 0 }),
+    );
     expect(result).toBeNull();
   });
 
   // 13. 空输入
-  test('returns null for undefined schema', () => {
+  test("returns null for undefined schema", () => {
     const result = buildSchemaExample(undefined, ctx());
     expect(result).toBeNull();
   });
 
   // 14. 不存在的 $ref
-  test('returns null for non-existent $ref', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/NotExist' }, ctx());
+  test("returns null for non-existent $ref", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/NotExist" },
+      ctx(),
+    );
     expect(result).toBeNull();
   });
 
   // 15. object with nested $ref
-  test('generates example for object containing $ref properties', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/Order' }, ctx());
+  test("generates example for object containing $ref properties", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/Order" },
+      ctx(),
+    );
     expect(result).toEqual({
       id: 0,
-      user: { id: 0, name: 'string', email: 'user@example.com', role: 'ADMIN' },
-      items: [{ name: 'Buddy', tag: 'string' }],
+      user: { id: 0, name: "string", email: "user@example.com", role: "ADMIN" },
+      items: [{ name: "Buddy", tag: "string" }],
     });
   });
 
   // 16. array with no items
-  test('returns empty array when items is missing', () => {
-    const result = buildSchemaExample({ type: 'array' }, ctx());
+  test("returns empty array when items is missing", () => {
+    const result = buildSchemaExample({ type: "array" }, ctx());
     expect(result).toEqual([]);
   });
 
   // 17. format-specific examples
-  test('generates uuid format example', () => {
-    const result = buildSchemaExample({ type: 'string', format: 'uuid' }, ctx());
-    expect(result).toBe('3fa85f64-5717-4562-b3fc-2c963f66afa6');
+  test("generates uuid format example", () => {
+    const result = buildSchemaExample(
+      { type: "string", format: "uuid" },
+      ctx(),
+    );
+    expect(result).toBe("3fa85f64-5717-4562-b3fc-2c963f66afa6");
   });
 });
 
 // ─── buildSchemaFieldTree 测试 ────────────────────────
 
-describe('buildSchemaFieldTree', () => {
+describe("buildSchemaFieldTree", () => {
   // 1. object 展开
-  test('expands object properties into field nodes', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/User' }, ctx());
+  test("expands object properties into field nodes", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/User" },
+      ctx(),
+    );
     expect(nodes).toHaveLength(4);
-    const idNode = nodes.find((n) => n.name === 'id')!;
-    expect(idNode.type).toBe('integer');
-    expect(idNode.format).toBe('int64');
+    const idNode = nodes.find((n) => n.name === "id")!;
+    expect(idNode.type).toBe("integer");
+    expect(idNode.format).toBe("int64");
     expect(idNode.required).toBe(true);
-    const emailNode = nodes.find((n) => n.name === 'email')!;
+    const emailNode = nodes.find((n) => n.name === "email")!;
     expect(emailNode.required).toBe(false);
   });
 
   // 2. $ref refName
-  test('sets refName for $ref properties', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Order' }, ctx());
-    const userNode = nodes.find((n) => n.name === 'user')!;
-    expect(userNode.refName).toBe('User');
-    expect(userNode.type).toBe('object');
+  test("sets refName for $ref properties", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/Order" },
+      ctx(),
+    );
+    const userNode = nodes.find((n) => n.name === "user")!;
+    expect(userNode.refName).toBe("User");
+    expect(userNode.type).toBe("object");
     // 应该有 children（User 的字段）
     expect(userNode.children).toBeDefined();
     expect(userNode.children!.length).toBeGreaterThan(0);
   });
 
   // 3. array items
-  test('represents array as node with items child', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Order' }, ctx());
-    const itemsNode = nodes.find((n) => n.name === 'items')!;
-    expect(itemsNode.type).toBe('array');
+  test("represents array as node with items child", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/Order" },
+      ctx(),
+    );
+    const itemsNode = nodes.find((n) => n.name === "items")!;
+    expect(itemsNode.type).toBe("array");
     expect(itemsNode.children).toBeDefined();
-    expect(itemsNode.children![0].name).toBe('items');
-    expect(itemsNode.children![0].refName).toBe('Pet');
+    expect(itemsNode.children![0].name).toBe("items");
+    expect(itemsNode.children![0].refName).toBe("Pet");
   });
 
   // 4. enum
-  test('includes enum values in field node', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/User' }, ctx());
-    const roleNode = nodes.find((n) => n.name === 'role')!;
-    expect(roleNode.enum).toEqual(['ADMIN', 'USER']);
+  test("includes enum values in field node", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/User" },
+      ctx(),
+    );
+    const roleNode = nodes.find((n) => n.name === "role")!;
+    expect(roleNode.enum).toEqual(["ADMIN", "USER"]);
   });
 
   // 5. 循环引用截断
-  test('marks circular ref fields as truncated', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/SelfRef' }, ctx());
-    const parentNode = nodes.find((n) => n.name === 'parent')!;
+  test("marks circular ref fields as truncated", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/SelfRef" },
+      ctx(),
+    );
+    const parentNode = nodes.find((n) => n.name === "parent")!;
     expect(parentNode.truncated).toBe(true);
-    expect(parentNode.refName).toBe('SelfRef');
+    expect(parentNode.refName).toBe("SelfRef");
   });
 
   // 6. maxDepth
-  test('marks object/array as truncated when hitting maxDepth', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/User' }, ctx({ maxDepth: 1 }));
+  test("marks object/array as truncated when hitting maxDepth", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/User" },
+      ctx({ maxDepth: 1 }),
+    );
     // depth=0: User 本身 → 展开 properties → depth=1 到达 User 的各字段
     // 但 User 的字段不会再递归了，因为 depth=1 >= maxDepth=1
     // email 是 string，不截断；其他也是 primitive，不截断
     // 只有 array / object 子字段会被截断
-    const orderNodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Order' }, ctx({ maxDepth: 1 }));
-    const userNode = orderNodes.find((n) => n.name === 'user')!;
+    const orderNodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/Order" },
+      ctx({ maxDepth: 1 }),
+    );
+    const userNode = orderNodes.find((n) => n.name === "user")!;
     expect(userNode.truncated).toBe(true);
   });
 
   // 7. allOf
-  test('merges allOf in field tree', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/AllOfDemo' }, ctx());
+  test("merges allOf in field tree", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/AllOfDemo" },
+      ctx(),
+    );
     const names = nodes.map((n) => n.name);
-    expect(names).toContain('id');
-    expect(names).toContain('name');
-    expect(names).toContain('email');
-    expect(names).toContain('role');
-    expect(names).toContain('avatar');
+    expect(names).toContain("id");
+    expect(names).toContain("name");
+    expect(names).toContain("email");
+    expect(names).toContain("role");
+    expect(names).toContain("avatar");
   });
 
   // 8. oneOf / anyOf
-  test('uses first resolvable branch in oneOf field tree', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/OneOfDemo' }, ctx());
+  test("uses first resolvable branch in oneOf field tree", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/OneOfDemo" },
+      ctx(),
+    );
     const names = nodes.map((n) => n.name);
-    expect(names).toContain('id');
-    expect(names).toContain('name');
+    expect(names).toContain("id");
+    expect(names).toContain("name");
   });
 
   // 9. 空输入
-  test('returns empty array for undefined schema', () => {
+  test("returns empty array for undefined schema", () => {
     const result = buildSchemaFieldTree(undefined, ctx());
     expect(result).toEqual([]);
   });
 
   // 10. primitive 顶层
-  test('returns single node for top-level primitive schema', () => {
-    const result = buildSchemaFieldTree({ type: 'string', format: 'email' }, ctx());
+  test("returns single node for top-level primitive schema", () => {
+    const result = buildSchemaFieldTree(
+      { type: "string", format: "email" },
+      ctx(),
+    );
     expect(result).toHaveLength(1);
-    expect(result[0].type).toBe('string');
-    expect(result[0].format).toBe('email');
-    expect(result[0].name).toBe('');
+    expect(result[0].type).toBe("string");
+    expect(result[0].format).toBe("email");
+    expect(result[0].name).toBe("");
   });
 
   // 11. array 顶层
-  test('returns items node for top-level array schema', () => {
-    const result = buildSchemaFieldTree({ type: 'array', items: { type: 'integer' } }, ctx());
+  test("returns items node for top-level array schema", () => {
+    const result = buildSchemaFieldTree(
+      { type: "array", items: { type: "integer" } },
+      ctx(),
+    );
     expect(result).toHaveLength(1);
-    expect(result[0].type).toBe('array');
+    expect(result[0].type).toBe("array");
     expect(result[0].children).toBeDefined();
-    expect(result[0].children![0].name).toBe('items');
-    expect(result[0].children![0].type).toBe('integer');
+    expect(result[0].children![0].name).toBe("items");
+    expect(result[0].children![0].type).toBe("integer");
   });
 
   // 12. example / default / description 透传
-  test('passes through example, default, and description to field nodes', () => {
+  test("passes through example, default, and description to field nodes", () => {
     const nodes = buildSchemaFieldTree(
       {
-        type: 'object',
+        type: "object",
         properties: {
-          status: { type: 'string', example: 'active', default: 'pending', description: 'Current status' },
+          status: {
+            type: "string",
+            example: "active",
+            default: "pending",
+            description: "Current status",
+          },
         },
       },
       ctx(),
     );
     const statusNode = nodes[0];
-    expect(statusNode.example).toBe('active');
-    expect(statusNode.default).toBe('pending');
-    expect(statusNode.description).toBe('Current status');
+    expect(statusNode.example).toBe("active");
+    expect(statusNode.default).toBe("pending");
+    expect(statusNode.description).toBe("Current status");
   });
 
   // 13. readOnly / writeOnly / deprecated
-  test('passes through readOnly, writeOnly, and deprecated', () => {
+  test("passes through readOnly, writeOnly, and deprecated", () => {
     const nodes = buildSchemaFieldTree(
       {
-        type: 'object',
+        type: "object",
         properties: {
-          createdAt: { type: 'string', readOnly: true },
-          password: { type: 'string', writeOnly: true },
-          oldField: { type: 'string', deprecated: true },
+          createdAt: { type: "string", readOnly: true },
+          password: { type: "string", writeOnly: true },
+          oldField: { type: "string", deprecated: true },
         },
       },
       ctx(),
     );
-    const createdNode = nodes.find((n) => n.name === 'createdAt')!;
+    const createdNode = nodes.find((n) => n.name === "createdAt")!;
     expect(createdNode.readOnly).toBe(true);
-    const passwordNode = nodes.find((n) => n.name === 'password')!;
+    const passwordNode = nodes.find((n) => n.name === "password")!;
     expect(passwordNode.writeOnly).toBe(true);
-    const oldNode = nodes.find((n) => n.name === 'oldField')!;
+    const oldNode = nodes.find((n) => n.name === "oldField")!;
     expect(oldNode.deprecated).toBe(true);
   });
 
   // 14. mutual circular reference
-  test('handles mutual circular reference in field tree', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/MutualA' }, ctx());
-    const bNode = nodes.find((n) => n.name === 'b')!;
-    expect(bNode.refName).toBe('MutualB');
+  test("handles mutual circular reference in field tree", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/MutualA" },
+      ctx(),
+    );
+    const bNode = nodes.find((n) => n.name === "b")!;
+    expect(bNode.refName).toBe("MutualB");
     // b 的 children 应包含 MutualB 的字段，其中 a 应被截断
     if (bNode.children) {
-      const aInB = bNode.children.find((n) => n.name === 'a');
+      const aInB = bNode.children.find((n) => n.name === "a");
       if (aInB) {
         expect(aInB.truncated).toBe(true);
       }
@@ -492,101 +619,237 @@ describe('buildSchemaFieldTree', () => {
   });
 
   // 15. additionalProperties map
-  test('represents additionalProperties map as * field', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/FreeFormMap' }, ctx());
+  test("represents additionalProperties map as * field", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/FreeFormMap" },
+      ctx(),
+    );
     expect(nodes).toHaveLength(1);
-    expect(nodes[0].name).toBe('*');
-    expect(nodes[0].type).toBe('string');
+    expect(nodes[0].name).toBe("*");
+    expect(nodes[0].type).toBe("string");
   });
 });
 
 // ─── TASK-114 专项测试 ────────────────────────────────
 
-describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {
+describe("TASK-114: allOf/oneOf/anyOf schema inheritance", () => {
   // 1. 单继承 allOf: [Parent, self]
-  test('allOf single inheritance merges parent properties', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Pet2' }, ctx());
+  test("allOf single inheritance merges parent properties", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/Pet2" },
+      ctx(),
+    );
     const names = nodes.map((n) => n.name);
-    expect(names).toContain('name'); // from Animal
-    expect(names).toContain('sound'); // from Animal
-    expect(names).toContain('tag'); // own
+    expect(names).toContain("name"); // from Animal
+    expect(names).toContain("sound"); // from Animal
+    expect(names).toContain("tag"); // own
   });
 
-  test('allOf single inheritance example includes parent fields', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/Pet2' }, ctx()) as Record<string, unknown>;
-    expect(result).toHaveProperty('name');
-    expect(result).toHaveProperty('sound');
-    expect(result).toHaveProperty('tag');
+  test("allOf single inheritance example includes parent fields", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/Pet2" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("name");
+    expect(result).toHaveProperty("sound");
+    expect(result).toHaveProperty("tag");
   });
 
   // 2. 双继承 allOf: [A, B, self]
-  test('allOf double inheritance merges all ancestor properties', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/Dog' }, ctx());
+  test("allOf double inheritance merges all ancestor properties", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/Dog" },
+      ctx(),
+    );
     const names = nodes.map((n) => n.name);
-    expect(names).toContain('name'); // from Animal
-    expect(names).toContain('sound'); // from Animal
-    expect(names).toContain('breed'); // own
+    expect(names).toContain("name"); // from Animal
+    expect(names).toContain("sound"); // from Animal
+    expect(names).toContain("breed"); // own
   });
 
-  test('allOf double inheritance example includes all ancestor fields', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/Dog' }, ctx()) as Record<string, unknown>;
-    expect(result).toHaveProperty('name');
-    expect(result).toHaveProperty('sound');
-    expect(result).toHaveProperty('breed');
+  test("allOf double inheritance example includes all ancestor fields", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/Dog" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("name");
+    expect(result).toHaveProperty("sound");
+    expect(result).toHaveProperty("breed");
   });
 
   // 3. oneOf 多态场景
-  test('oneOf polymorphism uses first branch properties', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/PolyShape' }, ctx());
+  test("oneOf polymorphism uses first branch properties", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/PolyShape" },
+      ctx(),
+    );
     const names = nodes.map((n) => n.name);
     // first branch has radius
-    expect(names).toContain('radius');
+    expect(names).toContain("radius");
   });
 
-  test('oneOf example uses first branch', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/PolyShape' }, ctx()) as Record<string, unknown>;
-    expect(result).toHaveProperty('radius');
+  test("oneOf example uses first branch", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/PolyShape" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("radius");
   });
 
   // 4. anyOf 多态场景
-  test('anyOf polymorphism uses first branch properties', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/PolyAny' }, ctx());
+  test("anyOf polymorphism uses first branch properties", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/PolyAny" },
+      ctx(),
+    );
     const names = nodes.map((n) => n.name);
-    expect(names).toContain('x');
+    expect(names).toContain("x");
   });
 
-  test('anyOf example uses first branch', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/PolyAny' }, ctx()) as Record<string, unknown>;
-    expect(result).toHaveProperty('x');
+  test("anyOf example uses first branch", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/PolyAny" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("x");
   });
 
   // 5. 无 properties 但有 additionalProperties
-  test('schema with only additionalProperties renders as * field', () => {
-    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/MapOnly' }, ctx());
+  test("schema with only additionalProperties renders as * field", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/MapOnly" },
+      ctx(),
+    );
     expect(nodes).toHaveLength(1);
-    expect(nodes[0].name).toBe('*');
-    expect(nodes[0].type).toBe('integer');
+    expect(nodes[0].name).toBe("*");
+    expect(nodes[0].type).toBe("integer");
   });
 
-  test('schema with only additionalProperties generates map example', () => {
-    const result = buildSchemaExample({ $ref: '#/components/schemas/MapOnly' }, ctx()) as Record<string, unknown>;
-    expect(result).toHaveProperty('additionalProp1');
-    expect(result['additionalProp1']).toBe(0);
+  test("schema with only additionalProperties generates map example", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/MapOnly" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("additionalProp1");
+    expect(result["additionalProp1"]).toBe(0);
   });
 
   // 6. inline allOf (not via $ref)
-  test('inline allOf merges properties without $ref', () => {
+  test("inline allOf merges properties without $ref", () => {
     const schema = {
       allOf: [
-        { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] },
-        { type: 'object', properties: { b: { type: 'integer' } } },
+        {
+          type: "object",
+          properties: { a: { type: "string" } },
+          required: ["a"],
+        },
+        { type: "object", properties: { b: { type: "integer" } } },
       ],
     };
     const nodes = buildSchemaFieldTree(schema, ctx());
     const names = nodes.map((n) => n.name);
-    expect(names).toContain('a');
-    expect(names).toContain('b');
-    const aNode = nodes.find((n) => n.name === 'a')!;
+    expect(names).toContain("a");
+    expect(names).toContain("b");
+    const aNode = nodes.find((n) => n.name === "a")!;
     expect(aNode.required).toBe(true);
+  });
+});
+
+// ─── issue-291: Map<K, List<V>> generic mapping type tests ────────────────────
+
+describe("issue-291: Map<K, List<V>> generic mapping type parsing", () => {
+  // 1. Map<K, List<V>> — additionalProperties is array with $ref items
+  test("buildSchemaExample: Map<K, List<V>> generates {additionalProp1: [...]}", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/MapOfLists" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("additionalProp1");
+    expect(Array.isArray(result["additionalProp1"])).toBe(true);
+    const arr = result["additionalProp1"] as unknown[];
+    expect(arr.length).toBeGreaterThan(0);
+    expect((arr[0] as Record<string, unknown>)["name"]).toBe("Buddy");
+  });
+
+  test("buildSchemaFieldTree: Map<K, List<V>> produces * node with type array", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/MapOfLists" },
+      ctx(),
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe("*");
+    expect(nodes[0].type).toBe("array");
+    // items child should reference Pet
+    expect(nodes[0].children).toBeDefined();
+    expect(nodes[0].children![0].refName).toBe("Pet");
+  });
+
+  // 2. schema without explicit "type" but with additionalProperties
+  test("buildSchemaExample: no-type schema with additionalProperties generates map example", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/MapNoType" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("additionalProp1");
+    expect(result["additionalProp1"]).toBe("string");
+  });
+
+  test("buildSchemaFieldTree: no-type schema with additionalProperties produces * node", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/MapNoType" },
+      ctx(),
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe("*");
+    expect(nodes[0].type).toBe("string");
+  });
+
+  // 3. explicit type:object + empty properties:{} + additionalProperties (regression guard)
+  test("buildSchemaExample: empty properties + additionalProperties falls through to additionalProperties", () => {
+    const result = buildSchemaExample(
+      { $ref: "#/components/schemas/MapEmptyProps" },
+      ctx(),
+    ) as Record<string, unknown>;
+    expect(result).toHaveProperty("additionalProp1");
+    expect(Array.isArray(result["additionalProp1"])).toBe(true);
+  });
+
+  test("buildSchemaFieldTree: empty properties + additionalProperties produces * node", () => {
+    const nodes = buildSchemaFieldTree(
+      { $ref: "#/components/schemas/MapEmptyProps" },
+      ctx(),
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe("*");
+    expect(nodes[0].type).toBe("array");
+  });
+
+  // 4. inline Map<K, List<V>> without $ref
+  test("buildSchemaExample: inline Map<K, List<V>> schema generates correct example", () => {
+    const schema = {
+      type: "object",
+      additionalProperties: {
+        type: "array",
+        items: { type: "string" },
+      },
+    };
+    const result = buildSchemaExample(schema, ctx()) as Record<string, unknown>;
+    expect(result).toEqual({ additionalProp1: ["string"] });
+  });
+
+  test("buildSchemaFieldTree: inline Map<K, List<V>> schema produces * array node", () => {
+    const schema = {
+      type: "object",
+      additionalProperties: {
+        type: "array",
+        items: { type: "string" },
+      },
+    };
+    const nodes = buildSchemaFieldTree(schema, ctx());
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe("*");
+    expect(nodes[0].type).toBe("array");
+    expect(nodes[0].children).toBeDefined();
+    expect(nodes[0].children![0].type).toBe("string");
   });
 });
