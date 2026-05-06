@@ -24,7 +24,10 @@ export function useCurrentOperation(): CurrentOperation {
     const menuTag = menuTags.find((item) => item.tag === routeTag);
     return menuTag?.operations.find((item) => {
       const fallbackId = item.operationId ?? item.path;
-      return fallbackId === routeOperationId || item.key === `${routeTag}/${routeOperationId}`;
+      return (
+        fallbackId === routeOperationId ||
+        item.key === `${encodeURIComponent(routeTag)}/${encodeURIComponent(routeOperationId)}`
+      );
     });
   }, [menuTags, operaterId, tag]);
 

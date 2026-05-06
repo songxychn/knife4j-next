@@ -143,7 +143,7 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
           tagMap.set(tag, { tag, operations: [] });
         }
         const menuOp: MenuOperation = {
-          key: `${tag}/${op.operationId ?? path}`,
+          key: `${encodeURIComponent(tag)}/${encodeURIComponent(op.operationId ?? path)}`,
           path,
           method,
           summary: op.summary ?? path,
