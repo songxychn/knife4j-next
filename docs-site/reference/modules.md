@@ -59,7 +59,7 @@ title: 模块说明
 
 | 模块 | 说明 |
 | --- | --- |
-| `knife4j-demo` | OpenAPI 3 在线演示应用（Boot 3.4.5 + Jakarta starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
+| `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 3.4.5 + Jakarta starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
 | `knife4j-smoke-tests` | 自动化冒烟测试（4 个子模块覆盖 Boot 2.x / 3.x / 3.5.x） |
 

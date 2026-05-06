@@ -81,7 +81,7 @@ public class UserController {
 
 ### 验证
 
-1. `mvn spring-boot:run` 或运行 `knife4j-demo` 模块。
+1. `mvn spring-boot:run` 或运行 `knife4j-demo-openapi3` 模块。
 2. 浏览器打开 `http://localhost:8080/doc.html`，应看到 React 版界面。
 3. `http://localhost:8080/v3/api-docs` 返回原始 OpenAPI JSON。
 

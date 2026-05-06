@@ -10,21 +10,21 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 | Demo | 后端 | UI 产物 | 在线地址 |
 | --- | --- | --- | --- |
-| `knife4j-demo` | Spring Boot 3.4 + springdoc + `knife4j-openapi3-jakarta-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
+| `knife4j-demo-openapi3` | Spring Boot 3.4 + springdoc + `knife4j-openapi3-jakarta-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
 | `knife4j-demo-openapi2` | Spring Boot 2.7 + springfox 2.10.5 + `knife4j-openapi2-spring-boot-starter` | Vue 3（`knife4j-openapi2-ui`） | [https://openapi2.demo.knife4jnext.com/doc.html](https://openapi2.demo.knife4jnext.com/doc.html) |
 
 两个站点都跟随 `master` 分支自动构建与刷新，建议直接打开比对，看看 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
 
 如果访问失败，优先在本地跑一遍，避免把预览环境问题当成功能问题。
 
-## `knife4j-demo`（OpenAPI 3 主线）
+## `knife4j-demo-openapi3`（OpenAPI 3 主线）
 
 ### 工程位置
 
-- 模块路径：`knife4j/knife4j-demo`
-- 主类：`com.baizhukui.knife4j.demo.DemoApplication`
-- Controller：`com.baizhukui.knife4j.demo.UserController` 等
-- DTO：`com.baizhukui.knife4j.demo.dto.*`
+- 模块路径：`knife4j/knife4j-demo-openapi3`
+- 主类：`com.baizhukui.knife4j.demo.openapi3.DemoApplication`
+- Controller：`com.baizhukui.knife4j.demo.openapi3.UserController` 等
+- DTO：`com.baizhukui.knife4j.demo.openapi3.dto.*`
 
 ### 技术栈
 
@@ -54,20 +54,20 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 ```bash [IDE]
 # 1. 打开仓库根目录，让 IDE 识别 Maven 多模块
-# 2. 运行 com.baizhukui.knife4j.demo.DemoApplication
+# 2. 运行 com.baizhukui.knife4j.demo.openapi3.DemoApplication
 # 3. 浏览器打开 http://localhost:8080/doc.html
 ```
 
 ```bash [Maven]
 cd knife4j
-./mvnw -pl knife4j-demo -am spring-boot:run
+./mvnw -pl knife4j-demo-openapi3 -am spring-boot:run
 # 浏览器打开 http://localhost:8080/doc.html
 ```
 
 ```bash [打包后运行]
 cd knife4j
-./mvnw -pl knife4j-demo -am package -DskipTests
-java -jar knife4j-demo/target/knife4j-demo-*.jar
+./mvnw -pl knife4j-demo-openapi3 -am package -DskipTests
+java -jar knife4j-demo-openapi3/target/knife4j-demo-openapi3-*.jar
 ```
 
 ```bash [Docker]
@@ -166,7 +166,7 @@ docker run --rm -p 8081:8081 \
 
 如果你想拷贝某个 demo 做自己的工程：
 
-1. 选择和你后端栈匹配的目录：`knife4j/knife4j-demo`（OpenAPI 3 + Boot 3）或 `knife4j/knife4j-demo-openapi2`（OpenAPI 2 + Boot 2）。
+1. 选择和你后端栈匹配的目录：`knife4j/knife4j-demo-openapi3`（OpenAPI 3 + Boot 3）或 `knife4j/knife4j-demo-openapi2`（OpenAPI 2 + Boot 2）。
 2. 改 `pom.xml` 的 `groupId`/`artifactId`/`name`。
 3. 替换 package 命名空间为你的项目命名空间。
 4. 按需调整 `application.yml`（OpenAPI 3 调 `springdoc.group-configs.packages-to-scan`，OpenAPI 2 调 `Docket` 中的 `basePackage`）。

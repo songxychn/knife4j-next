@@ -31,9 +31,9 @@ jobs:
       matrix:
         include:
           # OpenAPI 3 (Spring Boot 3 + springdoc + React UI) — deployed to openapi3.demo.knife4jnext.com
-          - module: knife4j-demo
+          - module: knife4j-demo-openapi3
             image: knife4j-next-demo-openapi3
-            context: knife4j/knife4j-demo
+            context: knife4j/knife4j-demo-openapi3
           # OpenAPI 2 (Spring Boot 2 + springfox + Vue3 UI) — deployed to openapi2.demo.knife4jnext.com
           - module: knife4j-demo-openapi2
             image: knife4j-next-demo-openapi2

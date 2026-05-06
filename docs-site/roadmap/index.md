@@ -19,7 +19,7 @@ title: 路线图
 | 安全 | 修复 `/v2/api-docs` 分号绕过 Basic 认证（#886） | ✅ |
 | 兼容性 | Spring Boot 3.4.x / 3.5.x 兼容（springdoc 2.8.9） | ✅ |
 | Bug 修复 | Gateway `context-path` 导致聚合 host 少斜杠（#954） | ✅ |
-| Demo | `knife4j-demo`（OpenAPI 3）与 `knife4j-demo-openapi2`（OpenAPI 2）双 demo + Docker 部署 | ✅ |
+| Demo | `knife4j-demo-openapi3`（OpenAPI 3）与 `knife4j-demo-openapi2`（OpenAPI 2）双 demo + Docker 部署 | ✅ |
 | 文档 | VitePress 文档站全面重写 | ✅ |
 | React 前端 | 基础架构（路由、侧边栏、分组切换、搜索） | ✅ |
 | React 前端 | ApiDoc 接口文档展示（参数表格 + 响应结构 + 复制操作） | ✅ |
