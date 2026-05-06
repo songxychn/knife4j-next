@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j</artifactId>
-    <version>5.0.0</version>
+    <version>5.0.0-SNAPSHOT</version>
     <modules>
         <module>knife4j-core</module>
         <module>knife4j-dependencies</module>
@@ -21,6 +21,7 @@
         <module>knife4j-openapi3-webflux-jakarta-spring-boot-starter</module>
         <module>knife4j-smoke-tests</module>
         <module>knife4j-demo</module>
+        <module>knife4j-demo-openapi2</module>
     </modules>
     <packaging>pom</packaging>
     <name>knife4j</name>
