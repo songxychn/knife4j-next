@@ -129,6 +129,10 @@ describe('markdownExport — schemaName type rendering', () => {
     expect(md).toContain('PageResult');
   });
 
+  // Defensive coverage of existing OAS2 Parameter fields (type/format at top level,
+  // no schema wrapper). knife4j-core does not extend OAS2 support; this test
+  // guards the already-present MdParameterObject.type/format fields against
+  // future regressions in the paramType() fallback path.
   test('OAS2 parameter with type/format fields renders correctly', () => {
     const ctx = makeCtx();
     const op: MdOperationObject = {

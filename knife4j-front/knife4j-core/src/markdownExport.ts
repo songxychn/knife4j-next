@@ -74,10 +74,12 @@ function schemaName(schema?: MdSchemaObject): string {
   return parts.join('/') || 'object';
 }
 
+// paramType prefers the schema wrapper (OAS3 style) but falls back to the bare
+// type/format fields present on OAS2 Parameter objects.  Using || rather than
+// an early-return guards against schemaName returning '' for an empty schema
+// object while still allowing the OAS2 fallback path.
 function paramType(p: MdParameterObject): string {
-  if (p.schema) return schemaName(p.schema);
-  const parts = [p.type, p.format].filter((v): v is string => typeof v === 'string' && v.length > 0);
-  return parts.join('/') || '-';
+  return schemaName(p.schema) || [p.type, p.format].filter(Boolean).join('/') || '-';
 }
 
 function firstRequestSchema(rb: MdRequestBodyObject | undefined): MdSchemaObject | undefined {
