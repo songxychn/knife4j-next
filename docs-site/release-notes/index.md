@@ -12,116 +12,46 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.0-SNAPSHOT <Badge type="tip" text="最新" />
+### 5.0.0 <Badge type="tip" text="最新" />
 
-**Bug 修复 & 功能增强** — 修复 petstore 闪烁、侧边栏排序、OAuth2 授权码流程等回归问题。
+knife4j-next 首个正式稳定版本。整合了 Preview 阶段（4.6.0.3）和 1.0.0 的全部工作，并在此基础上继续修复和增强。
 
 **前端（knife4j-ui-react）**
 
-- 修复页面加载时 Petstore 示例数据一闪而过（Select 改为受控、groups 在加载中返回空数组）
+- 国际化：支持 zh-CN / en-US / 日语三语切换
+- ApiDebug：类型感知输入（enum→Select、boolean→Switch、number→InputNumber、array→TextArea）
+- ApiDebug：多 content-type 请求体（JSON / form-data / x-www-form-urlencoded）
+- ApiDebug：发送前 cURL 预览、响应体复制 / 下载 / 大小显示
+- ApiDebug：认证 & 全局参数合并注入（来源标签 interface / global / auth）
+- Authorize：按 securitySchemes 动态渲染，支持 OAuth2 授权码 / 隐式模式弹窗流程（`oauth2-redirect.html` 回跳）
+- 侧边栏：接口搜索高亮 + HTTP Method 过滤 + 尊重后端 `tags-sorter` / `operations-sorter` 配置
+- Tab 标签页：右键菜单（关闭当前 / 关闭其他 / 关闭全部）+ 刷新后状态持久化
+- Home 页：OpenAPI 概览（接口统计、分组信息、扩展属性）
+- 离线文档导出：HTML / Word / Markdown / OpenAPI JSON 四种格式
+- 设置面板：整合 Authorize / GlobalParam / OfflineDoc 三个 Tab
+- 修复页面加载时 Petstore 示例数据一闪而过
 - 修复侧边栏 group 切换时 `groupOptions[0]` 越界
-- 尊重后端 `springdoc.swagger-ui.tags-sorter` / `operations-sorter` 配置
-- ApiDoc 工具栏：移除 Copy Endpoint，Copy URL 改名为 Copy Page URL
-- GlobalParam：新增按钮与表单控件同行，窄 Drawer 不再溢出
+- 修复 GlobalParamProvider 需提升到 app root 才能跨页面生效
 
-**OAS2 前端产物切换到 Vue 3**
+**OAS2 前端切换到 Vue 3**
 
-从 5.0.0-SNAPSHOT 起，`knife4j-openapi2-ui` webjar 和
-`knife4j-aggregation-spring-boot-starter` 的 doc.html 产物不再来自 upstream Vue 2 源码
-（仓库内 `knife4j-vue/`），而是由本仓库 `knife4j-vue3/`（Vue 3 + Vite）构建产出。
+`knife4j-openapi2-ui` webjar 和 `knife4j-aggregation-spring-boot-starter` 的前端产物从 upstream Vue 2 切换到本仓库 `knife4j-vue3`（Vue 3 + Vite）构建产出。访问入口、URL 格式、`localStorage` key 保持兼容，默认场景下无感知。
 
-- 对下游用户：`doc.html` 访问入口、URL 格式（`$` 分隔符保留）、`localStorage` key 保持兼容，
-  默认场景下无感知。
-- 依赖栈升级：Vue 2.6 → Vue 3.3、`ant-design-vue` 1.x → 3.x、Vuex → Pinia、`vue-cli` → Vite、
-  `vue-i18n` 8 → 9.14+、Mermaid 升级至 11.x。
-- Maven 构建：`knife4j/knife4j-openapi2-ui/pom.xml` 通过 `exec-maven-plugin` 调用
-  `bun install --frozen-lockfile` + `bun run build` 生成产物并拷贝至
-  `META-INF/resources/`。构建机需要 [Bun](https://bun.com/) 1.3.13+，Java CI 已启用。
-- `knife4j-vue/` 作为历史参考保留，不再参与任何 Maven 构建，详见 `knife4j-vue/README.md`。
-- 影响范围表：
+**后端 & 基础设施**
 
-  | 模块 | 前端产物来源 |
-  | --- | --- |
-  | `knife4j-openapi2-ui`（webjar） | `knife4j-vue3`（本次切换） |
-  | `knife4j-aggregation-spring-boot-starter` | `knife4j-openapi2-ui`，间接切换 |
-  | `knife4j-openapi3-ui`（webjar） | `knife4j-front/knife4j-ui-react`，未变 |
-  | `knife4j-aggregation-jakarta-spring-boot-starter` | `knife4j-openapi3-ui`，未变 |
-  | `knife4j-gateway-spring-boot-starter` | `knife4j-openapi3-ui`，未变 |
-
-**新功能**
-
-- OAuth2 授权码 / 隐式模式弹窗流程（`oauth2-redirect.html` 回跳页面）
-- 离线文档导出新增 Markdown 与 OpenAPI JSON 两种格式
-
-**Demo**
-
-- `knife4j-demo` 首页显示在线 demo 链接
-
----
-
-### 1.0.0 <Badge type="info" text="已发布" />
-
-**knife4j-next 正式版** — 相比 Preview 版本新增了大量前端功能，是第一个推荐生产试用的版本。
-
-**前端（knife4j-ui-react）**
-
-- 国际化：接入 react-i18next，支持 zh-CN / en-US 双语
-- ApiDebug 参数渲染：类型感知输入（enum→Select, boolean→Switch, number→InputNumber, array→TextArea…）
-- ApiDebug 请求体：多 content-type 表单支持（JSON / form-data / x-www-form-urlencoded）
-- ApiDebug 请求预览：发送前校验 + cURL 预览 Tab
-- ApiDebug 响应面板：对齐 Vue2 版本，支持复制 Raw / cURL、下载、响应体大小显示
-- ApiDebug 认证 & 全局参数：合并注入请求（来源标签 interface / global / auth）
-- Authorize：按 securitySchemes 动态渲染，支持 OAuth2 授权码流程
-- ApiDoc 工具栏：复制 endpoint / Markdown / URL
-- 侧边栏：接口搜索结果高亮 + HTTP Method 过滤条
-- Tab 标签页：右键菜单（关闭当前 / 关闭其他 / 关闭全部）+ 刷新后状态持久化（sessionStorage）
-- Home 页：重设计，更丰富的 OpenAPI 概览（接口统计、分组信息、扩展属性）
-- OfficeDoc 离线文档：增强 responses 渲染 + schema description 工具函数
-- GlobalParam：布局改进
-- Settings 设置面板：新增 SettingsContext，整合更多配置项
-- Markdown 渲染：API / tag / info description 支持 Markdown 格式
-- 品牌标识：knife4j-next logo 替换旧 logo
-
-**前端基础设施**
-
-- knife4j-core：提取 debug 解析层到独立包（82 项单元测试覆盖 OAS2/OAS3 参数解析、路径替换、header 合并等）
-- knife4j-core：新增 buildSchemaExample & buildSchemaFieldTree（schema 示例构建器）
-- npm workspaces：统一 knife4j-front 包管理，workspace symlink 替代 tgz
-- Node.js 22 LTS：CI 和本地开发环境统一升级至 Node 22
-- Vite dev proxy：`/api` 转发到 demo 后端，本地开发无需手动配代理
-- Prettier + Spotless 格式化规范落地，CI 增加格式检查
+- Boot 3.4.0 / 3.5.0 兼容（springdoc-openapi-jakarta 升至 2.8.9）
+- 修复 `/v2/api-docs;xxx` 分号绕过 Basic 认证漏洞（[#886](https://github.com/xiaoymin/knife4j/issues/886)）
+- 修复 gateway `context-path` 下聚合 host 少斜杠（[#954](https://github.com/xiaoymin/knife4j/issues/954)）
+- 修复 `productionSecurityFilter` 中不可达的 null-guard（OAS2）
+- knife4j-core：提取 debug 解析层到独立包（82 项单元测试）
+- Prettier + Spotless 格式化规范，CI 增加格式检查
 - `-parameters` 编译参数：修复 Springdoc 路径参数识别
 
-**Bug 修复**
-
-- 修复 core 层路径参数从 URL 模板兜底提取（处理 Springdoc 未声明的 path param）
-- 修复 ApiDebug notFound 闪烁 & 侧边栏 method 标签对齐
-- 修复 GlobalParamProvider 需提升到 app root 才能跨页面生效
-- 修复 Vite dev server 下品牌 logo 不显示
-- 修复 knife4j-demo 需设置 `knife4j-java.version=17`
-- 修复 CI npm registry URL 泄露私有源
-- 修复 Spotless `indentEmptyLines` 导致空行缩进不一致
-
 ---
 
-### 4.6.0.3 <Badge type="warning" text="Preview" />
+## 历史版本
 
-> Preview 版本：前端首次集成 React UI 到 `knife4j-openapi3-ui` webjar。仅包含基础功能，不推荐生产使用。请升级到 `5.0.0-SNAPSHOT`。
-
-**前端**
-
-- 集成 knife4j-ui-react（React 下一代前端）到 `knife4j-openapi3-ui` webjar
-- 新增设置面板（Header 右上角），整合 Authorize / GlobalParam / OfflineDoc 三个 Tab
-- 实现离线文档导出（HTML / Word）
-- 实现 Home 页、ApiDoc 页、ApiDebug 页、SwaggerModels 页
-- 实现 Authorize、GlobalParam 功能页
-- 实现侧边栏分组切换与搜索过滤
-- 接入真实 API 数据层（OpenAPI 解析）
-
-**其他**
-
-- demo 模块：根路径 `/` 重定向至 `/doc.html`
-- demo 模块：接口示例改用 DTO + `@Schema` 注解
+`4.6.0.3`（Preview）和 `1.0.0` 为开发过渡版本，已停止维护。Maven Central 上的坐标仍然可用，但不推荐新项目使用。
 
 ---
 
@@ -133,33 +63,24 @@ title: 发布说明
 
 - 新增日语 i18n 支持（Gitee#PR98）
 - 修复 `EnvironmentPostProcessor` 与用户 `defaultProperties` 冲突（Gitee#PR100）
-- 修复 `addOrderExtension` NPE（Gitee#PR99）
 - **修复 Spring Boot 3 下 `@ApiOperationSupport` 的 `order` 不生效**（核心修复）
 - 修复 `springdoc.group-configs.packages-to-scan` 未设置时的 NPE（Gitee#I8O7E8）
 - 修复 `@Schema.description` 在实体参数上不渲染（Gitee#I8EVO3, GitHub#690）
 - 修复 OpenAPI 3 请求参数 `format` 属性展示异常（Gitee#I8KRWV）
-- 修复自定义文档中服务名含连字符时刷新报错（Gitee#I8EKAQ）
-- 移除文档 `favicon.ico` 引用（GitHub#716）
-- 企业插件扩展点（Orangeforms 低代码平台）
 
 ---
 
 ## 版本号说明
 
-knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号：
+knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
 
-```
-5.0.0-SNAPSHOT → Bug 修复 & 功能增强
-1.0.0 → knife4j-next 正式版（首个推荐生产试用的版本）
-4.6.0.3 → Preview 版本（仅包含基础 React 前端，不推荐生产使用）
-```
+Maven 坐标：
 
-从 `1.0.0` 起，Maven 坐标为 `com.baizhukui`：
 ```xml
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.0-SNAPSHOT</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 

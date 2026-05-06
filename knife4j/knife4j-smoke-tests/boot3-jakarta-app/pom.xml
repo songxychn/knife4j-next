@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.baizhukui</groupId>
         <artifactId>knife4j-smoke-tests</artifactId>
-        <version>5.0.0-SNAPSHOT</version>
+        <version>5.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
