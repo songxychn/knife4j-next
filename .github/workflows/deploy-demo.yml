@@ -32,7 +32,7 @@ jobs:
         include:
           # OpenAPI 3 (Spring Boot 3 + springdoc + React UI) — deployed to openapi3.demo.knife4jnext.com
           - module: knife4j-demo
-            image: knife4j-demo
+            image: knife4j-demo-openapi3
             context: knife4j/knife4j-demo
           # OpenAPI 2 (Spring Boot 2 + springfox + Vue3 UI) — deployed to openapi2.demo.knife4jnext.com
           - module: knife4j-demo-openapi2
