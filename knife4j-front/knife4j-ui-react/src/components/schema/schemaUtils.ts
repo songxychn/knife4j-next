@@ -11,7 +11,7 @@ export function schemaNameFromRef(ref: string | undefined): string | undefined {
  * springdoc encodes generic parameters with guillemets: Result«UserVO» → Result<UserVO>
  */
 export function normalizeGenericTitle(title: string | undefined): string | undefined {
-  if (!title) return undefined;
+  if (title === undefined) return undefined;
   return title.replace(/«/g, '<').replace(/»/g, '>');
 }
 
