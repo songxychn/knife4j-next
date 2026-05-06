@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AutoComplete,
@@ -20,16 +20,11 @@ import {
   Tooltip,
   Typography,
   Upload,
-} from "antd";
-import {
-  SendOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  UploadOutlined,
-} from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
-import type { UploadFile } from "antd/es/upload/interface";
-import { useTranslation } from "react-i18next";
+} from 'antd';
+import { SendOutlined, DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import type { UploadFile } from 'antd/es/upload/interface';
+import { useTranslation } from 'react-i18next';
 import type {
   BodyContent,
   BuiltRequest,
@@ -40,39 +35,34 @@ import type {
   ParamSource,
   SchemeValue,
   ValidationError,
-} from "knife4j-core";
+} from 'knife4j-core';
 import {
   buildCurl,
   buildOperationDebugModel,
   buildRequest as coreBuildRequest,
   replacePathParams,
   validateRequired,
-} from "knife4j-core";
-import { OperationModeTabs, useCurrentOperation } from "./useCurrentOperation";
-import CodeEditor, {
-  type CodeEditorLanguage,
-} from "../../components/CodeEditor";
-import { useAuth } from "../../context/AuthContext";
-import { useGlobalParam } from "../../context/GlobalParamContext";
-import { useSettings } from "../../context/SettingsContext";
-import ResponsePanel, {
-  type DebugResponsePayload,
-  type SseEvent,
-} from "./ResponsePanel";
-import Authorize from "../Authorize";
-import { COMMON_HEADER_NAMES } from "../../constants/httpHeaders";
+} from 'knife4j-core';
+import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
+import { useAuth } from '../../context/AuthContext';
+import { useGlobalParam } from '../../context/GlobalParamContext';
+import { useSettings } from '../../context/SettingsContext';
+import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
+import Authorize from '../Authorize';
+import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: "green",
-  POST: "blue",
-  PUT: "orange",
-  DELETE: "red",
-  PATCH: "purple",
-  HEAD: "cyan",
-  OPTIONS: "default",
+  GET: 'green',
+  POST: 'blue',
+  PUT: 'orange',
+  DELETE: 'red',
+  PATCH: 'purple',
+  HEAD: 'cyan',
+  OPTIONS: 'default',
 };
 
 // ─── Helper: form value shape ─────────────────────────
@@ -84,9 +74,7 @@ function paramKey(param: DebugParam): string {
 }
 
 function currentOrigin(): string {
-  return typeof window === "undefined"
-    ? "http://localhost:8080"
-    : window.location.origin;
+  return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 }
 
 // ─── Response body classification ─────────────────────
@@ -105,9 +93,7 @@ function parseContentDispositionFilename(header: string): string | undefined {
   if (!header) return undefined;
 
   // RFC 5987: filename*=UTF-8''encoded%20name
-  const rfc5987Match = header.match(
-    /filename\*\s*=\s*([^']*)'[^']*'([^;,\s]+)/i,
-  );
+  const rfc5987Match = header.match(/filename\*\s*=\s*([^']*)'[^']*'([^;,\s]+)/i);
   if (rfc5987Match) {
     try {
       return decodeURIComponent(rfc5987Match[2]);
@@ -131,66 +117,55 @@ async function interpretResponseBlob(
   requestUrl: string,
   contentDisposition?: string,
 ): Promise<{
-  kind: DebugResponsePayload["kind"];
+  kind: DebugResponsePayload['kind'];
   rawText: string;
   objectUrl?: string;
   filename?: string;
 }> {
-  const ct = (contentType || "").toLowerCase();
+  const ct = (contentType || '').toLowerCase();
 
   // Content-Disposition: attachment → treat as binary download regardless of content-type
-  const isAttachment = contentDisposition
-    ? /attachment/i.test(contentDisposition)
-    : false;
-  const cdFilename = contentDisposition
-    ? parseContentDispositionFilename(contentDisposition)
-    : undefined;
+  const isAttachment = contentDisposition ? /attachment/i.test(contentDisposition) : false;
+  const cdFilename = contentDisposition ? parseContentDispositionFilename(contentDisposition) : undefined;
 
   if (isAttachment) {
-    const filename =
-      cdFilename ?? extractFilenameFromUrl(requestUrl) ?? "download";
+    const filename = cdFilename ?? extractFilenameFromUrl(requestUrl) ?? 'download';
     return {
-      kind: "binary",
-      rawText: "",
+      kind: 'binary',
+      rawText: '',
       objectUrl: URL.createObjectURL(blob),
       filename,
     };
   }
 
   // image/* → inline preview via object URL, keep rawText empty (binary)
-  if (ct.startsWith("image/")) {
-    return { kind: "image", rawText: "", objectUrl: URL.createObjectURL(blob) };
+  if (ct.startsWith('image/')) {
+    return { kind: 'image', rawText: '', objectUrl: URL.createObjectURL(blob) };
   }
 
   // application/json (and *+json variants) → JSON text
-  if (ct.includes("json")) {
+  if (ct.includes('json')) {
     const rawText = await blob.text();
-    return { kind: "json", rawText };
+    return { kind: 'json', rawText };
   }
 
   // Anything text-like: text/plain, text/html, application/javascript, application/xml, text/xml, etc.
-  if (
-    ct.startsWith("text/") ||
-    ct.includes("javascript") ||
-    ct.includes("xml") ||
-    ct.includes("yaml")
-  ) {
+  if (ct.startsWith('text/') || ct.includes('javascript') || ct.includes('xml') || ct.includes('yaml')) {
     const rawText = await blob.text();
-    return { kind: "text", rawText };
+    return { kind: 'text', rawText };
   }
 
   // Empty Content-Type: fall back to text interpretation for robustness
   if (!ct) {
     const rawText = await blob.text();
-    return { kind: rawText ? "text" : "binary", rawText };
+    return { kind: rawText ? 'text' : 'binary', rawText };
   }
 
   // Binary payload (pdf, octet-stream, zip, xlsx, ...) → download link.
-  const filename =
-    cdFilename ?? extractFilenameFromUrl(requestUrl) ?? "download";
+  const filename = cdFilename ?? extractFilenameFromUrl(requestUrl) ?? 'download';
   return {
-    kind: "binary",
-    rawText: "",
+    kind: 'binary',
+    rawText: '',
     objectUrl: URL.createObjectURL(blob),
     filename,
   };
@@ -199,11 +174,8 @@ async function interpretResponseBlob(
 /** Best-effort filename from a URL path's last segment, dropping query/hash. */
 function extractFilenameFromUrl(url: string): string | undefined {
   try {
-    const parsed = new URL(
-      url,
-      typeof window === "undefined" ? "http://localhost" : window.location.href,
-    );
-    const last = parsed.pathname.split("/").filter(Boolean).pop();
+    const parsed = new URL(url, typeof window === 'undefined' ? 'http://localhost' : window.location.href);
+    const last = parsed.pathname.split('/').filter(Boolean).pop();
     return last || undefined;
   } catch {
     return undefined;
@@ -225,29 +197,29 @@ function initialValueFor(param: DebugParam): string {
   }
   // 按类型生成空值
   switch (param.type) {
-    case "array":
-    case "object":
-      return ""; // TextArea 占位；空字符串让 requestBuilder 走默认分支
-    case "boolean":
-      return "";
-    case "integer":
-    case "number":
-      return "";
+    case 'array':
+    case 'object':
+      return ''; // TextArea 占位；空字符串让 requestBuilder 走默认分支
+    case 'boolean':
+      return '';
+    case 'integer':
+    case 'number':
+      return '';
     default:
-      return "";
+      return '';
   }
 }
 
 function stringify(value: unknown, type: string): string {
-  if (value === undefined || value === null) return "";
-  if (type === "array" || type === "object") {
+  if (value === undefined || value === null) return '';
+  if (type === 'array' || type === 'object') {
     try {
-      return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
     } catch {
       return String(value);
     }
   }
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     try {
       return JSON.stringify(value);
     } catch {
@@ -285,12 +257,10 @@ interface SchemaFieldRow {
  */
 function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   const schema = bodyContent.schema;
-  if (!schema || schema.type !== "object" || !schema.properties) return [];
+  if (!schema || schema.type !== 'object' || !schema.properties) return [];
 
   const props = schema.properties as Record<string, Record<string, unknown>>;
-  const requiredSet = new Set<string>(
-    Array.isArray(schema.required) ? (schema.required as string[]) : [],
-  );
+  const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
   const fileFields = new Set(bodyContent.fileFields ?? []);
   // issue #251: multi-file field names are a subset of fileFields, derived from
   // `type:"array"` + `items.format:"binary"|"base64"`. This set is what lets us
@@ -301,12 +271,12 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
   return Object.entries(props)
     .filter(([, prop]) => !prop.readOnly)
     .map(([name, prop]) => {
-      const t = (prop.type as string) ?? "string";
+      const t = (prop.type as string) ?? 'string';
       const isFile =
         fileFields.has(name) ||
-        t === "file" ||
-        (t === "string" && prop.format === "binary") ||
-        (t === "string" && prop.format === "base64");
+        t === 'file' ||
+        (t === 'string' && prop.format === 'binary') ||
+        (t === 'string' && prop.format === 'base64');
 
       // A field is considered multi-file if either (a) knife4j-core marked it in
       // fileFieldsMultiple, or (b) it has the explicit array-of-binary/base64 shape.
@@ -322,15 +292,10 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
       if (isFile) {
         if (multipleFileFields.has(name)) {
           isMultipleFile = true;
-        } else if (
-          t === "array" &&
-          prop.items &&
-          typeof prop.items === "object"
-        ) {
+        } else if (t === 'array' && prop.items && typeof prop.items === 'object') {
           const items = prop.items as Record<string, unknown>;
-          const hasBinaryFormat =
-            items.format === "binary" || items.format === "base64";
-          const typeOk = items.type === undefined || items.type === "string";
+          const hasBinaryFormat = items.format === 'binary' || items.format === 'base64';
+          const typeOk = items.type === undefined || items.type === 'string';
           if (hasBinaryFormat && typeOk) {
             isMultipleFile = true;
           }
@@ -339,11 +304,10 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
 
       return {
         name,
-        type: isFile ? "file" : t,
-        format: typeof prop.format === "string" ? prop.format : undefined,
+        type: isFile ? 'file' : t,
+        format: typeof prop.format === 'string' ? prop.format : undefined,
         required: requiredSet.has(name),
-        description:
-          typeof prop.description === "string" ? prop.description : undefined,
+        description: typeof prop.description === 'string' ? prop.description : undefined,
         default: prop.default,
         example: prop.example,
         enum: Array.isArray(prop.enum) ? prop.enum : undefined,
@@ -356,40 +320,35 @@ function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
 
 /** 根据 SchemaFieldRow 的类型推断初始值 */
 function initialFieldValue(field: SchemaFieldRow): string {
-  if (field.isFile) return "";
-  if (field.isJson)
-    return field.example !== undefined
-      ? JSON.stringify(field.example, null, 2)
-      : "{}";
-  if (field.example !== undefined && field.example !== null)
-    return String(field.example);
-  if (field.default !== undefined && field.default !== null)
-    return String(field.default);
+  if (field.isFile) return '';
+  if (field.isJson) return field.example !== undefined ? JSON.stringify(field.example, null, 2) : '{}';
+  if (field.example !== undefined && field.example !== null) return String(field.example);
+  if (field.default !== undefined && field.default !== null) return String(field.default);
   if (field.enum && field.enum.length > 0) return String(field.enum[0]);
-  if (field.type === "boolean") return "true";
-  if (field.type === "integer" || field.type === "number") return "0";
-  return "";
+  if (field.type === 'boolean') return 'true';
+  if (field.type === 'integer' || field.type === 'number') return '0';
+  return '';
 }
 
 // ─── Raw mode types ───────────────────────────────────
 
 const RAW_MODES = [
-  { value: "text", label: "Text" },
-  { value: "json", label: "JSON" },
-  { value: "javascript", label: "JavaScript" },
-  { value: "xml", label: "XML" },
-  { value: "html", label: "HTML" },
+  { value: 'text', label: 'Text' },
+  { value: 'json', label: 'JSON' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'xml', label: 'XML' },
+  { value: 'html', label: 'HTML' },
 ] as const;
 
-type RawMode = (typeof RAW_MODES)[number]["value"];
+type RawMode = (typeof RAW_MODES)[number]['value'];
 
 /** raw mode → Content-Type 映射 */
 const RAW_CONTENT_TYPES: Record<RawMode, string> = {
-  text: "text/plain",
-  json: "application/json",
-  javascript: "application/javascript",
-  xml: "application/xml",
-  html: "text/html",
+  text: 'text/plain',
+  json: 'application/json',
+  javascript: 'application/javascript',
+  xml: 'application/xml',
+  html: 'text/html',
 };
 
 // ─── Custom headers section ───────────────────────────
@@ -408,7 +367,7 @@ interface CustomHeadersSectionProps {
 function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
   const { t } = useTranslation();
 
-  const updateRow = (id: string, field: "name" | "value", val: string) => {
+  const updateRow = (id: string, field: 'name' | 'value', val: string) => {
     onChange(rows.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
   };
 
@@ -417,13 +376,11 @@ function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
   };
 
   const addRow = () => {
-    onChange([...rows, { id: `custom-${Date.now()}`, name: "", value: "" }]);
+    onChange([...rows, { id: `custom-${Date.now()}`, name: '', value: '' }]);
   };
 
   const headerOptions = (input: string) =>
-    COMMON_HEADER_NAMES.filter((h) =>
-      h.toLowerCase().includes(input.toLowerCase()),
-    ).map((h) => ({
+    COMMON_HEADER_NAMES.filter((h) => h.toLowerCase().includes(input.toLowerCase())).map((h) => ({
       value: h,
       label: h,
     }));
@@ -432,42 +389,32 @@ function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
     <div style={{ marginTop: 8 }}>
       <Space style={{ marginBottom: 4 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {t("apiDebug.customHeaders.title")}
+          {t('apiDebug.customHeaders.title')}
         </Text>
         <Button size="small" icon={<PlusOutlined />} onClick={addRow}>
-          {t("apiDebug.customHeaders.add")}
+          {t('apiDebug.customHeaders.add')}
         </Button>
       </Space>
       {rows.map((row) => (
-        <Space
-          key={row.id}
-          style={{ display: "flex", marginBottom: 4 }}
-          align="center"
-        >
+        <Space key={row.id} style={{ display: 'flex', marginBottom: 4 }} align="center">
           <AutoComplete
             size="small"
             value={row.name}
             options={headerOptions(row.name)}
-            onChange={(val) => updateRow(row.id, "name", val)}
-            onSelect={(val) => updateRow(row.id, "name", val)}
-            placeholder={t("apiDebug.customHeaders.namePlaceholder")}
+            onChange={(val) => updateRow(row.id, 'name', val)}
+            onSelect={(val) => updateRow(row.id, 'name', val)}
+            placeholder={t('apiDebug.customHeaders.namePlaceholder')}
             style={{ width: 200 }}
             filterOption={false}
           />
           <Input
             size="small"
             value={row.value}
-            onChange={(e) => updateRow(row.id, "value", e.target.value)}
-            placeholder={t("apiDebug.customHeaders.valuePlaceholder")}
+            onChange={(e) => updateRow(row.id, 'value', e.target.value)}
+            placeholder={t('apiDebug.customHeaders.valuePlaceholder')}
             style={{ width: 260 }}
           />
-          <Button
-            size="small"
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => deleteRow(row.id)}
-          />
+          <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteRow(row.id)} />
         </Space>
       ))}
     </div>
@@ -485,7 +432,7 @@ interface ParamInputProps {
 
 function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
   const { t } = useTranslation();
-  const status = hasError ? ("error" as const) : undefined;
+  const status = hasError ? ('error' as const) : undefined;
   // enum → Select
   if (param.enum && param.enum.length > 0) {
     return (
@@ -495,88 +442,72 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
         onChange={onChange}
         allowClear
         status={status}
-        placeholder={param.description ?? t("apiDebug.enum.placeholder")}
+        placeholder={param.description ?? t('apiDebug.enum.placeholder')}
         options={param.enum.map((item) => ({
           value: String(item),
           label: String(item),
         }))}
-        style={{ width: "100%" }}
+        style={{ width: '100%' }}
       />
     );
   }
 
   // boolean → Switch（配合隐藏的字符串值 'true'/'false'）
-  if (param.type === "boolean") {
-    const checked = value === "true";
+  if (param.type === 'boolean') {
+    const checked = value === 'true';
     return (
       <Space size="small">
-        <Switch
-          size="small"
-          checked={checked}
-          onChange={(next) => onChange(next ? "true" : "false")}
-        />
+        <Switch size="small" checked={checked} onChange={(next) => onChange(next ? 'true' : 'false')} />
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {checked ? "true" : "false"}
+          {checked ? 'true' : 'false'}
         </Text>
       </Space>
     );
   }
 
   // integer / number → InputNumber
-  if (param.type === "integer" || param.type === "number") {
-    const numValue = value === "" ? undefined : Number(value);
+  if (param.type === 'integer' || param.type === 'number') {
+    const numValue = value === '' ? undefined : Number(value);
     return (
       <InputNumber
         size="small"
         status={status}
         value={Number.isFinite(numValue) ? numValue : undefined}
-        onChange={(next) =>
-          onChange(next === null || next === undefined ? "" : String(next))
-        }
-        placeholder={
-          param.required
-            ? t("apiDebug.inputNumber.required")
-            : param.description
-        }
-        style={{ width: "100%" }}
-        step={param.type === "integer" ? 1 : undefined}
+        onChange={(next) => onChange(next === null || next === undefined ? '' : String(next))}
+        placeholder={param.required ? t('apiDebug.inputNumber.required') : param.description}
+        style={{ width: '100%' }}
+        step={param.type === 'integer' ? 1 : undefined}
       />
     );
   }
 
   // array / object → TextArea（JSON 兜底）
-  if (param.type === "array" || param.type === "object") {
+  if (param.type === 'array' || param.type === 'object') {
     return (
       <TextArea
         size="small"
         status={status}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={`${param.type === "array" ? t("apiDebug.json.array") : t("apiDebug.json.object")} — ${t(
-          "apiDebug.json.placeholder",
+        placeholder={`${param.type === 'array' ? t('apiDebug.json.array') : t('apiDebug.json.object')} — ${t(
+          'apiDebug.json.placeholder',
         )}`}
         autoSize={{ minRows: 2, maxRows: 6 }}
-        style={{ fontFamily: "monospace", fontSize: 12 }}
+        style={{ fontFamily: 'monospace', fontSize: 12 }}
       />
     );
   }
 
   // string / file / 其他 → Input
   // byte format → show base64 placeholder hint
-  const byteHint =
-    param.format === "byte" ? t("apiDebug.byte.placeholder") : undefined;
+  const byteHint = param.format === 'byte' ? t('apiDebug.byte.placeholder') : undefined;
   return (
     <Input
       size="small"
       status={status}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={
-        byteHint ??
-        (param.required
-          ? t("apiDebug.inputNumber.required")
-          : (param.description ?? ""))
-      }
+      placeholder={byteHint ?? (param.required ? t('apiDebug.inputNumber.required') : (param.description ?? ''))}
       readOnly={param.readOnly}
     />
   );
@@ -600,7 +531,7 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
         size="small"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={t("apiDebug.body.file.placeholder")}
+        placeholder={t('apiDebug.body.file.placeholder')}
       />
     );
   }
@@ -612,9 +543,9 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
         size="small"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={field.description ?? "JSON"}
+        placeholder={field.description ?? 'JSON'}
         autoSize={{ minRows: 3, maxRows: 10 }}
-        style={{ fontFamily: "monospace", fontSize: 12 }}
+        style={{ fontFamily: 'monospace', fontSize: 12 }}
       />
     );
   }
@@ -631,40 +562,34 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
           value: String(item),
           label: String(item),
         }))}
-        style={{ width: "100%" }}
+        style={{ width: '100%' }}
       />
     );
   }
 
   // boolean → Switch
-  if (field.type === "boolean") {
-    const checked = value === "true";
+  if (field.type === 'boolean') {
+    const checked = value === 'true';
     return (
       <Space size="small">
-        <Switch
-          size="small"
-          checked={checked}
-          onChange={(next) => onChange(next ? "true" : "false")}
-        />
+        <Switch size="small" checked={checked} onChange={(next) => onChange(next ? 'true' : 'false')} />
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {checked ? "true" : "false"}
+          {checked ? 'true' : 'false'}
         </Text>
       </Space>
     );
   }
 
   // integer / number
-  if (field.type === "integer" || field.type === "number") {
-    const numValue = value === "" ? undefined : Number(value);
+  if (field.type === 'integer' || field.type === 'number') {
+    const numValue = value === '' ? undefined : Number(value);
     return (
       <InputNumber
         size="small"
         value={Number.isFinite(numValue) ? numValue : undefined}
-        onChange={(next) =>
-          onChange(next === null || next === undefined ? "" : String(next))
-        }
-        style={{ width: "100%" }}
-        step={field.type === "integer" ? 1 : undefined}
+        onChange={(next) => onChange(next === null || next === undefined ? '' : String(next))}
+        style={{ width: '100%' }}
+        step={field.type === 'integer' ? 1 : undefined}
       />
     );
   }
@@ -675,7 +600,7 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={field.description ?? ""}
+      placeholder={field.description ?? ''}
     />
   );
 }
@@ -691,28 +616,28 @@ function ParamNameCell({ param }: { param: DebugParam }) {
       <Text
         code
         style={{
-          textDecoration: deprecated ? "line-through" : undefined,
-          color: deprecated ? "#8c8c8c" : undefined,
+          textDecoration: deprecated ? 'line-through' : undefined,
+          color: deprecated ? '#8c8c8c' : undefined,
         }}
       >
         {param.name}
       </Text>
       {param.required && (
         <Tag color="red" style={{ marginInlineEnd: 0 }}>
-          {t("apiDebug.tag.required")}
+          {t('apiDebug.tag.required')}
         </Tag>
       )}
       {deprecated && (
-        <Tooltip title={t("apiDebug.tooltip.deprecated")}>
+        <Tooltip title={t('apiDebug.tooltip.deprecated')}>
           <Tag color="default" style={{ marginInlineEnd: 0 }}>
-            {t("apiDebug.tag.deprecated")}
+            {t('apiDebug.tag.deprecated')}
           </Tag>
         </Tooltip>
       )}
       {readOnly && (
-        <Tooltip title={t("apiDebug.tooltip.readOnly")}>
+        <Tooltip title={t('apiDebug.tooltip.readOnly')}>
           <Tag color="warning" style={{ marginInlineEnd: 0 }}>
-            {t("apiDebug.tag.readOnly")}
+            {t('apiDebug.tag.readOnly')}
           </Tag>
         </Tooltip>
       )}
@@ -751,13 +676,11 @@ function BodyTab({
   const bodyContents = debugModel.bodyContents;
 
   if (bodyContents.length === 0) {
-    return <Alert type="info" message={t("apiDebug.noBody")} showIcon />;
+    return <Alert type="info" message={t('apiDebug.noBody')} showIcon />;
   }
 
   // 当前选中的 BodyContent
-  const currentBody =
-    bodyContents.find((b) => b.mediaType === selectedContentType) ??
-    bodyContents[0];
+  const currentBody = bodyContents.find((b) => b.mediaType === selectedContentType) ?? bodyContents[0];
   const category = currentBody.category;
 
   // ── 切换 content-type 时重置 formFields ──
@@ -776,10 +699,10 @@ function BodyTab({
       fileFieldsRef.current = {};
 
       // 更新 body 文本
-      if (target.category === "json") {
-        setBody(target.exampleValue ?? "");
-      } else if (target.category === "raw") {
-        setBody(target.exampleValue ?? "");
+      if (target.category === 'json') {
+        setBody(target.exampleValue ?? '');
+      } else if (target.category === 'raw') {
+        setBody(target.exampleValue ?? '');
       }
     }
   };
@@ -806,13 +729,13 @@ function BodyTab({
           >
             {bodyContents.map((bc) => (
               <Radio.Button key={bc.mediaType} value={bc.mediaType}>
-                {bc.category === "json"
-                  ? "JSON"
-                  : bc.category === "urlencoded"
-                    ? "x-www-form-urlencoded"
-                    : bc.category === "multipart"
-                      ? "multipart/form-data"
-                      : "raw"}
+                {bc.category === 'json'
+                  ? 'JSON'
+                  : bc.category === 'urlencoded'
+                    ? 'x-www-form-urlencoded'
+                    : bc.category === 'multipart'
+                      ? 'multipart/form-data'
+                      : 'raw'}
               </Radio.Button>
             ))}
           </Radio.Group>
@@ -820,31 +743,27 @@ function BodyTab({
       )}
 
       {/* 根据分类渲染不同的表单 */}
-      {category === "json" && (
+      {category === 'json' && (
         <div>
-          <div style={{ marginBottom: 4, textAlign: "right" }}>
+          <div style={{ marginBottom: 4, textAlign: 'right' }}>
             <Button size="small" onClick={handleBeautify}>
-              {t("apiDebug.body.beautify")}
+              {t('apiDebug.body.beautify')}
             </Button>
           </div>
           <CodeEditor
             value={body}
             onChange={setBody}
-            language={selectedContentType.includes("xml") ? "xml" : "json"}
+            language={selectedContentType.includes('xml') ? 'xml' : 'json'}
             placeholderText={`${currentBody.mediaType} request body`}
           />
         </div>
       )}
 
-      {category === "urlencoded" && (
-        <UrlencodedForm
-          bodyContent={currentBody}
-          formFields={formFields}
-          setFormFields={setFormFields}
-        />
+      {category === 'urlencoded' && (
+        <UrlencodedForm bodyContent={currentBody} formFields={formFields} setFormFields={setFormFields} />
       )}
 
-      {category === "multipart" && (
+      {category === 'multipart' && (
         <MultipartForm
           bodyContent={currentBody}
           formFields={formFields}
@@ -853,7 +772,7 @@ function BodyTab({
         />
       )}
 
-      {category === "raw" && (
+      {category === 'raw' && (
         <RawEditor
           body={body}
           setBody={setBody}
@@ -874,11 +793,7 @@ interface UrlencodedFormProps {
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
-function UrlencodedForm({
-  bodyContent,
-  formFields,
-  setFormFields,
-}: UrlencodedFormProps) {
+function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFormProps) {
   const { t } = useTranslation();
   const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
 
@@ -888,25 +803,25 @@ function UrlencodedForm({
 
   const columns: ColumnsType<SchemaFieldRow> = [
     {
-      title: t("apiDebug.col.paramName"),
-      dataIndex: "name",
-      key: "name",
+      title: t('apiDebug.col.paramName'),
+      dataIndex: 'name',
+      key: 'name',
       width: 200,
       render: (_value: string, record: SchemaFieldRow) => (
         <Space size={4}>
           <Text code>{record.name}</Text>
           {record.required && (
             <Tag color="red" style={{ marginInlineEnd: 0 }}>
-              {t("apiDebug.tag.required")}
+              {t('apiDebug.tag.required')}
             </Tag>
           )}
         </Space>
       ),
     },
     {
-      title: t("apiDebug.col.type"),
-      dataIndex: "type",
-      key: "type",
+      title: t('apiDebug.col.type'),
+      dataIndex: 'type',
+      key: 'type',
       width: 100,
       render: (_value: string, record: SchemaFieldRow) => (
         <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
@@ -922,32 +837,26 @@ function UrlencodedForm({
       ),
     },
     {
-      title: t("apiDebug.col.value"),
-      key: "value",
+      title: t('apiDebug.col.value'),
+      key: 'value',
       render: (_value, record: SchemaFieldRow) => (
         <SchemaFieldInput
           field={record}
-          value={formFields[record.name] ?? ""}
+          value={formFields[record.name] ?? ''}
           onChange={(next) => updateField(record.name, next)}
         />
       ),
     },
     {
-      title: t("apiDebug.col.description"),
-      key: "description",
+      title: t('apiDebug.col.description'),
+      key: 'description',
       width: 240,
       render: (_value, record: SchemaFieldRow) => (
-        <Space
-          size={2}
-          direction="vertical"
-          style={{ lineHeight: 1.35, fontSize: 12 }}
-        >
-          {record.description && (
-            <Text style={{ fontSize: 12 }}>{record.description}</Text>
-          )}
+        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
           {record.default !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {t("apiDebug.desc.default")}
+              {t('apiDebug.desc.default')}
               <Text code style={{ fontSize: 11 }}>
                 {String(record.default)}
               </Text>
@@ -955,7 +864,7 @@ function UrlencodedForm({
           )}
           {record.example !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {t("apiDebug.desc.example")}
+              {t('apiDebug.desc.example')}
               <Text code style={{ fontSize: 11 }}>
                 {String(record.example)}
               </Text>
@@ -966,15 +875,7 @@ function UrlencodedForm({
     },
   ];
 
-  return (
-    <Table
-      size="small"
-      dataSource={fields}
-      columns={columns}
-      pagination={false}
-      rowKey="name"
-    />
-  );
+  return <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />;
 }
 
 // ─── Multipart Form ───────────────────────────────────
@@ -986,16 +887,9 @@ interface MultipartFormProps {
   fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
 }
 
-function MultipartForm({
-  bodyContent,
-  formFields,
-  setFormFields,
-  fileFieldsRef,
-}: MultipartFormProps) {
+function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }: MultipartFormProps) {
   const { t } = useTranslation();
-  const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>(
-    {},
-  );
+  const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>({});
   const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
 
   const updateField = (name: string, value: string) => {
@@ -1014,21 +908,21 @@ function MultipartForm({
 
   const columns: ColumnsType<SchemaFieldRow> = [
     {
-      title: t("apiDebug.col.paramName"),
-      dataIndex: "name",
-      key: "name",
+      title: t('apiDebug.col.paramName'),
+      dataIndex: 'name',
+      key: 'name',
       width: 200,
       render: (_value: string, record: SchemaFieldRow) => (
         <Space size={4}>
           <Text code>{record.name}</Text>
           {record.required && (
             <Tag color="red" style={{ marginInlineEnd: 0 }}>
-              {t("apiDebug.tag.required")}
+              {t('apiDebug.tag.required')}
             </Tag>
           )}
           {record.isFile && (
             <Tag color="blue" style={{ marginInlineEnd: 0 }}>
-              {t("apiDebug.body.file")}
+              {t('apiDebug.body.file')}
             </Tag>
           )}
           {record.isJson && (
@@ -1040,19 +934,19 @@ function MultipartForm({
       ),
     },
     {
-      title: t("apiDebug.col.type"),
-      dataIndex: "type",
-      key: "type",
+      title: t('apiDebug.col.type'),
+      dataIndex: 'type',
+      key: 'type',
       width: 80,
       render: (_value: string, record: SchemaFieldRow) => (
         <Text code style={{ fontSize: 12 }}>
-          {record.isFile ? "file" : record.type}
+          {record.isFile ? 'file' : record.type}
         </Text>
       ),
     },
     {
-      title: t("apiDebug.col.value"),
-      key: "value",
+      title: t('apiDebug.col.value'),
+      key: 'value',
       render: (_value, record: SchemaFieldRow) => {
         if (record.isFile) {
           // issue #251: only enable multi-select for schemas that are actually array
@@ -1072,7 +966,7 @@ function MultipartForm({
               onChange={(info) => handleFileChange(record.name, info)}
             >
               <Button size="small" icon={<UploadOutlined />}>
-                {t("apiDebug.body.selectFile")}
+                {t('apiDebug.body.selectFile')}
               </Button>
             </Upload>
           );
@@ -1081,50 +975,36 @@ function MultipartForm({
           return (
             <TextArea
               size="small"
-              value={formFields[record.name] ?? "{}"}
+              value={formFields[record.name] ?? '{}'}
               onChange={(event) => updateField(record.name, event.target.value)}
-              placeholder={t("apiDebug.body.jsonPart.placeholder")}
+              placeholder={t('apiDebug.body.jsonPart.placeholder')}
               autoSize={{ minRows: 3, maxRows: 8 }}
-              style={{ fontFamily: "monospace", fontSize: 12 }}
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
             />
           );
         }
         return (
           <SchemaFieldInput
             field={record}
-            value={formFields[record.name] ?? ""}
+            value={formFields[record.name] ?? ''}
             onChange={(next) => updateField(record.name, next)}
           />
         );
       },
     },
     {
-      title: t("apiDebug.col.description"),
-      key: "description",
+      title: t('apiDebug.col.description'),
+      key: 'description',
       width: 240,
       render: (_value, record: SchemaFieldRow) => (
-        <Space
-          size={2}
-          direction="vertical"
-          style={{ lineHeight: 1.35, fontSize: 12 }}
-        >
-          {record.description && (
-            <Text style={{ fontSize: 12 }}>{record.description}</Text>
-          )}
+        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
         </Space>
       ),
     },
   ];
 
-  return (
-    <Table
-      size="small"
-      dataSource={fields}
-      columns={columns}
-      pagination={false}
-      rowKey="name"
-    />
-  );
+  return <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />;
 }
 
 // ─── Raw Editor ───────────────────────────────────────
@@ -1138,31 +1018,25 @@ interface RawEditorProps {
 }
 
 const RAW_MODE_LANGUAGE: Record<RawMode, CodeEditorLanguage> = {
-  json: "json",
-  xml: "xml",
-  text: "text",
-  javascript: "text",
-  html: "text",
+  json: 'json',
+  xml: 'xml',
+  text: 'text',
+  javascript: 'text',
+  html: 'text',
 };
 
-function RawEditor({
-  body,
-  setBody,
-  rawMode,
-  setRawMode,
-  onBeautify,
-}: RawEditorProps) {
+function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditorProps) {
   const { t } = useTranslation();
-  const useCodeEditor = rawMode === "json" || rawMode === "xml";
+  const useCodeEditor = rawMode === 'json' || rawMode === 'xml';
 
   return (
     <div>
       <div
         style={{
           marginBottom: 8,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
         <Radio.Group
@@ -1178,9 +1052,9 @@ function RawEditor({
             </Radio.Button>
           ))}
         </Radio.Group>
-        {rawMode === "json" && (
+        {rawMode === 'json' && (
           <Button size="small" onClick={onBeautify}>
-            {t("apiDebug.body.beautify")}
+            {t('apiDebug.body.beautify')}
           </Button>
         )}
       </div>
@@ -1196,7 +1070,7 @@ function RawEditor({
           value={body}
           onChange={(event) => setBody(event.target.value)}
           rows={10}
-          style={{ fontFamily: "monospace", fontSize: 13 }}
+          style={{ fontFamily: 'monospace', fontSize: 13 }}
           placeholder={`${RAW_CONTENT_TYPES[rawMode]} request body`}
         />
       )}
@@ -1219,10 +1093,8 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
   const { t } = useTranslation();
   // 每次渲染都实时重建一次，保证与当前表单同步（避免额外状态）
   const { built, curl } = build();
-  const isMultipart = built.contentType
-    .toLowerCase()
-    .includes("multipart/form-data");
-  const hasBody = built.body !== undefined && built.body !== "";
+  const isMultipart = built.contentType.toLowerCase().includes('multipart/form-data');
+  const hasBody = built.body !== undefined && built.body !== '';
 
   const prettyJson = (raw: string): string => {
     try {
@@ -1234,16 +1106,14 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
 
   const headerPairs = Object.entries(built.headers);
   const queryPairs = Object.entries(built.query);
-  const hasContentType = headerPairs.some(
-    ([k]) => k.toLowerCase() === "content-type",
-  );
+  const hasContentType = headerPairs.some(([k]) => k.toLowerCase() === 'content-type');
 
   const sourceTag = (source: ParamSource | undefined) => {
     if (!source) return null;
     const colorMap: Record<ParamSource, string> = {
-      interface: "blue",
-      global: "green",
-      auth: "orange",
+      interface: 'blue',
+      global: 'green',
+      auth: 'orange',
     };
     return (
       <Tag color={colorMap[source]} style={{ marginInlineEnd: 0 }}>
@@ -1253,25 +1123,23 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
   };
 
   return (
-    <Space direction="vertical" style={{ width: "100%" }} size={14}>
+    <Space direction="vertical" style={{ width: '100%' }} size={14}>
       {/* URL + method */}
       <div>
         <Space size={8}>
-          <Text type="secondary">{t("apiDebug.preview.method")}</Text>
-          <Tag color={METHOD_COLORS[built.method] ?? "default"}>
-            {built.method}
-          </Tag>
-          <Text type="secondary">{t("apiDebug.preview.url")}</Text>
+          <Text type="secondary">{t('apiDebug.preview.method')}</Text>
+          <Tag color={METHOD_COLORS[built.method] ?? 'default'}>{built.method}</Tag>
+          <Text type="secondary">{t('apiDebug.preview.url')}</Text>
         </Space>
         <pre style={previewBoxStyle}>{built.url}</pre>
       </div>
 
       {/* Headers */}
       <div>
-        <Text strong>{t("apiDebug.preview.headers")}</Text>
+        <Text strong>{t('apiDebug.preview.headers')}</Text>
         {!hasContentType && hasBody && !isMultipart && (
           <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-            {t("apiDebug.preview.autoContentType")}
+            {t('apiDebug.preview.autoContentType')}
           </Text>
         )}
         {headerPairs.length > 0 ? (
@@ -1286,9 +1154,9 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
             }))}
             columns={[
               {
-                title: t("apiDebug.col.header"),
-                dataIndex: "name",
-                key: "name",
+                title: t('apiDebug.col.header'),
+                dataIndex: 'name',
+                key: 'name',
                 width: 240,
                 render: (name: string, record: { source?: ParamSource }) => (
                   <Space size={4}>
@@ -1298,15 +1166,15 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
                 ),
               },
               {
-                title: t("apiDebug.col.headerValue"),
-                dataIndex: "value",
-                key: "value",
+                title: t('apiDebug.col.headerValue'),
+                dataIndex: 'value',
+                key: 'value',
               },
             ]}
             style={{ marginTop: 4 }}
           />
         ) : (
-          <Text type="secondary" style={{ display: "block", marginTop: 4 }}>
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
             —
           </Text>
         )}
@@ -1314,7 +1182,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
 
       {/* Query */}
       <div>
-        <Text strong>{t("apiDebug.preview.query")}</Text>
+        <Text strong>{t('apiDebug.preview.query')}</Text>
         {queryPairs.length > 0 ? (
           <Table
             size="small"
@@ -1327,9 +1195,9 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
             }))}
             columns={[
               {
-                title: t("apiDebug.col.paramName"),
-                dataIndex: "name",
-                key: "name",
+                title: t('apiDebug.col.paramName'),
+                dataIndex: 'name',
+                key: 'name',
                 width: 240,
                 render: (name: string, record: { source?: ParamSource }) => (
                   <Space size={4}>
@@ -1339,15 +1207,15 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
                 ),
               },
               {
-                title: t("apiDebug.col.value"),
-                dataIndex: "value",
-                key: "value",
+                title: t('apiDebug.col.value'),
+                dataIndex: 'value',
+                key: 'value',
               },
             ]}
             style={{ marginTop: 4 }}
           />
         ) : (
-          <Text type="secondary" style={{ display: "block", marginTop: 4 }}>
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
             —
           </Text>
         )}
@@ -1355,20 +1223,14 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
 
       {/* Body */}
       <div>
-        <Text strong>
-          {isMultipart
-            ? t("apiDebug.preview.bodyMultipart")
-            : t("apiDebug.preview.body")}
-        </Text>
+        <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
-            {built.contentType.includes("json")
-              ? prettyJson(built.body ?? "")
-              : (built.body ?? "")}
+            {built.contentType.includes('json') ? prettyJson(built.body ?? '') : (built.body ?? '')}
           </pre>
         ) : (
-          <Text type="secondary" style={{ display: "block", marginTop: 4 }}>
-            {t("apiDebug.preview.noBody")}
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            {t('apiDebug.preview.noBody')}
           </Text>
         )}
       </div>
@@ -1376,9 +1238,9 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
       {/* Curl */}
       <div>
         <Space style={{ marginBottom: 4 }}>
-          <Text strong>{t("apiDebug.preview.curl")}</Text>
+          <Text strong>{t('apiDebug.preview.curl')}</Text>
           <Button size="small" onClick={() => onCopyCurl(curl)}>
-            {t("apiDebug.preview.copyCurl")}
+            {t('apiDebug.preview.copyCurl')}
           </Button>
         </Space>
         <pre style={{ ...previewBoxStyle, maxHeight: 260 }}>{curl}</pre>
@@ -1388,15 +1250,15 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
 }
 
 const previewBoxStyle: React.CSSProperties = {
-  background: "#f6f8fa",
+  background: '#f6f8fa',
   padding: 12,
   borderRadius: 4,
   fontSize: 13,
   maxHeight: 320,
-  overflow: "auto",
-  margin: "4px 0 0 0",
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-all",
+  overflow: 'auto',
+  margin: '4px 0 0 0',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-all',
 };
 
 // ─── 主组件 ────────────────────────────────────────────
@@ -1406,16 +1268,14 @@ export default function ApiDebug() {
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { settings } = useSettings();
   const [baseUrl, setBaseUrl] = useState(() =>
-    settings.enableHost && settings.enableHostText.trim()
-      ? settings.enableHostText.trim()
-      : currentOrigin(),
+    settings.enableHost && settings.enableHostText.trim() ? settings.enableHostText.trim() : currentOrigin(),
   );
-  const [method, setMethod] = useState("GET");
-  const [path, setPath] = useState("/");
+  const [method, setMethod] = useState('GET');
+  const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
   // enabled state: keyed by paramKey; GET/DELETE query params default true, all others also true
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState('');
   const [customHeaders, setCustomHeaders] = useState<CustomHeaderRow[]>([]);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
@@ -1423,9 +1283,7 @@ export default function ApiDebug() {
       doc: swaggerDoc as unknown as Record<string, unknown>,
       path: operation.path,
       method: operation.method,
-      isOAS2: Boolean(
-        (swaggerDoc as unknown as Record<string, unknown>).swagger,
-      ),
+      isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
     });
   }, [operation, swaggerDoc]);
   const [loading, setLoading] = useState(false);
@@ -1437,22 +1295,17 @@ export default function ApiDebug() {
   const sseAbortRef = useRef<AbortController | null>(null);
 
   // ── requestBody 多内容类型状态 ──
-  const [selectedContentType, setSelectedContentType] = useState("");
+  const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
-  const [rawMode, setRawMode] = useState<RawMode>("text");
+  const [rawMode, setRawMode] = useState<RawMode>('text');
 
   // ── TASK-028: 校验错误与预览 ──
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>(
-    [],
-  );
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
-  const errorKeys = useMemo(
-    () => new Set(validationErrors.map((e) => e.key)),
-    [validationErrors],
-  );
+  const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
   // 当 debugModel 变化时，同步初始化表单状态
   useEffect(() => {
@@ -1483,16 +1336,12 @@ export default function ApiDebug() {
 
     // body 初始值
     const firstBody = debugModel.bodyContents[0];
-    const firstMediaType = firstBody?.mediaType ?? "";
+    const firstMediaType = firstBody?.mediaType ?? '';
     setSelectedContentType(firstMediaType);
-    setBody(firstBody?.exampleValue ?? "");
+    setBody(firstBody?.exampleValue ?? '');
 
     // 初始化 formFields
-    if (
-      firstBody &&
-      (firstBody.category === "urlencoded" ||
-        firstBody.category === "multipart")
-    ) {
+    if (firstBody && (firstBody.category === 'urlencoded' || firstBody.category === 'multipart')) {
       const fields = extractSchemaFields(firstBody);
       const initialForm: Record<string, string> = {};
       for (const f of fields) {
@@ -1507,14 +1356,14 @@ export default function ApiDebug() {
     fileFieldsRef.current = {};
 
     // raw mode 初始推断
-    if (firstBody?.category === "raw") {
-      if (firstMediaType.includes("json")) setRawMode("json");
-      else if (firstMediaType.includes("xml")) setRawMode("xml");
-      else if (firstMediaType.includes("html")) setRawMode("html");
-      else if (firstMediaType.includes("javascript")) setRawMode("javascript");
-      else setRawMode("text");
+    if (firstBody?.category === 'raw') {
+      if (firstMediaType.includes('json')) setRawMode('json');
+      else if (firstMediaType.includes('xml')) setRawMode('xml');
+      else if (firstMediaType.includes('html')) setRawMode('html');
+      else if (firstMediaType.includes('javascript')) setRawMode('javascript');
+      else setRawMode('text');
     } else {
-      setRawMode("text");
+      setRawMode('text');
     }
 
     setResponse(null);
@@ -1530,19 +1379,17 @@ export default function ApiDebug() {
 
   // ── Path 参数实时回写到 URL 显示 ──
   // originalPathTemplate 始终保存 OpenAPI 里的模板路径（如 /users/{id}），供 buildRequest 使用
-  const originalPathTemplate = operation?.path ?? "/";
+  const originalPathTemplate = operation?.path ?? '/';
   const displayPath = useMemo(() => {
     if (!debugModel) return path;
     const pathParamValues: Record<string, string> = {};
     for (const p of debugModel.pathParams) {
       const v = paramValues[paramKey(p)];
-      if (v !== undefined && v !== "") pathParamValues[p.name] = v;
+      if (v !== undefined && v !== '') pathParamValues[p.name] = v;
     }
     // 如果 path 还包含 {xxx} 占位符，说明用户没有手动覆盖 URL，用 replacePathParams 实时替换
     // 如果 path 已不包含任何占位符，说明用户手动编辑了 URL，直接显示
-    const hasPlaceholders = debugModel.pathParams.some((p) =>
-      path.includes(`{${p.name}}`),
-    );
+    const hasPlaceholders = debugModel.pathParams.some((p) => path.includes(`{${p.name}}`));
     return hasPlaceholders ? replacePathParams(path, pathParamValues) : path;
   }, [path, debugModel, paramValues]);
 
@@ -1558,13 +1405,8 @@ export default function ApiDebug() {
       const placeholderIdx = originalPathTemplate.indexOf(placeholder);
       if (placeholderIdx === -1) continue;
       // 模板中占位符后面紧跟的分隔符（如 / 或 ? 或末尾）
-      const afterPlaceholder = originalPathTemplate.slice(
-        placeholderIdx + placeholder.length,
-      );
-      const nextDelimIdx =
-        afterPlaceholder.length > 0
-          ? newPath.indexOf(afterPlaceholder, placeholderIdx)
-          : -1;
+      const afterPlaceholder = originalPathTemplate.slice(placeholderIdx + placeholder.length);
+      const nextDelimIdx = afterPlaceholder.length > 0 ? newPath.indexOf(afterPlaceholder, placeholderIdx) : -1;
       const valueEnd = nextDelimIdx === -1 ? newPath.length : nextDelimIdx;
       const extractedValue = newPath.slice(placeholderIdx, valueEnd);
       try {
@@ -1596,8 +1438,7 @@ export default function ApiDebug() {
   // ── 从 operation.security 推导 securityKeys ──
   const securityKeys = useMemo(() => {
     const opSecurity = operation?.operation?.security;
-    if (!opSecurity || !Array.isArray(opSecurity) || opSecurity.length === 0)
-      return undefined;
+    if (!opSecurity || !Array.isArray(opSecurity) || opSecurity.length === 0) return undefined;
     const keys: string[] = [];
     for (const item of opSecurity) {
       for (const key of Object.keys(item)) {
@@ -1614,9 +1455,9 @@ export default function ApiDebug() {
     const headers: Record<string, string> = {};
     const queries: Record<string, string> = {};
     for (const p of globalParamItems) {
-      if (p.value !== undefined && p.value !== "") {
-        if (p.in === "header") headers[p.name] = p.value;
-        else if (p.in === "query") queries[p.name] = p.value;
+      if (p.value !== undefined && p.value !== '') {
+        if (p.in === 'header') headers[p.name] = p.value;
+        else if (p.in === 'query') queries[p.name] = p.value;
       }
     }
     return { headers, queries };
@@ -1625,8 +1466,8 @@ export default function ApiDebug() {
   const paramColumns = useMemo<ColumnsType<DebugParam>>(
     () => [
       {
-        title: t("apiDebug.col.enabled"),
-        key: "enabled",
+        title: t('apiDebug.col.enabled'),
+        key: 'enabled',
         width: 48,
         render: (_value: unknown, record: DebugParam) => (
           <Checkbox
@@ -1641,18 +1482,16 @@ export default function ApiDebug() {
         ),
       },
       {
-        title: t("apiDebug.col.paramName"),
-        dataIndex: "name",
-        key: "name",
+        title: t('apiDebug.col.paramName'),
+        dataIndex: 'name',
+        key: 'name',
         width: 220,
-        render: (_value: string, record: DebugParam) => (
-          <ParamNameCell param={record} />
-        ),
+        render: (_value: string, record: DebugParam) => <ParamNameCell param={record} />,
       },
       {
-        title: t("apiDebug.col.type"),
-        dataIndex: "type",
-        key: "type",
+        title: t('apiDebug.col.type'),
+        dataIndex: 'type',
+        key: 'type',
         width: 110,
         render: (_value: string, record: DebugParam) => (
           <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
@@ -1668,34 +1507,28 @@ export default function ApiDebug() {
         ),
       },
       {
-        title: t("apiDebug.col.value"),
-        dataIndex: "value",
-        key: "value",
+        title: t('apiDebug.col.value'),
+        dataIndex: 'value',
+        key: 'value',
         render: (_value: string, record: DebugParam) => (
           <ParamInput
             param={record}
-            value={paramValues[paramKey(record)] ?? ""}
+            value={paramValues[paramKey(record)] ?? ''}
             onChange={(next) => updateValue(record, next)}
             hasError={errorKeys.has(paramKey(record))}
           />
         ),
       },
       {
-        title: t("apiDebug.col.description"),
-        key: "description",
+        title: t('apiDebug.col.description'),
+        key: 'description',
         width: 280,
         render: (_value, record: DebugParam) => (
-          <Space
-            size={2}
-            direction="vertical"
-            style={{ lineHeight: 1.35, fontSize: 12 }}
-          >
-            {record.description && (
-              <Text style={{ fontSize: 12 }}>{record.description}</Text>
-            )}
+          <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+            {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
             {record.default !== undefined && (
               <Text type="secondary" style={{ fontSize: 11 }}>
-                {t("apiDebug.desc.default")}
+                {t('apiDebug.desc.default')}
                 <Text code style={{ fontSize: 11 }}>
                   {stringify(record.default, record.type)}
                 </Text>
@@ -1703,7 +1536,7 @@ export default function ApiDebug() {
             )}
             {record.example !== undefined && (
               <Text type="secondary" style={{ fontSize: 11 }}>
-                {t("apiDebug.desc.example")}
+                {t('apiDebug.desc.example')}
                 <Text code style={{ fontSize: 11 }}>
                   {stringify(record.example, record.type)}
                 </Text>
@@ -1711,12 +1544,12 @@ export default function ApiDebug() {
             )}
             {record.enum && record.enum.length > 0 && (
               <Text type="secondary" style={{ fontSize: 11 }}>
-                {t("apiDebug.desc.enum")}
+                {t('apiDebug.desc.enum')}
                 {record.enum
                   .slice(0, 3)
                   .map((item) => String(item))
-                  .join(", ")}
-                {record.enum.length > 3 ? "…" : ""}
+                  .join(', ')}
+                {record.enum.length > 3 ? '…' : ''}
               </Text>
             )}
           </Space>
@@ -1727,17 +1560,12 @@ export default function ApiDebug() {
   );
 
   if (docLoading) {
-    return <Spin style={{ display: "block", margin: "80px auto" }} />;
+    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
   }
 
   if (!swaggerDoc || !operation || !debugModel) {
     return (
-      <Alert
-        type="warning"
-        showIcon
-        message={t("apiDebug.notFound.title")}
-        description={t("apiDebug.notFound.desc")}
-      />
+      <Alert type="warning" showIcon message={t('apiDebug.notFound.title')} description={t('apiDebug.notFound.desc')} />
     );
   }
 
@@ -1747,32 +1575,28 @@ export default function ApiDebug() {
     for (const p of params) {
       if (paramEnabled[paramKey(p)] === false) continue;
       const v = paramValues[paramKey(p)];
-      if (v !== undefined && v !== "") result[p.name] = v;
+      if (v !== undefined && v !== '') result[p.name] = v;
     }
     return result;
   };
 
   /** 获取当前选中的 body content 分类 */
   const getCurrentCategory = (): string => {
-    const bc = debugModel.bodyContents.find(
-      (b) => b.mediaType === selectedContentType,
-    );
-    return bc?.category ?? "raw";
+    const bc = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+    return bc?.category ?? 'raw';
   };
 
   /** 获取最终 effective content-type */
   const getEffectiveContentType = (): string => {
     if (selectedContentType) return selectedContentType;
     // raw mode fallback
-    if (getCurrentCategory() === "raw") return RAW_CONTENT_TYPES[rawMode];
-    return debugModel.bodyContents[0]?.mediaType ?? "";
+    if (getCurrentCategory() === 'raw') return RAW_CONTENT_TYPES[rawMode];
+    return debugModel.bodyContents[0]?.mediaType ?? '';
   };
 
   const collectFormValues = (): DebugFormValues => {
     const category = getCurrentCategory();
-    const currentBody = debugModel.bodyContents.find(
-      (b) => b.mediaType === selectedContentType,
-    );
+    const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
     const specHeaders = collectForIn(debugModel.headerParams);
     const extraHeaders: Record<string, string> = {};
     for (const row of customHeaders) {
@@ -1786,14 +1610,10 @@ export default function ApiDebug() {
       headerParams: { ...extraHeaders, ...specHeaders },
       cookieParams: collectForIn(debugModel.cookieParams),
       selectedContentType: getEffectiveContentType(),
-      body: category === "json" || category === "raw" ? body : undefined,
-      formFields:
-        category === "urlencoded" || category === "multipart"
-          ? formFields
-          : undefined,
-      fileFields: category === "multipart" ? fileFieldsRef.current : undefined,
-      jsonFields:
-        category === "multipart" ? (currentBody?.jsonFields ?? []) : undefined,
+      body: category === 'json' || category === 'raw' ? body : undefined,
+      formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
+      fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
+      jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
     };
   };
 
@@ -1830,15 +1650,15 @@ export default function ApiDebug() {
     if (errors.length > 0) {
       // 定位到第一个错误所在 Tab
       const first = errors[0];
-      const nextTab = first.in === "body" ? "body" : first.in;
+      const nextTab = first.in === 'body' ? 'body' : first.in;
       setActiveTab(nextTab);
-      setError(errors.map((e) => e.message).join("\n"));
+      setError(errors.map((e) => e.message).join('\n'));
       return;
     }
 
     // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
     const category = getCurrentCategory();
-    const isMultipart = category === "multipart";
+    const isMultipart = category === 'multipart';
 
     setLoading(true);
     // Revoke any previous object URL to avoid memory leaks across consecutive sends.
@@ -1869,14 +1689,10 @@ export default function ApiDebug() {
         const jsonFieldSet = new Set(formValues.jsonFields ?? []);
         // 添加普通字段（非 JSON part）
         for (const [name, value] of Object.entries(formFields)) {
-          if (value !== undefined && value !== "") {
+          if (value !== undefined && value !== '') {
             if (jsonFieldSet.has(name)) {
               // JSON-encoded part: append as Blob with application/json content type
-              fd.append(
-                name,
-                new Blob([value], { type: "application/json" }),
-                `${name}.json`,
-              );
+              fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
             } else {
               fd.append(name, value);
             }
@@ -1890,12 +1706,8 @@ export default function ApiDebug() {
         // silently drops the rest, which is an invisible data-loss bug. We use
         // `fileFieldsMultiple` from knife4j-core to decide, matching the UI control
         // rendered in MultipartForm.
-        const currentBody = debugModel.bodyContents.find(
-          (b) => b.mediaType === selectedContentType,
-        );
-        const multipleFileNames = new Set(
-          currentBody?.fileFieldsMultiple ?? [],
-        );
+        const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+        const multipleFileNames = new Set(currentBody?.fileFieldsMultiple ?? []);
         const files = fileFieldsRef.current;
         for (const [name, fileList] of Object.entries(files)) {
           if (fileList.length === 0) continue;
@@ -1911,9 +1723,9 @@ export default function ApiDebug() {
         }
         init.body = fd;
         // 不设 Content-Type，让浏览器自动设 boundary
-        delete (init.headers as Record<string, string>)["Content-Type"];
+        delete (init.headers as Record<string, string>)['Content-Type'];
       } else {
-        if (built.body !== undefined && built.body !== "") {
+        if (built.body !== undefined && built.body !== '') {
           init.body = built.body;
         }
       }
@@ -1924,7 +1736,7 @@ export default function ApiDebug() {
         responseHeaders[key] = value;
       });
 
-      const contentType = responseHeaders["content-type"] ?? "";
+      const contentType = responseHeaders['content-type'] ?? '';
 
       // 401 check must come before SSE/non-SSE branching:
       // a 401 response typically has Content-Type: application/json or text/html,
@@ -1936,30 +1748,27 @@ export default function ApiDebug() {
       }
 
       // SSE path: text/event-stream → stream via ReadableStream reader
-      if (contentType.toLowerCase().includes("text/event-stream")) {
+      if (contentType.toLowerCase().includes('text/event-stream')) {
         setLoading(false);
         if (!res.body) {
-          setError("SSE response has no body");
+          setError('SSE response has no body');
           sseAbortRef.current = null;
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
+        let buffer = '';
         setSseEvents([]);
 
         const processChunk = (chunk: string) => {
           buffer += chunk;
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
           for (const line of lines) {
             const trimmed = line.trimEnd();
-            if (trimmed.startsWith("data:")) {
+            if (trimmed.startsWith('data:')) {
               const data = trimmed.slice(5).trimStart();
-              setSseEvents((prev) => [
-                ...(prev ?? []),
-                { data, timestamp: Date.now() },
-              ]);
+              setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
             }
           }
         };
@@ -1972,16 +1781,12 @@ export default function ApiDebug() {
             processChunk(decoder.decode(value, { stream: true }));
           }
           // flush remaining buffer
-          if (buffer.trim().startsWith("data:")) {
+          if (buffer.trim().startsWith('data:')) {
             const data = buffer.trim().slice(5).trimStart();
-            if (data)
-              setSseEvents((prev) => [
-                ...(prev ?? []),
-                { data, timestamp: Date.now() },
-              ]);
+            if (data) setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
           }
         } catch (err: unknown) {
-          if (err instanceof Error && err.name === "AbortError") {
+          if (err instanceof Error && err.name === 'AbortError') {
             // user aborted — not an error
           } else {
             setError(err instanceof Error ? err.message : String(err));
@@ -1995,14 +1800,13 @@ export default function ApiDebug() {
       // Non-SSE path: read once as blob so we can branch by content-type without draining the stream twice.
       const blob = await res.blob();
       const blobContentType = contentType || blob.type;
-      const contentDisposition = responseHeaders["content-disposition"];
-      const { kind, rawText, objectUrl, filename } =
-        await interpretResponseBlob(
-          blob,
-          blobContentType,
-          built.url,
-          contentDisposition,
-        );
+      const contentDisposition = responseHeaders['content-disposition'];
+      const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(
+        blob,
+        blobContentType,
+        built.url,
+        contentDisposition,
+      );
 
       setResponse({
         status: res.status,
@@ -2032,10 +1836,10 @@ export default function ApiDebug() {
 
   /** 复制 curl 命令到剪贴板 */
   const handleCopyCurl = (curl: string) => {
-    const done = () => message.success(t("apiDebug.preview.copied"));
-    const fail = () => message.error(t("apiDebug.preview.copyFailed"));
+    const done = () => message.success(t('apiDebug.preview.copied'));
+    const fail = () => message.error(t('apiDebug.preview.copyFailed'));
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(curl).then(done).catch(fail);
         return;
       }
@@ -2044,11 +1848,11 @@ export default function ApiDebug() {
     }
     // 兜底：用临时 textarea
     try {
-      const ta = document.createElement("textarea");
+      const ta = document.createElement('textarea');
       ta.value = curl;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       document.body.removeChild(ta);
       done();
     } catch {
@@ -2059,13 +1863,13 @@ export default function ApiDebug() {
   // body tab 的标签含当前 content-type
   const bodyLabel =
     debugModel.bodyContents.length > 0
-      ? `${t("apiDebug.tab.body")} (${selectedContentType || debugModel.bodyContents[0].mediaType})`
-      : t("apiDebug.tab.body");
+      ? `${t('apiDebug.tab.body')} (${selectedContentType || debugModel.bodyContents[0].mediaType})`
+      : t('apiDebug.tab.body');
 
   const tabItems = [
     {
-      key: "path",
-      label: `${t("apiDebug.tab.path")} (${debugModel.pathParams.length})`,
+      key: 'path',
+      label: `${t('apiDebug.tab.path')} (${debugModel.pathParams.length})`,
       disabled: debugModel.pathParams.length === 0,
       children: (
         <Table
@@ -2078,8 +1882,8 @@ export default function ApiDebug() {
       ),
     },
     {
-      key: "query",
-      label: `${t("apiDebug.tab.query")} (${debugModel.queryParams.length})`,
+      key: 'query',
+      label: `${t('apiDebug.tab.query')} (${debugModel.queryParams.length})`,
       disabled: debugModel.queryParams.length === 0,
       children: (
         <Table
@@ -2092,10 +1896,9 @@ export default function ApiDebug() {
       ),
     },
     {
-      key: "header",
-      label: `${t("apiDebug.tab.header")} (${
-        debugModel.headerParams.length +
-        customHeaders.filter((r) => r.name.trim()).length
+      key: 'header',
+      label: `${t('apiDebug.tab.header')} (${
+        debugModel.headerParams.length + customHeaders.filter((r) => r.name.trim()).length
       })`,
       disabled: false,
       children: (
@@ -2108,21 +1911,16 @@ export default function ApiDebug() {
             rowKey={paramKey}
             locale={{
               emptyText:
-                debugModel.bodyContents.length > 0
-                  ? t("apiDebug.header.autoInject")
-                  : t("apiDebug.noHeaderParams"),
+                debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
             }}
           />
-          <CustomHeadersSection
-            rows={customHeaders}
-            onChange={setCustomHeaders}
-          />
+          <CustomHeadersSection rows={customHeaders} onChange={setCustomHeaders} />
         </>
       ),
     },
     {
-      key: "cookie",
-      label: `${t("apiDebug.tab.cookie")} (${debugModel.cookieParams.length})`,
+      key: 'cookie',
+      label: `${t('apiDebug.tab.cookie')} (${debugModel.cookieParams.length})`,
       disabled: debugModel.cookieParams.length === 0,
       children: (
         <Table
@@ -2135,7 +1933,7 @@ export default function ApiDebug() {
       ),
     },
     {
-      key: "body",
+      key: 'body',
       label: bodyLabel,
       disabled: debugModel.bodyContents.length === 0,
       children: (
@@ -2154,31 +1952,23 @@ export default function ApiDebug() {
       ),
     },
     {
-      key: "preview",
-      label: t("apiDebug.tab.preview"),
+      key: 'preview',
+      label: t('apiDebug.tab.preview'),
       disabled: false,
-      children: (
-        <PreviewTabPanel build={buildPreview} onCopyCurl={handleCopyCurl} />
-      ),
+      children: <PreviewTabPanel build={buildPreview} onCopyCurl={handleCopyCurl} />,
     },
   ];
 
   // 找到第一个非空 Tab 作为默认
-  const defaultTab = tabItems.find((t) => !t.disabled)?.key ?? "query";
+  const defaultTab = tabItems.find((t) => !t.disabled)?.key ?? 'query';
   const currentActiveTab = activeTab ?? defaultTab;
 
   return (
-    <div
-      id="knife4j-api-debug-page"
-      style={{ padding: "0 24px 24px", maxWidth: 1080 }}
-    >
+    <div id="knife4j-api-debug-page" style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
       <OperationModeTabs activeKey="debug" />
 
       <Space align="center" style={{ marginBottom: 12 }}>
-        <Tag
-          color={METHOD_COLORS[method] ?? "default"}
-          style={{ fontSize: 14, padding: "2px 8px" }}
-        >
+        <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
           {method}
         </Tag>
         <Title level={5} style={{ margin: 0 }}>
@@ -2186,41 +1976,24 @@ export default function ApiDebug() {
         </Title>
       </Space>
 
-      <Space.Compact style={{ width: "100%", marginBottom: 16 }}>
+      <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
         <Select
           value={method}
           onChange={setMethod}
           style={{ width: 110 }}
-          options={[
-            "GET",
-            "POST",
-            "PUT",
-            "DELETE",
-            "PATCH",
-            "HEAD",
-            "OPTIONS",
-          ].map((item) => ({
+          options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
             value: item,
             label: item,
           }))}
         />
-        <Input
-          value={baseUrl}
-          onChange={(event) => setBaseUrl(event.target.value)}
-          style={{ width: 240 }}
-        />
+        <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
         <Input
           value={displayPath}
           onChange={(event) => handlePathInputChange(event.target.value)}
           style={{ flex: 1 }}
         />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-          loading={loading}
-        >
-          {t("apiDebug.send")}
+        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
+          {t('apiDebug.send')}
         </Button>
       </Space.Compact>
 
@@ -2232,14 +2005,9 @@ export default function ApiDebug() {
         items={tabItems}
       />
 
-      <Divider style={{ margin: "16px 0" }} />
+      <Divider style={{ margin: '16px 0' }} />
 
-      {loading && (
-        <Spin
-          tip={t("apiDebug.sending")}
-          style={{ display: "block", margin: "24px auto" }}
-        />
-      )}
+      {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
       <ResponsePanel
         response={response}
         error={error}
@@ -2253,7 +2021,7 @@ export default function ApiDebug() {
       <Modal
         open={authModalOpen}
         onCancel={() => setAuthModalOpen(false)}
-        title={t("auth.modal401.title")}
+        title={t('auth.modal401.title')}
         footer={[
           <Button
             key="resend"
@@ -2263,18 +2031,16 @@ export default function ApiDebug() {
               void handleSend();
             }}
           >
-            {t("auth.modal401.resend")}
+            {t('auth.modal401.resend')}
           </Button>,
           <Button key="close" onClick={() => setAuthModalOpen(false)}>
-            {t("auth.modal401.close")}
+            {t('auth.modal401.close')}
           </Button>,
         ]}
         width={680}
         destroyOnClose
       >
-        <p style={{ marginBottom: 16, color: "rgba(0,0,0,0.65)" }}>
-          {t("auth.modal401.description")}
-        </p>
+        <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
         <Authorize />
       </Modal>
     </div>
