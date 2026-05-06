@@ -8,15 +8,13 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | 说明 |
 | --- | --- | --- | --- |
-| `5.0.0-SNAPSHOT` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | 当前版本，Bug 修复 & 功能增强 |
-| `1.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | 正式版（SemVer 独立版本线） |
-| `4.6.0.3` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | Preview 版本，不推荐生产使用 |
+| `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | 当前版本，首个正式稳定版本 |
 
-> knife4j-next 从 `1.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号。`4.6.0.3` 为 Preview 版本。
+> knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.0.0-SNAPSHOT` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.0.0` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -56,9 +54,7 @@ title: 版本对照
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.6.0` | `5.0.0-SNAPSHOT` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI + Bug 修复 |
-| `4.6.0` | `1.0.0` | 正式版：包含全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI |
-| `4.6.0` | `4.6.0.3` | Preview：React UI 首次集成，基础功能 |
+| `4.6.0` | `5.0.0` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI + Bug 修复 |
 
 ## 如何确认你项目中的实际版本
 
@@ -68,4 +64,3 @@ mvn dependency:tree -Dincludes=org.springdoc
 ```
 
 如果 springdoc 版本与上表不一致，说明你的项目中有其他依赖覆盖了版本管理。请检查是否有 BOM 或父 POM 引入了不同版本的 springdoc。
-
