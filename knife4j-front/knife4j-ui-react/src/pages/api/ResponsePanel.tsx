@@ -457,9 +457,7 @@ function ContentTab({
                 }}
               >
                 <span style={jsonCodeStyle}>{line.code}</span>
-                {line.description ? (
-                  <span style={jsonDescStyle}>{line.description}</span>
-                ) : null}
+                {line.description ? <span style={jsonDescStyle}>{line.description}</span> : null}
                 {i < lines.length - 1 ? '\n' : ''}
               </span>
             ))}
