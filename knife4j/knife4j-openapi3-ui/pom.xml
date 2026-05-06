@@ -68,15 +68,16 @@
                 <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>npm-install</id>
+                        <id>bun-install</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>npm</executable>
+                            <executable>bun</executable>
                             <arguments>
                                 <argument>install</argument>
+                                <argument>--frozen-lockfile</argument>
                             </arguments>
                             <workingDirectory>${knife4j-ui-react.dir}</workingDirectory>
                         </configuration>
@@ -88,8 +89,9 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>npx</executable>
+                            <executable>bun</executable>
                             <arguments>
+                                <argument>x</argument>
                                 <argument>vite</argument>
                                 <argument>build</argument>
                                 <argument>--outDir=${knife4j-ui-react.outDir}</argument>

@@ -90,3 +90,17 @@ TypeScript 解析核心，服务于 `knife4j-ui-react`（OAS3 主线）。只要
 ## 状态纪律
 
 重要状态不能只存在于 issue 评论、PR 评论或聊天记录里。Agent 必须把持久状态写回 `.agent/`。
+
+## 工具链约定（Toolchain Convention）
+
+自 issue #259 合并后，所有活跃前端线统一使用 **bun** 作为包管理器：
+
+| 模块 | 工具链 |
+|---|---|
+| `knife4j-front/`（含 `knife4j-core` + `knife4j-ui-react`）| bun (`packageManager: "bun@1.3.13"`, `bun.lock`) |
+| `knife4j-vue3/` | bun (`packageManager: "bun@1.3.13"`, `bun.lock`) |
+| `docs-site/` | bun (`bun.lock`) |
+
+- 新任务中 `knife4j-front/` 相关操作一律使用 `bun install --frozen-lockfile` 而非 `npm ci`。
+- `package-lock.json` 已从 `knife4j-front/` 删除，不要恢复。
+- Maven 构建（`knife4j-openapi3-ui`）通过 `bun install --frozen-lockfile` + `bun x vite build` 完成。

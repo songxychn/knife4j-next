@@ -10,7 +10,7 @@ on:
       - "knife4j-front/knife4j-core/**"
       - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-front/package.json"
-      - "knife4j-front/package-lock.json"
+      - "knife4j-front/bun.lock"
       - "knife4j-vue3/**"
       - "docs-site/**"
       - "scripts/**"
@@ -29,7 +29,7 @@ on:
       - "knife4j-front/knife4j-core/**"
       - "knife4j-front/knife4j-ui-react/**"
       - "knife4j-front/package.json"
-      - "knife4j-front/package-lock.json"
+      - "knife4j-front/bun.lock"
       - "knife4j-vue3/**"
       - "docs-site/**"
       - "scripts/**"
@@ -62,14 +62,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: knife4j-front/package-lock.json
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
 
       - name: Install knife4j-front workspace dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
         working-directory: knife4j-front
 
       - name: Install knife4j-vue3 dependencies (bun)
@@ -133,8 +131,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: knife4j-front/package-lock.json
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Test front core
         run: scripts/test-front-core.sh
