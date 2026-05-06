@@ -6,6 +6,15 @@ export function schemaNameFromRef(ref: string | undefined): string | undefined {
   return decodeURIComponent(idx >= 0 ? ref.slice(idx + 1) : ref);
 }
 
+/**
+ * Normalize a schema title coming from springdoc/springfox.
+ * springdoc encodes generic parameters with guillemets: Result«UserVO» → Result<UserVO>
+ */
+export function normalizeGenericTitle(title: string | undefined): string | undefined {
+  if (!title) return undefined;
+  return title.replace(/«/g, '<').replace(/»/g, '>');
+}
+
 export function schemaNodeRefName(node: SchemaFieldNode): string | undefined {
   if (node.refName) return node.refName;
   if (node.type === 'array') return node.children?.[0]?.refName;
