@@ -320,8 +320,8 @@ function buildFieldTreeInternal(schema: Record<string, unknown> | undefined, ctx
 
   const type = normalizeType(resolved.type);
 
-  // 顶层 object → 展开 properties
-  if (type === 'object' || (type === 'unknown' && resolved.properties)) {
+  // 顶层 object → 展开 properties（含只有 additionalProperties 的 map 类型）
+  if (type === 'object' || (type === 'unknown' && (resolved.properties || resolved.additionalProperties))) {
     return objectToFieldNodes(resolved, ctx, ref);
   }
 

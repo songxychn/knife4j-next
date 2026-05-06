@@ -137,6 +137,17 @@ const doc: Record<string, unknown> = {
         type: 'object',
         additionalProperties: { type: 'integer' },
       },
+      MapOfObjects: {
+        type: 'object',
+        additionalProperties: { $ref: '#/components/schemas/Pet' },
+      },
+      MapOfArrays: {
+        type: 'object',
+        additionalProperties: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Pet' },
+        },
+      },
     },
   },
   definitions: {
@@ -588,5 +599,47 @@ describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {
     expect(names).toContain('b');
     const aNode = nodes.find((n) => n.name === 'a')!;
     expect(aNode.required).toBe(true);
+  });
+});
+
+// ─── issue-291: 泛型映射类型解析 ─────────────────────────
+
+describe('issue-291: generic map type resolution', () => {
+  // Map<K, V> where V is a $ref object
+  test('buildSchemaExample: Map<K, $ref> resolves value type', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/MapOfObjects' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('additionalProp1');
+    expect(result['additionalProp1']).toEqual({ name: 'Buddy', tag: 'string' });
+  });
+
+  // Map<K, List<V>> where V is a $ref object
+  test('buildSchemaExample: Map<K, List<$ref>> resolves nested array value type', () => {
+    const result = buildSchemaExample({ $ref: '#/components/schemas/MapOfArrays' }, ctx()) as Record<string, unknown>;
+    expect(result).toHaveProperty('additionalProp1');
+    expect(result['additionalProp1']).toEqual([{ name: 'Buddy', tag: 'string' }]);
+  });
+
+  // buildSchemaFieldTree: Map<K, $ref> — * node should have children from the ref
+  test('buildSchemaFieldTree: Map<K, $ref> expands * node with ref children', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/MapOfObjects' }, ctx());
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe('*');
+    expect(nodes[0].refName).toBe('Pet');
+    expect(nodes[0].children).toBeDefined();
+    const childNames = nodes[0].children!.map((n) => n.name);
+    expect(childNames).toContain('name');
+    expect(childNames).toContain('tag');
+  });
+
+  // buildSchemaFieldTree: Map<K, List<$ref>> — * node should be array with items child
+  test('buildSchemaFieldTree: Map<K, List<$ref>> expands * node as array with items child', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/MapOfArrays' }, ctx());
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].name).toBe('*');
+    expect(nodes[0].type).toBe('array');
+    expect(nodes[0].children).toBeDefined();
+    const itemNode = nodes[0].children![0];
+    expect(itemNode.name).toBe('items');
+    expect(itemNode.refName).toBe('Pet');
   });
 });
