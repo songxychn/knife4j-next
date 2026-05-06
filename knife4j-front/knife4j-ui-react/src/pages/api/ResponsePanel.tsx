@@ -153,6 +153,7 @@ const jsonDescStyle: React.CSSProperties = {
   fontSize: 12,
   fontStyle: 'italic',
   color: '#8c8c8c',
+  userSelect: 'none',
 };
 
 export default function ResponsePanel({
