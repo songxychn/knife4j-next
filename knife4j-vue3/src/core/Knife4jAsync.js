@@ -3347,7 +3347,7 @@ SwaggerBootstrapUi.prototype.createDetailMenu = function (addFlag) {
         key: md5(_lititle),
         name: _lititle,
         icon: 'icon-APIwendang',
-        path: groupName + '/' + tag.name,
+        path: groupName + '/' + encodeURIComponent(tag.name),
         hasNew: tag.hasNew || tag.hasChanged,
         num: null,
         children: []
