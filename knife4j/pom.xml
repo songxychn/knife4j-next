@@ -20,7 +20,7 @@
         <module>knife4j-openapi3-webflux-spring-boot-starter</module>
         <module>knife4j-openapi3-webflux-jakarta-spring-boot-starter</module>
         <module>knife4j-smoke-tests</module>
-        <module>knife4j-demo</module>
+        <module>knife4j-demo-openapi3</module>
         <module>knife4j-demo-openapi2</module>
     </modules>
     <packaging>pom</packaging>

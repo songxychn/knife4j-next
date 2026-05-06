@@ -97,7 +97,7 @@ springdoc:
 - [产品介绍](/guide/introduction)：这个 fork 的定位、与 upstream 的对照表
 - [快速开始](/guide/getting-started)：Spring Boot 2.x / 3.x 完整接入
 - [迁移指引](/guide/migration)：从 `com.github.xiaoymin` 切到 `com.baizhukui`
-- [Demo 预览](/guide/demo)：`knife4j-demo` 模块、本地跑 / Docker Compose
+- [Demo 预览](/guide/demo)：`knife4j-demo-openapi3`（OpenAPI 3）与 `knife4j-demo-openapi2`（OpenAPI 2）两条线的本地跑 / Docker Compose
 - [常见问题](/guide/faq)：doc.html 404、生产环境禁用、Nginx 反向代理、React 配置不生效
 
 **组件**
