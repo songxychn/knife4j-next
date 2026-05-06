@@ -27,7 +27,7 @@ title: 产品介绍
 1. **兼容性修复**。upstream 对 Spring Boot 3.4 / 3.5 的适配步伐变慢，fork 已经升级 `springdoc-openapi-jakarta` 到 `2.8.9`，把 3.4.0 / 3.5.0 两个版本纳入 smoke-tests 模块定期回归。
 2. **安全修复**。修复了 `/v2/api-docs;xxx` 分号绕过 Basic 认证的漏洞（[#886](https://github.com/xiaoymin/knife4j/issues/886)），以及 gateway `context-path` 下聚合 host 少斜杠的问题（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
 3. **可重复发布流程**。`.github/workflows/release.yml` 通过 Central Publishing Plugin 直接推送 Maven Central，不依赖人工临场操作。
-4. **可试用的 Demo**。`knife4j-demo` 模块提供完整的 Spring Boot 3.4 示例工程 + Dockerfile + docker-compose.yml。
+4. **可试用的 Demo**。`knife4j-demo`（Spring Boot 3.4 + OpenAPI 3 + React UI）和 `knife4j-demo-openapi2`（Spring Boot 2.7 + OpenAPI 2 + Vue 3 UI）两个示例工程都附带 Dockerfile，可分别本地运行或在线预览。
 
 ## 哪些是 **已经** 做了的
 
@@ -41,7 +41,7 @@ title: 产品介绍
 | Gateway context-path 修复 | ✅ `#954` | [Gateway 接入](./gateway) |
 | React + Vite 新前端 webjar | ✅ | 在 `knife4j-openapi3-ui` 生效；`knife4j-openapi2-ui` 交由本仓库 `knife4j-vue3` 维护 |
 | 设置面板（Authorize / GlobalParam / OfflineDoc） | ✅ | 新前端右上角入口 |
-| `knife4j-demo` Docker Compose | ✅ | [Demo 预览](./demo) |
+| `knife4j-demo` / `knife4j-demo-openapi2` Docker 镜像 | ✅ | [Demo 预览](./demo) |
 | `com.baizhukui` 坐标发布 | ✅ | Maven Central |
 
 ## 哪些是 **没有** 做或 **部分实现**，需要你知道
