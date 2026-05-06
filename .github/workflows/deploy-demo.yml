@@ -9,7 +9,8 @@ on:
       - 'knife4j-front/knife4j-core/**'
       - 'knife4j-front/knife4j-ui-react/**'
       - 'knife4j-front/package.json'
-      - 'knife4j-front/bun.lock'
+      - 'knife4j-front/package-lock.json'
+      - 'knife4j-vue3/**'
       - '.github/workflows/deploy-demo.yml'
     tags:
       - 'v*'
@@ -18,7 +19,6 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/knife4j-demo
 
 jobs:
   build-and-push:
@@ -26,6 +26,18 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # OpenAPI 3 (Spring Boot 3 + springdoc + React UI) — deployed to openapi3.demo.knife4jnext.com
+          - module: knife4j-demo
+            image: knife4j-demo
+            context: knife4j/knife4j-demo
+          # OpenAPI 2 (Spring Boot 2 + springfox + Vue3 UI) — deployed to openapi2.demo.knife4jnext.com
+          - module: knife4j-demo-openapi2
+            image: knife4j-demo-openapi2
+            context: knife4j/knife4j-demo-openapi2
     steps:
       - uses: actions/checkout@v4
 
@@ -39,17 +51,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Set up bun
-        uses: oven-sh/setup-bun@v2
+          cache: npm
+          cache-dependency-path: knife4j-front/package-lock.json
 
       - name: Install knife4j-front workspace dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
         working-directory: knife4j-front
 
       - name: Build jar
         working-directory: knife4j
-        run: mvn -B -ntp -pl knife4j-demo -am package -DskipTests
+        run: mvn -B -ntp -pl ${{ matrix.module }} -am package -DskipTests
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -62,7 +73,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
@@ -70,7 +81,7 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: knife4j/knife4j-demo
+          context: ${{ matrix.context }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

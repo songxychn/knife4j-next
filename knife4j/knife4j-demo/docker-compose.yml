@@ -1,7 +1,0 @@
-services:
-  knife4j-demo:
-    image: ghcr.io/songxychn/knife4j-next/knife4j-demo:latest
-    container_name: knife4j-demo
-    restart: unless-stopped
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"

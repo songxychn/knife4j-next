@@ -1,0 +1,17 @@
+server:
+  port: 8081
+
+spring:
+  mvc:
+    # springfox 2.10.x relies on Spring's legacy AntPathMatcher; SB 2.7 default is PATH_PATTERN_PARSER.
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+
