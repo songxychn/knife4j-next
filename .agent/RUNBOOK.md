@@ -98,6 +98,20 @@
 - 改动横跨多个区域
 - 准备的 PR 同时触碰 Java 和前端/文档
 
+## 上游 issue 复现前置流程（强制）
+
+凡 issue 正文含 `Upstream: https://github.com/xiaoymin/knife4j/issues/<N>` 或标题带 `(upstream #<N>)` 的任务，动手写修复代码之前必须完成以下步骤：
+
+1. **阅读 upstream issue**：拉下完整错误堆栈、触发代码、依赖版本组合。如 upstream 没贴堆栈，不要臆造修复方向，先在 issue 评论里列出需要的上游信息并转 `status:blocked`。
+2. **挑选或新建最小复现工程**：优先复用 `knife4j-smoke-tests/` 下已有模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）。如必须新建，`pom.xml` 里**显式 pin**触发问题的 Spring Boot / springdoc 版本（不要只依赖 starter 的传递解析），并在 `knife4j-smoke-tests/pom.xml`、`scripts/test-java.sh` 的 `SMOKE_MODULES`、`.github/workflows/build.yml` 的 smoke loop 三处同步登记。
+3. **在 master（未打任何修复）上先跑一次复现**：记录精确异常、错误响应或错误日志，把证据贴到 issue 评论。
+4. **根据复现结果分流**：
+   - **已无法复现**：在 issue 写明已尝试的触发条件（SB 版本、springdoc 版本、controller 签名等），保留 smoke 工程作为回归防护，然后：
+     - 若已在本仓库 fix 历史中修过，把对应 commit 链接贴出来 → `gh issue close <N> --comment "cannot reproduce; fixed in <sha>"`。
+     - 若只是上游触发条件不明 → 加 `status:blocked` 等上游补信息。
+   - **能复现**：保留该 smoke 工程，在其中加入断言复现条件的测试（例如断言特定 WARN 日志、断言特定 JSON 字段），再进入修复阶段。修复后同一测试应从失败转为通过，这才是有效的回归证据。
+5. **禁止在未复现的前提下写"防御性"代码**（盲目加 `try-catch`、`if (x != null)` guard 等）。这种改动无法被 smoke 证伪，等同于噪音；#303 已有血泪案例，详见 `KNOWN_PITFALLS.md`。
+
 ## 选择验证的规则
 
 - 纯文档改动通常不需要 Java 或前端验证，除非触碰生成物或已知会影响构建的代码示例。
