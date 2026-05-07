@@ -758,4 +758,47 @@ describe('buildRequest sourceMap', () => {
     expect(result.headers['Authorization']).toBe('Bearer tok');
     expect(Object.keys(result.queries)).toHaveLength(0);
   });
+
+  // ── issue #275 regression: global Authorization survives when interface field is empty ──
+
+  test('issue #275: global Authorization survives when interface Authorization field is empty', () => {
+    // Scenario: user sets Authorization in GlobalParam page, interface-level Authorization is blank
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/api/resource',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: {
+        ...baseForm,
+        headerParams: { Authorization: '' }, // interface field left empty
+      },
+      globalParams: {
+        headers: { Authorization: 'Bearer global-token' },
+        queries: {},
+      },
+    });
+    // Global Authorization must survive — empty interface field must not wipe it out
+    expect(result.headers['Authorization']).toBe('Bearer global-token');
+    expect(result.sourceMap!.headers['Authorization']).toBe('global');
+  });
+
+  test('issue #275: explicit interface Authorization overrides global when non-empty', () => {
+    // When user explicitly fills in interface-level Authorization, it should win
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/api/resource',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: {
+        ...baseForm,
+        headerParams: { Authorization: 'Bearer per-request-token' },
+      },
+      globalParams: {
+        headers: { Authorization: 'Bearer global-token' },
+        queries: {},
+      },
+    });
+    expect(result.headers['Authorization']).toBe('Bearer per-request-token');
+    expect(result.sourceMap!.headers['Authorization']).toBe('interface');
+  });
 });
