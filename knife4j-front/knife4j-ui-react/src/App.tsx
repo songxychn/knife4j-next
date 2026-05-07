@@ -98,7 +98,16 @@ const AppInner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { groups, activeGroup, markdownDocs, setActiveGroupValue } = useGroup();
+  const { setActiveGroupId } = useAuth();
   const { t, i18n } = useTranslation();
+
+  // Keep AuthContext in sync with the active group so auth schemes are loaded
+  // from the correct IndexedDB bucket when the user switches groups.
+  useEffect(() => {
+    if (activeGroup.value) {
+      setActiveGroupId(activeGroup.value);
+    }
+  }, [activeGroup.value, setActiveGroupId]);
 
   const {
     token: { colorBgContainer },
