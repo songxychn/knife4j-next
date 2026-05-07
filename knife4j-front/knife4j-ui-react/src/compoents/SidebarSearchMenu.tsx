@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Input, Menu, MenuProps, Tooltip } from 'antd';
 import { ApiOutlined, DatabaseOutlined, FileMarkdownOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +50,12 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
+  // Reset search text when switching groups to prevent stale queries from one
+  // group contaminating filter results in another (issue #285 / upstream #833).
+  useEffect(() => {
+    setSearchText('');
+  }, [activeGroup.value]);
+
   // Group apis by tag, filtered by search text
   const filteredByTag = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -97,10 +103,22 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         label: (
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <DatabaseOutlined />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {t('schema.title')}
             </span>
-            <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>
+            <span
+              style={{
+                marginLeft: 'auto',
+                color: 'rgba(255,255,255,0.45)',
+                fontSize: 12,
+              }}
+            >
               {Object.keys(schemas).length}
             </span>
           </span>
@@ -127,9 +145,21 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           key: api.key,
           title: `${api.method.toUpperCase()} ${api.summary}`,
           label: (
-            <span style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                overflow: 'hidden',
+              }}
+            >
               {methodTag(api.method)}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {highlightText(api.summary, q)}
               </span>
             </span>
@@ -147,7 +177,13 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           key: doc.key,
           title: doc.title,
           label: (
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {highlightText(doc.title, q)}
             </span>
           ),
