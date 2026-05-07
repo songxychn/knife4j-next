@@ -56,6 +56,13 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- Optional: Spring Cloud Context for @RefreshScope support (Nacos/Config dynamic refresh) -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-context</artifactId>
+            <version>4.1.4</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>
