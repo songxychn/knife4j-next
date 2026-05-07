@@ -127,6 +127,14 @@ public class Boot2OpenApi3DocHttpSmokeTest {
         Assert.assertEquals(200, apiDocs.statusCode);
         Assert.assertTrue("Custom api-docs path should return OpenAPI JSON (#573, #849)",
                 apiDocs.body.contains("\"openapi\""));
+
+        // knife4j fixed discovery endpoint must return the correct swaggerConfigUrl (#573)
+        HttpResponse k4jConfig = get(port, "/knife4j/swagger-config");
+        Assert.assertEquals(200, k4jConfig.statusCode);
+        Assert.assertTrue(
+                "/knife4j/swagger-config should return swaggerConfigUrl pointing to /api/openapi/swagger-config, got: "
+                        + k4jConfig.body,
+                k4jConfig.body.contains("/api/openapi/swagger-config"));
     }
 
     private HttpResponse get(int port, String path) throws IOException {
