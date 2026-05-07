@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Input, Menu, MenuProps, Tooltip } from 'antd';
 import { ApiOutlined, DatabaseOutlined, FileMarkdownOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +49,12 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
+
+  // Reset search text whenever the active group changes to prevent stale queries
+  // from one group contaminating filter results in another group.
+  useEffect(() => {
+    setSearchText('');
+  }, [activeGroup.value]);
 
   // Group apis by tag, filtered by search text
   const filteredByTag = useMemo(() => {
