@@ -319,6 +319,9 @@ server:
 **nginx 侧**：
 
 ```nginx
+# 注意：location 末尾的斜杠与 proxy_pass 末尾的斜杠配合，
+# 让 nginx 在转发时自动剥离 /prod-api/dispatch 前缀。
+# X-Forwarded-Prefix 不带末尾斜杠，与 Spring 的 ForwardedHeaderFilter 期望一致。
 location /prod-api/dispatch/ {
     proxy_pass http://backend:8080/;
     proxy_set_header X-Forwarded-Prefix /prod-api/dispatch;
@@ -346,7 +349,7 @@ curl -s http://localhost:8080/v3/api-docs/swagger-config | jq '.urls'
 - `server.forward-headers-strategy=framework` 会注册 Spring 的 `ForwardedHeaderFilter`，它在 Servlet 层面重写 `HttpServletRequest` 的 scheme/host/contextPath，对所有 springdoc 端点透明生效，**无需修改 knife4j 配置**。
 - 若使用 `server.forward-headers-strategy=native`，则由容器（Tomcat/Jetty）处理 `X-Forwarded-Proto/Host/Port`，但**不支持 `X-Forwarded-Prefix`**（Tomcat 原生不识别该 header），因此 `native` 模式**无法**完成 prefix 重写，不适用于本场景；请使用 `framework`。
 - 若同时启用了 `knife4j.basic.enable=true`，需确认 nginx 传递的路径与 `knife4j.basic.include` 规则匹配，否则带前缀的 api-docs 请求会被 Basic Auth filter 拦截返回 401。
-- Spring Boot 3.x（Jakarta）与 Spring Boot 2.7.x（javax）均支持上述配置，行为一致。
+- Spring Boot 3.x（Jakarta / Spring Framework 6.x）与 Spring Boot 2.7.x（javax / Spring Framework 5.3）均支持上述配置。注意：`ForwardedHeaderFilter` 在 Spring Framework 6.x 中若重复注册会抛出异常（`IllegalStateException`），请勿在 `WebMvcConfigurer` 中手动再注册一次；Spring Framework 5.3 对重复注册的处理较宽松，但同样建议避免。
 
 ---
 
