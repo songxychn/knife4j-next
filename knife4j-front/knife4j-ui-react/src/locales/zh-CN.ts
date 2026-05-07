@@ -170,6 +170,7 @@ const zhCN = {
   'apiDebug.desc.enum': '枚举：',
   'apiDebug.json.array': '数组',
   'apiDebug.json.object': '对象',
+  'apiDebug.byte.placeholder': '请输入 Base64 编码字符串（byte 格式）',
 
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': '格式化',

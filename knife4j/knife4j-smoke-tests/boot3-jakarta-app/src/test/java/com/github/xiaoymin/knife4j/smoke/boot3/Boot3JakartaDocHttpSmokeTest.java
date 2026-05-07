@@ -152,6 +152,72 @@ public class Boot3JakartaDocHttpSmokeTest {
                 filesArrayOfBinary.matcher(body).find());
     }
 
+    /**
+     * End-to-end reproduction lock for upstream xiaoymin/knife4j#680 (mirrored as issue #289):
+     * a Java {@code Byte} field is mapped by springdoc to OAS3 {@code {"type":"string","format":"byte"}}.
+     *
+     * <p>This is the missing server-side reproduction for PR #328: the front-end fix in
+     * {@code knife4j-front/knife4j-core/src/debug/schemaExample.ts} and
+     * {@code knife4j-front/knife4j-ui-react/src/components/schema/schemaUtils.ts} relies on
+     * springdoc emitting exactly this contract. If a future springdoc upgrade changes the shape
+     * (e.g. starts emitting {@code {"type":"integer","format":"int8"}} for {@code Byte}), the
+     * front-end {@code byte} display path would silently stop being exercised on real payloads;
+     * locking the contract here turns that into a CI failure.
+     */
+    @Test
+    public void shouldExposeStringByteSchemaForJavaByteField() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        String body = apiDocs.body;
+        Assert.assertTrue("api-docs should contain /byte-echo path", body.contains("/byte-echo"));
+
+        // Match the `level` property declaration regardless of which sibling key (description,
+        // example, ...) springdoc emits next to type/format. Using a tolerant regex avoids
+        // coupling to springdoc's key ordering or whitespace.
+        Pattern levelStringByte = Pattern.compile(
+                "\"level\"\\s*:\\s*\\{[^{}]*\"type\"\\s*:\\s*\"string\"[^{}]*\"format\"\\s*:\\s*\"byte\"",
+                Pattern.DOTALL);
+        Pattern levelStringByteAlt = Pattern.compile(
+                "\"level\"\\s*:\\s*\\{[^{}]*\"format\"\\s*:\\s*\"byte\"[^{}]*\"type\"\\s*:\\s*\"string\"",
+                Pattern.DOTALL);
+        Assert.assertTrue(
+                "springdoc should emit {type:string,format:byte} for the 'level' Byte field on "
+                        + "ByteRequest. This is the OAS3 contract the knife4j-core byte branch relies on. "
+                        + "Full api-docs excerpt:\n" + body,
+                levelStringByte.matcher(body).find() || levelStringByteAlt.matcher(body).find());
+    }
+
+    @Test
+    public void shouldServeCustomApiDocsPath() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "springdoc.api-docs.path=/api/openapi",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        // Custom springdoc.api-docs.path should be accessible (#573, #849)
+        HttpResponse apiDocs = get(port, "/api/openapi");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        Assert.assertTrue("Custom api-docs path should return OpenAPI JSON (#573, #849)",
+                apiDocs.body.contains("\"openapi\""));
+    }
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
@@ -214,6 +280,17 @@ public class Boot3JakartaDocHttpSmokeTest {
         public String uploadArray(@RequestBody UploadArrayRequest request) {
             return "ok";
         }
+
+        /**
+         * Used by {@link Boot3JakartaDocHttpSmokeTest#shouldExposeStringByteSchemaForJavaByteField()}
+         * to lock the springdoc schema contract for Java {@code Byte} fields
+         * (upstream xiaoymin/knife4j#680, mirrored as issue #289).
+         */
+        @PostMapping(path = "/byte-echo", consumes = "application/json")
+        public ByteRequest byteEcho(@RequestBody ByteRequest request) {
+            return request;
+        }
+
     }
 
     @Schema(description = "Multipart request body with an array of files")
@@ -222,4 +299,16 @@ public class Boot3JakartaDocHttpSmokeTest {
         @ArraySchema(schema = @Schema(type = "string", format = "binary", description = "Files to upload"))
         public MultipartFile[] files;
     }
+
+    /**
+     * Reproduction DTO for upstream #680 / issue #289: a Java {@code Byte} field is
+     * mapped by springdoc to OAS3 {@code {"type":"string","format":"byte"}}.
+     */
+    @Schema(description = "Request body containing a Java Byte field (upstream #680 reproduction)")
+    public static class ByteRequest {
+
+        @Schema(description = "Severity level encoded as a single Java Byte")
+        public Byte level;
+    }
+
 }

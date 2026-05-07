@@ -21,5 +21,7 @@ export function schemaNodeTypeLabel(node: SchemaFieldNode): string {
     return 'array';
   }
   if (refName) return refName;
+  // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
+  if (node.type === 'string' && node.format === 'byte') return 'byte';
   return [node.type, node.format].filter(Boolean).join(' / ') || 'unknown';
 }

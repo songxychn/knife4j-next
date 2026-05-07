@@ -120,7 +120,10 @@ const doc: Record<string, unknown> = {
           },
           {
             type: 'object',
-            properties: { width: { type: 'number' }, height: { type: 'number' } },
+            properties: {
+              width: { type: 'number' },
+              height: { type: 'number' },
+            },
           },
         ],
       },
@@ -187,7 +190,12 @@ describe('buildSchemaExample', () => {
   // 3. example/default 优先级
   test('explicit example takes highest priority', () => {
     const result = buildSchemaExample(
-      { type: 'string', enum: ['a', 'b'], default: 'default', example: 'explicit' },
+      {
+        type: 'string',
+        enum: ['a', 'b'],
+        default: 'default',
+        example: 'explicit',
+      },
       ctx(),
     );
     expect(result).toBe('explicit');
@@ -330,6 +338,12 @@ describe('buildSchemaExample', () => {
     const result = buildSchemaExample({ type: 'string', format: 'uuid' }, ctx());
     expect(result).toBe('3fa85f64-5717-4562-b3fc-2c963f66afa6');
   });
+
+  // 18. byte format (Java Byte / OAS string+byte)
+  test('generates base64 example for string+byte format', () => {
+    const result = buildSchemaExample({ type: 'string', format: 'byte' }, ctx());
+    expect(result).toBe('dGVzdA==');
+  });
 });
 
 // ─── buildSchemaFieldTree 测试 ────────────────────────
@@ -439,13 +453,26 @@ describe('buildSchemaFieldTree', () => {
     expect(result[0].children![0].type).toBe('integer');
   });
 
-  // 12. example / default / description 透传
+  // 12. byte format field node — type stays 'string', format stays 'byte'
+  test('preserves type=string and format=byte for Java Byte fields', () => {
+    const result = buildSchemaFieldTree({ type: 'string', format: 'byte' }, ctx());
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('string');
+    expect(result[0].format).toBe('byte');
+  });
+
+  // 13. example / default / description 透传
   test('passes through example, default, and description to field nodes', () => {
     const nodes = buildSchemaFieldTree(
       {
         type: 'object',
         properties: {
-          status: { type: 'string', example: 'active', default: 'pending', description: 'Current status' },
+          status: {
+            type: 'string',
+            example: 'active',
+            default: 'pending',
+            description: 'Current status',
+          },
         },
       },
       ctx(),
@@ -578,7 +605,11 @@ describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {
   test('inline allOf merges properties without $ref', () => {
     const schema = {
       allOf: [
-        { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] },
+        {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+          required: ['a'],
+        },
         { type: 'object', properties: { b: { type: 'integer' } } },
       ],
     };

@@ -42,6 +42,8 @@ function schemaName(schema?: SchemaObject): string {
   if (!schema) return '';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
   if (schema.type === 'array') return `${schemaName(schema.items) || 'object'}[]`;
+  // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
+  if (schema.type === 'string' && schema.format === 'byte') return 'byte';
   return [schema.type, schema.format].filter(Boolean).join(' / ') || 'object';
 }
 
@@ -89,7 +91,12 @@ function filterFieldNodes(nodes: SchemaFieldNode[], mode: 'request' | 'response'
 function schemaToTypeNode(schema: SchemaObject | undefined): SchemaFieldNode {
   if (!schema) return { name: '', type: 'unknown', required: false };
   if (schema.$ref) {
-    return { name: '', type: 'object', required: false, refName: schemaNameFromRef(schema.$ref) };
+    return {
+      name: '',
+      type: 'object',
+      required: false,
+      refName: schemaNameFromRef(schema.$ref),
+    };
   }
   if (schema.type === 'array') {
     return {
@@ -315,7 +322,14 @@ export default function ApiDoc() {
     <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
       <OperationModeTabs activeKey="doc" />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 4,
+        }}
+      >
         <Title level={4} style={{ margin: 0 }}>
           {op.summary ?? operation.path}
         </Title>
@@ -329,7 +343,14 @@ export default function ApiDoc() {
         </Space>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 8,
+        }}
+      >
         <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
           {method}
         </Tag>
@@ -344,7 +365,15 @@ export default function ApiDoc() {
         <Space size={6} wrap style={{ marginTop: 4, marginBottom: 8 }}>
           <Text type="secondary">{t('apiDoc.relatedModels')}</Text>
           {relatedModelNames.map((name) => (
-            <SchemaTypeLink key={name} node={{ name: '', type: 'object', required: false, refName: name }} />
+            <SchemaTypeLink
+              key={name}
+              node={{
+                name: '',
+                type: 'object',
+                required: false,
+                refName: name,
+              }}
+            />
           ))}
         </Space>
       )}

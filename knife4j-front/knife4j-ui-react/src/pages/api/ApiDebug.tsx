@@ -116,7 +116,12 @@ async function interpretResponseBlob(
   contentType: string,
   requestUrl: string,
   contentDisposition?: string,
-): Promise<{ kind: DebugResponsePayload['kind']; rawText: string; objectUrl?: string; filename?: string }> {
+): Promise<{
+  kind: DebugResponsePayload['kind'];
+  rawText: string;
+  objectUrl?: string;
+  filename?: string;
+}> {
   const ct = (contentType || '').toLowerCase();
 
   // Content-Disposition: attachment → treat as binary download regardless of content-type
@@ -125,7 +130,12 @@ async function interpretResponseBlob(
 
   if (isAttachment) {
     const filename = cdFilename ?? extractFilenameFromUrl(requestUrl) ?? 'download';
-    return { kind: 'binary', rawText: '', objectUrl: URL.createObjectURL(blob), filename };
+    return {
+      kind: 'binary',
+      rawText: '',
+      objectUrl: URL.createObjectURL(blob),
+      filename,
+    };
   }
 
   // image/* → inline preview via object URL, keep rawText empty (binary)
@@ -153,7 +163,12 @@ async function interpretResponseBlob(
 
   // Binary payload (pdf, octet-stream, zip, xlsx, ...) → download link.
   const filename = cdFilename ?? extractFilenameFromUrl(requestUrl) ?? 'download';
-  return { kind: 'binary', rawText: '', objectUrl: URL.createObjectURL(blob), filename };
+  return {
+    kind: 'binary',
+    rawText: '',
+    objectUrl: URL.createObjectURL(blob),
+    filename,
+  };
 }
 
 /** Best-effort filename from a URL path's last segment, dropping query/hash. */
@@ -428,7 +443,10 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
         allowClear
         status={status}
         placeholder={param.description ?? t('apiDebug.enum.placeholder')}
-        options={param.enum.map((item) => ({ value: String(item), label: String(item) }))}
+        options={param.enum.map((item) => ({
+          value: String(item),
+          label: String(item),
+        }))}
         style={{ width: '100%' }}
       />
     );
@@ -481,13 +499,15 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
   }
 
   // string / file / 其他 → Input
+  // byte format → show base64 placeholder hint
+  const byteHint = param.format === 'byte' ? t('apiDebug.byte.placeholder') : undefined;
   return (
     <Input
       size="small"
       status={status}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={param.required ? t('apiDebug.inputNumber.required') : (param.description ?? '')}
+      placeholder={byteHint ?? (param.required ? t('apiDebug.inputNumber.required') : (param.description ?? ''))}
       readOnly={param.readOnly}
     />
   );
@@ -538,7 +558,10 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
         value={value || undefined}
         onChange={onChange}
         allowClear
-        options={field.enum.map((item) => ({ value: String(item), label: String(item) }))}
+        options={field.enum.map((item) => ({
+          value: String(item),
+          label: String(item),
+        }))}
         style={{ width: '100%' }}
       />
     );
@@ -572,12 +595,14 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
   }
 
   // default: Input
+  // byte format (string+byte, e.g. Java Byte via springdoc) → show Base64 hint
+  const byteHint = field.format === 'byte' ? t('apiDebug.byte.placeholder') : undefined;
   return (
     <Input
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={field.description ?? ''}
+      placeholder={byteHint ?? field.description ?? ''}
     />
   );
 }
@@ -1008,7 +1033,14 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
 
   return (
     <div>
-      <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: 8,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <Radio.Group
           value={rawMode}
           onChange={(e) => setRawMode(e.target.value)}
@@ -1051,7 +1083,11 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
 // ─── Preview Tab (TASK-028) ───────────────────────────
 
 interface PreviewTabPanelProps {
-  build: () => { formValues: DebugFormValues; built: BuiltRequest; curl: string };
+  build: () => {
+    formValues: DebugFormValues;
+    built: BuiltRequest;
+    curl: string;
+  };
   onCopyCurl: (curl: string) => void;
 }
 
@@ -1076,7 +1112,11 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
 
   const sourceTag = (source: ParamSource | undefined) => {
     if (!source) return null;
-    const colorMap: Record<ParamSource, string> = { interface: 'blue', global: 'green', auth: 'orange' };
+    const colorMap: Record<ParamSource, string> = {
+      interface: 'blue',
+      global: 'green',
+      auth: 'orange',
+    };
     return (
       <Tag color={colorMap[source]} style={{ marginInlineEnd: 0 }}>
         {t(`apiDebug.preview.source.${source}`)}
@@ -1127,7 +1167,11 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
                   </Space>
                 ),
               },
-              { title: t('apiDebug.col.headerValue'), dataIndex: 'value', key: 'value' },
+              {
+                title: t('apiDebug.col.headerValue'),
+                dataIndex: 'value',
+                key: 'value',
+              },
             ]}
             style={{ marginTop: 4 }}
           />
@@ -1164,7 +1208,11 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
                   </Space>
                 ),
               },
-              { title: t('apiDebug.col.value'), dataIndex: 'value', key: 'value' },
+              {
+                title: t('apiDebug.col.value'),
+                dataIndex: 'value',
+                key: 'value',
+              },
             ]}
             style={{ marginTop: 4 }}
           />
@@ -1426,7 +1474,12 @@ export default function ApiDebug() {
         render: (_value: unknown, record: DebugParam) => (
           <Checkbox
             checked={paramEnabled[paramKey(record)] !== false}
-            onChange={(e) => setParamEnabled((prev) => ({ ...prev, [paramKey(record)]: e.target.checked }))}
+            onChange={(e) =>
+              setParamEnabled((prev) => ({
+                ...prev,
+                [paramKey(record)]: e.target.checked,
+              }))
+            }
           />
         ),
       },
@@ -1567,7 +1620,11 @@ export default function ApiDebug() {
   };
 
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
-  const buildPreview = (): { formValues: DebugFormValues; built: BuiltRequest; curl: string } => {
+  const buildPreview = (): {
+    formValues: DebugFormValues;
+    built: BuiltRequest;
+    curl: string;
+  } => {
     const formValues = collectFormValues();
     const built = coreBuildRequest({
       baseUrl,
@@ -1622,7 +1679,11 @@ export default function ApiDebug() {
       const abortController = new AbortController();
       sseAbortRef.current = abortController;
 
-      const init: RequestInit = { method: built.method, headers: built.headers, signal: abortController.signal };
+      const init: RequestInit = {
+        method: built.method,
+        headers: built.headers,
+        signal: abortController.signal,
+      };
 
       if (isMultipart) {
         // 构建 FormData

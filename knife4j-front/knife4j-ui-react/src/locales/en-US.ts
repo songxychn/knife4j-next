@@ -170,6 +170,7 @@ const enUS = {
   'apiDebug.desc.enum': 'Enum: ',
   'apiDebug.json.array': 'array',
   'apiDebug.json.object': 'object',
+  'apiDebug.byte.placeholder': 'Enter a Base64-encoded string (byte format)',
 
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': 'Beautify',

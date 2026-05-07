@@ -69,6 +69,8 @@ function schemaName(schema?: MdSchemaObject): string {
   if (!schema) return '';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
   if (schema.type === 'array') return `${schemaName(schema.items) || 'object'}[]`;
+  // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
+  if (schema.type === 'string' && schema.format === 'byte') return 'byte';
   return [schema.type, schema.format].filter(Boolean).join('/') || 'object';
 }
 
@@ -89,7 +91,12 @@ function responseSchemaName(r: MdResponseObject): string {
 function bodyRows(
   schema: MdSchemaObject,
   ctx: MdDocContext,
-): Array<{ name: string; type: string; required: boolean; description: string }> {
+): Array<{
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+}> {
   const resolved = schema.$ref ? resolveRef(schema.$ref, ctx) : schema;
   if (!resolved?.properties) return [];
   const req = new Set(resolved.required ?? []);

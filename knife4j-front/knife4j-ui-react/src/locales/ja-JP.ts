@@ -175,6 +175,7 @@ const jaJP = {
   'apiDebug.desc.enum': '列挙：',
   'apiDebug.json.array': '配列',
   'apiDebug.json.object': 'オブジェクト',
+  'apiDebug.byte.placeholder': 'Base64エンコードされた文字列を入力してください（byte形式）',
 
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': '整形',
