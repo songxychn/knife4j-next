@@ -88,6 +88,25 @@ public class Knife4jGatewayProperties {
     private final List<Router> routes = new ArrayList<>();
 
     /**
+     * 按域名区分的路由配置，key 为请求域名（Host），value 为该域名下展示的路由列表。
+     * 当请求 Host 命中某个 key 时，优先使用该 key 对应的路由列表；否则回退到 {@link #routes}。
+     * 示例：
+     * <pre>
+     * knife4j:
+     *   gateway:
+     *     routes-by-host:
+     *       api.internal.example.com:
+     *         - name: 内部服务
+     *           url: /internal-service/v3/api-docs
+     *       api.public.example.com:
+     *         - name: 公开服务
+     *           url: /public-service/v3/api-docs
+     * </pre>
+     * @since 4.5.0
+     */
+    private final Map<String, List<Router>> routesByHost = new HashMap<>();
+
+    /**
      * 服务发现策略配置
      * @since 4.1.0
      */

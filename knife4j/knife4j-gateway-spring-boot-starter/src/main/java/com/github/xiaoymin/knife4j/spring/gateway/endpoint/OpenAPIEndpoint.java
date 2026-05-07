@@ -71,7 +71,8 @@ public class OpenAPIEndpoint {
         if (knife4jGatewayProperties.getStrategy() == GatewayStrategy.MANUAL) {
             log.debug("manual strategy.");
             List<Object> sortedSet = new LinkedList<>();
-            List<Knife4jGatewayProperties.Router> routers = knife4jGatewayProperties.getRoutes();
+            // 优先按请求 Host 选择路由列表（upstream#850：按域名区分接口文档展示）
+            List<Knife4jGatewayProperties.Router> routers = resolveRoutersByHost(request);
             if (routers != null && !routers.isEmpty()) {
                 routers.sort(Comparator.comparing(Knife4jGatewayProperties.Router::getOrder));
                 for (Knife4jGatewayProperties.Router router : routers) {
@@ -93,5 +94,30 @@ public class OpenAPIEndpoint {
             response.setUrls(serviceDiscoverHandler.getResources(basePath));
         }
         return Mono.just(ResponseEntity.ok().body(response));
+    }
+
+    /**
+     * 根据请求 Host 选择路由列表。
+     * 若 {@code knife4j.gateway.routes-by-host} 中存在与当前请求 Host 匹配的条目，则返回该条目对应的路由列表；
+     * 否则回退到全局 {@code knife4j.gateway.routes}。
+     *
+     * @param request 当前 WebFlux 请求
+     * @return 适用于当前请求的路由列表，可能为空列表但不为 null
+     * @since 4.5.0
+     */
+    private List<Knife4jGatewayProperties.Router> resolveRoutersByHost(ServerHttpRequest request) {
+        Map<String, List<Knife4jGatewayProperties.Router>> routesByHost = knife4jGatewayProperties.getRoutesByHost();
+        if (routesByHost != null && !routesByHost.isEmpty()) {
+            String host = request.getURI().getHost();
+            log.debug("request host:{}", host);
+            if (host != null) {
+                List<Knife4jGatewayProperties.Router> hostRoutes = routesByHost.get(host);
+                if (hostRoutes != null && !hostRoutes.isEmpty()) {
+                    log.debug("routes-by-host matched for host:{}", host);
+                    return hostRoutes;
+                }
+            }
+        }
+        return knife4jGatewayProperties.getRoutes();
     }
 }
