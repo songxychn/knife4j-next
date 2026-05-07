@@ -43,6 +43,19 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
 
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {
+        try {
+            return doCustomize(operation, handlerMethod);
+        } catch (NullPointerException e) {
+            // Guard against ResolvableType.equalsType NPE in Spring Boot 3.3.x / Spring Framework 6.1.x
+            // when springdoc resolves generic return types (upstream: knife4j-next#303, knife4j#961).
+            // Log a warning and return the operation unchanged so that api-docs generation continues.
+            log.warn("knife4j: skipped customization for {} due to ResolvableType NPE (SB 3.3.x compat): {}",
+                    handlerMethod.getMethod().toGenericString(), e.getMessage());
+            return operation;
+        }
+    }
+
+    private Operation doCustomize(Operation operation, HandlerMethod handlerMethod) {
         // Unwrap CGLIB proxy (e.g. from @Validated) to get the real controller class
         Class<?> beanType = ClassUtils.getUserClass(handlerMethod.getBeanType());
         // 解析支持作者、接口排序
