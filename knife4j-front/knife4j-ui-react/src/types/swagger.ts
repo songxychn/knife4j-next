@@ -17,8 +17,12 @@ export interface SwaggerGroup {
  * 说明：
  * - `tagsSorter` / `operationsSorter`：和 springdoc 一致，取值为 `'alpha'` 时按字母序排序；
  *   `operationsSorter` 还可取 `'method'` 按 HTTP method 排序；其他值一律保持原序。
+ * - `url`：单文档场景下 springdoc 返回的 api-docs URL（含自定义 api-docs path）。
+ * - `urls`：多文档场景下的分组列表。
  */
 export interface SwaggerUiConfig {
+  /** 单文档场景下的 api-docs URL（springdoc 单文档时返回此字段） */
+  url?: string;
   /** 分组列表（springdoc 多文档场景） */
   urls?: Array<{ name: string; url: string }>;
   /** tag 排序策略（例如 'alpha'） */

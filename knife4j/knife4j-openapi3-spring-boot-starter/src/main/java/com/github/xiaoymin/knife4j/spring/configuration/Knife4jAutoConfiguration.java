@@ -36,11 +36,15 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import javax.servlet.DispatcherType;
+import java.util.Collections;
+import java.util.Map;
 
 /***
  * Knife4j 基础自动配置类
@@ -69,6 +73,39 @@ public class Knife4jAutoConfiguration {
                                                              SpringDocConfigProperties docProperties) {
         logger.debug("Register Knife4jOpenApiCustomizer");
         return new Knife4jOpenApiCustomizer(knife4jProperties, docProperties);
+    }
+
+    /**
+     * 固定端点 /knife4j/swagger-config，返回实际 swagger-config URL。
+     * 当 springdoc.api-docs.path 被自定义时，前端可通过此端点发现正确的 swagger-config 地址，
+     * 避免硬编码 /v3/api-docs/swagger-config 导致 404（upstream xiaoymin/knife4j#573）。
+     */
+    @Bean
+    @ConditionalOnMissingBean(Knife4jSwaggerConfigController.class)
+    public Knife4jSwaggerConfigController knife4jSwaggerConfigController(SpringDocConfigProperties docProperties) {
+        return new Knife4jSwaggerConfigController(docProperties);
+    }
+
+    @RestController
+    public static class Knife4jSwaggerConfigController {
+
+        private final SpringDocConfigProperties docProperties;
+
+        public Knife4jSwaggerConfigController(SpringDocConfigProperties docProperties) {
+            this.docProperties = docProperties;
+        }
+
+        /**
+         * 返回实际的 swagger-config URL，供前端在自定义 api-docs path 时发现正确地址。
+         * 响应示例：{"swaggerConfigUrl":"/api/openapi/swagger-config"}
+         */
+        @GetMapping("/knife4j/swagger-config")
+        public Map<String, String> swaggerConfig() {
+            String apiDocsPath = docProperties.getApiDocs().getPath();
+            return Collections.singletonMap(
+                    GlobalConstants.EXTENSION_SWAGGER_CONFIG_URL,
+                    apiDocsPath + "/swagger-config");
+        }
     }
 
     @Bean

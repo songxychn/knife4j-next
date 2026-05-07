@@ -91,6 +91,13 @@ public class GlobalConstants {
     public static final String EXTENSION_OPEN_MARKDOWN_NAME = "x-markdownFiles";
 
     /**
+     * knife4j 固定端点 /knife4j/swagger-config 响应中的 key，
+     * 值为实际的 swagger-config URL（含自定义 api-docs path）。
+     * 前端通过此 key 发现正确的 swagger-config 地址（upstream xiaoymin/knife4j#573）。
+     */
+    public static final String EXTENSION_SWAGGER_CONFIG_URL = "swaggerConfigUrl";
+
+    /**
      * 响应HTTP状态码
      */
     public static final Integer BASIC_SECURITY_RESPONSE_CODE = 401;

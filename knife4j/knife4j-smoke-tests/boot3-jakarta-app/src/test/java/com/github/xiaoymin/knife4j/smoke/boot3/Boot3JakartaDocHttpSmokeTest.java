@@ -152,6 +152,59 @@ public class Boot3JakartaDocHttpSmokeTest {
                 filesArrayOfBinary.matcher(body).find());
     }
 
+    /**
+     * Regression test for upstream xiaoymin/knife4j#344 / #573:
+     * when {@code springdoc.api-docs.path} is customised (e.g. {@code /api/openapi}),
+     * the swagger-config endpoint moves to {@code /api/openapi/swagger-config} and the
+     * {@code urls[].url} values inside it must point to the custom path, not the default
+     * {@code /v3/api-docs}.
+     *
+     * <p>The test also verifies that the knife4j fixed discovery endpoint
+     * {@code /knife4j/swagger-config} returns the correct {@code swaggerConfigUrl} so that
+     * the frontend can bootstrap itself without knowing the custom path in advance.
+     */
+    @Test
+    public void shouldUseCustomApiDocsPathInSwaggerConfig() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "springdoc.api-docs.path=/api/openapi",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        // 1. Default swagger-config URL must return 404 (path has moved)
+        HttpResponse defaultConfig = get(port, "/v3/api-docs/swagger-config");
+        Assert.assertNotEquals(
+                "Default /v3/api-docs/swagger-config should NOT be 200 when api-docs path is customised",
+                200, defaultConfig.statusCode);
+
+        // 2. Custom swagger-config URL must be reachable and contain the custom path
+        HttpResponse customConfig = get(port, "/api/openapi/swagger-config");
+        Assert.assertEquals(200, customConfig.statusCode);
+        Assert.assertTrue(
+                "swagger-config at custom path should reference /api/openapi, got: " + customConfig.body,
+                customConfig.body.contains("/api/openapi"));
+
+        // 3. The actual api-docs must be served at the custom path
+        HttpResponse apiDocs = get(port, "/api/openapi");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        Assert.assertTrue(
+                "api-docs at custom path should contain openapi field, got: " + apiDocs.body,
+                apiDocs.body.contains("\"openapi\""));
+
+        // 4. knife4j fixed discovery endpoint must return the correct swaggerConfigUrl
+        HttpResponse k4jConfig = get(port, "/knife4j/swagger-config");
+        Assert.assertEquals(200, k4jConfig.statusCode);
+        Assert.assertTrue(
+                "/knife4j/swagger-config should return swaggerConfigUrl pointing to /api/openapi/swagger-config, got: "
+                        + k4jConfig.body,
+                k4jConfig.body.contains("/api/openapi/swagger-config"));
+    }
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");

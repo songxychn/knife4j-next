@@ -24,14 +24,37 @@ export type TagsSorter = 'alpha' | 'preserve';
 export type OperationsSorter = 'alpha' | 'method' | 'preserve';
 
 /**
- * 拉取 springdoc / swagger-ui 的聚合配置：`/v3/api-docs/swagger-config`。
- * 返回 `null` 表示端点不存在或返回异常（例如 springfox 场景）。
+ * 拉取 springdoc / swagger-ui 的聚合配置。
+ *
+ * 策略（解决自定义 springdoc.api-docs.path 时 swagger-config 地址变化的问题）：
+ * 1. 先尝试默认地址 `v3/api-docs/swagger-config`（标准 springdoc 默认路径）。
+ * 2. 若返回非 2xx，说明 api-docs path 已被自定义。此时请求 knife4j 固定端点
+ *    `knife4j/swagger-config`，该端点始终返回实际的 swagger-config URL
+ *    （`{"swaggerConfigUrl": "<custom-path>/swagger-config"}`），
+ *    再用该 URL 发起第二次请求获取真正的 SwaggerUiConfig。
+ * 3. 两步均失败则返回 `null`（例如 springfox 场景，由调用方 fallback 到 swagger-resources）。
  */
 export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
   try {
     const res = await fetch('v3/api-docs/swagger-config');
-    if (!res.ok) return null;
-    return (await res.json()) as SwaggerUiConfig;
+    if (res.ok) {
+      return (await res.json()) as SwaggerUiConfig;
+    }
+  } catch (_) {
+    /* ignore, try knife4j fallback */
+  }
+
+  // 默认地址失败 → 尝试 knife4j 固定端点获取实际 swagger-config URL
+  try {
+    const k4jRes = await fetch('knife4j/swagger-config');
+    if (!k4jRes.ok) return null;
+    const k4jData = (await k4jRes.json()) as { swaggerConfigUrl?: string };
+    const configUrl = k4jData.swaggerConfigUrl;
+    if (!configUrl) return null;
+
+    const res2 = await fetch(configUrl);
+    if (!res2.ok) return null;
+    return (await res2.json()) as SwaggerUiConfig;
   } catch (_) {
     return null;
   }
@@ -40,11 +63,15 @@ export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
 /**
  * 从已获取的 SwaggerUiConfig 解析 group 列表。
  * - 有 `urls` → 多文档场景
- * - 否则 → 单文档，固定使用 `v3/api-docs`
+ * - 有 `url`（单数）→ 单文档，使用 springdoc 返回的实际 api-docs URL（含自定义路径）
+ * - 否则 → 单文档，回退到默认 `v3/api-docs`
  */
 export function parseGroupsFromConfig(config: SwaggerUiConfig): SwaggerGroup[] {
-  if (config.urls && Array.isArray(config.urls)) {
+  if (config.urls && Array.isArray(config.urls) && config.urls.length > 0) {
     return config.urls.map((u) => ({ name: u.name, url: u.url }));
+  }
+  if (config.url) {
+    return [{ name: 'default', url: config.url }];
   }
   return [{ name: 'default', url: 'v3/api-docs' }];
 }
