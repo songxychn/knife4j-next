@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.github.xiaoymin.knife4j.spring.gateway.endpoint;
 
 import com.github.xiaoymin.knife4j.spring.gateway.Knife4jGatewayProperties;
@@ -50,8 +51,10 @@ public class ResolveRoutersByHostTest {
                 ServerHttpRequest.class.getClassLoader(),
                 new Class[]{ServerHttpRequest.class},
                 (proxy, method, args) -> {
-                    if ("getHeaders".equals(method.getName())) return headers;
-                    if ("getURI".equals(method.getName())) return uri;
+                    if ("getHeaders".equals(method.getName()))
+                        return headers;
+                    if ("getURI".equals(method.getName()))
+                        return uri;
                     return null;
                 });
     }
