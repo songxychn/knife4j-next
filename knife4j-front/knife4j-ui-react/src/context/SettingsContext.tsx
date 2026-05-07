@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from "react";
 
-const STORAGE_KEY = 'Knife4jGlobalSettings';
+const STORAGE_KEY = "Knife4jGlobalSettings";
 
 /**
  * 前端覆盖的 tag 排序策略。
@@ -8,7 +8,7 @@ const STORAGE_KEY = 'Knife4jGlobalSettings';
  * - 'alpha'：按字母序排序。
  * - 'preserve'：强制保持 OpenAPI JSON 的原始顺序（即使后端配置了 alpha）。
  */
-export type TagsSorterOverride = 'auto' | 'alpha' | 'preserve';
+export type TagsSorterOverride = "auto" | "alpha" | "preserve";
 /**
  * 前端覆盖的 operation 排序策略。
  * - 'auto'：跟随后端 `operationsSorter`；后端未配置时保持原序。
@@ -16,7 +16,7 @@ export type TagsSorterOverride = 'auto' | 'alpha' | 'preserve';
  * - 'method'：按 HTTP method 顺序。
  * - 'preserve'：强制保持原序。
  */
-export type OperationsSorterOverride = 'auto' | 'alpha' | 'method' | 'preserve';
+export type OperationsSorterOverride = "auto" | "alpha" | "method" | "preserve";
 
 export interface AppSettings {
   /** 是否启用 Host 覆盖 */
@@ -40,18 +40,24 @@ export interface AppSettings {
    * 当前版本不对接，保持 false；未来可按需启用。
    */
   enableSwaggerBootstrapUi: boolean;
+  /** 是否显示底部 Footer（false 时完全隐藏） */
+  footerEnabled: boolean;
+  /** 自定义 Footer 内容（非空时替换默认版权文本） */
+  footerCustomContent: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   enableHost: false,
-  enableHostText: '',
+  enableHostText: "",
   enableRequestCache: true,
   enableDynamicParameter: false,
   enableFilterMultipartApis: false,
-  enableFilterMultipartApiMethodType: 'POST',
-  tagsSorter: 'auto',
-  operationsSorter: 'auto',
+  enableFilterMultipartApiMethodType: "POST",
+  tagsSorter: "auto",
+  operationsSorter: "auto",
   enableSwaggerBootstrapUi: false,
+  footerEnabled: true,
+  footerCustomContent: "",
 };
 
 function loadSettings(): AppSettings {
@@ -76,16 +82,24 @@ function saveSettings(s: AppSettings): void {
 
 interface SettingsContextValue {
   settings: AppSettings;
-  setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+  setSetting: <K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K],
+  ) => void;
   resetSettings: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
 
-  const setSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+  const setSetting = <K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K],
+  ) => {
     setSettings((prev) => {
       const next = { ...prev, [key]: value };
       saveSettings(next);
@@ -100,13 +114,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, setSetting, resetSettings }}>{children}</SettingsContext.Provider>
+    <SettingsContext.Provider value={{ settings, setSetting, resetSettings }}>
+      {children}
+    </SettingsContext.Provider>
   );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useSettings = (): SettingsContextValue => {
   const ctx = useContext(SettingsContext);
-  if (!ctx) throw new Error('useSettings must be used inside SettingsProvider');
+  if (!ctx) throw new Error("useSettings must be used inside SettingsProvider");
   return ctx;
 };

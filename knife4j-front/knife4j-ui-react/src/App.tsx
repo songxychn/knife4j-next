@@ -1,38 +1,58 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
-import { Resizable } from 'react-resizable';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/GroupContext';
-import { AuthProvider } from './context/AuthContext';
-import { GlobalParamProvider } from './context/GlobalParamContext';
-import { SettingsProvider } from './context/SettingsContext';
-import SidebarSearchMenu from './compoents/SidebarSearchMenu';
-import SettingsDrawer from './compoents/SettingsDrawer';
-import knife4jMark from './assets/logo/knife4j-next-mark.svg';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
+import {
+  Button,
+  ConfigProvider,
+  Dropdown,
+  Layout,
+  MenuProps,
+  Select,
+  Tabs,
+  theme,
+} from "antd";
+import { Resizable } from "react-resizable";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  GroupProvider,
+  useGroup,
+  ApiItem,
+  MarkdownDocItem,
+} from "./context/GroupContext";
+import { AuthProvider } from "./context/AuthContext";
+import { GlobalParamProvider } from "./context/GlobalParamContext";
+import { SettingsProvider } from "./context/SettingsContext";
+import { useSettings } from "./context/SettingsContext";
+import SidebarSearchMenu from "./compoents/SidebarSearchMenu";
+import SettingsDrawer from "./compoents/SettingsDrawer";
+import knife4jMark from "./assets/logo/knife4j-next-mark.svg";
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
-const HOME_KEY = '/group/home';
+const HOME_KEY = "/group/home";
 
 /** sessionStorage keys for persisting opened tabs across page refresh. */
-const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
-const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
+const STORAGE_KEY_ITEMS = "knife4j-next:tab-items";
+const STORAGE_KEY_ACTIVE = "knife4j-next:tab-active";
 
 /** Languages supported by the React UI i18n layer. Keep in sync with `src/i18n.ts` resources. */
-const SUPPORTED_LANGS = ['zh-CN', 'en-US', 'ja-JP'] as const;
+const SUPPORTED_LANGS = ["zh-CN", "en-US", "ja-JP"] as const;
 type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
 /** Normalise the raw i18next language (which may be `zh`, `ja-jp`, etc.) into one of our supported tags. */
 const normalizeLang = (raw: string | undefined): SupportedLang => {
-  if (!raw) return 'zh-CN';
-  if ((SUPPORTED_LANGS as readonly string[]).includes(raw)) return raw as SupportedLang;
+  if (!raw) return "zh-CN";
+  if ((SUPPORTED_LANGS as readonly string[]).includes(raw))
+    return raw as SupportedLang;
   const lower = raw.toLowerCase();
-  if (lower.startsWith('ja')) return 'ja-JP';
-  if (lower.startsWith('en')) return 'en-US';
-  return 'zh-CN';
+  if (lower.startsWith("ja")) return "ja-JP";
+  if (lower.startsWith("en")) return "en-US";
+  return "zh-CN";
 };
 
 /**
@@ -40,19 +60,21 @@ const normalizeLang = (raw: string | undefined): SupportedLang => {
  * obtain the corresponding sidebar menu key.
  */
 const routeKeyToMenuKey = (key: string) =>
-  key.endsWith('/doc')
+  key.endsWith("/doc")
     ? key.slice(0, -4)
-    : key.endsWith('/debug')
+    : key.endsWith("/debug")
       ? key.slice(0, -6)
-      : key.endsWith('/openapi')
+      : key.endsWith("/openapi")
         ? key.slice(0, -8)
-        : key.endsWith('/script')
+        : key.endsWith("/script")
           ? key.slice(0, -7)
-          : key.includes('/schema')
-            ? key.replace(/\/schema\/.*$/, '/schema')
+          : key.includes("/schema")
+            ? key.replace(/\/schema\/.*$/, "/schema")
             : key;
 
-const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
+const schemaRouteInfo = (
+  key: string,
+): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
   if (!match) return null;
   return {
@@ -67,15 +89,21 @@ interface PersistedTab {
 }
 
 /** Read persisted tabs from sessionStorage, filtering out anything invalid. */
-function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | null {
+function loadPersistedTabs(): {
+  items: PersistedTab[];
+  activeKey: string;
+} | null {
   try {
     const rawItems = sessionStorage.getItem(STORAGE_KEY_ITEMS);
     if (!rawItems) return null;
     const parsed = JSON.parse(rawItems);
     if (!Array.isArray(parsed)) return null;
-    const items: PersistedTab[] = parsed.filter((x) => x && typeof x.key === 'string' && typeof x.label === 'string');
+    const items: PersistedTab[] = parsed.filter(
+      (x) => x && typeof x.key === "string" && typeof x.label === "string",
+    );
     if (items.length === 0) return null;
-    const activeKey = sessionStorage.getItem(STORAGE_KEY_ACTIVE) ?? items[0].key;
+    const activeKey =
+      sessionStorage.getItem(STORAGE_KEY_ACTIVE) ?? items[0].key;
     return { items, activeKey };
   } catch {
     return null;
@@ -83,11 +111,11 @@ function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | nul
 }
 
 const footerStyle: React.CSSProperties = {
-  textAlign: 'center',
-  fontSize: '14px',
-  color: '#848587',
-  backgroundColor: '#f0f2f5',
-  minHeight: '40px',
+  textAlign: "center",
+  fontSize: "14px",
+  color: "#848587",
+  backgroundColor: "#f0f2f5",
+  minHeight: "40px",
 };
 
 // Inner component so it can use GroupProvider context
@@ -99,6 +127,7 @@ const AppInner: React.FC = () => {
   const location = useLocation();
   const { groups, activeGroup, markdownDocs, setActiveGroupValue } = useGroup();
   const { t, i18n } = useTranslation();
+  const { settings } = useSettings();
 
   const {
     token: { colorBgContainer },
@@ -117,14 +146,22 @@ const AppInner: React.FC = () => {
     const persisted = loadPersistedTabs();
     return persisted ? persisted.activeKey : HOME_KEY;
   });
-  const [items, setItems] = useState<Array<{ label: string; children: string; key: string }>>(() => {
+  const [items, setItems] = useState<
+    Array<{ label: string; children: string; key: string }>
+  >(() => {
     const persisted = loadPersistedTabs();
     if (persisted) {
       const hasHome = persisted.items.some((p) => p.key === HOME_KEY);
-      const withHome = hasHome ? persisted.items : [{ label: t('app.tab.home'), key: HOME_KEY }, ...persisted.items];
-      return withHome.map((p) => ({ label: p.label, children: '', key: p.key }));
+      const withHome = hasHome
+        ? persisted.items
+        : [{ label: t("app.tab.home"), key: HOME_KEY }, ...persisted.items];
+      return withHome.map((p) => ({
+        label: p.label,
+        children: "",
+        key: p.key,
+      }));
     }
-    return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
+    return [{ label: t("app.tab.home"), children: "", key: HOME_KEY }];
   });
   const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
 
@@ -135,7 +172,10 @@ const AppInner: React.FC = () => {
    */
   useEffect(() => {
     try {
-      const payload: PersistedTab[] = items.map((p) => ({ key: p.key, label: p.label }));
+      const payload: PersistedTab[] = items.map((p) => ({
+        key: p.key,
+        label: p.label,
+      }));
       sessionStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(payload));
       sessionStorage.setItem(STORAGE_KEY_ACTIVE, activeKey);
     } catch {
@@ -163,10 +203,10 @@ const AppInner: React.FC = () => {
     }
 
     const isApiRoute =
-      pathname.endsWith('/doc') ||
-      pathname.endsWith('/debug') ||
-      pathname.endsWith('/openapi') ||
-      pathname.endsWith('/script');
+      pathname.endsWith("/doc") ||
+      pathname.endsWith("/debug") ||
+      pathname.endsWith("/openapi") ||
+      pathname.endsWith("/script");
     if (!isApiRoute) {
       restoredRef.current = true;
       return;
@@ -179,7 +219,9 @@ const AppInner: React.FC = () => {
     restoredRef.current = true;
     const title = `${api.method.toUpperCase()} ${api.summary}`;
     setItems((prev) =>
-      prev.some((p) => p.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+      prev.some((p) => p.key === pathname)
+        ? prev
+        : [...prev, { label: title, children: "", key: pathname }],
     );
     setActiveKey(pathname);
     setSelectedKey(menuKey);
@@ -200,9 +242,13 @@ const AppInner: React.FC = () => {
     const info = schemaRouteInfo(pathname);
     if (!info) return;
 
-    const title = info.labelSchema ? `${t('schema.title')} / ${info.labelSchema}` : t('schema.title');
+    const title = info.labelSchema
+      ? `${t("schema.title")} / ${info.labelSchema}`
+      : t("schema.title");
     setItems((prev) =>
-      prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+      prev.some((pane) => pane.key === pathname)
+        ? prev
+        : [...prev, { label: title, children: "", key: pathname }],
     );
     setActiveKey(pathname);
     setSelectedKey(info.menuKey);
@@ -227,38 +273,47 @@ const AppInner: React.FC = () => {
       pathname = location.pathname;
     }
 
-    const markdownDoc = markdownDocsRef.current.find((doc) => doc.key === pathname);
+    const markdownDoc = markdownDocsRef.current.find(
+      (doc) => doc.key === pathname,
+    );
     if (!markdownDoc) return;
 
     setItems((prev) =>
       prev.some((pane) => pane.key === pathname)
         ? prev
-        : [...prev, { label: markdownDoc.title, children: '', key: pathname }],
+        : [...prev, { label: markdownDoc.title, children: "", key: pathname }],
     );
     setActiveKey(pathname);
     setSelectedKey(pathname);
   }, [location.pathname]);
 
-  const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
+  const handleResize = (
+    _e: React.SyntheticEvent,
+    data: { size: { width: number } },
+  ) => {
     setSiderWidth(data.size.width);
   };
 
-  const menuClick: MenuProps['onClick'] = (info) => {
+  const menuClick: MenuProps["onClick"] = (info) => {
     const rawKey = String(info.key);
     const schemaInfo = schemaRouteInfo(rawKey);
-    const markdownDoc: MarkdownDocItem | undefined = markdownDocs.find((doc) => doc.key === rawKey);
+    const markdownDoc: MarkdownDocItem | undefined = markdownDocs.find(
+      (doc) => doc.key === rawKey,
+    );
     const newActiveKey = schemaInfo || markdownDoc ? rawKey : `${rawKey}/doc`;
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
-      const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
+      const api: ApiItem | undefined = activeGroup.apis.find(
+        (a) => a.key === rawKey,
+      );
       const title = schemaInfo
-        ? t('schema.title')
+        ? t("schema.title")
         : markdownDoc
           ? markdownDoc.title
           : api
             ? `${api.method.toUpperCase()} ${api.summary}`
             : rawKey;
-      setItems([...items, { label: title, children: '', key: newActiveKey }]);
+      setItems([...items, { label: title, children: "", key: newActiveKey }]);
     }
     setSelectedKey(routeKeyToMenuKey(newActiveKey));
     setActiveKey(newActiveKey);
@@ -277,7 +332,10 @@ const AppInner: React.FC = () => {
     const targetIndex = items.findIndex((pane) => pane.key === targetKey);
     const newPanes = items.filter((pane) => pane.key !== targetKey);
     if (newPanes.length && targetKey === activeKey) {
-      const { key } = newPanes[targetIndex === newPanes.length ? targetIndex - 1 : targetIndex];
+      const { key } =
+        newPanes[
+          targetIndex === newPanes.length ? targetIndex - 1 : targetIndex
+        ];
       setActiveKey(key);
       setSelectedKey(routeKeyToMenuKey(key));
       navigate(key);
@@ -285,8 +343,8 @@ const AppInner: React.FC = () => {
     setItems(newPanes);
   };
 
-  const onEdit = (targetKey: TargetKey, action: 'add' | 'remove') => {
-    if (action === 'remove') remove(targetKey);
+  const onEdit = (targetKey: TargetKey, action: "add" | "remove") => {
+    if (action === "remove") remove(targetKey);
   };
 
   const closeCurrent = () => {
@@ -297,10 +355,13 @@ const AppInner: React.FC = () => {
 
   const closeOther = () => {
     if (contextMenuKey) {
-      const newPanes = items.filter((pane) => pane.key === HOME_KEY || pane.key === contextMenuKey);
+      const newPanes = items.filter(
+        (pane) => pane.key === HOME_KEY || pane.key === contextMenuKey,
+      );
       setItems(newPanes);
       if (!newPanes.some((p) => p.key === activeKey)) {
-        const targetKey = contextMenuKey === HOME_KEY ? HOME_KEY : contextMenuKey;
+        const targetKey =
+          contextMenuKey === HOME_KEY ? HOME_KEY : contextMenuKey;
         setActiveKey(targetKey);
         setSelectedKey(routeKeyToMenuKey(targetKey));
         navigate(targetKey);
@@ -316,27 +377,35 @@ const AppInner: React.FC = () => {
     navigate(HOME_KEY);
   };
 
-  const contextMenuItems: MenuProps['items'] = [
-    { key: 'closeCurrent', label: t('tab.context.closeCurrent'), onClick: closeCurrent },
-    { key: 'closeOther', label: t('tab.context.closeOther'), onClick: closeOther },
-    { key: 'closeAll', label: t('tab.context.closeAll'), onClick: closeAll },
+  const contextMenuItems: MenuProps["items"] = [
+    {
+      key: "closeCurrent",
+      label: t("tab.context.closeCurrent"),
+      onClick: closeCurrent,
+    },
+    {
+      key: "closeOther",
+      label: t("tab.context.closeOther"),
+      onClick: closeOther,
+    },
+    { key: "closeAll", label: t("tab.context.closeAll"), onClick: closeAll },
   ];
 
   const currentLang = normalizeLang(i18n.language);
 
   const langLabelMap: Record<SupportedLang, string> = {
-    'zh-CN': t('header.lang.zh'),
-    'en-US': t('header.lang.en'),
-    'ja-JP': t('header.lang.ja'),
+    "zh-CN": t("header.lang.zh"),
+    "en-US": t("header.lang.en"),
+    "ja-JP": t("header.lang.ja"),
   };
 
-  const langMenuItems: MenuProps['items'] = [
-    { key: 'zh-CN', label: '中文' },
-    { key: 'en-US', label: 'English' },
-    { key: 'ja-JP', label: '日本語' },
+  const langMenuItems: MenuProps["items"] = [
+    { key: "zh-CN", label: "中文" },
+    { key: "en-US", label: "English" },
+    { key: "ja-JP", label: "日本語" },
   ];
 
-  const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
+  const onLangMenuClick: MenuProps["onClick"] = ({ key }) => {
     const next = normalizeLang(key);
     if (next !== currentLang) {
       i18n.changeLanguage(next);
@@ -353,12 +422,12 @@ const AppInner: React.FC = () => {
   }));
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: "100vh" }}>
       <Resizable
         width={siderWidth}
         height={Infinity}
         handle={<div className="react-resizable-handle" />}
-        resizeHandles={['e']}
+        resizeHandles={["e"]}
         onResize={handleResize}
         minConstraints={[260, Infinity]}
         maxConstraints={[520, Infinity]}
@@ -370,42 +439,54 @@ const AppInner: React.FC = () => {
           collapsed={collapsed}
           collapsedWidth={56}
           width={siderWidth}
-          style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
         >
           {/* Brand */}
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
               gap: 10,
               minHeight: 56,
-              padding: collapsed ? '12px 0' : '12px 16px',
-              color: '#fff',
+              padding: collapsed ? "12px 0" : "12px 16px",
+              color: "#fff",
               fontSize: collapsed ? 14 : 20,
               fontWeight: 700,
               letterSpacing: collapsed ? 0 : 0.2,
-              whiteSpace: 'nowrap',
+              whiteSpace: "nowrap",
             }}
           >
-            <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
-            {!collapsed && <span>{t('app.brand')}</span>}
+            <img
+              src={knife4jMark}
+              alt="knife4j"
+              style={{ width: 28, height: 28 }}
+            />
+            {!collapsed && <span>{t("app.brand")}</span>}
           </div>
 
           {/* Group switcher */}
           {!collapsed && groupOptions.length > 0 && (
-            <div style={{ padding: '0 8px 8px' }}>
+            <div style={{ padding: "0 8px 8px" }}>
               <Select
                 options={groupOptions}
                 value={activeGroup.value}
-                style={{ width: '100%' }}
+                style={{ width: "100%" }}
                 onChange={(val) => setActiveGroupValue(val)}
               />
             </div>
           )}
 
           {/* Search + Menu */}
-          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={collapsed} />
+          <SidebarSearchMenu
+            selectedKey={selectedKey}
+            onMenuClick={menuClick}
+            collapsed={collapsed}
+          />
         </Sider>
       </Resizable>
 
@@ -414,8 +495,8 @@ const AppInner: React.FC = () => {
           style={{
             padding: 0,
             background: colorBgContainer,
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
           }}
         >
           <Button
@@ -424,17 +505,31 @@ const AppInner: React.FC = () => {
             onClick={() => setCollapsed(!collapsed)}
             style={{ fontSize: 16, width: 64, height: 64 }}
           />
-          {t('app.header.title')}
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          {t("app.header.title")}
+          <span
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
             <Dropdown
               menu={{
                 items: langMenuItems,
                 selectedKeys: [currentLang],
                 onClick: onLangMenuClick,
               }}
-              trigger={['click']}
+              trigger={["click"]}
             >
-              <Button type="text" style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}>
+              <Button
+                type="text"
+                style={{
+                  fontSize: 14,
+                  height: 48,
+                  padding: "0 12px",
+                  fontWeight: 600,
+                }}
+              >
                 {langLabel}
               </Button>
             </Dropdown>
@@ -447,18 +542,26 @@ const AppInner: React.FC = () => {
           </span>
         </Header>
 
-        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <SettingsDrawer
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
 
         <Content
           style={{
-            margin: '6px 4px',
+            margin: "6px 4px",
             minHeight: 610,
             padding: 6,
             background: colorBgContainer,
           }}
         >
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
+          <div
+            style={{ height: "100%", display: "flex", flexDirection: "column" }}
+          >
+            <Dropdown
+              menu={{ items: contextMenuItems }}
+              trigger={["contextMenu"]}
+            >
               <div>
                 <Tabs
                   hideAdd
@@ -467,7 +570,7 @@ const AppInner: React.FC = () => {
                   type="editable-card"
                   onEdit={onEdit}
                   items={tabItems}
-                  style={{ flex: 1, margin: '2px 2px' }}
+                  style={{ flex: 1, margin: "2px 2px" }}
                   onTabClick={(key) => setContextMenuKey(key)}
                 />
               </div>
@@ -475,7 +578,13 @@ const AppInner: React.FC = () => {
           </div>
         </Content>
 
-        <Footer style={footerStyle}>{t('app.footer')}</Footer>
+        {settings.footerEnabled && (
+          <Footer style={footerStyle}>
+            {settings.footerCustomContent
+              ? settings.footerCustomContent
+              : t("app.footer")}
+          </Footer>
+        )}
       </Layout>
     </Layout>
   );
