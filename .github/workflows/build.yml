@@ -91,7 +91,7 @@ jobs:
             echo ""
             echo "| module | tests | failures | errors |"
             echo "| --- | ---: | ---: | ---: |"
-            for module in boot2-app boot2-openapi3-app boot3-app boot3-jakarta-app boot35-jakarta-app; do
+            for module in boot2-app boot2-openapi3-app boot3-app boot3-jakarta-app boot35-jakarta-app boot3313-jakarta-app; do
               dir="$root/$module/target/surefire-reports"
               if [ ! -d "$dir" ]; then
                 echo "| $module | (missing) | - | - |"

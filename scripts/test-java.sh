@@ -32,6 +32,7 @@ SMOKE_MODULES=(
   "boot3-app"
   "boot3-jakarta-app"
   "boot35-jakarta-app"
+  "boot3313-jakarta-app"
 )
 
 SMOKE_ROOT="$REPO_ROOT/knife4j/knife4j-smoke-tests"

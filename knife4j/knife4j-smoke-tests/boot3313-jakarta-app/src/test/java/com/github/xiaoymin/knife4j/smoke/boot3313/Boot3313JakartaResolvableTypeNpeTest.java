@@ -41,8 +41,16 @@ import java.util.List;
  * Spring Boot 3.3.13 triggers a ResolvableType.equalsType NPE when springdoc
  * processes controllers that return generic types (e.g. ResponseEntity<List<T>>).
  *
- * The test verifies that /v3/api-docs is served successfully (HTTP 200) even
- * when the application contains controllers with generic return types.
+ * <p>Two scenarios are covered:
+ * <ol>
+ *   <li>{@link #shouldGenerateApiDocsWithGenericReturnTypes()} — exercises
+ *       {@code Knife4jJakartaOperationCustomizer.customize()} with generic return types,
+ *       which is the primary NPE trigger path.</li>
+ *   <li>{@link #shouldGenerateApiDocsWithGroupConfigPackageScan()} — configures
+ *       {@code springdoc.group-configs[0].packages-to-scan} so that
+ *       {@code Knife4jOpenApiCustomizer.scanPackageByAnnotation()} is also exercised,
+ *       covering the secondary NPE path (issue #303 / upstream #961).</li>
+ * </ol>
  */
 public class Boot3313JakartaResolvableTypeNpeTest {
 
@@ -58,6 +66,7 @@ public class Boot3313JakartaResolvableTypeNpeTest {
     /**
      * Verifies that api-docs generation does not throw ResolvableType.equalsType NPE
      * when controllers expose endpoints with generic return types.
+     * Exercises: Knife4jJakartaOperationCustomizer.customize() try-catch guard.
      * Regression for: https://github.com/songxychn/knife4j-next/issues/303
      */
     @Test
@@ -83,6 +92,39 @@ public class Boot3313JakartaResolvableTypeNpeTest {
         Assert.assertTrue(
                 "Expected /items endpoint in api-docs",
                 apiDocs.body.contains("/items"));
+    }
+
+    /**
+     * Verifies that api-docs generation does not throw ResolvableType.equalsType NPE
+     * when springdoc.group-configs is configured with packages-to-scan.
+     * Exercises: Knife4jOpenApiCustomizer.scanPackageByAnnotation() NPE guard path.
+     * Regression for: https://github.com/songxychn/knife4j-next/issues/303
+     */
+    @Test
+    public void shouldGenerateApiDocsWithGroupConfigPackageScan() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        // Configure group-configs with packages-to-scan so that
+                        // Knife4jOpenApiCustomizer.addOrderExtension() proceeds past the
+                        // early-return guard and calls scanPackageByAnnotation().
+                        "springdoc.group-configs[0].group=default",
+                        "springdoc.group-configs[0].packages-to-scan=com.github.xiaoymin.knife4j.smoke.boot3313",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs/default");
+        Assert.assertEquals(
+                "Expected HTTP 200 from /v3/api-docs/default but got " + apiDocs.statusCode
+                        + ". Body: " + apiDocs.body,
+                200, apiDocs.statusCode);
+        Assert.assertTrue(
+                "Expected openapi field in api-docs response",
+                apiDocs.body.contains("\"openapi\""));
     }
 
     @Test
