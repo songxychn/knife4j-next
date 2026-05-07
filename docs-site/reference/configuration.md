@@ -303,6 +303,53 @@ knife4j:
 
 ---
 
+## 反向代理场景（nginx prefix / X-Forwarded-Prefix）
+
+当应用部署在 nginx 等反向代理后面，外网访问路径带有前缀（如 `/prod-api/dispatch`），而 knife4j 前端拼出的 `api-docs` URL 没有该前缀时，会出现 404。这是 upstream [#849](https://github.com/xiaoymin/knife4j/issues/849) 描述的典型场景。
+
+### 推荐方案：标准 Forwarded Header 透传
+
+**Spring Boot 侧**（`application.yml`）：
+
+```yaml
+server:
+  forward-headers-strategy: framework
+```
+
+**nginx 侧**：
+
+```nginx
+location /prod-api/dispatch/ {
+    proxy_pass http://backend:8080/;
+    proxy_set_header X-Forwarded-Prefix /prod-api/dispatch;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $host;
+    proxy_set_header X-Forwarded-Port  $server_port;
+}
+```
+
+配置生效后，springdoc 会通过标准 `ForwardedHeaderFilter` 自动派生 base URL，`/v3/api-docs/swagger-config` 返回的 `urls[].url` 将携带 `/prod-api/dispatch` 前缀，knife4j 前端可正常加载文档。
+
+### 验证方式
+
+```bash
+# 带前缀 header 请求，urls[].url 应包含 /prod-api/dispatch
+curl -s -H "X-Forwarded-Prefix: /prod-api/dispatch" \
+     http://localhost:8080/v3/api-docs/swagger-config | jq '.urls'
+
+# 不带 header 请求，作为对照（url 不含前缀）
+curl -s http://localhost:8080/v3/api-docs/swagger-config | jq '.urls'
+```
+
+### 注意事项
+
+- `server.forward-headers-strategy=framework` 会注册 Spring 的 `ForwardedHeaderFilter`，它在 Servlet 层面重写 `HttpServletRequest` 的 scheme/host/contextPath，对所有 springdoc 端点透明生效，**无需修改 knife4j 配置**。
+- 若使用 `server.forward-headers-strategy=native`，则由容器（Tomcat/Jetty）处理，效果相同但不支持 `X-Forwarded-Prefix`（Tomcat 原生不识别该 header）；推荐使用 `framework`。
+- 若同时启用了 `knife4j.basic.enable=true`，需确认 nginx 传递的路径与 `knife4j.basic.include` 规则匹配，否则带前缀的 api-docs 请求会被 Basic Auth filter 拦截返回 401。
+- Spring Boot 3.x（Jakarta）与 Spring Boot 2.7.x（javax）均支持上述配置，行为一致。
+
+---
+
 ## 配置示例
 
 ### 最小配置（WebMvc + OpenAPI3）
