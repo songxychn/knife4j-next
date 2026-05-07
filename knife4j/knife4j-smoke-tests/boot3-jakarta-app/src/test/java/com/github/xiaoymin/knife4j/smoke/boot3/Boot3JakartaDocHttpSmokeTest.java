@@ -152,26 +152,6 @@ public class Boot3JakartaDocHttpSmokeTest {
                 filesArrayOfBinary.matcher(body).find());
     }
 
-    @Test
-    public void shouldServeCustomApiDocsPath() throws IOException {
-        context = new SpringApplicationBuilder(TestApplication.class)
-                .web(WebApplicationType.SERVLET)
-                .properties(
-                        "server.port=0",
-                        "knife4j.enable=true",
-                        "springdoc.api-docs.path=/api/openapi",
-                        "logging.level.root=ERROR")
-                .run();
-
-        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
-
-        // Custom springdoc.api-docs.path should be accessible (#573, #849)
-        HttpResponse apiDocs = get(port, "/api/openapi");
-        Assert.assertEquals(200, apiDocs.statusCode);
-        Assert.assertTrue("Custom api-docs path should return OpenAPI JSON (#573, #849)",
-                apiDocs.body.contains("\"openapi\""));
-    }
-
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");

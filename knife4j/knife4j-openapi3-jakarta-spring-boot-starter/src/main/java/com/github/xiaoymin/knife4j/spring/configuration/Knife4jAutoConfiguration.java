@@ -106,8 +106,7 @@ public class Knife4jAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(JakartaServletSecurityBasicAuthFilter.class)
     @ConditionalOnExpression("${knife4j.basic.enable:true}")
-    public FilterRegistrationBean<JakartaServletSecurityBasicAuthFilter> securityBasicAuthFilter(Knife4jProperties knife4jProperties,
-                                                                                                 SpringDocConfigProperties docProperties) {
+    public FilterRegistrationBean<JakartaServletSecurityBasicAuthFilter> securityBasicAuthFilter(Knife4jProperties knife4jProperties) {
         JakartaServletSecurityBasicAuthFilter authFilter = new JakartaServletSecurityBasicAuthFilter();
         if (knife4jProperties == null) {
             authFilter.setEnableBasicAuth(EnvironmentUtils.resolveBool(environment, "knife4j.basic.enable", Boolean.FALSE));
@@ -126,8 +125,6 @@ public class Knife4jAutoConfiguration {
                 authFilter.addRule(knife4jProperties.getBasic().getInclude());
             }
         }
-        // Support custom springdoc.api-docs.path (#573, #849)
-        addCustomApiDocsPathRule(authFilter, docProperties);
         FilterRegistrationBean<JakartaServletSecurityBasicAuthFilter> registration = new FilterRegistrationBean<>();
         registration.setDispatcherTypes(DispatcherType.REQUEST);
         registration.setFilter(authFilter);
@@ -138,8 +135,7 @@ public class Knife4jAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(JakartaProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
-    public FilterRegistrationBean<JakartaProductionSecurityFilter> productionSecurityFilter(Environment environment,
-                                                                                            SpringDocConfigProperties docProperties) {
+    public FilterRegistrationBean<JakartaProductionSecurityFilter> productionSecurityFilter(Environment environment) {
         boolean prod = false;
         JakartaProductionSecurityFilter p = null;
         if (properties == null) {
@@ -154,30 +150,11 @@ public class Knife4jAutoConfiguration {
         } else {
             p = new JakartaProductionSecurityFilter(properties.isProduction());
         }
-        // Support custom springdoc.api-docs.path (#573, #849)
-        addCustomApiDocsPathRule(p, docProperties);
         FilterRegistrationBean<JakartaProductionSecurityFilter> registration = new FilterRegistrationBean<>();
         registration.setDispatcherTypes(DispatcherType.REQUEST);
         registration.setFilter(p);
         registration.setOrder(AbstractSecurityFilter.SPRING_FILTER_ORDER - 1);
         return registration;
-    }
-
-    /**
-     * If springdoc.api-docs.path is customized (not the default /v3/api-docs),
-     * add it as an additional URL pattern so filters protect the custom path too.
-     * Fixes upstream issues #573 and #849.
-     */
-    private void addCustomApiDocsPathRule(com.github.xiaoymin.knife4j.extend.filter.BasicFilter filter,
-                                          SpringDocConfigProperties docProperties) {
-        if (docProperties != null && docProperties.getApiDocs() != null) {
-            String customPath = docProperties.getApiDocs().getPath();
-            if (customPath != null && !customPath.isEmpty() && !"/v3/api-docs".equals(customPath)) {
-                // Escape dots for regex and add wildcard suffix
-                String escaped = customPath.replace(".", "\\.");
-                filter.addRule(".*?" + escaped + ".*");
-            }
-        }
     }
 
 }

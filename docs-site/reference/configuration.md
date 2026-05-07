@@ -18,7 +18,7 @@ title: 配置参考
 | --- | --- | --- | --- |
 | `knife4j.enable` | `boolean` | `false` | 启用 knife4j 增强模式（openapi2 必须设为 `true`；openapi3 可选） |
 | `knife4j.cors` | `boolean` | `false` | 启用默认跨域支持 |
-| `knife4j.production` | `boolean` | `false` | 生产环境：设为 `true` 后 `/doc.html`、`/v2/api-docs`、`/v3/api-docs` 等返回 JSON 错误响应（非 HTML 页面）。若同时设置了 `springdoc.api-docs.path`，自定义路径也会被屏蔽 |
+| `knife4j.production` | `boolean` | `false` | 生产环境：设为 `true` 后 `/doc.html`、`/v2/api-docs`、`/v3/api-docs` 等默认路径返回 JSON 错误响应（非 HTML 页面）。**注意**：当前仅保护默认路径；若自定义了 `springdoc.api-docs.path`，需要自行通过 `knife4j.basic.include` 追加规则或使用外层安全框架屏蔽 |
 | `knife4j.openapi` | Object | — | OpenAPI 基本信息（仅 openapi2 starter，见下文） |
 | `knife4j.basic` | Object | — | HTTP Basic 认证配置，见下文 |
 | `knife4j.setting` | Object | — | UI 个性化配置，见下文 |
@@ -318,8 +318,6 @@ springdoc:
     path: /v3/api-docs
 ```
 
-> **自定义 `springdoc.api-docs.path`（#573, #849）**：若将 `springdoc.api-docs.path` 设为非默认值（如 `/api/openapi`），knife4j 的 Basic 认证过滤器和生产环境过滤器会自动识别并保护该自定义路径，无需额外配置。
-
 ### 生产环境配置
 
 ```yaml
@@ -332,7 +330,7 @@ knife4j:
     password: ${DOC_PASSWORD}
 ```
 
-> **生产环境响应格式（#666, #859）**：`production=true` 时，被屏蔽的请求返回 `application/json` 格式的错误响应（`{"code":403,"message":"..."}`），而非 HTML 错误页面，避免客户端收到 `<!DOCTYPE` 内容。
+> **生产环境响应格式（#859）**：`production=true` 时，被屏蔽的请求返回 `application/json` 格式的错误响应（`{"code":403,"message":"..."}`），而非 HTML 错误页面，避免前端 `JSON.parse` 时抛出 `Unexpected token '<', "<!DOCTYPE "...` 异常。
 
 ### Gateway 聚合配置（DISCOVER 模式）
 
