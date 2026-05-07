@@ -5,7 +5,7 @@ import { Resizable } from 'react-resizable';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/GroupContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
 import { SettingsProvider } from './context/SettingsContext';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
