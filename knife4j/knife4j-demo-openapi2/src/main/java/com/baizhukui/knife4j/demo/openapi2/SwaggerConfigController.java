@@ -20,6 +20,8 @@ package com.baizhukui.knife4j.demo.openapi2;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,11 +39,16 @@ public class SwaggerConfigController {
 
     @GetMapping("/v3/api-docs/swagger-config")
     public Map<String, Object> swaggerConfig() {
-        return Map.of(
-                "configUrl", "/v3/api-docs/swagger-config",
-                "urls", List.of(
-                        Map.of(
-                                "url", "/v2/api-docs",
-                                "name", "knife4j-next OAS2 Demo")));
+        Map<String, Object> group = new HashMap<>();
+        group.put("url", "/v2/api-docs");
+        group.put("name", "knife4j-next OAS2 Demo");
+
+        List<Map<String, Object>> urls = new ArrayList<>();
+        urls.add(group);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("configUrl", "/v3/api-docs/swagger-config");
+        body.put("urls", urls);
+        return body;
     }
 }
