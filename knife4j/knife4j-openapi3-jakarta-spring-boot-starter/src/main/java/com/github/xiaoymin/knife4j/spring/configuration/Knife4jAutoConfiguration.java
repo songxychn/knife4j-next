@@ -84,7 +84,12 @@ public class Knife4jAutoConfiguration {
         return new Knife4jSwaggerConfigController(docProperties);
     }
 
+    /**
+     * 固定发现端点，供前端在自定义 api-docs path 时找到正确的 swagger-config 地址。
+     * 加 @ConditionalOnProperty 防止在 knife4j.enable=false 时被组件扫描意外注册。
+     */
     @RestController
+    @ConditionalOnProperty(name = "knife4j.enable", havingValue = "true")
     public static class Knife4jSwaggerConfigController {
 
         private final SpringDocConfigProperties docProperties;
@@ -195,4 +200,4 @@ public class Knife4jAutoConfiguration {
         return registration;
     }
 
-} 
+}

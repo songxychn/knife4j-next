@@ -98,6 +98,11 @@ public class Boot3JakartaDocHttpSmokeTest {
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertFalse("doc.html should not return HTML content when production=true",
                 docHtml.body.contains("webjars/knife4j-ui-react/"));
+
+        // /knife4j/swagger-config must also be blocked in production mode (#573)
+        HttpResponse k4jConfig = get(port, "/knife4j/swagger-config");
+        Assert.assertFalse("/knife4j/swagger-config should not return JSON content when production=true",
+                k4jConfig.body.contains("swaggerConfigUrl"));
     }
 
     /**
@@ -178,9 +183,9 @@ public class Boot3JakartaDocHttpSmokeTest {
 
         // 1. Default swagger-config URL must return 404 (path has moved)
         HttpResponse defaultConfig = get(port, "/v3/api-docs/swagger-config");
-        Assert.assertNotEquals(
-                "Default /v3/api-docs/swagger-config should NOT be 200 when api-docs path is customised",
-                200, defaultConfig.statusCode);
+        Assert.assertEquals(
+                "Default /v3/api-docs/swagger-config should return 404 when api-docs path is customised",
+                404, defaultConfig.statusCode);
 
         // 2. Custom swagger-config URL must be reachable and contain the custom path
         HttpResponse customConfig = get(port, "/api/openapi/swagger-config");
