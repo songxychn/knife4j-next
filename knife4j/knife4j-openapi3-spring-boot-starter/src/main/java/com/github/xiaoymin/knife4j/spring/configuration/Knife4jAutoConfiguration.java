@@ -20,6 +20,7 @@ package com.github.xiaoymin.knife4j.spring.configuration;
 import com.github.xiaoymin.knife4j.core.conf.GlobalConstants;
 import com.github.xiaoymin.knife4j.extend.filter.basic.AbstractSecurityFilter;
 import com.github.xiaoymin.knife4j.extend.filter.basic.ServletSecurityBasicAuthFilter;
+import com.github.xiaoymin.knife4j.spring.extension.Knife4jCollectionParameterCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOperationCustomizer;
 import com.github.xiaoymin.knife4j.spring.filter.ProductionSecurityFilter;
@@ -45,7 +46,7 @@ import javax.servlet.DispatcherType;
 /***
  * Knife4j 基础自动配置类
  * @since  2.0.0
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
+ * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2019/08/28 21:08
  */
 @Configuration
@@ -76,6 +77,17 @@ public class Knife4jAutoConfiguration {
     public Knife4jOperationCustomizer knife4jOperationCustomizer() {
         return new Knife4jOperationCustomizer();
     }
+
+    /**
+     * Fixes List/Set @RequestParam schema: sets explode=true and items.type correctly.
+     * Upstream xiaoymin/knife4j#732.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public Knife4jCollectionParameterCustomizer knife4jCollectionParameterCustomizer() {
+        return new Knife4jCollectionParameterCustomizer();
+    }
+
     /**
      * 配置Cors
      * @since 2.0.4

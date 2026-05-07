@@ -31,9 +31,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Reproduction controller for upstream annotation / parameter parsing issues.
@@ -44,13 +46,14 @@ import java.util.List;
  *   <li>#745 — {@code @ApiResponse} defined Response Content not displayed</li>
  *   <li>#743 — {@code @JsonView} per-view field visibility</li>
  *   <li>#767 — object as GET parameter not expanded into individual params</li>
+ *   <li>#732 — {@code List<String>}/{@code Set<String>} as {@code @RequestParam}: wrong default value/type</li>
  * </ul>
  *
  * <p>Note: #746 ({@code @ApiOperationSupport(ignoreParameters)}) and
  * #887 ({@code @RestControllerAdvice}) require knife4j-openapi2 (Swagger 2) and
  * are not reproducible in this OAS3 demo. They are marked as planned in the triage doc.
  */
-@Tag(name = "注解解析复现（#717 #675 #745 #743 #767）", description = "复现 upstream 注解解析、参数展开相关 issue")
+@Tag(name = "注解解析复现（#717 #675 #745 #743 #767 #732）", description = "复现 upstream 注解解析、参数展开相关 issue")
 @RestController
 @RequestMapping("/api/issue/annotation")
 public class AnnotationIssueController {
@@ -137,5 +140,28 @@ public class AnnotationIssueController {
     @PostMapping("/advice-wrapped")
     public UserVO adviceWrapped(@RequestBody UserVO user) {
         return user;
+    }
+
+    /**
+     * Issue #732: List&lt;String&gt; as @RequestParam.
+     * Expected: OAS3 schema has {@code type:array}, {@code items.type:string}, and
+     * {@code explode:true} so doc.html renders the parameter correctly.
+     * Actual (upstream): springdoc may emit a flat string schema without items, causing
+     * the UI to show the wrong type and default value.
+     */
+    @Operation(summary = "#732 List<String> 作为 @RequestParam", description = "验证 List<String> 作为 @RequestParam 时，OAS3 schema 是否正确：type=array, items.type=string, explode=true")
+    @GetMapping("/list-request-param")
+    public List<String> listRequestParam(@RequestParam(required = false) List<String> tags) {
+        return tags != null ? tags : List.of();
+    }
+
+    /**
+     * Issue #732: Set&lt;String&gt; as @RequestParam.
+     * Same fix as the List variant — verifies Set is also handled.
+     */
+    @Operation(summary = "#732 Set<String> 作为 @RequestParam", description = "验证 Set<String> 作为 @RequestParam 时，OAS3 schema 是否正确：type=array, items.type=string, explode=true")
+    @GetMapping("/set-request-param")
+    public List<String> setRequestParam(@RequestParam(required = false) Set<String> tags) {
+        return tags != null ? List.copyOf(tags) : List.of();
     }
 }

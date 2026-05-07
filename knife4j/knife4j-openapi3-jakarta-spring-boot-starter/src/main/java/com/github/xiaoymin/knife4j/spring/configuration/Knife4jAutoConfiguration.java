@@ -20,6 +20,7 @@ package com.github.xiaoymin.knife4j.spring.configuration;
 import com.github.xiaoymin.knife4j.core.conf.GlobalConstants;
 import com.github.xiaoymin.knife4j.extend.filter.basic.AbstractSecurityFilter;
 import com.github.xiaoymin.knife4j.extend.filter.basic.JakartaServletSecurityBasicAuthFilter;
+import com.github.xiaoymin.knife4j.spring.extension.Knife4jCollectionParameterCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jJakartaOperationCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.filter.JakartaProductionSecurityFilter;
@@ -72,6 +73,16 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnMissingBean
     public Knife4jJakartaOperationCustomizer knife4jJakartaOperationCustomizer() {
         return new Knife4jJakartaOperationCustomizer();
+    }
+
+    /**
+     * Fixes List/Set @RequestParam schema: sets explode=true and items.type correctly.
+     * Upstream xiaoymin/knife4j#732.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public Knife4jCollectionParameterCustomizer knife4jCollectionParameterCustomizer() {
+        return new Knife4jCollectionParameterCustomizer();
     }
 
     /**

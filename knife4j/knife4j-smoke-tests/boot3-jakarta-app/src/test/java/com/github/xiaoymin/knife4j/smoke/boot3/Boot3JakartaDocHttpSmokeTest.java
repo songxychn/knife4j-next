@@ -30,6 +30,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,6 +40,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class Boot3JakartaDocHttpSmokeTest {
@@ -172,6 +174,50 @@ public class Boot3JakartaDocHttpSmokeTest {
                 apiDocs.body.contains("\"openapi\""));
     }
 
+    /**
+     * Verifies that {@code List<String>} annotated with {@code @RequestParam} produces an OAS3
+     * parameter with {@code explode:true} and {@code schema.type:array} with
+     * {@code schema.items.type:string} (upstream xiaoymin/knife4j#732).
+     *
+     * <p>Without {@link com.github.xiaoymin.knife4j.spring.extension.Knife4jCollectionParameterCustomizer},
+     * springdoc may emit a flat schema without {@code items}, causing doc.html to display the wrong
+     * type and default value.
+     */
+    @Test
+    public void shouldEmitArraySchemaWithExplodeTrueForListRequestParam() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        String body = apiDocs.body;
+
+        // The collection-param endpoint must be present
+        Assert.assertTrue("api-docs should contain /list-param path (#732)", body.contains("/list-param"));
+
+        // The parameter for 'tags' must carry explode:true
+        Assert.assertTrue("List<String> @RequestParam should have explode:true in OAS3 (#732)",
+                body.contains("\"explode\":true") || body.contains("\"explode\" : true"));
+
+        // The parameter schema must be type:array with items.type:string
+        // We look for the array+items+string triple anywhere in the document; the customizer
+        // ensures this shape is present for the /list-param endpoint.
+        Pattern arrayOfString = Pattern.compile(
+                "\"type\"\\s*:\\s*\"array\"[^}]*\"items\"\\s*:\\s*\\{[^}]*\"type\"\\s*:\\s*\"string\"",
+                Pattern.DOTALL);
+        Assert.assertTrue(
+                "List<String> @RequestParam should produce schema {type:array, items:{type:string}} (#732). "
+                        + "Full api-docs:\n" + body,
+                arrayOfString.matcher(body).find());
+    }
+
     private HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
@@ -233,6 +279,16 @@ public class Boot3JakartaDocHttpSmokeTest {
         @PostMapping(path = "/upload-array", consumes = "multipart/form-data")
         public String uploadArray(@RequestBody UploadArrayRequest request) {
             return "ok";
+        }
+
+        /**
+         * Endpoint used to assert the collection @RequestParam schema fix in
+         * {@link #shouldEmitArraySchemaWithExplodeTrueForListRequestParam()}.
+         * Upstream xiaoymin/knife4j#732.
+         */
+        @GetMapping("/list-param")
+        public List<String> listParam(@RequestParam(required = false) List<String> tags) {
+            return tags != null ? tags : List.of();
         }
     }
 
