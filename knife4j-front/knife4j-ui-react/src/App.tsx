@@ -25,8 +25,7 @@ import {
 } from "./context/GroupContext";
 import { AuthProvider } from "./context/AuthContext";
 import { GlobalParamProvider } from "./context/GlobalParamContext";
-import { SettingsProvider } from "./context/SettingsContext";
-import { useSettings } from "./context/SettingsContext";
+import { SettingsProvider, useSettings } from "./context/SettingsContext";
 import SidebarSearchMenu from "./compoents/SidebarSearchMenu";
 import SettingsDrawer from "./compoents/SettingsDrawer";
 import knife4jMark from "./assets/logo/knife4j-next-mark.svg";
