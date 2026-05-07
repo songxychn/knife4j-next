@@ -595,12 +595,14 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
   }
 
   // default: Input
+  // byte format (string+byte, e.g. Java Byte via springdoc) → show Base64 hint
+  const byteHint = field.format === 'byte' ? t('apiDebug.byte.placeholder') : undefined;
   return (
     <Input
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={field.description ?? ''}
+      placeholder={byteHint ?? field.description ?? ''}
     />
   );
 }
