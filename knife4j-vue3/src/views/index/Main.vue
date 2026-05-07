@@ -1,7 +1,7 @@
 <template>
-  <a-layout-content class="knife4j-body-content">
-    <a-row class="markdown-body editormd-preview-container" v-if="this.settings.enableHomeCustom">
-      <Markdown :source="settings.homeCustomLocation" />
+  <a-layout-content class="knife4j-body-content" v-if="swaggerCurrentInstance">
+    <a-row class="markdown-body editormd-preview-container" v-if="settings?.enableHomeCustom">
+      <Markdown :source="settings.homeCustomLocation || ''" />
     </a-row>
     <a-row v-else>
       <a-col :span="24">
@@ -77,7 +77,7 @@
               <h3 v-html="$t('homePage.apiCountNumber')"></h3>
             </a-col>
             <a-col :span="19">
-              <a-row class="content-line-count" v-for="param in swaggerCurrentInstance.pathArrs" :key="param.method">
+              <a-row class="content-line-count" v-for="param in (swaggerCurrentInstance.pathArrs || [])" :key="param.method">
                 <a-col :span="3">
                   {{ param.method }}
                 </a-col>
@@ -116,7 +116,6 @@ export default {
     const settings = computed(() => {
       return globalsStore.settings
     })
-    console.log('子组件渲染')
 
     return {
       swaggerCurrentInstance,

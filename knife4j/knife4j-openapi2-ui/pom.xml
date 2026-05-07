@@ -103,7 +103,8 @@
                             <executable>bun</executable>
                             <arguments>
                                 <argument>run</argument>
-                                <argument>build</argument>
+                                <!-- OAS2 webjar must ship Knife4j-vue3 Springfox mode (swagger-resources), not SpringDocOpenApi (v3/api-docs/swagger-config). -->
+                                <argument>build:Knife4jSpringUi</argument>
                                 <argument>--outDir=${knife4j-vue3.outDir}</argument>
                                 <argument>--emptyOutDir</argument>
                             </arguments>
@@ -134,6 +135,9 @@
                                     <includes>
                                         <include>doc.html</include>
                                         <include>favicon.ico</include>
+                                        <!-- public/ branding assets referenced by the Vue bundle as absolute /knife4j-next-*.svg -->
+                                        <include>knife4j-next-mark.svg</include>
+                                        <include>knife4j-next-logo.svg</include>
                                     </includes>
                                     <filtering>false</filtering>
                                 </resource>
