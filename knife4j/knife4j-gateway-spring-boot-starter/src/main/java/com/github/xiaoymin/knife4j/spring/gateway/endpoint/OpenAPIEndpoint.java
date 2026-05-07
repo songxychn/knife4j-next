@@ -74,8 +74,10 @@ public class OpenAPIEndpoint {
             // 优先按请求 Host 选择路由列表（upstream#850：按域名区分接口文档展示）
             List<Knife4jGatewayProperties.Router> routers = resolveRoutersByHost(request);
             if (routers != null && !routers.isEmpty()) {
-                routers.sort(Comparator.comparing(Knife4jGatewayProperties.Router::getOrder));
-                for (Knife4jGatewayProperties.Router router : routers) {
+                // 排序副本，避免修改共享的配置对象（线程安全）
+                List<Knife4jGatewayProperties.Router> sortedRouters = new ArrayList<>(routers);
+                sortedRouters.sort(Comparator.comparing(Knife4jGatewayProperties.Router::getOrder));
+                for (Knife4jGatewayProperties.Router router : sortedRouters) {
                     // copy one,https://gitee.com/xiaoym/knife4j/issues/I73AOG
                     // 在nginx代理情况下，刷新文档会叠加是由于直接使用了Router对象进行Set操作，导致每次刷新都从内存拿属性值对象产生了叠加的bug
                     // 此处每次调用时直接copy新对象进行赋值返回，避免和开发者在Config配置时对象属性冲突
@@ -98,17 +100,26 @@ public class OpenAPIEndpoint {
 
     /**
      * 根据请求 Host 选择路由列表。
-     * 若 {@code knife4j.gateway.routes-by-host} 中存在与当前请求 Host 匹配的条目，则返回该条目对应的路由列表；
+     * <p>Host 解析优先级：
+     * <ol>
+     *   <li>{@code X-Forwarded-Host} 请求头（反向代理场景，如 nginx / ALB）</li>
+     *   <li>请求 URI 中的 host（直连场景）</li>
+     * </ol>
+     * 若 {@code knife4j.gateway.routes-by-host} 中存在与当前 Host 匹配的条目，则返回该条目对应的路由列表；
      * 否则回退到全局 {@code knife4j.gateway.routes}。
      *
      * @param request 当前 WebFlux 请求
      * @return 适用于当前请求的路由列表，可能为空列表但不为 null
-     * @since 4.5.0
+     * @since 5.0.0
      */
-    private List<Knife4jGatewayProperties.Router> resolveRoutersByHost(ServerHttpRequest request) {
+    List<Knife4jGatewayProperties.Router> resolveRoutersByHost(ServerHttpRequest request) {
         Map<String, List<Knife4jGatewayProperties.Router>> routesByHost = knife4jGatewayProperties.getRoutesByHost();
         if (routesByHost != null && !routesByHost.isEmpty()) {
-            String host = request.getURI().getHost();
+            // 优先取 X-Forwarded-Host（反向代理场景），再取 URI host（直连场景）
+            String host = request.getHeaders().getFirst("X-Forwarded-Host");
+            if (host == null || host.isEmpty()) {
+                host = request.getURI().getHost();
+            }
             log.debug("request host:{}", host);
             if (host != null) {
                 List<Knife4jGatewayProperties.Router> hostRoutes = routesByHost.get(host);

@@ -88,8 +88,8 @@ public class Knife4jGatewayProperties {
     private final List<Router> routes = new ArrayList<>();
 
     /**
-     * 按域名区分的路由配置，key 为请求域名（Host），value 为该域名下展示的路由列表。
-     * 当请求 Host 命中某个 key 时，优先使用该 key 对应的路由列表；否则回退到 {@link #routes}。
+     * 按域名区分的路由配置，key 为域名（如 api.example.com），value 为该域名下展示的路由列表。
+     * 当请求的 Host 命中某个 key 时，优先使用该 key 对应的路由列表；否则回退到全局 {@link #routes}。
      * 示例：
      * <pre>
      * knife4j:
@@ -102,9 +102,11 @@ public class Knife4jGatewayProperties {
      *         - name: 公开服务
      *           url: /public-service/v3/api-docs
      * </pre>
-     * @since 4.5.0
+     * <p>注意：若网关部署在反向代理（nginx、ALB 等）之后，请求 Host 优先取 {@code X-Forwarded-Host} 请求头；
+     * 若该头不存在，则回退到 URI 中的 host。</p>
+     * @since 5.0.0
      */
-    private final Map<String, List<Router>> routesByHost = new HashMap<>();
+    private Map<String, List<Router>> routesByHost = new HashMap<>();
 
     /**
      * 服务发现策略配置
