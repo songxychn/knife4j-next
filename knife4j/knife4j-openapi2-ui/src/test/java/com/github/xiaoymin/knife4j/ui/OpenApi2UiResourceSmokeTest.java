@@ -32,12 +32,13 @@ public class OpenApi2UiResourceSmokeTest {
     private static final Pattern ASSET_REFERENCE = Pattern.compile("(?:href|src)=[\"']?([^\"'\\s>]+)[\"']?");
 
     /**
-     * Vite inlines {@code import.meta.env.VITE_RELEASE_APP_TYPE} at build time; minifier keeps the string literal.
-     * This locks openapi2-ui Maven build to {@code build:Knife4jSpringUi} (Springfox) rather than the
-     * {@code .env.production} default {@code SpringDocOpenApi}.
+     * Vite inlines {@code import.meta.env.VITE_RELEASE_APP_TYPE} at build time. Depending on minifier passes this
+     * may appear as {@code const id="Knife4jSpringUi"} or (when folded) {@code switch("Knife4jSpringUi")}. Either
+     * ties the webjar to {@code build:Knife4jSpringUi} (Springfox), not {@code SpringDocOpenApi}.
      */
     private static final Pattern VITE_RELEASE_KNIFE4J_SPRING_UI =
-            Pattern.compile("onMounted\\(\\(\\)=>\\{const\\s+\\w+=\"Knife4jSpringUi\"");
+            Pattern.compile(
+                    "onMounted\\(\\(\\)=>\\{(?:const\\s+\\w+=\"Knife4jSpringUi\"|switch\\(\"Knife4jSpringUi\"\\))");
 
     @Test
     public void shouldPackageDocHtmlAndReferencedAssets() throws IOException {

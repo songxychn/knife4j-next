@@ -268,7 +268,7 @@ function initKnife4jSpringUi() {
     //console.log(settings)
     //重新赋值是否开启增强
     if (!settings.enableSwaggerBootstrapUi) {
-      settings.enableSwaggerBootstrapUi = this.getPlusStatus();
+      settings.enableSwaggerBootstrapUi = getPlusStatus();
     }
     settings.language = tmpI18n;
     localStore.setItem(constant.globalSettingsKey, settings);
@@ -282,6 +282,7 @@ function initKnife4jSpringUi() {
         state.enableVersion = settings.enableVersion;
         initSwagger({
           baseSpringFox: true,
+          localStore: localStore,
           settings: settings,
           cacheApis: cacheApis,
           routeParams: route.params,
@@ -305,6 +306,7 @@ function initKnife4jSpringUi() {
           state.enableVersion = settings.enableVersion;
           initSwagger({
             baseSpringFox: true,
+            localStore: localStore,
             settings: settings,
             cacheApis: cacheApis,
             routeParams: route.params,
@@ -346,6 +348,7 @@ function initKnife4jJFinal() {
         state.enableVersion = settings.enableVersion;
         initSwagger({
           baseSpringFox: true,
+          localStore: localStore,
           settings: settings,
           cacheApis: cacheApis,
           routeParams: route.params,
@@ -369,6 +372,7 @@ function initKnife4jJFinal() {
           state.enableVersion = settings.enableVersion;
           initSwagger({
             baseSpringFox: true,
+            localStore: localStore,
             settings: settings,
             cacheApis: cacheApis,
             routeParams: route.params,
@@ -413,7 +417,6 @@ function initI18n() {
 
 onMounted(() => {
   const appReleaseType = import.meta.env.VITE_RELEASE_APP_TYPE
-  console.log("appReleaseType:" + appReleaseType);
   switch (appReleaseType) {
     case 'SpringDocOpenApi':
       initSpringDocOpenApi()

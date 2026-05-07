@@ -135,6 +135,9 @@
                                     <includes>
                                         <include>doc.html</include>
                                         <include>favicon.ico</include>
+                                        <!-- public/ branding assets referenced by the Vue bundle as absolute /knife4j-next-*.svg -->
+                                        <include>knife4j-next-mark.svg</include>
+                                        <include>knife4j-next-logo.svg</include>
                                     </includes>
                                     <filtering>false</filtering>
                                 </resource>
