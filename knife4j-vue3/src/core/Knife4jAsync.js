@@ -3347,7 +3347,8 @@ SwaggerBootstrapUi.prototype.createDetailMenu = function (addFlag) {
         key: md5(_lititle),
         name: _lititle,
         icon: 'icon-APIwendang',
-        path: groupName + '/' + encodeURIComponent(tag.name),
+        // 须与 vue-router 的 route.path 一致（浏览器会对中文 path 解码）；encodeURIComponent 会导致与 route 不等价，无法打开 Tab
+        path: groupName + '/' + tag.name,
         hasNew: tag.hasNew || tag.hasChanged,
         num: null,
         children: []

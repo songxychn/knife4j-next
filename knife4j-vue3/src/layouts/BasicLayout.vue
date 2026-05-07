@@ -49,8 +49,8 @@
   </div>
 </template>
 <script setup>
-//import logo from "@/assets/logo.png";
-import logo from "/knife4j-next-mark.svg";
+// 与 doc.html 同目录发布（openapi2-ui 拷贝 SVG 到 META-INF/resources/），用相对路径避免绝对 / 在部分网关下 404
+const logo = './knife4j-next-mark.svg';
 import GlobalHeader from "@/components/GlobalHeader/index.vue";
 import GlobalFooter from "@/components/GlobalFooter/index.vue";
 import KUtils from "@/core/utils";

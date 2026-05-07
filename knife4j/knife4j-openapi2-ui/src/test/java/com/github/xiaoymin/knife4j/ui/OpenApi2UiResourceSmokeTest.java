@@ -46,6 +46,7 @@ public class OpenApi2UiResourceSmokeTest {
 
         assertReferencedWebjarAssets(docHtml);
         assertPackagedJsUsesKnife4jSpringUiReleaseType(docHtml);
+        assertResource("META-INF/resources/knife4j-next-mark.svg");
         assertResource("META-INF/resources/webjars/oauth/oauth2.html");
     }
 
