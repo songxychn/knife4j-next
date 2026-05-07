@@ -1,2 +1,3 @@
 com.github.xiaoymin.knife4j.spring.configuration.Knife4jAutoConfiguration
 com.github.xiaoymin.knife4j.spring.configuration.insight.Knife4jInsightAutoConfiguration
+com.github.xiaoymin.knife4j.spring.configuration.ManagementPortSwaggerConfigController
