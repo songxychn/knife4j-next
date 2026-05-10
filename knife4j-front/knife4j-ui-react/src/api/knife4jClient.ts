@@ -28,8 +28,27 @@ export type OperationsSorter = 'alpha' | 'method' | 'preserve';
  * 返回 `null` 表示端点不存在或返回异常（例如 springfox 场景）。
  */
 export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
+  const defaultConfig = await fetchSwaggerUiConfigFrom('v3/api-docs/swagger-config');
+  if (defaultConfig) {
+    return defaultConfig;
+  }
+
   try {
-    const res = await fetch('v3/api-docs/swagger-config');
+    const res = await fetch('knife4j/swagger-config');
+    if (!res.ok) return null;
+    const discovery = (await res.json()) as SwaggerUiConfig;
+    if (typeof discovery.swaggerConfigUrl !== 'string' || discovery.swaggerConfigUrl.length === 0) {
+      return null;
+    }
+    return fetchSwaggerUiConfigFrom(discovery.swaggerConfigUrl);
+  } catch (_) {
+    return null;
+  }
+}
+
+async function fetchSwaggerUiConfigFrom(url: string): Promise<SwaggerUiConfig | null> {
+  try {
+    const res = await fetch(url);
     if (!res.ok) return null;
     return (await res.json()) as SwaggerUiConfig;
   } catch (_) {
@@ -40,11 +59,15 @@ export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
 /**
  * 从已获取的 SwaggerUiConfig 解析 group 列表。
  * - 有 `urls` → 多文档场景
+ * - 有 `url` → 单文档场景
  * - 否则 → 单文档，固定使用 `v3/api-docs`
  */
 export function parseGroupsFromConfig(config: SwaggerUiConfig): SwaggerGroup[] {
-  if (config.urls && Array.isArray(config.urls)) {
+  if (config.urls && Array.isArray(config.urls) && config.urls.length > 0) {
     return config.urls.map((u) => ({ name: u.name, url: u.url }));
+  }
+  if (typeof config.url === 'string' && config.url.length > 0) {
+    return [{ name: 'default', url: config.url }];
   }
   return [{ name: 'default', url: 'v3/api-docs' }];
 }

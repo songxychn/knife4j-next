@@ -91,6 +91,11 @@ public class GlobalConstants {
     public static final String EXTENSION_OPEN_MARKDOWN_NAME = "x-markdownFiles";
 
     /**
+     * Stable Knife4j discovery key for the actual springdoc swagger-config URL.
+     */
+    public static final String EXTENSION_SWAGGER_CONFIG_URL = "swaggerConfigUrl";
+
+    /**
      * 响应HTTP状态码
      */
     public static final Integer BASIC_SECURITY_RESPONSE_CODE = 401;
