@@ -35,7 +35,7 @@ Gateway 主工程 `pom.xml`：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-    <version>5.0.0</version>
+    <version>5.0.1</version>
 </dependency>
 ```
 

@@ -13,7 +13,7 @@ title: 兼容矩阵
 
 | 维度 | 版本 |
 | --- | --- |
-| knife4j-next | `5.0.0` |
+| knife4j-next | `5.0.1` |
 | Java 最低版本 | `1.8`（openapi2 / openapi3 非 Jakarta）；`17`（Jakarta） |
 | Springfox | `2.10.5`（openapi2 starter） |
 | springdoc-openapi | `1.8.0`（Boot 2.x）；`2.8.9`（Boot 3.x Jakarta） |

@@ -17,7 +17,7 @@ title: 产品介绍
 | 访问入口（doc.html / v2 / v3 api-docs） | 保留 | 完全一致 |
 | 仓库 | `xiaoymin/knife4j` | [`songxychn/knife4j-next`](https://github.com/songxychn/knife4j-next) |
 | 发布渠道 | Maven Central | Maven Central |
-| 当前版本 | `4.6.0` | `5.0.0` |
+| 当前版本 | `4.6.0` | `5.0.1` |
 | 文档站 | [doc.xiaominfo.com](https://doc.xiaominfo.com/) | 本站（`knife4jnext.com`） |
 
 **迁移的最小单位是改 `groupId`，业务代码、配置键、访问路径都不必动。** 详见 [迁移指引](./migration)。

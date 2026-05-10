@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.0</version>
+    <version>5.0.1</version>
 </dependency>
 ```
 
@@ -76,13 +76,13 @@ springdoc:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.0 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.1 版本亮点 <Badge type="tip" text="最新" />
 
-- 🐛 修复页面加载时 Petstore 示例数据一闪而过
-- 🔐 OAuth2 四种 flow 的基础鉴权调试
-- 📄 离线文档导出新增 Markdown 与 OpenAPI JSON
-- 🏷️ 尊重后端 `tags-sorter` / `operations-sorter` 配置
-- 🔧 GlobalParam 布局修复 + ApiDoc 工具栏优化
+- 🧭 修复自定义 `api-docs.path` / `swagger-config` 在反向代理 prefix 场景下的发现逻辑
+- 🧩 OAS2 webjar 改为使用 `Knife4jSpringUi` 构建产物
+- 🏷️ 修复 tag / operationId 特殊字符导致的路由问题
+- 🔎 切换分组时清空搜索词，避免跨分组状态残留
+- 📘 同步反向代理、demo 与当前实现状态文档
 
 完整更新列表见 [发布说明](/release-notes/)。
 
