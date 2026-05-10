@@ -307,8 +307,8 @@ export default {
 
 <style scoped>
 .settingConfig {
-  width: 80%;
-  margin: 20px auto;
+  width: 98%;
+  margin: 10px auto;
 }
 
 .settingConfig .gptips {

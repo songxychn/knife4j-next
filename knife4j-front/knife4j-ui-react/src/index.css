@@ -56,3 +56,70 @@ body {
   opacity: 0.2;
   z-index: 1;
 }
+
+.knife4j-operation-tabs.ant-tabs {
+  min-height: calc(100vh - 176px);
+  margin: 0;
+}
+
+.knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav {
+  min-width: 104px;
+  margin-right: 0;
+  background: #fafafa;
+  border-right: 1px solid #f0f0f0;
+}
+
+.knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab {
+  min-height: 44px;
+  margin: 0;
+  padding: 11px 16px;
+  justify-content: flex-start;
+}
+
+.knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab {
+  margin-top: 0;
+}
+
+.knife4j-operation-tab-label {
+  display: inline-flex;
+  min-width: 72px;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.knife4j-operation-tabs.ant-tabs-left > .ant-tabs-content-holder {
+  min-width: 0;
+  overflow: auto;
+}
+
+.knife4j-operation-tabs .ant-tabs-content,
+.knife4j-operation-tabs .ant-tabs-tabpane {
+  min-height: 100%;
+}
+
+.knife4j-operation-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1080px;
+  padding: 0 24px 24px;
+}
+
+@media (max-width: 800px) {
+  .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav {
+    min-width: 88px;
+  }
+
+  .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab {
+    padding: 10px 12px;
+  }
+
+  .knife4j-operation-tab-label {
+    min-width: 60px;
+    gap: 6px;
+  }
+
+  .knife4j-operation-content {
+    padding: 0 12px 20px;
+  }
+}

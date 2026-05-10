@@ -58,6 +58,20 @@ export function mergeHeaders(...sources: Array<Record<string, string> | undefine
   return result;
 }
 
+function appendCookieParams(
+  headers: Record<string, string>,
+  cookieParams: Record<string, string>,
+): Record<string, string> {
+  const pairs = Object.entries(cookieParams)
+    .filter(([name, value]) => name !== '' && value !== '')
+    .map(([name, value]) => `${name}=${value}`);
+  if (pairs.length === 0) return headers;
+  return {
+    ...headers,
+    Cookie: headers['Cookie'] ? `${headers['Cookie']}; ${pairs.join('; ')}` : pairs.join('; '),
+  };
+}
+
 // ─── 鉴权 → headers + query ──────────────────────────
 
 /**
@@ -246,6 +260,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     gp.headers, // 全局参数
     formValues.headerParams, // 接口级最高
   );
+  const headersWithCookies = appendCookieParams(mergedHeaders, formValues.cookieParams);
   // 鉴权 query 参数合并（鉴权 < 全局 < 接口级）
   const mergedQuery: Record<string, string> = { ...authResult.queries, ...gp.queries, ...formValues.queryParams };
 
@@ -298,8 +313,8 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     if (category === 'urlencoded' && formValues.formFields) {
       // application/x-www-form-urlencoded: 从 formFields 序列化
       body = buildUrlencodedBody(formValues.formFields);
-      if (!mergedHeaders['Content-Type']) {
-        mergedHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+      if (!headersWithCookies['Content-Type']) {
+        headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
       }
     } else if (category === 'multipart') {
       // multipart/form-data: 纯函数只拼文本字段；
@@ -310,8 +325,8 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     } else {
       // json / raw: 直接用 body 文本
       body = formValues.body;
-      if (selectedContentType && !mergedHeaders['Content-Type']) {
-        mergedHeaders['Content-Type'] = selectedContentType;
+      if (selectedContentType && !headersWithCookies['Content-Type']) {
+        headersWithCookies['Content-Type'] = selectedContentType;
       }
     }
   }
@@ -323,7 +338,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   return {
     url,
     method: method.toUpperCase(),
-    headers: mergedHeaders,
+    headers: headersWithCookies,
     query: mergedQuery,
     body,
     contentType: selectedContentType,

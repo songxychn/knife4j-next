@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ApiOutlined, BugOutlined, CodeOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
@@ -39,28 +40,44 @@ export function useCurrentOperation(): CurrentOperation {
   };
 }
 
-interface OperationModeTabsProps {
-  activeKey: 'doc' | 'debug' | 'openapi' | 'script';
+export type OperationModeKey = 'doc' | 'debug' | 'openapi' | 'script';
+
+interface OperationModeLayoutProps {
+  activeKey: OperationModeKey;
+  children: ReactNode;
 }
 
-export function OperationModeTabs({ activeKey }: OperationModeTabsProps) {
+const OPERATION_MODES: Array<{ key: OperationModeKey; labelKey: string; icon: ReactNode }> = [
+  { key: 'doc', labelKey: 'operation.tab.doc', icon: <FileTextOutlined /> },
+  { key: 'debug', labelKey: 'operation.tab.debug', icon: <BugOutlined /> },
+  { key: 'openapi', labelKey: 'operation.tab.openapi', icon: <ApiOutlined /> },
+  { key: 'script', labelKey: 'operation.tab.script', icon: <CodeOutlined /> },
+];
+
+export function OperationModeLayout({ activeKey, children }: OperationModeLayoutProps) {
   const navigate = useNavigate();
   const { group, tag, operaterId } = useParams();
   const { t } = useTranslation();
 
   return (
     <Tabs
+      className="knife4j-operation-tabs"
       activeKey={activeKey}
+      tabPosition="left"
       onChange={(key) => {
         if (!group || !tag || !operaterId) return;
         navigate(`/${encodeURIComponent(group)}/${encodeURIComponent(tag)}/${encodeURIComponent(operaterId)}/${key}`);
       }}
-      items={[
-        { key: 'doc', label: t('operation.tab.doc') },
-        { key: 'debug', label: t('operation.tab.debug') },
-        { key: 'openapi', label: t('operation.tab.openapi') },
-        { key: 'script', label: t('operation.tab.script') },
-      ]}
+      items={OPERATION_MODES.map((item) => ({
+        key: item.key,
+        label: (
+          <span className="knife4j-operation-tab-label">
+            {item.icon}
+            <span>{t(item.labelKey)}</span>
+          </span>
+        ),
+        children: item.key === activeKey ? <div className="knife4j-operation-content">{children}</div> : null,
+      }))}
     />
   );
 }

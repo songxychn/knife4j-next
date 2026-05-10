@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, resolveRefMeta, type SchemaFieldNode } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
-import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
 import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
@@ -194,12 +194,18 @@ export default function ApiDoc() {
   const { loading, swaggerDoc, operation } = useCurrentOperation();
 
   if (loading) {
-    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+    return (
+      <OperationModeLayout activeKey="doc">
+        <Spin style={{ display: 'block', margin: '80px auto' }} />
+      </OperationModeLayout>
+    );
   }
 
   if (!swaggerDoc || !operation) {
     return (
-      <Alert type="warning" showIcon message={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />
+      <OperationModeLayout activeKey="doc">
+        <Alert type="warning" showIcon message={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />
+      </OperationModeLayout>
     );
   }
 
@@ -319,9 +325,7 @@ export default function ApiDoc() {
   const respExamples = responseExamples(op.responses, swaggerDoc);
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
-      <OperationModeTabs activeKey="doc" />
-
+    <OperationModeLayout activeKey="doc">
       <div
         style={{
           display: 'flex',
@@ -488,6 +492,6 @@ export default function ApiDoc() {
           })),
         ]}
       />
-    </div>
+    </OperationModeLayout>
   );
 }

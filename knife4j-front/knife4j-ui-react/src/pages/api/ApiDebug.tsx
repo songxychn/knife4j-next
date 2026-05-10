@@ -21,7 +21,7 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import { SendOutlined, DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { SendOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
@@ -43,7 +43,7 @@ import {
   replacePathParams,
   validateRequired,
 } from 'knife4j-core';
-import { OperationModeTabs, useCurrentOperation } from './useCurrentOperation';
+import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
@@ -353,46 +353,51 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
 
 // ─── Custom headers section ───────────────────────────
 
-interface CustomHeaderRow {
+interface CustomParamRow {
   id: string;
   name: string;
   value: string;
 }
 
-interface CustomHeadersSectionProps {
-  rows: CustomHeaderRow[];
-  onChange: (rows: CustomHeaderRow[]) => void;
+interface CustomParamsSectionProps {
+  title: string;
+  addLabel: string;
+  namePlaceholder: string;
+  valuePlaceholder: string;
+  rows: CustomParamRow[];
+  onChange: (rows: CustomParamRow[]) => void;
+  nameOptions?: (input: string) => Array<{ value: string; label: string }>;
 }
 
-function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
-  const { t } = useTranslation();
-
+function CustomParamsSection({
+  title,
+  addLabel,
+  namePlaceholder,
+  valuePlaceholder,
+  rows,
+  onChange,
+  nameOptions,
+}: CustomParamsSectionProps) {
   const updateRow = (id: string, field: 'name' | 'value', val: string) => {
-    onChange(rows.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
+    onChange(rows.map((row) => (row.id === id ? { ...row, [field]: val } : row)));
   };
 
   const deleteRow = (id: string) => {
-    onChange(rows.filter((r) => r.id !== id));
+    onChange(rows.filter((row) => row.id !== id));
   };
 
   const addRow = () => {
     onChange([...rows, { id: `custom-${Date.now()}`, name: '', value: '' }]);
   };
 
-  const headerOptions = (input: string) =>
-    COMMON_HEADER_NAMES.filter((h) => h.toLowerCase().includes(input.toLowerCase())).map((h) => ({
-      value: h,
-      label: h,
-    }));
-
   return (
     <div style={{ marginTop: 8 }}>
       <Space style={{ marginBottom: 4 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {t('apiDebug.customHeaders.title')}
+          {title}
         </Text>
         <Button size="small" icon={<PlusOutlined />} onClick={addRow}>
-          {t('apiDebug.customHeaders.add')}
+          {addLabel}
         </Button>
       </Space>
       {rows.map((row) => (
@@ -400,10 +405,10 @@ function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
           <AutoComplete
             size="small"
             value={row.name}
-            options={headerOptions(row.name)}
+            options={nameOptions?.(row.name)}
             onChange={(val) => updateRow(row.id, 'name', val)}
             onSelect={(val) => updateRow(row.id, 'name', val)}
-            placeholder={t('apiDebug.customHeaders.namePlaceholder')}
+            placeholder={namePlaceholder}
             style={{ width: 200 }}
             filterOption={false}
           />
@@ -411,7 +416,7 @@ function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
             size="small"
             value={row.value}
             onChange={(e) => updateRow(row.id, 'value', e.target.value)}
-            placeholder={t('apiDebug.customHeaders.valuePlaceholder')}
+            placeholder={valuePlaceholder}
             style={{ width: 260 }}
           />
           <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteRow(row.id)} />
@@ -419,6 +424,16 @@ function CustomHeadersSection({ rows, onChange }: CustomHeadersSectionProps) {
       ))}
     </div>
   );
+}
+
+function customRowsToRecord(rows: CustomParamRow[]): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.name.trim() && row.value.trim()) {
+      values[row.name.trim()] = row.value.trim();
+    }
+  }
+  return values;
 }
 
 // ─── Param input dispatcher ───────────────────────────
@@ -1263,22 +1278,89 @@ const previewBoxStyle: React.CSSProperties = {
   wordBreak: 'break-all',
 };
 
+interface InitialDebugState {
+  baseUrl: string;
+  method: string;
+  path: string;
+  paramValues: ParamValueMap;
+  paramEnabled: Record<string, boolean>;
+  selectedContentType: string;
+  body: string;
+  formFields: Record<string, string>;
+  rawMode: RawMode;
+}
+
+function inferRawMode(bodyContent: BodyContent | undefined): RawMode {
+  if (bodyContent?.category !== 'raw') return 'text';
+  const mediaType = bodyContent.mediaType;
+  if (mediaType.includes('json')) return 'json';
+  if (mediaType.includes('xml')) return 'xml';
+  if (mediaType.includes('html')) return 'html';
+  if (mediaType.includes('javascript')) return 'javascript';
+  return 'text';
+}
+
+function initialFormFieldsFor(bodyContent: BodyContent | undefined): Record<string, string> {
+  if (!bodyContent || (bodyContent.category !== 'urlencoded' && bodyContent.category !== 'multipart')) return {};
+  const initial: Record<string, string> = {};
+  for (const field of extractSchemaFields(bodyContent)) {
+    initial[field.name] = initialFieldValue(field);
+  }
+  return initial;
+}
+
+function buildInitialDebugState(
+  debugModel: OperationDebugModel,
+  operation: NonNullable<ReturnType<typeof useCurrentOperation>['operation']>,
+  baseUrl: string,
+): InitialDebugState {
+  const allParams = [
+    ...debugModel.pathParams,
+    ...debugModel.queryParams,
+    ...debugModel.headerParams,
+    ...debugModel.cookieParams,
+  ];
+  const paramValues: ParamValueMap = {};
+  const paramEnabled: Record<string, boolean> = {};
+  for (const param of allParams) {
+    paramValues[paramKey(param)] = initialValueFor(param);
+    paramEnabled[paramKey(param)] = true;
+  }
+
+  const firstBody = debugModel.bodyContents[0];
+  return {
+    baseUrl,
+    method: operation.method.toUpperCase(),
+    path: operation.path,
+    paramValues,
+    paramEnabled,
+    selectedContentType: firstBody?.mediaType ?? '',
+    body: firstBody?.exampleValue ?? '',
+    formFields: initialFormFieldsFor(firstBody),
+    rawMode: inferRawMode(firstBody),
+  };
+}
+
 // ─── 主组件 ────────────────────────────────────────────
 
 export default function ApiDebug() {
   const { t } = useTranslation();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { settings } = useSettings();
-  const [baseUrl, setBaseUrl] = useState(() =>
-    settings.enableHost && settings.enableHostText.trim() ? settings.enableHostText.trim() : currentOrigin(),
+  const defaultBaseUrl = useMemo(
+    () => (settings.enableHost && settings.enableHostText.trim() ? settings.enableHostText.trim() : currentOrigin()),
+    [settings.enableHost, settings.enableHostText],
   );
+  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
   // enabled state: keyed by paramKey; GET/DELETE query params default true, all others also true
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
   const [body, setBody] = useState('');
-  const [customHeaders, setCustomHeaders] = useState<CustomHeaderRow[]>([]);
+  const [customQueryParams, setCustomQueryParams] = useState<CustomParamRow[]>([]);
+  const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
+  const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
     return buildOperationDebugModel({
@@ -1301,6 +1383,7 @@ export default function ApiDebug() {
   const [formFields, setFormFields] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const [rawMode, setRawMode] = useState<RawMode>('text');
+  const [resetNonce, setResetNonce] = useState(0);
 
   // ── TASK-028: 校验错误与预览 ──
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1309,71 +1392,42 @@ export default function ApiDebug() {
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
   const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
-  // 当 debugModel 变化时，同步初始化表单状态
-  useEffect(() => {
-    if (!debugModel || !operation) return;
+  const initialDebugState = useMemo(() => {
+    if (!debugModel || !operation) return null;
+    return buildInitialDebugState(debugModel, operation, defaultBaseUrl);
+  }, [debugModel, operation, defaultBaseUrl]);
 
-    setMethod(operation.method.toUpperCase());
-    setPath(operation.path);
-
-    // 初始化参数值
-    const initial: ParamValueMap = {};
-    const allParams = [
-      ...debugModel.pathParams,
-      ...debugModel.queryParams,
-      ...debugModel.headerParams,
-      ...debugModel.cookieParams,
-    ];
-    for (const p of allParams) {
-      initial[paramKey(p)] = initialValueFor(p);
-    }
-    setParamValues(initial);
-
-    // 初始化 enabled 状态：query 参数在 GET/DELETE 下默认勾选，其余参数也默认勾选
-    const initialEnabled: Record<string, boolean> = {};
-    for (const p of allParams) {
-      initialEnabled[paramKey(p)] = true;
-    }
-    setParamEnabled(initialEnabled);
-
-    // body 初始值
-    const firstBody = debugModel.bodyContents[0];
-    const firstMediaType = firstBody?.mediaType ?? '';
-    setSelectedContentType(firstMediaType);
-    setBody(firstBody?.exampleValue ?? '');
-
-    // 初始化 formFields
-    if (firstBody && (firstBody.category === 'urlencoded' || firstBody.category === 'multipart')) {
-      const fields = extractSchemaFields(firstBody);
-      const initialForm: Record<string, string> = {};
-      for (const f of fields) {
-        initialForm[f.name] = initialFieldValue(f);
-      }
-      setFormFields(initialForm);
-    } else {
-      setFormFields({});
-    }
-
-    // 重置文件字段
+  const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
+    setBaseUrl(initial.baseUrl);
+    setMethod(initial.method);
+    setPath(initial.path);
+    setParamValues(initial.paramValues);
+    setParamEnabled(initial.paramEnabled);
+    setSelectedContentType(initial.selectedContentType);
+    setBody(initial.body);
+    setFormFields(initial.formFields);
     fileFieldsRef.current = {};
-
-    // raw mode 初始推断
-    if (firstBody?.category === 'raw') {
-      if (firstMediaType.includes('json')) setRawMode('json');
-      else if (firstMediaType.includes('xml')) setRawMode('xml');
-      else if (firstMediaType.includes('html')) setRawMode('html');
-      else if (firstMediaType.includes('javascript')) setRawMode('javascript');
-      else setRawMode('text');
-    } else {
-      setRawMode('text');
-    }
-
-    setResponse(null);
-    setError(null);
+    setRawMode(initial.rawMode);
+    setCustomQueryParams([]);
+    setCustomHeaders([]);
+    setCustomCookies([]);
+    setBuiltRequest(null);
     setSseEvents(null);
     setValidationErrors([]);
-    setActiveTab(undefined);
-  }, [debugModel, operation]);
+    if (options.resetActiveTab) {
+      setActiveTab(undefined);
+    }
+    setAuthModalOpen(false);
+    setResetNonce((value) => value + 1);
+  };
+
+  // 当 debugModel 变化时，同步初始化表单状态
+  useEffect(() => {
+    if (!initialDebugState) return;
+    applyInitialDebugState(initialDebugState, { resetActiveTab: true });
+    setResponse(null);
+    setError(null);
+  }, [initialDebugState]);
 
   const updateValue = (param: DebugParam, next: string) => {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
@@ -1562,12 +1616,23 @@ export default function ApiDebug() {
   );
 
   if (docLoading) {
-    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+    return (
+      <OperationModeLayout activeKey="debug">
+        <Spin style={{ display: 'block', margin: '80px auto' }} />
+      </OperationModeLayout>
+    );
   }
 
   if (!swaggerDoc || !operation || !debugModel) {
     return (
-      <Alert type="warning" showIcon message={t('apiDebug.notFound.title')} description={t('apiDebug.notFound.desc')} />
+      <OperationModeLayout activeKey="debug">
+        <Alert
+          type="warning"
+          showIcon
+          message={t('apiDebug.notFound.title')}
+          description={t('apiDebug.notFound.desc')}
+        />
+      </OperationModeLayout>
     );
   }
 
@@ -1599,18 +1664,18 @@ export default function ApiDebug() {
   const collectFormValues = (): DebugFormValues => {
     const category = getCurrentCategory();
     const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+    const specQueryParams = collectForIn(debugModel.queryParams);
     const specHeaders = collectForIn(debugModel.headerParams);
-    const extraHeaders: Record<string, string> = {};
-    for (const row of customHeaders) {
-      if (row.name.trim() && row.value.trim()) {
-        extraHeaders[row.name.trim()] = row.value.trim();
-      }
-    }
+    const specCookieParams = collectForIn(debugModel.cookieParams);
+    const extraQueryParams = customRowsToRecord(customQueryParams);
+    const extraHeaders = customRowsToRecord(customHeaders);
+    const extraCookieParams = customRowsToRecord(customCookies);
+
     return {
       pathParams: collectForIn(debugModel.pathParams),
-      queryParams: collectForIn(debugModel.queryParams),
+      queryParams: { ...extraQueryParams, ...specQueryParams },
       headerParams: { ...extraHeaders, ...specHeaders },
-      cookieParams: collectForIn(debugModel.cookieParams),
+      cookieParams: { ...extraCookieParams, ...specCookieParams },
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
       formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
@@ -1824,7 +1889,9 @@ export default function ApiDebug() {
         kind,
       });
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (!(reason instanceof Error && reason.name === 'AbortError')) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
     } finally {
       setLoading(false);
       sseAbortRef.current = null;
@@ -1834,6 +1901,22 @@ export default function ApiDebug() {
   const handleSseAbort = () => {
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
+  };
+
+  const handleReset = () => {
+    if (!initialDebugState) return;
+    handleSseAbort();
+    if (response?.objectUrl) {
+      try {
+        URL.revokeObjectURL(response.objectUrl);
+      } catch {
+        /* ignore */
+      }
+    }
+    applyInitialDebugState(initialDebugState);
+    setLoading(false);
+    setResponse(null);
+    setError(null);
   };
 
   /** 复制 curl 命令到剪贴板 */
@@ -1862,6 +1945,14 @@ export default function ApiDebug() {
     }
   };
 
+  const headerNameOptions = (input: string) =>
+    COMMON_HEADER_NAMES.filter((headerName) => headerName.toLowerCase().includes(input.toLowerCase())).map(
+      (headerName) => ({
+        value: headerName,
+        label: headerName,
+      }),
+    );
+
   // body tab 的标签含当前 content-type
   const bodyLabel =
     debugModel.bodyContents.length > 0
@@ -1872,7 +1963,7 @@ export default function ApiDebug() {
     {
       key: 'path',
       label: `${t('apiDebug.tab.path')} (${debugModel.pathParams.length})`,
-      disabled: debugModel.pathParams.length === 0,
+      disabled: false,
       children: (
         <Table
           size="small"
@@ -1880,21 +1971,35 @@ export default function ApiDebug() {
           columns={paramColumns}
           pagination={false}
           rowKey={paramKey}
+          locale={{ emptyText: t('apiDebug.noPathParams') }}
         />
       ),
     },
     {
       key: 'query',
-      label: `${t('apiDebug.tab.query')} (${debugModel.queryParams.length})`,
-      disabled: debugModel.queryParams.length === 0,
+      label: `${t('apiDebug.tab.query')} (${
+        debugModel.queryParams.length + customQueryParams.filter((row) => row.name.trim()).length
+      })`,
+      disabled: false,
       children: (
-        <Table
-          size="small"
-          dataSource={debugModel.queryParams.filter((p) => !p.readOnly)}
-          columns={paramColumns}
-          pagination={false}
-          rowKey={paramKey}
-        />
+        <>
+          <Table
+            size="small"
+            dataSource={debugModel.queryParams.filter((p) => !p.readOnly)}
+            columns={paramColumns}
+            pagination={false}
+            rowKey={paramKey}
+            locale={{ emptyText: t('apiDebug.noQueryParams') }}
+          />
+          <CustomParamsSection
+            title={t('apiDebug.customQuery.title')}
+            addLabel={t('apiDebug.customParams.add')}
+            namePlaceholder={t('apiDebug.customQuery.namePlaceholder')}
+            valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
+            rows={customQueryParams}
+            onChange={setCustomQueryParams}
+          />
+        </>
       ),
     },
     {
@@ -1916,30 +2021,52 @@ export default function ApiDebug() {
                 debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
             }}
           />
-          <CustomHeadersSection rows={customHeaders} onChange={setCustomHeaders} />
+          <CustomParamsSection
+            title={t('apiDebug.customHeaders.title')}
+            addLabel={t('apiDebug.customParams.add')}
+            namePlaceholder={t('apiDebug.customHeaders.namePlaceholder')}
+            valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
+            rows={customHeaders}
+            onChange={setCustomHeaders}
+            nameOptions={headerNameOptions}
+          />
         </>
       ),
     },
     {
       key: 'cookie',
-      label: `${t('apiDebug.tab.cookie')} (${debugModel.cookieParams.length})`,
-      disabled: debugModel.cookieParams.length === 0,
+      label: `${t('apiDebug.tab.cookie')} (${
+        debugModel.cookieParams.length + customCookies.filter((row) => row.name.trim()).length
+      })`,
+      disabled: false,
       children: (
-        <Table
-          size="small"
-          dataSource={debugModel.cookieParams.filter((p) => !p.readOnly)}
-          columns={paramColumns}
-          pagination={false}
-          rowKey={paramKey}
-        />
+        <>
+          <Table
+            size="small"
+            dataSource={debugModel.cookieParams.filter((p) => !p.readOnly)}
+            columns={paramColumns}
+            pagination={false}
+            rowKey={paramKey}
+            locale={{ emptyText: t('apiDebug.noCookieParams') }}
+          />
+          <CustomParamsSection
+            title={t('apiDebug.customCookie.title')}
+            addLabel={t('apiDebug.customParams.add')}
+            namePlaceholder={t('apiDebug.customCookie.namePlaceholder')}
+            valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
+            rows={customCookies}
+            onChange={setCustomCookies}
+          />
+        </>
       ),
     },
     {
       key: 'body',
       label: bodyLabel,
-      disabled: debugModel.bodyContents.length === 0,
+      disabled: false,
       children: (
         <BodyTab
+          key={resetNonce}
           debugModel={debugModel}
           body={body}
           setBody={setBody}
@@ -1961,91 +2088,104 @@ export default function ApiDebug() {
     },
   ];
 
-  // 找到第一个非空 Tab 作为默认
-  const defaultTab = tabItems.find((t) => !t.disabled)?.key ?? 'query';
+  const defaultTab =
+    debugModel.pathParams.length > 0
+      ? 'path'
+      : debugModel.queryParams.length > 0
+        ? 'query'
+        : debugModel.headerParams.length > 0
+          ? 'header'
+          : debugModel.cookieParams.length > 0
+            ? 'cookie'
+            : debugModel.bodyContents.length > 0
+              ? 'body'
+              : 'preview';
   const currentActiveTab = activeTab ?? defaultTab;
 
   return (
-    <div id="knife4j-api-debug-page" style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
-      <OperationModeTabs activeKey="debug" />
+    <OperationModeLayout activeKey="debug">
+      <div id="knife4j-api-debug-page">
+        <Space align="center" style={{ marginBottom: 12 }}>
+          <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
+            {method}
+          </Tag>
+          <Title level={5} style={{ margin: 0 }}>
+            {operation.operation.summary ?? operation.path}
+          </Title>
+        </Space>
 
-      <Space align="center" style={{ marginBottom: 12 }}>
-        <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
-          {method}
-        </Tag>
-        <Title level={5} style={{ margin: 0 }}>
-          {operation.operation.summary ?? operation.path}
-        </Title>
-      </Space>
+        <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+          <Select
+            value={method}
+            onChange={setMethod}
+            style={{ width: 110 }}
+            options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
+              value: item,
+              label: item,
+            }))}
+          />
+          <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
+          <Input
+            value={displayPath}
+            onChange={(event) => handlePathInputChange(event.target.value)}
+            style={{ flex: 1 }}
+          />
+          <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
+            {t('apiDebug.send')}
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            {t('apiDebug.reset')}
+          </Button>
+        </Space.Compact>
 
-      <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
-        <Select
-          value={method}
-          onChange={setMethod}
-          style={{ width: 110 }}
-          options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
-            value: item,
-            label: item,
-          }))}
+        <Tabs
+          activeKey={currentActiveTab}
+          defaultActiveKey={defaultTab}
+          onChange={(key) => setActiveTab(key)}
+          size="small"
+          items={tabItems}
         />
-        <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
-        <Input
-          value={displayPath}
-          onChange={(event) => handlePathInputChange(event.target.value)}
-          style={{ flex: 1 }}
+
+        <Divider style={{ margin: '16px 0' }} />
+
+        {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
+        <ResponsePanel
+          response={response}
+          error={error}
+          builtRequest={builtRequest}
+          operation={operation}
+          swaggerDoc={swaggerDoc}
+          sseEvents={sseEvents}
+          onSseAbort={handleSseAbort}
+          sseStreaming={sseAbortRef.current !== null}
         />
-        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
-          {t('apiDebug.send')}
-        </Button>
-      </Space.Compact>
-
-      <Tabs
-        activeKey={currentActiveTab}
-        defaultActiveKey={defaultTab}
-        onChange={(key) => setActiveTab(key)}
-        size="small"
-        items={tabItems}
-      />
-
-      <Divider style={{ margin: '16px 0' }} />
-
-      {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-      <ResponsePanel
-        response={response}
-        error={error}
-        builtRequest={builtRequest}
-        operation={operation}
-        swaggerDoc={swaggerDoc}
-        sseEvents={sseEvents}
-        onSseAbort={handleSseAbort}
-        sseStreaming={sseAbortRef.current !== null}
-      />
-      <Modal
-        open={authModalOpen}
-        onCancel={() => setAuthModalOpen(false)}
-        title={t('auth.modal401.title')}
-        footer={[
-          <Button
-            key="resend"
-            type="primary"
-            onClick={() => {
-              setAuthModalOpen(false);
-              void handleSend();
-            }}
-          >
-            {t('auth.modal401.resend')}
-          </Button>,
-          <Button key="close" onClick={() => setAuthModalOpen(false)}>
-            {t('auth.modal401.close')}
-          </Button>,
-        ]}
-        width={680}
-        destroyOnClose
-      >
-        <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
-        <Authorize />
-      </Modal>
-    </div>
+        <Modal
+          open={authModalOpen}
+          onCancel={() => setAuthModalOpen(false)}
+          title={t('auth.modal401.title')}
+          footer={[
+            <Button
+              key="resend"
+              type="primary"
+              onClick={() => {
+                setAuthModalOpen(false);
+                void handleSend();
+              }}
+            >
+              {t('auth.modal401.resend')}
+            </Button>,
+            <Button key="close" onClick={() => setAuthModalOpen(false)}>
+              {t('auth.modal401.close')}
+            </Button>,
+          ]}
+          width={680}
+          destroyOnClose
+        >
+          <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
+          <Authorize />
+        </Modal>
+      </div>
+    </OperationModeLayout>
   );
 }
 
