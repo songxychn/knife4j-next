@@ -49,6 +49,7 @@ public class BasicFilter {
         // https://gitee.com/xiaoym/knife4j/issues/I6H8BE
         urlFilters.add(Pattern.compile(".*?/swagger-ui.*", Pattern.CASE_INSENSITIVE));
         urlFilters.add(Pattern.compile(".*?/v3/api-docs.*", Pattern.CASE_INSENSITIVE));
+        urlFilters.add(Pattern.compile(".*?/knife4j/swagger-config.*", Pattern.CASE_INSENSITIVE));
     }
 
     /**

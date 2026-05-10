@@ -36,11 +36,15 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import javax.servlet.DispatcherType;
+import java.util.Collections;
+import java.util.Map;
 
 /***
  * Knife4j 基础自动配置类
@@ -69,6 +73,49 @@ public class Knife4jAutoConfiguration {
                                                              SpringDocConfigProperties docProperties) {
         logger.debug("Register Knife4jOpenApiCustomizer");
         return new Knife4jOpenApiCustomizer(knife4jProperties, docProperties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(Knife4jSwaggerConfigController.class)
+    public Knife4jSwaggerConfigController knife4jSwaggerConfigController(SpringDocConfigProperties docProperties) {
+        return new Knife4jSwaggerConfigController(docProperties);
+    }
+
+    @RestController
+    public static class Knife4jSwaggerConfigController {
+
+        private static final String DEFAULT_API_DOCS_PATH = "v3/api-docs";
+
+        private final SpringDocConfigProperties docProperties;
+
+        public Knife4jSwaggerConfigController(SpringDocConfigProperties docProperties) {
+            this.docProperties = docProperties;
+        }
+
+        @GetMapping("/knife4j/swagger-config")
+        public Map<String, String> swaggerConfig() {
+            return Collections.singletonMap(
+                    GlobalConstants.EXTENSION_SWAGGER_CONFIG_URL,
+                    resolveApiDocsPath() + "/swagger-config");
+        }
+
+        private String resolveApiDocsPath() {
+            if (docProperties == null || docProperties.getApiDocs() == null) {
+                return DEFAULT_API_DOCS_PATH;
+            }
+            String path = docProperties.getApiDocs().getPath();
+            if (path == null || path.trim().isEmpty()) {
+                return DEFAULT_API_DOCS_PATH;
+            }
+            String normalized = path.trim();
+            while (normalized.startsWith("/")) {
+                normalized = normalized.substring(1);
+            }
+            while (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1);
+            }
+            return normalized.isEmpty() ? DEFAULT_API_DOCS_PATH : normalized;
+        }
     }
 
     @Bean

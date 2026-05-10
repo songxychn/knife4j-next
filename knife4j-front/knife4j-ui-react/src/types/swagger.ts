@@ -19,8 +19,12 @@ export interface SwaggerGroup {
  *   `operationsSorter` 还可取 `'method'` 按 HTTP method 排序；其他值一律保持原序。
  */
 export interface SwaggerUiConfig {
+  /** 单文档 api-docs 地址（springdoc 单文档场景） */
+  url?: string;
   /** 分组列表（springdoc 多文档场景） */
   urls?: Array<{ name: string; url: string }>;
+  /** Knife4j 固定 discovery 端点返回的实际 swagger-config 地址 */
+  swaggerConfigUrl?: string;
   /** tag 排序策略（例如 'alpha'） */
   tagsSorter?: string;
   /** operation 排序策略（例如 'alpha' / 'method'） */
