@@ -13,5 +13,6 @@ bun run --filter knife4j-core build
 
 # --- knife4j-ui-react ---
 bun run --filter knife4j-ui-react format:check
+bun run --filter knife4j-ui-react test
 bun run --filter knife4j-ui-react build
 bun run --filter knife4j-ui-react lint
