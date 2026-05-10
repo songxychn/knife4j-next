@@ -22,14 +22,14 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
-1. 版本发布节奏：upstream 最新是 `4.6.0`，fork 是 `5.0.0`（采用独立 SemVer 版本号）；fork 包含全部兼容/安全修复和 React 新前端。
-2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、自定义 Footer、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；这些功能在本仓库 `knife4j-vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
+1. 版本发布节奏：upstream 最新是 `4.6.0`，fork 是 `5.0.0`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、自定义 Footer、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；OAuth2、离线导出、自定义 Markdown 文档等能力则已在 React UI 中补齐或重做。这些历史功能在本仓库 `knife4j-vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
-| `5.0.0` | Bug 修复 & 功能增强：petstore 闪烁、OAuth2 授权码、离线文档 Markdown/OpenAPI JSON、tags-sorter | — |
+| `5.0.0` | Bug 修复 & 功能增强：petstore 闪烁、OAuth2 四种 flow 基础鉴权、离线文档 Markdown/OpenAPI JSON、tags-sorter | — |
 | `1.0.0` | 正式版：全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI 完整集成 | — |
 | `4.6.0.3` (Preview) | `/v2/api-docs;xxx` 分号绕过 Basic 认证漏洞 | [#886](https://github.com/xiaoymin/knife4j/issues/886) |
 | `4.6.0.3` (Preview) | Gateway context-path 导致 host 缺少斜杠 | [#954](https://github.com/xiaoymin/knife4j/issues/954) |
@@ -561,4 +561,3 @@ upstream `doc.xiaominfo.com` 仍在提供完整的历史 FAQ，如 Springfox 2.9
 
 - 查 [GitHub Issues](https://github.com/songxychn/knife4j-next/issues)
 - 提 issue 时请带上：knife4j 版本、Spring Boot 版本、是否用 jakarta、关键配置片段、最小复现。
-
