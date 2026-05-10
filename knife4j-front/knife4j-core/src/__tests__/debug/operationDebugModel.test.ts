@@ -479,6 +479,73 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.queryParams).toHaveLength(1);
     expect(model.queryParams[0].description).toBe('op-level');
   });
+
+  // Regression test for upstream #964 / issue #287:
+  // @ParameterObject flattens a Java POJO into individual query params.
+  // springdoc may generate parameters with schema.$ref pointing to a component
+  // schema that has no explicit `type` field (OAS3.1 permits omitting type).
+  // In that case extractType must NOT blindly fall back to 'string' — it should
+  // infer the type from enum values, properties, items, etc.
+  test('@ParameterObject — field types preserved when schema.$ref resolves to typeless schema', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/api/query': {
+          get: {
+            parameters: [
+              // inline schema with explicit type — must still work
+              { name: 'keyword', in: 'query', schema: { type: 'string' } },
+              // schema.$ref → resolves to integer type
+              { name: 'page', in: 'query', schema: { $ref: '#/components/schemas/PageNum' } },
+              // schema.$ref → resolves to schema with no type but integer enum values
+              { name: 'status', in: 'query', schema: { $ref: '#/components/schemas/StatusCode' } },
+              // schema.$ref → resolves to object (has properties)
+              { name: 'filter', in: 'query', schema: { $ref: '#/components/schemas/FilterObj' } },
+              // schema.$ref → resolves to array (has items)
+              { name: 'tags', in: 'query', schema: { $ref: '#/components/schemas/TagList' } },
+              // schema.$ref → boolean flag without explicit type
+              { name: 'active', in: 'query', schema: { $ref: '#/components/schemas/BoolFlag' } },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          // explicit type field — normal case
+          PageNum: { type: 'integer', format: 'int32' },
+          // no type field but all enum values are integers
+          StatusCode: { description: 'Status', enum: [1, 2, 3] },
+          // no type field but has properties → should be 'object'
+          FilterObj: { description: 'Filter', properties: { key: { type: 'string' } } },
+          // no type field but has items → should be 'array'
+          TagList: { description: 'Tags', items: { type: 'string' } },
+          // no type field but all enum values are boolean
+          BoolFlag: { description: 'Active flag', enum: [true, false] },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc: doc as any, path: '/api/query', method: 'get' });
+
+    expect(model.queryParams).toHaveLength(6);
+
+    const byName = Object.fromEntries(model.queryParams.map((p) => [p.name, p]));
+
+    // inline schema — must work as before
+    expect(byName['keyword'].type).toBe('string');
+    // $ref resolves to schema with explicit type
+    expect(byName['page'].type).toBe('integer');
+    // $ref resolves to schema with integer enum values → must be 'integer', NOT 'string'
+    expect(byName['status'].type).toBe('integer');
+    // $ref resolves to schema with properties → must be 'object', NOT 'string'
+    expect(byName['filter'].type).toBe('object');
+    // $ref resolves to schema with items → must be 'array', NOT 'string'
+    expect(byName['tags'].type).toBe('array');
+    // $ref resolves to schema with boolean enum values → must be 'boolean', NOT 'string'
+    expect(byName['active'].type).toBe('boolean');
+  });
 });
 
 describe('buildOperationDebugModel — OAS2', () => {

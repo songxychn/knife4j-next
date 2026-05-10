@@ -122,7 +122,21 @@ function extractType(param: OAS2Param | OAS3Param, schema?: Record<string, unkno
       const f = schema.format as string | undefined;
       if (f === 'binary') return 'file';
     }
-    return t ?? 'string';
+    if (t) return t;
+    // schema.type 缺失时（OAS3.1 允许省略 type，@ParameterObject 展开的字段也可能
+    // 引用无 type 的 component schema），从 schema 结构推断，避免全部退化为 string
+    if (schema.properties) return 'object';
+    if (schema.items !== undefined) return 'array';
+    if (Array.isArray(schema.enum)) {
+      // 从枚举值的 JS 类型推断：全部是布尔 → boolean，全部是数字 → integer/number
+      const vals = schema.enum as unknown[];
+      if (vals.length > 0) {
+        if (vals.every((v) => typeof v === 'boolean')) return 'boolean';
+        if (vals.every((v) => typeof v === 'number'))
+          return vals.every((v) => Number.isInteger(v)) ? 'integer' : 'number';
+      }
+    }
+    return 'string';
   }
   return 'string';
 }
