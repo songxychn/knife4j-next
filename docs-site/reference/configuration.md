@@ -380,7 +380,7 @@ knife4j:
     password: ${DOC_PASSWORD}
 ```
 
-> **生产环境响应格式（#859）**：`production=true` 时，被屏蔽的请求返回 `application/json` 格式的错误响应（`{"code":403,"message":"..."}`），而非 HTML 错误页面，避免前端 `JSON.parse` 时抛出 `Unexpected token '<', "<!DOCTYPE "...` 异常。
+> **生产环境响应格式**：`production=true` 时，被屏蔽的请求返回 `application/json` 格式的错误响应（`{"code":403,"message":"..."}`），而非 HTML 错误页面，避免前端 `JSON.parse` 时抛出 `Unexpected token '<', "<!DOCTYPE "...` 异常。
 
 ### Gateway 聚合配置（DISCOVER 模式）
 
@@ -413,4 +413,3 @@ knife4j:
         serviceName: user-service
         groupName: DEFAULT_GROUP
         namespaceId: public
-

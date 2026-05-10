@@ -24,7 +24,7 @@ title: 产品介绍
 
 ## 这份 fork 想解决什么
 
-1. **兼容性修复**。upstream 对 Spring Boot 3.4 / 3.5 的适配步伐变慢，fork 已经升级 `springdoc-openapi-jakarta` 到 `2.8.9`，把 3.4.0 / 3.5.0 两个版本纳入 smoke-tests 模块定期回归。
+1. **兼容性修复**。upstream 对 Spring Boot 3.4 / 3.5 的适配步伐变慢，fork 已经升级 `springdoc-openapi-jakarta` 到 `2.8.9`，并通过 smoke-tests 覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x Jakarta 与 Boot 3.5.0 Jakarta 组合。
 2. **安全修复**。修复了 `/v2/api-docs;xxx` 分号绕过 Basic 认证的漏洞（[#886](https://github.com/xiaoymin/knife4j/issues/886)），以及 gateway `context-path` 下聚合 host 少斜杠的问题（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
 3. **可重复发布流程**。`.github/workflows/release.yml` 通过 Central Publishing Plugin 直接推送 Maven Central，不依赖人工临场操作。
 4. **可试用的 Demo**。`knife4j-demo-openapi3`（Spring Boot 3.4 + OpenAPI 3 + React UI）和 `knife4j-demo-openapi2`（Spring Boot 2.7 + OpenAPI 2 + Vue 3 UI）两个示例工程都附带 Dockerfile，可分别本地运行或在线预览。
@@ -46,14 +46,15 @@ title: 产品介绍
 
 ## 哪些是 **没有** 做或 **部分实现**，需要你知道
 
-upstream 文档里列出的 29 个增强特性在本 fork 的实际实现状态，前端和后端存在差异：
+upstream 文档里列出的增强特性在本 fork 的实际实现状态，前端和后端存在差异：
 
-| 情况 | 数量 | 示例 | 建议 |
-| --- | --- | --- | --- |
-| 全部模块已实现 | 4 项 | `knife4j.enable`、`knife4j.production`、`knife4j.basic`、JSR303 透传 | 安心使用 |
-| openapi2-starter 完整，openapi3 系列**部分丢弃** | 6 项 | `@DynamicParameters`、`@DynamicResponseParameters`、`@ApiOperationSupport(ignoreParameters/includeParameters)` 等 Springfox 专属能力 | 迁到 openapi3 时改用实体类替代 |
-| 后端实现，新 React 前端未读取 | 13 项 | `knife4j.setting.enable-debug=false`、`enable-search`、`enable-open-api`、`enable-version`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script` 等 | 依赖这些 UI 开关的用户暂时使用 openapi2 starter + 本仓库 Vue 3 UI |
-| 全模块未实现 | 2 项 | 导出 Postman、Markdown 离线导出（新前端仅 HTML/Word） | 等待后续迭代 |
+| 情况 | 示例 | 建议 |
+| --- | --- | --- |
+| 服务端能力已覆盖 | `knife4j.enable`、`knife4j.production`、`knife4j.basic`、JSR303 透传 | 安心使用 |
+| Springfox 专属增强在 OAS3 中不处理 | `@DynamicParameters`、`@DynamicResponseParameters`、`@ApiOperationSupport(ignoreParameters/includeParameters)` 等 | 迁到 OpenAPI3 时改用实体类或标准 OpenAPI 注解替代 |
+| 后端实现，新 React 前端尚未自动读取 | `knife4j.setting.enable-debug=false`、`enable-search`、`enable-open-api`、`enable-version`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script` 等 | 依赖这些 UI 开关的用户暂时使用 openapi2 starter + 本仓库 Vue 3 UI |
+| React UI 已补齐或重做 | OAuth2 四种 flow 基础鉴权、HTML/Word/Markdown/OpenAPI JSON 离线导出、`tags-sorter` / `operations-sorter`、`x-markdownFiles` 自定义文档 | 优先以本仓库文档和实际 demo 为准 |
+| 仍未覆盖 | Postman 导出、afterScript 等 | 等待后续迭代 |
 
 完整对应关系见 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
 

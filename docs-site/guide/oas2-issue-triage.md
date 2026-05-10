@@ -1,12 +1,16 @@
 ---
-title: OAS2 UI Issue 盘点（knife4j-vue3）
+title: OAS2 UI Issue 初筛（knife4j-vue3）
 ---
 
-# OAS2 UI Issue 盘点（knife4j-vue3）
+# OAS2 UI Issue 初筛（knife4j-vue3）
 
 本文汇总 upstream `xiaoymin/knife4j` 中属于 **OAS2 / Swagger 2 场景**的 UI issue，并按 knife4j-next 的[前端分工策略](/guide/migration#spring-boot-2-x-springfox-openapi2)给出处置结论。
 
 > **前端分工策略摘要**：`knife4j-vue3` 只做回归修复、安全补丁、显示层 bug 修复，不做功能扩张。OAS2 场景的新功能请求一律按 `wontfix: scope-policy` 关闭，引导用户迁移到 OAS3 starter。
+
+::: warning 这不是当前任务队列
+这页是 upstream issue 的历史初筛记录，不代表 issue 已在本仓库复现、修复或承诺排期。真正开工前必须重新阅读 upstream 原文、在当前仓库复现，并在本仓库 issue / PR 中写清楚实际范围；不要只凭 upstream 标题或截图认定修复方向。
+:::
 
 ---
 
@@ -16,13 +20,13 @@ title: OAS2 UI Issue 盘点（knife4j-vue3）
 
 | upstream issue | 摘要 | 处置状态 |
 |---|---|---|
-| [#523](https://github.com/xiaoymin/knife4j/issues/523) | 设置全局安全验证后调试请求不生效（v4.0.0） | 待独立 PR |
-| [#608](https://github.com/xiaoymin/knife4j/issues/608) | 3.0.3 版本多文件上传不显示上传按钮（springfox 3.0.x） | 待独立 PR |
-| [#638](https://github.com/xiaoymin/knife4j/issues/638) | 4.3.0 版本文件上传不显示上传选择文本域 | 待独立 PR |
-| [#758](https://github.com/xiaoymin/knife4j/issues/758) | yml 不支持 `showTagStatus` 但前端有此参数 | 待独立 PR（或补文档） |
-| [#565](https://github.com/xiaoymin/knife4j/issues/565) | `application/json` 内写 schema 无法显示（OAS2 写法） | 待独立 PR |
+| [#523](https://github.com/xiaoymin/knife4j/issues/523) | 设置全局安全验证后调试请求不生效（v4.0.0） | 待当前仓库复现后决定 |
+| [#608](https://github.com/xiaoymin/knife4j/issues/608) | 3.0.3 版本多文件上传不显示上传按钮（springfox 3.0.x） | 待当前仓库复现后决定 |
+| [#638](https://github.com/xiaoymin/knife4j/issues/638) | 4.3.0 版本文件上传不显示上传选择文本域 | 待当前仓库复现后决定 |
+| [#758](https://github.com/xiaoymin/knife4j/issues/758) | yml 不支持 `showTagStatus` 但前端有此参数 | 待当前仓库复现后决定 |
+| [#565](https://github.com/xiaoymin/knife4j/issues/565) | `application/json` 内写 schema 无法显示（OAS2 写法） | 待当前仓库复现后决定 |
 
-**修复原则**：每个 issue 独立 PR，修复范围限于 `knife4j-vue3/src/` 显示层，不引入新功能，不改动 `knife4j-core`（TypeScript）。
+**修复原则**：每个 issue 独立 PR；如果确认为 OAS2 UI 显示层问题，修复范围限于 `knife4j-vue3/src/`，不引入新功能，不改动 `knife4j-core`（TypeScript）。如果复现结果指向 Java / 静态资源 / 聚合路径，应重新归到对应后端任务。
 
 ---
 
@@ -39,7 +43,7 @@ title: OAS2 UI Issue 盘点（knife4j-vue3）
 | [#788](https://github.com/xiaoymin/knife4j/issues/788) | 导出 Word 格式错乱 | 导出体验改进，已在 `knife4j-ui-react` 重做；OAS2 保留现状 |
 | [#550](https://github.com/xiaoymin/knife4j/issues/550) | 语言切换回调（i18n 扩展） | 功能扩张，`knife4j-ui-react` 主线考虑 |
 
-**处置方式**：在 upstream 对应 issue 回帖，说明 knife4j-next 的分工策略，并附 OAS3 迁移指南链接（见下方[回帖模板](#回帖模板)）。
+**处置方式**：在本仓库 issue / PR 中说明分工策略，并附 OAS3 迁移指南链接。是否回帖 upstream 由维护者按场景决定，不把回帖当作完成条件。
 
 ---
 
@@ -49,15 +53,15 @@ title: OAS2 UI Issue 盘点（knife4j-vue3）
 
 | upstream issue | 摘要 | 处置方向 |
 |---|---|---|
-| [#503](https://github.com/xiaoymin/knife4j/issues/503) | Tomcat `Http11Nio2Protocol` 时文档页面不显示 | 纳入 [#198](https://github.com/songxychn/knife4j-next/issues/198) 启动期 bug 子分组，Java 侧修复 |
-| [#687](https://github.com/xiaoymin/knife4j/issues/687) | 测试环境访问 `doc.html` 返回 500 | 同上（[#198](https://github.com/songxychn/knife4j-next/issues/198)） |
-| [#666](https://github.com/xiaoymin/knife4j/issues/666) | 静态资源 `Content-type` 响应不对 | 同上（[#198](https://github.com/songxychn/knife4j-next/issues/198)） |
+| [#503](https://github.com/xiaoymin/knife4j/issues/503) | Tomcat `Http11Nio2Protocol` 时文档页面不显示 | 待当前仓库复现后判定是否为 Java 启动 / 静态资源问题 |
+| [#687](https://github.com/xiaoymin/knife4j/issues/687) | 测试环境访问 `doc.html` 返回 500 | 待当前仓库复现后判定是否为 Java 启动 / 静态资源问题 |
+| [#666](https://github.com/xiaoymin/knife4j/issues/666) | 静态资源 `Content-type` 响应不对 | 不再直接归入 #198；需按静态资源 MIME / MessageConverter 顺序方向独立复现与跟踪 |
 
 ---
 
 ## 回帖模板
 
-对 wontfix 类 issue，在 upstream 回帖时使用以下模板（中文）：
+对 wontfix 类 issue，如果维护者决定回帖 upstream，可使用以下模板（中文）：
 
 ```
 感谢反馈！
