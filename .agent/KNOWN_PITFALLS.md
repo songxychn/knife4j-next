@@ -21,7 +21,7 @@
 ## 文档
 
 - `README.md` 可能有意引用 upstream 作为历史或临时参考。目标是去除混淆，不是抹掉来源。
-- 文档构建依赖 `npm ci`，因此环境和 lockfile 一致性很重要。
+- 文档构建依赖 `bun install --frozen-lockfile`，因此环境和 lockfile 一致性很重要。
 
 ## Agent 工作流
 

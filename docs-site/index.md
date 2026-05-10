@@ -25,11 +25,11 @@ features:
     link: /guide/migration
     linkText: 迁移指引
   - title: Spring Boot 2.7、3.4、3.5 都跑过
-    details: 4 个 smoke 模块（Boot 2.7.18、Boot 3.4.0、Boot 3.5.0）随每次构建回归，springdoc-openapi-jakarta 已对齐 2.8.9。
+    details: 5 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x Jakarta 与 Boot 3.5.0 Jakarta 组合，springdoc-openapi-jakarta 已对齐 2.8.9。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
-    details: knife4j-openapi3-ui webjar 已集成 React 前端，支持国际化、类型感知参数输入、OAuth2 授权码流程、响应复制/下载等。
+    details: knife4j-openapi3-ui webjar 已集成 React 前端，支持国际化、类型感知参数输入、OAuth2 四种 flow 的基础鉴权调试、响应复制/下载等。
     link: /release-notes/
     linkText: 发布说明
   - title: Gateway 与多服务聚合
@@ -79,7 +79,7 @@ springdoc:
 ## 5.0.0 版本亮点 <Badge type="tip" text="最新" />
 
 - 🐛 修复页面加载时 Petstore 示例数据一闪而过
-- 🔐 OAuth2 授权码 / 隐式模式弹窗流程
+- 🔐 OAuth2 四种 flow 的基础鉴权调试
 - 📄 离线文档导出新增 Markdown 与 OpenAPI JSON
 - 🏷️ 尊重后端 `tags-sorter` / `operations-sorter` 配置
 - 🔧 GlobalParam 布局修复 + ApiDoc 工具栏优化
@@ -87,7 +87,7 @@ springdoc:
 完整更新列表见 [发布说明](/release-notes/)。
 
 ::: warning 关于新前端覆盖范围
-新 React 前端当前**仅覆盖部分** upstream 增强特性。如果你依赖的是 `knife4j.setting.enable-debug=false`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script`、`enable-version`、Postman 导出，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 由本仓库 `knife4j-vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
+新 React 前端当前**仅覆盖部分** upstream 增强特性。如果你依赖的是 `knife4j.setting.enable-debug=false`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script`、`enable-version`、Postman 导出，或依赖服务端 `knife4j.setting.*` 自动驱动前端开关，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 由本仓库 `knife4j-vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
 :::
 
 ## 文档导航
@@ -110,7 +110,7 @@ springdoc:
 
 - [兼容矩阵](/reference/compatibility)：Java、Spring、Boot、springdoc 基线
 - [版本参考表](/reference/version-ref)：Boot 版本如何选 knife4j 版本
-- [模块说明](/reference/modules)：14 个 Maven 模块的职责与选择决策
+- [模块说明](/reference/modules)：15 个 Maven 模块的职责与选择决策
 - [配置参考](/reference/configuration)：全部 `knife4j.*` YAML 选项
 - [注解速查](/reference/annotations)：Springfox 专有 vs 通用注解
 

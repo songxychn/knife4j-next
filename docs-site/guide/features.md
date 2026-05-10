@@ -48,7 +48,7 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 
 ## 功能详解
 
-> 以下功能按**前端 UI 可用性**标注状态。✅ = React + Vue3 均可用；⚠️ = 仅 Vue3 可用（React 暂不支持）；❌ = 均暂不可用。
+> 以下功能按**前端 UI 可用性**标注状态。✅ = React + Vue3 均可用；🔲 = 部分实现；⬜ = 未实现；❌ = 均暂不可用。
 >
 > 这里的 Vue3 指本仓库 `knife4j-vue3`，打包进 `knife4j-openapi2-ui` webjar，面向 OAS2 starter；React 指 `knife4j-front/knife4j-ui-react`，打包进 `knife4j-openapi3-ui` webjar，面向 OAS3 starter。Vue3 处于兼容维护状态，React 为主线。
 
@@ -76,11 +76,11 @@ Knife4j UI 内置 OAuth2 授权调试面板（**Authorize**），支持四种模
 | --- | --- | --- | --- |
 | 授权码（authorization_code） | ✅ | ✅ | 最安全的模式，推荐 |
 | 隐式（implicit） | ✅ | ✅ | 不推荐（OAuth2.1 已移除） |
-| 密码（password） | ✅ | ⬜ | React 暂未实现，需要 username / password / clientId / clientSecret |
-| 客户端凭证（client_credentials） | ✅ | ⬜ | React 暂未实现，需要 clientId / clientSecret |
+| 密码（password） | ✅ | ✅ | React 支持按 `tokenUrl` 直接换取 token |
+| 客户端凭证（client_credentials） | ✅ | ✅ | React 支持按 `tokenUrl` 直接换取 token |
 
 ::: warning OAuth2 回调地址
-隐式模式和授权码模式需要配置回调地址。Knife4j 提供的回调页面位于 `webjars/oauth/oauth2.html`，因此服务端需将重定向 URI 配为 `http://<host>:<port>/webjars/oauth/oauth2.html`。
+隐式模式和授权码模式需要配置回调地址。React UI 的默认回调页为 `http://<host>:<port>/oauth2-redirect.html`；OAS2 Vue3 UI 继续使用 `http://<host>:<port>/webjars/oauth/oauth2.html`。
 :::
 
 #### OpenAPI3 配置示例（springdoc）
@@ -239,8 +239,8 @@ Host 地址支持以下格式：
 - `knife4j.example.com`（域名）
 - `http://192.168.0.111:8080/v1`（带 basePath）
 
-::: warning ⚠️ React UI 暂不支持
-自定义 Host 仅在 Vue3 UI（OAS2 starter）中可用。React 新前端暂不支持。
+::: warning React UI
+React 新前端可以在右上角设置面板手动开启 Host 覆盖，但目前仍未自动读取服务端注入的 `knife4j.setting.enable-host` / `enable-host-text` 默认值。
 :::
 
 ::: tip 前置条件：跨域

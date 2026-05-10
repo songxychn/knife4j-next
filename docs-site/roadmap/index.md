@@ -25,7 +25,7 @@ title: 路线图
 | React 前端 | ApiDoc 接口文档展示（参数表格 + 响应结构 + 复制操作） | ✅ |
 | React 前端 | ApiDebug 接口调试（类型感知参数输入 + requestBody 多 content-type + cURL 预览 + 响应复制/下载） | ✅ |
 | React 前端 | SwaggerModels 数据模型展示 | ✅ |
-| React 前端 | Authorize 鉴权配置（securitySchemes 动态渲染 + OAuth2 授权码流程） | ✅ |
+| React 前端 | Authorize 鉴权配置（securitySchemes 动态渲染 + OAuth2 四种 flow 基础 token 获取/注入） | ✅ |
 | React 前端 | GlobalParam 全局参数 | ✅ |
 | React 前端 | Home 首页统计概览（重设计） | ✅ |
 | React 前端 | 离线文档导出（HTML / Word） | ✅ |
@@ -36,12 +36,12 @@ title: 路线图
 | React 前端 | Tab 右键菜单 + 刷新后状态持久化 | ✅ |
 | React 前端 | 侧边栏接口搜索高亮 + Method 过滤条 | ✅ |
 | React 前端 | Markdown 渲染（API/tag/info description） | ✅ |
-| React 前端 | OAuth2 授权码 / 隐式模式弹窗流程 | ✅ |
+| React 前端 | OAuth2 四种 flow 的基础鉴权调试 | ✅ |
 | React 前端 | 离线文档导出（HTML / Word / Markdown / OpenAPI JSON） | ✅ |
 | React 前端 | 尊重后端 tags-sorter / operations-sorter 配置 | ✅ |
 | knife4j-core | debug 解析层抽取（resolveRef / OperationDebugModel / requestBuilder） | ✅ |
 | knife4j-core | buildSchemaExample & buildSchemaFieldTree | ✅ |
-| 基础设施 | npm workspaces 统一 knife4j-front 包管理 | ✅ |
+| 基础设施 | Bun workspace 统一 knife4j-front 包管理 | ✅ |
 | 基础设施 | Node.js 22 LTS + Prettier + Spotless 格式化规范 | ✅ |
 
 ---
@@ -61,7 +61,7 @@ title: 路线图
 | 数据模型展示 | ✅ | ✅ | — |
 | 分组切换 | ✅ | ✅ | — |
 | 接口搜索 | ✅ | ✅ | — |
-| Authorize 鉴权 | ✅ | 🔲 | React 支持 securitySchemes 动态渲染 + OAuth2 授权码/隐式流程，缺少 password/client_credentials |
+| Authorize 鉴权 | ✅ | ✅ | React 支持 securitySchemes 动态渲染 + OAuth2 四种 flow 基础 token 获取/注入 |
 | 全局参数 | ✅ | ✅ | — |
 | 离线文档导出 | ✅ | 🔲 | React 支持 HTML/Word/Markdown/OpenAPI JSON，缺少 Word 模板自定义 |
 | 首页统计 | ✅ | ✅ | — |
@@ -71,7 +71,7 @@ title: 路线图
 | 功能 | Vue3 | React | 缺口说明 |
 | --- | --- | --- | --- |
 | multipart/form-data 文件上传 | ✅ | 🔲 | 基础表单可用，完整文件上传待优化 |
-| OAuth2 password/client_credentials | ✅ | ⬜ | — |
+| OAuth2 password/client_credentials | ✅ | ✅ | 基础 `tokenUrl` 换取 token 已实现 |
 | afterScript（请求后脚本） | ✅ | ⬜ | — |
 
 ### 增强功能
@@ -82,7 +82,7 @@ title: 路线图
 | `@ApiSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ | ⬜ | 后端已生效，UI 不排序 |
 | `@ApiOperationSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
-| 自定义 Markdown 文档 | ✅ | ⬜ | 依赖 UI 设置面板读取 setting |
+| 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-markdownFiles` 并在侧边栏渲染 |
 | 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
 | TypeScript 代码生成 | ✅ | ⬜ | — |
 | Postman 导出 | ✅ | ⬜ | — |
@@ -122,8 +122,8 @@ title: 路线图
 ## 下一步
 
 1. **补齐 `knife4j.setting.*` UI 开关联动**：React 前端读取后端注入的 x-knife4j setting
-2. **补齐 OAuth2 password / client_credentials** 调试流程
-3. **补齐 Postman 导出**
-4. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
+2. **补齐 Postman 导出**
+3. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
+4. **补齐 multipart/form-data 文件上传细节**
 
 如果你想参与某个任务的实现，欢迎提 Issue 或 PR。详见 [GitHub 仓库](https://github.com/songxychn/knife4j-next)。

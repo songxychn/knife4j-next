@@ -1,80 +1,62 @@
-# knife4j项目说明
+# knife4j Java 主工程
 
-knife4j的前身是`swagger-bootstrap-ui`，为了契合微服务的架构发展,由于原来`swagger-bootstrap-ui`采用的是后端Java代码+前端Ui混合打包的方式,在微服务架构下显的很臃肿,因此项目正式更名为`knife4j`
+本目录是 `knife4j-next` 的 Java 多模块主工程，负责构建用户实际引入的 starter、UI webjar、聚合组件和依赖管理。
 
-更名后主要专注的方面
+`knife4j-next` 是 `xiaoymin/knife4j` 的社区维护 fork。当前发布坐标使用 `com.baizhukui`，Java 包名仍保留 `com.github.xiaoymin.knife4j.*`，以维持既有用户代码兼容。
 
-- 前后端Java代码以及前端Ui模块进行分离,在微服务架构下使用更加灵活
-- 提供专注于Swagger的增强解决方案,不同于只是改善增强前端Ui部分
+## 当前坐标
 
-目前`knife4j`的项目结构：
-
-| 模块名称                                                 | 说明                                                                                                |
-|------------------------------------------------------|---------------------------------------------------------------------------------------------------|
-| knife4j-aggregation-spring-boot-starter              | 基于 Servlet 体系下的聚合中间件                                                                              |
-| knife4j-core                                         | 核心类,包含一些工具包、增强注解等                                                                                 |
-| knife4j-dependencies                                 | Knife4j 提供的 dependencies 工程，引入该工程后，knife4j\springfox\swagger\springdoc-openapi 等版本号不用在独自声明        |
-| knife4j-openapi2-ui                                  | 增强 UI 文档,该包是一个 webjar,只包含前端代码，支持 OpenAPI2                                                         |
-| knife4j-openapi3-ui                                  | 增强 UI 文档,该包是一个 webjar,只包含前端代码，支持 OpenAPI3                                                         |
-| knife4j-gateway-spring-boot-starter                  | 基于Spring Cloud Gateway网关的项目可以引用该组件实现简单的文档聚合,参考[文档](knife4j-gateway-spring-boot-starter)           |
-| knife4j-openapi2-spring-boot-starter                 | 基于 OpenAPI2 规范，在 Spring Boot < 3.0.0-M1 的单体架构下可以直接引用此 starter,该模块包含了 Ui 部分，底层依赖 springfox-swagger 2.10.5 项目 |
-| knife4j-openapi3-spring-boot-starter                 | 基于 OpenAPI3 规范，在 Spring Boot < 3.0.0-M1 的单体架构下可以直接引用此 starter,该模块包含了 Ui 部分，底层基于 springdoc-openapi 项目 |
-| knife4j-openapi3-jakarta-spring-boot-starter         | 基于 OpenAPI3 规范，在 Spring Boot >= 3.0.0-M1 的单体架构下可以直接引用此 starter,该模块包含了 Ui 部分，底层基于 springdoc-openapi 项目 |
-| knife4j-openapi3-webflux-spring-boot-starter         | 基于 OpenAPI3 规范，在 Spring Boot <  3.0.0-M1 的单体架构下可以直接引用此 starter,该模块包含了 Ui 部分，底层基于 springdoc-openapi 项目 |
-| knife4j-openapi3-webflux-jakarta-spring-boot-starter | 基于 OpenAPI3 规范，在 Spring Boot >=  3.0.0-M1 的单体架构下可以直接引用此 starter,该模块包含了 Ui 部分，底层基于 springdoc-openapi 项目 |
-
-## 业务场景
-
-### 不使用增强功能,纯粹换一个swagger的前端皮肤
-
-不使用增强功能,纯粹换一个swagger的前端皮肤，这种情况是最简单的,你项目结构下无需变更
-
-可以直接引用swagger-bootstrap-ui的最后一个版本1.9.6或者使用knife4j-spring-ui
-
-老版本引用
+已发布稳定版本：
 
 ```xml
 <dependency>
-    <groupId>com.github.xiaoymin</groupId>
-    <artifactId>swagger-bootstrap-ui</artifactId>
-    <version>1.9.6</version>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>5.0.0</version>
 </dependency>
 ```
 
-新版本引用
+源码分支中的根 POM 可能进入下一轮 `SNAPSHOT` 开发状态；对外接入示例以已发布版本为准。
 
-```xml
-<dependency>
-    <groupId>com.github.xiaoymin</groupId>
-    <artifactId>knife4j-openapi2-ui</artifactId>
-    <version>${lastVersion}</version>
-</dependency>
+## 模块概览
+
+| 模块 | 说明 |
+| --- | --- |
+| `knife4j-core` | 核心增强逻辑、配置解析、vendor extension 与 OpenAPI 自定义器 |
+| `knife4j-dependencies` | BOM / dependencyManagement |
+| `knife4j-openapi2-ui` | OpenAPI2 / Springfox UI webjar，打包 `knife4j-vue3` 构建产物 |
+| `knife4j-openapi3-ui` | OpenAPI3 UI webjar，打包 `knife4j-front/knife4j-ui-react` 构建产物 |
+| `knife4j-openapi2-spring-boot-starter` | Spring Boot 2.x + Springfox / Swagger2 |
+| `knife4j-openapi3-spring-boot-starter` | Spring Boot 2.x + springdoc-openapi 1.x / OpenAPI3 |
+| `knife4j-openapi3-jakarta-spring-boot-starter` | Spring Boot 3.x + springdoc-openapi 2.x / OpenAPI3 |
+| `knife4j-openapi3-webflux-spring-boot-starter` | Spring Boot 2.x WebFlux 依赖编排 |
+| `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | Spring Boot 3.x WebFlux 依赖编排 |
+| `knife4j-gateway-spring-boot-starter` | Spring Cloud Gateway 聚合 |
+| `knife4j-aggregation-spring-boot-starter` | Spring Boot 2.x 独立聚合 |
+| `knife4j-aggregation-jakarta-spring-boot-starter` | Spring Boot 3.x 独立聚合 |
+| `knife4j-demo-openapi2` | OpenAPI2 demo |
+| `knife4j-demo-openapi3` | OpenAPI3 demo |
+| `knife4j-smoke-tests` | 兼容性 smoke 测试集合 |
+
+## 本地验证
+
+从仓库根目录运行：
+
+```bash
+./scripts/test-java.sh
 ```
 
-### Spring Boot项目单体架构使用增强功能
+也可以只验证 Java 主工程：
 
-在Spring Boot单体架构下,knife4j提供了starter供开发者快速使用
-
-```xml
-<dependency>
-    <groupId>com.github.xiaoymin</groupId>
-    <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>${knife4j.version}</version>
-</dependency>
+```bash
+cd knife4j
+mvn -B -ntp verify
 ```
 
-该包会引用所有的knife4j提供的资源，包括前端Ui的jar包
- 
-## 另外说明
+默认访问入口保持为：
 
-不管是knife4j还是swagger-bootstrap-ui
+```text
+http://ip:port/doc.html
+```
 
-对外提供的地址依然是doc.html
-
-访问：http://ip:port/doc.html
-
-即可查看文档
-
-**这是永远不会改变的**
-
-在线Demo示例：[https://doc.xiaominfo.com/demo/doc.html](https://doc.xiaominfo.com/demo/doc.html)
+更多接入、迁移和模块说明见仓库根目录 `README.md` 与 `docs-site/`。

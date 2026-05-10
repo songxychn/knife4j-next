@@ -23,7 +23,7 @@ knife4j-next 首个正式稳定版本。整合了 Preview 阶段（4.6.0.3）和
 - ApiDebug：多 content-type 请求体（JSON / form-data / x-www-form-urlencoded）
 - ApiDebug：发送前 cURL 预览、响应体复制 / 下载 / 大小显示
 - ApiDebug：认证 & 全局参数合并注入（来源标签 interface / global / auth）
-- Authorize：按 securitySchemes 动态渲染，支持 OAuth2 授权码 / 隐式模式弹窗流程（`oauth2-redirect.html` 回跳）
+- Authorize：按 securitySchemes 动态渲染，支持 OAuth2 四种 flow 的基础 token 获取 / 注入（授权码和隐式模式通过 `oauth2-redirect.html` 回跳）
 - 侧边栏：接口搜索高亮 + HTTP Method 过滤 + 尊重后端 `tags-sorter` / `operations-sorter` 配置
 - Tab 标签页：右键菜单（关闭当前 / 关闭其他 / 关闭全部）+ 刷新后状态持久化
 - Home 页：OpenAPI 概览（接口统计、分组信息、扩展属性）

@@ -9,11 +9,10 @@ title: 模块说明
 | 目录 | 说明 |
 | --- | --- |
 | `knife4j/` | Java 主工程——用户实际引入的 starter 和 webjar 都在这里构建 |
-| `knife4j-front/` | 下一代前端工作区（React UI + parser-core） |
+| `knife4j-front/` | 下一代前端工作区（React UI + `knife4j-core`） |
 | `knife4j-vue/` | 历史 Vue2 前端实现（upstream 旧版），仅作为"现有行为参考"留存，不再预期改动 |
 | `knife4j-vue3/` | OAS2 兼容维护 UI，打包进 `knife4j-openapi2-ui` webjar，只接收回归修复与显示层 bug |
 | `knife4j-insight/` | 独立渲染 / 聚合方向的扩展能力 |
-| `knife4j-doc/` | 历史 Docusaurus 文档站（已废弃，内容迁移到 `docs-site/`） |
 | `docs-site/` | 当前 VitePress 文档站 |
 
 ## Java 模块（`knife4j/` 下）
@@ -61,7 +60,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 3.4.5 + Jakarta starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
-| `knife4j-smoke-tests` | 自动化冒烟测试（4 个子模块覆盖 Boot 2.x / 3.x / 3.5.x） |
+| `knife4j-smoke-tests` | 自动化冒烟测试（5 个子模块覆盖 Boot 2.x OAS2/OAS3、Boot 3.4.x Jakarta 与 Boot 3.5.x Jakarta） |
 
 ## 选型决策树
 
@@ -97,7 +96,7 @@ title: 模块说明
 | 模块 | 说明 |
 | --- | --- |
 | `knife4j-ui-react` | React 新前端，已集成进 `knife4j-openapi3-ui` webjar |
-| `parser-core` | 前端 OpenAPI 解析核心库 |
+| `knife4j-core` | 前端 OpenAPI 解析核心库 |
 
 ## 注意事项
 

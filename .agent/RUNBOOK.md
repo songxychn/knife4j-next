@@ -35,7 +35,7 @@
 > - 本地 `./scripts/test-java.sh` 尾部的 `==> Smoke-tests evidence OK (N modules)` 行；或
 > - CI 上 `java-build-test` job 内 `Smoke-tests evidence summary` step 的绿色链接。
 >
-> `scripts/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
+> `scripts/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot2-openapi3-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
 >
 > 如果未来有模块被有意下线，须同步更新 `scripts/test-java.sh` 中的 `SMOKE_MODULES` 列表和 `.github/workflows/build.yml` 里 `Smoke-tests evidence summary` 的循环列表，并在 PR 描述里说明原因。
 
@@ -50,7 +50,7 @@
 它会：
 
 - 进入 `knife4j-front/`（workspace 根）
-- 运行 `npm ci`（统一安装所有 workspace 依赖）
+- 运行 `bun install --frozen-lockfile`（统一安装所有 workspace 依赖）
 - 对 `knife4j-core` workspace 运行 test、lint 和 build
 - 对 `knife4j-ui-react` workspace 运行 `format:check`、`tsc` 和 `vite build`（与 CI 等价）
 
@@ -64,7 +64,7 @@
 > **强制**：修改 `knife4j-front/**` 下任何源码时，必须跑 `./scripts/test-front-core.sh`。
 > 不得用单步 `tsc --noEmit` / `vite build` 替代，因为 CI 还会跑 `prettier --check` 与 `eslint`，这两项本地单跑极易漏。
 
-> **注意**：`knife4j-front/` 使用 npm workspaces。`knife4j-core` 和 `knife4j-ui-react` 共享根 `node_modules`，通过 symlink 联动。子项目不再有独立的 `package-lock.json`。
+> **注意**：`knife4j-front/` 使用 Bun workspace。`knife4j-core` 和 `knife4j-ui-react` 共享根 `node_modules`，通过 symlink 联动。子项目不再有独立的 `package-lock.json`。
 
 ### 文档站
 
@@ -76,8 +76,8 @@
 
 它会：
 
-- 进入 `knife4j-doc`
-- 运行 `npm ci`
+- 进入 `docs-site`
+- 运行 `bun install --frozen-lockfile`
 - 运行文档构建
 
 适用于：
