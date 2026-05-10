@@ -24,16 +24,23 @@ import org.junit.Test;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 
+import javax.servlet.Filter;
+import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -91,8 +98,9 @@ public class Boot2DocHttpSmokeTest {
      * test fails.
      *
      * <p>This also exercises one more layer than the basic doc.html smoke: it fetches the
-     * first hashed JS entry referenced by doc.html to catch webjar packaging regressions
-     * (e.g. dist copy missing) that would leave doc.html served but JS 404.
+     * first hashed JS and CSS entries referenced by doc.html to catch webjar packaging or
+     * static-resource MIME regressions that would leave doc.html served but browser assets broken
+     * (upstream xiaoymin/knife4j#666).
      */
     @Test
     public void shouldServeVue3UiAssetsAndSwaggerResources() throws IOException {
@@ -120,18 +128,7 @@ public class Boot2DocHttpSmokeTest {
                 "doc.html should reference knife4j-next-mark.svg favicon (Vue 3 template only)",
                 docHtml.body.contains("knife4j-next-mark.svg"));
 
-        // Fetch the first hashed JS entry referenced from doc.html and assert it is actually
-        // served. This catches packaging regressions where vite dist wasn't copied into
-        // META-INF/resources/webjars/.
-        List<String> jsAssets = extractAssetPaths(docHtml.body);
-        Assert.assertFalse(
-                "doc.html should reference at least one webjars/js/ bundle",
-                jsAssets.isEmpty());
-        String firstAsset = jsAssets.get(0);
-        HttpResponse assetResponse = get(port, "/" + firstAsset);
-        Assert.assertEquals(
-                "First JS asset referenced by doc.html (" + firstAsset + ") must be reachable",
-                200, assetResponse.statusCode);
+        assertWebjarAssetMimeTypes(port, docHtml.body);
 
         // /swagger-resources is the group listing endpoint that knife4j-aggregation-spring-boot-starter
         // and the Vue 3 UI both rely on. Lock it down to a 200 + JSON array shape.
@@ -143,12 +140,108 @@ public class Boot2DocHttpSmokeTest {
     }
 
     /**
-     * Extract webjars/js/*.js asset paths referenced from a doc.html body. Only captures
-     * relative paths starting with {@code webjars/js/} to avoid matching external CDNs.
+     * A custom Jackson-only converter chain was one candidate for upstream #666. Static webjar
+     * resources should still bypass MVC message converters and keep JS/CSS MIME types.
      */
-    private static List<String> extractAssetPaths(String html) {
+    @Test
+    public void shouldServeWebjarAssetsWithStaticMimeTypesWhenMessageConvertersAreCustomized() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .initializers(applicationContext -> applicationContext.getBeanFactory().registerSingleton(
+                        "jacksonOnlyMessageConverters",
+                        (WebMvcConfigurer) new WebMvcConfigurer() {
+
+                            @Override
+                            public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+                                converters.clear();
+                                converters.add(new MappingJackson2HttpMessageConverter());
+                            }
+                        }))
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "spring.mvc.pathmatch.matching-strategy=ant_path_matcher",
+                        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = ((WebServerApplicationContext) context).getWebServer().getPort();
+
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(200, docHtml.statusCode);
+        assertWebjarAssetMimeTypes(port, docHtml.body);
+    }
+
+    /**
+     * Mirrors the upstream #666 symptom when an application/security filter captures
+     * {@code /webjars/*} before Spring static resource handling. This points the remaining
+     * investigation at user filter/security configuration rather than Knife4j's default webjar
+     * publishing path.
+     */
+    @Test
+    public void shouldReproduceJsonMimeWhenApplicationFilterInterceptsWebjars() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .initializers(applicationContext -> applicationContext.getBeanFactory().registerSingleton(
+                        "jsonWebjarFilterRegistration", jsonWebjarFilterRegistration()))
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "spring.mvc.pathmatch.matching-strategy=ant_path_matcher",
+                        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = ((WebServerApplicationContext) context).getWebServer().getPort();
+
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(200, docHtml.statusCode);
+        String firstStylesheet = firstAssetPath(docHtml.body, "css");
+        String firstScript = firstAssetPath(docHtml.body, "js");
+
+        HttpResponse stylesheetResponse = get(port, "/" + firstStylesheet);
+        HttpResponse scriptResponse = get(port, "/" + firstScript);
+
+        Assert.assertEquals(401, stylesheetResponse.statusCode);
+        Assert.assertEquals("application/json", mediaType(stylesheetResponse.contentType));
+        Assert.assertEquals(401, scriptResponse.statusCode);
+        Assert.assertEquals("application/json", mediaType(scriptResponse.contentType));
+    }
+
+    private static void assertWebjarAssetMimeTypes(int port, String docHtml) throws IOException {
+        String firstAsset = firstAssetPath(docHtml, "js");
+        HttpResponse assetResponse = get(port, "/" + firstAsset);
+        Assert.assertEquals(
+                "First JS asset referenced by doc.html (" + firstAsset + ") must be reachable",
+                200, assetResponse.statusCode);
+        Assert.assertTrue(
+                "First JS asset referenced by doc.html (" + firstAsset + ") should be served as JavaScript, got: "
+                        + assetResponse.contentType,
+                isJavaScript(assetResponse.contentType));
+
+        String firstStylesheet = firstAssetPath(docHtml, "css");
+        HttpResponse stylesheetResponse = get(port, "/" + firstStylesheet);
+        Assert.assertEquals(
+                "First CSS asset referenced by doc.html (" + firstStylesheet + ") must be reachable",
+                200, stylesheetResponse.statusCode);
+        Assert.assertTrue(
+                "First CSS asset referenced by doc.html (" + firstStylesheet + ") should be served as CSS, got: "
+                        + stylesheetResponse.contentType,
+                isCss(stylesheetResponse.contentType));
+    }
+
+    private static String firstAssetPath(String html, String extension) {
+        List<String> assets = extractAssetPaths(html, extension);
+        Assert.assertFalse(
+                "doc.html should reference at least one webjars/" + extension + "/ asset",
+                assets.isEmpty());
+        return assets.get(0);
+    }
+
+    private static List<String> extractAssetPaths(String html, String extension) {
         List<String> result = new ArrayList<>();
-        Pattern pattern = Pattern.compile("(?:src|href)=\"((?:\\./)?webjars/js/[^\"]+\\.js)\"");
+        Pattern pattern = Pattern.compile("(?:src|href)=\"((?:\\./)?webjars/" + extension + "/[^\"]+\\."
+                + extension + ")\"");
         Matcher matcher = pattern.matcher(html);
         while (matcher.find()) {
             String path = matcher.group(1);
@@ -158,6 +251,43 @@ public class Boot2DocHttpSmokeTest {
             result.add(path);
         }
         return result;
+    }
+
+    private static boolean isCss(String contentType) {
+        return contentType != null && contentType.toLowerCase().startsWith("text/css");
+    }
+
+    private static boolean isJavaScript(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+        String normalized = contentType.toLowerCase();
+        return normalized.startsWith("application/javascript") || normalized.startsWith("text/javascript");
+    }
+
+    private static String mediaType(String contentType) {
+        if (contentType == null) {
+            return "";
+        }
+        int semicolon = contentType.indexOf(';');
+        if (semicolon == -1) {
+            return contentType;
+        }
+        return contentType.substring(0, semicolon);
+    }
+
+    private static FilterRegistrationBean<Filter> jsonWebjarFilterRegistration() {
+        FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
+        registration.setFilter((request, response, chain) -> {
+            HttpServletResponse httpResponse = (HttpServletResponse) response;
+            httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            httpResponse.setContentType("application/json");
+            httpResponse.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            httpResponse.getWriter().write("{\"code\":401,\"message\":\"blocked\"}");
+        });
+        registration.addUrlPatterns("/webjars/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return registration;
     }
 
     @Test
@@ -183,17 +313,18 @@ public class Boot2DocHttpSmokeTest {
                 apiDocs.body.contains("\"code\"") || apiDocs.body.contains("\"message\""));
     }
 
-    private HttpResponse get(int port, String path) throws IOException {
+    private static HttpResponse get(int port, String path) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
         connection.setConnectTimeout(5000);
         connection.setReadTimeout(5000);
         int statusCode = connection.getResponseCode();
+        String contentType = connection.getContentType();
         InputStream input = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
-        return new HttpResponse(statusCode, read(input));
+        return new HttpResponse(statusCode, contentType, read(input));
     }
 
-    private String read(InputStream input) throws IOException {
+    private static String read(InputStream input) throws IOException {
         if (input == null) {
             return "";
         }
@@ -210,10 +341,12 @@ public class Boot2DocHttpSmokeTest {
     private static class HttpResponse {
 
         private final int statusCode;
+        private final String contentType;
         private final String body;
 
-        private HttpResponse(int statusCode, String body) {
+        private HttpResponse(int statusCode, String contentType, String body) {
             this.statusCode = statusCode;
+            this.contentType = contentType;
             this.body = body;
         }
     }
