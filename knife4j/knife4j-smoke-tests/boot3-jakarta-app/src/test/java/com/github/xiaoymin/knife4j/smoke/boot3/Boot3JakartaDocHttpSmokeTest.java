@@ -218,9 +218,42 @@ public class Boot3JakartaDocHttpSmokeTest {
                 apiDocs.body.contains("\"openapi\""));
     }
 
+    @Test
+    public void shouldApplyForwardedPrefixToSwaggerConfigUrls() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "server.forward-headers-strategy=framework",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse prefixedConfig = get(port, "/v3/api-docs/swagger-config",
+                "X-Forwarded-Prefix", "/prod-api/dispatch");
+        Assert.assertEquals(200, prefixedConfig.statusCode);
+        Assert.assertTrue("swagger-config urls should include X-Forwarded-Prefix (#345):\n" + prefixedConfig.body,
+                prefixedConfig.body.contains("/prod-api/dispatch/v3/api-docs"));
+
+        HttpResponse defaultConfig = get(port, "/v3/api-docs/swagger-config");
+        Assert.assertEquals(200, defaultConfig.statusCode);
+        Assert.assertFalse("swagger-config without X-Forwarded-Prefix should not include proxy prefix (#345):\n"
+                + defaultConfig.body,
+                defaultConfig.body.contains("/prod-api/dispatch/v3/api-docs"));
+    }
+
     private HttpResponse get(int port, String path) throws IOException {
+        return get(port, path, null, null);
+    }
+
+    private HttpResponse get(int port, String path, String headerName, String headerValue) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL("http://localhost:" + port + path).openConnection();
         connection.setRequestMethod("GET");
+        if (headerName != null) {
+            connection.setRequestProperty(headerName, headerValue);
+        }
         connection.setConnectTimeout(5000);
         connection.setReadTimeout(5000);
         int statusCode = connection.getResponseCode();
