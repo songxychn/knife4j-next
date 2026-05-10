@@ -12,7 +12,31 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.0 <Badge type="tip" text="最新" />
+### 5.0.1 <Badge type="tip" text="最新" />
+
+`5.0.1` 是基于 `5.0.0` 的补丁版本，重点补齐 `doc.html` 访问、反向代理路径、前端显示和文档站同步。
+
+**后端 & 打包**
+
+- 修复 OpenAPI3 自定义 `api-docs.path` / `swagger-config` 发现逻辑，覆盖反向代理 prefix 和 forwarded header 场景。
+- 回退 `addCustomApiDocsPathRule` 误修，避免在 basic auth 场景下额外保护自定义 api-docs 路径。
+- OAS2 webjar 改为使用 `Knife4jSpringUi` 构建产物，恢复 Vue3 UI 的 Spring starter 入口一致性。
+- 增加 OpenAPI2 demo，并补齐 `/v3/api-docs/swagger-config` 兼容端点与启动日志依赖。
+
+**前端**
+
+- 修复 tag / operationId 含特殊字符时的路由编码问题。
+- 切换分组时清空搜索词，避免跨分组搜索状态残留。
+- 修复 schema 泛型标题、`string + byte` 类型识别、缺失 `type` 字段时的参数类型推断。
+- 优化 JSON 字段描述展示，避免复制响应结构时带入字段注释。
+- 整理 React 与 Vue3 API 文档 UI 的细节表现。
+
+**文档 & 流程**
+
+- 更新反向代理 prefix、Nginx 斜杠规则、Boot 2 / Boot 3 差异说明。
+- 同步 demo 镜像命名、文档站当前实现状态和 upstream issue 复现优先的 PR 规则。
+
+### 5.0.0
 
 knife4j-next 首个正式稳定版本。整合了 Preview 阶段（4.6.0.3）和 1.0.0 的全部工作，并在此基础上继续修复和增强。
 
@@ -80,7 +104,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.0</version>
+    <version>5.0.1</version>
 </dependency>
 ```
 
