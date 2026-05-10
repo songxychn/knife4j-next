@@ -850,18 +850,20 @@ export default {
 
 <style lang="less" scoped>
 .knife4j-download-button {
-  margin: 40px auto;
-  text-align: center;
+  width: 98%;
+  margin: 10px auto;
+  text-align: left;
 
   button {
     width: 150px;
-    margin: 20px;
+    margin-right: 10px;
+    margin-bottom: 10px;
   }
 }
 
 .globalparameters {
-  width: 73%;
-  margin: 40px auto;
+  width: 98%;
+  margin: 10px auto;
 }
 
 .gptips {
@@ -893,8 +895,8 @@ export default {
 }
 
 .markdown-row {
-  width: 95%;
-  margin: 10px auto;
+  width: 100%;
+  margin: 0;
 }
 
 .content-line {

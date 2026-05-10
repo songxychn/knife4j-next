@@ -136,30 +136,44 @@ const preStyle: React.CSSProperties = {
   wordBreak: 'break-all',
 };
 
+const annotatedJsonPreStyle: React.CSSProperties = {
+  ...preStyle,
+  whiteSpace: 'pre',
+  wordBreak: 'normal',
+  lineHeight: 1.55,
+};
+
+const jsonLineStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 56ch) minmax(180px, 320px)',
+  alignItems: 'stretch',
+  minWidth: 'calc(56ch + 260px)',
+};
+
 /** Monospace, normal color — matches the surrounding <pre>. */
 const jsonCodeStyle: React.CSSProperties = {
   fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
   color: '#24292e',
-  flex: '1 1 auto',
+  whiteSpace: 'pre',
+  paddingRight: 14,
   minWidth: 0,
 };
 
 /**
- * Schema description annotation — floated to the right in its own column,
- * visually separated from the JSON code. Uses a different font, smaller size,
- * and lighter color. `userSelect: none` keeps it out of clipboard copies,
- * matching the Vue2 `position: absolute` approach.
+ * Schema description annotation — rendered in a fixed column to the right of
+ * a separator, similar to the Vue/Ace print-margin placement.
  */
 const jsonDescStyle: React.CSSProperties = {
   fontFamily:
     "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Helvetica, Arial, sans-serif",
   fontSize: 12,
-  fontStyle: 'italic',
   color: '#8c8c8c',
   userSelect: 'none',
-  flex: '0 0 auto',
-  marginLeft: 24,
-  whiteSpace: 'nowrap',
+  borderLeft: '1px solid #d9d9d9',
+  paddingLeft: 12,
+  minHeight: '1.55em',
+  lineHeight: 1.55,
+  whiteSpace: 'normal',
 };
 
 export default function ResponsePanel({
@@ -446,18 +460,11 @@ function ContentTab({
               </Checkbox>
             </div>
           )}
-          <pre style={{ ...preStyle, whiteSpace: 'pre' }}>
+          <pre style={annotatedJsonPreStyle}>
             {lines.map((line, i) => (
-              <span
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  // newline is handled by the block itself; pre whitespace preserved via parent
-                }}
-              >
+              <span key={i} style={jsonLineStyle}>
                 <span style={jsonCodeStyle}>{line.code}</span>
-                {line.description ? <span style={jsonDescStyle}>{line.description}</span> : null}
+                <span style={jsonDescStyle}>{line.description ?? ''}</span>
                 {i < lines.length - 1 ? '\n' : ''}
               </span>
             ))}

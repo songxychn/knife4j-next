@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Alert, Spin, message } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useCurrentOperation } from './useCurrentOperation';
-import { OperationModeTabs } from './useCurrentOperation';
+import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeBlock from './CodeBlock';
 import { copyToClipboard } from '../../utils/clipboard';
 import type { OperationObject } from '../../types/swagger';
@@ -74,17 +73,23 @@ export default function OpenApiView() {
   }, [swaggerDoc, operation]);
 
   if (loading) {
-    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+    return (
+      <OperationModeLayout activeKey="openapi">
+        <Spin style={{ display: 'block', margin: '80px auto' }} />
+      </OperationModeLayout>
+    );
   }
 
   if (!swaggerDoc || !operation) {
     return (
-      <Alert
-        type="warning"
-        showIcon
-        message={t('apiOpenApi.notFound.title')}
-        description={t('apiOpenApi.notFound.desc')}
-      />
+      <OperationModeLayout activeKey="openapi">
+        <Alert
+          type="warning"
+          showIcon
+          message={t('apiOpenApi.notFound.title')}
+          description={t('apiOpenApi.notFound.desc')}
+        />
+      </OperationModeLayout>
     );
   }
 
@@ -98,14 +103,12 @@ export default function OpenApiView() {
   };
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
-      <OperationModeTabs activeKey="openapi" />
-
+    <OperationModeLayout activeKey="openapi">
       {openApiJson ? (
         <CodeBlock code={openApiJson} language="json" maxHeight={600} onCopy={handleCopy} />
       ) : (
         <Alert type="info" showIcon message={t('apiOpenApi.noData')} />
       )}
-    </div>
+    </OperationModeLayout>
   );
 }

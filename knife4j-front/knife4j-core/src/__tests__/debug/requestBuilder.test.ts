@@ -477,6 +477,23 @@ describe('buildRequest', () => {
     expect(result.headers['Authorization']).toBe('Bearer mytoken');
   });
 
+  test('adds cookie params to Cookie header', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/users/{id}',
+      method: 'GET',
+      debugModel,
+      formValues: {
+        pathParams: { id: '1' },
+        queryParams: {},
+        headerParams: { Cookie: 'theme=dark' },
+        cookieParams: { session: 'abc123', trace: 'req-1' },
+      },
+    });
+
+    expect(result.headers['Cookie']).toBe('theme=dark; session=abc123; trace=req-1');
+  });
+
   test('Content-Type header is set from selectedContentType', () => {
     const result = buildRequest({
       baseUrl: 'http://localhost:8080',

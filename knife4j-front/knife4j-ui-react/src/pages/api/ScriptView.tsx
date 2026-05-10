@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Radio, Space, Spin, Typography, message } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useCurrentOperation } from './useCurrentOperation';
-import { OperationModeTabs } from './useCurrentOperation';
+import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeBlock from './CodeBlock';
 import { copyToClipboard } from '../../utils/clipboard';
 import type { ParameterObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
@@ -280,17 +279,23 @@ export default function ScriptView() {
   }, [swaggerDoc, operation]);
 
   if (loading) {
-    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+    return (
+      <OperationModeLayout activeKey="script">
+        <Spin style={{ display: 'block', margin: '80px auto' }} />
+      </OperationModeLayout>
+    );
   }
 
   if (!swaggerDoc || !operation) {
     return (
-      <Alert
-        type="warning"
-        showIcon
-        message={t('apiScript.notFound.title')}
-        description={t('apiScript.notFound.desc')}
-      />
+      <OperationModeLayout activeKey="script">
+        <Alert
+          type="warning"
+          showIcon
+          message={t('apiScript.notFound.title')}
+          description={t('apiScript.notFound.desc')}
+        />
+      </OperationModeLayout>
     );
   }
 
@@ -306,9 +311,7 @@ export default function ScriptView() {
   };
 
   return (
-    <div style={{ padding: '0 24px 24px', maxWidth: 1080 }}>
-      <OperationModeTabs activeKey="script" />
-
+    <OperationModeLayout activeKey="script">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={5} style={{ margin: 0 }}>
           {t('apiScript.title')}
@@ -331,6 +334,6 @@ export default function ScriptView() {
       ) : (
         <Alert type="info" showIcon message={t('apiScript.noCode')} />
       )}
-    </div>
+    </OperationModeLayout>
   );
 }
