@@ -35,22 +35,20 @@ title: 快速开始
 ### 最小 `application.yml`
 
 ```yaml
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
-  api-docs:
-    path: /v3/api-docs
-  group-configs:
-    - group: default
-      paths-to-match: /**
-      packages-to-scan: com.example.demo
-
 knife4j:
   enable: true
-  setting:
-    language: zh_cn
+```
+
+springdoc 默认暴露 `/v3/api-docs` 与 `/swagger-ui.html`，Knife4j 默认语言是 `zh_cn`。
+如果你的 Controller 不在启动类包及其子包下，或希望限制文档范围，再补充：
+
+```yaml
+springdoc:
+  packages-to-scan: com.example.demo
+  paths-to-match: /api/**
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: alpha
 ```
 
 ### 示例 Controller
@@ -86,8 +84,7 @@ public class UserController {
 3. `http://localhost:8080/v3/api-docs` 返回原始 OpenAPI JSON。
 
 ::: warning 新前端配置覆盖范围
-React 新前端**不读取** `knife4j.setting.enable-debug`、`enable-search`、`enable-open-api`、`enable-version`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script` 等 UI 开关。
-这些配置对 OpenAPI3 系列 starter + 新前端**暂不生效**。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective) 与 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
+React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`swagger-model-name`。`enable-version`、`enable-footer-custom`、`home-custom-path`、`enable-after-script` 等 Vue 时代能力仍暂不生效。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective) 与 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
 :::
 
 ---
@@ -113,17 +110,12 @@ React 新前端**不读取** `knife4j.setting.enable-debug`、`enable-search`、
 ### 最小 `application.yml`
 
 ```yaml
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-  api-docs:
-    path: /v3/api-docs
-
 knife4j:
   enable: true
-  setting:
-    language: zh_cn
 ```
+
+springdoc 默认路径已经是 `/v3/api-docs` 与 `/swagger-ui.html`，中文界面也是 Knife4j 默认值。
+如需限制扫描范围，可追加 `springdoc.packages-to-scan`、`springdoc.paths-to-match` 或 `springdoc.group-configs`。
 
 Controller 写法与 Jakarta 版一致，annotation 使用 `io.swagger.v3.oas.annotations`。
 

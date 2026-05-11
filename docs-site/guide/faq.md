@@ -150,20 +150,32 @@ connect-src 'self';
 
 ### 为什么我的 `knife4j.setting.*` 配置不生效 {#react-setting-not-effective}
 
-如果你用的是 `knife4j-openapi3-spring-boot-starter` 或 `knife4j-openapi3-jakarta-spring-boot-starter`（也就是新 React 前端），**以下 UI 配置暂不生效**：
+如果你用的是 `knife4j-openapi3-spring-boot-starter` 或 `knife4j-openapi3-jakarta-spring-boot-starter`（也就是新 React 前端），React 会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，并消费以下已接入字段：
 
-- `knife4j.setting.enable-debug=false`
-- `knife4j.setting.enable-search=false`
-- `knife4j.setting.enable-open-api=false`
+- `knife4j.setting.language`
+- `knife4j.setting.enable-search`
+- `knife4j.setting.enable-debug`
+- `knife4j.setting.enable-open-api`
+- `knife4j.setting.enable-swagger-models` / `swagger-model-name`
+- `knife4j.setting.enable-host` / `enable-host-text`
+- `knife4j.setting.enable-group`
+- `knife4j.setting.enable-footer`
+
+用户在 React 设置面板里的本地选择会覆盖后端默认值。注意：`enable-debug=false` 只是隐藏调试入口，不是安全控制；线上屏蔽请使用 `knife4j.production`、`knife4j.basic` 或外层安全框架。
+
+以下 UI 配置暂不生效：
+
 - `knife4j.setting.enable-version=true`
-- `knife4j.setting.enable-footer=false` / `enable-footer-custom`
+- `knife4j.setting.enable-footer-custom`
 - `knife4j.setting.enable-home-custom` / `home-custom-path`
-- `knife4j.setting.swagger-model-name`
 - `knife4j.setting.enable-after-script`
 - `knife4j.setting.enable-reload-cache-parameter`
-- `knife4j.setting.enable-host` / `enable-host-text`
+- `knife4j.setting.enable-request-cache`
+- `knife4j.setting.enable-dynamic-parameter`
+- `knife4j.setting.enable-filter-multipart-apis`
+- `knife4j.setting.enable-response-code`
 
-原因：React 新前端当前**不读取**后端注入到 OpenAPI extension 的 `x-knife4j.setting` 字段。后端 `ProductionSecurityFilter`、`knife4j.basic`、`knife4j.documents` 等服务端侧能力不受影响。
+原因：这些字段对应的 Vue 版能力尚未在 React 新前端里实现，或还没有接到实际行为上。后端 `ProductionSecurityFilter`、`knife4j.basic`、`knife4j.documents` 等服务端侧能力不受影响。
 
 过渡方案：
 
