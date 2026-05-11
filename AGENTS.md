@@ -48,6 +48,12 @@
 - 不要让关键上下文只存在于聊天记录中，写回 issue comment 或 `.agent/`。
 - **不再修改** `.agent/TASKS.md` 和 `.agent/PROGRESS.md`。
 
+## 语言规范
+
+- 提交信息、议题标题、议题正文、议题评论、拉取请求标题、拉取请求描述和拉取请求评论统一使用中文。
+- 避免中英混杂；只有代码标识、命令、路径、分支名、label、依赖名、API 名称等必须原样表达的内容保留原文。
+- 面向维护者的工作摘要、验证说明和风险说明也使用中文。
+
 ## 默认循环
 
 1. 读取 `.agent/` 状态和 GitHub Issues（`gh issue list --label agent-task --label status:ready`）。
