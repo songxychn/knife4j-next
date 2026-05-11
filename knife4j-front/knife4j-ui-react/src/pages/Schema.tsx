@@ -40,19 +40,28 @@ function schemasToModels(schemas: Record<string, SchemaObject>, swaggerDoc: Swag
 
 export default function Schema() {
   const { t } = useTranslation();
-  const { schemaName } = useParams<{ schemaName?: string }>();
+  const { group: routeGroup, schemaName } = useParams<{ group?: string; schemaName?: string }>();
   const { schemas, swaggerDoc, loading, activeGroup } = useGroup();
   const { settings } = useSettings();
   const navigate = useNavigate();
   const selectedSchemaName = schemaName ? decodeURIComponent(schemaName) : undefined;
   const [searchText, setSearchText] = useState('');
 
-  // Route guard: when enableSwaggerModels=false, redirect to home
+  // Route guard: when enableSwaggerModels=false, redirect away from schema page.
+  // Prefer the route's :group param (always present on /:group/schema), then fall
+  // back to a loaded activeGroup. If neither yields a non-empty group (e.g. a hard
+  // refresh while groups are still loading and activeGroup falls back to
+  // EMPTY_GROUP with value=''), navigate to '/' so the index <Home /> route can
+  // take over instead of constructing an invalid '//home' URL.
   useEffect(() => {
-    if (settings.enableSwaggerModels === false) {
-      navigate(`/${activeGroup.value}/home`, { replace: true });
+    if (settings.enableSwaggerModels !== false) return;
+    const targetGroup = routeGroup ?? (activeGroup.value || '');
+    if (targetGroup) {
+      navigate(`/${targetGroup}/home`, { replace: true });
+    } else {
+      navigate('/', { replace: true });
     }
-  }, [settings.enableSwaggerModels, activeGroup.value, navigate]);
+  }, [settings.enableSwaggerModels, routeGroup, activeGroup.value, navigate]);
 
   const models: ModelDef[] = useMemo(() => {
     if (loading || !swaggerDoc || settings.enableSwaggerModels === false) return [];
