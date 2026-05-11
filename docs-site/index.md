@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.1</version>
+    <version>5.0.2</version>
 </dependency>
 ```
 
@@ -72,14 +72,14 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.1 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.2 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧭 修复自定义 `api-docs.path` / `swagger-config` 在反向代理 prefix 场景下的发现逻辑
-- ☕ 新增 Spring Boot 4 WebMVC 专用 starter 与 smoke test
-- 🧩 OAS2 webjar 改为使用 `Knife4jSpringUi` 构建产物
-- 🏷️ 修复 tag / operationId 特殊字符导致的路由问题
-- 🔎 切换分组时清空搜索词，避免跨分组状态残留
-- 📘 同步反向代理、demo 与当前实现状态文档
+- 📦 `knife4j-dependencies` BOM 补登 `knife4j-openapi3-boot4-spring-boot-starter`，下游通过 BOM 引入 Boot4 starter 不再需要显式版本
+- 🧭 修复 `enableSwaggerModels=false` 时直接刷新 `/:group/schema` 会跳到非法 `//home` 的路由守卫问题
+- 🛡️ Schema 页在被禁用时显示 403 提示，并防止通过 URL 参数注入被禁用的标签
+- 📝 HTML body 美化改用正则切分 + DOMParser 校验，避免文本中的 `<` / `>` 被误判为标签起止
+- 🍪 `requestBuilder` / `authToHeaders` 中 Cookie 头按 RFC 7230 大小写不敏感地合并，避免重复输出 `cookie` 与 `Cookie`
+- ⚙️ React 设置面板默认值与 starter 行为对齐，调试器 body 控件细节打磨
 
 完整更新列表见 [发布说明](/release-notes/)。
 

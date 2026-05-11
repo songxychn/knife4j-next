@@ -27,6 +27,14 @@ title: 配置参考
 
 OpenAPI3 starter 会暴露 `/knife4j/config` 作为 Knife4j UI 的运行时发现入口。该接口不属于 springdoc 标准接口，由 UI 内部调用，并会从 OpenAPI 文档中隐藏，不展示在 `doc.html` 接口列表里。它用于在自定义 `springdoc.api-docs.path` 时返回实际的 `apiDocsUrl` 与 `swaggerConfigUrl`；响应通过 `schemaVersion` 标识契约版本，后续 Knife4j 运行时能力也应挂载在这个结构下。
 
+::: warning 反向代理 / 网关放行
+当应用部署在网关或反向代理之后时，请确保 `/knife4j/config`（与 `/doc.html`、`/v3/api-docs/**`、`/swagger-ui/**`、`/webjars/**` 一起）能透传到后端。常见情况：
+
+- 仅显式放行 `/v3/api-docs/**` 与 `/swagger-ui/**` 的网关白名单需要补上 `/knife4j/config`，否则 React UI 在自定义 `springdoc.api-docs.path` 时无法发现实际 swagger-config 地址，落到 origin 兜底逻辑。
+- 启用 `knife4j.basic` 时该路径会自动纳入 Basic 认证保护（已带分号绕过修复），不需要额外配置。
+- 如果通过 `knife4j.production=true` 屏蔽默认入口，`/knife4j/config` 会一同返回 JSON 错误响应，是预期行为。
+:::
+
 ### `knife4j.basic.*`
 
 | 属性 | 类型 | 默认值 | 说明 |

@@ -10,7 +10,7 @@ Replace:
 <dependency>
   <groupId>com.github.xiaoymin</groupId>
   <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-  <version>4.6.0</version>
+  <version>4.5.0</version>
 </dependency>
 ```
 
@@ -20,7 +20,7 @@ With:
 <dependency>
   <groupId>com.baizhukui</groupId>
   <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-  <version>4.6.0.1</version>
+  <version>5.0.2</version>
 </dependency>
 ```
 

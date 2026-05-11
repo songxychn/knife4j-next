@@ -12,7 +12,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.1</version>
+    <version>5.0.2</version>
 </dependency>
 ```
 
@@ -47,7 +47,7 @@ Spring Boot 4.x 使用独立 starter，避免把现有 Spring Boot 3.x + springd
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.1</version>
+    <version>5.0.2</version>
 </dependency>
 ```
 
