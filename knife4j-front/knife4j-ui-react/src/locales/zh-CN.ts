@@ -55,6 +55,8 @@ const zhCN = {
   'schema.noFields': '无字段',
   'schema.empty': '暂无数据模型',
   'schema.search.placeholder': '搜索模型名/说明...',
+  'schema.disabled.title': '数据模型已禁用',
+  'schema.disabled.description': '管理员已禁用数据模型（Swagger Models）功能，如需访问请联系管理员。',
   'schema.flag.deprecated': '已废弃',
   'schema.flag.readOnly': '只读',
   'schema.flag.writeOnly': '只写',

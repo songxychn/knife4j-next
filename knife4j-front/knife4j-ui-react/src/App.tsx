@@ -197,6 +197,7 @@ const AppInner: React.FC = () => {
 
     const info = schemaRouteInfo(pathname);
     if (!info) return;
+    if (settings.enableSwaggerModels === false) return;
 
     const schemaTitle = settings.swaggerModelName || t('schema.title');
     const title = info.labelSchema ? `${schemaTitle} / ${info.labelSchema}` : schemaTitle;
@@ -205,7 +206,7 @@ const AppInner: React.FC = () => {
     );
     setActiveKey(pathname);
     setSelectedKey(info.menuKey);
-  }, [location.pathname, settings.swaggerModelName, t]);
+  }, [location.pathname, settings.swaggerModelName, settings.enableSwaggerModels, t]);
 
   // Keep a ref to markdownDocs so the pathname-change effect below can read
   // the latest value without adding markdownDocs to its dependency array.

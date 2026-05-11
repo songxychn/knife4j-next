@@ -377,37 +377,77 @@ function formatTaggedBody(value: string, mode: 'xml' | 'html'): string | undefin
   const trimmed = value.trim();
   if (!trimmed) return trimmed;
 
-  if (mode === 'xml' && typeof DOMParser !== 'undefined') {
-    const doc = new DOMParser().parseFromString(trimmed, 'application/xml');
-    if (doc.getElementsByTagName('parsererror').length > 0) return undefined;
+  // For XML, use DOMParser to validate well-formedness (existing behaviour).
+  // For HTML, also use DOMParser as a safety net: if the content parses as
+  // HTML without a <parsererror> body child, we can safely reformat it.
+  // If parsing fails, the content likely contains bare < or > in text/script/attribute
+  // contexts that would be corrupted by naive tokenisation — return undefined so
+  // the caller leaves the body untouched (see ChatGPT review on PR #357).
+  if (typeof DOMParser !== 'undefined') {
+    const mimeType = mode === 'xml' ? 'application/xml' : 'text/html';
+    const doc = new DOMParser().parseFromString(trimmed, mimeType);
+    if (mode === 'xml') {
+      // XML mode: parsererror element indicates malformed markup.
+      if (doc.getElementsByTagName('parsererror').length > 0) return undefined;
+    } else {
+      // HTML mode: DOMParser always succeeds, but <parsererror> in the parsed
+      // body signals real parse failure for our purposes.
+      const pe = doc.querySelector('parsererror');
+      if (pe && pe.textContent && pe.textContent.trim().length > 0) {
+        // Check whether the error is substantive (not just a warning about
+        // harmless HTML quirks). A real failure means we should not reformat.
+        const errorText = pe.textContent.trim();
+        if (/unable to parse|fatal|syntax|error/i.test(errorText)) return undefined;
+      }
+    }
   }
 
-  const tokens = trimmed
-    .replace(/>\s*</g, '><')
-    .replace(/</g, '\n<')
-    .replace(/>/g, '>\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // Improved tokenisation: split on tag boundaries while preserving angle
+  // brackets that appear inside text content (e.g. "if (a < b)" in scripts,
+  // or "a > b" in attribute values). The regex matches:
+  //   - complete tags:       </tag>, <tag>, <tag/>, <?...?>, <!...>
+  //   - NOT bare < or > that are part of text content
+  // eslint-disable-next-line no-useless-escape
+  const tagSplitRe = /(<\/?[A-Za-z][^>]*>|<\?[^\?]*\?>|<!\[CDATA\[[\s\S]*?]]>)/;
+  const parts = trimmed.split(tagSplitRe);
 
   let indent = 0;
   const lines: string[] = [];
+  let currentLine = '';
 
-  for (const token of tokens) {
-    const isClosingTag = /^<\//.test(token);
-    const isDeclaration = /^<\?/.test(token) || /^<!/.test(token);
-    const tagMatch = token.match(/^<([A-Za-z][^\s/>]*)/);
+  for (const part of parts) {
+    if (!part) continue;
+
+    const isClosingTag = /^<\//.test(part);
+    const isDeclaration = /^<\?/.test(part) || /^<!/.test(part);
+    const tagMatch = part.match(/^<([A-Za-z][^\s/>]*)/);
     const tagName = tagMatch?.[1].toLowerCase();
     const isVoidTag = mode === 'html' && tagName !== undefined && HTML_VOID_TAGS.has(tagName);
-    const isSelfClosing = /\/>$/.test(token) || isVoidTag;
-    const isOpeningTag = /^<[^/!?][^>]*>$/.test(token) && !isSelfClosing;
+    const isSelfClosing = /\/>$/.test(part) || isVoidTag;
+    const isOpeningTag = /^<[A-Za-z]/.test(part) && !isClosingTag && !isDeclaration && !isSelfClosing;
 
     if (isClosingTag) indent = Math.max(indent - 1, 0);
-    lines.push(`${'  '.repeat(indent)}${token}`);
-    if (isOpeningTag && !isDeclaration) indent += 1;
+
+    if (isOpeningTag || isSelfClosing || isClosingTag || isDeclaration) {
+      // Flush any accumulated text content before handling a tag
+      if (currentLine.trim()) {
+        lines.push(`${'  '.repeat(indent)}${currentLine.trim()}`);
+        currentLine = '';
+      }
+      lines.push(`${'  '.repeat(indent)}${part}`);
+      if (isOpeningTag && !isDeclaration) indent += 1;
+    } else {
+      // Text content: accumulate on the current line (preserves inline < >)
+      currentLine += part;
+    }
   }
 
-  return lines.join('\n');
+  // Flush any remaining text content
+  if (currentLine.trim()) {
+    lines.push(`${'  '.repeat(indent)}${currentLine.trim()}`);
+  }
+
+  return lines.length > 0 ? lines.join('\n') : undefined;
 }
 
 function formatJavaScriptBody(value: string): string | undefined {
