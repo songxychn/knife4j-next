@@ -38,19 +38,24 @@
 | `knife4j-demo-openapi3` | OpenAPI3 demo |
 | `knife4j-smoke-tests` | 兼容性 smoke 测试集合 |
 
-## 本地验证
+## 本地启动
 
-从仓库根目录运行：
+以下命令从仓库根目录运行。
 
-```bash
-./scripts/test-java.sh
-```
-
-也可以只验证 Java 主工程：
+OpenAPI3 demo：
 
 ```bash
 cd knife4j
-mvn -B -ntp verify
+mvn -pl knife4j-demo-openapi3 -am spring-boot:run
+# 浏览器打开 http://localhost:8080/doc.html
+```
+
+OpenAPI2 demo：
+
+```bash
+cd knife4j
+mvn -pl knife4j-demo-openapi2 -am spring-boot:run
+# 浏览器打开 http://localhost:8081/doc.html
 ```
 
 默认访问入口保持为：
@@ -58,5 +63,23 @@ mvn -B -ntp verify
 ```text
 http://ip:port/doc.html
 ```
+
+## 本地测试
+
+从仓库根目录运行：
+
+```bash
+./scripts/test-java.sh
+```
+
+如需手动复现脚本中的 Maven 步骤：
+
+```bash
+cd knife4j
+mvn -B -ntp spotless:check
+mvn -B -ntp -Dknife4j-skipTests=false verify
+```
+
+提交前仍以根目录 `./scripts/test-java.sh` 为准；它还会在 Maven 构建后检查 smoke 测试证据。
 
 更多接入、迁移和模块说明见仓库根目录 `README.md` 与 `docs-site/`。

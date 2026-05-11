@@ -333,11 +333,11 @@ function initialFieldValue(field: SchemaFieldRow): string {
 // ─── Raw mode types ───────────────────────────────────
 
 const RAW_MODES = [
-  { value: 'text', label: 'Text' },
-  { value: 'json', label: 'JSON' },
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'xml', label: 'XML' },
-  { value: 'html', label: 'HTML' },
+  { value: 'text', label: 'Text(text/plain)' },
+  { value: 'json', label: 'JSON(application/json)' },
+  { value: 'javascript', label: 'JavaScript(application/javascript)' },
+  { value: 'xml', label: 'XML(application/xml)' },
+  { value: 'html', label: 'HTML(text/html)' },
 ] as const;
 
 type RawMode = (typeof RAW_MODES)[number]['value'];
@@ -350,6 +350,206 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
   xml: 'application/xml',
   html: 'text/html',
 };
+
+const HTML_VOID_TAGS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+function formatJsonBody(value: string): string | undefined {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return undefined;
+  }
+}
+
+function formatTaggedBody(value: string, mode: 'xml' | 'html'): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+
+  if (mode === 'xml' && typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(trimmed, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length > 0) return undefined;
+  }
+
+  const tokens = trimmed
+    .replace(/>\s*</g, '><')
+    .replace(/</g, '\n<')
+    .replace(/>/g, '>\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  let indent = 0;
+  const lines: string[] = [];
+
+  for (const token of tokens) {
+    const isClosingTag = /^<\//.test(token);
+    const isDeclaration = /^<\?/.test(token) || /^<!/.test(token);
+    const tagMatch = token.match(/^<([A-Za-z][^\s/>]*)/);
+    const tagName = tagMatch?.[1].toLowerCase();
+    const isVoidTag = mode === 'html' && tagName !== undefined && HTML_VOID_TAGS.has(tagName);
+    const isSelfClosing = /\/>$/.test(token) || isVoidTag;
+    const isOpeningTag = /^<[^/!?][^>]*>$/.test(token) && !isSelfClosing;
+
+    if (isClosingTag) indent = Math.max(indent - 1, 0);
+    lines.push(`${'  '.repeat(indent)}${token}`);
+    if (isOpeningTag && !isDeclaration) indent += 1;
+  }
+
+  return lines.join('\n');
+}
+
+function formatJavaScriptBody(value: string): string | undefined {
+  const input = value.trim();
+  if (!input) return input;
+
+  let indent = 0;
+  let output = '';
+  let quote: '"' | "'" | '`' | null = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  let invalid = false;
+
+  const appendIndent = () => {
+    output += '  '.repeat(indent);
+  };
+  const appendNewline = () => {
+    output = output.trimEnd();
+    output += '\n';
+    appendIndent();
+  };
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i];
+    const next = input[i + 1];
+
+    if (lineComment) {
+      output += char;
+      if (char === '\n') {
+        lineComment = false;
+        appendIndent();
+      }
+      continue;
+    }
+
+    if (blockComment) {
+      output += char;
+      if (char === '*' && next === '/') {
+        output += next;
+        i += 1;
+        blockComment = false;
+      }
+      continue;
+    }
+
+    if (quote) {
+      output += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      output = output.trimEnd();
+      output += output.endsWith('\n') ? '//' : ' //';
+      i += 1;
+      lineComment = true;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      output = output.trimEnd();
+      output += output.endsWith('\n') ? '/*' : ' /*';
+      i += 1;
+      blockComment = true;
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      output += char;
+      continue;
+    }
+
+    if (char === '{') {
+      output = output.trimEnd();
+      output += ' {\n';
+      indent += 1;
+      appendIndent();
+      continue;
+    }
+
+    if (char === '}') {
+      output = output.trimEnd();
+      if (indent === 0) {
+        invalid = true;
+      } else {
+        indent -= 1;
+      }
+      output += `\n${'  '.repeat(indent)}}`;
+      if (next !== ';' && next !== ',' && next !== ')' && next !== undefined) {
+        appendNewline();
+      }
+      continue;
+    }
+
+    if (char === ';') {
+      output = output.trimEnd();
+      output += ';';
+      if (next !== undefined) appendNewline();
+      continue;
+    }
+
+    if (char === ',') {
+      output = output.trimEnd();
+      output += ', ';
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      if (output && !/\s$/.test(output)) output += ' ';
+      continue;
+    }
+
+    output += char;
+  }
+
+  if (invalid || quote || blockComment || indent !== 0) return undefined;
+
+  return output
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line, index, lines) => line.trim() || index === lines.length - 1)
+    .join('\n')
+    .trim();
+}
+
+function formatBodyByRawMode(value: string, mode: RawMode): string | undefined {
+  if (mode === 'json') return formatJsonBody(value);
+  if (mode === 'xml' || mode === 'html') return formatTaggedBody(value, mode);
+  if (mode === 'javascript') return formatJavaScriptBody(value);
+  return undefined;
+}
 
 // ─── Custom headers section ───────────────────────────
 
@@ -721,17 +921,18 @@ function BodyTab({
       } else if (target.category === 'raw') {
         setBody(target.exampleValue ?? '');
       }
+      setRawMode(inferRawMode(target));
     }
   };
 
-  // ── JSON Beautify ──
+  // ── Body Beautify ──
   const handleBeautify = () => {
-    try {
-      const parsed = JSON.parse(body);
-      setBody(JSON.stringify(parsed, null, 2));
-    } catch {
-      // 无效 JSON，不处理
+    const formatted = formatBodyByRawMode(body, rawMode);
+    if (formatted !== undefined) {
+      setBody(formatted);
+      return;
     }
+    message.warning(t('apiDebug.body.beautifyFailed', { contentType: RAW_CONTENT_TYPES[rawMode] }));
   };
 
   return (
@@ -761,19 +962,13 @@ function BodyTab({
 
       {/* 根据分类渲染不同的表单 */}
       {category === 'json' && (
-        <div>
-          <div style={{ marginBottom: 4, textAlign: 'right' }}>
-            <Button size="small" onClick={handleBeautify}>
-              {t('apiDebug.body.beautify')}
-            </Button>
-          </div>
-          <CodeEditor
-            value={body}
-            onChange={setBody}
-            language={selectedContentType.includes('xml') ? 'xml' : 'json'}
-            placeholderText={`${currentBody.mediaType} request body`}
-          />
-        </div>
+        <RawEditor
+          body={body}
+          setBody={setBody}
+          rawMode={rawMode}
+          setRawMode={setRawMode}
+          onBeautify={handleBeautify}
+        />
       )}
 
       {category === 'urlencoded' && (
@@ -1045,6 +1240,7 @@ const RAW_MODE_LANGUAGE: Record<RawMode, CodeEditorLanguage> = {
 function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditorProps) {
   const { t } = useTranslation();
   const useCodeEditor = rawMode === 'json' || rawMode === 'xml';
+  const canBeautify = rawMode !== 'text';
 
   return (
     <div>
@@ -1052,28 +1248,26 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
         style={{
           marginBottom: 8,
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <Radio.Group
-          value={rawMode}
-          onChange={(e) => setRawMode(e.target.value)}
-          size="small"
-          optionType="button"
-          buttonStyle="solid"
-        >
-          {RAW_MODES.map((m) => (
-            <Radio.Button key={m.value} value={m.value}>
-              {m.label}
-            </Radio.Button>
-          ))}
-        </Radio.Group>
-        {rawMode === 'json' && (
-          <Button size="small" onClick={onBeautify}>
-            {t('apiDebug.body.beautify')}
-          </Button>
-        )}
+        <Space size={8} wrap>
+          <Select
+            size="small"
+            value={rawMode}
+            onChange={(value) => setRawMode(value as RawMode)}
+            options={RAW_MODES.map((m) => ({
+              value: m.value,
+              label: m.label,
+            }))}
+            style={{ minWidth: 240 }}
+          />
+          {canBeautify && (
+            <Button size="small" type="primary" onClick={onBeautify}>
+              {t('apiDebug.body.beautify')}
+            </Button>
+          )}
+        </Space>
       </div>
       {useCodeEditor ? (
         <CodeEditor
@@ -1291,6 +1485,7 @@ interface InitialDebugState {
 }
 
 function inferRawMode(bodyContent: BodyContent | undefined): RawMode {
+  if (bodyContent?.category === 'json') return 'json';
   if (bodyContent?.category !== 'raw') return 'text';
   const mediaType = bodyContent.mediaType;
   if (mediaType.includes('json')) return 'json';
@@ -1655,9 +1850,17 @@ export default function ApiDebug() {
 
   /** 获取最终 effective content-type */
   const getEffectiveContentType = (): string => {
+    const category = getCurrentCategory();
+    const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
+    if (category === 'json') {
+      return rawMode === 'json' ? selectedContentType || RAW_CONTENT_TYPES.json : RAW_CONTENT_TYPES[rawMode];
+    }
+    if (category === 'raw') {
+      const inferredMode = inferRawMode(currentBody);
+      if (rawMode === inferredMode && selectedContentType) return selectedContentType;
+      return RAW_CONTENT_TYPES[rawMode];
+    }
     if (selectedContentType) return selectedContentType;
-    // raw mode fallback
-    if (getCurrentCategory() === 'raw') return RAW_CONTENT_TYPES[rawMode];
     return debugModel.bodyContents[0]?.mediaType ?? '';
   };
 
@@ -1956,7 +2159,7 @@ export default function ApiDebug() {
   // body tab 的标签含当前 content-type
   const bodyLabel =
     debugModel.bodyContents.length > 0
-      ? `${t('apiDebug.tab.body')} (${selectedContentType || debugModel.bodyContents[0].mediaType})`
+      ? `${t('apiDebug.tab.body')} (${getEffectiveContentType()})`
       : t('apiDebug.tab.body');
 
   const tabItems = [

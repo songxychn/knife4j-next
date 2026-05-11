@@ -29,6 +29,14 @@ const loadingTip = computed(() => {
     '微软雅黑', Arial, sans-serif;
 }
 
+/* Ace relies on monospace metrics to keep cursor and text positions aligned. */
+.ace_editor,
+.ace_editor * {
+  font-family: Monaco, Menlo, Consolas, 'Liberation Mono', monospace !important;
+  font-variant-ligatures: none;
+  letter-spacing: 0 !important;
+}
+
 /* 滚动条优化 */
 body {
   overflow-y: scroll;
