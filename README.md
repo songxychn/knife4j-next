@@ -105,14 +105,20 @@
 http://ip:port/doc.html
 ```
 
-## 本地开发
+## 本地启动
 
-### Java 主工程
+### Java Demo
 
 ```bash
 cd knife4j
-mvn -B -ntp verify
-# 或从仓库根目录运行 ./scripts/test-java.sh
+mvn -pl knife4j-demo-openapi3 -am spring-boot:run
+# 浏览器打开 http://localhost:8080/doc.html
+```
+
+```bash
+cd knife4j
+mvn -pl knife4j-demo-openapi2 -am spring-boot:run
+# 浏览器打开 http://localhost:8081/doc.html
 ```
 
 ### 文档站
@@ -123,12 +129,44 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-### React 前端实验工程
+### React 前端
 
 ```bash
 cd knife4j-front
 bun install --frozen-lockfile
 bun run --filter knife4j-ui-react dev
+```
+
+### Vue3 前端
+
+```bash
+cd knife4j-vue3
+bun install --frozen-lockfile
+bun run dev
+```
+
+## 本地测试
+
+### Java 主工程
+
+```bash
+./scripts/test-java.sh
+```
+
+该脚本会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据。不要用单独的
+`mvn -B -ntp verify` 替代提交前验证。
+
+### 前端与文档
+
+```bash
+./scripts/test-front-core.sh
+./scripts/test-docs.sh
+```
+
+跨多个区域的改动可运行：
+
+```bash
+./scripts/test-all.sh
 ```
 
 ## 文档与链接

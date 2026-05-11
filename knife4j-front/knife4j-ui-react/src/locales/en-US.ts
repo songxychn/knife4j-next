@@ -184,6 +184,7 @@ const enUS = {
 
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': 'Beautify',
+  'apiDebug.body.beautifyFailed': 'Beautify failed. Check that the body is valid {{contentType}}.',
   'apiDebug.body.file': 'File',
   'apiDebug.body.selectFile': 'Select File',
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',

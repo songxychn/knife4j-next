@@ -143,7 +143,7 @@ knife4j:
 ```
 
 ::: warning React UI
-React 新前端目前支持 i18n 切换，但 `knife4j.setting.language` 配置暂不生效（后端写入 OpenAPI extension 但前端不读取）。
+React 新前端支持 i18n 切换，并会读取后端注入到 `x-openapi.x-setting.language` 的默认语言；用户在右上角语言菜单中的本地选择会覆盖后端默认值。
 :::
 
 ### 全局参数
@@ -263,8 +263,8 @@ knife4j:
     enable-open-api: false   # 禁用 OpenAPI 原始结构 Tab
 ```
 
-::: warning ⚠️ React UI 暂不支持
-以上三项配置仅在 Vue3 UI（OAS2 starter）中生效。React 新前端暂不读取这些配置。
+::: warning React UI
+以上三项配置在 Vue3 UI（OAS2 starter）中生效。React 新前端也会读取后端注入的默认值并隐藏对应入口，但这只是 UI 开关，不是安全控制。
 :::
 
 ### 请求参数缓存

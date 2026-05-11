@@ -1,11 +1,11 @@
 <template>
   <div>
     <div v-if="debugResponse">
-      <editor class="knife4j-debug-ace-editor" @input="change" :options="debugOptions" v-model:value="valueText" @init="editorInit"
+      <editor class="knife4j-debug-ace-editor" :options="debugOptions" :value="valueText" @update:value="change" @init="editorInit"
         :lang="mode" theme="eclipse" width="100%" :style="{height: editorHeight + 'px'}"></editor>
     </div>
     <div v-else>
-      <editor v-model:value="valueText" @init="editorInit" @input="change" :lang="mode" theme="eclipse" width="100%"
+      <editor :value="valueText" @init="editorInit" @update:value="change" :lang="mode" theme="eclipse" width="100%"
         :style="{height: editorHeight + 'px'}"></editor>
     </div>
 
@@ -93,12 +93,15 @@ export default {
         }
         // console.log(rows_editor)
         that.editorHeight = rows_editor;
+        that.$nextTick(() => {
+          that.editor.resize();
+        });
       }, 10);
     },
-    change() {
-      // this.value = value;
+    change(value) {
+      this.valueText = value;
       // 重设高度
-      this.$emit("update:value", this.valueText);
+      this.$emit("update:value", value);
       if (!this.debugResponse) {
         this.resetEditorHeight();
       }

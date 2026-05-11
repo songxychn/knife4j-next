@@ -59,20 +59,16 @@ Spring Boot 3.x（Jakarta）：
 </dependency>
 ```
 
-最小配置：
+最小配置（使用 springdoc 默认 `/v3/api-docs` 和 `/swagger-ui.html`）：
 
 ```yaml
 knife4j:
   enable: true
-  setting:
-    language: zh_cn
-
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-  api-docs:
-    path: /v3/api-docs
 ```
+
+`knife4j.setting.language` 默认就是 `zh_cn`；`springdoc.swagger-ui.path` 和 `springdoc.api-docs.path`
+也沿用 springdoc 默认值即可。真实项目可按需补充 `springdoc.packages-to-scan`、`paths-to-match`
+或 `swagger-ui.tags-sorter` 等扫描与排序配置。
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
@@ -88,7 +84,7 @@ springdoc:
 完整更新列表见 [发布说明](/release-notes/)。
 
 ::: warning 关于新前端覆盖范围
-新 React 前端当前**仅覆盖部分** upstream 增强特性。如果你依赖的是 `knife4j.setting.enable-debug=false`、`enable-footer-custom`、`home-custom-path`、`swagger-model-name`、`enable-after-script`、`enable-version`、Postman 导出，或依赖服务端 `knife4j.setting.*` 自动驱动前端开关，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 由本仓库 `knife4j-vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
+新 React 前端当前**仅覆盖部分** upstream 增强特性。它会读取部分 `knife4j.setting.*` UI 默认值，但如果你依赖的是 `enable-footer-custom`、`home-custom-path`、`enable-after-script`、`enable-version`、Postman 导出等 Vue 时代能力，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`knife4j-openapi2-ui` 由本仓库 `knife4j-vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
 :::
 
 ## 文档导航

@@ -189,6 +189,7 @@ const jaJP = {
 
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': '整形',
+  'apiDebug.body.beautifyFailed': '整形に失敗しました。{{contentType}} として有効な内容か確認してください。',
   'apiDebug.body.file': 'ファイル',
   'apiDebug.body.selectFile': 'ファイルを選択',
   'apiDebug.body.file.placeholder': 'ファイルパスを入力するか、空欄のままでファイル選択',

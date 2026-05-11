@@ -1,9 +1,10 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiOutlined, BugOutlined, CodeOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
+import { useSettings } from '../../context/SettingsContext';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 
 interface CurrentOperation {
@@ -58,6 +59,31 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
   const navigate = useNavigate();
   const { group, tag, operaterId } = useParams();
   const { t } = useTranslation();
+  const { settings } = useSettings();
+
+  const visibleModes = useMemo(
+    () =>
+      OPERATION_MODES.filter((item) => {
+        if (item.key === 'debug') return settings.enableDebug;
+        if (item.key === 'openapi') return settings.enableOpenApi;
+        return true;
+      }),
+    [settings.enableDebug, settings.enableOpenApi],
+  );
+
+  const activeModeVisible = visibleModes.some((item) => item.key === activeKey);
+
+  useEffect(() => {
+    if (activeModeVisible || !group || !tag || !operaterId || visibleModes.length === 0) return;
+    navigate(
+      `/${encodeURIComponent(group)}/${encodeURIComponent(tag)}/${encodeURIComponent(operaterId)}/${visibleModes[0].key}`,
+      { replace: true },
+    );
+  }, [activeKey, activeModeVisible, group, navigate, operaterId, tag, visibleModes]);
+
+  if (!activeModeVisible) {
+    return null;
+  }
 
   return (
     <Tabs
@@ -68,7 +94,7 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
         if (!group || !tag || !operaterId) return;
         navigate(`/${encodeURIComponent(group)}/${encodeURIComponent(tag)}/${encodeURIComponent(operaterId)}/${key}`);
       }}
-      items={OPERATION_MODES.map((item) => ({
+      items={visibleModes.map((item) => ({
         key: item.key,
         label: (
           <span className="knife4j-operation-tab-label">

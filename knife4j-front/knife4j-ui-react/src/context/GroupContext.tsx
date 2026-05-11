@@ -10,14 +10,8 @@ import {
   type OperationsSorter,
   type TagsSorter,
 } from '../api/knife4jClient';
-import type {
-  MarkdownFileGroup,
-  MenuTag,
-  SchemaObject,
-  SwaggerDoc,
-  SwaggerGroup,
-  SwaggerUiConfig,
-} from '../types/swagger';
+import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
+import { extractKnife4jSettings, extractMarkdownFiles } from '../utils/knife4jSettings';
 import { useSettings } from './SettingsContext';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
@@ -79,7 +73,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [usingMock, setUsingMock] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
 
-  const { settings } = useSettings();
+  const { settings, setServerSettings } = useSettings();
 
   // 初始化：优先拉取 swagger-config（拿到 tagsSorter / operationsSorter），失败回退到 swagger-resources
   useEffect(() => {
@@ -148,6 +142,10 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [activeGroupValue, rawGroups, usingMock]);
 
+  useEffect(() => {
+    setServerSettings(extractKnife4jSettings(swaggerDoc));
+  }, [setServerSettings, swaggerDoc]);
+
   // 计算最终生效的排序策略：用户显式覆盖优先，否则跟随后端 swagger-config
   const effectiveTagsSorter: TagsSorter = useMemo(() => {
     if (settings.tagsSorter === 'alpha') return 'alpha';
@@ -178,7 +176,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   const markdownDocs: MarkdownDocItem[] = useMemo(() => {
-    const markdownGroups: MarkdownFileGroup[] = swaggerDoc?.['x-markdownFiles'] ?? [];
+    const markdownGroups = extractMarkdownFiles(swaggerDoc);
     return markdownGroups.flatMap((group, groupIndex) =>
       (group.children ?? []).map((item, itemIndex) => ({
         key: `/${activeGroupValue}/markdown/${groupIndex}/${itemIndex}`,

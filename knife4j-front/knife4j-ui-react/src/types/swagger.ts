@@ -195,8 +195,16 @@ export interface SwaggerDoc {
   securityDefinitions?: Record<string, SecuritySchemeObject>; // OAS2
   /** 文档级默认 security */
   security?: Record<string, string[]>[];
-  /** knife4j 自定义 Markdown 文档扩展 */
+  /** knife4j OpenAPI3 extension emitted by the Java starter. */
+  'x-openapi'?: {
+    'x-setting'?: Record<string, unknown>;
+    'x-markdownFiles'?: MarkdownFileGroup[];
+    [key: string]: unknown;
+  };
+  /** Legacy/direct fallback for knife4j custom Markdown docs. */
   'x-markdownFiles'?: MarkdownFileGroup[];
+  /** Legacy/direct fallback for knife4j setting extension. */
+  'x-setting'?: Record<string, unknown>;
 }
 
 /** 解析后的菜单项（tag + operations） */

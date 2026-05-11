@@ -184,6 +184,7 @@ const zhCN = {
 
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': '格式化',
+  'apiDebug.body.beautifyFailed': '格式化失败，请检查内容是否为有效的 {{contentType}}。',
   'apiDebug.body.file': '文件',
   'apiDebug.body.selectFile': '选择文件',
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',

@@ -82,9 +82,9 @@ title: 路线图
 | `@ApiSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ | ⬜ | 后端已生效，UI 不排序 |
 | `@ApiOperationSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
-| 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-markdownFiles` 并在侧边栏渲染 |
+| 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-openapi.x-markdownFiles` 并在侧边栏渲染 |
 | 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
-| TypeScript 代码生成 | ✅ | ⬜ | — |
+| TypeScript 代码生成 | ✅ | ✅ | React 操作页提供基础 JS / TypeScript 请求函数片段 |
 | Postman 导出 | ✅ | ⬜ | — |
 
 ### knife4j-core 已抽取模块
@@ -121,7 +121,7 @@ title: 路线图
 
 ## 下一步
 
-1. **补齐 `knife4j.setting.*` UI 开关联动**：React 前端读取后端注入的 x-knife4j setting
+1. **继续补齐 `knife4j.setting.*` UI 开关联动**：React 前端已读取部分 `x-openapi.x-setting` 字段，剩余字段按功能逐项接入
 2. **补齐 Postman 导出**
 3. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
 4. **补齐 multipart/form-data 文件上传细节**
