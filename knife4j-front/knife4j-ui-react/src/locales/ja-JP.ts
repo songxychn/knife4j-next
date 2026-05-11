@@ -55,6 +55,9 @@ const jaJP = {
   'schema.noFields': 'フィールドがありません',
   'schema.empty': 'データモデルがありません',
   'schema.search.placeholder': 'モデル名・説明で検索...',
+  'schema.disabled.title': 'データモデルは無効です',
+  'schema.disabled.description':
+    'Swagger Models 機能が管理者により無効化されています。アクセスについては管理者にお問い合わせください。',
   'schema.flag.deprecated': '非推奨',
   'schema.flag.readOnly': '読み取り専用',
   'schema.flag.writeOnly': '書き込み専用',

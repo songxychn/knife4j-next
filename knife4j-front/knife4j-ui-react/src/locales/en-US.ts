@@ -55,6 +55,9 @@ const enUS = {
   'schema.noFields': 'No fields',
   'schema.empty': 'No data models',
   'schema.search.placeholder': 'Search model name/description...',
+  'schema.disabled.title': 'Data Models Disabled',
+  'schema.disabled.description':
+    'The Swagger Models feature has been disabled by the administrator. Please contact your admin for access.',
   'schema.flag.deprecated': 'Deprecated',
   'schema.flag.readOnly': 'ReadOnly',
   'schema.flag.writeOnly': 'WriteOnly',

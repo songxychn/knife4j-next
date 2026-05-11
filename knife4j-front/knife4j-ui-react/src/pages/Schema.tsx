@@ -1,11 +1,12 @@
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
-import { Collapse, Empty, Input, Space, Spin, Tag, Typography } from 'antd';
+import { Collapse, Empty, Input, Result, Space, Spin, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SchemaFieldTable from '../components/schema/SchemaFieldTable';
 import { normalizeGenericTitle } from '../components/schema/schemaUtils';
 import { useGroup } from '../context/GroupContext';
+import { useSettings } from '../context/SettingsContext';
 import type { SchemaObject, SwaggerDoc } from '../types/swagger';
 
 const { Title, Text } = Typography;
@@ -40,14 +41,23 @@ function schemasToModels(schemas: Record<string, SchemaObject>, swaggerDoc: Swag
 export default function Schema() {
   const { t } = useTranslation();
   const { schemaName } = useParams<{ schemaName?: string }>();
-  const { schemas, swaggerDoc, loading } = useGroup();
+  const { schemas, swaggerDoc, loading, activeGroup } = useGroup();
+  const { settings } = useSettings();
+  const navigate = useNavigate();
   const selectedSchemaName = schemaName ? decodeURIComponent(schemaName) : undefined;
   const [searchText, setSearchText] = useState('');
 
+  // Route guard: when enableSwaggerModels=false, redirect to home
+  useEffect(() => {
+    if (settings.enableSwaggerModels === false) {
+      navigate(`/${activeGroup.value}/home`, { replace: true });
+    }
+  }, [settings.enableSwaggerModels, activeGroup.value, navigate]);
+
   const models: ModelDef[] = useMemo(() => {
-    if (loading || !swaggerDoc) return [];
+    if (loading || !swaggerDoc || settings.enableSwaggerModels === false) return [];
     return schemasToModels(schemas, swaggerDoc);
-  }, [loading, schemas, swaggerDoc]);
+  }, [loading, schemas, swaggerDoc, settings.enableSwaggerModels]);
 
   const filteredModels = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -72,6 +82,11 @@ export default function Schema() {
     }
     setActiveKeys(filteredModels.map((model) => model.name));
   }, [filteredModels, selectedSchemaName]);
+
+  // Disabled state: show access-denied instead of schema content
+  if (settings.enableSwaggerModels === false) {
+    return <Result status="403" title={t('schema.disabled.title')} subTitle={t('schema.disabled.description')} />;
+  }
 
   const collapseItems = filteredModels.map((model) => {
     const displayTitle = model.title && model.title !== model.name ? model.title : undefined;
