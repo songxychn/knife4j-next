@@ -38,6 +38,7 @@ title: 模块说明
 | `knife4j-openapi2-spring-boot-starter` | 2.x | —（用 Springfox） | `knife4j-openapi2-ui`（Vue 3） |
 | `knife4j-openapi3-spring-boot-starter` | 2.x | `springdoc-openapi-ui 1.8.0` | `knife4j-openapi3-ui`（React） |
 | `knife4j-openapi3-jakarta-spring-boot-starter` | 3.x | `springdoc-openapi-starter-webmvc-ui 2.8.9` | `knife4j-openapi3-ui`（React） |
+| `knife4j-openapi3-boot4-spring-boot-starter` | 4.x | `springdoc-openapi-starter-webmvc-ui 3.0.3` | `knife4j-openapi3-ui`（React） |
 
 ### Starter（WebFlux）
 
@@ -60,7 +61,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 3.4.5 + Jakarta starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
-| `knife4j-smoke-tests` | 自动化冒烟测试（5 个子模块覆盖 Boot 2.x OAS2/OAS3、Boot 3.4.x Jakarta 与 Boot 3.5.x Jakarta） |
+| `knife4j-smoke-tests` | 自动化冒烟测试（6 个子模块覆盖 Boot 2.x OAS2/OAS3、Boot 3.4.x/3.5.x Jakarta 与 Boot 4.x Jakarta） |
 
 ## 选型决策树
 
@@ -72,8 +73,10 @@ title: 模块说明
 │   │   └── knife4j-openapi2-spring-boot-starter
 │   ├── Boot 2.x + 要用 OpenAPI 3
 │   │   └── knife4j-openapi3-spring-boot-starter
-│   └── Boot 3.x
-│       └── knife4j-openapi3-jakarta-spring-boot-starter
+│   ├── Boot 3.x
+│   │   └── knife4j-openapi3-jakarta-spring-boot-starter
+│   └── Boot 4.x
+│       └── knife4j-openapi3-boot4-spring-boot-starter
 │
 ├── Spring Boot WebFlux 应用（非网关）
 │   ├── Boot 2.x
@@ -102,4 +105,5 @@ title: 模块说明
 
 - **不要同时引入多个 starter**。WebMvc / WebFlux / Gateway / Aggregation 是互斥的，选一个即可。
 - **openapi2 starter 不兼容 Boot 3.x**。它依赖 Springfox，Springfox 不支持 Jakarta。
+- **Boot 4.x 使用专用 starter**。不要把 Boot 3.x Jakarta starter 直接带到 Boot 4.x。
 - **WebFlux starter 不含后端增强**。`@ApiOperationSupport`、`knife4j.setting.*` 等能力仅 WebMvc starter 提供。详见 [WebFlux 接入](../guide/webflux)。

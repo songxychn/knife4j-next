@@ -91,7 +91,32 @@ public class GlobalConstants {
     public static final String EXTENSION_OPEN_MARKDOWN_NAME = "x-markdownFiles";
 
     /**
-     * Stable Knife4j discovery key for the actual springdoc swagger-config URL.
+     * Stable Knife4j runtime config endpoint.
+     */
+    public static final String KNIFE4J_CONFIG_PATH = "/knife4j/config";
+
+    /**
+     * Knife4j runtime config schema version.
+     */
+    public static final String KNIFE4J_CONFIG_SCHEMA_VERSION = "1";
+
+    /**
+     * Stable Knife4j runtime config key for schema version.
+     */
+    public static final String EXTENSION_SCHEMA_VERSION = "schemaVersion";
+
+    /**
+     * Stable Knife4j runtime config key for OpenAPI discovery data.
+     */
+    public static final String EXTENSION_OPENAPI = "openapi";
+
+    /**
+     * Stable Knife4j runtime config key for the actual api-docs URL.
+     */
+    public static final String EXTENSION_API_DOCS_URL = "apiDocsUrl";
+
+    /**
+     * Stable Knife4j runtime config key for the actual springdoc swagger-config URL.
      */
     public static final String EXTENSION_SWAGGER_CONFIG_URL = "swaggerConfigUrl";
 

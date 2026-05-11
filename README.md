@@ -5,7 +5,7 @@
 
 这个仓库当前优先解决的问题是：
 
-- 跟进 Spring Boot 2.7 / 3.x / 3.5 与 Spring Framework 5.3 / 6.x 的兼容性
+- 跟进 Spring Boot 2.7 / 3.x / 4.x 与 Spring Framework 5.3 / 6.x / 7.x 的兼容性
 - 修复社区长期积压的回归与聚合场景问题
 - 建立清晰、可重复的发布流程
 - 为 React 方向的下一代前端做增量演进，而不是一次性推倒重来
@@ -27,7 +27,7 @@
 | `knife4j`         | Java 主工程，包含 starter、UI webjar、聚合组件、Gateway starter、WebFlux starter 与依赖管理 |
 | `docs-site`           | 当前文档站（VitePress）——项目对外文档的主入口                          |
 | `knife4j-front`       | React 前端工作区（Bun workspace），活跃子模块为 `knife4j-core`（TypeScript 解析库）和 `knife4j-ui-react`（OAS3 主线 UI，打包进 `knife4j-openapi3-ui` webjar） |
-| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.x Jakarta、Boot 3.5 Jakarta 等组合 |
+| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.4/3.5 Jakarta、Boot 4.x Jakarta 等组合 |
 | `knife4j-vue`         | upstream 旧版的历史 Vue 2 前端实现，仅作为行为参考留存，不再预期改动                   |
 | `knife4j-vue3`    | OAS2 兼容维护 UI（Vue 3 + Vite），打包进 `knife4j-openapi2-ui` webjar，只接收回归修复与显示层 bug |
 | `knife4j-insight` | 独立渲染/聚合方向的扩展方案                                                            |
@@ -66,7 +66,18 @@
 </dependency>
 ```
 
-### Spring Boot 3.x (Javax)
+### Spring Boot 4.x (Jakarta)
+
+```xml
+
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+    <version>5.0.1</version>
+</dependency>
+```
+
+### Spring Boot 2.x (OpenAPI3 / Javax)
 
 ```xml
 

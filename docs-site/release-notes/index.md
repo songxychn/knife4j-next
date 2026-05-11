@@ -14,11 +14,13 @@ title: 发布说明
 
 ### 5.0.1 <Badge type="tip" text="最新" />
 
-`5.0.1` 是基于 `5.0.0` 的补丁版本，重点补齐 `doc.html` 访问、反向代理路径、前端显示和文档站同步。
+`5.0.1` 是基于 `5.0.0` 的补丁版本，重点补齐 `doc.html` 访问、Boot4 WebMVC 适配、反向代理路径、前端显示和文档站同步。
 
 **后端 & 打包**
 
+- 新增 Spring Boot 4 WebMVC 专用 starter（`knife4j-openapi3-boot4-spring-boot-starter`），适配 springdoc-openapi 3.0.3。
 - 修复 OpenAPI3 自定义 `api-docs.path` / `swagger-config` 发现逻辑，覆盖反向代理 prefix 和 forwarded header 场景。
+- 新增 `/knife4j/config` 作为 Knife4j UI 内部运行时发现入口，支持自定义 `springdoc.api-docs.path`，并从 OpenAPI 文档中隐藏。
 - 回退 `addCustomApiDocsPathRule` 误修，避免在 basic auth 场景下额外保护自定义 api-docs 路径。
 - OAS2 webjar 改为使用 `Knife4jSpringUi` 构建产物，恢复 Vue3 UI 的 Spring starter 入口一致性。
 - 增加 OpenAPI2 demo，并补齐 `/v3/api-docs/swagger-config` 兼容端点与启动日志依赖。

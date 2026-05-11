@@ -16,6 +16,7 @@
         <module>knife4j-aggregation-spring-boot-starter</module>
         <module>knife4j-aggregation-jakarta-spring-boot-starter</module>
         <module>knife4j-openapi3-jakarta-spring-boot-starter</module>
+        <module>knife4j-openapi3-boot4-spring-boot-starter</module>
         <module>knife4j-gateway-spring-boot-starter</module>
         <module>knife4j-openapi3-webflux-spring-boot-starter</module>
         <module>knife4j-openapi3-webflux-jakarta-spring-boot-starter</module>
@@ -48,6 +49,7 @@
         <knife4j-spring-boot.version>2.7.18</knife4j-spring-boot.version>
         <knife4j-spring3.version>6.2.0</knife4j-spring3.version>
         <knife4j-spring-boot3.version>3.4.0</knife4j-spring-boot3.version>
+        <knife4j-spring-boot4.version>4.0.6</knife4j-spring-boot4.version>
         <knife4j-junit-jupiter-api.version>5.11.3</knife4j-junit-jupiter-api.version>
 
         <knife4j-springfox.version>2.10.5</knife4j-springfox.version>
@@ -57,7 +59,9 @@
         <knife4j-swagger-models.version>1.6.14</knife4j-swagger-models.version>
 
         <knife4j-springdoc-openapi-jakarta.version>2.8.9</knife4j-springdoc-openapi-jakarta.version>
+        <knife4j-springdoc-openapi-boot4.version>3.0.3</knife4j-springdoc-openapi-boot4.version>
         <knife4j-swagger-models-v3.version>2.2.26</knife4j-swagger-models-v3.version>
+        <knife4j-swagger-models-v3-boot4.version>2.2.47</knife4j-swagger-models-v3-boot4.version>
 
         <knife4j-servlet.version>4.0.1</knife4j-servlet.version>
         <knife4j-servlet-jakarta.version>6.1.0</knife4j-servlet-jakarta.version>

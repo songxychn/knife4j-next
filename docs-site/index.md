@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Knife4j Next
   text: 更现代的 Knife4j
-  tagline: 延续熟悉的 doc.html 接入方式，持续修复 Spring Boot 2.7 / 3.x 的兼容性。这是 Knife4j 的社区维护 fork。
+  tagline: 延续熟悉的 doc.html 接入方式，持续修复 Spring Boot 2.7 / 3.x / 4.x 的兼容性。这是 Knife4j 的社区维护 fork。
   image:
     src: /knife4j-next-mark.svg
     alt: Knife4j Next
@@ -24,8 +24,8 @@ features:
     details: Maven groupId 切到 com.baizhukui 即可替换原依赖，/doc.html、/v2/api-docs、/v3/api-docs 入口保持不变。
     link: /guide/migration
     linkText: 迁移指引
-  - title: Spring Boot 2.7、3.4、3.5 都跑过
-    details: 5 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x Jakarta 与 Boot 3.5.0 Jakarta 组合，springdoc-openapi-jakarta 已对齐 2.8.9。
+  - title: Spring Boot 2.7、3.4、3.5、4.0 都跑过
+    details: 6 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x/3.5.0 Jakarta 与 Boot 4.0.6 Jakarta 组合，Boot4 线使用 springdoc-openapi 3.0.3。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
@@ -79,6 +79,7 @@ springdoc:
 ## 5.0.1 版本亮点 <Badge type="tip" text="最新" />
 
 - 🧭 修复自定义 `api-docs.path` / `swagger-config` 在反向代理 prefix 场景下的发现逻辑
+- ☕ 新增 Spring Boot 4 WebMVC 专用 starter 与 smoke test
 - 🧩 OAS2 webjar 改为使用 `Knife4jSpringUi` 构建产物
 - 🏷️ 修复 tag / operationId 特殊字符导致的路由问题
 - 🔎 切换分组时清空搜索词，避免跨分组状态残留
@@ -95,7 +96,7 @@ springdoc:
 **上手**
 
 - [产品介绍](/guide/introduction)：这个 fork 的定位、与 upstream 的对照表
-- [快速开始](/guide/getting-started)：Spring Boot 2.x / 3.x 完整接入
+- [快速开始](/guide/getting-started)：Spring Boot 2.x / 3.x / 4.x 完整接入
 - [迁移指引](/guide/migration)：从 `com.github.xiaoymin` 切到 `com.baizhukui`
 - [Demo 预览](/guide/demo)：`knife4j-demo-openapi3`（OpenAPI 3）与 `knife4j-demo-openapi2`（OpenAPI 2）两条线的本地跑 / Docker Compose
 - [常见问题](/guide/faq)：doc.html 404、生产环境禁用、Nginx 反向代理、React 配置不生效
@@ -110,7 +111,7 @@ springdoc:
 
 - [兼容矩阵](/reference/compatibility)：Java、Spring、Boot、springdoc 基线
 - [版本参考表](/reference/version-ref)：Boot 版本如何选 knife4j 版本
-- [模块说明](/reference/modules)：15 个 Maven 模块的职责与选择决策
+- [模块说明](/reference/modules)：Maven 模块的职责与选择决策
 - [配置参考](/reference/configuration)：全部 `knife4j.*` YAML 选项
 - [注解速查](/reference/annotations)：Springfox 专有 vs 通用注解
 

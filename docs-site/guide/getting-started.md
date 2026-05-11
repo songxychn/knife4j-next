@@ -4,9 +4,10 @@ title: 快速开始
 
 # 快速开始
 
-本指南给出三条接入路径对应的最小可运行工程。每条路径都经过 `master` 的 `knife4j-smoke-tests` 模块回归验证。
+本指南给出四条接入路径对应的最小可运行工程。每条路径都经过 `master` 的 `knife4j-smoke-tests` 模块回归验证。
 
 ::: tip 先决定走哪条路径
+- **已经升级 Spring Boot 4.x**：用 **OpenAPI3 Boot4 starter**，UI 是新 React 版本。
 - **新项目、Spring Boot 3.x、不想踩 javax/jakarta 雷**：用 **OpenAPI3 Jakarta**，UI 是新 React 版本。
 - **还在 Spring Boot 2.7.x**：可以继续用 OpenAPI2（Springfox），UI 是本仓库 `knife4j-vue3` 构建产物（兼容维护）；或 OpenAPI3（springdoc-openapi 非 Jakarta），UI 是 React 新前端。
 - **已经在 upstream knife4j**：先看 [迁移指引](./migration)，只改 `groupId` 即可，不必换路径。
@@ -14,7 +15,57 @@ title: 快速开始
 如果不确定哪个版本合适，先看 [版本参考表](../reference/version-ref)。
 :::
 
-## 路径一：Spring Boot 3.x + OpenAPI3 Jakarta（推荐）
+## 路径一：Spring Boot 4.x + OpenAPI3 Boot4
+
+### 环境要求
+
+- JDK 17+
+- Spring Boot `4.0.x`（smoke-tests 覆盖 `4.0.6`）
+- springdoc-openapi `3.0.3`（starter 已管理，无需显式声明）
+
+### 依赖
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+    <version>5.0.1</version>
+</dependency>
+```
+
+### 最小 `application.yml`
+
+```yaml
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: default
+      paths-to-match: /**
+      packages-to-scan: com.example.demo
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+```
+
+Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.v3.oas.annotations`。
+
+### 验证
+
+1. `mvn spring-boot:run`。
+2. 浏览器打开 `http://localhost:8080/doc.html`，应看到 React 版界面。
+3. `http://localhost:8080/v3/api-docs` 返回原始 OpenAPI JSON。
+4. `http://localhost:8080/knife4j/config` 返回 Knife4j UI 内部运行时配置；该接口不会出现在 `doc.html` 接口列表中。
+
+---
+
+## 路径二：Spring Boot 3.x + OpenAPI3 Jakarta（推荐）
 
 ### 环境要求
 
@@ -92,7 +143,7 @@ React 新前端**不读取** `knife4j.setting.enable-debug`、`enable-search`、
 
 ---
 
-## 路径二：Spring Boot 2.x + OpenAPI3（springdoc-openapi）
+## 路径三：Spring Boot 2.x + OpenAPI3（springdoc-openapi）
 
 ### 环境要求
 
@@ -131,7 +182,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 
 ---
 
-## 路径三：Spring Boot 2.x + OpenAPI2（Springfox，Vue 3 UI）
+## 路径四：Spring Boot 2.x + OpenAPI2（Springfox，Vue 3 UI）
 
 ::: info 何时选这条
 - 项目深度依赖 Springfox 专属注解（`@ApiOperationSupport(ignoreParameters/includeParameters)`、`@DynamicParameters`、`@DynamicResponseParameters`）。
