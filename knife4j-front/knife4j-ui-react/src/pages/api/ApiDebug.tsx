@@ -51,6 +51,7 @@ import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
 import Authorize from '../Authorize';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
+import { currentOrigin, resolveRequestBaseUrl } from './requestBaseUrl';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -71,10 +72,6 @@ type ParamValueMap = Record<string, string>;
 
 function paramKey(param: DebugParam): string {
   return `${param.in}:${param.name}`;
-}
-
-function currentOrigin(): string {
-  return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 }
 
 // ─── Response body classification ─────────────────────
@@ -1543,8 +1540,14 @@ export default function ApiDebug() {
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { settings } = useSettings();
   const defaultBaseUrl = useMemo(
-    () => (settings.enableHost && settings.enableHostText.trim() ? settings.enableHostText.trim() : currentOrigin()),
-    [settings.enableHost, settings.enableHostText],
+    () =>
+      resolveRequestBaseUrl({
+        swaggerDoc,
+        enableHost: settings.enableHost,
+        enableHostText: settings.enableHostText,
+        origin: currentOrigin(),
+      }),
+    [settings.enableHost, settings.enableHostText, swaggerDoc],
   );
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [method, setMethod] = useState('GET');
