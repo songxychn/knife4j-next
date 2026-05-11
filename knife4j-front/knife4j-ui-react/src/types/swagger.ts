@@ -23,13 +23,26 @@ export interface SwaggerUiConfig {
   url?: string;
   /** 分组列表（springdoc 多文档场景） */
   urls?: Array<{ name: string; url: string }>;
-  /** Knife4j 固定 discovery 端点返回的实际 swagger-config 地址 */
-  swaggerConfigUrl?: string;
   /** tag 排序策略（例如 'alpha'） */
   tagsSorter?: string;
   /** operation 排序策略（例如 'alpha' / 'method'） */
   operationsSorter?: string;
   /** 其它 springdoc 配置字段允许透传 */
+  [key: string]: unknown;
+}
+
+export interface Knife4jRuntimeConfig {
+  /** Knife4j runtime config schema version. */
+  schemaVersion?: string;
+  /** OpenAPI discovery data used by Knife4j UI bootstrap. */
+  openapi?: {
+    /** 实际 api-docs 地址 */
+    apiDocsUrl?: string;
+    /** 实际 springdoc swagger-config 地址 */
+    swaggerConfigUrl?: string;
+    [key: string]: unknown;
+  };
+  /** 其它 Knife4j runtime config 字段允许后续扩展 */
   [key: string]: unknown;
 }
 

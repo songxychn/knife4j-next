@@ -24,6 +24,7 @@ import com.github.xiaoymin.knife4j.spring.extension.Knife4jJakartaOperationCusto
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.filter.JakartaProductionSecurityFilter;
 import com.github.xiaoymin.knife4j.spring.util.EnvironmentUtils;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.DispatcherType;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +43,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /***
@@ -74,27 +75,34 @@ public class Knife4jAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(Knife4jSwaggerConfigController.class)
-    public Knife4jSwaggerConfigController knife4jSwaggerConfigController(SpringDocConfigProperties docProperties) {
-        return new Knife4jSwaggerConfigController(docProperties);
+    @ConditionalOnMissingBean(Knife4jConfigController.class)
+    public Knife4jConfigController knife4jConfigController(SpringDocConfigProperties docProperties) {
+        return new Knife4jConfigController(docProperties);
     }
 
+    @Hidden
     @RestController
-    public static class Knife4jSwaggerConfigController {
+    public static class Knife4jConfigController {
 
         private static final String DEFAULT_API_DOCS_PATH = "v3/api-docs";
 
         private final SpringDocConfigProperties docProperties;
 
-        public Knife4jSwaggerConfigController(SpringDocConfigProperties docProperties) {
+        public Knife4jConfigController(SpringDocConfigProperties docProperties) {
             this.docProperties = docProperties;
         }
 
-        @GetMapping("/knife4j/swagger-config")
-        public Map<String, String> swaggerConfig() {
-            return Collections.singletonMap(
-                    GlobalConstants.EXTENSION_SWAGGER_CONFIG_URL,
-                    resolveApiDocsPath() + "/swagger-config");
+        @GetMapping(GlobalConstants.KNIFE4J_CONFIG_PATH)
+        public Map<String, Object> config() {
+            String apiDocsPath = resolveApiDocsPath();
+            Map<String, String> openapi = new LinkedHashMap<>();
+            openapi.put(GlobalConstants.EXTENSION_API_DOCS_URL, apiDocsPath);
+            openapi.put(GlobalConstants.EXTENSION_SWAGGER_CONFIG_URL, apiDocsPath + "/swagger-config");
+
+            Map<String, Object> config = new LinkedHashMap<>();
+            config.put(GlobalConstants.EXTENSION_SCHEMA_VERSION, GlobalConstants.KNIFE4J_CONFIG_SCHEMA_VERSION);
+            config.put(GlobalConstants.EXTENSION_OPENAPI, openapi);
+            return config;
         }
 
         private String resolveApiDocsPath() {

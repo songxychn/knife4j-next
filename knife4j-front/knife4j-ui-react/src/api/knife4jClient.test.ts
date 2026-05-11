@@ -14,17 +14,25 @@ describe('knife4jClient', () => {
     vi.unstubAllGlobals();
   });
 
-  it('discovers custom springdoc swagger-config through the Knife4j fallback endpoint', async () => {
+  it('discovers custom springdoc swagger-config through the Knife4j runtime config endpoint', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({}, false))
-      .mockResolvedValueOnce(jsonResponse({ swaggerConfigUrl: 'api/openapi/swagger-config' }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          schemaVersion: '1',
+          openapi: {
+            apiDocsUrl: 'api/openapi',
+            swaggerConfigUrl: 'api/openapi/swagger-config',
+          },
+        }),
+      )
       .mockResolvedValueOnce(jsonResponse({ url: '/api/openapi', tagsSorter: 'alpha' }));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(fetchSwaggerUiConfig()).resolves.toEqual({ url: '/api/openapi', tagsSorter: 'alpha' });
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'v3/api-docs/swagger-config');
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'knife4j/swagger-config');
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'knife4j/config');
     expect(fetchMock).toHaveBeenNthCalledWith(3, 'api/openapi/swagger-config');
   });
 

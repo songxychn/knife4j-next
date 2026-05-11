@@ -67,6 +67,11 @@ public class BasicFilterSemicolonBypassTest {
         Assert.assertTrue(filter.testMatch("/swagger-resources"));
     }
 
+    @Test
+    public void normalKnife4jConfigShouldMatch() {
+        Assert.assertTrue(filter.testMatch("/knife4j/config"));
+    }
+
     // -----------------------------------------------------------------------
     // Semicolon bypass attempts must ALSO be matched (security fix #886)
     // -----------------------------------------------------------------------
@@ -98,6 +103,13 @@ public class BasicFilterSemicolonBypassTest {
         Assert.assertTrue(
                 "Semicolon suffix must not bypass basic auth for /swagger-resources",
                 filter.testMatch("/swagger-resources;bypass=true"));
+    }
+
+    @Test
+    public void semicolonSuffixOnKnife4jConfigShouldMatch() {
+        Assert.assertTrue(
+                "Semicolon suffix must not bypass basic auth for /knife4j/config",
+                filter.testMatch("/knife4j/config;bypass=true"));
     }
 
     @Test

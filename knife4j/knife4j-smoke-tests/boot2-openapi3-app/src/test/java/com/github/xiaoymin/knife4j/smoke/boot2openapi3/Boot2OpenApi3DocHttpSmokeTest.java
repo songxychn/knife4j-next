@@ -101,10 +101,10 @@ public class Boot2OpenApi3DocHttpSmokeTest {
         Assert.assertTrue("Response should be JSON when production=true (#666, #859)",
                 apiDocs.body.contains("\"code\"") || apiDocs.body.contains("\"message\""));
 
-        HttpResponse knife4jConfig = get(port, "/knife4j/swagger-config");
-        Assert.assertFalse("Knife4j swagger-config should not return HTML when production=true",
+        HttpResponse knife4jConfig = get(port, "/knife4j/config");
+        Assert.assertFalse("Knife4j runtime config should not return HTML when production=true",
                 knife4jConfig.body.contains("<!DOCTYPE"));
-        Assert.assertTrue("Knife4j swagger-config should be blocked when production=true",
+        Assert.assertTrue("Knife4j runtime config should be blocked when production=true",
                 knife4jConfig.body.contains("\"code\"") || knife4jConfig.body.contains("\"message\""));
 
         // doc.html should also be blocked
@@ -133,17 +133,27 @@ public class Boot2OpenApi3DocHttpSmokeTest {
         Assert.assertEquals(200, apiDocs.statusCode);
         Assert.assertTrue("Custom api-docs path should return OpenAPI JSON (#573, #849)",
                 apiDocs.body.contains("\"openapi\""));
+        Assert.assertFalse("Knife4j runtime config is an internal endpoint and should be hidden from api-docs",
+                apiDocs.body.contains("/knife4j/config"));
 
         HttpResponse defaultConfig = get(port, "/v3/api-docs/swagger-config");
         Assert.assertEquals("Default swagger-config should not exist when api-docs path is customized (#344)",
                 404, defaultConfig.statusCode);
 
-        HttpResponse knife4jConfig = get(port, "/knife4j/swagger-config");
+        HttpResponse knife4jConfig = get(port, "/knife4j/config");
         Assert.assertEquals(200, knife4jConfig.statusCode);
-        Assert.assertTrue("Knife4j discovery endpoint should expose the custom swagger-config URL (#344):\n"
+        Assert.assertTrue("Knife4j runtime config should expose the custom OpenAPI URLs (#344):\n"
                 + knife4jConfig.body,
-                knife4jConfig.body.contains("\"swaggerConfigUrl\"")
+                knife4jConfig.body.contains("\"schemaVersion\"")
+                        && knife4jConfig.body.contains("\"openapi\"")
+                        && knife4jConfig.body.contains("\"apiDocsUrl\"")
+                        && knife4jConfig.body.contains("api/openapi")
+                        && knife4jConfig.body.contains("\"swaggerConfigUrl\"")
                         && knife4jConfig.body.contains("api/openapi/swagger-config"));
+
+        HttpResponse legacyConfig = get(port, "/knife4j/swagger-config");
+        Assert.assertEquals("Legacy Knife4j swagger-config endpoint should not be exposed",
+                404, legacyConfig.statusCode);
 
         HttpResponse customConfig = get(port, "/api/openapi/swagger-config");
         Assert.assertEquals(200, customConfig.statusCode);

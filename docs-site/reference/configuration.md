@@ -10,7 +10,7 @@ title: 配置参考
 
 ## WebMvc Starter 通用配置
 
-适用于 `knife4j-openapi2-spring-boot-starter`、`knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`。
+适用于 `knife4j-openapi2-spring-boot-starter`、`knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`、`knife4j-openapi3-boot4-spring-boot-starter`。
 
 ### `knife4j.*`
 
@@ -18,12 +18,14 @@ title: 配置参考
 | --- | --- | --- | --- |
 | `knife4j.enable` | `boolean` | `false` | 启用 Knife4j 后端增强。openapi2 必须设为 `true`；openapi3 使用 springdoc 默认路径时 UI 可不依赖它，但自定义 `springdoc.api-docs.path`、生产保护或其他 Knife4j 增强能力需要设为 `true` |
 | `knife4j.cors` | `boolean` | `false` | 启用默认跨域支持 |
-| `knife4j.production` | `boolean` | `false` | 生产环境：设为 `true` 后 `/doc.html`、`/v2/api-docs`、`/v3/api-docs` 等默认路径返回 JSON 错误响应（非 HTML 页面）。**注意**：当前仅保护默认路径；若自定义了 `springdoc.api-docs.path`，需要自行通过 `knife4j.basic.include` 追加规则或使用外层安全框架屏蔽 |
+| `knife4j.production` | `boolean` | `false` | 生产环境：设为 `true` 后 `/doc.html`、`/v2/api-docs`、`/v3/api-docs`、`/knife4j/config` 等默认路径返回 JSON 错误响应（非 HTML 页面）。**注意**：当前仅保护默认路径；若自定义了 `springdoc.api-docs.path`，需要自行通过 `knife4j.basic.include` 追加规则或使用外层安全框架屏蔽 |
 | `knife4j.openapi` | Object | — | OpenAPI 基本信息（仅 openapi2 starter，见下文） |
 | `knife4j.basic` | Object | — | HTTP Basic 认证配置，见下文 |
 | `knife4j.setting` | Object | — | UI 个性化配置，见下文 |
 | `knife4j.documents` | List | — | 自定义 Markdown 文档分组，见下文 |
 | `knife4j.insight` | Object | — | Knife4jInsight 配置，见下文 |
+
+OpenAPI3 starter 会暴露 `/knife4j/config` 作为 Knife4j UI 的运行时发现入口。该接口不属于 springdoc 标准接口，由 UI 内部调用，并会从 OpenAPI 文档中隐藏，不展示在 `doc.html` 接口列表里。它用于在自定义 `springdoc.api-docs.path` 时返回实际的 `apiDocsUrl` 与 `swaggerConfigUrl`；响应通过 `schemaVersion` 标识契约版本，后续 Knife4j 运行时能力也应挂载在这个结构下。
 
 ### `knife4j.basic.*`
 

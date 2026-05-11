@@ -3,7 +3,14 @@
  * 负责拉取 group 列表和 api-docs 文档
  */
 
-import type { SwaggerDoc, SwaggerGroup, MenuTag, MenuOperation, SwaggerUiConfig } from '../types/swagger';
+import type {
+  SwaggerDoc,
+  SwaggerGroup,
+  MenuTag,
+  MenuOperation,
+  SwaggerUiConfig,
+  Knife4jRuntimeConfig,
+} from '../types/swagger';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
 
@@ -26,6 +33,9 @@ export type OperationsSorter = 'alpha' | 'method' | 'preserve';
 /**
  * 拉取 springdoc / swagger-ui 的聚合配置：`/v3/api-docs/swagger-config`。
  * 返回 `null` 表示端点不存在或返回异常（例如 springfox 场景）。
+ *
+ * 当用户自定义 `springdoc.api-docs.path` 时，默认 swagger-config 会移动到新路径；
+ * 此时读取 Knife4j runtime config `/knife4j/config` 来发现实际 swagger-config URL。
  */
 export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
   const defaultConfig = await fetchSwaggerUiConfigFrom('v3/api-docs/swagger-config');
@@ -34,13 +44,14 @@ export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
   }
 
   try {
-    const res = await fetch('knife4j/swagger-config');
+    const res = await fetch('knife4j/config');
     if (!res.ok) return null;
-    const discovery = (await res.json()) as SwaggerUiConfig;
-    if (typeof discovery.swaggerConfigUrl !== 'string' || discovery.swaggerConfigUrl.length === 0) {
+    const discovery = (await res.json()) as Knife4jRuntimeConfig;
+    const swaggerConfigUrl = discovery.openapi?.swaggerConfigUrl;
+    if (typeof swaggerConfigUrl !== 'string' || swaggerConfigUrl.length === 0) {
       return null;
     }
-    return fetchSwaggerUiConfigFrom(discovery.swaggerConfigUrl);
+    return fetchSwaggerUiConfigFrom(swaggerConfigUrl);
   } catch (_) {
     return null;
   }
