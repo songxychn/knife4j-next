@@ -58,6 +58,21 @@ export function mergeHeaders(...sources: Array<Record<string, string> | undefine
   return result;
 }
 
+/**
+ * 在 headers 中查找已有的 Cookie 头（大小写不敏感）。
+ *
+ * HTTP header 名按 RFC 7230 是大小写不敏感的，调用方可能传入 `cookie` /
+ * `Cookie` / `COOKIE` 任一形式。返回命中的原 key（保持调用方的大小写），
+ * 找不到时返回 undefined。
+ */
+function findCookieHeaderKey(headers: Record<string, string>): string | undefined {
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === 'cookie') return key;
+  }
+  return undefined;
+}
+
+/** 将 cookie params 追加到 headers 的 Cookie 头，大小写不敏感地合并。 */
 function appendCookieParams(
   headers: Record<string, string>,
   cookieParams: Record<string, string>,
@@ -66,9 +81,16 @@ function appendCookieParams(
     .filter(([name, value]) => name !== '' && value !== '')
     .map(([name, value]) => `${name}=${value}`);
   if (pairs.length === 0) return headers;
+  const existingKey = findCookieHeaderKey(headers);
+  if (existingKey) {
+    return {
+      ...headers,
+      [existingKey]: `${headers[existingKey]}; ${pairs.join('; ')}`,
+    };
+  }
   return {
     ...headers,
-    Cookie: headers['Cookie'] ? `${headers['Cookie']}; ${pairs.join('; ')}` : pairs.join('; '),
+    Cookie: pairs.join('; '),
   };
 }
 
@@ -120,7 +142,12 @@ export function authToHeaders(
           queries[scheme.name] = scheme.value;
         } else if (scheme.in === 'cookie') {
           const pair = `${scheme.name}=${scheme.value}`;
-          headers['Cookie'] = headers['Cookie'] ? `${headers['Cookie']}; ${pair}` : pair;
+          const existingKey = findCookieHeaderKey(headers);
+          if (existingKey) {
+            headers[existingKey] = `${headers[existingKey]}; ${pair}`;
+          } else {
+            headers['Cookie'] = pair;
+          }
         }
       } else if (scheme.type === 'http' && scheme.scheme === 'bearer') {
         if (scheme.token) {
