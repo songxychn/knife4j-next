@@ -12,7 +12,31 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.1 <Badge type="tip" text="最新" />
+### 5.0.2 <Badge type="tip" text="最新" />
+
+`5.0.2` 是基于 `5.0.1` 的补丁版本，集中修复 BOM 缺漏、React UI 路由守卫与配置默认值的对齐、调试器细节，以及前端解析层的 cookie 大小写合并。
+
+**后端 & 打包**
+
+- `knife4j-dependencies` BOM 补登 `knife4j-openapi3-boot4-spring-boot-starter`（PR #362），下游通过 BOM 引入 Boot4 starter 时不再需要显式声明版本。
+
+**前端（React UI）**
+
+- 修复 `enableSwaggerModels=false` 时直接刷新 `/:group/schema` 会导航到非法 `//home` 的问题，路由守卫优先使用 `useParams` 的 `:group` 再回退到 `activeGroup`（PR #366 / #367）。
+- Schema 页在 `enableSwaggerModels=false` 时显示 403 提示而非空白，并防止通过 URL 参数注入被禁用的标签；hooks 调用顺序修正，补齐 zh-CN / en-US / ja-JP 三语翻译（PR #364，#358 review）。
+- 调试器 raw body 体验完善（PR #357）：raw 模式下拉项展示完整 MIME（如 `JSON(application/json)`、`Text(text/plain)`），Beautify 由仅支持 JSON 扩展为 JSON / XML / HTML / JavaScript 多格式，无法解析时提示 `apiDebug.body.beautifyFailed`，body Tab 标题展示 effective content-type；并改用基于正则的标签边界切分 + DOMParser 校验，避免文本中的 `<` / `>` 被误判为标签起止（PR #364，#357 review）。
+- 调试器请求 baseUrl 智能解析（PR #363）：优先级调整为 `setting.enableHost` 覆盖 > OpenAPI `servers[0].url` > 当前 UI origin，便于反向代理 / 前后端分离部署直接复用文档侧给出的 server URL。
+- React 设置面板默认值与后端 starter 默认行为对齐，并能从 OpenAPI 文档中读取 `enableHost` / `enableHostText` 等服务端注入项（PR #358）。
+
+**前端解析层（knife4j-core）**
+
+- `requestBuilder.appendCookieParams` 与 `authToHeaders` 中的 cookie apiKey 拼接按 RFC 7230 大小写不敏感地查找已有 Cookie 头，避免同时输出 `cookie` 与 `Cookie` 两个键，新增 2 条回归测试（PR #365，#352 review）。
+
+**协作 & 流程**
+
+- 持久化中文协作规范（PR #360）。
+
+### 5.0.1
 
 `5.0.1` 是基于 `5.0.0` 的补丁版本，重点补齐 `doc.html` 访问、Boot4 WebMVC 适配、反向代理路径、前端显示和文档站同步。
 
@@ -106,7 +130,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.1</version>
+    <version>5.0.2</version>
 </dependency>
 ```
 

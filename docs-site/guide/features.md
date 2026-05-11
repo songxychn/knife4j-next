@@ -239,8 +239,14 @@ Host 地址支持以下格式：
 - `knife4j.example.com`（域名）
 - `http://192.168.0.111:8080/v1`（带 basePath）
 
-::: warning React UI
-React 新前端可以在右上角设置面板手动开启 Host 覆盖，但目前仍未自动读取服务端注入的 `knife4j.setting.enable-host` / `enable-host-text` 默认值。
+::: tip 调试器请求 baseUrl 优先级（自 5.0.2 起）
+React 新前端在发起接口调试时，按以下顺序解析请求 baseUrl：
+
+1. **`setting.enable-host` / `enable-host-text`** —— 用户在设置面板手动开启的 Host 覆盖。React UI 也会从 OpenAPI 文档中读取后端注入的 `enableHost` / `enableHostText` 作为默认值（PR #358）。
+2. **OpenAPI `servers[0].url`** —— 文档中声明的第一个 server URL，包含 context-path；相对路径会基于当前 UI origin 解析（PR #363）。
+3. **当前 UI origin** —— 兜底使用 `window.location.origin`，与历史行为一致。
+
+OAS2 Vue3 UI 仍保持原有 Host 覆盖行为，不读取 `servers`。
 :::
 
 ::: tip 前置条件：跨域

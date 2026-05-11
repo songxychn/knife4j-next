@@ -24,7 +24,7 @@ Spring Boot 3（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-aggregation-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.1</version>
+    <version>5.0.2</version>
 </dependency>
 
 <dependency>
