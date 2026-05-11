@@ -640,37 +640,74 @@
 .knife4j-debug-request-type {
   margin-top: 0;
   display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+  min-height: 35px;
 }
 
 .knife4j-debug-request-content-type {
-  width: 360px;
+  display: flex;
+  align-items: center;
+  width: auto;
   height: 35px;
-  line-height: 35px;
+  line-height: normal;
+  white-space: nowrap;
+
+  .ant-radio-wrapper {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    line-height: 22px;
+    white-space: nowrap;
+  }
+
+  .ant-radio {
+    display: inline-flex;
+    align-items: center;
+    top: 0;
+  }
+
+  .ant-radio + span {
+    line-height: 22px;
+  }
 }
 
 .knife4j-debug-request-content-type-float {
-  float: left;
-  width: 360px;
-}
-
-
-.knife4j-debug-request-content-type-raw {
-  //width: 360px;
-  //height: 35px;
-  //line-height: 35px;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .knife4j-debug-request-content-type-beautify {
-  //float: right;
-  margin-right: 50px;
-  flex: 1;
-  text-align: right;
-  //height: 35px;
-  //line-height: 35px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
 }
 
 .knife4j-debug-raw-span {
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: auto;
+  line-height: 22px;
+  vertical-align: baseline;
+
+  .anticon {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+}
+
+.knife4j-debug-raw-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 22px;
+  vertical-align: baseline;
 }
 
 
@@ -697,6 +734,8 @@
 
 .knife4j-debug-status {
   margin-right: 15px;
+  padding-right: 8px;
+  box-sizing: border-box;
 
   .key {
     color: #919191;
@@ -707,6 +746,10 @@
     color: #4dc095;
     font-size: 12px;
     font-weight: bold;
+  }
+
+  .value:last-child {
+    margin-right: 8px;
   }
 }
 

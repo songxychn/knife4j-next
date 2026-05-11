@@ -82,17 +82,15 @@
                     v-model:value="requestContentType">
                     <a-radio value="x-www-form-urlencoded">x-www-form-urlencoded</a-radio>
                     <a-radio value="form-data">form-data</a-radio>
-                    <a-radio value="raw">raw</a-radio>
-                  </a-radio-group>
-                </div>
-                <div class="knife4j-debug-request-content-type-float">
-                  <div class="knife4j-debug-request-content-type-raw">
-                    <a-dropdown v-if="rawTypeFlag">
-                      <span class="knife4j-debug-raw-span">
-                        <span>{{ rawDefaultText }}</span>
-                        <DownOutlined />
-                      </span>
-                      <template  #overlay>
+                    <a-radio value="raw">
+                      <span class="knife4j-debug-raw-inline">
+                        <span>raw</span>
+                        <a-dropdown v-if="rawTypeFlag">
+                          <span class="knife4j-debug-raw-span">
+                            <span>{{ rawDefaultText }}</span>
+                            <DownOutlined />
+                          </span>
+                          <template  #overlay>
                         <a-menu @click="rawMenuClick">
                           <a-menu-item data-mode-type="application/json" data-mode="text" key="Auto">Auto</a-menu-item>
                           <a-menu-item data-mode-type="text/plain" data-mode="text" key="Text(text/plain)">
@@ -110,11 +108,13 @@
                         </a-menu>
                       </template>
 
-                    </a-dropdown>
-                  </div>
-                </div>
-                <div v-if="formatFlag" class="knife4j-debug-request-content-type-beautify">
-                  <a @click="beautifyJson">Beautify</a>
+                        </a-dropdown>
+                        <span v-if="formatFlag" class="knife4j-debug-request-content-type-beautify" @click.stop>
+                          <a-button size="small" type="primary" @click="beautifyJson">格式化</a-button>
+                        </span>
+                      </span>
+                    </a-radio>
+                  </a-radio-group>
                 </div>
               </div>
               <a-row v-if="formFlag">
