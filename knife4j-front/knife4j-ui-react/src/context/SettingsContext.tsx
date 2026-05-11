@@ -1,107 +1,105 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { DEFAULT_SETTINGS, type AppSettings } from '../types/settings';
 
 const STORAGE_KEY = 'Knife4jGlobalSettings';
+const STORAGE_VERSION = 2;
 
-/**
- * 前端覆盖的 tag 排序策略。
- * - 'auto'：不覆盖，跟随后端 `/v3/api-docs/swagger-config` 的 `tagsSorter`；后端未配置时保持原序。
- * - 'alpha'：按字母序排序。
- * - 'preserve'：强制保持 OpenAPI JSON 的原始顺序（即使后端配置了 alpha）。
- */
-export type TagsSorterOverride = 'auto' | 'alpha' | 'preserve';
-/**
- * 前端覆盖的 operation 排序策略。
- * - 'auto'：跟随后端 `operationsSorter`；后端未配置时保持原序。
- * - 'alpha'：按路径字母序。
- * - 'method'：按 HTTP method 顺序。
- * - 'preserve'：强制保持原序。
- */
-export type OperationsSorterOverride = 'auto' | 'alpha' | 'method' | 'preserve';
+type SettingsOverrides = Partial<AppSettings>;
 
-export interface AppSettings {
-  /** 是否启用 Host 覆盖 */
-  enableHost: boolean;
-  /** Host 覆盖文本（enableHost=true 时替换 baseUrl） */
-  enableHostText: string;
-  /** 是否开启请求参数缓存 */
-  enableRequestCache: boolean;
-  /** 是否开启动态参数 */
-  enableDynamicParameter: boolean;
-  /** 是否过滤 multipart/RequestMapping 接口，只展示指定 method 类型 */
-  enableFilterMultipartApis: boolean;
-  /** 过滤后保留的 method 类型（默认 POST） */
-  enableFilterMultipartApiMethodType: string;
-  /** tag 排序覆盖（默认 'auto'：跟随 springdoc.swagger-ui.tags-sorter） */
-  tagsSorter: TagsSorterOverride;
-  /** operation 排序覆盖（默认 'auto'：跟随 springdoc.swagger-ui.operations-sorter） */
-  operationsSorter: OperationsSorterOverride;
-  /**
-   * 预留钩子：增强模式（swaggerBootstrapUi）
-   * 当前版本不对接，保持 false；未来可按需启用。
-   */
-  enableSwaggerBootstrapUi: boolean;
+interface StoredSettings {
+  version: typeof STORAGE_VERSION;
+  overrides: SettingsOverrides;
 }
 
-const DEFAULT_SETTINGS: AppSettings = {
-  enableHost: false,
-  enableHostText: '',
-  enableRequestCache: true,
-  enableDynamicParameter: false,
-  enableFilterMultipartApis: false,
-  enableFilterMultipartApiMethodType: 'POST',
-  tagsSorter: 'auto',
-  operationsSorter: 'auto',
-  enableSwaggerBootstrapUi: false,
-};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
-function loadSettings(): AppSettings {
+function migrateLegacyOverrides(parsed: unknown): SettingsOverrides {
+  if (!isRecord(parsed)) return {};
+  const overrides: SettingsOverrides = {};
+  (Object.keys(DEFAULT_SETTINGS) as Array<keyof AppSettings>).forEach((key) => {
+    const value = parsed[key];
+    if (value !== undefined && value !== DEFAULT_SETTINGS[key]) {
+      overrides[key] = value as never;
+    }
+  });
+  return overrides;
+}
+
+function loadOverrides(): SettingsOverrides {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    // 合并默认值以兼容旧存储缺字段的情况
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (isRecord(parsed) && parsed.version === STORAGE_VERSION && isRecord(parsed.overrides)) {
+      return parsed.overrides as SettingsOverrides;
+    }
+    return migrateLegacyOverrides(parsed);
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return {};
   }
 }
 
-function saveSettings(s: AppSettings): void {
+function saveOverrides(overrides: SettingsOverrides): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    const payload: StoredSettings = { version: STORAGE_VERSION, overrides };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
     // ignore quota errors
   }
+}
+
+function shallowEqualSettings(a: SettingsOverrides, b: SettingsOverrides): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    const typedKey = key as keyof AppSettings;
+    if (a[typedKey] !== b[typedKey]) return false;
+  }
+  return true;
 }
 
 interface SettingsContextValue {
   settings: AppSettings;
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   resetSettings: () => void;
+  setServerSettings: (settings: SettingsOverrides) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const [serverSettings, setServerSettingsState] = useState<SettingsOverrides>({});
+  const [userOverrides, setUserOverrides] = useState<SettingsOverrides>(loadOverrides);
 
-  const setSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((prev) => {
+  const settings = useMemo(
+    () => ({ ...DEFAULT_SETTINGS, ...serverSettings, ...userOverrides }),
+    [serverSettings, userOverrides],
+  );
+
+  const setSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setUserOverrides((prev) => {
       const next = { ...prev, [key]: value };
-      saveSettings(next);
+      saveOverrides(next);
       return next;
     });
-  };
+  }, []);
 
-  const resetSettings = () => {
-    const next = { ...DEFAULT_SETTINGS };
-    saveSettings(next);
-    setSettings(next);
-  };
+  const resetSettings = useCallback(() => {
+    saveOverrides({});
+    setUserOverrides({});
+  }, []);
 
-  return (
-    <SettingsContext.Provider value={{ settings, setSetting, resetSettings }}>{children}</SettingsContext.Provider>
+  const setServerSettings = useCallback((next: SettingsOverrides) => {
+    setServerSettingsState((prev) => (shallowEqualSettings(prev, next) ? prev : next));
+  }, []);
+
+  const value = useMemo(
+    () => ({ settings, setSetting, resetSettings, setServerSettings }),
+    [settings, setSetting, resetSettings, setServerSettings],
   );
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components

@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
-import { SettingsProvider } from './context/SettingsContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { SUPPORTED_LANGS, type SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
@@ -20,10 +21,6 @@ const HOME_KEY = '/group/home';
 /** sessionStorage keys for persisting opened tabs across page refresh. */
 const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
 const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
-
-/** Languages supported by the React UI i18n layer. Keep in sync with `src/i18n.ts` resources. */
-const SUPPORTED_LANGS = ['zh-CN', 'en-US', 'ja-JP'] as const;
-type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
 /** Normalise the raw i18next language (which may be `zh`, `ja-jp`, etc.) into one of our supported tags. */
 const normalizeLang = (raw: string | undefined): SupportedLang => {
@@ -99,6 +96,7 @@ const AppInner: React.FC = () => {
   const location = useLocation();
   const { groups, activeGroup, markdownDocs, setActiveGroupValue } = useGroup();
   const { t, i18n } = useTranslation();
+  const { settings, setSetting } = useSettings();
 
   const {
     token: { colorBgContainer },
@@ -200,13 +198,14 @@ const AppInner: React.FC = () => {
     const info = schemaRouteInfo(pathname);
     if (!info) return;
 
-    const title = info.labelSchema ? `${t('schema.title')} / ${info.labelSchema}` : t('schema.title');
+    const schemaTitle = settings.swaggerModelName || t('schema.title');
+    const title = info.labelSchema ? `${schemaTitle} / ${info.labelSchema}` : schemaTitle;
     setItems((prev) =>
       prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
     );
     setActiveKey(pathname);
     setSelectedKey(info.menuKey);
-  }, [location.pathname, t]);
+  }, [location.pathname, settings.swaggerModelName, t]);
 
   // Keep a ref to markdownDocs so the pathname-change effect below can read
   // the latest value without adding markdownDocs to its dependency array.
@@ -252,7 +251,7 @@ const AppInner: React.FC = () => {
     if (!tabExists) {
       const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
       const title = schemaInfo
-        ? t('schema.title')
+        ? settings.swaggerModelName || t('schema.title')
         : markdownDoc
           ? markdownDoc.title
           : api
@@ -270,6 +269,29 @@ const AppInner: React.FC = () => {
     setSelectedKey(routeKeyToMenuKey(key));
     navigate(key);
   };
+
+  useEffect(() => {
+    const replacementKey = activeKey.endsWith('/debug')
+      ? settings.enableDebug
+        ? null
+        : `${activeKey.slice(0, -6)}/doc`
+      : activeKey.endsWith('/openapi')
+        ? settings.enableOpenApi
+          ? null
+          : `${activeKey.slice(0, -8)}/doc`
+        : null;
+
+    if (!replacementKey) return;
+
+    setItems((prev) =>
+      prev.some((pane) => pane.key === replacementKey)
+        ? prev.filter((pane) => pane.key !== activeKey)
+        : prev.map((pane) => (pane.key === activeKey ? { ...pane, key: replacementKey } : pane)),
+    );
+    setActiveKey(replacementKey);
+    setSelectedKey(routeKeyToMenuKey(replacementKey));
+    navigate(replacementKey, { replace: true });
+  }, [activeKey, navigate, settings.enableDebug, settings.enableOpenApi]);
 
   const remove = (targetKey: TargetKey) => {
     // Home tab is not closable – it acts as the persistent entry point.
@@ -322,6 +344,12 @@ const AppInner: React.FC = () => {
     { key: 'closeAll', label: t('tab.context.closeAll'), onClick: closeAll },
   ];
 
+  useEffect(() => {
+    if (settings.language && normalizeLang(i18n.language) !== settings.language) {
+      i18n.changeLanguage(settings.language);
+    }
+  }, [i18n, settings.language]);
+
   const currentLang = normalizeLang(i18n.language);
 
   const langLabelMap: Record<SupportedLang, string> = {
@@ -339,7 +367,7 @@ const AppInner: React.FC = () => {
   const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
     const next = normalizeLang(key);
     if (next !== currentLang) {
-      i18n.changeLanguage(next);
+      setSetting('language', next);
     }
   };
 
@@ -393,7 +421,7 @@ const AppInner: React.FC = () => {
           </div>
 
           {/* Group switcher */}
-          {!collapsed && groupOptions.length > 0 && (
+          {!collapsed && settings.enableGroup && groupOptions.length > 0 && (
             <div style={{ padding: '0 8px 8px' }}>
               <Select
                 options={groupOptions}
@@ -475,7 +503,7 @@ const AppInner: React.FC = () => {
           </div>
         </Content>
 
-        <Footer style={footerStyle}>{t('app.footer')}</Footer>
+        {settings.enableFooter && <Footer style={footerStyle}>{t('app.footer')}</Footer>}
       </Layout>
     </Layout>
   );

@@ -3,6 +3,7 @@ import { Input, Menu, MenuProps, Tooltip } from 'antd';
 import { ApiOutlined, DatabaseOutlined, FileMarkdownOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
+import { useSettings } from '../context/SettingsContext';
 import Markdown from '../components/Markdown';
 
 const METHOD_COLORS: Record<string, string> = {
@@ -47,6 +48,7 @@ interface SidebarSearchMenuProps {
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
   const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
+  const { settings } = useSettings();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
@@ -55,6 +57,12 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   useEffect(() => {
     setSearchText('');
   }, [activeGroup.value]);
+
+  useEffect(() => {
+    if (!settings.enableSearch) {
+      setSearchText('');
+    }
+  }, [settings.enableSearch]);
 
   // Group apis by tag, filtered by search text
   const filteredByTag = useMemo(() => {
@@ -97,7 +105,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const menuItems = useMemo(() => {
     const q = searchText.trim();
     const items: NonNullable<MenuProps['items']> = [];
-    if (activeGroup.value) {
+    if (activeGroup.value && settings.enableSwaggerModels) {
       items.push({
         key: `/${activeGroup.value}/schema`,
         label: (
@@ -110,7 +118,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
                 whiteSpace: 'nowrap',
               }}
             >
-              {t('schema.title')}
+              {settings.swaggerModelName || t('schema.title')}
             </span>
             <span
               style={{
@@ -191,11 +199,21 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       });
     }
     return items;
-  }, [activeGroup.value, filteredByTag, markdownDocs, menuTags, schemas, searchText, t]);
+  }, [
+    activeGroup.value,
+    filteredByTag,
+    markdownDocs,
+    menuTags,
+    schemas,
+    searchText,
+    settings.enableSwaggerModels,
+    settings.swaggerModelName,
+    t,
+  ]);
 
   return (
     <>
-      {!collapsed && (
+      {!collapsed && settings.enableSearch && (
         <div style={{ padding: '8px 8px 4px' }}>
           <Input
             className="knife4j-sidebar-search"

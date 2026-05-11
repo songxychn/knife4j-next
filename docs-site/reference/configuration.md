@@ -16,7 +16,7 @@ title: 配置参考
 
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `knife4j.enable` | `boolean` | `false` | 启用 knife4j 增强模式（openapi2 必须设为 `true`；openapi3 可选） |
+| `knife4j.enable` | `boolean` | `false` | 启用 Knife4j 后端增强。openapi2 必须设为 `true`；openapi3 使用 springdoc 默认路径时 UI 可不依赖它，但自定义 `springdoc.api-docs.path`、生产保护或其他 Knife4j 增强能力需要设为 `true` |
 | `knife4j.cors` | `boolean` | `false` | 启用默认跨域支持 |
 | `knife4j.production` | `boolean` | `false` | 生产环境：设为 `true` 后 `/doc.html`、`/v2/api-docs`、`/v3/api-docs` 等默认路径返回 JSON 错误响应（非 HTML 页面）。**注意**：当前仅保护默认路径；若自定义了 `springdoc.api-docs.path`，需要自行通过 `knife4j.basic.include` 追加规则或使用外层安全框架屏蔽 |
 | `knife4j.openapi` | Object | — | OpenAPI 基本信息（仅 openapi2 starter，见下文） |
@@ -38,9 +38,9 @@ title: 配置参考
 
 | 属性 | 类型 | 默认值 | 说明 | React UI |
 | --- | --- | --- | --- | --- |
-| `knife4j.setting.language` | `ZH_CN` / `EN` | `ZH_CN` | 界面语言 | ⚠️ 暂不生效 |
-| `knife4j.setting.enableSwaggerModels` | `boolean` | `true` | 显示 Swagger Models 功能 | ⚠️ |
-| `knife4j.setting.swaggerModelName` | `String` | `"Swagger Models"` | Swagger Models 名称 | ⚠️ |
+| `knife4j.setting.language` | `ZH_CN` / `EN` | `ZH_CN` | 界面语言 | ✅ |
+| `knife4j.setting.enableSwaggerModels` | `boolean` | `true` | 显示 Swagger Models 功能 | ✅ |
+| `knife4j.setting.swaggerModelName` | `String` | `"Swagger Models"` | Swagger Models 名称 | ✅ |
 | `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ⚠️ |
 | `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | ⚠️ |
 | `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | ⚠️ |
@@ -48,22 +48,22 @@ title: 配置参考
 | `knife4j.setting.enableRequestCache` | `boolean` | `true` | 启用请求参数缓存 | ⚠️ |
 | `knife4j.setting.enableFilterMultipartApis` | `boolean` | `false` | 过滤 RequestMapping 多方法显示 | ⚠️ |
 | `knife4j.setting.enableFilterMultipartApiMethodType` | `String` | `"POST"` | 过滤方法类型 | ⚠️ |
-| `knife4j.setting.enableHost` | `boolean` | `false` | 启用 Host | ⚠️ |
-| `knife4j.setting.enableHostText` | `String` | `""` | Host 地址 | ⚠️ |
+| `knife4j.setting.enableHost` | `boolean` | `false` | 启用 Host | ✅ |
+| `knife4j.setting.enableHostText` | `String` | `""` | Host 地址 | ✅ |
 | `knife4j.setting.enableDynamicParameter` | `boolean` | `false` | 启用动态请求参数 | ⚠️ |
-| `knife4j.setting.enableDebug` | `boolean` | `true` | 启用调试功能 | ⚠️ |
-| `knife4j.setting.enableFooter` | `boolean` | `true` | 显示底部 Footer | ⚠️ |
+| `knife4j.setting.enableDebug` | `boolean` | `true` | 启用调试功能 | ✅ |
+| `knife4j.setting.enableFooter` | `boolean` | `true` | 显示底部 Footer | ✅ |
 | `knife4j.setting.enableFooterCustom` | `boolean` | `false` | 自定义 Footer | ⚠️ |
 | `knife4j.setting.footerCustomContent` | `String` | — | 自定义 Footer 内容（支持 Markdown） | ⚠️ |
-| `knife4j.setting.enableSearch` | `boolean` | `true` | 显示搜索框 | ⚠️ |
-| `knife4j.setting.enableOpenApi` | `boolean` | `true` | 显示 OpenAPI 原始结构 Tab | ⚠️ |
+| `knife4j.setting.enableSearch` | `boolean` | `true` | 显示搜索框 | ✅ |
+| `knife4j.setting.enableOpenApi` | `boolean` | `true` | 显示 OpenAPI 原始结构 Tab | ✅ |
 | `knife4j.setting.enableHomeCustom` | `boolean` | `false` | 启用首页自定义 | ⚠️ |
 | `knife4j.setting.homeCustomLocation` | `String` | — | 首页自定义 Markdown 文件路径 | ⚠️ |
-| `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ⚠️ |
+| `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ✅ |
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态码栏 | ⚠️ |
 | `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义 HTTP 状态码 | ✅ |
 
-> 标 ⚠️ 的配置在 React 新前端中暂不生效（后端会写入 OpenAPI extension，但前端不读取）。详见 [FAQ](../guide/faq#react-setting-not-effective)。
+> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的配置仍会由后端写入 extension，但 React 暂不消费。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
 > 各配置项的功能说明和示例见 [功能详解](../guide/features#功能详解)。
 
@@ -360,12 +360,20 @@ curl -s http://localhost:8080/v3/api-docs/swagger-config | jq '.urls'
 ```yaml
 knife4j:
   enable: true
+```
 
+这依赖 springdoc 的默认路径：OpenAPI JSON 为 `/v3/api-docs`，Swagger UI 为 `/swagger-ui.html`。
+`knife4j.setting.language` 默认是 `zh_cn`，无需为中文界面重复配置。
+
+如果需要收窄 Controller 扫描范围、改变排序或关闭 springdoc 的通用响应包装，请按项目需要追加：
+
+```yaml
 springdoc:
+  override-with-generic-response: false
+  packages-to-scan: com.example.demo.controller
+  paths-to-match: /api/**
   swagger-ui:
-    path: /swagger-ui.html
-  api-docs:
-    path: /v3/api-docs
+    tags-sorter: alpha
 ```
 
 ### 生产环境配置
