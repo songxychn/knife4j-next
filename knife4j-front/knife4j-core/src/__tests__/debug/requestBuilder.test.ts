@@ -157,6 +157,20 @@ describe('authToHeaders', () => {
     expect(result.headers['Cookie']).toContain('token=xyz');
   });
 
+  test('apiKey in cookie merges into existing lowercase cookie header (case-insensitive)', () => {
+    // Simulates a caller that already injected a lowercase `cookie` key into
+    // `apiKeys`; the cookie-position scheme below should append into the same
+    // header instead of producing a duplicate `Cookie` entry.
+    const result = authToHeaders({
+      apiKeys: { cookie: 'pre=set' },
+      bySecurityKey: {
+        apiCookie: { type: 'apiKey', in: 'cookie', name: 'session', value: 'abc123' },
+      },
+    });
+    expect(result.headers['cookie']).toBe('pre=set; session=abc123');
+    expect(result.headers['Cookie']).toBeUndefined();
+  });
+
   test('http bearer via bySecurityKey', () => {
     const result = authToHeaders({
       bySecurityKey: {
@@ -492,6 +506,26 @@ describe('buildRequest', () => {
     });
 
     expect(result.headers['Cookie']).toBe('theme=dark; session=abc123; trace=req-1');
+  });
+
+  test('cookie params merge into existing lowercase cookie header (case-insensitive)', () => {
+    // 某些调用方（如全局参数或 fetch 原始 headers）会以小写 `cookie` 名义提供。
+    // appendCookieParams 应识别并合并到同一个 header，而不是另外输出大写 `Cookie`。
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/users/{id}',
+      method: 'GET',
+      debugModel,
+      formValues: {
+        pathParams: { id: '1' },
+        queryParams: {},
+        headerParams: { cookie: 'theme=dark' },
+        cookieParams: { session: 'abc123' },
+      },
+    });
+
+    expect(result.headers['cookie']).toBe('theme=dark; session=abc123');
+    expect(result.headers['Cookie']).toBeUndefined();
   });
 
   test('Content-Type header is set from selectedContentType', () => {
