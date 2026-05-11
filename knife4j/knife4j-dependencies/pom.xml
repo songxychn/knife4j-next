@@ -93,13 +93,18 @@
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.baizhukui</groupId>
+                <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-aggregation-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            
+
             <dependency>
                 <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-aggregation-jakarta-spring-boot-starter</artifactId>
