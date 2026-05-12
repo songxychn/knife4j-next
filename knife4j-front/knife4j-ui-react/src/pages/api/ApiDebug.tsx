@@ -1583,11 +1583,12 @@ export default function ApiDebug() {
     () =>
       resolveRequestBaseUrl({
         swaggerDoc,
+        operation,
         enableHost: settings.enableHost,
         enableHostText: settings.enableHostText,
         origin: currentOrigin(),
       }),
-    [settings.enableHost, settings.enableHostText, swaggerDoc],
+    [operation, settings.enableHost, settings.enableHostText, swaggerDoc],
   );
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [method, setMethod] = useState('GET');

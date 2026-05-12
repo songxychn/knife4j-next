@@ -150,9 +150,13 @@ export interface OperationObject {
   deprecated?: boolean;
   /** operation 级别的 security 声明，每项是 `{ [schemeName]: string[] } */
   security?: Record<string, string[]>[];
+  /** OAS3 operation 级 servers */
+  servers?: SwaggerServer[];
 }
 
 export interface PathItemObject {
+  /** OAS3 path item 级 servers */
+  servers?: SwaggerServer[];
   get?: OperationObject;
   post?: OperationObject;
   put?: OperationObject;
