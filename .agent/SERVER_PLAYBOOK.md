@@ -24,13 +24,14 @@
 3. 如果没有进行中的任务，从 GitHub Issues 选择一个 `status:ready` 任务：
    `gh issue list --repo songxychn/knife4j-next --label agent-task --label status:ready --state open`
 4. 判断任务是否符合 `.agent/AUTONOMY_POLICY.md` 中的安全条件。
-5. 决定直接执行还是委派给 worker。
+5. 按 `.agent/COORDINATION.md` 判断是否必须派 worker；若跳过 worker，先记录例外原因。
 6. 完成最小改动后，运行最窄相关验证。
-7. 需要时启动 reviewer。
-8. 在对应 GitHub Issue 评论里记录进度、验证结果和下一步（不再写 .agent/TASKS.md 或 .agent/PROGRESS.md，这两个文件已冻结）。
-9. 满足条件时创建或更新 PR。
-10. 等待 PR CI 终态：`gh pr checks <N> --watch`。全绿后给 issue 加 `status:review` label；CI 红时同分支修复再等（单次唤醒最多 2 轮修复尝试）。
-11. 停止本次运行，不继续吞下一个新任务。
+7. 按 `.agent/COORDINATION.md` 的 reviewer 门禁启动 reviewer；若跳过 reviewer，先记录例外原因。
+8. reviewer 要求返工时交回 worker 修改，再重新验证和审查。
+9. 在对应 GitHub Issue 评论里记录进度、worker/reviewer handoff 摘要、验证结果和下一步（不再写 .agent/TASKS.md 或 .agent/PROGRESS.md，这两个文件已冻结）。
+10. 满足 PR 触发条件时创建或更新 PR。
+11. 等待 PR CI 终态：`gh pr checks <N> --watch`。全绿且 reviewer 门禁已通过后给 issue 加 `status:review` label；CI 红时同分支修复再等（单次唤醒最多 2 轮修复尝试）。
+12. 停止本次运行，不继续吞下一个新任务。
 
 ## 任务选择策略
 
@@ -60,18 +61,20 @@
 
 ## 什么时候派 Worker
 
-满足以下任一条件时，优先派 worker：
+满足以下任一条件时，必须派 worker：
 
+- 任何非例外范围的源码改动。
+- 任务触碰 Java、前端运行时代码、构建脚本或 CI。
 - 为了开始改动需要阅读很多文件
 - 同一个任务可拆成互不重叠的探索切片
 - coordinator 如果亲自做会积累太多实现细节
 - 可以把一次探索压缩成一个 handoff
 
-不要为了“显得高级”而强行派 worker。任务很小时，coordinator 直接做更稳。
+可以跳过 worker 的情况仅限纯 label/issue/PR 元数据操作、极小流程文档/模板文字修订，或当前运行时无法启动独立 agent。跳过时必须写明原因和替代验证；不要把 coordinator 自己实现包装成 worker 结果。
 
 ## 什么时候派 Reviewer
 
-满足以下任一条件时，PR 前应派 reviewer：
+除纯 label/issue/PR 元数据操作外，agent 产出的 PR 默认需要 reviewer。满足以下任一条件时，PR 前必须派 reviewer：
 
 - 实现由 worker 完成
 - Java 兼容性行为发生变化
@@ -79,19 +82,24 @@
 - 验证曾失败后才通过
 - coordinator 对 diff 的回归风险没有足够把握
 
+如果当前运行时无法启动 reviewer，必须在 issue 评论或 PR 描述记录限制。高风险触发条件下应停在人工 review，不得自动切 `status:review`。
+
 ## PR 触发条件
 
 只有满足以下条件时才应创建或更新 PR：
 
 - 至少完成该任务要求的最窄验证（含 `./scripts/test-*.sh`，不只用 `tsc` / `vite build` 单步替代）
 - 在对应 GitHub Issue 评论里已记录摘要、验证和下一步
+- 已记录 worker handoff，或跳过 worker 的明确例外
+- 已记录 reviewer handoff，或跳过 reviewer 的明确例外
 - 没有未说明的高风险残留
-- 创建 PR 后必须等 CI 全绿，才把 issue 切为 `status:review`（见 .agent/RUNBOOK.md “PR 后 CI 验证”节）
+- 创建 PR 后必须等 CI 全绿，且 reviewer 门禁已通过，才把 issue 切为 `status:review`（见 .agent/RUNBOOK.md “PR 后 CI 验证”节）
 
 PR 描述应至少包含：
 
 - task id
 - 改动范围
+- worker/reviewer handoff 摘要，或跳过原因
 - 运行过的验证命令
 - 当前已知风险
 - 是否需要人工决策
@@ -171,6 +179,7 @@ PR 描述格式规范：
 - 新 PR 已创建
 - 任务进入 `blocked`
 - reviewer 给出 `block`
+- reviewer 门禁因运行时限制无法执行
 - 发现需要人工决策的兼容性或发布问题
 
 ## 不要做的事

@@ -53,11 +53,23 @@
 - [ ] commit message 关联 issue ≤1 条；未在同一分支混入无关修复
 - [ ] 未把 Java 核心逻辑改动夹带在"标题是文档/UI"的 PR 中
 - [ ] 未绕过 PR 直推 master；未 force push 到 `master`
+- [ ] 已附 worker handoff 摘要；如跳过 worker，已写明例外原因和替代验证
+- [ ] 已附 reviewer handoff 摘要；如跳过 reviewer，已写明例外原因和剩余风险
+- [ ] reviewer 的 `block` / `high` / `medium` 发现已处理，或已在 PR 中写明暂缓理由
+
+## Agent 交接
+
+> 人工 PR 可写 "N/A"。Agent PR 必填，避免协作过程只留在聊天上下文。
+
+- Worker：
+- Reviewer：
+- 跳过角色与原因：
+- 剩余风险：
 
 <!--
 参考资料：
 - .agent/RUNBOOK.md —— upstream issue 复现工作流
 - .agent/KNOWN_PITFALLS.md —— 历史误读 / 违规案例
 - .agent/REVIEW_POLICY.md —— review 前必须核对真实 diff
+- .agent/COORDINATION.md —— coordinator / worker / reviewer 门禁
 -->
-

@@ -26,8 +26,14 @@
 - 验证是否符合 .agent/RUNBOOK.md？
 - 对声称的改动，测试或文档是否缺失？
 - 是否存在隐藏兼容性或发布风险？
+- worker/coordinator handoff 是否足以支撑声称的完成状态？
 
 只返回发现。如果没有发现，明确说明无发现，并列出残余风险或验证缺口。
+
+结论规则：
+- 有 block/high 发现时，recommendation 必须是 block。
+- 有 medium 发现但可在当前分支修复时，recommendation 应为 revise。
+- 只有没有阻断发现，且验证缺口可接受时，recommendation 才能是 approve。
 
 返回以下 handoff：
 
@@ -55,5 +61,6 @@ Changed files:
 Claimed behavior change:
 Validation already run:
 Known risks:
+Worker handoff summary:
 Reviewer constraints:
 ```

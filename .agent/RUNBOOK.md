@@ -138,7 +138,7 @@ coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 
    - 在**同一分支**上修复（新增 commit，不 force-push 到 master）
    - 再次等待 CI 终态
 
-3. 只有当所有 check 通过，才允许：
+3. 只有当所有 check 通过，且 `.agent/COORDINATION.md` 的 reviewer 门禁已通过或明确记录例外，才允许：
 
    - 把 issue 切到 `status:review`
    - 在 issue 评论里声称实现完成
@@ -160,6 +160,8 @@ coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 
 
 - task id
 - 范围摘要
+- worker handoff 摘要，或跳过 worker 的明确例外原因
+- reviewer handoff 摘要，或跳过 reviewer 的明确例外原因
 - 精确验证命令
 - 验证结果
 - 未解决风险
