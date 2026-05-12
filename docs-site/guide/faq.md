@@ -29,7 +29,7 @@ title: 常见问题
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
-| `5.0.2` | 补丁修复：BOM 补登 Boot4 starter、Schema 路由守卫与 React 设置默认对齐（含读取后端 `enableHost` 等注入项）、调试器 raw body 多格式 Beautify（JSON/XML/HTML/JS）、调试器 baseUrl 智能解析（servers[0] 优先于 origin）、Cookie header 大小写合并 | — |
+| `5.0.2` | 补丁修复：Boot4 starter 构件补发与 release 发布清单校验、BOM 补登 Boot4 starter、Schema 路由守卫与 React 设置默认对齐（含读取后端 `enableHost` 等注入项）、调试器 raw body 多格式 Beautify（JSON/XML/HTML/JS）、调试器 baseUrl 智能解析（servers[0] 优先于 origin）、Cookie header 大小写合并 | — |
 | `5.0.1` | 补丁修复：反向代理 prefix / swagger-config 发现、OAS2 webjar 构建产物、特殊字符路由、分组搜索状态、schema 显示细节 | — |
 | `5.0.0` | Bug 修复 & 功能增强：petstore 闪烁、OAuth2 四种 flow 基础鉴权、离线文档 Markdown/OpenAPI JSON、tags-sorter | — |
 | `1.0.0` | 正式版：全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI 完整集成 | — |

@@ -14,11 +14,12 @@ title: 发布说明
 
 ### 5.0.2 <Badge type="tip" text="最新" />
 
-`5.0.2` 是基于 `5.0.1` 的补丁版本，集中修复 BOM 缺漏、React UI 路由守卫与配置默认值的对齐、调试器细节，以及前端解析层的 cookie 大小写合并。
+`5.0.2` 是基于 `5.0.1` 的补丁版本，集中修复 Boot4 starter 发布清单、BOM 缺漏、React UI 路由守卫与配置默认值的对齐、调试器细节，以及前端解析层的 cookie 大小写合并。
 
 **后端 & 打包**
 
 - `knife4j-dependencies` BOM 补登 `knife4j-openapi3-boot4-spring-boot-starter`（PR #362），下游通过 BOM 引入 Boot4 starter 时不再需要显式声明版本。
+- 修复 release workflow 的 Maven Central 发布模块清单，避免新增可发布模块时漏发；`knife4j-openapi3-boot4-spring-boot-starter:5.0.2` 已补发完成，可从 [Maven Central](https://repo1.maven.org/maven2/com/baizhukui/knife4j-openapi3-boot4-spring-boot-starter/5.0.2/) 直接拉取（PR #370）。
 
 **前端（React UI）**
 
