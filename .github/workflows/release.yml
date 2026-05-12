@@ -26,6 +26,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify release module list
+        run: scripts/verify-release-modules.sh
+        working-directory: .
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -56,10 +60,7 @@ jobs:
 
       - name: Publish to Maven Central
         run: |
+          release_modules="$(sed -E 's/[[:space:]]*#.*$//' ../scripts/release-modules.txt | sed '/^[[:space:]]*$/d' | paste -sd, -)"
           mvn -B -ntp -Prelease deploy \
-            -pl knife4j-core,knife4j-dependencies,knife4j-openapi2-ui,knife4j-openapi3-ui,\
-          knife4j-openapi2-spring-boot-starter,knife4j-openapi3-spring-boot-starter,\
-          knife4j-aggregation-spring-boot-starter,knife4j-aggregation-jakarta-spring-boot-starter,\
-          knife4j-openapi3-jakarta-spring-boot-starter,knife4j-gateway-spring-boot-starter,\
-          knife4j-openapi3-webflux-spring-boot-starter,knife4j-openapi3-webflux-jakarta-spring-boot-starter \
+            -pl "$release_modules" \
             -am
