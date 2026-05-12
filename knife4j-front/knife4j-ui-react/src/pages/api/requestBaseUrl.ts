@@ -1,7 +1,8 @@
-import type { SwaggerDoc } from '../../types/swagger';
+import type { MenuOperation, SwaggerDoc, SwaggerServer } from '../../types/swagger';
 
 export interface ResolveRequestBaseUrlOptions {
   swaggerDoc: SwaggerDoc | null;
+  operation?: MenuOperation | null;
   enableHost: boolean;
   enableHostText: string;
   origin: string;
@@ -26,8 +27,13 @@ export function normalizeRequestBaseUrl(url: string, origin: string): string {
   }
 }
 
+function firstServerUrl(servers: SwaggerServer[] | undefined): string | undefined {
+  return servers?.find((server) => server.url.trim())?.url;
+}
+
 export function resolveRequestBaseUrl({
   swaggerDoc,
+  operation,
   enableHost,
   enableHostText,
   origin,
@@ -37,7 +43,11 @@ export function resolveRequestBaseUrl({
     return normalizeRequestBaseUrl(hostOverride, origin);
   }
 
-  const serverUrl = swaggerDoc?.servers?.find((server) => server.url.trim())?.url;
+  const pathItem = operation ? swaggerDoc?.paths[operation.path] : undefined;
+  const serverUrl =
+    firstServerUrl(operation?.operation.servers) ??
+    firstServerUrl(pathItem?.servers) ??
+    firstServerUrl(swaggerDoc?.servers);
   if (serverUrl) {
     return normalizeRequestBaseUrl(serverUrl, origin);
   }
