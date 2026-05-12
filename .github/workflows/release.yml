@@ -60,7 +60,5 @@ jobs:
 
       - name: Publish to Maven Central
         run: |
-          release_modules="$(sed -E 's/[[:space:]]*#.*$//' ../scripts/release-modules.txt | sed '/^[[:space:]]*$/d' | paste -sd, -)"
           mvn -B -ntp -Prelease deploy \
-            -pl "$release_modules" \
-            -am
+            -pl knife4j-openapi3-boot4-spring-boot-starter
