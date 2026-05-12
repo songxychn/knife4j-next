@@ -51,6 +51,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify release module list
+        run: scripts/verify-release-modules.sh
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
