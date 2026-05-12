@@ -13,6 +13,7 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
+> `5.0.2` 的 Boot4 专用 starter 构件已补发到 Maven Central，可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.0.2`。
 
 ## 核心依赖版本
 

@@ -74,7 +74,7 @@ knife4j:
 
 ## 5.0.2 版本亮点 <Badge type="tip" text="最新" />
 
-- 📦 `knife4j-dependencies` BOM 补登 `knife4j-openapi3-boot4-spring-boot-starter`，下游通过 BOM 引入 Boot4 starter 不再需要显式版本
+- 📦 `knife4j-openapi3-boot4-spring-boot-starter:5.0.2` 已补发至 Maven Central，并通过发布清单校验避免后续模块漏发
 - 🧭 修复 `enableSwaggerModels=false` 时直接刷新 `/:group/schema` 会跳到非法 `//home` 的路由守卫问题
 - 🛡️ Schema 页在被禁用时显示 403 提示，并防止通过 URL 参数注入被禁用的标签
 - 📝 HTML body 美化改用正则切分 + DOMParser 校验，避免文本中的 `<` / `>` 被误判为标签起止
