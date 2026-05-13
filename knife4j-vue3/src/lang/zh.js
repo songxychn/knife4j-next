@@ -218,11 +218,16 @@ const langOptions = {
     version: '版本',
     host: 'host',
     basePath: 'basePath',
+    serviceAddress: '服务地址',
     serviceUrl: '服务Url',
     groupName: '分组名称',
     groupUrl: '分组Url',
     groupLocation: '分组location',
-    apiCountNumber: '接口统计信息'
+    apiCountNumber: '接口统计信息',
+    apiTotal: '接口数',
+    methodDistribution: '接口方法分布',
+    documentInfo: '文档信息',
+    noApiData: '暂无接口统计'
   },
   markdown: {
     title: '其他文档'

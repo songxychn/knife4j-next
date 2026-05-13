@@ -217,11 +217,16 @@ const langOptions = {
     version: 'バージョン',
     host: 'host',
     basePath: 'basePath',
+    serviceAddress: 'サーバー',
     serviceUrl: 'サービスURL',
     groupName: 'グループ名',
     groupUrl: 'グループURL',
     groupLocation: 'グループロケーション',
-    apiCountNumber: 'API統計情報'
+    apiCountNumber: 'API統計情報',
+    apiTotal: 'API数',
+    methodDistribution: 'APIメソッド分布',
+    documentInfo: 'ドキュメント情報',
+    noApiData: 'API統計情報はありません'
   },
   markdown: {
     title: 'その他のドキュメント'

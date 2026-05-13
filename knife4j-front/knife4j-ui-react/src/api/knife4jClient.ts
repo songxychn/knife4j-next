@@ -99,6 +99,7 @@ export async function fetchGroups(): Promise<SwaggerGroup[]> {
       return data.map((g) => ({
         name: g.name,
         url: g.location,
+        location: g.location,
         swaggerVersion: g.swaggerVersion,
       }));
     }

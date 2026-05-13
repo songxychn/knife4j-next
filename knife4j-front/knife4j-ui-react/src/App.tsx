@@ -17,6 +17,7 @@ const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const HOME_KEY = '/group/home';
+const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
 
 /** sessionStorage keys for persisting opened tabs across page refresh. */
 const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
@@ -94,7 +95,7 @@ const AppInner: React.FC = () => {
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
   const location = useLocation();
-  const { groups, activeGroup, markdownDocs, setActiveGroupValue } = useGroup();
+  const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc } = useGroup();
   const { t, i18n } = useTranslation();
   const { settings, setSetting } = useSettings();
 
@@ -125,6 +126,10 @@ const AppInner: React.FC = () => {
     return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
   });
   const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = swaggerDoc?.info?.title || DEFAULT_DOCUMENT_TITLE;
+  }, [swaggerDoc?.info?.title]);
 
   /**
    * Persist `items` and `activeKey` to sessionStorage on every change so the
