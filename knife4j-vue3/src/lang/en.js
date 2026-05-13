@@ -216,11 +216,16 @@ const langOptions = {
     version: 'Version',
     host: 'Host',
     basePath: 'BasePath',
+    serviceAddress: 'Server',
     serviceUrl: 'Service Url',
     groupName: 'Group Name',
     groupUrl: 'Group Url',
     groupLocation: 'Group Location',
-    apiCountNumber: 'Interface statistics'
+    apiCountNumber: 'Interface statistics',
+    apiTotal: 'API Count',
+    methodDistribution: 'API Method Distribution',
+    documentInfo: 'Document Info',
+    noApiData: 'No API statistics'
   },
   markdown: {
     title: 'Other Document'

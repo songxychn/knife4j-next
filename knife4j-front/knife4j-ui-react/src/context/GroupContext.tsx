@@ -51,6 +51,7 @@ interface GroupContextValue {
   setActiveGroupValue: (value: string) => void;
 
   // 真实数据
+  activeSwaggerGroup: SwaggerGroup | null;
   swaggerDoc: SwaggerDoc | null;
   swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
@@ -100,6 +101,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const groups: SwaggerGroup[] = data.map((g) => ({
             name: g.name,
             url: g.location,
+            location: g.location,
             swaggerVersion: g.swaggerVersion,
           }));
           if (groups.length > 0) {
@@ -213,6 +215,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // loading 期间 groups 为空，提供一个空占位对象，避免下游 .apis 报错
   const EMPTY_GROUP: ApiGroup = { value: '', label: '', apis: [] };
   const activeGroup = groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? EMPTY_GROUP;
+  const activeSwaggerGroup = rawGroups.find((g) => g.name === activeGroupValue) ?? null;
 
   const handleSetActiveGroup = useCallback((value: string) => {
     setGroupError(null);
@@ -225,6 +228,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         groups,
         activeGroup,
         setActiveGroupValue: handleSetActiveGroup,
+        activeSwaggerGroup,
         swaggerDoc,
         swaggerUiConfig,
         menuTags,

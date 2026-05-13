@@ -1,24 +1,9 @@
-import { useMemo } from 'react';
-import {
-  Card,
-  Col,
-  Divider,
-  Empty,
-  Progress,
-  Row,
-  Space,
-  Spin,
-  Statistic,
-  Tag,
-  theme,
-  Tooltip,
-  Typography,
-} from 'antd';
+import { type ReactNode, useMemo } from 'react';
+import { Card, Col, Empty, Progress, Row, Space, Spin, Tag, theme, Tooltip, Typography } from 'antd';
 import {
   ApiOutlined,
   CloudServerOutlined,
   CodeOutlined,
-  DatabaseOutlined,
   FileProtectOutlined,
   InfoCircleOutlined,
   LinkOutlined,
@@ -51,7 +36,7 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
 
 export default function Home() {
   const { t } = useTranslation();
-  const { swaggerDoc, menuTags, schemas, loading } = useGroup();
+  const { activeSwaggerGroup, swaggerDoc, menuTags, loading } = useGroup();
   const { token } = theme.useToken();
 
   // Servers: prefer OAS3 servers, fall back to OAS2 host/basePath/schemes
@@ -134,8 +119,19 @@ export default function Home() {
       : 'OpenAPI';
 
   const versionLabel = info.version ? (/^v/i.test(info.version) ? info.version : `v${info.version}`) : '-';
+  const primaryServerUrl = servers[0]?.url;
+  const hostLabel =
+    swaggerDoc.host ||
+    (() => {
+      if (!primaryServerUrl) return '-';
+      try {
+        const parsed = new URL(primaryServerUrl, window.location.origin);
+        return parsed.host || primaryServerUrl;
+      } catch {
+        return primaryServerUrl;
+      }
+    })();
 
-  const schemaCount = Object.keys(schemas).length;
   const securitySchemes = swaggerDoc.components?.securitySchemes ?? swaggerDoc.securityDefinitions ?? {};
   const securitySchemeCount = Object.keys(securitySchemes).length;
 
@@ -149,7 +145,130 @@ export default function Home() {
   const hasContactInfo = !!(info.contact?.name || info.contact?.email || info.contact?.url);
   const hasLicense = !!(info.license?.name || info.license?.url);
   const hasTerms = !!info.termsOfService;
-  const hasAnyMeta = hasContactInfo || hasLicense || hasTerms || servers.length > 0;
+  const sourceRows = [
+    { key: 'groupName', label: 'home.meta.groupName', value: activeSwaggerGroup?.name, icon: <TagsOutlined /> },
+    { key: 'apiDocs', label: 'home.meta.apiDocs', value: activeSwaggerGroup?.url, icon: <LinkOutlined /> },
+    {
+      key: 'location',
+      label: 'home.meta.location',
+      value: activeSwaggerGroup?.location,
+      icon: <CloudServerOutlined />,
+    },
+    { key: 'host', label: 'home.meta.host', value: swaggerDoc.host, icon: <CloudServerOutlined /> },
+    { key: 'basePath', label: 'home.meta.basePath', value: swaggerDoc.basePath, icon: <LinkOutlined /> },
+  ].flatMap((row) => (typeof row.value === 'string' && row.value.length > 0 ? [{ ...row, value: row.value }] : []));
+  const hasSourceInfo = sourceRows.length > 0;
+  const hasAnyMeta = hasSourceInfo || hasContactInfo || hasLicense || hasTerms || servers.length > 0;
+
+  const summaryCards = [
+    {
+      key: 'apis',
+      label: t('home.stats.apis'),
+      value: stats.total,
+      icon: <ApiOutlined />,
+      color: token.colorPrimary,
+      background: token.colorPrimaryBg,
+    },
+    {
+      key: 'group',
+      label: t('home.stats.group'),
+      value: activeSwaggerGroup?.name || '-',
+      icon: <TagsOutlined />,
+      color: token.colorSuccess,
+      background: token.colorSuccessBg,
+    },
+    {
+      key: 'version',
+      label: t('home.stats.version'),
+      value: versionLabel,
+      icon: <CodeOutlined />,
+      color: token.colorWarning,
+      background: token.colorWarningBg,
+    },
+    {
+      key: 'host',
+      label: t('home.stats.host'),
+      value: hostLabel,
+      icon: <CloudServerOutlined />,
+      color: token.colorInfo,
+      background: token.colorInfoBg,
+    },
+  ];
+
+  const renderSummaryCard = (item: (typeof summaryCards)[number]) => (
+    <Card hoverable size="small" bodyStyle={{ padding: 16, height: 88 }}>
+      <Space size={12} align="start" style={{ width: '100%', minWidth: 0 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '0 0 40px',
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            color: item.color,
+            background: item.background,
+            fontSize: 20,
+          }}
+        >
+          {item.icon}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Text type="secondary" style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
+            {item.label}
+          </Text>
+          <Tooltip title={typeof item.value === 'string' ? item.value : undefined}>
+            <div
+              style={{
+                color: token.colorText,
+                fontSize: typeof item.value === 'number' ? 22 : 18,
+                fontWeight: 700,
+                lineHeight: '24px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {item.value}
+            </div>
+          </Tooltip>
+        </div>
+      </Space>
+    </Card>
+  );
+
+  const renderMetaRow = (key: string, label: string, icon: ReactNode, value: ReactNode, mono = false) => (
+    <div
+      key={key}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(112px, 34%) minmax(0, 1fr)',
+        gap: 12,
+        padding: '10px 0',
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+      }}
+    >
+      <Space size={6} style={{ minWidth: 0, color: token.colorTextSecondary }}>
+        <span style={{ color: token.colorPrimary }}>{icon}</span>
+        <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+          {t(label)}
+        </Text>
+      </Space>
+      <div
+        style={{
+          minWidth: 0,
+          color: token.colorText,
+          fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' : undefined,
+          fontSize: 13,
+          lineHeight: '20px',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ padding: 20 }}>
@@ -222,126 +341,77 @@ export default function Home() {
 
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 4 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card hoverable size="small" bodyStyle={{ padding: 16 }}>
-            <Statistic
-              title={
-                <Space size={6}>
-                  <ApiOutlined />
-                  <span>{t('home.stats.apis')}</span>
-                </Space>
-              }
-              value={stats.total}
-              valueStyle={{ color: token.colorPrimary, fontWeight: 600 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card hoverable size="small" bodyStyle={{ padding: 16 }}>
-            <Statistic
-              title={
-                <Space size={6}>
-                  <LinkOutlined />
-                  <span>{t('home.stats.paths')}</span>
-                </Space>
-              }
-              value={stats.pathCount}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card hoverable size="small" bodyStyle={{ padding: 16 }}>
-            <Statistic
-              title={
-                <Space size={6}>
-                  <TagsOutlined />
-                  <span>{t('home.stats.tags')}</span>
-                </Space>
-              }
-              value={menuTags.length}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card hoverable size="small" bodyStyle={{ padding: 16 }}>
-            <Statistic
-              title={
-                <Space size={6}>
-                  <DatabaseOutlined />
-                  <span>{t('home.stats.schemas')}</span>
-                </Space>
-              }
-              value={schemaCount}
-            />
-          </Card>
-        </Col>
+        {summaryCards.map((item) => (
+          <Col key={item.key} xs={24} sm={12} md={6}>
+            {renderSummaryCard(item)}
+          </Col>
+        ))}
       </Row>
 
-      {/* Method distribution */}
-      <Card
-        title={
-          <Space>
-            <ApiOutlined />
-            <span>{t('home.apiStats')}</span>
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
-              {t('home.methodDistribution')}
-            </Text>
-          </Space>
-        }
-        style={{ marginTop: 16 }}
-        size="small"
-      >
-        <Row gutter={[12, 12]}>
-          {HTTP_METHODS.filter((m) => stats.counts[m] > 0).map((m) => {
-            const c = stats.counts[m];
-            const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
-            return (
-              <Col key={m} xs={12} sm={8} md={6} lg={4} xl={3}>
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    border: `1px solid ${token.colorBorderSecondary}`,
-                    borderRadius: 8,
-                    background: token.colorFillQuaternary,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <Tag color={METHOD_COLORS[m]} style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}>
-                      {m.toUpperCase()}
-                    </Tag>
-                    <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
-                  </div>
-                  <Progress
-                    percent={pct}
-                    showInfo={false}
-                    strokeColor={METHOD_COLORS[m]}
-                    size="small"
-                    style={{ marginTop: 8, marginBottom: 0 }}
-                  />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {pct}%
-                  </Text>
-                </div>
-              </Col>
-            );
-          })}
-          {stats.total === 0 && (
-            <Col span={24}>
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('home.noOperations')} />
-            </Col>
-          )}
-        </Row>
-      </Card>
-
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        {/* Tag ranking */}
+        {/* Method distribution */}
         <Col xs={24} lg={14}>
+          <Card
+            title={
+              <Space>
+                <ApiOutlined />
+                <span>{t('home.apiStats')}</span>
+                <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
+                  {t('home.methodDistribution')}
+                </Text>
+              </Space>
+            }
+            size="small"
+          >
+            <Row gutter={[12, 12]}>
+              {HTTP_METHODS.filter((m) => stats.counts[m] > 0).map((m) => {
+                const c = stats.counts[m];
+                const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
+                return (
+                  <Col key={m} xs={12} sm={8} md={6} lg={6} xl={6}>
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        border: `1px solid ${token.colorBorderSecondary}`,
+                        borderRadius: 8,
+                        background: token.colorFillQuaternary,
+                      }}
+                    >
+                      <div
+                        style={{
+                          alignItems: 'center',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Tag color={METHOD_COLORS[m]} style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}>
+                          {m.toUpperCase()}
+                        </Tag>
+                        <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
+                      </div>
+                      <Progress
+                        percent={pct}
+                        showInfo={false}
+                        strokeColor={METHOD_COLORS[m]}
+                        size="small"
+                        style={{ marginTop: 8, marginBottom: 0 }}
+                      />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {pct}%
+                      </Text>
+                    </div>
+                  </Col>
+                );
+              })}
+              {stats.total === 0 && (
+                <Col span={24}>
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('home.noOperations')} />
+                </Col>
+              )}
+            </Row>
+          </Card>
+
+          {/* Tag ranking */}
           <Card
             title={
               <Space>
@@ -353,7 +423,7 @@ export default function Home() {
               </Space>
             }
             size="small"
-            style={{ height: '100%' }}
+            style={{ marginTop: 16 }}
           >
             {stats.topTags.length === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('home.noTags')} />
@@ -411,119 +481,115 @@ export default function Home() {
             {!hasAnyMeta && securitySchemeCount === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('home.noMeta')} />
             ) : (
-              <Space direction="vertical" size={10} style={{ width: '100%' }}>
+              <div>
+                {hasSourceInfo && (
+                  <>
+                    <Text strong style={{ display: 'block', marginBottom: 2, fontSize: 13 }}>
+                      {t('home.meta.source')}
+                    </Text>
+                    {sourceRows.map((row) => renderMetaRow(row.key, row.label, row.icon, row.value, true))}
+                  </>
+                )}
                 {servers.length > 0 && (
-                  <div>
-                    <Space size={6} style={{ marginBottom: 4 }}>
-                      <CloudServerOutlined style={{ color: token.colorPrimary }} />
-                      <Text strong style={{ fontSize: 13 }}>
-                        {t('home.meta.servers')}
-                      </Text>
-                    </Space>
-                    <div>
-                      {servers.map((s, idx) => (
-                        <Tooltip key={`${s.url}-${idx}`} title={s.description}>
-                          <Tag
-                            color="blue"
-                            style={{
-                              marginBottom: 4,
-                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                              fontSize: 12,
-                            }}
-                          >
-                            {s.url}
-                          </Tag>
-                        </Tooltip>
-                      ))}
-                    </div>
-                  </div>
+                  <>
+                    {renderMetaRow(
+                      'servers',
+                      'home.meta.servers',
+                      <CloudServerOutlined />,
+                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        {servers.map((s, idx) => (
+                          <Tooltip key={`${s.url}-${idx}`} title={s.description}>
+                            <span
+                              style={{
+                                display: 'block',
+                                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                fontSize: 12,
+                                overflowWrap: 'anywhere',
+                              }}
+                            >
+                              {s.url}
+                            </span>
+                          </Tooltip>
+                        ))}
+                      </Space>,
+                    )}
+                  </>
                 )}
 
                 {hasContactInfo && (
-                  <div>
-                    <Space size={6} style={{ marginBottom: 4 }}>
-                      <UserOutlined style={{ color: token.colorPrimary }} />
-                      <Text strong style={{ fontSize: 13 }}>
-                        {t('home.meta.contact')}
-                      </Text>
-                    </Space>
-                    <div style={{ fontSize: 13 }}>
-                      {info.contact?.name && <div>{info.contact.name}</div>}
-                      {info.contact?.email && (
-                        <div>
-                          <MailOutlined style={{ marginRight: 4 }} />
-                          <Link href={`mailto:${info.contact.email}`}>{info.contact.email}</Link>
-                        </div>
-                      )}
-                      {info.contact?.url && (
-                        <div>
-                          <LinkOutlined style={{ marginRight: 4 }} />
-                          <Link href={info.contact.url} target="_blank" rel="noreferrer">
-                            {info.contact.url}
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <>
+                    {renderMetaRow(
+                      'contact',
+                      'home.meta.contact',
+                      <UserOutlined />,
+                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        {info.contact?.name && <span>{info.contact.name}</span>}
+                        {info.contact?.email && (
+                          <span>
+                            <MailOutlined style={{ marginRight: 4 }} />
+                            <Link href={`mailto:${info.contact.email}`}>{info.contact.email}</Link>
+                          </span>
+                        )}
+                        {info.contact?.url && (
+                          <span>
+                            <LinkOutlined style={{ marginRight: 4 }} />
+                            <Link href={info.contact.url} target="_blank" rel="noreferrer">
+                              {info.contact.url}
+                            </Link>
+                          </span>
+                        )}
+                      </Space>,
+                    )}
+                  </>
                 )}
 
                 {hasLicense && (
-                  <div>
-                    <Space size={6} style={{ marginBottom: 4 }}>
-                      <FileProtectOutlined style={{ color: token.colorPrimary }} />
-                      <Text strong style={{ fontSize: 13 }}>
-                        {t('home.meta.license')}
-                      </Text>
-                    </Space>
-                    <div style={{ fontSize: 13 }}>
-                      {info.license?.url ? (
+                  <>
+                    {renderMetaRow(
+                      'license',
+                      'home.meta.license',
+                      <FileProtectOutlined />,
+                      info.license?.url ? (
                         <Link href={info.license.url} target="_blank" rel="noreferrer">
                           {info.license.name ?? info.license.url}
                         </Link>
                       ) : (
                         <Text>{info.license?.name}</Text>
-                      )}
-                    </div>
-                  </div>
+                      ),
+                    )}
+                  </>
                 )}
 
                 {hasTerms && (
-                  <div>
-                    <Space size={6} style={{ marginBottom: 4 }}>
-                      <SafetyCertificateOutlined style={{ color: token.colorPrimary }} />
-                      <Text strong style={{ fontSize: 13 }}>
-                        {t('home.meta.terms')}
-                      </Text>
-                    </Space>
-                    <div style={{ fontSize: 13 }}>
+                  <>
+                    {renderMetaRow(
+                      'terms',
+                      'home.meta.terms',
+                      <SafetyCertificateOutlined />,
                       <Link href={info.termsOfService} target="_blank" rel="noreferrer">
                         {info.termsOfService}
-                      </Link>
-                    </div>
-                  </div>
+                      </Link>,
+                    )}
+                  </>
                 )}
 
                 {securitySchemeCount > 0 && (
                   <>
-                    <Divider style={{ margin: '4px 0' }} />
-                    <div>
-                      <Space size={6} style={{ marginBottom: 4 }}>
-                        <SafetyCertificateOutlined style={{ color: token.colorPrimary }} />
-                        <Text strong style={{ fontSize: 13 }}>
-                          {t('home.meta.security')}
-                        </Text>
-                      </Space>
+                    {renderMetaRow(
+                      'security',
+                      'home.meta.security',
+                      <SafetyCertificateOutlined />,
                       <div>
                         {Object.entries(securitySchemes).map(([name, scheme]) => (
                           <Tag key={name} color="geekblue" style={{ marginBottom: 4 }}>
                             {name} · {scheme.type}
                           </Tag>
                         ))}
-                      </div>
-                    </div>
+                      </div>,
+                    )}
                   </>
                 )}
-              </Space>
+              </div>
             )}
           </Card>
         </Col>
