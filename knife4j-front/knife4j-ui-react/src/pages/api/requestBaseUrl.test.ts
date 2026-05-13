@@ -59,6 +59,28 @@ describe('request base URL resolution', () => {
     ).toBe('http://127.0.0.1:18000/api');
   });
 
+  it('upgrades same-host OpenAPI server URLs when the UI is served over HTTPS', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://api.example.test/api/']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://api.example.test',
+      }),
+    ).toBe('https://api.example.test/api');
+  });
+
+  it('keeps cross-host OpenAPI server URLs on their declared protocol', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://api.example.test/api']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://docs.example.test',
+      }),
+    ).toBe('http://api.example.test/api');
+  });
+
   it('resolves relative server URLs from the UI origin root', () => {
     expect(normalizeRequestBaseUrl('/api/', 'http://127.0.0.1:18000')).toBe('http://127.0.0.1:18000/api');
     expect(normalizeRequestBaseUrl('api', 'http://127.0.0.1:18000')).toBe('http://127.0.0.1:18000/api');
@@ -80,6 +102,17 @@ describe('request base URL resolution', () => {
         origin: 'http://127.0.0.1:3002',
       }),
     ).toBe('http://gateway.example.test/root');
+  });
+
+  it('keeps the explicit host override protocol unchanged', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['https://api.example.test/api']),
+        enableHost: true,
+        enableHostText: 'http://api.example.test/custom/',
+        origin: 'https://api.example.test',
+      }),
+    ).toBe('http://api.example.test/custom');
   });
 
   it('prefers operation-level servers ahead of path and root servers', () => {
