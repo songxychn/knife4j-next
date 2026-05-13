@@ -8,6 +8,10 @@ export interface ResolveRequestBaseUrlOptions {
   origin: string;
 }
 
+interface NormalizeRequestBaseUrlOptions {
+  upgradeSameHostHttpToHttps?: boolean;
+}
+
 export function currentOrigin(): string {
   return typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 }
@@ -16,12 +20,25 @@ function trimTrailingSlashes(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
-export function normalizeRequestBaseUrl(url: string, origin: string): string {
+function shouldUpgradeSameHostHttpUrl(url: URL, origin: URL): boolean {
+  return origin.protocol === 'https:' && url.protocol === 'http:' && url.hostname === origin.hostname;
+}
+
+export function normalizeRequestBaseUrl(
+  url: string,
+  origin: string,
+  options: NormalizeRequestBaseUrlOptions = {},
+): string {
   const trimmed = url.trim();
   if (!trimmed) return trimTrailingSlashes(origin);
 
   try {
-    return trimTrailingSlashes(new URL(trimmed, `${origin.replace(/\/+$/, '')}/`).toString());
+    const originUrl = new URL(`${origin.replace(/\/+$/, '')}/`);
+    const requestUrl = new URL(trimmed, originUrl);
+    if (options.upgradeSameHostHttpToHttps && shouldUpgradeSameHostHttpUrl(requestUrl, originUrl)) {
+      requestUrl.protocol = originUrl.protocol;
+    }
+    return trimTrailingSlashes(requestUrl.toString());
   } catch {
     return trimTrailingSlashes(trimmed);
   }
@@ -49,7 +66,9 @@ export function resolveRequestBaseUrl({
     firstServerUrl(pathItem?.servers) ??
     firstServerUrl(swaggerDoc?.servers);
   if (serverUrl) {
-    return normalizeRequestBaseUrl(serverUrl, origin);
+    return normalizeRequestBaseUrl(serverUrl, origin, {
+      upgradeSameHostHttpToHttps: true,
+    });
   }
 
   return normalizeRequestBaseUrl(origin, origin);

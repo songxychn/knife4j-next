@@ -2361,21 +2361,27 @@ export default function ApiDebug() {
           </Title>
         </Space>
 
-        <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+        <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
           <Select
             value={method}
             onChange={setMethod}
-            style={{ width: 110 }}
+            style={{ width: 110, flex: '0 0 110px' }}
             options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
               value: item,
               label: item,
             }))}
           />
-          <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} style={{ width: 240 }} />
+          <Input
+            value={baseUrl}
+            title={baseUrl}
+            onChange={(event) => setBaseUrl(event.target.value)}
+            style={{ flex: '0 1 420px', minWidth: 320 }}
+          />
           <Input
             value={displayPath}
+            title={displayPath}
             onChange={(event) => handlePathInputChange(event.target.value)}
-            style={{ flex: 1 }}
+            style={{ flex: '1 1 220px', minWidth: 0 }}
           />
           <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
             {t('apiDebug.send')}
