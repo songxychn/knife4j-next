@@ -12,7 +12,31 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.2 <Badge type="tip" text="最新" />
+### 5.0.3 <Badge type="tip" text="最新" />
+
+`5.0.3` 是基于 `5.0.2` 的补丁版本，重点收口 5.0.2 Boot4 starter 发布清单、调试器 baseUrl 解析、双前端首页体验、协作门禁和 README 产品示例。
+
+**后端 & 发布**
+
+- 修复 Maven Central 发布模块清单，新增 `scripts/release-modules.txt` 与 `scripts/verify-release-modules.sh`，并在 Build / Release workflow 中校验 BOM 与发布模块一致，避免新增可发布模块时漏发（PR #370）。
+- 同步 5.0.2 发布后的文档说明，明确 Boot4 starter 构件已补发并可从 Maven Central 直接拉取（PR #373）。
+
+**前端（React UI）**
+
+- 调试器请求 baseUrl 支持 operation-level 与 path-level `servers`，优先级为 `setting.enableHost` 覆盖 > operation `servers` > path item `servers` > root `servers` > 当前 UI origin，并补充回归测试（PR #374）。
+- 修复 HTTPS 页面调试同域接口时被错误降级到 HTTP 的问题；同源相对地址保持当前页面协议，跨域或显式 server URL 则保持文档声明的协议（PR #377）。
+- 美化 React 首页信息层级，展示文档标题、版本、分组和接口统计，并避免加载期显示无意义占位数据（PR #376）。
+
+**前端（Vue3 UI）**
+
+- 同步 Vue3 首页视觉与信息展示，补齐 `Knife4j Next` 品牌标识和多语言文案，使 OAS2 兼容前端与 OAS3 主线前端保持更一致的首屏体验（PR #376）。
+
+**文档 & 流程**
+
+- 强化 coordinator / worker / reviewer 门禁，明确 `status:review` 必须在本地验证、独立审查和 PR CI 通过后才能设置，并把规则同步到 `.agent/`、`AGENTS.md` 与 PR 模板（PR #375）。
+- README 增加 OpenAPI 文档概览、接口文档详情和在线调试产品截图，替换过时示例图，便于新用户快速判断当前 UI 状态（PR #378）。
+
+### 5.0.2
 
 `5.0.2` 是基于 `5.0.1` 的补丁版本，集中修复 Boot4 starter 发布清单、BOM 缺漏、React UI 路由守卫与配置默认值的对齐、调试器细节，以及前端解析层的 cookie 大小写合并。
 
@@ -131,7 +155,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.2</version>
+    <version>5.0.3</version>
 </dependency>
 ```
 

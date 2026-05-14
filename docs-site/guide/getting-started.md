@@ -29,7 +29,7 @@ title: 快速开始
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.2</version>
+    <version>5.0.3</version>
 </dependency>
 ```
 
@@ -79,7 +79,7 @@ Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.2</version>
+    <version>5.0.3</version>
 </dependency>
 ```
 
@@ -154,7 +154,7 @@ React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `langua
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.0.2</version>
+    <version>5.0.3</version>
 </dependency>
 ```
 
@@ -188,7 +188,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.0.2</version>
+    <version>5.0.3</version>
 </dependency>
 ```
 
