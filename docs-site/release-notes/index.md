@@ -12,7 +12,25 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.3 <Badge type="tip" text="最新" />
+### 5.0.4 <Badge type="tip" text="最新" />
+
+`5.0.4` 是基于 `5.0.3` 的补丁版本，重点补强 GitHub Release 发布门禁、release note 抽取边界，以及 React UI 在普通 HTTP / 局域网访问下的全局参数兼容性。
+
+**发布流程**
+
+- Release workflow 限定只在 `v*` tag 上运行，并在 Maven Central 发布成功后自动创建或更新 GitHub Release；发布流程会校验 GitHub Release 存在，且正文与 `docs-site/release-notes/index.md` 中对应版本小节一致（PR #381）。
+- 修复 release note 抽取脚本的章节边界判断；回补旧 tag 或重建旧 Release 时，目标版本位于 `knife4j-next 版本` 列表末尾也不会把 `## 历史版本` 和上游说明带进 Release body（PR #383）。
+
+**前端（React UI）**
+
+- 全局参数添加不再直接依赖 `crypto.randomUUID()`；在普通 HTTP、局域网 IP 或旧环境中缺少该 API 时，会依次回退到 `crypto.getRandomValues()` 或本地临时 ID，避免按钮 loading 卡住且参数无法添加（PR #382）。
+- 清理 Ant Design Modal 弃用属性，并启用 React Router `v7_startTransition` future flag，减少本地运行时告警（PR #382）。
+
+**本地开发体验**
+
+- 调整 Vite dev 代理，保留 dev server 的 Host。通过局域网 IP 访问 `:5180` 时，springdoc 生成的调试地址不再误指向浏览器侧 `localhost:8080`（PR #382）。
+
+### 5.0.3
 
 `5.0.3` 是基于 `5.0.2` 的补丁版本，重点收口 5.0.2 Boot4 starter 发布清单、调试器 baseUrl 解析、双前端首页体验、协作门禁和 README 产品示例。
 
@@ -155,7 +173,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 

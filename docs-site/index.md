@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 
@@ -72,14 +72,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.3 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.4 版本亮点 <Badge type="tip" text="最新" />
 
-- 📦 发布清单增加自动校验，避免 Boot4 starter 等新增模块在 Maven Central 发布时漏发
-- 🧭 调试器 baseUrl 支持 operation / path item / root `servers` 分级解析，并保留 `setting.enableHost` 最高优先级
-- 🔒 HTTPS 页面调试同域接口时不再错误降级到 HTTP，反向代理和同源部署更稳
-- 🏠 React 与 Vue3 双前端首页信息层级优化，首屏展示更清晰的文档、分组和接口概览
-- 🧑‍💻 多 agent 审查门禁收口，`status:review` 必须等待本地验证、独立审查和 PR CI 全部通过
-- 🖼️ README 增加当前产品截图，方便快速判断 OpenAPI 概览、接口文档和在线调试体验
+- 🧾 Release workflow 发布到 Maven Central 后会自动创建或更新 GitHub Release，并校验正文与文档站发布说明一致
+- ✂️ Release note 抽取脚本会在章节边界停止，避免回补旧 tag 时把历史版本和上游说明带进 Release body
+- 🧩 全局参数添加不再直接依赖 `crypto.randomUUID()`，普通 HTTP 或局域网访问等环境也能回退生成可用 ID
+- 🛠️ 本地 Vite dev 代理保留访问 Host，局域网访问前端时调试地址不再误指向 `localhost`
+- 🧹 清理 Ant Design Modal 弃用属性和 React Router future flag 告警
 
 完整更新列表见 [发布说明](/release-notes/)。
 

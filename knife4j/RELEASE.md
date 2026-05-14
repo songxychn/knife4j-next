@@ -22,9 +22,9 @@
 ## Release flow
 
 1. 确认 `knife4j/pom.xml` 和所有子模块版本正确。
-2. 在 `docs-site/release-notes/index.md` 增加对应版本小节，例如 `### 5.0.3`。
+2. 在 `docs-site/release-notes/index.md` 增加对应版本小节，例如 `### 5.0.4`。
 3. 提交并合并 release prep PR，等待 PR CI 和 `master` push CI 通过。
-4. 创建并推送 tag，例如 `v5.0.3`。
+4. 创建并推送 tag，例如 `v5.0.4`。
 5. 等待 GitHub Actions `Release` workflow 完成发布。
 6. 等待 `Build and Deploy Demo` workflow 完成 demo 镜像发布。
 7. 验收发布完成条件：

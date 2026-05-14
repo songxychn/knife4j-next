@@ -22,13 +22,14 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
-1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.0.3`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.0.4`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
 2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、自定义 Footer、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；OAuth2、离线导出、自定义 Markdown 文档等能力则已在 React UI 中补齐或重做。这些历史功能在本仓库 `knife4j-vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.0.4` | 补丁修复：GitHub Release 自动创建与正文一致性校验、release note 抽取边界修复、全局参数 ID 生成兼容性、本地 Vite 代理 Host 保留 | — |
 | `5.0.3` | 补丁修复：调试器 baseUrl 支持 operation / path item / root `servers` 分级解析、HTTPS 同域调试不再降级、双前端首页信息展示优化、发布清单自动校验与协作门禁收口 | — |
 | `5.0.2` | 补丁修复：Boot4 starter 构件补发与 release 发布清单校验、BOM 补登 Boot4 starter、Schema 路由守卫与 React 设置默认对齐（含读取后端 `enableHost` 等注入项）、调试器 raw body 多格式 Beautify（JSON/XML/HTML/JS）、调试器 baseUrl 智能解析（servers[0] 优先于 origin）、Cookie header 大小写合并 | — |
 | `5.0.1` | 补丁修复：反向代理 prefix / swagger-config 发现、OAS2 webjar 构建产物、特殊字符路由、分组搜索状态、schema 显示细节 | — |
@@ -131,7 +132,7 @@ knife4j:
 
 ### 有安全修复吗
 
-本 fork 修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议升级到 `5.0.3`**。
+本 fork 修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议升级到 `5.0.4`**。
 
 ### CSP（Content-Security-Policy）限制导致 UI 白屏
 
@@ -200,7 +201,7 @@ springdoc:
 
 OpenAPI3 starter 下，前端会请求 `/v3/api-docs/swagger-config`。如果 404，通常是：
 
-1. **未引入 `springdoc-openapi-*-ui` 依赖**——应由 starter 自动带入。如果你用的是本 fork `5.0.3`，starter 已包含该依赖，无需手动添加。如果你用的是 upstream `4.0.0`，需要手动加 `springdoc-openapi-ui`（已在 `4.1.0` 修复）。
+1. **未引入 `springdoc-openapi-*-ui` 依赖**——应由 starter 自动带入。如果你用的是本 fork `5.0.4`，starter 已包含该依赖，无需手动添加。如果你用的是 upstream `4.0.0`，需要手动加 `springdoc-openapi-ui`（已在 `4.1.0` 修复）。
 2. **网关层把 `/v3/api-docs/**` 拦截了**。
 3. **应用启动失败**，接口还未注册。
 
@@ -228,7 +229,7 @@ public class CommonWebMvcConfig implements WebMvcConfigurer {
 }
 ```
 
-使用最新版本（`5.0.3`）且未自定义 MessageConverter 时不会遇到此问题。
+使用最新版本（`5.0.4`）且未自定义 MessageConverter 时不会遇到此问题。
 
 ### `@ParameterObject` 展开的参数在 UI 上是扁平列表
 
@@ -281,7 +282,7 @@ public UserVO getById(
 
 如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.3`。
+修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.4`。
 
 ## 全局响应封装导致文档异常
 
@@ -387,7 +388,7 @@ public void upload(@RequestPart("file") MultipartFile file) { ... }
 
 upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-**修复**：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.3`。
+**修复**：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.4`。
 
 ### `Servlet` 相关的 ClassNotFoundException（WebFlux 环境）
 
