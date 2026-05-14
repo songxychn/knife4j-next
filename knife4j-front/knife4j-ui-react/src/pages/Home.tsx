@@ -196,7 +196,7 @@ export default function Home() {
   ];
 
   const renderSummaryCard = (item: (typeof summaryCards)[number]) => (
-    <Card hoverable size="small" bodyStyle={{ padding: 16, height: 88 }}>
+    <Card hoverable size="small" styles={{ body: { padding: 16, height: 88 } }}>
       <Space size={12} align="start" style={{ width: '100%', minWidth: 0 }}>
         <span
           style={{
