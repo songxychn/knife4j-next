@@ -32,6 +32,14 @@ awk -v version="$version" '
     exit
   }
 
+  found && /^##[ \t]+/ {
+    exit
+  }
+
+  found && /^---$/ {
+    exit
+  }
+
   found {
     emitted++
     print
