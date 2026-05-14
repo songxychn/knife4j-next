@@ -29,7 +29,7 @@
 - 仓库来源：fork 自 `xiaoymin/knife4j`
 - 当前定位：社区维护分支，不是 upstream 官方仓库
 - Java 主坐标：`com.baizhukui`
-- 当前稳定版本：`5.0.3`
+- 当前稳定版本：`5.0.4`
 - 对外访问入口：`http://ip:port/doc.html`
 
 > `doc.html` 仍然是默认访问入口，这一点保持与原项目兼容。
@@ -48,7 +48,7 @@
 
 ## 当前维护策略
 
-- Java 后端（`knife4j/`）：优先做兼容性修复、回归修复和发布维护，当前稳定版本线 `5.0.3`
+- Java 后端（`knife4j/`）：优先做兼容性修复、回归修复和发布维护，当前稳定版本线 `5.0.4`
 - **前端分工**（详见 `.agent/PROJECT.md`）：
   - **OAS3 主线**：`knife4j-front/knife4j-ui-react`（React + Vite）→ `knife4j-openapi3-ui` webjar → `knife4j-openapi3-*-spring-boot-starter` 系列、`knife4j-gateway-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter`。所有新功能、UX 改进在这里落地。
   - **OAS2 兼容维护**：`knife4j-vue3`（Vue 3 + Vite）→ `knife4j-openapi2-ui` webjar → `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter`。只接收回归修复与显示层 bug，不做功能扩张。
@@ -65,7 +65,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 
@@ -76,7 +76,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 
@@ -87,7 +87,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 
@@ -98,7 +98,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 
@@ -109,7 +109,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 </dependency>
 ```
 
