@@ -23,5 +23,5 @@ This fork publishes Maven artifacts from GitHub Actions to Maven Central by usin
 
 1. Make sure the version in `knife4j/pom.xml` is correct.
 2. Commit and push the release changes.
-3. Create and push a tag such as `v5.0.2`.
+3. Create and push a tag such as `v5.0.3`.
 4. Wait for the GitHub Actions `Release` workflow to finish publishing.

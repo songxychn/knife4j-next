@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.2</version>
+    <version>5.0.3</version>
 </dependency>
 ```
 
@@ -72,14 +72,14 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.2 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.3 版本亮点 <Badge type="tip" text="最新" />
 
-- 📦 `knife4j-openapi3-boot4-spring-boot-starter:5.0.2` 已补发至 Maven Central，并通过发布清单校验避免后续模块漏发
-- 🧭 修复 `enableSwaggerModels=false` 时直接刷新 `/:group/schema` 会跳到非法 `//home` 的路由守卫问题
-- 🛡️ Schema 页在被禁用时显示 403 提示，并防止通过 URL 参数注入被禁用的标签
-- 📝 HTML body 美化改用正则切分 + DOMParser 校验，避免文本中的 `<` / `>` 被误判为标签起止
-- 🍪 `requestBuilder` / `authToHeaders` 中 Cookie 头按 RFC 7230 大小写不敏感地合并，避免重复输出 `cookie` 与 `Cookie`
-- ⚙️ React 设置面板默认值与 starter 行为对齐，调试器 body 控件细节打磨
+- 📦 发布清单增加自动校验，避免 Boot4 starter 等新增模块在 Maven Central 发布时漏发
+- 🧭 调试器 baseUrl 支持 operation / path item / root `servers` 分级解析，并保留 `setting.enableHost` 最高优先级
+- 🔒 HTTPS 页面调试同域接口时不再错误降级到 HTTP，反向代理和同源部署更稳
+- 🏠 React 与 Vue3 双前端首页信息层级优化，首屏展示更清晰的文档、分组和接口概览
+- 🧑‍💻 多 agent 审查门禁收口，`status:review` 必须等待本地验证、独立审查和 PR CI 全部通过
+- 🖼️ README 增加当前产品截图，方便快速判断 OpenAPI 概览、接口文档和在线调试体验
 
 完整更新列表见 [发布说明](/release-notes/)。
 
