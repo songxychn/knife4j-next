@@ -2432,7 +2432,7 @@ export default function ApiDebug() {
             </Button>,
           ]}
           width={680}
-          destroyOnClose
+          destroyOnHidden
         >
           <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
           <Authorize />
