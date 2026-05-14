@@ -177,10 +177,24 @@ PR 描述格式规范：
 建议在以下时机通知维护者：
 
 - 新 PR 已创建
+- Release workflow 完成但 GitHub Release 缺失
 - 任务进入 `blocked`
 - reviewer 给出 `block`
 - reviewer 门禁因运行时限制无法执行
 - 发现需要人工决策的兼容性或发布问题
+
+## 发布后检查点
+
+发布构件前必须先有维护者明确确认。tag 推送后不要只等待 Maven Central：
+
+1. 确认 `vX.Y.Z` tag 存在并指向预期 merge commit。
+2. 监控 `Release` workflow 到终态。
+3. 监控 `Build and Deploy Demo` workflow 到终态。
+4. 确认 Maven Central 目标构件可访问。
+5. 确认 GitHub Release `vX.Y.Z` 存在。
+6. 确认 GitHub Release body 来自 `docs-site/release-notes/index.md` 对应版本小节。
+
+如果第 5 或第 6 项失败，发布尚未完成；不要只凭 tag 或 Maven Central 结果向维护者报告“发布完成”。
 
 ## 不要做的事
 

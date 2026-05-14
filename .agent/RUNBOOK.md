@@ -154,6 +154,26 @@ coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 
 
 如果某个子项目（如 `knife4j-ui-react`）CI 跑的步骤本地脚本没覆盖，应该扩展脚本而不是绕过。
 
+## 正式发布验收（强制）
+
+发布构件前仍必须获得维护者明确确认；确认后由 tag push 触发 `.github/workflows/release.yml`。
+
+Release workflow 必须在 Maven Central 发布成功后创建或更新 GitHub Release，并调用 `scripts/verify-github-release.sh` 校验：
+
+- GitHub Release `vX.Y.Z` 存在。
+- GitHub Release body 与 `docs-site/release-notes/index.md` 中 `X.Y.Z` 对应小节一致。
+
+正式发布完成条件：
+
+- `vX.Y.Z` tag 已推送。
+- `Release` workflow 成功。
+- `Build and Deploy Demo` workflow 成功。
+- Maven Central 目标构件可访问。
+- GitHub Release `vX.Y.Z` 存在。
+- GitHub Release body 与 docs-site release note 对应小节一致。
+
+如果缺少 GitHub Release，不能把发布报告为完成；应先补齐 Release 或修复 workflow，再写回发布状态。
+
 ## PR 期望
 
 每个 PR 或自治工作报告都应包含：

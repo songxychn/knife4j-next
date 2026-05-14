@@ -108,6 +108,21 @@ User/Maintainer -> Coordinator -> Worker -> Reviewer -> Worker(如需返工) -> 
 - 进行影响面不清楚的大范围依赖升级
 - 处理含糊的产品方向决策
 
+## 发布完成条件
+
+发布构件前必须获得维护者明确确认。维护者确认后，tag push 会触发 `.github/workflows/release.yml`；该 workflow 必须在 Maven Central 发布成功后创建或更新 GitHub Release。
+
+发布不能只以 tag 或 Maven Central 成功为终点。完整发布必须同时满足：
+
+- `vX.Y.Z` tag 已推送。
+- `Release` workflow 成功。
+- `Build and Deploy Demo` workflow 成功。
+- Maven Central 目标构件可访问。
+- GitHub Release `vX.Y.Z` 存在。
+- GitHub Release body 与 `docs-site/release-notes/index.md` 中对应版本小节一致。
+
+如果 GitHub Release 缺失，发布状态仍视为未完成，必须修复 workflow 或补齐 Release 后再报告完成。
+
 ## 验证规则
 
 每个任务必须明确：
