@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { createClientId } from '../utils/id';
 
 const STORAGE_KEY = 'knife4j_global_params';
 
@@ -30,7 +31,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [params, setParams] = useState<GlobalParamItem[]>(loadFromStorage);
 
   const addParam = (param: Omit<GlobalParamItem, 'id'>) => {
-    const next = [...params, { ...param, id: crypto.randomUUID() }];
+    const next = [...params, { ...param, id: createClientId() }];
     setParams(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };

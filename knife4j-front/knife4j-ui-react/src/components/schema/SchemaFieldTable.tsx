@@ -106,7 +106,7 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
 
   return (
     <ConstraintTooltip node={node}>
-      <Popover title={refName} content={content} placement="right" overlayStyle={{ maxWidth: 460 }}>
+      <Popover title={refName} content={content} placement="right" styles={{ root: { maxWidth: 460 } }}>
         <RouterLink to={target}>
           <Tag color={color} style={{ cursor: 'pointer' }}>
             {label}
