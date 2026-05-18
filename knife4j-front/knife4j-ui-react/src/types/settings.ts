@@ -27,7 +27,7 @@ export interface AppSettings {
   enableHost: boolean;
   /** Host override text (used when enableHost=true). */
   enableHostText: string;
-  /** Whether request parameter cache is enabled. Reserved until the cache behavior is wired. */
+  /** Whether the debug panel restores the last filled request parameters for each operation. */
   enableRequestCache: boolean;
   /** Whether dynamic parameters are enabled. Reserved until dynamic parameter behavior is wired. */
   enableDynamicParameter: boolean;
