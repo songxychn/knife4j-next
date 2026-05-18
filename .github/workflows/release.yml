@@ -62,14 +62,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           release_notes="$RUNNER_TEMP/github-release-notes.md"
-          {
-            scripts/extract-release-note.sh "$version"
-            echo ""
-            echo "## Links"
-            echo ""
-            echo "- 文档站：https://knife4j-next.baizhukui.com/release-notes/"
-            echo "- Maven Central：https://repo1.maven.org/maven2/com/baizhukui/"
-          } > "$release_notes"
+          scripts/extract-release-note.sh "$version" > "$release_notes"
           echo "GITHUB_RELEASE_NOTES=$release_notes" >> "$GITHUB_ENV"
         working-directory: .
 
