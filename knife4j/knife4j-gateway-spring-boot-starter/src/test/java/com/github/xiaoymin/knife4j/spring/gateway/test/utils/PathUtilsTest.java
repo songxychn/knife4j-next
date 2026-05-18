@@ -18,13 +18,24 @@
 package com.github.xiaoymin.knife4j.spring.gateway.test.utils;
 
 import com.github.xiaoymin.knife4j.spring.gateway.utils.PathUtils;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpCookie;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.server.RequestPath;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import reactor.core.publisher.Flux;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
@@ -107,5 +118,104 @@ public class PathUtilsTest {
         log.info("path1:{}", PathUtils.append("/bbb", "user-service", "/v2/api-dcos"));
         log.info("path1:{}", PathUtils.append(null, "user-service", "/v2/api-dcos"));
         log.info("path1:{}", PathUtils.append("user-service", "user-service", "/v2/api-dcos"));
+    }
+
+    @Test
+    public void test_getDefaultContextPath_fromRefererHeader() {
+        ServerHttpRequest request = request("", "http://localhost:8080/gateway/doc.html");
+
+        Assert.assertEquals("/gateway", PathUtils.getDefaultContextPath(request));
+    }
+
+    @Test
+    public void test_getDefaultContextPath_prefersRequestContextPath() {
+        ServerHttpRequest request = request("/api", "http://localhost:8080/gateway/doc.html");
+
+        Assert.assertEquals("/api", PathUtils.getDefaultContextPath(request));
+    }
+
+    @Test
+    public void test_getDefaultContextPath_defaultsToRoot() {
+        ServerHttpRequest request = request("", null);
+
+        Assert.assertEquals("/", PathUtils.getDefaultContextPath(request));
+    }
+
+    @Test
+    public void test_getDefaultContextPath_doesNotLinkToRemovedHttpHeadersGetObject() throws IOException {
+        try (
+                InputStream input = PathUtils.class.getResourceAsStream("/"
+                        + PathUtils.class.getName().replace('.', '/') + ".class")) {
+            Assert.assertNotNull(input);
+            String classBytes = new String(input.readAllBytes(), StandardCharsets.ISO_8859_1);
+
+            Assert.assertFalse("PathUtils must not compile against HttpHeaders.get(Object), which is absent in Spring 7",
+                    classBytes.contains("org/springframework/http/HttpHeaders")
+                            && classBytes.contains("(Ljava/lang/Object;)Ljava/util/List;"));
+        }
+    }
+
+    private ServerHttpRequest request(String contextPath, String referer) {
+        URI uri = URI.create("http://localhost:8080" + contextPath + "/v3/api-docs/swagger-config");
+        HttpHeaders headers = new HttpHeaders();
+        if (referer != null) {
+            headers.add(HttpHeaders.REFERER, referer);
+        }
+        return new TestServerHttpRequest(uri, contextPath, headers);
+    }
+
+    private static final class TestServerHttpRequest implements ServerHttpRequest {
+
+        private final URI uri;
+
+        private final RequestPath path;
+
+        private final HttpHeaders headers;
+
+        private TestServerHttpRequest(URI uri, String contextPath, HttpHeaders headers) {
+            this.uri = uri;
+            this.path = RequestPath.parse(uri, contextPath);
+            this.headers = headers;
+        }
+
+        @Override
+        public String getId() {
+            return "test";
+        }
+
+        @Override
+        public RequestPath getPath() {
+            return path;
+        }
+
+        @Override
+        public MultiValueMap<String, String> getQueryParams() {
+            return new LinkedMultiValueMap<>();
+        }
+
+        @Override
+        public MultiValueMap<String, HttpCookie> getCookies() {
+            return new LinkedMultiValueMap<>();
+        }
+
+        @Override
+        public String getMethodValue() {
+            return "GET";
+        }
+
+        @Override
+        public URI getURI() {
+            return uri;
+        }
+
+        @Override
+        public HttpHeaders getHeaders() {
+            return headers;
+        }
+
+        @Override
+        public Flux<DataBuffer> getBody() {
+            return Flux.empty();
+        }
     }
 }
