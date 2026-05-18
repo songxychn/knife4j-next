@@ -25,7 +25,7 @@ features:
     link: /guide/migration
     linkText: 迁移指引
   - title: Spring Boot 2.7、3.4、3.5、4.0 都跑过
-    details: 6 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x/3.5.0 Jakarta 与 Boot 4.0.6 Jakarta 组合，Boot4 线使用 springdoc-openapi 3.0.3。
+    details: 7 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x/3.5.0 Jakarta、Boot 4.0.6 WebMVC 与 Boot 4.0.6 Gateway 组合。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
@@ -33,7 +33,7 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: Gateway 与多服务聚合
-    details: knife4j-gateway-spring-boot-starter 支持 DISCOVER / MANUAL 两种策略；aggregation starter 另外提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
+    details: Gateway starter 覆盖 Boot 3.x 与 Boot 4.x，支持 DISCOVER / MANUAL 两种策略；aggregation starter 另外提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
     link: /guide/gateway
     linkText: 网关接入
 ---

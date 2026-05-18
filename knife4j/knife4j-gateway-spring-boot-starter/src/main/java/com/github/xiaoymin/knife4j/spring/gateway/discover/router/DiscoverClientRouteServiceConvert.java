@@ -22,7 +22,6 @@ import com.github.xiaoymin.knife4j.spring.gateway.discover.ServiceRouterHolder;
 import com.github.xiaoymin.knife4j.spring.gateway.enums.GatewayRouterStrategy;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.ServiceUtils;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.StrUtil;
-import io.netty.util.internal.StringUtil;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -77,9 +76,9 @@ public class DiscoverClientRouteServiceConvert extends AbstactServiceRouterConve
     String convertPathPrefix(Map<String, String> predicateArgs) {
         String value = predicateArgs.get(GatewayRouterStrategy.REACTIVE.getRule());
         if (StrUtil.isNotBlank(value)) {
-            return value.replace("**", StringUtil.EMPTY_STRING);
+            return value.replace("**", "");
         }
-        return StringUtil.EMPTY_STRING;
+        return "";
     }
 
     @Override

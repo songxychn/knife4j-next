@@ -52,6 +52,7 @@ title: 模块说明
 | 模块 | 适用 Boot 版本 | 场景 |
 | --- | --- | --- |
 | `knife4j-gateway-spring-boot-starter` | 3.x | Spring Cloud Gateway 聚合 |
+| `knife4j-gateway-boot4-spring-boot-starter` | 4.x | Spring Cloud Gateway 5 聚合 |
 | `knife4j-aggregation-spring-boot-starter` | 2.x | 独立聚合（Disk/Cloud/Nacos/Eureka/Polaris） |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | 3.x | 独立聚合（Jakarta 版） |
 
@@ -61,7 +62,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 3.4.5 + Jakarta starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
-| `knife4j-smoke-tests` | 自动化冒烟测试（6 个子模块覆盖 Boot 2.x OAS2/OAS3、Boot 3.4.x/3.5.x Jakarta 与 Boot 4.x Jakarta） |
+| `knife4j-smoke-tests` | 自动化冒烟测试（7 个子模块覆盖 Boot 2.x OAS2/OAS3、Boot 3.4.x/3.5.x Jakarta、Boot 4.x WebMVC 与 Boot 4.x Gateway） |
 
 ## 选型决策树
 
@@ -85,7 +86,8 @@ title: 模块说明
 │       └── knife4j-openapi3-webflux-jakarta-spring-boot-starter
 │
 ├── Spring Cloud Gateway 网关
-│   └── knife4j-gateway-spring-boot-starter（Boot 3.x）
+│   ├── Boot 3.x → knife4j-gateway-spring-boot-starter
+│   └── Boot 4.x → knife4j-gateway-boot4-spring-boot-starter
 │
 └── 非网关的微服务聚合
     ├── Boot 2.x
