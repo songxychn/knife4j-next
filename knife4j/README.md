@@ -32,7 +32,8 @@
 | `knife4j-openapi3-boot4-spring-boot-starter` | Spring Boot 4.x + springdoc-openapi 3.x / OpenAPI3 |
 | `knife4j-openapi3-webflux-spring-boot-starter` | Spring Boot 2.x WebFlux 依赖编排 |
 | `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | Spring Boot 3.x WebFlux 依赖编排 |
-| `knife4j-gateway-spring-boot-starter` | Spring Cloud Gateway 聚合 |
+| `knife4j-gateway-spring-boot-starter` | Spring Boot 3.x / Spring Cloud Gateway 聚合 |
+| `knife4j-gateway-boot4-spring-boot-starter` | Spring Boot 4.x / Spring Cloud Gateway 5 聚合 |
 | `knife4j-aggregation-spring-boot-starter` | Spring Boot 2.x 独立聚合 |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | Spring Boot 3.x 独立聚合 |
 | `knife4j-demo-openapi2` | OpenAPI2 demo |
@@ -52,6 +53,16 @@ Spring Boot 4.x 使用独立 starter，避免把现有 Spring Boot 3.x + springd
 ```
 
 该 starter 面向 Spring Boot 4.x WebMVC + springdoc-openapi 3.x，应用侧仍应使用 Spring Boot 4 的依赖管理。
+
+Spring Boot 4.x 的 Spring Cloud Gateway 5 聚合场景使用独立 gateway starter：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
+    <version>5.0.4</version>
+</dependency>
+```
 
 ## 本地启动
 

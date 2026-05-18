@@ -9,5 +9,6 @@ knife4j-aggregation-jakarta-spring-boot-starter
 knife4j-openapi3-jakarta-spring-boot-starter
 knife4j-openapi3-boot4-spring-boot-starter
 knife4j-gateway-spring-boot-starter
+knife4j-gateway-boot4-spring-boot-starter
 knife4j-openapi3-webflux-spring-boot-starter
 knife4j-openapi3-webflux-jakarta-spring-boot-starter

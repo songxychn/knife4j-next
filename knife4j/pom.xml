@@ -18,6 +18,7 @@
         <module>knife4j-openapi3-jakarta-spring-boot-starter</module>
         <module>knife4j-openapi3-boot4-spring-boot-starter</module>
         <module>knife4j-gateway-spring-boot-starter</module>
+        <module>knife4j-gateway-boot4-spring-boot-starter</module>
         <module>knife4j-openapi3-webflux-spring-boot-starter</module>
         <module>knife4j-openapi3-webflux-jakarta-spring-boot-starter</module>
         <module>knife4j-smoke-tests</module>
@@ -50,6 +51,7 @@
         <knife4j-spring3.version>6.2.0</knife4j-spring3.version>
         <knife4j-spring-boot3.version>3.4.0</knife4j-spring-boot3.version>
         <knife4j-spring-boot4.version>4.0.6</knife4j-spring-boot4.version>
+        <knife4j-spring-cloud-boot4.version>2025.1.1</knife4j-spring-cloud-boot4.version>
         <knife4j-junit-jupiter-api.version>5.11.3</knife4j-junit-jupiter-api.version>
 
         <knife4j-springfox.version>2.10.5</knife4j-springfox.version>

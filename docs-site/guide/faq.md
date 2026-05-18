@@ -70,7 +70,7 @@ WebFlux 没有 Servlet，不能混入 `spring-boot-starter-web`。确保：
 
 1. 使用 `knife4j-openapi3-webflux-jakarta-spring-boot-starter`（而非 WebMvc 版）。
 2. 不要引入 `spring-boot-starter-web`，只保留 `spring-boot-starter-webflux`。
-3. 如果用了 Spring Cloud Gateway，不需要 webflux starter，改用 `knife4j-gateway-spring-boot-starter`。详见 [WebFlux 接入](./webflux) 和 [Gateway 聚合](./gateway)。
+3. 如果用了 Spring Cloud Gateway，不需要 webflux starter，Boot 3.x 改用 `knife4j-gateway-spring-boot-starter`，Boot 4.x 改用 `knife4j-gateway-boot4-spring-boot-starter`。详见 [WebFlux 接入](./webflux) 和 [Gateway 聚合](./gateway)。
 
 ### Spring MVC（非 Boot）工程看不到接口文档
 

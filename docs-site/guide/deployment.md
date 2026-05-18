@@ -189,7 +189,7 @@ server {
 
 ## 方案三：Gateway 统一入口
 
-如果你使用 Spring Cloud Gateway，推荐使用 `knife4j-gateway-spring-boot-starter` 在 Gateway 层聚合。详见 [Gateway 聚合](./gateway)。
+如果你使用 Spring Cloud Gateway，推荐使用 `knife4j-gateway-spring-boot-starter`（Boot 3.x）或 `knife4j-gateway-boot4-spring-boot-starter`（Boot 4.x）在 Gateway 层聚合。详见 [Gateway 聚合](./gateway)。
 
 Gateway 模式的好处：
 - 不需要提取前端静态文件
