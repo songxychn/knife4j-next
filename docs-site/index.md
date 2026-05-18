@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.4</version>
+    <version>5.0.5</version>
 </dependency>
 ```
 
@@ -72,13 +72,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.4 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.5 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧾 Release workflow 发布到 Maven Central 后会自动创建或更新 GitHub Release，并校验正文与文档站发布说明一致
-- ✂️ Release note 抽取脚本会在章节边界停止，避免回补旧 tag 时把历史版本和上游说明带进 Release body
-- 🧩 全局参数添加不再直接依赖 `crypto.randomUUID()`，普通 HTTP 或局域网访问等环境也能回退生成可用 ID
-- 🛠️ 本地 Vite dev 代理保留访问 Host，局域网访问前端时调试地址不再误指向 `localhost`
-- 🧹 清理 Ant Design Modal 弃用属性和 React Router future flag 告警
+- 🧭 新增 Boot4 Gateway 聚合 starter，覆盖 Spring Boot 4.x + Spring Cloud Gateway 5.x 场景
+- 🧪 Boot4 Gateway smoke test 纳入 Java 验证，发布模块清单同步覆盖新 starter
+- 🛠️ Gateway `Referer` 读取兼容 Spring 7，避免 Boot4 Gateway 场景出现 `NoSuchMethodError`
+- 🧩 React 调试页会按接口恢复上次填写的 path、query、header、cookie、body 和自定义参数
+- 🧾 GitHub Release 正文校验保留严格 diff，同时修复 `--jq` 末尾换行导致的误报
 
 完整更新列表见 [发布说明](/release-notes/)。
 

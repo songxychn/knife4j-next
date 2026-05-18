@@ -12,7 +12,27 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.4 <Badge type="tip" text="最新" />
+### 5.0.5 <Badge type="tip" text="最新" />
+
+`5.0.5` 是基于 `5.0.4` 的补丁版本，重点发布 Boot4 Gateway 聚合 starter，修复 Gateway 在 Spring 7 下的请求头兼容问题，并补齐 React 调试页请求参数缓存。
+
+**后端 & Gateway**
+
+- 新增 `knife4j-gateway-boot4-spring-boot-starter`，面向 Spring Boot 4.x + Spring Cloud Gateway 5.x 聚合场景，使用 `spring-cloud-starter-gateway-server-webflux`，复用现有 Gateway 聚合能力并降低对 Boot 3.x 用户的影响（PR #390）。
+- 新增 `knife4j-smoke-tests/boot4-gateway-app`，验证 Boot4 Gateway 下 `/doc.html` 与 `/v3/api-docs/swagger-config` 可用；Java smoke evidence gate 与 CI summary 已纳入该模块（PR #390）。
+- 修复 Gateway 读取 `Referer` 时依赖 Spring 7 已移除签名的问题，改用 `HttpHeaders.getFirst(HttpHeaders.REFERER)`，避免 Boot4 Gateway 场景出现 `NoSuchMethodError`（PR #388）。
+
+**前端（React UI）**
+
+- 调试页接入已有的 `enableRequestCache` 开关，按接口维度恢复上次填写的 path、query、header、cookie、body 与自定义参数；`重置` 会清理当前接口缓存（PR #389）。
+- 请求体 content-type 变化时不再套用旧 body / form 字段，避免切换接口后沿用不匹配的缓存内容（PR #389）。
+
+**发布流程 & 文档**
+
+- 修复 GitHub Release 正文校验的换行误报：读取 Release body 时改用 `gh release view --template` 原文输出，保留严格 diff，但不再被 `--jq .body` 追加的末尾换行干扰（PR #385）。
+- 发布模块清单补充 `knife4j-gateway-boot4-spring-boot-starter`，并同步 README、文档站模块说明、兼容矩阵与 Gateway 接入文档（PR #390）。
+
+### 5.0.4
 
 `5.0.4` 是基于 `5.0.3` 的补丁版本，重点补强 GitHub Release 发布门禁、release note 抽取边界，以及 React UI 在普通 HTTP / 局域网访问下的全局参数兼容性。
 
@@ -173,7 +193,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.4</version>
+    <version>5.0.5</version>
 </dependency>
 ```
 
