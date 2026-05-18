@@ -19,12 +19,12 @@ package com.github.xiaoymin.knife4j.spring.gateway.utils;
 
 import com.github.xiaoymin.knife4j.spring.gateway.conf.GlobalConstants;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,11 +82,10 @@ public class PathUtils {
         String contextPath = request.getPath().contextPath().value();
         if (!StringUtils.hasLength(contextPath)) {
             // 从header中获取
-            List<String> referer = request.getHeaders().get("Referer");
-            if (referer != null && !referer.isEmpty()) {
-                String value = referer.get(0);
-                log.debug("Referer:{}", value);
-                contextPath = PathUtils.getContextPath(value);
+            String referer = request.getHeaders().getFirst(HttpHeaders.REFERER);
+            if (StringUtils.hasLength(referer)) {
+                log.debug("Referer:{}", referer);
+                contextPath = PathUtils.getContextPath(referer);
             } else {
                 contextPath = DEFAULT_CONTEXT_PATH;
             }
