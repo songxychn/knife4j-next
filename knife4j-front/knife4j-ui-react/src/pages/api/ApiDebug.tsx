@@ -25,6 +25,7 @@ import { SendOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, UploadOutli
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 import type {
   BodyContent,
   BuiltRequest,
@@ -52,6 +53,15 @@ import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './Respo
 import Authorize from '../Authorize';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import { currentOrigin, resolveRequestBaseUrl } from './requestBaseUrl';
+import {
+  DEBUG_CACHE_VERSION,
+  readDebugCache,
+  removeDebugCache,
+  writeDebugCache,
+  type DebugCacheCustomParamRow,
+  type DebugCacheRawMode,
+  type DebugCacheState,
+} from './debugCache';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -335,9 +345,9 @@ const RAW_MODES = [
   { value: 'javascript', label: 'JavaScript(application/javascript)' },
   { value: 'xml', label: 'XML(application/xml)' },
   { value: 'html', label: 'HTML(text/html)' },
-] as const;
+] as const satisfies ReadonlyArray<{ value: DebugCacheRawMode; label: string }>;
 
-type RawMode = (typeof RAW_MODES)[number]['value'];
+type RawMode = DebugCacheRawMode;
 
 /** raw mode → Content-Type 映射 */
 const RAW_CONTENT_TYPES: Record<RawMode, string> = {
@@ -590,11 +600,7 @@ function formatBodyByRawMode(value: string, mode: RawMode): string | undefined {
 
 // ─── Custom headers section ───────────────────────────
 
-interface CustomParamRow {
-  id: string;
-  name: string;
-  value: string;
-}
+type CustomParamRow = DebugCacheCustomParamRow;
 
 interface CustomParamsSectionProps {
   title: string;
@@ -1519,6 +1525,9 @@ interface InitialDebugState {
   body: string;
   formFields: Record<string, string>;
   rawMode: RawMode;
+  customQueryParams: CustomParamRow[];
+  customHeaders: CustomParamRow[];
+  customCookies: CustomParamRow[];
 }
 
 function inferRawMode(bodyContent: BodyContent | undefined): RawMode {
@@ -1570,6 +1579,81 @@ function buildInitialDebugState(
     body: firstBody?.exampleValue ?? '',
     formFields: initialFormFieldsFor(firstBody),
     rawMode: inferRawMode(firstBody),
+    customQueryParams: [],
+    customHeaders: [],
+    customCookies: [],
+  };
+}
+
+const DEBUG_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']);
+
+function mergeCachedStringRecord(
+  initial: Record<string, string>,
+  cached: Record<string, string>,
+): Record<string, string> {
+  const next = { ...initial };
+  for (const key of Object.keys(next)) {
+    if (cached[key] !== undefined) {
+      next[key] = cached[key];
+    }
+  }
+  return next;
+}
+
+function mergeCachedBooleanRecord(
+  initial: Record<string, boolean>,
+  cached: Record<string, boolean>,
+): Record<string, boolean> {
+  const next = { ...initial };
+  for (const key of Object.keys(next)) {
+    if (cached[key] !== undefined) {
+      next[key] = cached[key];
+    }
+  }
+  return next;
+}
+
+function mergeCachedFormFields(bodyContent: BodyContent | undefined, cached: Record<string, string>) {
+  const next = initialFormFieldsFor(bodyContent);
+  const allowedFields = new Set(Object.keys(next));
+  for (const [key, value] of Object.entries(cached)) {
+    if (allowedFields.has(key)) {
+      next[key] = value;
+    }
+  }
+  return next;
+}
+
+function restoreInitialDebugStateFromCache(
+  initial: InitialDebugState,
+  cached: DebugCacheState | null,
+  debugModel: OperationDebugModel,
+): InitialDebugState {
+  if (!cached) return initial;
+
+  const cachedMethod = cached.method.toUpperCase();
+  const cachedBody = debugModel.bodyContents.find(
+    (bodyContent) => bodyContent.mediaType === cached.selectedContentType,
+  );
+  const selectedBody = cachedBody ?? debugModel.bodyContents[0];
+  const restoreCachedBody = Boolean(cachedBody);
+
+  return {
+    ...initial,
+    baseUrl: cached.baseUrl || initial.baseUrl,
+    method: DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
+    path: cached.path || initial.path,
+    paramValues: mergeCachedStringRecord(initial.paramValues, cached.paramValues),
+    paramEnabled: mergeCachedBooleanRecord(initial.paramEnabled, cached.paramEnabled),
+    selectedContentType: selectedBody?.mediaType ?? '',
+    body: restoreCachedBody ? cached.body : (selectedBody?.exampleValue ?? initial.body),
+    formFields: restoreCachedBody
+      ? mergeCachedFormFields(selectedBody, cached.formFields)
+      : initialFormFieldsFor(selectedBody),
+    rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
+    customQueryParams: cached.customQueryParams,
+    customHeaders: cached.customHeaders,
+    customCookies: cached.customCookies,
   };
 }
 
@@ -1577,8 +1661,15 @@ function buildInitialDebugState(
 
 export default function ApiDebug() {
   const { t } = useTranslation();
+  const { group, tag, operaterId } = useParams();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { settings } = useSettings();
+  const operationMethod = operation?.method;
+  const operationPath = operation?.path;
+  const debugCacheKey = useMemo(() => {
+    if (!group || !tag || !operaterId || !operationMethod || !operationPath) return null;
+    return [group, tag, operaterId, operationMethod, operationPath].join('|');
+  }, [group, operaterId, operationMethod, operationPath, tag]);
   const defaultBaseUrl = useMemo(
     () =>
       resolveRequestBaseUrl({
@@ -1623,6 +1714,8 @@ export default function ApiDebug() {
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const [rawMode, setRawMode] = useState<RawMode>('text');
   const [resetNonce, setResetNonce] = useState(0);
+  const debugCacheHydratedRef = useRef<string | null>(null);
+  const skipNextDebugCacheWriteRef = useRef(false);
 
   // ── TASK-028: 校验错误与预览 ──
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1647,9 +1740,9 @@ export default function ApiDebug() {
     setFormFields(initial.formFields);
     fileFieldsRef.current = {};
     setRawMode(initial.rawMode);
-    setCustomQueryParams([]);
-    setCustomHeaders([]);
-    setCustomCookies([]);
+    setCustomQueryParams(initial.customQueryParams);
+    setCustomHeaders(initial.customHeaders);
+    setCustomCookies(initial.customCookies);
     setBuiltRequest(null);
     setSseEvents(null);
     setValidationErrors([]);
@@ -1662,11 +1755,55 @@ export default function ApiDebug() {
 
   // 当 debugModel 变化时，同步初始化表单状态
   useEffect(() => {
-    if (!initialDebugState) return;
-    applyInitialDebugState(initialDebugState, { resetActiveTab: true });
+    if (!initialDebugState || !debugModel) return;
+    const cached = settings.enableRequestCache && debugCacheKey !== null ? readDebugCache(debugCacheKey) : null;
+    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel);
+    skipNextDebugCacheWriteRef.current = true;
+    debugCacheHydratedRef.current = debugCacheKey;
+    applyInitialDebugState(nextInitial, { resetActiveTab: true });
     setResponse(null);
     setError(null);
-  }, [initialDebugState]);
+  }, [debugCacheKey, debugModel, initialDebugState, settings.enableRequestCache]);
+
+  useEffect(() => {
+    if (!settings.enableRequestCache || debugCacheKey === null || debugCacheHydratedRef.current !== debugCacheKey) {
+      return;
+    }
+    if (skipNextDebugCacheWriteRef.current) {
+      skipNextDebugCacheWriteRef.current = false;
+      return;
+    }
+    writeDebugCache(debugCacheKey, {
+      version: DEBUG_CACHE_VERSION,
+      baseUrl,
+      method,
+      path,
+      paramValues,
+      paramEnabled,
+      selectedContentType,
+      body,
+      formFields,
+      rawMode,
+      customQueryParams,
+      customHeaders,
+      customCookies,
+    });
+  }, [
+    baseUrl,
+    body,
+    customCookies,
+    customHeaders,
+    customQueryParams,
+    debugCacheKey,
+    formFields,
+    method,
+    paramEnabled,
+    paramValues,
+    path,
+    rawMode,
+    selectedContentType,
+    settings.enableRequestCache,
+  ]);
 
   const updateValue = (param: DebugParam, next: string) => {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
@@ -2153,6 +2290,10 @@ export default function ApiDebug() {
   const handleReset = () => {
     if (!initialDebugState) return;
     handleSseAbort();
+    if (settings.enableRequestCache && debugCacheKey !== null) {
+      removeDebugCache(debugCacheKey);
+      skipNextDebugCacheWriteRef.current = true;
+    }
     if (response?.objectUrl) {
       try {
         URL.revokeObjectURL(response.objectUrl);
