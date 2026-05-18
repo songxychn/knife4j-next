@@ -22,7 +22,6 @@ import com.github.xiaoymin.knife4j.spring.gateway.discover.ServiceRouterHolder;
 import com.github.xiaoymin.knife4j.spring.gateway.enums.GatewayRouterStrategy;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.ServiceUtils;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.StrUtil;
-import io.netty.util.internal.StringUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.config.GatewayProperties;
@@ -64,9 +63,9 @@ public class ConfigRouteServiceConvert extends AbstactServiceRouterConvert {
         }
 
         if (StrUtil.isNotBlank(value)) {
-            return value.replace("**", StringUtil.EMPTY_STRING);
+            return value.replace("**", "");
         }
-        return StringUtil.EMPTY_STRING;
+        return "";
     }
 
     @Override

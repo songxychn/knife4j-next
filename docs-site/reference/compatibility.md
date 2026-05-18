@@ -49,11 +49,12 @@ title: 兼容矩阵
 
 ### Gateway & 聚合
 
-| Starter | Boot 2.7 | Boot 3.x | 说明 | 验证状态 |
-| --- | --- | --- | --- | --- |
-| `knife4j-gateway-spring-boot-starter` | ❌ | ✅ | Spring Cloud Gateway 聚合 | ⚠️ 手动验证 |
-| `knife4j-aggregation-spring-boot-starter` | ✅ | ❌ | 独立聚合（Boot 2.x） | ⚠️ 手动验证 |
-| `knife4j-aggregation-jakarta-spring-boot-starter` | ❌ | ✅ | 独立聚合（Boot 3.x） | ⚠️ 手动验证 |
+| Starter | Boot 2.7 | Boot 3.x | Boot 4.0 | 说明 | 验证状态 |
+| --- | --- | --- | --- | --- | --- |
+| `knife4j-gateway-spring-boot-starter` | ❌ | ✅ | ❌ | Spring Cloud Gateway 聚合 | ⚠️ 手动验证 |
+| `knife4j-gateway-boot4-spring-boot-starter` | ❌ | ❌ | ✅ | Spring Cloud Gateway 5 聚合 | [boot4-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot4-gateway-app) |
+| `knife4j-aggregation-spring-boot-starter` | ✅ | ❌ | ❌ | 独立聚合（Boot 2.x） | ⚠️ 手动验证 |
+| `knife4j-aggregation-jakarta-spring-boot-starter` | ❌ | ✅ | ❌ | 独立聚合（Boot 3.x） | ⚠️ 手动验证 |
 
 - Gateway starter 仅用于 Spring Cloud Gateway（WebFlux），**不适用于普通 WebMvc 项目**。
 - 聚合 starter 用于**非网关**的微服务聚合场景。
@@ -61,7 +62,7 @@ title: 兼容矩阵
 
 ## Smoke Tests 验证内容
 
-每个 smoke-test 子模块验证以下端点返回 200 且内容正确：
+WebMvc smoke-test 子模块验证以下端点返回 200 且内容正确；Gateway smoke-test 额外验证 `/doc.html` 和 `/v3/api-docs/swagger-config`：
 
 | 端点 | openapi2 验证 | openapi3 验证 |
 | --- | --- | --- |
@@ -92,7 +93,8 @@ title: 兼容矩阵
 │   └── Spring Cloud Gateway？
 │       └── knife4j-gateway-spring-boot-starter
 └── 4.x
-    └── WebMvc → knife4j-openapi3-boot4-spring-boot-starter（React UI）
+    ├── WebMvc → knife4j-openapi3-boot4-spring-boot-starter（React UI）
+    └── Spring Cloud Gateway → knife4j-gateway-boot4-spring-boot-starter
 ```
 
 ## 不要做的事

@@ -41,7 +41,7 @@
 | `knife4j`         | Java 主工程，包含 starter、UI webjar、聚合组件、Gateway starter、WebFlux starter 与依赖管理 |
 | `docs-site`           | 当前文档站（VitePress）——项目对外文档的主入口                          |
 | `knife4j-front`       | React 前端工作区（Bun workspace），活跃子模块为 `knife4j-core`（TypeScript 解析库）和 `knife4j-ui-react`（OAS3 主线 UI，打包进 `knife4j-openapi3-ui` webjar） |
-| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.4/3.5 Jakarta、Boot 4.x Jakarta 等组合 |
+| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.4/3.5 Jakarta、Boot 4.x WebMVC 与 Boot 4.x Gateway 等组合 |
 | `knife4j-vue`         | upstream 旧版的历史 Vue 2 前端实现，仅作为行为参考留存，不再预期改动                   |
 | `knife4j-vue3`    | OAS2 兼容维护 UI（Vue 3 + Vite），打包进 `knife4j-openapi2-ui` webjar，只接收回归修复与显示层 bug |
 | `knife4j-insight` | 独立渲染/聚合方向的扩展方案                                                            |
@@ -50,7 +50,7 @@
 
 - Java 后端（`knife4j/`）：优先做兼容性修复、回归修复和发布维护，当前稳定版本线 `5.0.4`
 - **前端分工**（详见 `.agent/PROJECT.md`）：
-  - **OAS3 主线**：`knife4j-front/knife4j-ui-react`（React + Vite）→ `knife4j-openapi3-ui` webjar → `knife4j-openapi3-*-spring-boot-starter` 系列、`knife4j-gateway-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter`。所有新功能、UX 改进在这里落地。
+  - **OAS3 主线**：`knife4j-front/knife4j-ui-react`（React + Vite）→ `knife4j-openapi3-ui` webjar → `knife4j-openapi3-*-spring-boot-starter` 系列、`knife4j-gateway-*spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter`。所有新功能、UX 改进在这里落地。
   - **OAS2 兼容维护**：`knife4j-vue3`（Vue 3 + Vite）→ `knife4j-openapi2-ui` webjar → `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter`。只接收回归修复与显示层 bug，不做功能扩张。
 - `knife4j-vue`：upstream 旧版 Vue 2 前端，仅作为行为参考留存，不再预期改动。
 - `knife4j-front` 下的 `knife4j-cli`、`knife4j-extension` 及浏览器扩展目前仅有占位，暂未启动开发。
@@ -109,6 +109,17 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
+    <version>5.0.4</version>
+</dependency>
+```
+
+### Spring Cloud Gateway (Spring Boot 4.x)
+
+```xml
+
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
     <version>5.0.4</version>
 </dependency>
 ```

@@ -107,7 +107,7 @@ public class UserController {
 
 ## Spring Cloud Gateway 是 WebFlux 但**不**用这个 starter
 
-Spring Cloud Gateway 基于 WebFlux，但它本身不生成 OpenAPI 文档——它**转发**请求。所以 Gateway 场景不用 `knife4j-openapi3-webflux-*-starter`，而用 `knife4j-gateway-spring-boot-starter`。
+Spring Cloud Gateway 基于 WebFlux，但它本身不生成 OpenAPI 文档——它**转发**请求。所以 Gateway 场景不用 `knife4j-openapi3-webflux-*-starter`，而用 `knife4j-gateway-spring-boot-starter`（Boot 3.x）或 `knife4j-gateway-boot4-spring-boot-starter`（Boot 4.x）。
 
 - 需要 **做 API 聚合** → [Gateway 聚合](./gateway)
 - 需要 **生成** 自己的 API 文档 → 本页
@@ -139,4 +139,3 @@ curl http://localhost:8080/v3/api-docs/swagger-config
 | 404 `/doc.html` | 是否错误地同时引入了 `knife4j-openapi3-jakarta-spring-boot-starter`（WebMvc 版）；WebFlux 环境下的静态资源路径需要 WebFlux 专用配置 |
 | UI 是默认 Swagger UI 而不是 knife4j | 清 Maven 缓存；确认 `knife4j-openapi3-ui` 被 starter 传递依赖进来 |
 | `Servlet` 相关的 ClassNotFoundException | 不要混入 `spring-boot-starter-web` |
-
