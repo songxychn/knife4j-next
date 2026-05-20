@@ -12,7 +12,20 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.5 <Badge type="tip" text="最新" />
+### 5.0.6 <Badge type="tip" text="最新" />
+
+`5.0.6` 是基于 `5.0.5` 的补丁版本，重点修复 React 调试页在接口标签切换后的状态保持问题，并收口 GitHub Release 正文生成逻辑。
+
+**前端（React UI）**
+
+- 修复接口标签切换后子页状态丢失的问题：某个接口进入 `debug` 后切到其他接口，再切回原接口时会继续停留在 `debug`，不会退回文档页（PR #396）。
+- 调试页按接口维度保留上次请求的响应结果、错误信息、构造请求与 SSE 事件展示；切换接口标签后再回来，仍能看到前一次调试结果（PR #396）。
+
+**发布流程**
+
+- GitHub Release 正文不再由 workflow 额外追加 `Links` 区块，后续 Release body 直接来自 `docs-site/release-notes/index.md` 的对应版本小节，避免发布说明与文档站内容漂移（PR #394）。
+
+### 5.0.5
 
 `5.0.5` 是基于 `5.0.4` 的补丁版本，重点发布 Boot4 Gateway 聚合 starter，修复 Gateway 在 Spring 7 下的请求头兼容问题，并补齐 React 调试页请求参数缓存。
 
@@ -193,7 +206,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.5</version>
+    <version>5.0.6</version>
 </dependency>
 ```
 
