@@ -62,6 +62,7 @@ import {
   type DebugCacheRawMode,
   type DebugCacheState,
 } from './debugCache';
+import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -1760,10 +1761,27 @@ export default function ApiDebug() {
     const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel);
     skipNextDebugCacheWriteRef.current = true;
     debugCacheHydratedRef.current = debugCacheKey;
+    const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
     applyInitialDebugState(nextInitial, { resetActiveTab: true });
-    setResponse(null);
-    setError(null);
+    setResponse(cachedSession?.response ?? null);
+    setError(cachedSession?.error ?? null);
+    setBuiltRequest(cachedSession?.builtRequest ?? null);
+    setSseEvents(cachedSession?.sseEvents ?? null);
   }, [debugCacheKey, debugModel, initialDebugState, settings.enableRequestCache]);
+
+  useEffect(() => {
+    if (debugCacheKey === null || debugCacheHydratedRef.current !== debugCacheKey) return;
+    if (!response && !error && !builtRequest && sseEvents === null) {
+      removeDebugSessionState(debugCacheKey);
+      return;
+    }
+    writeDebugSessionState(debugCacheKey, {
+      response,
+      error,
+      builtRequest,
+      sseEvents,
+    });
+  }, [builtRequest, debugCacheKey, error, response, sseEvents]);
 
   useEffect(() => {
     if (!settings.enableRequestCache || debugCacheKey === null || debugCacheHydratedRef.current !== debugCacheKey) {
@@ -2293,6 +2311,9 @@ export default function ApiDebug() {
     if (settings.enableRequestCache && debugCacheKey !== null) {
       removeDebugCache(debugCacheKey);
       skipNextDebugCacheWriteRef.current = true;
+    }
+    if (debugCacheKey !== null) {
+      removeDebugSessionState(debugCacheKey);
     }
     if (response?.objectUrl) {
       try {
