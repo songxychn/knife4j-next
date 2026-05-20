@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AutoComplete,
@@ -1708,6 +1708,8 @@ export default function ApiDebug() {
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
   const sseAbortRef = useRef<AbortController | null>(null);
+  const activeDebugCacheKeyRef = useRef<string | null>(null);
+  const requestSeqRef = useRef(0);
 
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
@@ -1715,7 +1717,7 @@ export default function ApiDebug() {
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const [rawMode, setRawMode] = useState<RawMode>('text');
   const [resetNonce, setResetNonce] = useState(0);
-  const debugCacheHydratedRef = useRef<string | null>(null);
+  const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
   const skipNextDebugCacheWriteRef = useRef(false);
 
   // ── TASK-028: 校验错误与预览 ──
@@ -1729,6 +1731,10 @@ export default function ApiDebug() {
     if (!debugModel || !operation) return null;
     return buildInitialDebugState(debugModel, operation, defaultBaseUrl);
   }, [debugModel, operation, defaultBaseUrl]);
+
+  useLayoutEffect(() => {
+    activeDebugCacheKeyRef.current = debugCacheKey;
+  }, [debugCacheKey]);
 
   const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
     setBaseUrl(initial.baseUrl);
@@ -1760,17 +1766,21 @@ export default function ApiDebug() {
     const cached = settings.enableRequestCache && debugCacheKey !== null ? readDebugCache(debugCacheKey) : null;
     const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel);
     skipNextDebugCacheWriteRef.current = true;
-    debugCacheHydratedRef.current = debugCacheKey;
+    requestSeqRef.current += 1;
+    sseAbortRef.current?.abort();
+    sseAbortRef.current = null;
     const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
     applyInitialDebugState(nextInitial, { resetActiveTab: true });
+    setLoading(false);
     setResponse(cachedSession?.response ?? null);
     setError(cachedSession?.error ?? null);
     setBuiltRequest(cachedSession?.builtRequest ?? null);
     setSseEvents(cachedSession?.sseEvents ?? null);
+    setHydratedDebugCacheKey(debugCacheKey);
   }, [debugCacheKey, debugModel, initialDebugState, settings.enableRequestCache]);
 
   useEffect(() => {
-    if (debugCacheKey === null || debugCacheHydratedRef.current !== debugCacheKey) return;
+    if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
     if (!response && !error && !builtRequest && sseEvents === null) {
       removeDebugSessionState(debugCacheKey);
       return;
@@ -1781,10 +1791,10 @@ export default function ApiDebug() {
       builtRequest,
       sseEvents,
     });
-  }, [builtRequest, debugCacheKey, error, response, sseEvents]);
+  }, [builtRequest, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
 
   useEffect(() => {
-    if (!settings.enableRequestCache || debugCacheKey === null || debugCacheHydratedRef.current !== debugCacheKey) {
+    if (!settings.enableRequestCache || debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) {
       return;
     }
     if (skipNextDebugCacheWriteRef.current) {
@@ -1821,6 +1831,7 @@ export default function ApiDebug() {
     rawMode,
     selectedContentType,
     settings.enableRequestCache,
+    hydratedDebugCacheKey,
   ]);
 
   const updateValue = (param: DebugParam, next: string) => {
@@ -2128,6 +2139,11 @@ export default function ApiDebug() {
     // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
     const category = getCurrentCategory();
     const isMultipart = category === 'multipart';
+    const requestDebugCacheKey = debugCacheKey;
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+    const isCurrentDebugRequest = () =>
+      activeDebugCacheKeyRef.current === requestDebugCacheKey && requestSeqRef.current === requestSeq;
 
     setLoading(true);
     // Revoke any previous object URL to avoid memory leaks across consecutive sends.
@@ -2142,8 +2158,9 @@ export default function ApiDebug() {
     setSseEvents(null);
     setBuiltRequest(built);
     const start = Date.now();
+    let abortController: AbortController | null = null;
     try {
-      const abortController = new AbortController();
+      abortController = new AbortController();
       sseAbortRef.current = abortController;
 
       const init: RequestInit = {
@@ -2204,6 +2221,7 @@ export default function ApiDebug() {
       res.headers.forEach((value, key) => {
         responseHeaders[key] = value;
       });
+      if (!isCurrentDebugRequest()) return;
 
       const contentType = responseHeaders['content-type'] ?? '';
 
@@ -2230,6 +2248,7 @@ export default function ApiDebug() {
         setSseEvents([]);
 
         const processChunk = (chunk: string) => {
+          if (!isCurrentDebugRequest()) return;
           buffer += chunk;
           const lines = buffer.split('\n');
           buffer = lines.pop() ?? '';
@@ -2247,21 +2266,28 @@ export default function ApiDebug() {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            if (!isCurrentDebugRequest()) return;
             processChunk(decoder.decode(value, { stream: true }));
           }
           // flush remaining buffer
           if (buffer.trim().startsWith('data:')) {
             const data = buffer.trim().slice(5).trimStart();
-            if (data) setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
+            if (data && isCurrentDebugRequest()) {
+              setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
+            }
           }
         } catch (err: unknown) {
-          if (err instanceof Error && err.name === 'AbortError') {
+          if (!isCurrentDebugRequest()) {
+            return;
+          } else if (err instanceof Error && err.name === 'AbortError') {
             // user aborted — not an error
           } else {
             setError(err instanceof Error ? err.message : String(err));
           }
         } finally {
-          sseAbortRef.current = null;
+          if (sseAbortRef.current === abortController) {
+            sseAbortRef.current = null;
+          }
         }
         return;
       }
@@ -2276,6 +2302,12 @@ export default function ApiDebug() {
         built.url,
         contentDisposition,
       );
+      if (!isCurrentDebugRequest()) {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+        }
+        return;
+      }
 
       setResponse({
         status: res.status,
@@ -2291,12 +2323,17 @@ export default function ApiDebug() {
         kind,
       });
     } catch (reason: unknown) {
+      if (!isCurrentDebugRequest()) return;
       if (!(reason instanceof Error && reason.name === 'AbortError')) {
         setError(reason instanceof Error ? reason.message : String(reason));
       }
     } finally {
-      setLoading(false);
-      sseAbortRef.current = null;
+      if (isCurrentDebugRequest()) {
+        setLoading(false);
+      }
+      if (sseAbortRef.current === abortController) {
+        sseAbortRef.current = null;
+      }
     }
   };
 

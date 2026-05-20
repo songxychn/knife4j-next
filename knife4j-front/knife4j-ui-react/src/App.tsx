@@ -138,15 +138,7 @@ const AppInner: React.FC = () => {
   /** Keep the outer API tab key aligned with the selected operation child page. */
   useEffect(() => {
     if (activeGroup.apis.length === 0) return;
-
-    // `useLocation().pathname` is URL-encoded; ApiItem.key stores the decoded
-    // form (e.g. Chinese tag names), so normalize before matching.
-    let pathname: string;
-    try {
-      pathname = decodeURIComponent(location.pathname);
-    } catch {
-      pathname = location.pathname;
-    }
+    const pathname = location.pathname;
 
     if (!isOperationRouteKey(pathname)) return;
 
