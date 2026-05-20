@@ -12,6 +12,12 @@ import { SUPPORTED_LANGS, type SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
+import {
+  findOperationRouteKey,
+  isOperationRouteKey,
+  routeKeyToMenuKey,
+  upsertOperationRoutePane,
+} from './utils/operationTabs';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -32,23 +38,6 @@ const normalizeLang = (raw: string | undefined): SupportedLang => {
   if (lower.startsWith('en')) return 'en-US';
   return 'zh-CN';
 };
-
-/**
- * Strip the trailing `/doc` or `/debug` mode segment from a route key to
- * obtain the corresponding sidebar menu key.
- */
-const routeKeyToMenuKey = (key: string) =>
-  key.endsWith('/doc')
-    ? key.slice(0, -4)
-    : key.endsWith('/debug')
-      ? key.slice(0, -6)
-      : key.endsWith('/openapi')
-        ? key.slice(0, -8)
-        : key.endsWith('/script')
-          ? key.slice(0, -7)
-          : key.includes('/schema')
-            ? key.replace(/\/schema\/.*$/, '/schema')
-            : key;
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
   const match = key.match(/^\/([^/]+)\/schema(?:\/(.+))?$/);
@@ -146,44 +135,19 @@ const AppInner: React.FC = () => {
     }
   }, [items, activeKey]);
 
-  /**
-   * If the URL points at an operation route but the corresponding tab was
-   * not restored from sessionStorage (e.g. direct deep-link from another
-   * place), inject it once `activeGroup.apis` is loaded.
-   */
-  const restoredRef = useRef(false);
+  /** Keep the outer API tab key aligned with the selected operation child page. */
   useEffect(() => {
-    if (restoredRef.current) return;
     if (activeGroup.apis.length === 0) return;
+    const pathname = location.pathname;
 
-    // `useLocation().pathname` is URL-encoded; ApiItem.key stores the decoded
-    // form (e.g. Chinese tag names), so normalize before matching.
-    let pathname: string;
-    try {
-      pathname = decodeURIComponent(location.pathname);
-    } catch {
-      pathname = location.pathname;
-    }
-
-    const isApiRoute =
-      pathname.endsWith('/doc') ||
-      pathname.endsWith('/debug') ||
-      pathname.endsWith('/openapi') ||
-      pathname.endsWith('/script');
-    if (!isApiRoute) {
-      restoredRef.current = true;
-      return;
-    }
+    if (!isOperationRouteKey(pathname)) return;
 
     const menuKey = routeKeyToMenuKey(pathname);
     const api = activeGroup.apis.find((a) => a.key === menuKey);
     if (!api) return; // apis loaded but this one didn't match; wait for other groups
 
-    restoredRef.current = true;
     const title = `${api.method.toUpperCase()} ${api.summary}`;
-    setItems((prev) =>
-      prev.some((p) => p.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
-    );
+    setItems((prev) => upsertOperationRoutePane(prev, pathname, title, (key, label) => ({ label, children: '', key })));
     setActiveKey(pathname);
     setSelectedKey(menuKey);
   }, [activeGroup.apis, location.pathname]);
@@ -252,7 +216,8 @@ const AppInner: React.FC = () => {
     const rawKey = String(info.key);
     const schemaInfo = schemaRouteInfo(rawKey);
     const markdownDoc: MarkdownDocItem | undefined = markdownDocs.find((doc) => doc.key === rawKey);
-    const newActiveKey = schemaInfo || markdownDoc ? rawKey : `${rawKey}/doc`;
+    const existingOperationKey = schemaInfo || markdownDoc ? null : findOperationRouteKey(items, rawKey);
+    const newActiveKey = schemaInfo || markdownDoc ? rawKey : (existingOperationKey ?? `${rawKey}/doc`);
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
       const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
