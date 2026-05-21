@@ -7,11 +7,9 @@
 
 <script>
 import { VAceEditor } from 'vue3-ace-editor'
-import ace from "ace-builds";
-import "ace-builds/src-noconflict/mode-typescript.js";
-import "ace-builds/src-noconflict/mode-javascript.js";
-import "ace-builds/src-noconflict/theme-eclipse.js";
-import "ace-builds/src-noconflict/ext-language_tools";
+import { initAce } from '@/core/aceLoader'
+
+initAce()
 export default {
   name: "EditorShow",
   components: { editor: VAceEditor },

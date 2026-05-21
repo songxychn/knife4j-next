@@ -14,14 +14,10 @@
 
 <script>
 import { VAceEditor } from 'vue3-ace-editor'
-import ace from "ace-builds";
-import "ace-builds/src-noconflict/mode-json.js";
-import "ace-builds/src-noconflict/mode-xml.js";
-import "ace-builds/src-noconflict/mode-text.js";
-import "ace-builds/src-noconflict/mode-javascript.js";
-import "ace-builds/src-noconflict/theme-eclipse.js";
-import "ace-builds/src-noconflict/ext-language_tools";
+import { initAce } from '@/core/aceLoader'
 import { ref, watch } from 'vue'
+
+initAce()
 export default {
   name: "EditorShow",
   components: { editor: VAceEditor },

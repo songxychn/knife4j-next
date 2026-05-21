@@ -176,7 +176,6 @@
  import has from 'lodash/has'
  import keys from 'lodash/keys'
  import cloneDeep from 'lodash/cloneDeep'
- import { VAceEditor } from 'vue3-ace-editor'
  import { computed, defineAsyncComponent } from 'vue'
  import { useGlobalsStore } from '@/store/modules/global.js'
  import { useknife4jModels } from '@/store/knife4jModels.js'
@@ -187,7 +186,6 @@
  export default {
    name: "Document",
    components: {
-     editor: VAceEditor,
      UnlockOutlined,
      "DataType": defineAsyncComponent(() => import('./DataType.vue')),
      "EditorShow": defineAsyncComponent(() => import('./EditorShow.vue'))
