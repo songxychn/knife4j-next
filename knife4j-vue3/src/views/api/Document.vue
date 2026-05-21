@@ -184,6 +184,18 @@
  import { message } from 'ant-design-vue'
  import { UnlockOutlined } from '@ant-design/icons-vue'
 
+ function escapeRegExp(value) {
+   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+ }
+
+ function matchesIgnoreParameterName(name, key) {
+   const escapedKey = escapeRegExp(key);
+   return (
+     new RegExp(`^(${escapedKey}$|${escapedKey}[.\\[])`).test(name) ||
+     new RegExp(escapedKey, "g").test(name)
+   );
+ }
+
  export default {
    name: "Document",
    components: {
@@ -482,7 +494,7 @@
                                `${param.name}.${name}`
                              ) ||
                              ignoreParameterAllKeys.some(key =>
-                               new RegExp(`^(${key}$|${key}[.[])`).test(name) || eval('/' + key + '/g').test(name)
+                               matchesIgnoreParameterName(name, key)
                              )
                            ) //  处理 json 提交
                          );
