@@ -60,7 +60,17 @@
             <dependency>
                 <groupId>io.swagger.core.v3</groupId>
                 <artifactId>swagger-annotations-jakarta</artifactId>
-                <version>${knife4j-swagger-models-v3.version}</version>
+                <version>${knife4j-swagger-models-v3-jakarta.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-models-jakarta</artifactId>
+                <version>${knife4j-swagger-models-v3-jakarta.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-core-jakarta</artifactId>
+                <version>${knife4j-swagger-models-v3-jakarta.version}</version>
             </dependency>
 
             <dependency>

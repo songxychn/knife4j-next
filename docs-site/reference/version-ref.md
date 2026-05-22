@@ -41,7 +41,7 @@ title: 版本对照
 | Spring Framework | `6.2.0` |
 | Spring Boot | `3.4.0` |
 | springdoc-openapi Jakarta | `2.8.9` |
-| Swagger v3 models | `2.2.26` |
+| Swagger v3 Jakarta models | `2.2.47` |
 | Servlet Jakarta API | `6.1.0` |
 
 > smoke-tests 中 `boot3-jakarta-app` 使用 Boot `3.4.5`，`boot35-jakarta-app` 使用 Boot `3.5.0`，均通过验证。
