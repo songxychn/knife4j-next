@@ -63,6 +63,7 @@
         <knife4j-springdoc-openapi-jakarta.version>2.8.9</knife4j-springdoc-openapi-jakarta.version>
         <knife4j-springdoc-openapi-boot4.version>3.0.3</knife4j-springdoc-openapi-boot4.version>
         <knife4j-swagger-models-v3.version>2.2.26</knife4j-swagger-models-v3.version>
+        <knife4j-swagger-models-v3-jakarta.version>2.2.47</knife4j-swagger-models-v3-jakarta.version>
         <knife4j-swagger-models-v3-boot4.version>2.2.47</knife4j-swagger-models-v3-boot4.version>
 
         <knife4j-servlet.version>4.0.1</knife4j-servlet.version>
@@ -167,6 +168,21 @@
                 <groupId>io.swagger.core.v3</groupId>
                 <artifactId>swagger-models</artifactId>
                 <version>${knife4j-swagger-models-v3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations-jakarta</artifactId>
+                <version>${knife4j-swagger-models-v3-jakarta.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-models-jakarta</artifactId>
+                <version>${knife4j-swagger-models-v3-jakarta.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-core-jakarta</artifactId>
+                <version>${knife4j-swagger-models-v3-jakarta.version}</version>
             </dependency>
 
             <!-- https://mvnrepository.com/artifact/io.swagger/swagger-models -->
