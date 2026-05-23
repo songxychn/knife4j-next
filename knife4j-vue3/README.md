@@ -42,11 +42,17 @@ bun run build
 
 ## 验证命令
 
-修改 Java 模块或本目录产物集成逻辑后，至少运行：
+修改本目录 Vue3 / OAS2 UI 后，优先从仓库根目录运行：
+
+```bash
+./scripts/test-vue3.sh
+```
+
+该脚本会进入 `knife4j-vue3/`，执行 `bun install --frozen-lockfile` 与 `bun run build:Knife4jSpringUi`，
+并检查 `dist/doc.html`、`dist/webjars/`、`dist/webjars/oauth/oauth2.html` 是否生成。
+
+修改 Java 模块或本目录产物集成逻辑后，还需运行：
 
 ```bash
 ./scripts/test-java.sh
 ```
-
-（本目录自身暂未纳入 `./scripts/test-front-core.sh`；若纯改 `knife4j-vue3/src/**` 且未触碰 Java 集成，
-可本地 `bun run build` 验证后再推进 CI。）
