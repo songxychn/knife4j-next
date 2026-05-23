@@ -1,7 +1,7 @@
 <template>
   <a-layout-content class="knife4j-body-content" v-if="swaggerCurrentInstance">
     <a-row class="markdown-body editormd-preview-container" v-if="settings?.enableHomeCustom">
-      <Markdown :source="settings.homeCustomLocation || ''" />
+      <component :is="'MarkdownPreview'" :source="settings.homeCustomLocation || ''" />
     </a-row>
     <div class="home-page" v-else>
       <section class="home-hero">
@@ -156,7 +156,7 @@ export default {
     }
   },
   components: {
-    "Markdown": defineAsyncComponent(() => import('@/components/Markdown/index.vue')),
+    "MarkdownPreview": defineAsyncComponent(() => import('@/components/Markdown/index.vue')),
     ApiOutlined,
     CloudServerOutlined,
     CodeOutlined,
