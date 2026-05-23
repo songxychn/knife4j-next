@@ -19,7 +19,7 @@
 <script>
 import KUtils from "@/core/utils";
 import Constants from "@/store/constants";
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useGlobalsStore } from '@/store/modules/global.js'
 import { useI18n } from 'vue-i18n'
 import { useknife4jModels } from '@/store/knife4jModels.js'
@@ -125,7 +125,6 @@ export default {
               )
               originalModel = swagger.value.analysisDefinitionRefTableModel(props.data.instance.id, originalModel);
               // console.log("初始化完成")
-              console.log(originalModel.children);
               // console("查找原始model:" + model.name);
               if (KUtils.checkUndefined(originalModel)) {
                 // 存在
@@ -170,18 +169,12 @@ export default {
           }
         });
 
-        console.log(modelNames.value)
       }
       // 第二次复制
       expanRows.value = true;
     }
 
     initModelNames()
-    watch(() => modelNames.value, () => {
-      for (let model of modelNames.value) {
-        console.log(model.data)
-      }
-    })
 
     return {
       columns,

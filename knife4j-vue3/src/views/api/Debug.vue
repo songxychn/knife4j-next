@@ -574,7 +574,6 @@ export default {
           }
         })
       }
-      console.log(tempArrays)
       return {
         update: tempUpdateFlag,
         data: tempArrays,
@@ -646,7 +645,6 @@ export default {
       this.headerColumn = inst.table.debugRequestHeaderColumns;
       this.formColumn = inst.table.debugFormDataRequestColumns;
       this.urlFormColumn = inst.table.debugUrlFormRequestColumns;
-      console.log(this.headerColumn, this.formColumn, this.urlFormColumn)
     },
     debugUrlChange(e) {
       this.debugUrl = e.target.value;
@@ -768,7 +766,6 @@ export default {
       // console.log(this.globalParameters)
       // 本都缓存读取到参数，初始化header参数
       this.globalParameters.forEach(param => {
-        console.log(param)
         if (param.in == "header") {
           var newHeader = {
             id: KUtils.randomMd5(),
