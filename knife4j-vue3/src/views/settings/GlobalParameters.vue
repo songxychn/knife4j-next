@@ -124,7 +124,6 @@ export default {
     const key = this.groupId;
     // this.$localStore.setItem(Constants.globalParameter, 'test')
     localStore.getItem(Constants.globalParameter).then((val) => {
-      console.log(val)
       if (val != null) {
         if (val[key] != undefined && val[key] != null) {
           this.globalParameters = val[key];

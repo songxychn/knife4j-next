@@ -31,7 +31,9 @@ export default {
       left: 0,
       top: 0,
       target: null,
-      selectedKeys: []
+      selectedKeys: [],
+      windowMousedownHandler: null,
+      windowContextmenuHandler: null
     };
   },
   computed: {
@@ -43,8 +45,14 @@ export default {
     }
   },
   created() {
-    window.addEventListener("mousedown", e => this.closeMenu(e));
-    window.addEventListener("contextmenu", e => this.setPosition(e));
+    this.windowMousedownHandler = e => this.closeMenu(e);
+    this.windowContextmenuHandler = e => this.setPosition(e);
+    window.addEventListener("mousedown", this.windowMousedownHandler);
+    window.addEventListener("contextmenu", this.windowContextmenuHandler);
+  },
+  beforeUnmount() {
+    window.removeEventListener("mousedown", this.windowMousedownHandler);
+    window.removeEventListener("contextmenu", this.windowContextmenuHandler);
   },
   methods: {
     closeMenu(e) {

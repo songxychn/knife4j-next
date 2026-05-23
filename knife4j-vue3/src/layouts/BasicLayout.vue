@@ -489,9 +489,7 @@ function getCacheGitVersion(gitVal) {
   return cacheApis;
 }
 
-const handleMenuClick = (item) => {
-  console.log(item)
-}
+const handleMenuClick = () => undefined
 const currentUser = computed(() => {
   return headersStore.userCurrent;
 })

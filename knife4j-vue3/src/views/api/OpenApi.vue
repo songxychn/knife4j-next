@@ -118,9 +118,8 @@ export default {
         message.info(successMessage);
       })
       clipboard.on("error", (e) => {
-        console.log(e)
+        console.error(e)
         const inst = this.getCurrentI18nInstance()
-        console.log(inst)
         // "复制地址失败"
         const failMessage = inst.message.copy.open.fail
         message.info(failMessage);
