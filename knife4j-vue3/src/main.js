@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, defineAsyncComponent } from 'vue'
 import './style/knife4j.less'
 import App from './App.vue'
 import { setupStore } from './store/index.js'
@@ -37,14 +37,15 @@ const MyIcon = createFromIconfontCN({
  * 供用户在模板中以组件标签直接引用（如 <ApiInfo>, <Authorize>）
  */
 import Main from '@/views/index/Main.vue'
-import ApiInfo from '@/views/api/index.vue'
-import Authorize from '@/views/settings/Authorize.vue'
-import SwaggerModels from '@/views/settings/SwaggerModels.vue'
-import GlobalParameters from '@/views/settings/GlobalParameters.vue'
-import Settings from '@/views/settings/Settings.vue'
-import OfficelineDocument from '@/views/settings/OfficelineDocument.vue'
-import OtherMarkdown from '@/views/othermarkdown/index.vue'
 import MethodType from '@/components/common/MethodApi.vue'
+
+const ApiInfo = defineAsyncComponent(() => import('@/views/api/index.vue'))
+const Authorize = defineAsyncComponent(() => import('@/views/settings/Authorize.vue'))
+const SwaggerModels = defineAsyncComponent(() => import('@/views/settings/SwaggerModels.vue'))
+const GlobalParameters = defineAsyncComponent(() => import('@/views/settings/GlobalParameters.vue'))
+const Settings = defineAsyncComponent(() => import('@/views/settings/Settings.vue'))
+const OfficelineDocument = defineAsyncComponent(() => import('@/views/settings/OfficelineDocument.vue'))
+const OtherMarkdown = defineAsyncComponent(() => import('@/views/othermarkdown/index.vue'))
 
 /***
  * 响应数据拦截器（与 knife4j-vue main.js 行为一致）
@@ -67,6 +68,7 @@ app.component('GlobalParameters', GlobalParameters)
 app.component('Settings', Settings)
 app.component('OfficelineDocument', OfficelineDocument)
 app.component('OtherMarkdown', OtherMarkdown)
+app.component('Othermarkdown', OtherMarkdown)
 app.component('MethodType', MethodType)
 setupStore(app)
 setupI18n(app)

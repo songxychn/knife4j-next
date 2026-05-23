@@ -4,6 +4,7 @@
 </template>
 
 <script>
+import "@/assets/css/markdown-preview.css";
 import { marked } from 'marked';
 import mermaid from 'mermaid';
 

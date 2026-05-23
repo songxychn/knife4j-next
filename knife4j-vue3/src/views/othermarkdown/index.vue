@@ -1,15 +1,16 @@
 <template>
   <a-layout-content class="knife4j-body-content">
     <a-row class="markdown-body editormd-preview-container">
-      <Markdown :source="content" />
+      <component :is="'MarkdownPreview'" :source="content" />
     </a-row>
   </a-layout-content>
 </template>
 <script>
-import "@/assets/css/editormd.css";
+import { defineAsyncComponent } from "vue";
 import KUtils from "@/core/utils";
 import localStore from "@/store/local.js";
-import Markdown from "@/components/Markdown/index.vue";
+
+const MarkdownPreview = defineAsyncComponent(() => import("@/components/Markdown/index.vue"));
 
 export default {
   props: {
@@ -18,7 +19,7 @@ export default {
     }
   },
   components: {
-    Markdown
+    MarkdownPreview
   },
   data() {
     return {
