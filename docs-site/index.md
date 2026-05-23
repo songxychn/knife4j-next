@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.6</version>
+    <version>5.0.7</version>
 </dependency>
 ```
 
@@ -72,13 +72,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.6 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.7 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧩 React 调试页切换接口标签后会保留 `doc` / `debug` 子页状态
-- 🧾 React 调试页按接口保留上次请求的响应结果、错误信息、构造请求与 SSE 事件
-- 🛠️ GitHub Release 正文直接取自文档站发布说明，不再由 workflow 追加额外区块
+- 🧩 Jakarta Swagger v3 BOM 统一到 `2.2.47`，避免下游依赖降级触发 `Schema.$dynamicRef()` 运行时错误
+- 🧪 新增 Vue3 / OAS2 UI 独立验证脚本，发布前可直接校验 `doc.html` 与 webjar 产物
+- 🧹 清理 Vue3 运行时调试输出，并补齐右键菜单全局监听卸载
+- 📦 Vue3 Markdown 预览改用轻量样式与异步加载，避免旧 FontAwesome / editormd 资源进入构建产物
 - 🧭 继续包含 Boot4 WebMVC 与 Boot4 Gateway starter，覆盖 Spring Boot 4.x 入口
-- 🧪 发布模块清单、Release body 校验与 smoke evidence gate 继续作为发布门禁
 
 完整更新列表见 [发布说明](/release-notes/)。
 

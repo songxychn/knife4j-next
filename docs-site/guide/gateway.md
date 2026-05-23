@@ -37,7 +37,7 @@ Gateway 主工程 `pom.xml`：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-    <version>5.0.6</version>
+    <version>5.0.7</version>
 </dependency>
 ```
 
@@ -54,7 +54,7 @@ Spring Cloud Gateway 5 使用新的 WebFlux starter 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
-    <version>5.0.6</version>
+    <version>5.0.7</version>
 </dependency>
 ```
 

@@ -12,7 +12,21 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.6 <Badge type="tip" text="最新" />
+### 5.0.7 <Badge type="tip" text="最新" />
+
+`5.0.7` 是基于 `5.0.6` 的补丁版本，重点修复 Jakarta Swagger BOM 版本管理问题，并继续收口 Vue3 / OAS2 兼容前端的构建验证、运行时输出与 Markdown 预览产物体积。
+
+**后端 & 依赖管理**
+
+- 统一 Jakarta Swagger v3 运行期依赖管理：`swagger-annotations-jakarta`、`swagger-models-jakarta`、`swagger-core-jakarta` 均由 BOM 管理为 `2.2.47`，避免下游导入 `knife4j-dependencies` 后把 springdoc 需要的 Swagger v3 依赖降级，并触发 `Schema.$dynamicRef()` 的 `NoSuchMethodError`（PR #401）。
+
+**前端（Vue3 / OAS2 UI）**
+
+- 新增 `./scripts/test-vue3.sh`，提供 Vue3 / OAS2 UI 独立构建验证入口，并断言 `dist/doc.html`、`dist/webjars/`、`dist/webjars/oauth/oauth2.html` 存在；`knife4j-vue3/README.md` 同步收敛推荐验证命令（PR #406）。
+- 清理 Vue3 运行时无业务意义的 `console.log` 调试输出；`ContextMenu` 在组件卸载时移除全局事件监听，避免生命周期外残留监听（PR #407）。
+- 将只读 Markdown 预览从完整 `editormd.css` 收敛到轻量 `markdown-preview.css`，避免旧 FontAwesome / editormd 字体资源进入构建产物；同时将 `OtherMarkdown`、设置页、接口页和 Markdown 预览入口改为异步加载，降低首屏静态包体积（PR #408）。
+
+### 5.0.6
 
 `5.0.6` 是基于 `5.0.5` 的补丁版本，重点修复 React 调试页在接口标签切换后的状态保持问题，并收口 GitHub Release 正文生成逻辑。
 
@@ -206,7 +220,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.6</version>
+    <version>5.0.7</version>
 </dependency>
 ```
 
