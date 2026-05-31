@@ -13,6 +13,7 @@ import type {
 } from '../types/swagger';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
+const KNIFE4J_ORDER_EXTENSION = 'x-order';
 
 /** HTTP method 在 swagger-ui 'method' sorter 下的固定顺序 */
 const METHOD_ORDER: Record<string, number> = {
@@ -155,15 +156,51 @@ function sortOperations(ops: MenuOperation[], sorter: OperationsSorter): MenuOpe
   return sorted;
 }
 
+function parseKnife4jOrder(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const order = Number(value);
+    return Number.isFinite(order) ? order : null;
+  }
+  return null;
+}
+
+function sortByKnife4jOrder<T>(items: T[], getOrder: (item: T) => unknown): T[] | null {
+  const indexed = items.map((item, index) => ({
+    item,
+    index,
+    order: parseKnife4jOrder(getOrder(item)),
+  }));
+
+  if (!indexed.some((entry) => entry.order !== null)) {
+    return null;
+  }
+
+  return indexed
+    .sort((a, b) => {
+      if (a.order !== null && b.order !== null && a.order !== b.order) {
+        return a.order - b.order;
+      }
+      if (a.order !== null && b.order === null) return -1;
+      if (a.order === null && b.order !== null) return 1;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.item);
+}
+
 /** 将 SwaggerDoc 解析为侧边栏菜单结构 */
 export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): MenuTag[] {
   const tagsSorter = options.tagsSorter ?? 'preserve';
   const operationsSorter = options.operationsSorter ?? 'preserve';
 
   const tagMap = new Map<string, MenuTag>();
+  const tagOrders = new Map<string, unknown>();
 
   // 初始化 tag 列表（保持 doc.tags 原始顺序）
   (doc.tags ?? []).forEach((t) => {
+    tagOrders.set(t.name, t[KNIFE4J_ORDER_EXTENSION]);
     tagMap.set(t.name, { tag: t.name, description: t.description, operations: [] });
   });
 
@@ -193,13 +230,23 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
 
   let tags = Array.from(tagMap.values());
 
-  // 按策略对 operations 排序
-  if (operationsSorter !== 'preserve') {
-    tags = tags.map((t) => ({ ...t, operations: sortOperations(t.operations, operationsSorter) }));
-  }
+  // 优先按 Knife4j 扩展字段排序；未提供时回落到现有 springdoc / 用户 sorter 策略。
+  tags = tags.map((t) => {
+    const orderedOperations = sortByKnife4jOrder(t.operations, (op) => op.operation[KNIFE4J_ORDER_EXTENSION]);
+    if (orderedOperations) {
+      return { ...t, operations: orderedOperations };
+    }
+    if (operationsSorter !== 'preserve') {
+      return { ...t, operations: sortOperations(t.operations, operationsSorter) };
+    }
+    return t;
+  });
 
-  // 按策略对 tag 排序
-  if (tagsSorter === 'alpha') {
+  // 优先按 Knife4j 扩展字段排序；未提供时回落到现有 springdoc / 用户 sorter 策略。
+  const orderedTags = sortByKnife4jOrder(tags, (t) => tagOrders.get(t.tag));
+  if (orderedTags) {
+    tags = orderedTags;
+  } else if (tagsSorter === 'alpha') {
     tags = [...tags].sort((a, b) => a.tag.localeCompare(b.tag));
   }
 

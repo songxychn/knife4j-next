@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchSwaggerUiConfig, parseGroupsFromConfig } from './knife4jClient';
+import type { SwaggerDoc } from '../types/swagger';
+import { fetchSwaggerUiConfig, parseGroupsFromConfig, parseMenuTags } from './knife4jClient';
 
 function jsonResponse(body: unknown, ok = true): Response {
   return {
@@ -38,5 +39,162 @@ describe('knife4jClient', () => {
 
   it('uses the single springdoc url when swagger-config has no urls array', () => {
     expect(parseGroupsFromConfig({ url: '/api/openapi' })).toEqual([{ name: 'default', url: '/api/openapi' }]);
+  });
+
+  it('sorts tags and operations by Knife4j x-order extensions', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [
+        { name: 'users', description: 'User APIs', 'x-order': 20 },
+        { name: 'pets', description: 'Pet APIs', 'x-order': 10 },
+      ],
+      paths: {
+        '/pets/search': {
+          get: {
+            tags: ['pets'],
+            summary: 'Search pets',
+            operationId: 'searchPets',
+            'x-order': 20,
+          },
+        },
+        '/pets': {
+          post: {
+            tags: ['pets'],
+            summary: 'Create pet',
+            operationId: 'createPet',
+            'x-order': 10,
+          },
+        },
+        '/users': {
+          get: {
+            tags: ['users'],
+            summary: 'List users',
+            operationId: 'listUsers',
+            'x-order': 10,
+          },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc);
+
+    expect(menuTags.map((tag) => tag.tag)).toEqual(['pets', 'users']);
+    expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['createPet', 'searchPets']);
+  });
+
+  it('keeps a stable fallback when Knife4j x-order values tie or are invalid', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [
+        { name: 'users', 'x-order': 10 },
+        { name: 'pets', 'x-order': '10' },
+        { name: 'reports', 'x-order': 'invalid' },
+        { name: 'audit', 'x-order': 'NaN' },
+      ],
+      paths: {
+        '/users/search': {
+          get: {
+            tags: ['users'],
+            summary: 'Search users',
+            operationId: 'searchUsers',
+            'x-order': 20,
+          },
+        },
+        '/users/create': {
+          post: {
+            tags: ['users'],
+            summary: 'Create user',
+            operationId: 'createUser',
+            'x-order': '20',
+          },
+        },
+        '/users/export': {
+          get: {
+            tags: ['users'],
+            summary: 'Export users',
+            operationId: 'exportUsers',
+            'x-order': 'invalid',
+          },
+        },
+        '/users/import': {
+          post: {
+            tags: ['users'],
+            summary: 'Import users',
+            operationId: 'importUsers',
+            'x-order': 'NaN',
+          },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc);
+
+    expect(menuTags.map((tag) => tag.tag)).toEqual(['users', 'pets', 'reports', 'audit']);
+    expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual([
+      'searchUsers',
+      'createUser',
+      'exportUsers',
+      'importUsers',
+    ]);
+  });
+
+  it('preserves source order when Knife4j x-order and sorter options are absent', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [{ name: 'users' }, { name: 'pets' }],
+      paths: {
+        '/z-users': {
+          get: {
+            tags: ['users'],
+            summary: 'List users',
+            operationId: 'listUsers',
+          },
+        },
+        '/a-users': {
+          post: {
+            tags: ['users'],
+            summary: 'Create user',
+            operationId: 'createUser',
+          },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc);
+
+    expect(menuTags.map((tag) => tag.tag)).toEqual(['users', 'pets']);
+    expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['listUsers', 'createUser']);
+  });
+
+  it('falls back to configured sorters when Knife4j x-order is absent', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [{ name: 'users' }, { name: 'pets' }],
+      paths: {
+        '/z-users': {
+          get: {
+            tags: ['users'],
+            summary: 'List users',
+            operationId: 'listUsers',
+          },
+        },
+        '/a-users': {
+          post: {
+            tags: ['users'],
+            summary: 'Create user',
+            operationId: 'createUser',
+          },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc, { tagsSorter: 'alpha', operationsSorter: 'alpha' });
+
+    expect(menuTags.map((tag) => tag.tag)).toEqual(['pets', 'users']);
+    expect(menuTags[1].operations.map((operation) => operation.operationId)).toEqual(['createUser', 'listUsers']);
   });
 });

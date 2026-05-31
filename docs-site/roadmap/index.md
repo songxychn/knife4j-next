@@ -85,9 +85,9 @@ title: 路线图
 
 | 功能 | Vue3 | React | 缺口说明 |
 | --- | --- | --- | --- |
-| `@ApiSupport.order` Tag 排序 | ✅ | ⬜ | 后端已生效，UI 不排序 |
+| `@ApiSupport.order` Tag 排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
 | `@ApiSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
-| `@ApiOperationSupport.order` 操作排序 | ✅ | ⬜ | 后端已生效，UI 不排序 |
+| `@ApiOperationSupport.order` 操作排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
 | `@ApiOperationSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
 | 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-openapi.x-markdownFiles` 并在侧边栏渲染 |
 | 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
@@ -131,7 +131,6 @@ title: 路线图
 
 1. **继续补齐 `knife4j.setting.*` UI 开关联动**：React 前端已读取部分 `x-openapi.x-setting` 字段，剩余字段按功能逐项接入
 2. **补齐 Postman 导出**
-3. **`@ApiSupport.order` / `@ApiOperationSupport.order` 排序**
-4. **补齐 multipart/form-data 文件上传细节**
+3. **补齐 multipart/form-data 文件上传细节**
 
 如果你想参与某个任务的实现，欢迎提 Issue 或 PR。详见 [GitHub 仓库](https://github.com/songxychn/knife4j-next)。

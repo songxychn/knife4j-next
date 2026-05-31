@@ -74,6 +74,8 @@ export interface SwaggerServer {
 export interface SwaggerTag {
   name: string;
   description?: string;
+  /** Knife4j extension emitted from @ApiSupport.order. */
+  'x-order'?: number | string;
 }
 
 export interface SchemaObject {
@@ -152,6 +154,8 @@ export interface OperationObject {
   security?: Record<string, string[]>[];
   /** OAS3 operation 级 servers */
   servers?: SwaggerServer[];
+  /** Knife4j extension emitted from @ApiOperationSupport.order. */
+  'x-order'?: number | string;
 }
 
 export interface PathItemObject {
