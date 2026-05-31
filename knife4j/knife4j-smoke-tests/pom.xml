@@ -25,6 +25,7 @@
         <module>boot2-openapi3-app</module>
         <module>boot3-jakarta-app</module>
         <module>boot3-app</module>
+        <module>boot3-gateway-app</module>
         <module>boot35-jakarta-app</module>
         <module>boot4-jakarta-app</module>
         <module>boot4-gateway-app</module>
