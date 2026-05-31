@@ -1,22 +1,34 @@
 ---
 name: Other
-about: Describe this issue template's purpose here.
+about: 记录文档、流程、发布或仓库维护任务
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## 事项说明
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+请说明需要处理的事项。
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+## 目标范围
 
-**Knife4j Version (please complete the following information):**
+- [ ] 文档
+- [ ] 流程
+- [ ] 发布
+- [ ] 仓库维护
+- [ ] 其他：
 
-**Additional context**
-Add any other context about the problem here.
+## 预期结果
+
+请说明完成后应该达到什么状态。
+
+## Agent 可执行性
+
+如果希望 agent 处理，请补齐以下信息：
+
+- 目标文件或模块：
+- 预期行为变化：
+- 验证命令：
+- 完成条件：
+- 是否需要维护者确认：
