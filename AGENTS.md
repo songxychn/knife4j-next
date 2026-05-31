@@ -10,9 +10,10 @@
 2. `.agent/AUTONOMY_POLICY.md`
 3. `.agent/COORDINATION.md`
 4. `.agent/SERVER_PLAYBOOK.md`
-5. `.agent/RUNBOOK.md`
-6. `.agent/KNOWN_PITFALLS.md`
-7. `.agent/REVIEW_POLICY.md`
+5. `.agent/CODEX_PLAYBOOK.md`
+6. `.agent/RUNBOOK.md`
+7. `.agent/KNOWN_PITFALLS.md`
+8. `.agent/REVIEW_POLICY.md`
 
 未读完上述文件前，不要开始改代码。
 
@@ -56,6 +57,10 @@
 
 ## 默认循环
 
+维护者在电脑前使用 Codex 时，优先按 `.agent/CODEX_PLAYBOOK.md` 的现场协作循环执行；
+无人值守或定时唤醒时，按 `.agent/SERVER_PLAYBOOK.md` 执行。两者共享同一套项目边界、
+验证要求、发布纪律和 GitHub Issue 状态。
+
 1. 读取 `.agent/` 状态和 GitHub Issues（`gh issue list --label agent-task --label status:ready`）。
 2. 选择一个 `status:ready` 的 issue，加 `status:in-progress` label 并 assign。
 3. 根据 `.agent/COORDINATION.md` 执行 coordinator → worker → reviewer → worker → coordinator 门禁；跳过任一角色必须记录例外原因。
@@ -93,6 +98,7 @@ User/Maintainer -> Coordinator -> Worker -> Reviewer -> Worker(如需返工) -> 
 ## 分支规则
 
 - 默认使用 `agent/<task-id>-<short-slug>`。
+- 无对应 issue 的现场流程维护任务可使用 `agent/codex-<short-slug>`，并在 PR 描述中说明原因。
 - 历史分支名为 `codex/<task-id>-<short-slug>` 的保留不改，仅新任务按新约定命名。
 - 不要直接 push 到 `master`。
 - 不要把无关修复合并到同一个分支。

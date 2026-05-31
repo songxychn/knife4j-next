@@ -50,6 +50,7 @@
 ## 流程自检
 
 - [ ] 分支名符合 `agent/<task-id>-<slug>` 或 `codex/<task-id>-<slug>` 约定（agent 产出）
+- [ ] 已按 `.agent/CODEX_PLAYBOOK.md` / `.agent/SERVER_PLAYBOOK.md` 判断风险等级和门禁要求
 - [ ] commit message 关联 issue ≤1 条；未在同一分支混入无关修复
 - [ ] 未把 Java 核心逻辑改动夹带在"标题是文档/UI"的 PR 中
 - [ ] 未绕过 PR 直推 master；未 force push 到 `master`
@@ -72,4 +73,5 @@
 - .agent/KNOWN_PITFALLS.md —— 历史误读 / 违规案例
 - .agent/REVIEW_POLICY.md —— review 前必须核对真实 diff
 - .agent/COORDINATION.md —— coordinator / worker / reviewer 门禁
+- .agent/CODEX_PLAYBOOK.md —— 维护者在场时的 Codex 现场协作流
 -->
