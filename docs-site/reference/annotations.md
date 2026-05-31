@@ -142,7 +142,7 @@ title: 注解速查表
 public class UserController { ... }
 ```
 
-> ⚠️ **React UI 注意**：`order` 排序在 React 前端暂不生效，`author`/`authors` 展示暂未实现。本仓库 `knife4j-vue3`（OAS2 starter）完整支持。
+> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 展示暂未实现。
 
 ### 3.2 `@ApiOperationSupport` — 接口增强
 
@@ -180,7 +180,7 @@ public UserVO create(@RequestBody UserCreateRequest req) { ... }
 @ApiOperationSupport(includeParameters = {"name", "email"})
 ```
 
-> ⚠️ **React UI 注意**：`order` 排序在 React 前端暂不生效，`author`/`authors` 展示暂未实现。`ignoreParameters`/`includeParameters` 依赖后端 OpenAPI customizer 修改 schema，React 前端可以消费其结果。
+> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 展示暂未实现。`ignoreParameters`/`includeParameters` 依赖后端 OpenAPI customizer 修改 schema，React 前端可以消费其结果。
 
 ### 3.3 `@DynamicParameter` / `@DynamicParameters` / `@DynamicResponseParameters` — 动态模型
 
@@ -349,13 +349,13 @@ public class UserController {
 
 ## 七、React UI 功能覆盖现状
 
-Knife4j 专有注解的后端增强逻辑通过 `Knife4jOpenApiCustomizer` / `Knife4jOperationCustomizer` 修改 OpenAPI spec，React 前端理论上可以消费修改后的 spec。但以下增强在 **React 前端 UI 层面**暂未实现：
+Knife4j 专有注解的后端增强逻辑通过 `Knife4jOpenApiCustomizer` / `Knife4jOperationCustomizer` 修改 OpenAPI spec。React 前端通过消费修改后的 spec 支持其中一部分增强：
 
 | 增强功能 | 后端是否生效 | Vue 3 UI（OAS2） | React UI（OAS3） | 说明 |
 | --- | --- | --- | --- | --- |
-| `@ApiSupport.order` Tag 排序 | ✅ 写入 spec | ✅ | ❌ | React 侧边栏暂不按 order 排序 |
+| `@ApiSupport.order` Tag 排序 | ✅ 写入 spec | ✅ | ✅ | React 按 `x-order` 排序，缺失时保持原排序策略 |
 | `@ApiSupport.author/authors` | ✅ 写入 spec | ✅ | ❌ | React 暂不展示开发者信息 |
-| `@ApiOperationSupport.order` 操作排序 | ✅ 写入 spec | ✅ | ❌ | React 操作列表暂不按 order 排序 |
+| `@ApiOperationSupport.order` 操作排序 | ✅ 写入 spec | ✅ | ✅ | React 按 `x-order` 排序，缺失时保持原排序策略 |
 | `@ApiOperationSupport.author/authors` | ✅ 写入 spec | ✅ | ❌ | React 暂不展示开发者信息 |
 | `ignoreParameters` / `includeParameters` | ✅ 修改 schema | ✅ | ⚠️ | 后端已修改 schema，React 能读到结果 |
 | `@DynamicParameter` 系列 | ⚠️ 仅 openapi2 | ✅ | ❌ | 4.0 起放弃维护 |
@@ -393,9 +393,9 @@ private String name;
 
 1. 确认 `knife4j.enable=true` 已配置。
 2. 确认使用的是 WebMvc Starter（非 WebFlux，WebFlux 不支持后端增强）。
-3. React 前端暂不支持按 `order` 排序，切换到本仓库 `knife4j-vue3`（OAS2 starter）验证。
+3. 确认使用的是 OAS3 WebMvc starter，并且 `/v3/api-docs` 的 `tags` 或 operation 中已写入 `x-order`。
+4. 如果 OpenAPI spec 中没有 `x-order`，先检查 `springdoc.group-configs.packages-to-scan` 是否覆盖到对应 Controller。
 
 ### `@Ignore` vs `@Hidden` 用哪个？
 
 功能重叠，推荐优先使用 OpenAPI 3 标准的 `@Hidden`。`@Ignore` 的额外好处是可附带忽略原因说明，但当前无 UI 消费此信息。
-
