@@ -103,6 +103,11 @@ public class PathUtils {
      * @since v4.2.0
      */
     public static String processContextPath(String contextPath) {
+        // 兼容 issue #421：Cloud 路由未配置 servicePath 时，SwaggerRoute.servicePath 可能为 null，
+        // 直接调用 endsWith 会抛 NPE，最终导致 /v3/api-docs/swagger-config 返回 500。
+        if (contextPath == null) {
+            return "";
+        }
         String validateContextPath = contextPath;
         if (DEFAULT_CONTEXT_PATH.equals(validateContextPath)) {
             validateContextPath = "";
