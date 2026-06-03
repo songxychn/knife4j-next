@@ -93,19 +93,25 @@ public class PathUtils {
     }
 
     /**
-     * 数据校验，主要是针对ContextPath属性，两个要求：
+     * 数据校验，主要是针对ContextPath属性，三个要求：
      * <ul>
-     *     <li>1、如果ContextPath值为"/",那么置为空字符串</li>
-     *     <li>2、如果ContextPath值以"/"结尾，那么去除结尾的"/"字符</li>
+     *     <li>1、如果ContextPath值为null或空字符串，那么直接返回空字符串</li>
+     *     <li>2、如果ContextPath值为"/",那么置为空字符串</li>
+     *     <li>3、如果ContextPath值以"/"结尾，那么去除结尾的"/"字符</li>
      * </ul>
      * 主要的作用：防止在Knife4j的界面接口中，追加显示"/"字符
      * @param contextPath 当前接口或服务ContextPath路径
      * @since v4.2.0
      */
     public static String processContextPath(String contextPath) {
+        // cloud/eureka/nacos/polaris 等路由场景下，开发者未配置 servicePath 时 contextPath 可能为 null，
+        // 必须先做空值保护，避免后续 endsWith 抛 NullPointerException 导致 /v3/api-docs/swagger-config 返回 500。
+        if (contextPath == null || contextPath.isEmpty()) {
+            return "";
+        }
         String validateContextPath = contextPath;
         if (DEFAULT_CONTEXT_PATH.equals(validateContextPath)) {
-            validateContextPath = "";
+            return "";
         }
         if (validateContextPath.endsWith(DEFAULT_CONTEXT_PATH)) {
             // 去除尾部/字符
