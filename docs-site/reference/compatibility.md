@@ -53,8 +53,8 @@ title: 兼容矩阵
 | --- | --- | --- | --- | --- | --- |
 | `knife4j-gateway-spring-boot-starter` | ❌ | ✅ | ❌ | Spring Cloud Gateway 聚合 | [boot3-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-gateway-app) |
 | `knife4j-gateway-boot4-spring-boot-starter` | ❌ | ❌ | ✅ | Spring Cloud Gateway 5 聚合 | [boot4-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot4-gateway-app) |
-| `knife4j-aggregation-spring-boot-starter` | ✅ | ❌ | ❌ | 独立聚合（Boot 2.x） | ⚠️ 手动验证 |
-| `knife4j-aggregation-jakarta-spring-boot-starter` | ❌ | ✅ | ❌ | 独立聚合（Boot 3.x） | ⚠️ 手动验证 |
+| `knife4j-aggregation-spring-boot-starter` | ✅ | ❌ | ❌ | 独立聚合（Boot 2.x） | ⚠️ 手动验证（[#417](https://github.com/songxychn/knife4j-next/issues/417) 后续任务跟踪 smoke 覆盖） |
+| `knife4j-aggregation-jakarta-spring-boot-starter` | ❌ | ✅ | ❌ | 独立聚合（Boot 3.x） | [aggregation-boot3-jakarta-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/aggregation-boot3-jakarta-app) |
 
 - Gateway starter 仅用于 Spring Cloud Gateway（WebFlux），**不适用于普通 WebMvc 项目**。
 - 聚合 starter 用于**非网关**的微服务聚合场景。

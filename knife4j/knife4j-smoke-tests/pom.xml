@@ -29,5 +29,6 @@
         <module>boot35-jakarta-app</module>
         <module>boot4-jakarta-app</module>
         <module>boot4-gateway-app</module>
+        <module>aggregation-boot3-jakarta-app</module>
     </modules>
 </project>

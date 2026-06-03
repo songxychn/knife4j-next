@@ -1,0 +1,22 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Knife4j Aggregation Smoke Service",
+    "description": "Static OpenAPI 3 document used by the aggregation smoke test (issue #417).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/hello": {
+      "get": {
+        "summary": "Sample endpoint",
+        "operationId": "hello",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}
+
