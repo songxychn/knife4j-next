@@ -41,7 +41,7 @@ import jakarta.servlet.http.HttpServletResponse;
 /***
  *
  * @since  2.0.8
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
+ * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2020/10/29 20:06
  */
 public class Knife4jRouteProxyFilter implements Filter {
@@ -67,9 +67,7 @@ public class Knife4jRouteProxyFilter implements Filter {
         String uri = request.getRequestURI();
         if (routeDispatcher.checkRoute(request.getHeader(RouteDispatcher.ROUTE_PROXY_HEADER_NAME))) {
             if (StrUtil.endWith(uri, RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT)) {
-                String group = request.getParameter("group");
-                SwaggerRoute swaggerRoute = routeDispatcher.getRoute(group);
-                writeRouteResponse(response, swaggerRoute == null ? "" : swaggerRoute.getContent());
+                handleSwaggerInstance(request, response);
                 // 响应当前服务disk-实例
             } else {
                 if (logger.isDebugEnabled()) {
@@ -87,13 +85,38 @@ public class Knife4jRouteProxyFilter implements Filter {
                 writeRouteResponse(response, gson.toJson(routeDispatcher.getRoutes()));
             } else if (StrUtil.endWith(uri, RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT)) {
                 // 响应当前服务disk-实例
-                String group = request.getParameter("group");
-                SwaggerRoute swaggerRoute = routeDispatcher.getRoute(group);
-                writeRouteResponse(response, swaggerRoute == null ? "" : swaggerRoute.getContent());
+                handleSwaggerInstance(request, response);
             } else {
                 filterChain.doFilter(servletRequest, servletResponse);
             }
         }
+    }
+
+    /**
+     * 处理 {@code /swagger-instance?group=<pkId>} 端点。
+     * <p>
+     * - disk 模式：路由内已经持有 OpenAPI 文档内容，直接回写；<br>
+     * - cloud/eureka/nacos/polaris 远程模式：路由没有缓存内容，
+     *   通过 {@link RouteDispatcher#executeSwaggerInstance} 把请求转发到远程实例拉取。
+     */
+    private void handleSwaggerInstance(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String group = request.getParameter("group");
+        SwaggerRoute swaggerRoute = routeDispatcher.getRoute(group);
+        if (swaggerRoute == null) {
+            writeRouteResponse(response, "");
+            return;
+        }
+        if (StrUtil.isNotBlank(swaggerRoute.getContent())) {
+            // disk 模式：直接返回 content
+            writeRouteResponse(response, swaggerRoute.getContent());
+            return;
+        }
+        if (StrUtil.isNotBlank(swaggerRoute.getUri()) && StrUtil.isNotBlank(swaggerRoute.getOriginalLocation())) {
+            // cloud/eureka/nacos/polaris 远程模式：通过 RouteDispatcher 代理远程请求
+            routeDispatcher.executeSwaggerInstance(request, response, swaggerRoute);
+            return;
+        }
+        writeRouteResponse(response, "");
     }
 
     /**

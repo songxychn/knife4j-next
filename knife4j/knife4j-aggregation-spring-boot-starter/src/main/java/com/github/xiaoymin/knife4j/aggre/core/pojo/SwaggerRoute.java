@@ -37,7 +37,7 @@ import java.util.Objects;
 /***
  * 最终返回前端Swagger的数据结构
  * @since  2.0.8
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
+ * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2020/10/31 9:34
  */
 public class SwaggerRoute {
@@ -64,6 +64,14 @@ public class SwaggerRoute {
      */
     private String basicAuth;
     private String location;
+    /**
+     * 原始 location（用户在配置中声明的 location，例如 /v3/api-docs）。
+     * 对 cloud/eureka/nacos/polaris 等远程代理路由，{@link #location} 会被重写为
+     * {@code /swagger-instance?group=<pkId>}，原始路径保留在此，供 swagger-instance
+     * 端点远程代理时拼接真实远程 URL 使用。
+     * 不参与序列化，避免暴露后端真实接口路径。
+     */
+    private transient String originalLocation;
     /**
      * Disk模式返回的OpenAPI规范json数据，作为结构来说不需要序列化
      */
@@ -163,7 +171,10 @@ public class SwaggerRoute {
                     this.servicePath = cloudRoute.getServicePath();
                 }
             }
-            this.location = cloudRoute.getLocation();
+            // 保存原始 location，便于 swagger-instance 端点做远程代理
+            this.originalLocation = cloudRoute.getLocation();
+            // 与 disk 模式保持一致，统一通过 /swagger-instance?group=<pkId> 拉取 OpenAPI 文档
+            this.location = RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT + "?group=" + cloudRoute.pkId();
             this.swaggerVersion = cloudRoute.getSwaggerVersion();
             // since 2.0.9 add by xiaoymin 2021年5月4日 13:08:42
             this.order = cloudRoute.getOrder();
@@ -198,7 +209,9 @@ public class SwaggerRoute {
                     this.servicePath = eurekaRoute.getServicePath();
                 }
             }
-            this.location = eurekaRoute.getLocation();
+            // 保存原始 location，便于 swagger-instance 端点做远程代理
+            this.originalLocation = eurekaRoute.getLocation();
+            this.location = RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT + "?group=" + eurekaRoute.pkId();
             this.swaggerVersion = eurekaRoute.getSwaggerVersion();
             // since 2.0.9 add by xiaoymin 2021年5月4日 13:08:42
             this.order = eurekaRoute.getOrder();
@@ -233,7 +246,9 @@ public class SwaggerRoute {
                     this.servicePath = nacosRoute.getServicePath();
                 }
             }
-            this.location = nacosRoute.getLocation();
+            // 保存原始 location，便于 swagger-instance 端点做远程代理
+            this.originalLocation = nacosRoute.getLocation();
+            this.location = RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT + "?group=" + nacosRoute.pkId();
             this.swaggerVersion = nacosRoute.getSwaggerVersion();
             // since 2.0.9 add by xiaoymin 2021年5月4日 13:08:42
             this.order = nacosRoute.getOrder();
@@ -263,7 +278,9 @@ public class SwaggerRoute {
                     this.servicePath = polarisRoute.getServicePath();
                 }
             }
-            this.location = polarisRoute.getLocation();
+            // 保存原始 location，便于 swagger-instance 端点做远程代理
+            this.originalLocation = polarisRoute.getLocation();
+            this.location = RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT + "?group=" + polarisRoute.pkId();
             this.swaggerVersion = polarisRoute.getSwaggerVersion();
             // since 2.0.9 add by xiaoymin 2021年5月4日 13:08:42
             this.order = polarisRoute.getOrder();
@@ -380,5 +397,13 @@ public class SwaggerRoute {
 
     public void setDebugUrl(String debugUrl) {
         this.debugUrl = debugUrl;
+    }
+
+    public String getOriginalLocation() {
+        return originalLocation;
+    }
+
+    public void setOriginalLocation(String originalLocation) {
+        this.originalLocation = originalLocation;
     }
 }

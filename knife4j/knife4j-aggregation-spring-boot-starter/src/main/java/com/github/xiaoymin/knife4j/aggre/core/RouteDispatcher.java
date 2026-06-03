@@ -47,7 +47,7 @@ import java.util.*;
 /***
  *
  * @since  2.0.8
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
+ * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2020/10/29 20:08
  */
 public class RouteDispatcher {
@@ -314,6 +314,44 @@ public class RouteDispatcher {
             }
         }
         routeRequestContext.setRequestContent(request.getInputStream());
+    }
+
+    /**
+     * 代理请求远程 OpenAPI 文档（cloud/eureka/nacos/polaris 模式）。
+     * <p>
+     * 对于这些远程聚合模式，{@link SwaggerRoute#getContent()} 为空，前端通过
+     * {@code /swagger-instance?group=<pkId>} 拉取文档时，需要由服务端把请求转发到
+     * {@code swaggerRoute.getUri() + swaggerRoute.getOriginalLocation()} 才能拿到真实数据。
+     *
+     * @param request      原始 servlet 请求
+     * @param response     响应流
+     * @param swaggerRoute 当前路由（必须包含 uri 与 originalLocation）
+     */
+    public void executeSwaggerInstance(HttpServletRequest request, HttpServletResponse response, SwaggerRoute swaggerRoute) {
+        try {
+            RouteRequestContext routeContext = new RouteRequestContext();
+            // 构建远程请求 URL
+            String remoteUrl = swaggerRoute.getUri() + swaggerRoute.getOriginalLocation();
+            routeContext.setUrl(remoteUrl);
+            routeContext.setMethod("GET");
+            routeContext.setOriginalUri(swaggerRoute.getOriginalLocation());
+            routeContext.addHeader("Host", URI.create(swaggerRoute.getUri()).getHost());
+            // 如果路由声明了 basicAuth，附加认证头
+            if (StrUtil.isNotBlank(swaggerRoute.getBasicAuth())) {
+                BasicAuth basicAuth = routeRepository.getAuth(swaggerRoute.getBasicAuth());
+                if (basicAuth != null) {
+                    routeContext.addHeader("Authorization", RouteUtils.authorize(basicAuth.getUsername(), basicAuth.getPassword()));
+                }
+            }
+            RouteResponse routeResponse = routeExecutor.executor(routeContext);
+            writeResponseStatus(routeResponse, response);
+            writeResponseHeader(routeResponse, response);
+            writeBody(routeResponse, response);
+        } catch (Exception e) {
+            logger.error("swagger-instance proxy error:{}", e.getMessage());
+            logger.error(e.getMessage(), e);
+            writeDefault(request, response, e.getMessage());
+        }
     }
 
     public SwaggerRoute getRoute(String header) {
