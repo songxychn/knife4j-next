@@ -41,8 +41,8 @@ title: 兼容矩阵
 
 | Starter | Boot 2.7 | Boot 3.x | UI | 验证状态 |
 | --- | --- | --- | --- | --- |
-| `knife4j-openapi3-webflux-spring-boot-starter` | ⚠️ | ❌ | React | 无 smoke test |
-| `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | ❌ | ⚠️ | React | 无 smoke test |
+| `knife4j-openapi3-webflux-spring-boot-starter` | ✅ | ❌ | React | [boot2-webflux-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot2-webflux-app) |
+| `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | ❌ | ✅ | React | [boot3-webflux-jakarta-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-webflux-jakarta-app) |
 
 - WebFlux starter 是**纯依赖编排**，不含后端增强能力（`@ApiOperationSupport`、`knife4j.setting.*` 等）。
 - 详见 [WebFlux 接入](../guide/webflux)。
@@ -62,7 +62,7 @@ title: 兼容矩阵
 
 ## Smoke Tests 验证内容
 
-WebMvc smoke-test 子模块验证以下端点返回 200 且内容正确；Gateway smoke-test 额外验证 `/doc.html` 和 `/v3/api-docs/swagger-config`：
+WebMvc smoke-test 子模块验证以下端点返回 200 且内容正确；WebFlux smoke-test 只验证 `/doc.html` 和 `/v3/api-docs`；Gateway smoke-test 额外验证 `/doc.html` 和 `/v3/api-docs/swagger-config`：
 
 | 端点 | openapi2 验证 | openapi3 验证 |
 | --- | --- | --- |
@@ -70,6 +70,8 @@ WebMvc smoke-test 子模块验证以下端点返回 200 且内容正确；Gatewa
 | `GET /v2/api-docs` | ✅ 包含 `"swagger":"2.0"` | — |
 | `GET /v3/api-docs` | — | ✅ 包含 `"openapi"` |
 | `GET /knife4j/config` | — | ✅ 返回 `schemaVersion`、`apiDocsUrl`、`swaggerConfigUrl`，且不出现在 OpenAPI 文档中 |
+
+WebFlux starter 是纯依赖编排，不声明 `/knife4j/config` 等 WebMvc starter 增强入口。
 
 运行全部 smoke test：
 
