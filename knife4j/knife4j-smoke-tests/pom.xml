@@ -24,6 +24,7 @@
         <module>boot2-app</module>
         <module>boot2-openapi3-app</module>
         <module>boot2-webflux-app</module>
+        <module>aggregation-boot2-app</module>
         <module>boot3-jakarta-app</module>
         <module>boot3-webflux-jakarta-app</module>
         <module>boot3-app</module>
