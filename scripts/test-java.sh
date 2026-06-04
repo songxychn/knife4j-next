@@ -29,6 +29,7 @@ mvn -B -ntp -Dknife4j-skipTests=false verify
 SMOKE_MODULES=(
   "boot2-app"
   "boot2-openapi3-app"
+  "aggregation-boot2-app"
   "boot3-app"
   "boot3-jakarta-app"
   "boot3-gateway-app"
