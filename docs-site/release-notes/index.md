@@ -12,7 +12,27 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.7 <Badge type="tip" text="最新" />
+### 5.0.8 <Badge type="tip" text="最新" />
+
+`5.0.8` 是基于 `5.0.7` 的补丁版本，重点修复 Jakarta 独立聚合在 cloud 路由缺少 `servicePath` 时的 `swagger-config` 500 问题，并补齐 Gateway、WebFlux 与独立聚合场景的 smoke 验证覆盖。
+
+**后端 & 聚合**
+
+- 修复 `knife4j-aggregation-jakarta-spring-boot-starter` 在 cloud 模式下路由缺少 `servicePath` 时 `/v3/api-docs/swagger-config` 返回 500 的问题，避免单个不完整 route 影响聚合配置生成（PR #423）。
+- 新增 Boot 3 Gateway smoke 覆盖，验证 Gateway 场景下 `/doc.html` 与 `/v3/api-docs/swagger-config` 的基础可用性（PR #418）。
+- 补齐 Boot 2 独立聚合与 Boot 3 Jakarta 独立聚合 smoke 覆盖，并把对应模块纳入 Java smoke evidence gate 与 CI summary（PR #425、#427）。
+- 新增 Boot 2 / Boot 3 WebFlux starter smoke 覆盖，验证 WebFlux 纯依赖编排场景下 `/doc.html` 与 `/v3/api-docs` 可用（PR #426）。
+
+**前端（React UI）**
+
+- React UI 支持按 Knife4j 扩展字段 `x-order` 排序 tag 与 operation；当文档中存在有效 `x-order` 时优先使用扩展排序，缺失时继续回退到既有 sorter 策略（PR #416）。
+
+**文档 & 流程**
+
+- 整理 README 信息结构并补充 Star History 曲线，降低新用户判断项目状态和接入路径的成本（PR #411、#412）。
+- 增加 Codex 现场协作手册与 workflow 快照，移除冗余 PR 合并通知 workflow，让 agent 维护流程继续收敛在 issue / PR / CI 状态上（PR #419、#420）。
+
+### 5.0.7
 
 `5.0.7` 是基于 `5.0.6` 的补丁版本，重点修复 Jakarta Swagger BOM 版本管理问题，并继续收口 Vue3 / OAS2 兼容前端的构建验证、运行时输出与 Markdown 预览产物体积。
 
@@ -220,7 +240,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.7</version>
+    <version>5.0.8</version>
 </dependency>
 ```
 
