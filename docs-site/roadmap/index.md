@@ -46,6 +46,7 @@ title: 路线图
 | React 前端 | 设置面板默认值与后端 starter 对齐，能读取 OpenAPI 文档中的 `enableHost` 等服务端注入项 | ✅ |
 | React 前端 | 调试器 raw body 多格式 Beautify（JSON / XML / HTML / JavaScript）与完整 MIME 展示 | ✅ |
 | React 前端 | `enableSwaggerModels=false` 时 Schema 页以 403 提示填充，路由守卫防止被禁用路径被访问 | ✅ |
+| React 前端 | ApiDoc 展示 operation `x-author` 作者信息 | ✅ |
 | knife4j-core | debug 解析层抽取（resolveRef / OperationDebugModel / requestBuilder） | ✅ |
 | knife4j-core | buildSchemaExample & buildSchemaFieldTree | ✅ |
 | 基础设施 | Bun workspace 统一 knife4j-front 包管理 | ✅ |
@@ -86,10 +87,11 @@ title: 路线图
 | 功能 | Vue3 | React | 缺口说明 |
 | --- | --- | --- | --- |
 | `@ApiSupport.order` Tag 排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
-| `@ApiSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
+| `@ApiSupport.author/authors` 展示 | ✅ | ✅ | 类级作者由后端回退写入 operation `x-author`，React 在接口详情页展示，不做 Tag 级聚合 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
-| `@ApiOperationSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
+| `@ApiOperationSupport.author/authors` 展示 | ✅ | ✅ | 后端合并为 operation `x-author`，React 展示非空作者字符串 |
 | 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-openapi.x-markdownFiles` 并在侧边栏渲染 |
+| 自定义 Footer | ✅ | ✅ | React 读取 `enableFooterCustom` / `footerCustomContent` 并按 Markdown 安全渲染 |
 | 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
 | TypeScript 代码生成 | ✅ | ✅ | React 操作页提供基础 JS / TypeScript 请求函数片段 |
 | Postman 导出 | ✅ | ⬜ | — |

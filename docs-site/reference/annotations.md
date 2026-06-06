@@ -142,7 +142,7 @@ title: 注解速查表
 public class UserController { ... }
 ```
 
-> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 展示暂未实现。
+> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 会由后端合并为 operation `x-author`，React 在接口详情页展示该 operation 作者信息，不额外推断 Tag 级作者。
 
 ### 3.2 `@ApiOperationSupport` — 接口增强
 
@@ -180,7 +180,7 @@ public UserVO create(@RequestBody UserCreateRequest req) { ... }
 @ApiOperationSupport(includeParameters = {"name", "email"})
 ```
 
-> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 展示暂未实现。`ignoreParameters`/`includeParameters` 依赖后端 OpenAPI customizer 修改 schema，React 前端可以消费其结果。
+> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 会由后端合并为 operation `x-author`，React 在接口详情页展示该 operation 作者信息。`ignoreParameters`/`includeParameters` 依赖后端 OpenAPI customizer 修改 schema，React 前端可以消费其结果。
 
 ### 3.3 `@DynamicParameter` / `@DynamicParameters` / `@DynamicResponseParameters` — 动态模型
 
@@ -354,9 +354,9 @@ Knife4j 专有注解的后端增强逻辑通过 `Knife4jOpenApiCustomizer` / `Kn
 | 增强功能 | 后端是否生效 | Vue 3 UI（OAS2） | React UI（OAS3） | 说明 |
 | --- | --- | --- | --- | --- |
 | `@ApiSupport.order` Tag 排序 | ✅ 写入 spec | ✅ | ✅ | React 按 `x-order` 排序，缺失时保持原排序策略 |
-| `@ApiSupport.author/authors` | ✅ 写入 spec | ✅ | ❌ | React 暂不展示开发者信息 |
+| `@ApiSupport.author/authors` | ✅ 写入 spec | ✅ | ✅ | 类级作者由后端回退写入 operation `x-author`，React 展示 operation 作者信息，不做 Tag 级聚合 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ 写入 spec | ✅ | ✅ | React 按 `x-order` 排序，缺失时保持原排序策略 |
-| `@ApiOperationSupport.author/authors` | ✅ 写入 spec | ✅ | ❌ | React 暂不展示开发者信息 |
+| `@ApiOperationSupport.author/authors` | ✅ 写入 spec | ✅ | ✅ | 后端合并为 operation `x-author`，React 在接口详情页展示非空字符串值 |
 | `ignoreParameters` / `includeParameters` | ✅ 修改 schema | ✅ | ⚠️ | 后端已修改 schema，React 能读到结果 |
 | `@DynamicParameter` 系列 | ⚠️ 仅 openapi2 | ✅ | ❌ | 4.0 起放弃维护 |
 | `@Ignore` | ✅ 过滤接口 | ✅ | ⚠️ | 后端过滤后 React 不展示被忽略接口 |

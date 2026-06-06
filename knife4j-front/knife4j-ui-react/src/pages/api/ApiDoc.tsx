@@ -11,6 +11,7 @@ import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
+import { operationAuthors } from './operationAuthor';
 
 const { Title, Text } = Typography;
 
@@ -323,6 +324,7 @@ export default function ApiDoc() {
 
   const requestExample = buildJsonExample(bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
+  const authors = operationAuthors(op);
 
   return (
     <OperationModeLayout activeKey="doc">
@@ -351,6 +353,7 @@ export default function ApiDoc() {
         style={{
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 12,
           marginBottom: 8,
         }}
@@ -358,10 +361,32 @@ export default function ApiDoc() {
         <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
           {method}
         </Tag>
-        <Text code style={{ fontSize: 15 }}>
+        <Text code style={{ fontSize: 15, wordBreak: 'break-all' }}>
           {operation.path}
         </Text>
         {op.deprecated && <Tag color="red">{t('apiDoc.deprecated')}</Tag>}
+        {authors.length > 0 && (
+          <Space size={4} wrap style={{ minWidth: 0 }}>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              {t('apiDoc.author')}
+            </Text>
+            {authors.map((author, index) => (
+              <Tag
+                key={`${author}-${index}`}
+                color="geekblue"
+                style={{
+                  marginInlineEnd: 0,
+                  maxWidth: 280,
+                  overflowWrap: 'anywhere',
+                  whiteSpace: 'normal',
+                }}
+                title={author}
+              >
+                {author}
+              </Tag>
+            ))}
+          </Space>
+        )}
       </div>
       {op.description && <Markdown source={op.description} />}
 
