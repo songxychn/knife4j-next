@@ -156,6 +156,8 @@ export interface OperationObject {
   servers?: SwaggerServer[];
   /** Knife4j extension emitted from @ApiOperationSupport.order. */
   'x-order'?: number | string;
+  /** Knife4j extension emitted from @ApiOperationSupport.author/authors. */
+  'x-author'?: string;
 }
 
 export interface PathItemObject {

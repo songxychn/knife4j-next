@@ -75,6 +75,7 @@ const zhCN = {
   'apiDoc.notFound.title': '未找到接口文档',
   'apiDoc.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
   'apiDoc.deprecated': '已废弃',
+  'apiDoc.author': '作者：',
   'apiDoc.requestParams': '请求参数',
   'apiDoc.col.paramName': '参数名',
   'apiDoc.col.location': '位置',
