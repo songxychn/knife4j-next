@@ -77,6 +77,7 @@ const jaJP = {
   'apiDoc.notFound.desc':
     '現在のルートに一致する OpenAPI operation はありません。左側の API 一覧から開き直してください。',
   'apiDoc.deprecated': '非推奨',
+  'apiDoc.author': '作成者：',
   'apiDoc.requestParams': 'リクエストパラメータ',
   'apiDoc.col.paramName': '名前',
   'apiDoc.col.location': '位置',

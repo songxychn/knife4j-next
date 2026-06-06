@@ -76,6 +76,7 @@ const enUS = {
   'apiDoc.notFound.title': 'API doc not found',
   'apiDoc.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
   'apiDoc.deprecated': 'Deprecated',
+  'apiDoc.author': 'Author:',
   'apiDoc.requestParams': 'Request Parameters',
   'apiDoc.col.paramName': 'Name',
   'apiDoc.col.location': 'In',
