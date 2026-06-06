@@ -27,6 +27,7 @@ describe('knife4j setting extraction', () => {
           enableFooter: false,
           enableHost: true,
           enableHostText: 'http://localhost:9000',
+          enableRequestCache: false,
           enableAfterScript: true,
         },
       },
@@ -43,7 +44,20 @@ describe('knife4j setting extraction', () => {
       enableFooter: false,
       enableHost: true,
       enableHostText: 'http://localhost:9000',
+      enableRequestCache: false,
     });
+  });
+
+  it('ignores invalid enableRequestCache values', () => {
+    const doc = baseDoc({
+      'x-openapi': {
+        'x-setting': {
+          enableRequestCache: 'false',
+        },
+      },
+    });
+
+    expect(extractKnife4jSettings(doc)).toEqual({});
   });
 
   it('keeps custom markdown docs compatible with nested and direct shapes', () => {

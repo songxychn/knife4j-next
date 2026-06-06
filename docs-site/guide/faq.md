@@ -167,6 +167,7 @@ connect-src 'self';
 - `knife4j.setting.enable-host` / `enable-host-text`
 - `knife4j.setting.enable-group`
 - `knife4j.setting.enable-footer`
+- `knife4j.setting.enable-request-cache`
 
 用户在 React 设置面板里的本地选择会覆盖后端默认值。注意：`enable-debug=false` 只是隐藏调试入口，不是安全控制；线上屏蔽请使用 `knife4j.production`、`knife4j.basic` 或外层安全框架。
 
@@ -177,7 +178,6 @@ connect-src 'self';
 - `knife4j.setting.enable-home-custom` / `home-custom-path`
 - `knife4j.setting.enable-after-script`
 - `knife4j.setting.enable-reload-cache-parameter`
-- `knife4j.setting.enable-request-cache`
 - `knife4j.setting.enable-dynamic-parameter`
 - `knife4j.setting.enable-filter-multipart-apis`
 - `knife4j.setting.enable-response-code`

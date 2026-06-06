@@ -86,6 +86,9 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableHostText = readString(setting, 'enableHostText');
   if (enableHostText !== undefined) next.enableHostText = enableHostText;
 
+  const enableRequestCache = readBoolean(setting, 'enableRequestCache');
+  if (enableRequestCache !== undefined) next.enableRequestCache = enableRequestCache;
+
   return next;
 }
 
