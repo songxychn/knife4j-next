@@ -15,8 +15,10 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
+import { useSettings } from '../context/SettingsContext';
 import Markdown from '../components/Markdown';
 import type { PathItemObject, SwaggerServer } from '../types/swagger';
+import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
 import knife4jMark from '../assets/logo/knife4j-next-mark.svg';
 
 const { Title, Text, Paragraph, Link } = Typography;
@@ -37,7 +39,9 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
 export default function Home() {
   const { t } = useTranslation();
   const { activeSwaggerGroup, swaggerDoc, menuTags, loading } = useGroup();
+  const { settings } = useSettings();
   const { token } = theme.useToken();
+  const customHomeMarkdown = getCustomHomeMarkdown(settings);
 
   // Servers: prefer OAS3 servers, fall back to OAS2 host/basePath/schemes
   const servers = useMemo<SwaggerServer[]>(() => {
@@ -107,6 +111,16 @@ export default function Home() {
     return (
       <div style={{ padding: 48 }}>
         <Empty description={t('home.noData')} />
+      </div>
+    );
+  }
+
+  if (customHomeMarkdown) {
+    return (
+      <div style={{ padding: 20 }}>
+        <Card size="small" styles={{ body: { padding: 24 } }}>
+          <Markdown source={customHomeMarkdown} />
+        </Card>
       </div>
     );
   }
