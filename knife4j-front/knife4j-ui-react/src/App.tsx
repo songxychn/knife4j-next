@@ -11,6 +11,7 @@ import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { SUPPORTED_LANGS, type SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
+import Markdown from './components/Markdown';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
 import {
   findOperationRouteKey,
@@ -18,6 +19,7 @@ import {
   routeKeyToMenuKey,
   upsertOperationRoutePane,
 } from './utils/operationTabs';
+import { resolveFooterContent } from './utils/footer';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -350,6 +352,7 @@ const AppInner: React.FC = () => {
     closable: item.key !== HOME_KEY,
     children: item.key === activeKey ? <Outlet /> : item.children,
   }));
+  const footerContent = resolveFooterContent(settings, t('app.footer'));
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -474,7 +477,17 @@ const AppInner: React.FC = () => {
           </div>
         </Content>
 
-        {settings.enableFooter && <Footer style={footerStyle}>{t('app.footer')}</Footer>}
+        {footerContent && (
+          <Footer style={footerStyle}>
+            {footerContent.kind === 'custom' ? (
+              <div className="knife4j-footer-markdown">
+                <Markdown source={footerContent.content} />
+              </div>
+            ) : (
+              footerContent.content
+            )}
+          </Footer>
+        )}
       </Layout>
     </Layout>
   );

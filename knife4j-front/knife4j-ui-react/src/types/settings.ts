@@ -23,6 +23,10 @@ export interface AppSettings {
   enableGroup: boolean;
   /** Whether the default footer is shown. */
   enableFooter: boolean;
+  /** Whether custom Markdown footer content is shown when footer is enabled. */
+  enableFooterCustom: boolean;
+  /** Backend-provided custom footer Markdown content. */
+  footerCustomContent: string;
   /** Whether Host override is enabled. */
   enableHost: boolean;
   /** Host override text (used when enableHost=true). */
@@ -54,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   swaggerModelName: 'Swagger Models',
   enableGroup: true,
   enableFooter: true,
+  enableFooterCustom: false,
+  footerCustomContent: '',
   enableHost: false,
   enableHostText: '',
   enableRequestCache: true,
