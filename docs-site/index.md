@@ -25,7 +25,7 @@ features:
     link: /guide/migration
     linkText: 迁移指引
   - title: Spring Boot 2.7、3.4、3.5、4.0 都跑过
-    details: 7 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x/3.5.0 Jakarta、Boot 4.0.6 WebMVC 与 Boot 4.0.6 Gateway 组合。
+    details: 12 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.0 Jakarta/Gateway/WebFlux/独立聚合、Boot 4.0.6 WebMVC 与 Boot 4.0.6 Gateway 组合。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.7</version>
+    <version>5.0.8</version>
 </dependency>
 ```
 
@@ -72,13 +72,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.7 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.8 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧩 Jakarta Swagger v3 BOM 统一到 `2.2.47`，避免下游依赖降级触发 `Schema.$dynamicRef()` 运行时错误
-- 🧪 新增 Vue3 / OAS2 UI 独立验证脚本，发布前可直接校验 `doc.html` 与 webjar 产物
-- 🧹 清理 Vue3 运行时调试输出，并补齐右键菜单全局监听卸载
-- 📦 Vue3 Markdown 预览改用轻量样式与异步加载，避免旧 FontAwesome / editormd 资源进入构建产物
-- 🧭 继续包含 Boot4 WebMVC 与 Boot4 Gateway starter，覆盖 Spring Boot 4.x 入口
+- 🛠 修复 Jakarta 独立聚合 cloud 路由缺少 `servicePath` 时 `swagger-config` 返回 500 的问题
+- 🧭 React UI 支持按 Knife4j 扩展字段 `x-order` 排序 tag 与 operation
+- 🧪 smoke 覆盖扩展到 Boot 2 / Boot 3 WebFlux、Gateway 与独立聚合场景
+- 📚 README、版本文档和 agent 协作流程继续收敛，发布前状态更容易核验
+- 🧩 继续包含 Boot4 WebMVC 与 Boot4 Gateway starter，覆盖 Spring Boot 4.x 入口
 
 完整更新列表见 [发布说明](/release-notes/)。
 
