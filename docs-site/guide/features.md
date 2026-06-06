@@ -210,16 +210,12 @@ knife4j:
 knife4j:
   enable: true
   setting:
-    enable-footer: false          # 先禁用默认 Footer
-    enable-footer-custom: true    # 启用自定义 Footer
+    enable-footer: true           # 保持 Footer 区域显示
+    enable-footer-custom: true    # 启用自定义 Footer 文案
     footer-custom-content: Apache License 2.0 | Copyright 2019-[Knife4j](https://github.com/songxychn/knife4j-next)
 ```
 
-`footer-custom-content` 支持 Markdown 格式。
-
-::: warning ⚠️ React UI 暂不支持
-自定义 Footer 仅在 Vue3 UI（OAS2 starter）中可用。React 新前端暂不支持。
-:::
+`footer-custom-content` 支持 Markdown 格式。React 新前端会复用自身的 Markdown 安全清洗能力渲染该内容；当 `enable-footer=false` 时，Footer 仍会整体隐藏。
 
 ### 自定义 Host
 

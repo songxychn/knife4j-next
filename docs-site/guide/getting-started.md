@@ -135,7 +135,7 @@ public class UserController {
 3. `http://localhost:8080/v3/api-docs` 返回原始 OpenAPI JSON。
 
 ::: warning 新前端配置覆盖范围
-React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-request-cache`、`swagger-model-name`。`enable-version`、`enable-footer-custom`、`home-custom-path`、`enable-after-script` 等 Vue 时代能力仍暂不生效。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective) 与 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
+React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-footer-custom`、`footer-custom-content`、`enable-request-cache`、`swagger-model-name`。`enable-version`、`home-custom-path`、`enable-after-script` 等 Vue 时代能力仍暂不生效。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective) 与 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
 :::
 
 ---
@@ -178,7 +178,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 
 ::: info 何时选这条
 - 项目深度依赖 Springfox 专属注解（`@ApiOperationSupport(ignoreParameters/includeParameters)`、`@DynamicParameters`、`@DynamicResponseParameters`）。
-- 需要 upstream knife4j 文档上提到的完整 UI 能力（自定义 Footer/Home、OAuth2 调试、Postman 导出、版本小蓝点、afterScript）。
+- 需要 upstream knife4j 文档上提到的完整 UI 能力（自定义首页、Postman 导出、版本小蓝点、afterScript）。
 - 这些特性在本 fork 的新 React 前端中尚未覆盖，但在本仓库 `knife4j-vue3`（`knife4j-openapi2-ui` 打包产物）中完整保留。
 :::
 

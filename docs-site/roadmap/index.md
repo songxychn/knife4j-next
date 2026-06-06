@@ -90,6 +90,7 @@ title: 路线图
 | `@ApiOperationSupport.order` 操作排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
 | `@ApiOperationSupport.author/authors` 展示 | ✅ | ⬜ | 后端已写入 spec，UI 不展示 |
 | 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-openapi.x-markdownFiles` 并在侧边栏渲染 |
+| 自定义 Footer | ✅ | ✅ | React 读取 `enableFooterCustom` / `footerCustomContent` 并按 Markdown 安全渲染 |
 | 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
 | TypeScript 代码生成 | ✅ | ✅ | React 操作页提供基础 JS / TypeScript 请求函数片段 |
 | Postman 导出 | ✅ | ⬜ | — |

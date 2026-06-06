@@ -105,6 +105,10 @@ body {
   padding: 0 24px 24px;
 }
 
+.knife4j-footer-markdown p {
+  margin: 0;
+}
+
 @media (max-width: 800px) {
   .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav {
     min-width: 88px;

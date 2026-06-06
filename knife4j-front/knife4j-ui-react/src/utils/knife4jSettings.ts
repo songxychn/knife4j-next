@@ -80,6 +80,12 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableFooter = readBoolean(setting, 'enableFooter');
   if (enableFooter !== undefined) next.enableFooter = enableFooter;
 
+  const enableFooterCustom = readBoolean(setting, 'enableFooterCustom');
+  if (enableFooterCustom !== undefined) next.enableFooterCustom = enableFooterCustom;
+
+  const footerCustomContent = readString(setting, 'footerCustomContent');
+  if (footerCustomContent !== undefined) next.footerCustomContent = footerCustomContent;
+
   const enableHost = readBoolean(setting, 'enableHost');
   if (enableHost !== undefined) next.enableHost = enableHost;
 

@@ -25,6 +25,8 @@ describe('knife4j setting extraction', () => {
           swaggerModelName: 'Models',
           enableGroup: false,
           enableFooter: false,
+          enableFooterCustom: true,
+          footerCustomContent: 'Apache License 2.0 | [Knife4j](https://github.com/songxychn/knife4j-next)',
           enableHost: true,
           enableHostText: 'http://localhost:9000',
           enableRequestCache: false,
@@ -42,6 +44,8 @@ describe('knife4j setting extraction', () => {
       swaggerModelName: 'Models',
       enableGroup: false,
       enableFooter: false,
+      enableFooterCustom: true,
+      footerCustomContent: 'Apache License 2.0 | [Knife4j](https://github.com/songxychn/knife4j-next)',
       enableHost: true,
       enableHostText: 'http://localhost:9000',
       enableRequestCache: false,
@@ -53,6 +57,19 @@ describe('knife4j setting extraction', () => {
       'x-openapi': {
         'x-setting': {
           enableRequestCache: 'false',
+        },
+      },
+    });
+
+    expect(extractKnife4jSettings(doc)).toEqual({});
+  });
+
+  it('ignores invalid custom footer values', () => {
+    const doc = baseDoc({
+      'x-openapi': {
+        'x-setting': {
+          enableFooterCustom: 'true',
+          footerCustomContent: 42,
         },
       },
     });
