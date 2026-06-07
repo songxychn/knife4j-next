@@ -190,8 +190,8 @@ if (code == 8200) {
 
 开发者可以提供一个 Markdown 文件来自定义 `doc.html` 首页显示内容。
 
-::: warning ⚠️ React UI 暂不支持
-自定义首页仅在 Vue3 UI（OAS2 starter）中可用。React 新前端暂不支持。
+::: tip React UI 支持状态
+React 新前端会在 `enable-home-custom=true` 且后端已经把 Markdown 内容注入到 `x-openapi.x-setting.homeCustomLocation` 时显示自定义首页。React 不读取 `home-custom-path` 文件路径，文件读取仍由后端 starter 完成。
 :::
 
 ```yaml

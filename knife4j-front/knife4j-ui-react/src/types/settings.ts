@@ -15,6 +15,10 @@ export interface AppSettings {
   enableDebug: boolean;
   /** Whether the OpenAPI raw-structure tab is shown. */
   enableOpenApi: boolean;
+  /** Whether the home page should use backend-provided custom Markdown. */
+  enableHomeCustom: boolean;
+  /** Backend-provided custom home Markdown content. */
+  homeCustomLocation: string;
   /** Whether the schema/model entry is shown in the sidebar. */
   enableSwaggerModels: boolean;
   /** Sidebar label for the schema/model entry. */
@@ -54,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableSearch: true,
   enableDebug: true,
   enableOpenApi: true,
+  enableHomeCustom: false,
+  homeCustomLocation: '',
   enableSwaggerModels: true,
   swaggerModelName: 'Swagger Models',
   enableGroup: true,

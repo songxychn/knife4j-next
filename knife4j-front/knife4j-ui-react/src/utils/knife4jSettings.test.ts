@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractKnife4jSettings, extractMarkdownFiles } from './knife4jSettings';
+import { extractKnife4jSettings, extractMarkdownFiles, getCustomHomeMarkdown } from './knife4jSettings';
 import type { SwaggerDoc } from '../types/swagger';
 
 function baseDoc(extra: Record<string, unknown>): SwaggerDoc {
@@ -21,6 +21,8 @@ describe('knife4j setting extraction', () => {
           enableSearch: false,
           enableDebug: false,
           enableOpenApi: false,
+          enableHomeCustom: true,
+          homeCustomLocation: '# Custom Home\n\nWelcome to Knife4j.',
           enableSwaggerModels: false,
           swaggerModelName: 'Models',
           enableGroup: false,
@@ -40,6 +42,8 @@ describe('knife4j setting extraction', () => {
       enableSearch: false,
       enableDebug: false,
       enableOpenApi: false,
+      enableHomeCustom: true,
+      homeCustomLocation: '# Custom Home\n\nWelcome to Knife4j.',
       enableSwaggerModels: false,
       swaggerModelName: 'Models',
       enableGroup: false,
@@ -52,11 +56,13 @@ describe('knife4j setting extraction', () => {
     });
   });
 
-  it('ignores invalid enableRequestCache values', () => {
+  it('ignores invalid setting value types', () => {
     const doc = baseDoc({
       'x-openapi': {
         'x-setting': {
           enableRequestCache: 'false',
+          enableHomeCustom: 'true',
+          homeCustomLocation: 123,
         },
       },
     });
@@ -89,5 +95,11 @@ describe('knife4j setting extraction', () => {
     ).toEqual([{ name: 'nested', children: [{ title: 'Nested' }] }]);
 
     expect(extractMarkdownFiles(baseDoc({ 'x-markdownFiles': [{ name: 'direct' }] }))).toEqual([{ name: 'direct' }]);
+  });
+
+  it('selects custom home markdown only when enabled and non-empty', () => {
+    expect(getCustomHomeMarkdown({ enableHomeCustom: true, homeCustomLocation: '# Home' })).toBe('# Home');
+    expect(getCustomHomeMarkdown({ enableHomeCustom: true, homeCustomLocation: '   ' })).toBeUndefined();
+    expect(getCustomHomeMarkdown({ enableHomeCustom: false, homeCustomLocation: '# Home' })).toBeUndefined();
   });
 });

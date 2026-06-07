@@ -68,6 +68,12 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableOpenApi = readBoolean(setting, 'enableOpenApi');
   if (enableOpenApi !== undefined) next.enableOpenApi = enableOpenApi;
 
+  const enableHomeCustom = readBoolean(setting, 'enableHomeCustom');
+  if (enableHomeCustom !== undefined) next.enableHomeCustom = enableHomeCustom;
+
+  const homeCustomLocation = readString(setting, 'homeCustomLocation');
+  if (homeCustomLocation !== undefined) next.homeCustomLocation = homeCustomLocation;
+
   const enableSwaggerModels = readBoolean(setting, 'enableSwaggerModels');
   if (enableSwaggerModels !== undefined) next.enableSwaggerModels = enableSwaggerModels;
 
@@ -96,6 +102,13 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   if (enableRequestCache !== undefined) next.enableRequestCache = enableRequestCache;
 
   return next;
+}
+
+export function getCustomHomeMarkdown(
+  settings: Pick<AppSettings, 'enableHomeCustom' | 'homeCustomLocation'>,
+): string | undefined {
+  if (!settings.enableHomeCustom) return undefined;
+  return settings.homeCustomLocation.trim() ? settings.homeCustomLocation : undefined;
 }
 
 export function extractMarkdownFiles(doc: SwaggerDoc | null | undefined): MarkdownFileGroup[] {
