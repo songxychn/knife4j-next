@@ -17,6 +17,9 @@
 
 package com.github.xiaoymin.knife4j.smoke.boot3;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,6 +45,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 public class Boot3JakartaDocHttpSmokeTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private ConfigurableApplicationContext context;
 
@@ -72,6 +77,36 @@ public class Boot3JakartaDocHttpSmokeTest {
         Assert.assertEquals(200, apiDocs.statusCode);
         Assert.assertTrue(apiDocs.body.contains("\"openapi\""));
         Assert.assertTrue(apiDocs.body.contains("/hello"));
+    }
+
+    @Test
+    public void shouldExposeOperationAuthorsFromApiOperationSupport() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        JsonNode helloOperation = OBJECT_MAPPER.readTree(apiDocs.body)
+                .path("paths")
+                .path("/hello")
+                .path("get");
+        Assert.assertFalse("api-docs should contain GET /hello operation", helloOperation.isMissingNode());
+
+        String author = helloOperation.path("x-author").asText();
+        Assert.assertTrue("x-author should contain wxp for @ApiOperationSupport.authors (#438):\n"
+                + apiDocs.body, author.contains("wxp"));
+        Assert.assertTrue("x-author should contain wfg for @ApiOperationSupport.authors (#438):\n"
+                + apiDocs.body, author.contains("wfg"));
+        Assert.assertEquals("x-order should keep @ApiOperationSupport.order for the same operation (#438)",
+                1, helloOperation.path("x-order").asInt());
     }
 
     @Test
@@ -327,6 +362,7 @@ public class Boot3JakartaDocHttpSmokeTest {
     @RestController
     public static class TestController {
 
+        @ApiOperationSupport(authors = {"wxp", "wfg"}, order = 1)
         @GetMapping("/hello")
         public String hello() {
             return "hello";
