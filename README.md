@@ -10,7 +10,7 @@
 | 仓库来源 | fork 自 `xiaoymin/knife4j` |
 | 当前定位 | 社区维护分支，不是 upstream 官方仓库 |
 | Java 主坐标 | `com.baizhukui` |
-| 当前稳定版本 | `5.0.8` |
+| 当前稳定版本 | `5.0.9` |
 | 默认访问入口 | `http://ip:port/doc.html` |
 | 文档站 | [knife4jnext.com](https://knife4jnext.com) |
 
@@ -27,7 +27,7 @@
 
 ### 选择 Starter
 
-版本统一使用当前稳定版本 `5.0.8`。
+版本统一使用当前稳定版本 `5.0.9`。
 
 | 使用场景 | Maven `artifactId` |
 |---|---|
@@ -44,7 +44,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.8</version>
+    <version>5.0.9</version>
 </dependency>
 ```
 

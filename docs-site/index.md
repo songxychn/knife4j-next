@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.8</version>
+    <version>5.0.9</version>
 </dependency>
 ```
 
@@ -72,12 +72,12 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.8 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.9 版本亮点 <Badge type="tip" text="最新" />
 
-- 🛠 修复 Jakarta 独立聚合 cloud 路由缺少 `servicePath` 时 `swagger-config` 返回 500 的问题
-- 🧭 React UI 支持按 Knife4j 扩展字段 `x-order` 排序 tag 与 operation
-- 🧪 smoke 覆盖扩展到 Boot 2 / Boot 3 WebFlux、Gateway 与独立聚合场景
-- 📚 README、版本文档和 agent 协作流程继续收敛，发布前状态更容易核验
+- ⚙️ React UI 接入后端注入的请求参数缓存默认值
+- 🧩 React UI 支持按后端配置渲染自定义 Footer 与自定义首页 Markdown
+- 👤 ApiDoc 接口详情页展示 operation `x-author` 作者信息
+- 🧪 Boot 3 Jakarta smoke 覆盖补充接口作者断言
 - 🧩 继续包含 Boot4 WebMVC 与 Boot4 Gateway starter，覆盖 Spring Boot 4.x 入口
 
 完整更新列表见 [发布说明](/release-notes/)。

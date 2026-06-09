@@ -12,7 +12,26 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.8 <Badge type="tip" text="最新" />
+### 5.0.9 <Badge type="tip" text="最新" />
+
+`5.0.9` 是基于 `5.0.8` 的补丁版本，重点补齐 React UI 对 Knife4j 后端注入设置的读取能力，覆盖请求参数缓存、自定义 Footer、自定义首页 Markdown 与接口作者展示。
+
+**前端（React UI）**
+
+- 调试页接入后端注入的 `enableRequestCache` 默认值；当服务端关闭请求参数缓存时，React UI 会默认禁用对应缓存行为，仍允许用户在本地设置面板中覆盖（PR #431）。
+- 接入 `enableFooterCustom` 与 `footerCustomContent`，React UI 可按后端配置渲染自定义 Footer Markdown；未启用自定义内容时继续使用默认 Footer（PR #437）。
+- 接入 `enableHomeCustom` 与 `homeCustomLocation`，React 首页可展示后端注入的自定义 Markdown 内容；`homeCustomPath` 仍由后端读取，不作为前端文件读取入口（PR #435）。
+- ApiDoc 接口详情页展示 operation 级 `x-author` 作者信息，用于承接 `@ApiOperationSupport.author/authors` 与类级 `@ApiSupport.author/authors` 合并后的后端扩展字段（PR #436）。
+
+**后端 & 验证**
+
+- Boot 3 Jakarta smoke 覆盖补充接口作者断言，验证后端能把接口作者信息写入 OpenAPI 扩展并供 React UI 消费（PR #439）。
+
+**文档**
+
+- 同步更新配置参考、FAQ、路线图与首页说明，让 React UI 已覆盖的请求缓存、自定义 Footer、自定义首页与作者展示能力在文档中保持一致（PR #431、#435、#436、#437）。
+
+### 5.0.8
 
 `5.0.8` 是基于 `5.0.7` 的补丁版本，重点修复 Jakarta 独立聚合在 cloud 路由缺少 `servicePath` 时的 `swagger-config` 500 问题，并补齐 Gateway、WebFlux 与独立聚合场景的 smoke 验证覆盖。
 
@@ -240,7 +259,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.8</version>
+    <version>5.0.9</version>
 </dependency>
 ```
 
