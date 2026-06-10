@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SwaggerDoc } from '../types/swagger';
-import { fetchSwaggerUiConfig, parseGroupsFromConfig, parseMenuTags } from './knife4jClient';
+import { fetchSwaggerDoc, fetchSwaggerUiConfig, parseGroupsFromConfig, parseMenuTags } from './knife4jClient';
 
 function jsonResponse(body: unknown, ok = true): Response {
   return {
@@ -39,6 +39,29 @@ describe('knife4jClient', () => {
 
   it('uses the single springdoc url when swagger-config has no urls array', () => {
     expect(parseGroupsFromConfig({ url: '/api/openapi' })).toEqual([{ name: 'default', url: '/api/openapi' }]);
+  });
+
+  it('keeps a malformed OpenAPI document with missing info from crashing the UI', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        openapi: '3.1.0',
+        paths: {},
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchSwaggerDoc('/v3/api-docs')).resolves.toEqual({
+      openapi: '3.1.0',
+      info: { title: 'Unknown', version: '' },
+      paths: {},
+    });
+  });
+
+  it('rejects non OpenAPI payloads from api-docs endpoints', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: 'not found' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchSwaggerDoc('/v3/api-docs')).resolves.toBeNull();
   });
 
   it('sorts tags and operations by Knife4j x-order extensions', () => {

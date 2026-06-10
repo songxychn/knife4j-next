@@ -6,6 +6,7 @@
 import type {
   SwaggerDoc,
   SwaggerGroup,
+  SwaggerInfo,
   MenuTag,
   MenuOperation,
   SwaggerUiConfig,
@@ -14,6 +15,7 @@ import type {
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
+type UnknownRecord = Record<string, unknown>;
 
 /** HTTP method 在 swagger-ui 'method' sorter 下的固定顺序 */
 const METHOD_ORDER: Record<string, number> = {
@@ -68,6 +70,40 @@ async function fetchSwaggerUiConfigFrom(url: string): Promise<SwaggerUiConfig | 
   }
 }
 
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeSwaggerInfo(value: unknown): SwaggerInfo {
+  if (!isRecord(value)) {
+    return { title: 'Unknown', version: '' };
+  }
+
+  const info = value as Partial<SwaggerInfo>;
+  const title = typeof info.title === 'string' && info.title.length > 0 ? info.title : 'Unknown';
+  const version =
+    typeof info.version === 'string'
+      ? info.version
+      : typeof info.version === 'number' && Number.isFinite(info.version)
+        ? String(info.version)
+        : '';
+
+  return { ...info, title, version };
+}
+
+function normalizeSwaggerDoc(value: unknown): SwaggerDoc | null {
+  if (!isRecord(value)) return null;
+
+  const hasSpecSignal = typeof value.openapi === 'string' || typeof value.swagger === 'string' || isRecord(value.paths);
+  if (!hasSpecSignal) return null;
+
+  return {
+    ...value,
+    info: normalizeSwaggerInfo(value.info),
+    paths: isRecord(value.paths) ? value.paths : {},
+  } as SwaggerDoc;
+}
+
 /**
  * 从已获取的 SwaggerUiConfig 解析 group 列表。
  * - 有 `urls` → 多文档场景
@@ -116,7 +152,7 @@ export async function fetchSwaggerDoc(url: string): Promise<SwaggerDoc | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    return (await res.json()) as SwaggerDoc;
+    return normalizeSwaggerDoc(await res.json());
   } catch (_) {
     return null;
   }
