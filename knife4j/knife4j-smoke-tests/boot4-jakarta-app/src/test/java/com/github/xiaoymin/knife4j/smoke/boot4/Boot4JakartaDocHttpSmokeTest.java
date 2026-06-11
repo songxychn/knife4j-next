@@ -22,6 +22,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -48,6 +50,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class Boot4JakartaDocHttpSmokeTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private ConfigurableApplicationContext context;
 
@@ -102,6 +106,83 @@ public class Boot4JakartaDocHttpSmokeTest {
     }
 
     @Test
+    public void shouldExposeIsPrefixedFieldNameConsistentlyWithJacksonJson() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        JsonNode runtimeJson = OBJECT_MAPPER.valueToTree(new IsPrefixFieldPayload(Boolean.TRUE));
+        Assert.assertTrue("Jackson runtime JSON should keep the DTO field name 'isEnabled':\n" + runtimeJson,
+                runtimeJson.has("isEnabled"));
+        Assert.assertFalse("Jackson runtime JSON should not expose JavaBeans-stripped 'enabled':\n" + runtimeJson,
+                runtimeJson.has("enabled"));
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        JsonNode apiDocsJson = OBJECT_MAPPER.readTree(apiDocs.body);
+        JsonNode operation = apiDocsJson.path("paths").path("/api/is-prefix-field/echo").path("post");
+        Assert.assertFalse("api-docs should contain POST /api/is-prefix-field/echo operation:\n" + apiDocs.body,
+                operation.isMissingNode());
+
+        JsonNode requestProperties = schemaProperties(apiDocsJson,
+                operation.path("requestBody").path("content").path("application/json").path("schema"));
+        Assert.assertTrue("OpenAPI request schema should keep 'isEnabled'. Actual request properties:\n"
+                + requestProperties, requestProperties.has("isEnabled"));
+        Assert.assertFalse("OpenAPI request schema should not expose JavaBeans-stripped 'enabled'. "
+                + "Actual request properties:\n" + requestProperties, requestProperties.has("enabled"));
+
+        JsonNode responseProperties = schemaProperties(apiDocsJson,
+                operation.path("responses").path("200").path("content").path("application/json").path("schema"));
+        Assert.assertTrue("OpenAPI response schema should keep 'isEnabled'. Actual response properties:\n"
+                + responseProperties, responseProperties.has("isEnabled"));
+        Assert.assertFalse("OpenAPI response schema should not expose JavaBeans-stripped 'enabled'. "
+                + "Actual response properties:\n" + responseProperties, responseProperties.has("enabled"));
+    }
+
+    @Test
+    public void shouldExposeKotlinIsPrefixedFieldNameInOpenApiSchema() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        JsonNode apiDocsJson = OBJECT_MAPPER.readTree(apiDocs.body);
+        JsonNode operation = apiDocsJson.path("paths").path("/api/kotlin-is-prefix-field/echo").path("post");
+        Assert.assertFalse("api-docs should contain POST /api/kotlin-is-prefix-field/echo operation:\n"
+                + apiDocs.body, operation.isMissingNode());
+
+        JsonNode requestProperties = schemaProperties(apiDocsJson,
+                operation.path("requestBody").path("content").path("application/json").path("schema"));
+        Assert.assertTrue("OpenAPI request schema should keep Kotlin 'isEnabled'. Actual request properties:\n"
+                + requestProperties, requestProperties.has("isEnabled"));
+        Assert.assertFalse("OpenAPI request schema should not expose JavaBeans-stripped 'enabled'. "
+                + "Actual request properties:\n" + requestProperties, requestProperties.has("enabled"));
+
+        JsonNode responseProperties = schemaProperties(apiDocsJson,
+                operation.path("responses").path("200").path("content").path("application/json").path("schema"));
+        Assert.assertTrue("OpenAPI response schema should keep Kotlin 'isEnabled'. Actual response properties:\n"
+                + responseProperties, responseProperties.has("isEnabled"));
+        Assert.assertFalse("OpenAPI response schema should not expose JavaBeans-stripped 'enabled'. "
+                + "Actual response properties:\n" + responseProperties, responseProperties.has("enabled"));
+
+    }
+
+    @Test
     public void shouldServeCustomApiDocsPathThroughKnife4jRuntimeConfig() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)
@@ -134,6 +215,15 @@ public class Boot4JakartaDocHttpSmokeTest {
         HttpResponse customConfig = get(port, "/api/openapi/swagger-config");
         Assert.assertEquals(200, customConfig.statusCode);
         Assert.assertTrue(customConfig.body.contains("/api/openapi"));
+    }
+
+    private JsonNode schemaProperties(JsonNode apiDocsJson, JsonNode schema) {
+        JsonNode ref = schema.path("$ref");
+        if (ref.isTextual() && ref.asText().startsWith("#/components/schemas/")) {
+            String schemaName = ref.asText().substring("#/components/schemas/".length());
+            return apiDocsJson.path("components").path("schemas").path(schemaName).path("properties");
+        }
+        return schema.path("properties");
     }
 
     private HttpResponse get(int port, String path) throws IOException {
@@ -182,6 +272,32 @@ public class Boot4JakartaDocHttpSmokeTest {
         @GetMapping("/hello")
         public String hello() {
             return "hello";
+        }
+    }
+
+    @Tag(name = "is 前缀字段接口", description = "Boot4 is 前缀字段示例接口")
+    @RestController
+    @RequestMapping("/api/is-prefix-field")
+    public static class IsPrefixFieldController {
+
+        @Operation(summary = "回显 isEnabled 字段")
+        @PostMapping(path = "/echo", consumes = "application/json", produces = "application/json")
+        public IsPrefixFieldPayload echo(@RequestBody IsPrefixFieldPayload request) {
+            return request;
+        }
+    }
+
+    @Schema(description = "is 前缀字段复现 DTO")
+    public static class IsPrefixFieldPayload {
+
+        @Schema(description = "是否启用", example = "true")
+        public Boolean isEnabled;
+
+        public IsPrefixFieldPayload() {
+        }
+
+        public IsPrefixFieldPayload(Boolean isEnabled) {
+            this.isEnabled = isEnabled;
         }
     }
 

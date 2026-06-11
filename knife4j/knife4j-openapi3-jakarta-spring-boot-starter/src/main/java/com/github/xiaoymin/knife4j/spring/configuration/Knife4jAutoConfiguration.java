@@ -21,6 +21,7 @@ import com.github.xiaoymin.knife4j.core.conf.GlobalConstants;
 import com.github.xiaoymin.knife4j.extend.filter.basic.AbstractSecurityFilter;
 import com.github.xiaoymin.knife4j.extend.filter.basic.JakartaServletSecurityBasicAuthFilter;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jJakartaOperationCustomizer;
+import com.github.xiaoymin.knife4j.spring.extension.Knife4jKotlinIsPrefixOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.filter.JakartaProductionSecurityFilter;
 import com.github.xiaoymin.knife4j.spring.util.EnvironmentUtils;
@@ -29,6 +30,7 @@ import jakarta.servlet.DispatcherType;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.properties.SpringDocConfigProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,6 +44,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -128,6 +131,13 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnMissingBean
     public Knife4jJakartaOperationCustomizer knife4jJakartaOperationCustomizer() {
         return new Knife4jJakartaOperationCustomizer();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public Knife4jKotlinIsPrefixOpenApiCustomizer knife4jKotlinIsPrefixOpenApiCustomizer(
+                                                                                         ObjectProvider<RequestMappingInfoHandlerMapping> handlerMappings) {
+        return new Knife4jKotlinIsPrefixOpenApiCustomizer(handlerMappings);
     }
 
     /**
