@@ -1,12 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SwaggerDoc } from '../types/swagger';
-import { fetchSwaggerUiConfig, parseGroupsFromConfig, parseMenuTags } from './knife4jClient';
+import { fetchSwaggerDocResult, fetchSwaggerUiConfig, parseGroupsFromConfig, parseMenuTags } from './knife4jClient';
 
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
     json: vi.fn().mockResolvedValue(body),
+  } as unknown as Response;
+}
+
+function textResponse(body: string, ok = true, status = 200): Response {
+  return {
+    ok,
+    status,
+    text: vi.fn().mockResolvedValue(body),
   } as unknown as Response;
 }
 
@@ -39,6 +47,42 @@ describe('knife4jClient', () => {
 
   it('uses the single springdoc url when swagger-config has no urls array', () => {
     expect(parseGroupsFromConfig({ url: '/api/openapi' })).toEqual([{ name: 'default', url: '/api/openapi' }]);
+  });
+
+  it('normalizes OpenAPI docs with missing info', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(textResponse(JSON.stringify({ openapi: '3.0.1', paths: {} })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchSwaggerDocResult('/v3/api-docs')).resolves.toEqual({
+      doc: {
+        openapi: '3.0.1',
+        info: { title: 'API Docs', version: '' },
+        paths: {},
+      },
+      error: null,
+    });
+  });
+
+  it('rejects non OpenAPI JSON responses with a diagnostic message', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(textResponse(JSON.stringify({ error: 'not found' })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchSwaggerDocResult('/v3/api-docs');
+
+    expect(result.doc).toBeNull();
+    expect(result.error).toContain('不是 OpenAPI/Swagger JSON 对象');
+  });
+
+  it('diagnoses Base64 encoded api-docs responses', async () => {
+    const encoded = btoa(JSON.stringify({ openapi: '3.0.1', info: { title: 'demo', version: '1.0.0' }, paths: {} }));
+    const fetchMock = vi.fn().mockResolvedValueOnce(textResponse(JSON.stringify(encoded)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchSwaggerDocResult('/v3/api-docs');
+
+    expect(result.doc).toBeNull();
+    expect(result.error).toContain('Base64');
+    expect(result.error).toContain('HttpMessageConverter');
   });
 
   it('sorts tags and operations by Knife4j x-order extensions', () => {

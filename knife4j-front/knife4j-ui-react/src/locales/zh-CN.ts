@@ -4,6 +4,7 @@ const zhCN = {
   'app.header.title': 'OpenAPI 接口文档聚合中心',
   'app.tab.home': '主页',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
+  'app.groupError.title': '接口文档加载失败',
 
   // Header language switch
   'header.lang.zh': '中',

@@ -5,6 +5,7 @@
 
 import type {
   SwaggerDoc,
+  SwaggerInfo,
   SwaggerGroup,
   MenuTag,
   MenuOperation,
@@ -14,6 +15,12 @@ import type {
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
+const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
+
+export interface SwaggerDocFetchResult {
+  doc: SwaggerDoc | null;
+  error: string | null;
+}
 
 /** HTTP method 在 swagger-ui 'method' sorter 下的固定顺序 */
 const METHOD_ORDER: Record<string, number> = {
@@ -111,15 +118,100 @@ export async function fetchGroups(): Promise<SwaggerGroup[]> {
   return [];
 }
 
-/** 拉取指定 group 的 api-docs */
-export async function fetchSwaggerDoc(url: string): Promise<SwaggerDoc | null> {
+/** 拉取指定 group 的 api-docs，并返回可展示的诊断信息 */
+export async function fetchSwaggerDocResult(url: string): Promise<SwaggerDocFetchResult> {
   try {
     const res = await fetch(url);
-    if (!res.ok) return null;
-    return (await res.json()) as SwaggerDoc;
+    if (!res.ok) {
+      return { doc: null, error: `api-docs 请求失败：HTTP ${res.status}` };
+    }
+    const text = await res.text();
+    return normalizeSwaggerDocResponse(text);
   } catch (_) {
-    return null;
+    return { doc: null, error: 'api-docs 加载失败，请检查后端服务。' };
   }
+}
+
+/** 拉取指定 group 的 api-docs */
+export async function fetchSwaggerDoc(url: string): Promise<SwaggerDoc | null> {
+  const result = await fetchSwaggerDocResult(url);
+  return result.doc;
+}
+
+function normalizeSwaggerDocResponse(text: string): SwaggerDocFetchResult {
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(text);
+  } catch (_) {
+    if (isBase64EncodedJson(text)) {
+      return { doc: null, error: base64ApiDocsError() };
+    }
+    return { doc: null, error: 'api-docs 响应不是有效的 JSON，请检查实际返回内容。' };
+  }
+
+  if (typeof payload === 'string') {
+    if (isBase64EncodedJson(payload)) {
+      return { doc: null, error: base64ApiDocsError() };
+    }
+    return { doc: null, error: 'api-docs 响应是字符串，不是 OpenAPI/Swagger JSON 对象。' };
+  }
+
+  if (!isSwaggerDocLike(payload)) {
+    return { doc: null, error: 'api-docs 响应不是 OpenAPI/Swagger JSON 对象，请检查接口文档地址。' };
+  }
+
+  return { doc: normalizeSwaggerDoc(payload), error: null };
+}
+
+function normalizeSwaggerDoc(doc: Record<string, unknown>): SwaggerDoc {
+  return {
+    ...doc,
+    info: normalizeSwaggerInfo(doc.info),
+  } as SwaggerDoc;
+}
+
+function normalizeSwaggerInfo(value: unknown): SwaggerInfo {
+  if (!isRecord(value)) {
+    return { ...DEFAULT_SWAGGER_INFO };
+  }
+
+  const title = typeof value.title === 'string' ? value.title : DEFAULT_SWAGGER_INFO.title;
+  const version =
+    typeof value.version === 'string' || typeof value.version === 'number'
+      ? String(value.version)
+      : DEFAULT_SWAGGER_INFO.version;
+
+  return { ...value, title, version } as SwaggerInfo;
+}
+
+function isSwaggerDocLike(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && (typeof value.openapi === 'string' || typeof value.swagger === 'string');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isBase64EncodedJson(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length % 4 === 1) return false;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(trimmed)) return false;
+
+  try {
+    const padded = trimmed.padEnd(trimmed.length + ((4 - (trimmed.length % 4)) % 4), '=');
+    const decoded = atob(padded).trim();
+    return decoded.startsWith('{') && (decoded.includes('"openapi"') || decoded.includes('"swagger"'));
+  } catch (_) {
+    return false;
+  }
+}
+
+function base64ApiDocsError(): string {
+  return [
+    'api-docs 响应是 Base64 字符串，不是 OpenAPI/Swagger JSON 对象。',
+    '请检查 Spring HttpMessageConverter 配置，避免 Jackson JSON converter 接管 byte[] 或 String 响应。',
+  ].join('\n');
 }
 
 /** 将外部传入的字符串归一化为 TagsSorter；无法识别的值一律视为 'preserve'（保持原序） */

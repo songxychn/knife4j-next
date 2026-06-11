@@ -4,6 +4,7 @@ const jaJP = {
   'app.header.title': 'OpenAPI ドキュメント集約センター',
   'app.tab.home': 'ホーム',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
+  'app.groupError.title': 'API ドキュメントを読み込めません',
 
   // Header language switch
   'header.lang.zh': '中',

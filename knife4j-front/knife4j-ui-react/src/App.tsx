@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
+import { Alert, Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import { Resizable } from 'react-resizable';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -86,7 +86,7 @@ const AppInner: React.FC = () => {
   const [siderWidth, setSiderWidth] = useState(320);
   const navigate = useNavigate();
   const location = useLocation();
-  const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc } = useGroup();
+  const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc, groupError } = useGroup();
   const { t, i18n } = useTranslation();
   const { settings, setSetting } = useSettings();
 
@@ -460,6 +460,15 @@ const AppInner: React.FC = () => {
           }}
         >
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {groupError && (
+              <Alert
+                type="error"
+                showIcon
+                message={t('app.groupError.title')}
+                description={<span style={{ whiteSpace: 'pre-wrap' }}>{groupError}</span>}
+                style={{ margin: '2px 2px 8px' }}
+              />
+            )}
             <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
               <div>
                 <Tabs
