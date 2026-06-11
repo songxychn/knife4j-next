@@ -4,6 +4,7 @@ const enUS = {
   'app.header.title': 'OpenAPI Hub',
   'app.tab.home': 'Home',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
+  'app.groupError.title': 'Failed to load API docs',
 
   // Header language switch
   'header.lang.zh': '中',

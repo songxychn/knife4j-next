@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  fetchSwaggerDoc,
+  fetchSwaggerDocResult,
   fetchSwaggerUiConfig,
   getSchemas,
   normalizeOperationsSorter,
@@ -132,13 +132,13 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setLoading(true);
     setGroupError(null);
-    fetchSwaggerDoc(group.url).then((doc) => {
-      if (doc) {
-        setSwaggerDoc(doc);
+    fetchSwaggerDocResult(group.url).then((result) => {
+      if (result.doc) {
+        setSwaggerDoc(result.doc);
       } else {
         // 单个 provider 加载失败：保留其他 group 可用，仅标记当前 group 错误
         setSwaggerDoc(null);
-        setGroupError('加载失败，请检查后端服务');
+        setGroupError(result.error ?? '加载失败，请检查后端服务。');
       }
       setLoading(false);
     });
