@@ -183,6 +183,44 @@ public class Boot4JakartaDocHttpSmokeTest {
     }
 
     @Test
+    public void shouldHonorExplicitJsonPropertyNameForKotlinIsPrefixedField() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        JsonNode apiDocsJson = OBJECT_MAPPER.readTree(apiDocs.body);
+        JsonNode operation = apiDocsJson
+                .path("paths")
+                .path("/api/kotlin-is-prefix-field/explicit-json-name/echo")
+                .path("post");
+        Assert.assertFalse("api-docs should contain explicit JSON name operation:\n" + apiDocs.body,
+                operation.isMissingNode());
+
+        JsonNode requestProperties = schemaProperties(apiDocsJson,
+                operation.path("requestBody").path("content").path("application/json").path("schema"));
+        Assert.assertTrue("OpenAPI request schema should honor explicit Kotlin JSON name 'enabled'. "
+                + "Actual request properties:\n" + requestProperties, requestProperties.has("enabled"));
+        Assert.assertFalse("OpenAPI request schema should not rename explicit JSON name back to 'isEnabled'. "
+                + "Actual request properties:\n" + requestProperties, requestProperties.has("isEnabled"));
+
+        JsonNode responseProperties = schemaProperties(apiDocsJson,
+                operation.path("responses").path("200").path("content").path("application/json").path("schema"));
+        Assert.assertTrue("OpenAPI response schema should honor explicit Kotlin JSON name 'enabled'. "
+                + "Actual response properties:\n" + responseProperties, responseProperties.has("enabled"));
+        Assert.assertFalse("OpenAPI response schema should not rename explicit JSON name back to 'isEnabled'. "
+                + "Actual response properties:\n" + responseProperties, responseProperties.has("isEnabled"));
+    }
+
+    @Test
     public void shouldServeCustomApiDocsPathThroughKnife4jRuntimeConfig() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)

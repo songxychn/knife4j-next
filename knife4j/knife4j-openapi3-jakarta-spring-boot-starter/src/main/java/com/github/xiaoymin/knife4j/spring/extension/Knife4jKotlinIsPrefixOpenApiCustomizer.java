@@ -31,6 +31,7 @@ import java.beans.Introspector;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -54,6 +55,14 @@ import java.util.concurrent.CompletableFuture;
 public class Knife4jKotlinIsPrefixOpenApiCustomizer implements GlobalOpenApiCustomizer {
 
     private static final String KOTLIN_METADATA_ANNOTATION = "kotlin.Metadata";
+
+    private static final String JACKSON2_JSON_GETTER_ANNOTATION = "com.fasterxml.jackson.annotation.JsonGetter";
+
+    private static final String JACKSON2_JSON_PROPERTY_ANNOTATION = "com.fasterxml.jackson.annotation.JsonProperty";
+
+    private static final String JACKSON3_JSON_GETTER_ANNOTATION = "tools.jackson.annotation.JsonGetter";
+
+    private static final String JACKSON3_JSON_PROPERTY_ANNOTATION = "tools.jackson.annotation.JsonProperty";
 
     private final ObjectProvider<RequestMappingInfoHandlerMapping> handlerMappings;
 
@@ -162,7 +171,7 @@ public class Knife4jKotlinIsPrefixOpenApiCustomizer implements GlobalOpenApiCust
         Class<?> currentClass = rawClass;
         while (currentClass != null && currentClass != Object.class) {
             for (Field field : currentClass.getDeclaredFields()) {
-                if (isKotlinIsPrefixBooleanField(field)) {
+                if (isKotlinIsPrefixBooleanField(field) && !hasExplicitJsonPropertyName(rawClass, field)) {
                     String fieldName = field.getName();
                     String javaBeansName = Introspector.decapitalize(fieldName.substring(2));
                     if (!fieldName.equals(javaBeansName)) {
@@ -230,6 +239,49 @@ public class Knife4jKotlinIsPrefixOpenApiCustomizer implements GlobalOpenApiCust
         }
         Class<?> fieldType = field.getType();
         return fieldType == boolean.class || fieldType == Boolean.class;
+    }
+
+    private boolean hasExplicitJsonPropertyName(Class<?> rawClass, Field field) {
+        if (hasExplicitJsonPropertyName(field.getAnnotations())) {
+            return true;
+        }
+        String fieldName = field.getName();
+        String capitalizedFieldName = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        for (Method method : rawClass.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 0) {
+                continue;
+            }
+            String methodName = method.getName();
+            if ((methodName.equals(fieldName) || methodName.equals("get" + capitalizedFieldName))
+                    && hasExplicitJsonPropertyName(method.getAnnotations())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasExplicitJsonPropertyName(Annotation[] annotations) {
+        for (Annotation annotation : annotations) {
+            String annotationName = annotation.annotationType().getName();
+            if ((JACKSON2_JSON_PROPERTY_ANNOTATION.equals(annotationName)
+                    || JACKSON2_JSON_GETTER_ANNOTATION.equals(annotationName)
+                    || JACKSON3_JSON_PROPERTY_ANNOTATION.equals(annotationName)
+                    || JACKSON3_JSON_GETTER_ANNOTATION.equals(annotationName))
+                    && hasNonBlankValue(annotation)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasNonBlankValue(Annotation annotation) {
+        try {
+            Method valueMethod = annotation.annotationType().getMethod("value");
+            Object value = valueMethod.invoke(annotation);
+            return value instanceof String && !((String) value).trim().isEmpty();
+        } catch (ReflectiveOperationException e) {
+            return false;
+        }
     }
 
     private boolean isKotlinClass(Class<?> rawClass) {
