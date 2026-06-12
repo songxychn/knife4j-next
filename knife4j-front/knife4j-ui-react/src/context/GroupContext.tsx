@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   fetchSwaggerDocResult,
   fetchSwaggerUiConfig,
@@ -12,6 +13,7 @@ import {
 } from '../api/knife4jClient';
 import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
 import { extractKnife4jSettings, extractMarkdownFiles } from '../utils/knife4jSettings';
+import { groupNameFromPathname, selectInitialGroupName } from '../utils/groupRoute';
 import { useSettings } from './SettingsContext';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
@@ -66,6 +68,8 @@ interface GroupContextValue {
 const GroupContext = createContext<GroupContextValue | null>(null);
 
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const initialPathnameRef = useRef(location.pathname);
   const [rawGroups, setRawGroups] = useState<SwaggerGroup[]>([]);
   const [swaggerUiConfig, setSwaggerUiConfig] = useState<SwaggerUiConfig | null>(null);
   const [activeGroupValue, setActiveGroupValue] = useState<string>('');
@@ -88,7 +92,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const groups = parseGroupsFromConfig(config);
         if (groups.length > 0) {
           setRawGroups(groups);
-          setActiveGroupValue(groups[0].name);
+          setActiveGroupValue(selectInitialGroupName(groups, initialPathnameRef.current));
           return;
         }
       }
@@ -106,7 +110,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }));
           if (groups.length > 0) {
             setRawGroups(groups);
-            setActiveGroupValue(groups[0].name);
+            setActiveGroupValue(selectInitialGroupName(groups, initialPathnameRef.current));
             return;
           }
         }
@@ -123,6 +127,15 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       cancelled = true;
     };
   }, []);
+
+  const routeGroupName = useMemo(() => groupNameFromPathname(location.pathname), [location.pathname]);
+
+  useEffect(() => {
+    if (!routeGroupName || !rawGroups.some((group) => group.name === routeGroupName)) return;
+
+    setGroupError(null);
+    setActiveGroupValue((current) => (current === routeGroupName ? current : routeGroupName));
+  }, [rawGroups, routeGroupName]);
 
   // 切换 group 时拉取对应 api-docs
   useEffect(() => {
