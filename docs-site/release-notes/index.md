@@ -12,7 +12,20 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.9 <Badge type="tip" text="最新" />
+### 5.0.10 <Badge type="tip" text="最新" />
+
+`5.0.10` 是基于 `5.0.9` 的补丁版本，重点修复 Gateway 聚合场景下刷新非默认文档分组深链时的分组恢复问题，并补强 Boot4 + Kotlin DTO 与异常 `api-docs` 响应的兼容性。
+
+**前端（React UI）**
+
+- 修复 Gateway 聚合场景下刷新非默认文档分组深链时仍激活第一个 group，进而显示“未找到接口文档”的问题；React UI 初始化和 URL 变化时会优先恢复 URL 中匹配到的文档分组（PR #446）。
+- 优化异常 `api-docs` 响应提示：对缺失或不完整 `info` 的 OpenAPI/Swagger 文档补充最小标题和版本，避免首页、导出等路径崩溃；对非文档 JSON、字符串响应和 Base64 编码的文档响应展示明确诊断信息（PR #448）。
+
+**后端 & 兼容性**
+
+- 修复 Boot4 + Kotlin DTO 中 `val isEnabled: Boolean` 被 OpenAPI schema 写成 `enabled` 的命名偏差；只针对 handler 中使用到的 Kotlin DTO 修正 `isXxx` boolean 字段，并保留显式 `@JsonProperty` / `@JsonGetter` 命名，不向 starter 引入 Kotlin 运行时依赖（PR #447）。
+
+### 5.0.9
 
 `5.0.9` 是基于 `5.0.8` 的补丁版本，重点补齐 React UI 对 Knife4j 后端注入设置的读取能力，覆盖请求参数缓存、自定义 Footer、自定义首页 Markdown 与接口作者展示。
 
@@ -259,7 +272,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.9</version>
+    <version>5.0.10</version>
 </dependency>
 ```
 
