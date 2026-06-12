@@ -8,6 +8,11 @@ const groups: SwaggerGroup[] = [
   { name: 'inventory', url: '/v3/api-docs/inventory' },
 ];
 
+const groupsWithHomePlaceholderCollision: SwaggerGroup[] = [
+  { name: 'default', url: '/v3/api-docs/default' },
+  { name: 'group', url: '/v3/api-docs/group' },
+];
+
 describe('groupRoute', () => {
   it('reads the first route segment as the group name', () => {
     expect(groupNameFromPathname('/inventory/pet/getPet/doc')).toBe('inventory');
@@ -23,5 +28,11 @@ describe('groupRoute', () => {
 
   it('falls back to the first group when the route group is not a swagger group', () => {
     expect(selectInitialGroupName(groups, '/group/home')).toBe('default');
+  });
+
+  it('does not treat the fixed home route as a real group route', () => {
+    expect(groupNameFromPathname('/group/home')).toBeNull();
+    expect(selectInitialGroupName(groupsWithHomePlaceholderCollision, '/group/home')).toBe('default');
+    expect(selectInitialGroupName(groupsWithHomePlaceholderCollision, '/group/Pet/getPet/doc')).toBe('group');
   });
 });

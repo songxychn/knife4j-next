@@ -1,7 +1,17 @@
 import type { SwaggerGroup } from '../types/swagger';
 
+const HOME_ROUTE_SEGMENTS = ['group', 'home'];
+
 export function groupNameFromPathname(pathname: string): string | null {
-  const rawGroupName = pathname.split('/').filter(Boolean)[0];
+  const segments = pathname.split('/').filter(Boolean);
+  if (
+    segments.length === HOME_ROUTE_SEGMENTS.length &&
+    segments.every((segment, index) => segment === HOME_ROUTE_SEGMENTS[index])
+  ) {
+    return null;
+  }
+
+  const rawGroupName = segments[0];
   if (!rawGroupName) return null;
 
   try {
