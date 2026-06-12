@@ -8,7 +8,7 @@ title: 路线图
 
 ---
 
-## 当前阶段：5.0.9 已发布
+## 当前阶段：5.0.10 已发布
 
 ### 已完成 ✅
 
@@ -20,6 +20,9 @@ title: 路线图
 | 兼容性 | Spring Boot 3.4.x / 3.5.x 兼容（springdoc 2.8.9） | ✅ |
 | 兼容性 | Spring Boot 4.x WebMVC 专用 starter（`knife4j-openapi3-boot4-spring-boot-starter`，springdoc-openapi 3.0.3） | ✅ |
 | Bug 修复 | Gateway `context-path` 导致聚合 host 少斜杠（#954） | ✅ |
+| Bug 修复 | Gateway 聚合刷新非默认文档分组深链时恢复正确 group | ✅ |
+| Bug 修复 | React UI 对异常 `api-docs` 响应展示诊断提示 | ✅ |
+| 兼容性 | Boot4 + Kotlin `is` 前缀字段文档命名修复 | ✅ |
 | Bug 修复 | OpenAPI3 自定义 `springdoc.api-docs.path` / swagger-config 发现逻辑修复（#344） | ✅ |
 | 服务接口 | `/knife4j/config` v1 运行时发现接口（`schemaVersion` + `openapi.{apiDocsUrl, swaggerConfigUrl}`） | ✅ |
 | Demo | `knife4j-demo-openapi3`（OpenAPI 3）与 `knife4j-demo-openapi2`（OpenAPI 2）双 demo + Docker 部署 | ✅ |
