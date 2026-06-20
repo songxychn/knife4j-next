@@ -36,6 +36,45 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
   options: '#0d5aa7',
 };
 
+interface DisplayExtension {
+  key: string;
+  value: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function toDisplayExtensionValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return null;
+}
+
+function collectSpecificationExtensions(source: Record<string, unknown> | undefined): DisplayExtension[] {
+  if (!source) return [];
+  const result: DisplayExtension[] = [];
+  const seen = new Set<string>();
+  const add = (key: string, value: unknown) => {
+    if (!key.startsWith('x-') || seen.has(key)) return;
+    const displayValue = toDisplayExtensionValue(value);
+    if (!displayValue) return;
+    seen.add(key);
+    result.push({ key, value: displayValue });
+  };
+
+  Object.entries(source).forEach(([key, value]) => add(key, value));
+  if (isRecord(source.extensions)) {
+    Object.entries(source.extensions).forEach(([key, value]) => add(key, value));
+  }
+  return result;
+}
+
 export default function Home() {
   const { t } = useTranslation();
   const { activeSwaggerGroup, swaggerDoc, menuTags, loading } = useGroup();
@@ -155,9 +194,23 @@ export default function Home() {
   const heroBg = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${
     token.colorInfoHover ?? '#1677ff'
   } 45%, #40c9a2 100%)`;
+  const heroSubtitle = info.summary || info.description;
+  const infoExtensions = collectSpecificationExtensions(info);
+  const contactExtensions = collectSpecificationExtensions(info.contact);
+  const licenseExtensions = collectSpecificationExtensions(info.license);
 
-  const hasContactInfo = !!(info.contact?.name || info.contact?.email || info.contact?.url);
-  const hasLicense = !!(info.license?.name || info.license?.url);
+  const hasContactInfo = !!(
+    info.contact?.name ||
+    info.contact?.email ||
+    info.contact?.url ||
+    contactExtensions.length > 0
+  );
+  const hasLicense = !!(
+    info.license?.name ||
+    info.license?.url ||
+    info.license?.identifier ||
+    licenseExtensions.length > 0
+  );
   const hasTerms = !!info.termsOfService;
   const sourceRows = [
     { key: 'groupName', label: 'home.meta.groupName', value: activeSwaggerGroup?.name, icon: <TagsOutlined /> },
@@ -172,7 +225,8 @@ export default function Home() {
     { key: 'basePath', label: 'home.meta.basePath', value: swaggerDoc.basePath, icon: <LinkOutlined /> },
   ].flatMap((row) => (typeof row.value === 'string' && row.value.length > 0 ? [{ ...row, value: row.value }] : []));
   const hasSourceInfo = sourceRows.length > 0;
-  const hasAnyMeta = hasSourceInfo || hasContactInfo || hasLicense || hasTerms || servers.length > 0;
+  const hasAnyMeta =
+    hasSourceInfo || hasContactInfo || hasLicense || hasTerms || servers.length > 0 || infoExtensions.length > 0;
 
   const summaryCards = [
     {
@@ -284,6 +338,19 @@ export default function Home() {
     </div>
   );
 
+  const renderExtensionList = (extensions: DisplayExtension[]) => (
+    <Space direction="vertical" size={2} style={{ width: '100%' }}>
+      {extensions.map((extension) => (
+        <span key={extension.key} style={{ display: 'block', overflowWrap: 'anywhere' }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {extension.key}:{' '}
+          </Text>
+          <Text style={{ fontSize: 12 }}>{extension.value}</Text>
+        </span>
+      ))}
+    </Space>
+  );
+
   return (
     <div style={{ padding: 20 }}>
       {/* Hero */}
@@ -338,7 +405,7 @@ export default function Home() {
         >
           {info.title ?? 'Unknown'}
         </Title>
-        {info.description && (
+        {heroSubtitle && (
           <Paragraph
             style={{
               color: 'rgba(255,255,255,0.9)',
@@ -348,7 +415,7 @@ export default function Home() {
               fontSize: 14,
             }}
           >
-            <Markdown source={info.description} />
+            <Markdown source={heroSubtitle} />
           </Paragraph>
         )}
       </div>
@@ -513,15 +580,35 @@ export default function Home() {
                       <Space direction="vertical" size={2} style={{ width: '100%' }}>
                         {servers.map((s, idx) => (
                           <Tooltip key={`${s.url}-${idx}`} title={s.description}>
-                            <span
-                              style={{
-                                display: 'block',
-                                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                fontSize: 12,
-                                overflowWrap: 'anywhere',
-                              }}
-                            >
-                              {s.url}
+                            <span style={{ display: 'block' }}>
+                              {s.name && (
+                                <Text strong style={{ display: 'block', fontSize: 12, overflowWrap: 'anywhere' }}>
+                                  {s.name}
+                                </Text>
+                              )}
+                              <span
+                                style={{
+                                  display: 'block',
+                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                  fontSize: 12,
+                                  overflowWrap: 'anywhere',
+                                }}
+                              >
+                                {s.url}
+                              </span>
+                              {s.description && (
+                                <Text
+                                  type="secondary"
+                                  style={{
+                                    display: 'block',
+                                    fontSize: 12,
+                                    lineHeight: '18px',
+                                    overflowWrap: 'anywhere',
+                                  }}
+                                >
+                                  {s.description}
+                                </Text>
+                              )}
                             </span>
                           </Tooltip>
                         ))}
@@ -552,6 +639,7 @@ export default function Home() {
                             </Link>
                           </span>
                         )}
+                        {contactExtensions.length > 0 && renderExtensionList(contactExtensions)}
                       </Space>,
                     )}
                   </>
@@ -563,13 +651,32 @@ export default function Home() {
                       'license',
                       'home.meta.license',
                       <FileProtectOutlined />,
-                      info.license?.url ? (
-                        <Link href={info.license.url} target="_blank" rel="noreferrer">
-                          {info.license.name ?? info.license.url}
-                        </Link>
-                      ) : (
-                        <Text>{info.license?.name}</Text>
-                      ),
+                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        {info.license?.url ? (
+                          <Link href={info.license.url} target="_blank" rel="noreferrer">
+                            {info.license.name ?? info.license.url}
+                          </Link>
+                        ) : (
+                          info.license?.name && <Text>{info.license.name}</Text>
+                        )}
+                        {info.license?.identifier && (
+                          <Text type="secondary">
+                            {t('home.meta.licenseIdentifier')}: {info.license.identifier}
+                          </Text>
+                        )}
+                        {licenseExtensions.length > 0 && renderExtensionList(licenseExtensions)}
+                      </Space>,
+                    )}
+                  </>
+                )}
+
+                {infoExtensions.length > 0 && (
+                  <>
+                    {renderMetaRow(
+                      'extensions',
+                      'home.meta.extensions',
+                      <InfoCircleOutlined />,
+                      renderExtensionList(infoExtensions),
                     )}
                   </>
                 )}

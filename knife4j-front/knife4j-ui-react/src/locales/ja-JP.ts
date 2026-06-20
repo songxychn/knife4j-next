@@ -48,6 +48,8 @@ const jaJP = {
   'home.meta.servers': 'サーバー',
   'home.meta.contact': '連絡先',
   'home.meta.license': 'ライセンス',
+  'home.meta.licenseIdentifier': 'ライセンス識別子',
+  'home.meta.extensions': '拡張属性',
   'home.meta.terms': '利用規約',
   'home.meta.security': 'セキュリティスキーム',
 

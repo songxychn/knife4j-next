@@ -48,6 +48,8 @@ const enUS = {
   'home.meta.servers': 'Servers',
   'home.meta.contact': 'Contact',
   'home.meta.license': 'License',
+  'home.meta.licenseIdentifier': 'License Identifier',
+  'home.meta.extensions': 'Extensions',
   'home.meta.terms': 'Terms of Service',
   'home.meta.security': 'Security Schemes',
 
