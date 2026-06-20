@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
-import { normalizeRequestBaseUrl, resolveRequestBaseUrl } from './requestBaseUrl';
+import { normalizeRequestBaseUrl, resolveRequestBaseUrl, resolveRequestServerOptions } from './requestBaseUrl';
 
 function docWithServers(urls: string[]): SwaggerDoc {
   return {
@@ -176,5 +176,59 @@ describe('request base URL resolution', () => {
         origin: 'http://127.0.0.1:3002',
       }),
     ).toBe('http://127.0.0.1:3002');
+  });
+
+  it('lists request server options in operation, path, then document priority order', () => {
+    const swaggerDoc = docWithServerLevels({
+      root: ['http://root.example.test/api'],
+      path: ['http://path.example.test/api'],
+      operation: ['http://operation.example.test/api'],
+    });
+
+    expect(
+      resolveRequestServerOptions({
+        swaggerDoc,
+        operation: petOperation(swaggerDoc),
+        origin: 'http://127.0.0.1:3002',
+      }).map((option) => [option.source, option.url]),
+    ).toEqual([
+      ['operation', 'http://operation.example.test/api'],
+      ['path', 'http://path.example.test/api'],
+      ['document', 'http://root.example.test/api'],
+    ]);
+  });
+
+  it('normalizes and deduplicates request server options', () => {
+    const swaggerDoc = docWithServerLevels({
+      root: ['http://api.example.test/api/'],
+      path: ['http://api.example.test/api'],
+      operation: ['/local-api'],
+    });
+
+    expect(
+      resolveRequestServerOptions({
+        swaggerDoc,
+        operation: petOperation(swaggerDoc),
+        origin: 'http://127.0.0.1:3002',
+      }).map((option) => option.url),
+    ).toEqual(['http://127.0.0.1:3002/local-api', 'http://api.example.test/api']);
+  });
+
+  it('keeps request server descriptions for selector labels', () => {
+    const swaggerDoc = docWithServers([]);
+    swaggerDoc.servers = [{ url: 'https://prod.example.test/api', description: 'production gateway' }];
+
+    expect(
+      resolveRequestServerOptions({
+        swaggerDoc,
+        operation: null,
+        origin: 'http://127.0.0.1:3002',
+      })[0],
+    ).toMatchObject({
+      source: 'document',
+      url: 'https://prod.example.test/api',
+      rawUrl: 'https://prod.example.test/api',
+      description: 'production gateway',
+    });
   });
 });
