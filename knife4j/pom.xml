@@ -73,6 +73,7 @@
         <knife4j-hutool.version>5.8.34</knife4j-hutool.version>
         <knife4j-httpclient.version>4.5.14</knife4j-httpclient.version>
         <knife4j-gson.version>2.11.0</knife4j-gson.version>
+        <knife4j-commons-lang3.version>3.20.0</knife4j-commons-lang3.version>
 
 
         <knife4j-javassist.version>3.30.2-GA</knife4j-javassist.version>
@@ -151,6 +152,11 @@
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
                 <version>${knife4j-gson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${knife4j-commons-lang3.version}</version>
             </dependency>
 
             <!-- https://mvnrepository.com/artifact/org.javassist/javassist -->
