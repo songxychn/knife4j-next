@@ -194,7 +194,11 @@ export default function Home() {
   const heroBg = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${
     token.colorInfoHover ?? '#1677ff'
   } 45%, #40c9a2 100%)`;
-  const heroSubtitle = info.summary || info.description;
+  const heroSummary = typeof info.summary === 'string' && info.summary.trim().length > 0 ? info.summary : undefined;
+  const heroDescription =
+    typeof info.description === 'string' && info.description.trim().length > 0 && info.description !== heroSummary
+      ? info.description
+      : undefined;
   const infoExtensions = collectSpecificationExtensions(info);
   const contactExtensions = collectSpecificationExtensions(info.contact);
   const licenseExtensions = collectSpecificationExtensions(info.license);
@@ -405,7 +409,7 @@ export default function Home() {
         >
           {info.title ?? 'Unknown'}
         </Title>
-        {heroSubtitle && (
+        {heroSummary && (
           <Paragraph
             style={{
               color: 'rgba(255,255,255,0.9)',
@@ -415,7 +419,20 @@ export default function Home() {
               fontSize: 14,
             }}
           >
-            <Markdown source={heroSubtitle} />
+            <Markdown source={heroSummary} />
+          </Paragraph>
+        )}
+        {heroDescription && (
+          <Paragraph
+            style={{
+              color: 'rgba(255,255,255,0.82)',
+              marginTop: heroSummary ? 6 : 10,
+              marginBottom: 0,
+              maxWidth: 900,
+              fontSize: 14,
+            }}
+          >
+            <Markdown source={heroDescription} />
           </Paragraph>
         )}
       </div>
