@@ -2602,17 +2602,7 @@ export default function ApiDebug() {
             title={baseUrl}
             onChange={setBaseUrl}
             options={requestServerSelectOptions}
-            filterOption={(inputValue, option) => {
-              const keyword = inputValue.toLowerCase();
-              return (
-                String(option?.value ?? '')
-                  .toLowerCase()
-                  .includes(keyword) ||
-                String(option?.label ?? '')
-                  .toLowerCase()
-                  .includes(keyword)
-              );
-            }}
+            filterOption={false}
             style={{ flex: '0 1 420px', minWidth: 320 }}
           />
           <Input
