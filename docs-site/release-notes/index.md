@@ -12,7 +12,22 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.10 <Badge type="tip" text="最新" />
+### 5.0.11 <Badge type="tip" text="最新" />
+
+`5.0.11` 是基于 `5.0.10` 的补丁版本，重点补强 React UI 对 OpenAPI 3.2 文档信息、调试请求服务地址和文件上传场景的支持，并修复首页分组概览统计与 OpenAPI3 starter 传递依赖安全基线。
+
+**前端（React UI）**
+
+- 首页文档信息区支持展示 OpenAPI 3.2 的 `info.summary`、server 名称/描述、许可证标识，以及 `info` / `contact` / `license` 中的标量 `x-*` 扩展字段（PR #456）。
+- 调试页 Base URL 输入支持从 OpenAPI `servers` 候选地址中选择，按 operation、path、document 顺序归一化并去重；未配置时保留原默认地址和手工输入能力（PR #454）。
+- 修复后端未显式声明 `multipart/form-data`、但 request body schema 中存在 `format: binary` 文件字段时，调试页错误显示 JSON 编辑器的问题；`format: base64` 字符串保持原有 JSON 行为（PR #461）。
+- 修复首页“分组概览”统计口径，只展示和统计包含接口的分组，避免顶层空 tag 与 operation 业务 tag 同时出现时被算成两套分组（PR #462）。
+
+**后端 & 依赖管理**
+
+- OpenAPI3 Boot 2.x、Boot 3.x Jakarta、WebFlux 与 Jakarta 聚合 starter 显式管理 `org.apache.commons:commons-lang3` 为 `3.20.0`，并在文档中说明 Spring Boot parent/BOM 仍可能覆盖传递版本，需要应用侧按依赖树结果显式管理（PR #463）。
+
+### 5.0.10
 
 `5.0.10` 是基于 `5.0.9` 的补丁版本，重点修复 Gateway 聚合场景下刷新非默认文档分组深链时的分组恢复问题，并补强 Boot4 + Kotlin DTO 与异常 `api-docs` 响应的兼容性。
 
@@ -272,7 +287,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.10</version>
+    <version>5.0.11</version>
 </dependency>
 ```
 
