@@ -52,7 +52,12 @@ import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
 import Authorize from '../Authorize';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
-import { currentOrigin, resolveRequestBaseUrl } from './requestBaseUrl';
+import {
+  currentOrigin,
+  resolveRequestBaseUrl,
+  resolveRequestServerOptions,
+  type RequestServerSource,
+} from './requestBaseUrl';
 import {
   DEBUG_CACHE_VERSION,
   readDebugCache,
@@ -1588,6 +1593,12 @@ function buildInitialDebugState(
 
 const DEBUG_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']);
 
+function requestServerSourceLabel(source: RequestServerSource, t: ReturnType<typeof useTranslation>['t']): string {
+  if (source === 'operation') return t('apiDebug.baseUrl.source.operation');
+  if (source === 'path') return t('apiDebug.baseUrl.source.path');
+  return t('apiDebug.baseUrl.source.document');
+}
+
 function mergeCachedStringRecord(
   initial: Record<string, string>,
   cached: Record<string, string>,
@@ -1681,6 +1692,22 @@ export default function ApiDebug() {
         origin: currentOrigin(),
       }),
     [operation, settings.enableHost, settings.enableHostText, swaggerDoc],
+  );
+  const requestServerSelectOptions = useMemo(
+    () =>
+      resolveRequestServerOptions({
+        swaggerDoc,
+        operation,
+        origin: currentOrigin(),
+      }).map((server) => {
+        const source = requestServerSourceLabel(server.source, t);
+        const description = server.description?.trim();
+        return {
+          value: server.url,
+          label: description ? `${server.url} - ${description} (${source})` : `${server.url} (${source})`,
+        };
+      }),
+    [operation, swaggerDoc, t],
   );
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [method, setMethod] = useState('GET');
@@ -2570,10 +2597,12 @@ export default function ApiDebug() {
               label: item,
             }))}
           />
-          <Input
+          <AutoComplete
             value={baseUrl}
             title={baseUrl}
-            onChange={(event) => setBaseUrl(event.target.value)}
+            onChange={setBaseUrl}
+            options={requestServerSelectOptions}
+            filterOption={false}
             style={{ flex: '0 1 420px', minWidth: 320 }}
           />
           <Input

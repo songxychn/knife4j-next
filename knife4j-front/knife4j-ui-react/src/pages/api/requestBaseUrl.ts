@@ -8,6 +8,15 @@ export interface ResolveRequestBaseUrlOptions {
   origin: string;
 }
 
+export type RequestServerSource = 'operation' | 'path' | 'document';
+
+export interface RequestServerOption {
+  source: RequestServerSource;
+  url: string;
+  rawUrl: string;
+  description?: string;
+}
+
 interface NormalizeRequestBaseUrlOptions {
   upgradeSameHostHttpToHttps?: boolean;
 }
@@ -44,8 +53,48 @@ export function normalizeRequestBaseUrl(
   }
 }
 
-function firstServerUrl(servers: SwaggerServer[] | undefined): string | undefined {
-  return servers?.find((server) => server.url.trim())?.url;
+function appendServerOptions(
+  result: RequestServerOption[],
+  seen: Set<string>,
+  source: RequestServerSource,
+  servers: SwaggerServer[] | undefined,
+  origin: string,
+): void {
+  if (!servers) return;
+
+  for (const server of servers) {
+    const rawUrl = server.url.trim();
+    if (!rawUrl) continue;
+
+    const url = normalizeRequestBaseUrl(rawUrl, origin, {
+      upgradeSameHostHttpToHttps: true,
+    });
+    if (seen.has(url)) continue;
+
+    seen.add(url);
+    result.push({
+      source,
+      url,
+      rawUrl,
+      description: server.description,
+    });
+  }
+}
+
+export function resolveRequestServerOptions({
+  swaggerDoc,
+  operation,
+  origin,
+}: Pick<ResolveRequestBaseUrlOptions, 'swaggerDoc' | 'operation' | 'origin'>): RequestServerOption[] {
+  const pathItem = operation ? swaggerDoc?.paths[operation.path] : undefined;
+  const result: RequestServerOption[] = [];
+  const seen = new Set<string>();
+
+  appendServerOptions(result, seen, 'operation', operation?.operation.servers, origin);
+  appendServerOptions(result, seen, 'path', pathItem?.servers, origin);
+  appendServerOptions(result, seen, 'document', swaggerDoc?.servers, origin);
+
+  return result;
 }
 
 export function resolveRequestBaseUrl({
@@ -60,15 +109,9 @@ export function resolveRequestBaseUrl({
     return normalizeRequestBaseUrl(hostOverride, origin);
   }
 
-  const pathItem = operation ? swaggerDoc?.paths[operation.path] : undefined;
-  const serverUrl =
-    firstServerUrl(operation?.operation.servers) ??
-    firstServerUrl(pathItem?.servers) ??
-    firstServerUrl(swaggerDoc?.servers);
+  const serverUrl = resolveRequestServerOptions({ swaggerDoc, operation, origin })[0]?.url;
   if (serverUrl) {
-    return normalizeRequestBaseUrl(serverUrl, origin, {
-      upgradeSameHostHttpToHttps: true,
-    });
+    return serverUrl;
   }
 
   return normalizeRequestBaseUrl(origin, origin);
