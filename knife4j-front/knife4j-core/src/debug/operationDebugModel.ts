@@ -214,6 +214,32 @@ function extractMultipleFileFields(schema: Record<string, unknown> | undefined):
   return multiple;
 }
 
+/**
+ * 判断非 multipart requestBody 是否实际描述了文件上传字段。
+ *
+ * springdoc 在 `@PostMapping` 未显式声明 consumes 时，可能把
+ * `@RequestParam MultipartFile file` 暴露为 `application/json` body：
+ * `{ file: { type: "string", format: "binary" } }`。Swagger UI 仍按文件上传
+ * 渲染，调试页也应把这种形状归一为 multipart，而不是显示 JSON 编辑器。
+ *
+ * 这里只接受 `format: "binary"`，不把 JSON 中的 base64/byte 字符串自动改成
+ * 文件上传，以避免误伤真正的 JSON 文本字段。
+ */
+function hasBinaryUploadField(schema: Record<string, unknown> | undefined): boolean {
+  if (!schema || schema.type !== 'object' || !schema.properties) return false;
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  for (const prop of Object.values(props)) {
+    if (prop.type === 'file') return true;
+    if (prop.type === 'string' && prop.format === 'binary') return true;
+    if (prop.type === 'array' && prop.items && typeof prop.items === 'object') {
+      const items = prop.items as Record<string, unknown>;
+      const typeOk = items.type === undefined || items.type === 'string';
+      if (items.format === 'binary' && typeOk) return true;
+    }
+  }
+  return false;
+}
+
 /** 从 OAS3 requestBody encoding 中提取 contentType=application/json 的字段名 */
 function extractJsonEncodingFields(encoding: Record<string, unknown> | undefined): string[] {
   if (!encoding) return [];
@@ -437,14 +463,23 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     bodyRequired = Boolean(rb.required);
 
     if (rb.content) {
+      const hasDeclaredMultipart = Object.keys(rb.content).some(
+        (mediaType) => classifyContentType(mediaType) === 'multipart',
+      );
+
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
         const schema = mediaObj.schema ? dereference(mediaObj.schema, doc as Record<string, unknown>) : undefined;
-        const isMultipart = classifyContentType(mediaType) === 'multipart';
+        const declaredCategory = classifyContentType(mediaType);
+        const isMultipartFallback =
+          !hasDeclaredMultipart && declaredCategory !== 'multipart' && hasBinaryUploadField(schema);
+        const effectiveMediaType = isMultipartFallback ? 'multipart/form-data' : mediaType;
+        const effectiveCategory: BodyContentType = isMultipartFallback ? 'multipart' : declaredCategory;
+        const isMultipart = effectiveCategory === 'multipart';
         const encoding = mediaObj.encoding;
 
         bodyContents.push({
-          mediaType,
-          category: classifyContentType(mediaType),
+          mediaType: effectiveMediaType,
+          category: effectiveCategory,
           schema,
           exampleValue: schema
             ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2)

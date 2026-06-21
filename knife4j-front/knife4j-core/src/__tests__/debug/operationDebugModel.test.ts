@@ -180,6 +180,84 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.bodyContents[0].fileFieldsMultiple ?? []).not.toContain('file');
   });
 
+  test('normalizes OAS3 JSON body with binary field to multipart upload model', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/files': {
+          post: {
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      file: { type: 'string', format: 'binary', description: 'Upload file' },
+                    },
+                    required: ['file'],
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/files',
+      method: 'post',
+    });
+
+    expect(model.bodyContents).toHaveLength(1);
+    expect(model.bodyContents[0].mediaType).toBe('multipart/form-data');
+    expect(model.bodyContents[0].category).toBe('multipart');
+    expect(model.bodyContents[0].fileFields).toContain('file');
+    expect(model.bodyContents[0].fileFieldsMultiple ?? []).not.toContain('file');
+    expect(model.bodyRequired).toBe(true);
+  });
+
+  test('keeps OAS3 JSON body with base64 field as JSON, not file upload', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/json-file-content': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      content: { type: 'string', format: 'base64' },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/json-file-content',
+      method: 'post',
+    });
+
+    expect(model.bodyContents).toHaveLength(1);
+    expect(model.bodyContents[0].mediaType).toBe('application/json');
+    expect(model.bodyContents[0].category).toBe('json');
+    expect(model.bodyContents[0].fileFields).toBeUndefined();
+  });
+
   // WebFlux + springdoc: Flux<FilePart> generates {type:array, items:{type:string,format:binary}}
   // This test verifies extractFileFields() correctly identifies array-of-binary as a file field
   // (upstream xiaoymin/knife4j#733)
