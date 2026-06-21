@@ -48,6 +48,8 @@ const zhCN = {
   'home.meta.servers': '服务地址',
   'home.meta.contact': '联系方式',
   'home.meta.license': '许可协议',
+  'home.meta.licenseIdentifier': '许可证标识',
+  'home.meta.extensions': '扩展属性',
   'home.meta.terms': '服务条款',
   'home.meta.security': '安全方案',
 

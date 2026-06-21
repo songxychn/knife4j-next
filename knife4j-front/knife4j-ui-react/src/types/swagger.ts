@@ -50,24 +50,31 @@ export interface SwaggerContact {
   name?: string;
   url?: string;
   email?: string;
+  [key: string]: unknown;
 }
 
 export interface SwaggerLicense {
   name?: string;
   url?: string;
+  identifier?: string;
+  extensions?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface SwaggerInfo {
   title: string;
   version: string;
+  summary?: string;
   description?: string;
   termsOfService?: string;
   contact?: SwaggerContact;
   license?: SwaggerLicense;
+  [key: string]: unknown;
 }
 
 export interface SwaggerServer {
   url: string;
+  name?: string;
   description?: string;
 }
 
