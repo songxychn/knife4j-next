@@ -17,16 +17,14 @@ import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
 import { useSettings } from '../context/SettingsContext';
 import Markdown from '../components/Markdown';
-import type { PathItemObject, SwaggerServer } from '../types/swagger';
+import type { SwaggerServer } from '../types/swagger';
 import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
 import knife4jMark from '../assets/logo/knife4j-next-mark.svg';
+import { buildHomeStats, HOME_HTTP_METHODS, type HomeHttpMethod } from './homeStats';
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
-type HttpMethod = (typeof HTTP_METHODS)[number];
-
-const METHOD_COLORS: Record<HttpMethod, string> = {
+const METHOD_COLORS: Record<HomeHttpMethod, string> = {
   get: '#61affe',
   post: '#49cc90',
   put: '#fca130',
@@ -58,50 +56,7 @@ export default function Home() {
     return [];
   }, [swaggerDoc]);
 
-  const stats = useMemo(() => {
-    if (!swaggerDoc) {
-      return {
-        total: 0,
-        counts: {} as Record<HttpMethod, number>,
-        deprecatedCount: 0,
-        pathCount: 0,
-        topTags: [] as { tag: string; count: number; deprecated: number }[],
-      };
-    }
-    const counts: Record<HttpMethod, number> = {
-      get: 0,
-      post: 0,
-      put: 0,
-      delete: 0,
-      patch: 0,
-      head: 0,
-      options: 0,
-    };
-    let total = 0;
-    let deprecatedCount = 0;
-    let pathCount = 0;
-    for (const pathItem of Object.values(swaggerDoc.paths ?? {})) {
-      let pathHasOp = false;
-      for (const method of HTTP_METHODS) {
-        const op = (pathItem as PathItemObject)[method];
-        if (op) {
-          counts[method]++;
-          total++;
-          pathHasOp = true;
-          if (op.deprecated) deprecatedCount++;
-        }
-      }
-      if (pathHasOp) pathCount++;
-    }
-    const topTags = menuTags
-      .map((m) => ({
-        tag: m.tag,
-        count: m.operations.length,
-        deprecated: m.operations.filter((op) => op.deprecated).length,
-      }))
-      .sort((a, b) => b.count - a.count);
-    return { total, counts, deprecatedCount, pathCount, topTags };
-  }, [swaggerDoc, menuTags]);
+  const stats = useMemo(() => buildHomeStats(swaggerDoc, menuTags), [swaggerDoc, menuTags]);
 
   if (loading) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
@@ -378,7 +333,7 @@ export default function Home() {
             size="small"
           >
             <Row gutter={[12, 12]}>
-              {HTTP_METHODS.filter((m) => stats.counts[m] > 0).map((m) => {
+              {HOME_HTTP_METHODS.filter((m) => stats.counts[m] > 0).map((m) => {
                 const c = stats.counts[m];
                 const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
                 return (

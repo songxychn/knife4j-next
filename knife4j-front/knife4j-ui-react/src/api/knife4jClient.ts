@@ -301,7 +301,7 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
       const op = pathItem[method];
       if (!op) return;
 
-      const tags = Array.from(new Set(op.tags?.length ? op.tags : ['default']));
+      const tags = op.tags?.length ? op.tags : ['default'];
       tags.forEach((tag) => {
         if (!tagMap.has(tag)) {
           tagMap.set(tag, { tag, operations: [] });

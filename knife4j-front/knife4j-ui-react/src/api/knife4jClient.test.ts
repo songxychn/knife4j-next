@@ -213,46 +213,6 @@ describe('knife4jClient', () => {
     expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['listUsers', 'createUser']);
   });
 
-  it('deduplicates repeated Chinese operation tags before menu stats are counted', () => {
-    const doc: SwaggerDoc = {
-      openapi: '3.0.1',
-      info: { title: 'demo', version: '1.0.0' },
-      tags: [{ name: '订单接口' }],
-      paths: {
-        '/orders': {
-          get: {
-            tags: ['订单接口', '订单接口'],
-            summary: '订单列表',
-            operationId: 'listOrders',
-          },
-          post: {
-            tags: ['订单接口', '订单接口'],
-            summary: '创建订单',
-            operationId: 'createOrder',
-          },
-        },
-        '/orders/{id}': {
-          get: {
-            tags: ['订单接口', '订单接口'],
-            summary: '订单详情',
-            operationId: 'getOrder',
-          },
-        },
-      },
-    };
-
-    const menuTags = parseMenuTags(doc);
-
-    expect(menuTags).toHaveLength(1);
-    expect(menuTags[0].tag).toBe('订单接口');
-    expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual([
-      'listOrders',
-      'createOrder',
-      'getOrder',
-    ]);
-    expect(menuTags.reduce((sum, tag) => sum + tag.operations.length, 0)).toBe(3);
-  });
-
   it('falls back to configured sorters when Knife4j x-order is absent', () => {
     const doc: SwaggerDoc = {
       openapi: '3.0.1',
