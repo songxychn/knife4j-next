@@ -94,6 +94,11 @@ title: 版本对照
 ```bash
 mvn dependency:tree -Dincludes=com.baizhukui
 mvn dependency:tree -Dincludes=org.springdoc
+mvn dependency:tree -Dincludes=org.apache.commons:commons-lang3
 ```
 
 如果 springdoc 版本与上表不一致，说明你的项目中有其他依赖覆盖了版本管理。请检查是否有 BOM 或父 POM 引入了不同版本的 springdoc。
+
+如果安全扫描提示 `CVE-2025-48924`，重点确认 `commons-lang3` 是否低于 `3.18.0`。使用 Spring Boot parent 或
+Spring Boot BOM 的应用可能会把 starter 传递声明的 `commons-lang3` 版本重新管理回 Boot 自带版本；这种情况下需要在应用侧
+`dependencyManagement` 中显式覆盖到 `3.20.0` 或更高版本。

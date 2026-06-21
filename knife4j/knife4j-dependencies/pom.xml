@@ -72,6 +72,11 @@
                 <artifactId>swagger-core-jakarta</artifactId>
                 <version>${knife4j-swagger-models-v3-jakarta.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${knife4j-commons-lang3.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.baizhukui</groupId>
