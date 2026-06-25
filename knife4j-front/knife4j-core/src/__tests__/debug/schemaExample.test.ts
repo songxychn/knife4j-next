@@ -73,6 +73,15 @@ const doc: Record<string, unknown> = {
       AnyOfDemo: {
         anyOf: [{ $ref: '#/components/schemas/Pet' }, { type: 'string' }],
       },
+      OneOfFieldContainer: {
+        type: 'object',
+        properties: {
+          payload: {
+            description: 'Polymorphic payload',
+            oneOf: [{ $ref: '#/components/schemas/User' }, { $ref: '#/components/schemas/Pet' }],
+          },
+        },
+      },
       FreeFormMap: {
         type: 'object',
         additionalProperties: { type: 'string' },
@@ -421,11 +430,21 @@ describe('buildSchemaFieldTree', () => {
   });
 
   // 8. oneOf / anyOf
-  test('uses first resolvable branch in oneOf field tree', () => {
+  test('keeps every oneOf branch in field tree', () => {
     const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/OneOfDemo' }, ctx());
-    const names = nodes.map((n) => n.name);
-    expect(names).toContain('id');
-    expect(names).toContain('name');
+    expect(nodes.map((n) => n.name)).toEqual(['oneOf[1]', 'oneOf[2]']);
+    expect(nodes.map((n) => n.refName)).toEqual(['User', 'Pet']);
+    expect(nodes[0].children?.map((n) => n.name)).toContain('id');
+    expect(nodes[1].children?.map((n) => n.name)).toContain('tag');
+  });
+
+  test('keeps every oneOf branch for object fields', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/OneOfFieldContainer' }, ctx());
+    const payloadNode = nodes.find((n) => n.name === 'payload')!;
+    expect(payloadNode.type).toBe('oneOf');
+    expect(payloadNode.description).toBe('Polymorphic payload');
+    expect(payloadNode.children?.map((n) => n.name)).toEqual(['oneOf[1]', 'oneOf[2]']);
+    expect(payloadNode.children?.map((n) => n.refName)).toEqual(['User', 'Pet']);
   });
 
   // 9. 空输入
@@ -563,11 +582,11 @@ describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {
   });
 
   // 3. oneOf 多态场景
-  test('oneOf polymorphism uses first branch properties', () => {
+  test('oneOf polymorphism exposes all branch nodes', () => {
     const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/PolyShape' }, ctx());
-    const names = nodes.map((n) => n.name);
-    // first branch has radius
-    expect(names).toContain('radius');
+    expect(nodes.map((n) => n.name)).toEqual(['oneOf[1]', 'oneOf[2]']);
+    expect(nodes[0].children?.map((n) => n.name)).toEqual(['radius']);
+    expect(nodes[1].children?.map((n) => n.name)).toEqual(['width', 'height']);
   });
 
   test('oneOf example uses first branch', () => {
@@ -576,10 +595,11 @@ describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {
   });
 
   // 4. anyOf 多态场景
-  test('anyOf polymorphism uses first branch properties', () => {
+  test('anyOf polymorphism exposes all branch nodes', () => {
     const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/PolyAny' }, ctx());
-    const names = nodes.map((n) => n.name);
-    expect(names).toContain('x');
+    expect(nodes.map((n) => n.name)).toEqual(['anyOf[1]', 'anyOf[2]']);
+    expect(nodes[0].children?.map((n) => n.name)).toEqual(['x']);
+    expect(nodes[1].type).toBe('string');
   });
 
   test('anyOf example uses first branch', () => {

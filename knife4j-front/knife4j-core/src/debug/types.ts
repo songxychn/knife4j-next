@@ -287,14 +287,15 @@ export interface SchemaFieldNode {
  * 根据 schema 生成 JSON 示例值（纯数据）。
  *
  * 支持：$ref / object / array / enum / example / default / allOf（浅合并） /
- * oneOf / anyOf（取第一个可解析分支） / 循环引用截断 / maxDepth 保护。
+ * oneOf / anyOf（示例值取第一个可解析分支） / 循环引用截断 / maxDepth 保护。
  */
 export type BuildSchemaExampleFn = (schema: Record<string, unknown> | undefined, ctx: SchemaResolveContext) => unknown;
 
 /**
  * 根据 schema 生成字段树（用于文档展示）。
  *
- * 返回值为 SchemaFieldNode 数组：object 展开 properties，array 以伪节点暴露 items。
+ * 返回值为 SchemaFieldNode 数组：object 展开 properties，array 以伪节点暴露 items，
+ * oneOf / anyOf 以组合节点展示全部分支。
  * 循环引用以 `truncated=true` 截断，不会死循环。
  */
 export type BuildSchemaFieldTreeFn = (
