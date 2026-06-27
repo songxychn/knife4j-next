@@ -353,7 +353,7 @@ function buildFieldTreeInternal(schema: Record<string, unknown> | undefined, ctx
 
   const composition = getComposition(resolved);
   if (composition) {
-    return buildCompositionBranchNodes(composition.kind, composition.branches, pushRefIfAny(ctx, ref));
+    return buildTopLevelCompositionNodes(resolved, composition, ctx, ref);
   }
 
   const type = normalizeType(resolved.type);
@@ -406,6 +406,31 @@ function buildCompositionBranchNodes(
     const branchNode = buildSingleFieldNode(`${kind}[${index + 1}]`, branch, false, childCtx(ctx));
     return branchNode;
   });
+}
+
+function buildTopLevelCompositionNodes(
+  resolved: Record<string, unknown>,
+  composition: { kind: CompositionKind; branches: Record<string, unknown>[] },
+  ctx: InternalCtx,
+  ref: string | undefined,
+): SchemaFieldNode[] {
+  return [
+    ...objectToFieldNodes(resolved, ctx, ref),
+    ...buildCompositionBranchNodes(composition.kind, composition.branches, pushRefIfAny(ctx, ref)),
+  ];
+}
+
+function buildNestedCompositionChildren(
+  resolved: Record<string, unknown>,
+  composition: { kind: CompositionKind; branches: Record<string, unknown>[] },
+  ctx: InternalCtx,
+  ref: string | undefined,
+): SchemaFieldNode[] {
+  const nextCtx = pushRefIfAny(ctx, ref);
+  return [
+    ...objectToFieldNodes(resolved, childCtx(nextCtx), ref),
+    ...buildCompositionBranchNodes(composition.kind, composition.branches, nextCtx),
+  ];
 }
 
 function objectToFieldNodes(
@@ -510,7 +535,7 @@ function buildSingleFieldNode(
       node.truncated = true;
       return node;
     }
-    node.children = buildCompositionBranchNodes(composition.kind, composition.branches, pushRefIfAny(ctx, ref));
+    node.children = buildNestedCompositionChildren(resolved, composition, ctx, ref);
     return node;
   }
 

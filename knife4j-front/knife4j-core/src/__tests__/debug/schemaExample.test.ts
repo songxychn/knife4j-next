@@ -82,6 +82,34 @@ const doc: Record<string, unknown> = {
           },
         },
       },
+      AllOfOneOfDemo: {
+        allOf: [
+          {
+            type: 'object',
+            properties: {
+              commonId: { type: 'string' },
+            },
+          },
+        ],
+        oneOf: [{ $ref: '#/components/schemas/User' }, { $ref: '#/components/schemas/Pet' }],
+      },
+      AllOfOneOfFieldContainer: {
+        type: 'object',
+        properties: {
+          payload: {
+            description: 'Polymorphic payload with common fields',
+            allOf: [
+              {
+                type: 'object',
+                properties: {
+                  commonId: { type: 'string' },
+                },
+              },
+            ],
+            oneOf: [{ $ref: '#/components/schemas/User' }, { $ref: '#/components/schemas/Pet' }],
+          },
+        },
+      },
       FreeFormMap: {
         type: 'object',
         additionalProperties: { type: 'string' },
@@ -445,6 +473,23 @@ describe('buildSchemaFieldTree', () => {
     expect(payloadNode.description).toBe('Polymorphic payload');
     expect(payloadNode.children?.map((n) => n.name)).toEqual(['oneOf[1]', 'oneOf[2]']);
     expect(payloadNode.children?.map((n) => n.refName)).toEqual(['User', 'Pet']);
+  });
+
+  test('keeps allOf fields alongside oneOf branches in field tree', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/AllOfOneOfDemo' }, ctx());
+    expect(nodes.map((n) => n.name)).toEqual(['commonId', 'oneOf[1]', 'oneOf[2]']);
+    expect(nodes[1].refName).toBe('User');
+    expect(nodes[2].refName).toBe('Pet');
+  });
+
+  test('keeps allOf fields alongside oneOf branches for object fields', () => {
+    const nodes = buildSchemaFieldTree({ $ref: '#/components/schemas/AllOfOneOfFieldContainer' }, ctx());
+    const payloadNode = nodes.find((n) => n.name === 'payload')!;
+    expect(payloadNode.type).toBe('oneOf');
+    expect(payloadNode.description).toBe('Polymorphic payload with common fields');
+    expect(payloadNode.children?.map((n) => n.name)).toEqual(['commonId', 'oneOf[1]', 'oneOf[2]']);
+    expect(payloadNode.children?.[1].refName).toBe('User');
+    expect(payloadNode.children?.[2].refName).toBe('Pet');
   });
 
   // 9. 空输入
