@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
+import { schemaFieldTableLayout } from './schemaFieldTableLayout';
 import { schemaNodeRefName, schemaNodeTypeLabel } from './schemaUtils';
 
 const { Text } = Typography;
@@ -148,13 +149,26 @@ function ConstraintTooltip({ node, children }: { node: SchemaFieldNode; children
 export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTableProps) {
   const { t } = useTranslation();
   const rows = toRows(fields);
+  const tableLayout = schemaFieldTableLayout(fields);
 
   const columns: ColumnsType<SchemaFieldRow> = [
     {
       title: t('schema.col.fieldName'),
       dataIndex: 'name',
-      width: 210,
-      render: (value) => <Text code>{value || 'items'}</Text>,
+      width: tableLayout.fieldNameWidth,
+      render: (value) => (
+        <Text
+          code
+          title={value || 'items'}
+          style={{
+            whiteSpace: 'normal',
+            overflowWrap: 'anywhere',
+            lineHeight: '20px',
+          }}
+        >
+          {value || 'items'}
+        </Text>
+      ),
     },
     {
       title: t('schema.col.type'),
@@ -204,6 +218,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
         childrenColumnName: 'children',
         defaultExpandAllRows: true,
       }}
+      scroll={{ x: tableLayout.scrollX }}
       locale={{ emptyText: emptyText ?? t('schema.noFields') }}
     />
   );
