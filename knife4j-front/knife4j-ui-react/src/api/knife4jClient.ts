@@ -12,6 +12,7 @@ import type {
   SwaggerUiConfig,
   Knife4jRuntimeConfig,
 } from '../types/swagger';
+import { fetchWithAcceptLanguage } from './acceptLanguage';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
@@ -20,6 +21,10 @@ const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
 export interface SwaggerDocFetchResult {
   doc: SwaggerDoc | null;
   error: string | null;
+}
+
+export interface LanguageAwareRequestOptions {
+  preferredLanguage?: string;
 }
 
 /** HTTP method 在 swagger-ui 'method' sorter 下的固定顺序 */
@@ -45,29 +50,32 @@ export type OperationsSorter = 'alpha' | 'method' | 'preserve';
  * 当用户自定义 `springdoc.api-docs.path` 时，默认 swagger-config 会移动到新路径；
  * 此时读取 Knife4j runtime config `/knife4j/config` 来发现实际 swagger-config URL。
  */
-export async function fetchSwaggerUiConfig(): Promise<SwaggerUiConfig | null> {
-  const defaultConfig = await fetchSwaggerUiConfigFrom('v3/api-docs/swagger-config');
+export async function fetchSwaggerUiConfig(options: LanguageAwareRequestOptions = {}): Promise<SwaggerUiConfig | null> {
+  const defaultConfig = await fetchSwaggerUiConfigFrom('v3/api-docs/swagger-config', options);
   if (defaultConfig) {
     return defaultConfig;
   }
 
   try {
-    const res = await fetch('knife4j/config');
+    const res = await fetchWithAcceptLanguage('knife4j/config', options.preferredLanguage);
     if (!res.ok) return null;
     const discovery = (await res.json()) as Knife4jRuntimeConfig;
     const swaggerConfigUrl = discovery.openapi?.swaggerConfigUrl;
     if (typeof swaggerConfigUrl !== 'string' || swaggerConfigUrl.length === 0) {
       return null;
     }
-    return fetchSwaggerUiConfigFrom(swaggerConfigUrl);
+    return fetchSwaggerUiConfigFrom(swaggerConfigUrl, options);
   } catch (_) {
     return null;
   }
 }
 
-async function fetchSwaggerUiConfigFrom(url: string): Promise<SwaggerUiConfig | null> {
+async function fetchSwaggerUiConfigFrom(
+  url: string,
+  options: LanguageAwareRequestOptions,
+): Promise<SwaggerUiConfig | null> {
   try {
-    const res = await fetch(url);
+    const res = await fetchWithAcceptLanguage(url, options.preferredLanguage);
     if (!res.ok) return null;
     return (await res.json()) as SwaggerUiConfig;
   } catch (_) {
@@ -92,16 +100,16 @@ export function parseGroupsFromConfig(config: SwaggerUiConfig): SwaggerGroup[] {
 }
 
 /** 拉取 group 列表（兼容 springfox / springdoc） */
-export async function fetchGroups(): Promise<SwaggerGroup[]> {
+export async function fetchGroups(options: LanguageAwareRequestOptions = {}): Promise<SwaggerGroup[]> {
   // 优先尝试 springdoc: v3/api-docs/swagger-config
-  const config = await fetchSwaggerUiConfig();
+  const config = await fetchSwaggerUiConfig(options);
   if (config) {
     return parseGroupsFromConfig(config);
   }
 
   // fallback: springfox swagger-resources
   try {
-    const res = await fetch('swagger-resources');
+    const res = await fetchWithAcceptLanguage('swagger-resources', options.preferredLanguage);
     if (res.ok) {
       const data: Array<{ name: string; location: string; swaggerVersion?: string }> = await res.json();
       return data.map((g) => ({
@@ -119,9 +127,12 @@ export async function fetchGroups(): Promise<SwaggerGroup[]> {
 }
 
 /** 拉取指定 group 的 api-docs，并返回可展示的诊断信息 */
-export async function fetchSwaggerDocResult(url: string): Promise<SwaggerDocFetchResult> {
+export async function fetchSwaggerDocResult(
+  url: string,
+  options: LanguageAwareRequestOptions = {},
+): Promise<SwaggerDocFetchResult> {
   try {
-    const res = await fetch(url);
+    const res = await fetchWithAcceptLanguage(url, options.preferredLanguage);
     if (!res.ok) {
       return { doc: null, error: `api-docs 请求失败：HTTP ${res.status}` };
     }
@@ -133,8 +144,11 @@ export async function fetchSwaggerDocResult(url: string): Promise<SwaggerDocFetc
 }
 
 /** 拉取指定 group 的 api-docs */
-export async function fetchSwaggerDoc(url: string): Promise<SwaggerDoc | null> {
-  const result = await fetchSwaggerDocResult(url);
+export async function fetchSwaggerDoc(
+  url: string,
+  options: LanguageAwareRequestOptions = {},
+): Promise<SwaggerDoc | null> {
+  const result = await fetchSwaggerDocResult(url, options);
   return result.doc;
 }
 

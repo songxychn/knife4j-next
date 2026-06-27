@@ -11,6 +11,7 @@ import {
   type OperationsSorter,
   type TagsSorter,
 } from '../api/knife4jClient';
+import { fetchWithAcceptLanguage } from '../api/acceptLanguage';
 import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
 import { extractKnife4jSettings, extractMarkdownFiles } from '../utils/knife4jSettings';
 import { groupNameFromPathname, selectInitialGroupName } from '../utils/groupRoute';
@@ -70,6 +71,8 @@ const GroupContext = createContext<GroupContextValue | null>(null);
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const initialPathnameRef = useRef(location.pathname);
+  const { settings, setServerSettings } = useSettings();
+  const initialLanguageRef = useRef(settings.language);
   const [rawGroups, setRawGroups] = useState<SwaggerGroup[]>([]);
   const [swaggerUiConfig, setSwaggerUiConfig] = useState<SwaggerUiConfig | null>(null);
   const [activeGroupValue, setActiveGroupValue] = useState<string>('');
@@ -78,13 +81,12 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [usingMock, setUsingMock] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
 
-  const { settings, setServerSettings } = useSettings();
-
   // 初始化：优先拉取 swagger-config（拿到 tagsSorter / operationsSorter），失败回退到 swagger-resources
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const config = await fetchSwaggerUiConfig();
+      const preferredLanguage = initialLanguageRef.current;
+      const config = await fetchSwaggerUiConfig({ preferredLanguage });
       if (cancelled) return;
 
       if (config) {
@@ -99,7 +101,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // swagger-config 不可用 → 回退 springfox swagger-resources
       try {
-        const res = await fetch('swagger-resources');
+        const res = await fetchWithAcceptLanguage('swagger-resources', preferredLanguage);
         if (res.ok) {
           const data: Array<{ name: string; location: string; swaggerVersion?: string }> = await res.json();
           const groups: SwaggerGroup[] = data.map((g) => ({
@@ -143,9 +145,12 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const group = rawGroups.find((g) => g.name === activeGroupValue);
     if (!group) return;
 
+    const preferredLanguage = settings.language;
+    let cancelled = false;
     setLoading(true);
     setGroupError(null);
-    fetchSwaggerDocResult(group.url).then((result) => {
+    fetchSwaggerDocResult(group.url, { preferredLanguage }).then((result) => {
+      if (cancelled) return;
       if (result.doc) {
         setSwaggerDoc(result.doc);
       } else {
@@ -155,7 +160,10 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       setLoading(false);
     });
-  }, [activeGroupValue, rawGroups, usingMock]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroupValue, rawGroups, settings.language, usingMock]);
 
   useEffect(() => {
     setServerSettings(extractKnife4jSettings(swaggerDoc));
