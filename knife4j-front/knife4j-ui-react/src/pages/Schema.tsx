@@ -8,6 +8,7 @@ import { normalizeGenericTitle } from '../components/schema/schemaUtils';
 import { useGroup } from '../context/GroupContext';
 import { useSettings } from '../context/SettingsContext';
 import type { SchemaObject, SwaggerDoc } from '../types/swagger';
+import { resolveSchemaActiveKeys } from './schemaActiveKeys';
 
 const { Title, Text } = Typography;
 
@@ -80,17 +81,20 @@ export default function Schema() {
   }, [models, searchText]);
 
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
+  const selectedModelVisible = useMemo(
+    () => Boolean(selectedSchemaName && filteredModels.some((model) => model.name === selectedSchemaName)),
+    [filteredModels, selectedSchemaName],
+  );
 
   useEffect(() => {
+    setActiveKeys(resolveSchemaActiveKeys(selectedSchemaName));
     if (selectedSchemaName) {
-      setActiveKeys([selectedSchemaName]);
+      if (!selectedModelVisible) return;
       window.setTimeout(() => {
         document.getElementById(modelDomId(selectedSchemaName))?.scrollIntoView({ block: 'start' });
       }, 0);
-      return;
     }
-    setActiveKeys(filteredModels.map((model) => model.name));
-  }, [filteredModels, selectedSchemaName]);
+  }, [activeGroup.value, selectedModelVisible, selectedSchemaName]);
 
   // Disabled state: show access-denied instead of schema content
   if (settings.enableSwaggerModels === false) {
