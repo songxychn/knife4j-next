@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SchemaFieldNode } from 'knife4j-core';
-import { maxSchemaFieldDepth, schemaFieldTableLayout } from './schemaFieldTableLayout';
+import { maxSchemaFieldDepth, schemaFieldTableLayout, schemaFieldTableScrollX } from './schemaFieldTableLayout';
 
 function field(name: string, children?: SchemaFieldNode[]): SchemaFieldNode {
   return {
@@ -14,6 +14,12 @@ function field(name: string, children?: SchemaFieldNode[]): SchemaFieldNode {
 describe('schemaFieldTableLayout', () => {
   it('keeps the base field-name width for shallow schemas', () => {
     expect(schemaFieldTableLayout([field('id')])).toEqual({
+      columnWidths: {
+        description: 360,
+        fieldName: 240,
+        required: 90,
+        type: 160,
+      },
       fieldNameWidth: 240,
       scrollX: 850,
     });
@@ -29,6 +35,12 @@ describe('schemaFieldTableLayout', () => {
 
     expect(maxSchemaFieldDepth(fields)).toBe(5);
     expect(schemaFieldTableLayout(fields)).toEqual({
+      columnWidths: {
+        description: 360,
+        fieldName: 360,
+        required: 90,
+        type: 160,
+      },
       fieldNameWidth: 360,
       scrollX: 970,
     });
@@ -41,8 +53,25 @@ describe('schemaFieldTableLayout', () => {
     }
 
     expect(schemaFieldTableLayout([current])).toEqual({
+      columnWidths: {
+        description: 360,
+        fieldName: 520,
+        required: 90,
+        type: 160,
+      },
       fieldNameWidth: 520,
       scrollX: 1130,
     });
+  });
+
+  it('uses the current column widths for horizontal scrolling', () => {
+    expect(
+      schemaFieldTableScrollX({
+        description: 720,
+        fieldName: 520,
+        required: 90,
+        type: 160,
+      }),
+    ).toBe(1490);
   });
 });

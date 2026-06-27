@@ -8,8 +8,20 @@ const REQUIRED_COLUMN_WIDTH = 90;
 const DESCRIPTION_MIN_WIDTH = 360;
 const TABLE_MIN_SCROLL_WIDTH = 840;
 
+export type SchemaFieldTableColumnKey = 'fieldName' | 'type' | 'required' | 'description';
+
+export type SchemaFieldTableColumnWidths = Record<SchemaFieldTableColumnKey, number>;
+
+export const SCHEMA_FIELD_COLUMN_MIN_WIDTHS: SchemaFieldTableColumnWidths = {
+  fieldName: 160,
+  type: 120,
+  required: 80,
+  description: 240,
+};
+
 export interface SchemaFieldTableLayout {
   fieldNameWidth: number;
+  columnWidths: SchemaFieldTableColumnWidths;
   scrollX: number;
 }
 
@@ -20,18 +32,25 @@ export function maxSchemaFieldDepth(fields: Pick<SchemaFieldNode, 'children'>[],
   }, depth);
 }
 
+export function schemaFieldTableScrollX(widths: SchemaFieldTableColumnWidths): number {
+  return Math.max(TABLE_MIN_SCROLL_WIDTH, widths.fieldName + widths.type + widths.required + widths.description);
+}
+
 export function schemaFieldTableLayout(fields: SchemaFieldNode[]): SchemaFieldTableLayout {
   const fieldNameWidth = Math.min(
     FIELD_NAME_MAX_WIDTH,
     FIELD_NAME_BASE_WIDTH + maxSchemaFieldDepth(fields) * FIELD_NAME_DEPTH_STEP,
   );
-  const scrollX = Math.max(
-    TABLE_MIN_SCROLL_WIDTH,
-    fieldNameWidth + TYPE_COLUMN_WIDTH + REQUIRED_COLUMN_WIDTH + DESCRIPTION_MIN_WIDTH,
-  );
+  const columnWidths = {
+    fieldName: fieldNameWidth,
+    type: TYPE_COLUMN_WIDTH,
+    required: REQUIRED_COLUMN_WIDTH,
+    description: DESCRIPTION_MIN_WIDTH,
+  };
 
   return {
     fieldNameWidth,
-    scrollX,
+    columnWidths,
+    scrollX: schemaFieldTableScrollX(columnWidths),
   };
 }
