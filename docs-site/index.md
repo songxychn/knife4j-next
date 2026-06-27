@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.11</version>
+    <version>5.0.12</version>
 </dependency>
 ```
 
@@ -72,12 +72,12 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.11 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.12 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧭 React UI 展示 OpenAPI 3.2 `summary`、server、license 与扩展信息
-- 🧪 调试页支持从 `servers` 选择请求地址，并识别 `format: binary` 文件上传
-- 🧮 首页分组概览不再统计没有接口的空分组
-- 🛡️ OpenAPI3 starter 传递 `commons-lang3` 管理到 `3.20.0`
+- 🌐 右上角切换语言后会重新请求接口文档，并带上用户选择的 `Accept-Language`
+- 📐 深层响应字段表格会按层级动态加宽，必要时可横向滚动和拖拽列宽
+- 🧬 `oneOf` / `anyOf` 字段树展示全部分支，不再只显示第一个可解析分支
+- 📚 数据模型页默认折叠，深链接进入具体模型时仍自动展开定位
 - 🧩 继续包含 Boot4 WebMVC 与 Boot4 Gateway starter，覆盖 Spring Boot 4.x 入口
 
 完整更新列表见 [发布说明](/release-notes/)。

@@ -12,7 +12,18 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.11 <Badge type="tip" text="最新" />
+### 5.0.12 <Badge type="tip" text="最新" />
+
+`5.0.12` 是基于 `5.0.11` 的补丁版本，重点修复 React UI 在语言切换、深层响应字段、组合 schema 分支展示和数据模型默认展开策略上的使用体验问题。
+
+**前端（React UI）**
+
+- 接口文档请求会根据用户显式选择的语言构造 `Accept-Language`，右上角切换语言后会重新请求当前分组的 `api-docs`；未显式选择语言时继续保持浏览器默认请求行为（PR #474）。
+- 优化深层响应字段表格布局：字段名列会按 schema 树深度动态加宽，窄容器下提供横向滚动，并支持拖拽调整字段名、类型、必填和说明列宽（PR #473）。
+- 修复 `oneOf` / `anyOf` 字段树只展示第一个可解析分支的问题，模型字段页现在会生成 `oneOf[1]`、`oneOf[2]` 等分支节点，并保留分支 `$ref` 类型名与子字段（PR #471）。
+- 数据模型页在没有 `schemaName` 路由参数时默认全部折叠，避免大文档一次性展开所有模型；从侧边栏或深链接进入具体模型时仍会自动展开并滚动到目标模型（PR #478）。
+
+### 5.0.11
 
 `5.0.11` 是基于 `5.0.10` 的补丁版本，重点补强 React UI 对 OpenAPI 3.2 文档信息、调试请求服务地址和文件上传场景的支持，并修复首页分组概览统计与 OpenAPI3 starter 传递依赖安全基线。
 
@@ -287,7 +298,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.11</version>
+    <version>5.0.12</version>
 </dependency>
 ```
 
