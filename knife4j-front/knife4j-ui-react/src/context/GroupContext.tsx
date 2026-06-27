@@ -71,8 +71,8 @@ const GroupContext = createContext<GroupContextValue | null>(null);
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const initialPathnameRef = useRef(location.pathname);
-  const { settings, setServerSettings } = useSettings();
-  const initialLanguageRef = useRef(settings.language);
+  const { settings, userSettings, setServerSettings } = useSettings();
+  const initialLanguageRef = useRef(userSettings.language);
   const [rawGroups, setRawGroups] = useState<SwaggerGroup[]>([]);
   const [swaggerUiConfig, setSwaggerUiConfig] = useState<SwaggerUiConfig | null>(null);
   const [activeGroupValue, setActiveGroupValue] = useState<string>('');
@@ -145,7 +145,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const group = rawGroups.find((g) => g.name === activeGroupValue);
     if (!group) return;
 
-    const preferredLanguage = settings.language;
+    const preferredLanguage = userSettings.language;
     let cancelled = false;
     setLoading(true);
     setGroupError(null);
@@ -163,7 +163,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       cancelled = true;
     };
-  }, [activeGroupValue, rawGroups, settings.language, usingMock]);
+  }, [activeGroupValue, rawGroups, userSettings.language, usingMock]);
 
   useEffect(() => {
     setServerSettings(extractKnife4jSettings(swaggerDoc));
