@@ -61,6 +61,7 @@ function shallowEqualSettings(a: SettingsOverrides, b: SettingsOverrides): boole
 
 interface SettingsContextValue {
   settings: AppSettings;
+  userSettings: Partial<AppSettings>;
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   resetSettings: () => void;
   setServerSettings: (settings: SettingsOverrides) => void;
@@ -95,8 +96,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const value = useMemo(
-    () => ({ settings, setSetting, resetSettings, setServerSettings }),
-    [settings, setSetting, resetSettings, setServerSettings],
+    () => ({ settings, userSettings: userOverrides, setSetting, resetSettings, setServerSettings }),
+    [settings, userOverrides, setSetting, resetSettings, setServerSettings],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

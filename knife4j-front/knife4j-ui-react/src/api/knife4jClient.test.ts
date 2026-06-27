@@ -63,6 +63,30 @@ describe('knife4jClient', () => {
     });
   });
 
+  it('sends the selected UI language when fetching api-docs', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      textResponse(
+        JSON.stringify({
+          openapi: '3.0.1',
+          info: { title: 'demo', version: '1.0.0' },
+          paths: {},
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchSwaggerDocResult('/v3/api-docs', { preferredLanguage: 'en-US' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/v3/api-docs',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Accept-Language': expect.stringMatching(/^en-US(?:,|$)/),
+        }),
+      }),
+    );
+  });
+
   it('rejects non OpenAPI JSON responses with a diagnostic message', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(textResponse(JSON.stringify({ error: 'not found' })));
     vi.stubGlobal('fetch', fetchMock);
