@@ -57,6 +57,36 @@ body {
   z-index: 1;
 }
 
+.ant-table-thead > tr > th.react-resizable {
+  position: relative;
+}
+
+.knife4j-schema-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.knife4j-schema-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 3px;
+  bottom: 8px;
+  width: 1px;
+  background: transparent;
+  transition: background 0.16s ease;
+}
+
+.ant-table-thead > tr > th.react-resizable:hover .knife4j-schema-resize-handle::after,
+.knife4j-schema-resize-handle:hover::after {
+  background: #1677ff;
+}
+
 .knife4j-operation-tabs.ant-tabs {
   min-height: calc(100vh - 176px);
   margin: 0;

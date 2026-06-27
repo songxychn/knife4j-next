@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Popover, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
 import { Link as RouterLink } from 'react-router-dom';
+import { Resizable, type ResizeCallbackData } from 'react-resizable';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
+import {
+  SCHEMA_FIELD_COLUMN_MIN_WIDTHS,
+  schemaFieldTableLayout,
+  schemaFieldTableScrollX,
+  type SchemaFieldTableColumnKey,
+  type SchemaFieldTableColumnWidths,
+} from './schemaFieldTableLayout';
 import { schemaNodeRefName, schemaNodeTypeLabel } from './schemaUtils';
 
 const { Text } = Typography;
@@ -32,6 +40,12 @@ interface SchemaTypeLinkProps {
 interface SchemaFieldTableProps {
   fields: SchemaFieldNode[];
   emptyText?: string;
+}
+
+interface ResizableTitleProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
+  width?: number;
+  minWidth?: number;
+  onResize?: (event: React.SyntheticEvent<Element>, data: ResizeCallbackData) => void;
 }
 
 function toRows(fields: SchemaFieldNode[], parentKey = ''): SchemaFieldRow[] {
@@ -145,26 +159,99 @@ function ConstraintTooltip({ node, children }: { node: SchemaFieldNode; children
   );
 }
 
+function ResizableTitle({ width, minWidth, onResize, children, ...restProps }: ResizableTitleProps) {
+  if (!width || !onResize) {
+    return <th {...restProps}>{children}</th>;
+  }
+
+  return (
+    <Resizable
+      width={width}
+      height={0}
+      resizeHandles={['e']}
+      minConstraints={[minWidth ?? 80, 0]}
+      draggableOpts={{ enableUserSelectHack: false }}
+      handle={
+        <span
+          className="knife4j-schema-resize-handle"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整列宽"
+          onClick={(event) => event.stopPropagation()}
+        />
+      }
+      onResize={onResize}
+    >
+      <th {...restProps} style={{ ...restProps.style, width }}>
+        {children}
+      </th>
+    </Resizable>
+  );
+}
+
 export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTableProps) {
   const { t } = useTranslation();
-  const rows = toRows(fields);
+  const rows = useMemo(() => toRows(fields), [fields]);
+  const tableLayout = useMemo(() => schemaFieldTableLayout(fields), [fields]);
+  const defaultColumnWidths = tableLayout.columnWidths;
+  const [columnWidths, setColumnWidths] = useState<SchemaFieldTableColumnWidths>(defaultColumnWidths);
+
+  useEffect(() => {
+    setColumnWidths(defaultColumnWidths);
+  }, [defaultColumnWidths]);
+
+  const handleResize = useCallback(
+    (columnKey: SchemaFieldTableColumnKey) =>
+      (_event: React.SyntheticEvent<Element>, { size }: ResizeCallbackData) => {
+        setColumnWidths((current) => ({
+          ...current,
+          [columnKey]: Math.max(SCHEMA_FIELD_COLUMN_MIN_WIDTHS[columnKey], Math.round(size.width)),
+        }));
+      },
+    [],
+  );
+
+  const resizableHeader = useCallback(
+    (columnKey: SchemaFieldTableColumnKey) =>
+      ({
+        width: columnWidths[columnKey],
+        minWidth: SCHEMA_FIELD_COLUMN_MIN_WIDTHS[columnKey],
+        onResize: handleResize(columnKey),
+      }) as unknown as React.HTMLAttributes<HTMLTableCellElement>,
+    [columnWidths, handleResize],
+  );
 
   const columns: ColumnsType<SchemaFieldRow> = [
     {
       title: t('schema.col.fieldName'),
       dataIndex: 'name',
-      width: 210,
-      render: (value) => <Text code>{value || 'items'}</Text>,
+      width: columnWidths.fieldName,
+      onHeaderCell: () => resizableHeader('fieldName'),
+      render: (value) => (
+        <Text
+          code
+          title={value || 'items'}
+          style={{
+            whiteSpace: 'normal',
+            overflowWrap: 'anywhere',
+            lineHeight: '20px',
+          }}
+        >
+          {value || 'items'}
+        </Text>
+      ),
     },
     {
       title: t('schema.col.type'),
-      width: 160,
+      width: columnWidths.type,
+      onHeaderCell: () => resizableHeader('type'),
       render: (_, record) => <SchemaTypeLink node={record} />,
     },
     {
       title: t('schema.col.required'),
       dataIndex: 'required',
-      width: 90,
+      width: columnWidths.required,
+      onHeaderCell: () => resizableHeader('required'),
       render: (value) =>
         value ? (
           <Badge status="error" text={t('schema.required.yes')} />
@@ -175,6 +262,8 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
     {
       title: t('schema.col.description'),
       dataIndex: 'description',
+      width: columnWidths.description,
+      onHeaderCell: () => resizableHeader('description'),
       render: (value, record) => (
         <Space size={6} wrap>
           {value ? <span>{value}</span> : <Text type="secondary">-</Text>}
@@ -196,6 +285,11 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
   return (
     <Table<SchemaFieldRow>
       columns={columns}
+      components={{
+        header: {
+          cell: ResizableTitle,
+        },
+      }}
       dataSource={rows}
       pagination={false}
       size="small"
@@ -204,6 +298,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
         childrenColumnName: 'children',
         defaultExpandAllRows: true,
       }}
+      scroll={{ x: schemaFieldTableScrollX(columnWidths) }}
       locale={{ emptyText: emptyText ?? t('schema.noFields') }}
     />
   );
