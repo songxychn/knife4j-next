@@ -59,6 +59,18 @@ describe('request base URL resolution', () => {
     ).toBe('http://127.0.0.1:18000/api');
   });
 
+  it('prefers the current gateway origin plus group contextPath ahead of downstream OpenAPI servers', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://172.19.112.1:20001']),
+        enableHost: false,
+        enableHostText: '',
+        groupContextPath: '/iam',
+        origin: 'http://172.19.112.1:20000',
+      }),
+    ).toBe('http://172.19.112.1:20000/iam');
+  });
+
   it('upgrades same-host OpenAPI server URLs when the UI is served over HTTPS', () => {
     expect(
       resolveRequestBaseUrl({
@@ -102,6 +114,28 @@ describe('request base URL resolution', () => {
         origin: 'http://127.0.0.1:3002',
       }),
     ).toBe('http://gateway.example.test/root');
+  });
+
+  it('keeps the explicit host override ahead of the gateway context path', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://service.example.test']),
+        enableHost: true,
+        enableHostText: 'http://gateway.example.test/',
+        groupContextPath: '/iam',
+        origin: 'http://127.0.0.1:3002',
+      }),
+    ).toBe('http://gateway.example.test');
+
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://service.example.test']),
+        enableHost: true,
+        enableHostText: 'http://gateway.example.test/iam/',
+        groupContextPath: '/iam',
+        origin: 'http://127.0.0.1:3002',
+      }),
+    ).toBe('http://gateway.example.test/iam');
   });
 
   it('keeps the explicit host override protocol unchanged', () => {
@@ -195,6 +229,28 @@ describe('request base URL resolution', () => {
       ['operation', 'http://operation.example.test/api'],
       ['path', 'http://path.example.test/api'],
       ['document', 'http://root.example.test/api'],
+    ]);
+  });
+
+  it('lists the gateway context option before OpenAPI server options', () => {
+    const swaggerDoc = docWithServerLevels({
+      root: ['http://root.example.test/api'],
+      path: ['http://path.example.test/api'],
+      operation: ['http://operation.example.test/api'],
+    });
+
+    expect(
+      resolveRequestServerOptions({
+        swaggerDoc,
+        operation: petOperation(swaggerDoc),
+        groupContextPath: 'iam',
+        origin: 'http://172.19.112.1:20000',
+      }).map((option) => [option.source, option.url, option.rawUrl]),
+    ).toEqual([
+      ['gateway', 'http://172.19.112.1:20000/iam', '/iam'],
+      ['operation', 'http://operation.example.test/api', 'http://operation.example.test/api'],
+      ['path', 'http://path.example.test/api', 'http://path.example.test/api'],
+      ['document', 'http://root.example.test/api', 'http://root.example.test/api'],
     ]);
   });
 

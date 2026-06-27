@@ -165,6 +165,7 @@ const enUS = {
   'apiDebug.customCookie.title': 'Custom Cookies',
   'apiDebug.customCookie.namePlaceholder': 'Cookie name',
   'apiDebug.noBody': 'This API has no request body',
+  'apiDebug.baseUrl.source.gateway': 'gateway context',
   'apiDebug.baseUrl.source.operation': 'operation server',
   'apiDebug.baseUrl.source.path': 'path server',
   'apiDebug.baseUrl.source.document': 'document server',
