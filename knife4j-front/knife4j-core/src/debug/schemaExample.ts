@@ -7,7 +7,7 @@
  * - 优先级：example > default > enum[0] > 按 type/format 推断
  * - 递归处理 $ref / object.properties / array.items
  * - allOf：浅合并子 schema 的 properties / required
- * - oneOf / anyOf：取第一个可解析分支
+ * - oneOf / anyOf：示例值取第一个可解析分支；字段树展示所有分支
  * - 循环引用：按引用链数组截断，重复命中同一 $ref 时返回占位值（example）或 null + truncated 标记（fieldTree）
  * - maxDepth：默认 8，超过后截断
  *
@@ -171,10 +171,16 @@ function mergeAllOf(parts: Record<string, unknown>[], ctx: InternalCtx): Record<
   return merged;
 }
 
+interface ResolveOptions {
+  /** 字段树展示需要保留 oneOf / anyOf 的完整分支，不在解析阶段折叠为第一项 */
+  preserveComposition?: boolean;
+}
+
 /** 解析 schema 的显式分支（$ref / allOf / oneOf / anyOf），返回归一化后的 schema */
 function resolveSchema(
   schema: Record<string, unknown> | undefined,
   ctx: InternalCtx,
+  options: ResolveOptions = {},
 ): { schema: Record<string, unknown> | undefined; ref?: string; truncated: boolean } {
   if (!schema) return { schema: undefined, truncated: false };
 
@@ -187,10 +193,14 @@ function resolveSchema(
     const resolved = resolveRef(ref, ctx.doc);
     if (!resolved) return { schema: undefined, ref, truncated: false };
     // 递归解析（解析后可能仍是 $ref / allOf 等）
-    const deeper = resolveSchema(resolved, {
-      ...ctx,
-      refChain: [...ctx.refChain, ref],
-    });
+    const deeper = resolveSchema(
+      resolved,
+      {
+        ...ctx,
+        refChain: [...ctx.refChain, ref],
+      },
+      options,
+    );
     return { ...deeper, ref };
   }
 
@@ -207,6 +217,10 @@ function resolveSchema(
     return { schema: combined, truncated: false };
   }
 
+  if (options.preserveComposition && (hasComposition(schema, 'oneOf') || hasComposition(schema, 'anyOf'))) {
+    return { schema, truncated: false };
+  }
+
   // 3. oneOf / anyOf：取第一个可解析分支
   const union = (schema.oneOf ?? schema.anyOf) as Record<string, unknown>[] | undefined;
   if (Array.isArray(union) && union.length > 0) {
@@ -218,6 +232,25 @@ function resolveSchema(
   }
 
   return { schema, truncated: false };
+}
+
+type CompositionKind = 'oneOf' | 'anyOf';
+
+function hasComposition(schema: Record<string, unknown>, kind: CompositionKind): boolean {
+  const branches = schema[kind];
+  return Array.isArray(branches) && branches.length > 0;
+}
+
+function getComposition(
+  schema: Record<string, unknown>,
+): { kind: CompositionKind; branches: Record<string, unknown>[] } | undefined {
+  if (hasComposition(schema, 'oneOf')) {
+    return { kind: 'oneOf', branches: schema.oneOf as Record<string, unknown>[] };
+  }
+  if (hasComposition(schema, 'anyOf')) {
+    return { kind: 'anyOf', branches: schema.anyOf as Record<string, unknown>[] };
+  }
+  return undefined;
 }
 
 /** dereference：$ref → 解析后 schema（循环或失败时原样返回） */
@@ -314,9 +347,14 @@ function buildFieldTreeInternal(schema: Record<string, unknown> | undefined, ctx
   if (!schema) return [];
   if (ctx.depth >= ctx.maxDepth) return [];
 
-  const { schema: resolved, ref, truncated } = resolveSchema(schema, ctx);
+  const { schema: resolved, ref, truncated } = resolveSchema(schema, ctx, { preserveComposition: true });
   if (!resolved) return [];
   if (truncated) return [];
+
+  const composition = getComposition(resolved);
+  if (composition) {
+    return buildTopLevelCompositionNodes(resolved, composition, ctx, ref);
+  }
 
   const type = normalizeType(resolved.type);
 
@@ -356,6 +394,42 @@ function buildFieldTreeInternal(schema: Record<string, unknown> | undefined, ctx
       enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
       refName: refToName(ref),
     },
+  ];
+}
+
+function buildCompositionBranchNodes(
+  kind: CompositionKind,
+  branches: Record<string, unknown>[],
+  ctx: InternalCtx,
+): SchemaFieldNode[] {
+  return branches.map((branch, index) => {
+    const branchNode = buildSingleFieldNode(`${kind}[${index + 1}]`, branch, false, childCtx(ctx));
+    return branchNode;
+  });
+}
+
+function buildTopLevelCompositionNodes(
+  resolved: Record<string, unknown>,
+  composition: { kind: CompositionKind; branches: Record<string, unknown>[] },
+  ctx: InternalCtx,
+  ref: string | undefined,
+): SchemaFieldNode[] {
+  return [
+    ...objectToFieldNodes(resolved, ctx, ref),
+    ...buildCompositionBranchNodes(composition.kind, composition.branches, pushRefIfAny(ctx, ref)),
+  ];
+}
+
+function buildNestedCompositionChildren(
+  resolved: Record<string, unknown>,
+  composition: { kind: CompositionKind; branches: Record<string, unknown>[] },
+  ctx: InternalCtx,
+  ref: string | undefined,
+): SchemaFieldNode[] {
+  const nextCtx = pushRefIfAny(ctx, ref);
+  return [
+    ...objectToFieldNodes(resolved, childCtx(nextCtx), ref),
+    ...buildCompositionBranchNodes(composition.kind, composition.branches, nextCtx),
   ];
 }
 
@@ -420,7 +494,7 @@ function buildSingleFieldNode(
     };
   }
 
-  const { schema: resolved, ref, truncated } = resolveSchema(rawSchema, ctx);
+  const { schema: resolved, ref, truncated } = resolveSchema(rawSchema, ctx, { preserveComposition: true });
   if (!resolved) {
     return {
       name,
@@ -445,6 +519,25 @@ function buildSingleFieldNode(
       ? refTargetDescription
       : undefined;
   const refTitle = ref ? (typeof resolved.title === 'string' ? resolved.title : undefined) : undefined;
+
+  const composition = getComposition(resolved);
+  if (composition) {
+    const node: SchemaFieldNode = {
+      name,
+      type: composition.kind,
+      required,
+      description,
+      refDescription,
+      refTitle,
+      refName: refToName(ref),
+    };
+    if (ctx.depth + 1 >= ctx.maxDepth) {
+      node.truncated = true;
+      return node;
+    }
+    node.children = buildNestedCompositionChildren(resolved, composition, ctx, ref);
+    return node;
+  }
 
   const node: SchemaFieldNode = {
     name,
