@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { ParameterObject, RequestBodyObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
+import DescriptionText from '../../components/DescriptionText';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
@@ -321,12 +322,12 @@ export default function ApiDoc() {
       dataIndex: 'description',
       render: (value: string, record: ParamRow) => (
         <Space size={4} direction="vertical" style={{ width: '100%' }}>
-          {value ? <span>{value}</span> : <Text type="secondary">-</Text>}
+          {value ? <DescriptionText>{value}</DescriptionText> : <Text type="secondary">-</Text>}
           {record.refDescription && record.refDescription !== value && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <DescriptionText type="secondary" style={{ fontSize: 12 }}>
               {record.refTitle ? `[${record.refTitle}] ` : ''}
               {record.refDescription}
-            </Text>
+            </DescriptionText>
           )}
         </Space>
       ),
@@ -435,7 +436,7 @@ export default function ApiDoc() {
           </Space>
         )}
       </div>
-      {op.description && <Markdown source={op.description} />}
+      {op.description && <Markdown source={op.description} preserveLineBreaks />}
 
       {relatedModelNames.length > 0 && (
         <Space size={6} wrap style={{ marginTop: 4, marginBottom: 8 }}>
@@ -532,9 +533,9 @@ export default function ApiDoc() {
                         <Space size={8} style={{ marginBottom: 6 }}>
                           <Tag color={color}>{row.statusCode}</Tag>
                           {row.description && (
-                            <Text type="secondary" style={{ fontSize: 13 }}>
+                            <DescriptionText type="secondary" style={{ fontSize: 13 }}>
                               {row.description}
-                            </Text>
+                            </DescriptionText>
                           )}
                           {row.schema && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
                         </Space>

@@ -138,7 +138,11 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     filteredByTag.forEach((apis, tag) => {
       const tagDesc = tagDescMap.get(tag);
       const labelContent = tagDesc ? (
-        <Tooltip title={<Markdown source={tagDesc} />} placement="right" styles={{ root: { maxWidth: 400 } }}>
+        <Tooltip
+          title={<Markdown source={tagDesc} preserveLineBreaks />}
+          placement="right"
+          styles={{ root: { maxWidth: 400 } }}
+        >
           <span>{tag}</span>
         </Tooltip>
       ) : (

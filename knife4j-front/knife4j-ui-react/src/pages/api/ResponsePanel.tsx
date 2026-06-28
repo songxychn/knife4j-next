@@ -176,7 +176,7 @@ const jsonDescStyle: React.CSSProperties = {
   paddingLeft: 12,
   minHeight: '1.55em',
   lineHeight: 1.55,
-  whiteSpace: 'normal',
+  whiteSpace: 'pre-wrap',
   overflowWrap: 'break-word',
   minWidth: 0,
 };

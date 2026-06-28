@@ -7,6 +7,7 @@ import { Resizable, type ResizeCallbackData } from 'react-resizable';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
+import DescriptionText from '../DescriptionText';
 import {
   SCHEMA_FIELD_COLUMN_MIN_WIDTHS,
   schemaFieldTableLayout,
@@ -87,9 +88,9 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
   const content = (
     <div style={{ maxWidth: 420 }}>
       {schema.description && (
-        <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+        <DescriptionText type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           {schema.description}
-        </Text>
+        </DescriptionText>
       )}
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         {previewFields.map((field) => (
@@ -266,12 +267,12 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       onHeaderCell: () => resizableHeader('description'),
       render: (value, record) => (
         <Space size={6} wrap>
-          {value ? <span>{value}</span> : <Text type="secondary">-</Text>}
+          {value ? <DescriptionText>{value}</DescriptionText> : <Text type="secondary">-</Text>}
           {record.refDescription && record.refDescription !== value && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <DescriptionText type="secondary" style={{ fontSize: 12 }}>
               {record.refTitle ? `[${record.refTitle}] ` : ''}
               {record.refDescription}
-            </Text>
+            </DescriptionText>
           )}
           {record.deprecated && <Tag color="red">{t('schema.flag.deprecated')}</Tag>}
           {record.readOnly && <Tag color="default">{t('schema.flag.readOnly')}</Tag>}
