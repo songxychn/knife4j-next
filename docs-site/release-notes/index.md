@@ -12,7 +12,23 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.12 <Badge type="tip" text="最新" />
+### 5.0.13 <Badge type="tip" text="最新" />
+
+`5.0.13` 是基于 `5.0.12` 的补丁版本，重点修复 React UI 在请求示例、调试默认值、自定义 Footer 与多行描述展示上的细节问题，并修正 `@ApiSupport` 全局扫描包排序。
+
+**前端（React UI）**
+
+- 修复 OAS3 请求示例中的显式值展示：`example` / `examples` 中的空字符串、`false`、`0` 等有效值会被保留，不再被 schema 默认值或占位值覆盖（PR #484）。
+- 调试页默认请求数据优先使用 OpenAPI 示例值，并按参数、request body 和媒体类型生成更贴近文档声明的初始调试内容（PR #485）。
+- 调整响应字段说明布局，降低说明文本过长时与后续字段重叠的风险（PR #487）。
+- 修复自定义 Footer 配置优先级，服务端注入的 `enableFooterCustom`、`footerCustomContent` 与本地设置的覆盖关系保持一致（PR #491）。
+- 描述信息支持换行展示，接口详情、模型字段、首页分组说明、调试页参数说明等位置会保留 Markdown 或普通文本中的换行语义（PR #492）。
+
+**后端 & 文档**
+
+- 修复 `@ApiSupport` 全局 `order` 在 packages-to-scan 场景下未稳定参与排序的问题，并补充配置文档和 Boot4 smoke 断言（PR #486）。
+
+### 5.0.12
 
 `5.0.12` 是基于 `5.0.11` 的补丁版本，重点修复 React UI 在语言切换、深层响应字段、组合 schema 分支展示和数据模型默认展开策略上的使用体验问题。
 
@@ -298,7 +314,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.12</version>
+    <version>5.0.13</version>
 </dependency>
 ```
 
