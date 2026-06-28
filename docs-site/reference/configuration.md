@@ -27,6 +27,25 @@ title: 配置参考
 
 OpenAPI3 starter 会暴露 `/knife4j/config` 作为 Knife4j UI 的运行时发现入口。该接口不属于 springdoc 标准接口，由 UI 内部调用，并会从 OpenAPI 文档中隐藏，不展示在 `doc.html` 接口列表里。它用于在自定义 `springdoc.api-docs.path` 时返回实际的 `apiDocsUrl` 与 `swaggerConfigUrl`；响应通过 `schemaVersion` 标识契约版本，后续 Knife4j 运行时能力也应挂载在这个结构下。
 
+### OpenAPI3 文档标题与版本
+
+OpenAPI3 系列 starter（含 Boot 4）不会读取 `knife4j.openapi.title` / `knife4j.openapi.version`。React UI 的浏览器标题、首页标题和版本号都来自 OpenAPI 标准字段 `info.title` 与 `info.version`；未配置时 springdoc 默认会给出 `OpenAPI definition` 与 `v0`。
+
+推荐用 springdoc/OpenAPI 标准方式配置：
+
+```java
+@Bean
+public OpenAPI customOpenAPI() {
+    return new OpenAPI()
+            .info(new Info()
+                    .title("用户中心接口文档")
+                    .version("1.0.0")
+                    .description("用户中心 OpenAPI 文档"));
+}
+```
+
+也可以在启动类上使用 `@OpenAPIDefinition(info = @Info(...))`。`knife4j.openapi.*` 只保留给 openapi2 starter 的自动 Docket 注册使用。
+
 ::: warning 反向代理 / 网关放行
 当应用部署在网关或反向代理之后时，请确保 `/knife4j/config`（与 `/doc.html`、`/v3/api-docs/**`、`/swagger-ui/**`、`/webjars/**` 一起）能透传到后端。常见情况：
 
@@ -385,6 +404,8 @@ springdoc:
   swagger-ui:
     tags-sorter: alpha
 ```
+
+`@ApiSupport.order` 的 Tag 排序增强会按 `springdoc.packages-to-scan` 和 `springdoc.group-configs[].packages-to-scan` 扫描 Controller；如果没有配置扫描包，operation 级 `x-order` 仍会写入，但 Tag 级排序可能无法推断。
 
 ### 生产环境配置
 

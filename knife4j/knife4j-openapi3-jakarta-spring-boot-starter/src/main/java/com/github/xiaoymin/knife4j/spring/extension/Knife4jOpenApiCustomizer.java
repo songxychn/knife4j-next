@@ -72,17 +72,8 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
      * @param openApi openApi
      */
     private void addOrderExtension(OpenAPI openApi) {
-        if (Objects.isNull(properties.getGroupConfigs())
-                || properties.getGroupConfigs().isEmpty()) {
-            return;
-        }
         // 获取包扫描路径
-        Set<String> packagesToScan =
-                properties.getGroupConfigs().stream()
-                        .map(SpringDocConfigProperties.GroupConfig::getPackagesToScan)
-                        .filter(toScan -> !CollectionUtils.isEmpty(toScan))
-                        .flatMap(List::stream)
-                        .collect(Collectors.toSet());
+        Set<String> packagesToScan = collectPackagesToScan();
         if (CollectionUtils.isEmpty(packagesToScan)) {
             return;
         }
@@ -117,6 +108,23 @@ public class Knife4jOpenApiCustomizer implements GlobalOpenApiCustomizer {
                                 });
             }
         }
+    }
+
+    private Set<String> collectPackagesToScan() {
+        Set<String> packagesToScan = new LinkedHashSet<>();
+        if (properties == null) {
+            return packagesToScan;
+        }
+        if (!CollectionUtils.isEmpty(properties.getPackagesToScan())) {
+            packagesToScan.addAll(properties.getPackagesToScan());
+        }
+        if (!CollectionUtils.isEmpty(properties.getGroupConfigs())) {
+            properties.getGroupConfigs().stream()
+                    .map(SpringDocConfigProperties.GroupConfig::getPackagesToScan)
+                    .filter(toScan -> !CollectionUtils.isEmpty(toScan))
+                    .forEach(packagesToScan::addAll);
+        }
+        return packagesToScan;
     }
 
     private Tag getTag(Class<?> clazz) {

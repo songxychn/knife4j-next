@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.smoke.boot4;
 
+import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -255,6 +256,43 @@ public class Boot4JakartaDocHttpSmokeTest {
         Assert.assertTrue(customConfig.body.contains("/api/openapi"));
     }
 
+    @Test
+    public void shouldExposeApiSupportOrderAndAuthorExtensions() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "springdoc.packages-to-scan=com.github.xiaoymin.knife4j.smoke.boot4",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+
+        JsonNode apiDocsJson = OBJECT_MAPPER.readTree(apiDocs.body);
+        JsonNode apiSupportTag = null;
+        for (JsonNode tag : apiDocsJson.path("tags")) {
+            if ("ApiSupport 示例接口".equals(tag.path("name").asText())) {
+                apiSupportTag = tag;
+                break;
+            }
+        }
+        Assert.assertNotNull("api-docs should contain ApiSupport tag:\n" + apiDocs.body, apiSupportTag);
+        Assert.assertEquals("@ApiSupport.order should write tag x-order from springdoc.packages-to-scan (#472)",
+                1, apiSupportTag.path("x-order").asInt());
+
+        JsonNode operation = apiDocsJson.path("paths").path("/api/api-support/list").path("get");
+        Assert.assertFalse("api-docs should contain GET /api/api-support/list operation:\n" + apiDocs.body,
+                operation.isMissingNode());
+        Assert.assertEquals("@ApiSupport.author should write operation x-author (#472)",
+                "yilers", operation.path("x-author").asText());
+        Assert.assertEquals("@ApiSupport.order should also write operation x-order (#472)",
+                1, operation.path("x-order").asInt());
+    }
+
     private JsonNode schemaProperties(JsonNode apiDocsJson, JsonNode schema) {
         JsonNode ref = schema.path("$ref");
         if (ref.isTextual() && ref.asText().startsWith("#/components/schemas/")) {
@@ -392,6 +430,19 @@ public class Boot4JakartaDocHttpSmokeTest {
             return List.of(
                     new UserVO(1L, "张三", "zhangsan@example.com"),
                     new UserVO(2L, "李四", "lisi@example.com"));
+        }
+    }
+
+    @Tag(name = "ApiSupport 示例接口", description = "Boot4 ApiSupport 示例接口")
+    @ApiSupport(order = 1, author = "yilers")
+    @RestController
+    @RequestMapping("/api/api-support")
+    public static class ApiSupportController {
+
+        @Operation(summary = "获取 ApiSupport 示例列表")
+        @GetMapping("/list")
+        public List<String> list() {
+            return List.of("api-support");
         }
     }
 

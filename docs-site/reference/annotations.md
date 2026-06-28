@@ -393,8 +393,11 @@ private String name;
 
 1. 确认 `knife4j.enable=true` 已配置。
 2. 确认使用的是 WebMvc Starter（非 WebFlux，WebFlux 不支持后端增强）。
-3. 确认使用的是 OAS3 WebMvc starter，并且 `/v3/api-docs` 的 `tags` 或 operation 中已写入 `x-order`。
-4. 如果 OpenAPI spec 中没有 `x-order`，先检查 `springdoc.group-configs.packages-to-scan` 是否覆盖到对应 Controller。
+3. 确认 Controller 同时有 OpenAPI3 的 `@Tag(name = "...")` 与 Knife4j 的 `@ApiSupport(order = N)`。
+4. 确认 `/v3/api-docs` 的 `tags` 或 operation 中已写入 `x-order`。
+5. 如果 Tag 级 `x-order` 缺失，检查 `springdoc.packages-to-scan` 或 `springdoc.group-configs[].packages-to-scan` 是否覆盖到对应 Controller。
+
+`@ApiSupport.author/authors` 在 React UI 中展示在接口详情页的 operation 头部，不展示在左侧分组菜单或 Tag 标题上；如果 `/v3/api-docs` 的 operation 已有 `x-author`，说明后端增强已生效。
 
 ### `@Ignore` vs `@Hidden` 用哪个？
 
