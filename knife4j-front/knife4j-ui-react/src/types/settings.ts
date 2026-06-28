@@ -27,7 +27,7 @@ export interface AppSettings {
   enableGroup: boolean;
   /** Whether the default footer is shown. */
   enableFooter: boolean;
-  /** Whether custom Markdown footer content is shown when footer is enabled. */
+  /** Whether non-empty custom Markdown footer content is shown. */
   enableFooterCustom: boolean;
   /** Backend-provided custom footer Markdown content. */
   footerCustomContent: string;

@@ -81,7 +81,7 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.enableHostText` | `String` | `""` | Host 地址 | ✅ |
 | `knife4j.setting.enableDynamicParameter` | `boolean` | `false` | 启用动态请求参数 | ⚠️ |
 | `knife4j.setting.enableDebug` | `boolean` | `true` | 启用调试功能 | ✅ |
-| `knife4j.setting.enableFooter` | `boolean` | `true` | 显示底部 Footer | ✅ |
+| `knife4j.setting.enableFooter` | `boolean` | `true` | 显示默认 Footer | ✅ |
 | `knife4j.setting.enableFooterCustom` | `boolean` | `false` | 自定义 Footer | ✅ |
 | `knife4j.setting.footerCustomContent` | `String` | — | 自定义 Footer 内容（支持 Markdown） | ✅ |
 | `knife4j.setting.enableSearch` | `boolean` | `true` | 显示搜索框 | ✅ |
