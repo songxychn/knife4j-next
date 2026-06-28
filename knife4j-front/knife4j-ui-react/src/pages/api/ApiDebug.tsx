@@ -68,6 +68,20 @@ import {
   type DebugCacheState,
 } from './debugCache';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
+import {
+  EMPTY_BODY_CONTENT_DEFAULTS,
+  buildBodyContentDefaults,
+  buildInitialParamValues,
+  extractSchemaFields,
+  initialBodyValueForContent,
+  initialFormFieldsForContent,
+  mergeCachedFormFields,
+  paramKey,
+  stringifyDebugValue,
+  type BodyContentDefaults,
+  type ParamValueMap,
+  type SchemaFieldRow,
+} from './debugDefaultValues';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -81,14 +95,6 @@ const METHOD_COLORS: Record<string, string> = {
   HEAD: 'cyan',
   OPTIONS: 'default',
 };
-
-// ─── Helper: form value shape ─────────────────────────
-// Key by `${in}:${name}` to avoid cross-location name collisions
-type ParamValueMap = Record<string, string>;
-
-function paramKey(param: DebugParam): string {
-  return `${param.in}:${param.name}`;
-}
 
 // ─── Response body classification ─────────────────────
 
@@ -193,154 +199,6 @@ function extractFilenameFromUrl(url: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-// ─── Initial value derivation ─────────────────────────
-
-/**
- * 按优先级取参数的初始值：example > default > 类型空值
- * 返回始终是字符串（<Input> / JSON 字符串 / enum 选中值）。
- */
-function initialValueFor(param: DebugParam): string {
-  if (param.example !== undefined && param.example !== null) {
-    return stringify(param.example, param.type);
-  }
-  if (param.default !== undefined && param.default !== null) {
-    return stringify(param.default, param.type);
-  }
-  // 按类型生成空值
-  switch (param.type) {
-    case 'array':
-    case 'object':
-      return ''; // TextArea 占位；空字符串让 requestBuilder 走默认分支
-    case 'boolean':
-      return '';
-    case 'integer':
-    case 'number':
-      return '';
-    default:
-      return '';
-  }
-}
-
-function stringify(value: unknown, type: string): string {
-  if (value === undefined || value === null) return '';
-  if (type === 'array' || type === 'object') {
-    try {
-      return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  }
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
-  }
-  return String(value);
-}
-
-// ─── Schema property → field row for urlencoded / multipart ──────
-
-interface SchemaFieldRow {
-  name: string;
-  type: string;
-  format?: string;
-  required: boolean;
-  description?: string;
-  default?: unknown;
-  example?: unknown;
-  enum?: unknown[];
-  isFile: boolean;
-  /**
-   * File field backed by an array schema (`type:"array"` + `items.format:"binary"|"base64"`)
-   * — the UI renders `<Upload multiple />` and the send handler appends every file
-   * as a separate part. When `false`, the field is a single-file upload and **must**
-   * only send one part even if the user somehow staged more (issue #251).
-   */
-  isMultipleFile: boolean;
-  /** encoding.contentType=application/json — render as JSON TextArea */
-  isJson: boolean;
-}
-
-/**
- * 从 BodyContent 的 schema.properties 提取字段行，过滤 readOnly 字段（请求不应包含只读字段）
- */
-function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
-  const schema = bodyContent.schema;
-  if (!schema || schema.type !== 'object' || !schema.properties) return [];
-
-  const props = schema.properties as Record<string, Record<string, unknown>>;
-  const requiredSet = new Set<string>(Array.isArray(schema.required) ? (schema.required as string[]) : []);
-  const fileFields = new Set(bodyContent.fileFields ?? []);
-  // issue #251: multi-file field names are a subset of fileFields, derived from
-  // `type:"array"` + `items.format:"binary"|"base64"`. This set is what lets us
-  // distinguish MultipartFile / FilePart (single) from MultipartFile[] / Flux<FilePart>.
-  const multipleFileFields = new Set(bodyContent.fileFieldsMultiple ?? []);
-  const jsonFields = new Set(bodyContent.jsonFields ?? []);
-
-  return Object.entries(props)
-    .filter(([, prop]) => !prop.readOnly)
-    .map(([name, prop]) => {
-      const t = (prop.type as string) ?? 'string';
-      const isFile =
-        fileFields.has(name) ||
-        t === 'file' ||
-        (t === 'string' && prop.format === 'binary') ||
-        (t === 'string' && prop.format === 'base64');
-
-      // A field is considered multi-file if either (a) knife4j-core marked it in
-      // fileFieldsMultiple, or (b) it has the explicit array-of-binary/base64 shape.
-      // (b) is a defence-in-depth: older documents produced before fileFieldsMultiple
-      // existed still render correctly.
-      //
-      // Important: springdoc 2.x (OAS 3.1) drops `type:"string"` from items, emitting
-      // `{ items: { format: "binary", description: ... } }` for @ArraySchema(schema=
-      // @Schema(type="string", format="binary")). So the fallback must NOT require
-      // items.type === 'string'; only the format matters. Matches knife4j-core's
-      // isBinaryItems() (issue #251 live repro against knife4j-demo).
-      let isMultipleFile = false;
-      if (isFile) {
-        if (multipleFileFields.has(name)) {
-          isMultipleFile = true;
-        } else if (t === 'array' && prop.items && typeof prop.items === 'object') {
-          const items = prop.items as Record<string, unknown>;
-          const hasBinaryFormat = items.format === 'binary' || items.format === 'base64';
-          const typeOk = items.type === undefined || items.type === 'string';
-          if (hasBinaryFormat && typeOk) {
-            isMultipleFile = true;
-          }
-        }
-      }
-
-      return {
-        name,
-        type: isFile ? 'file' : t,
-        format: typeof prop.format === 'string' ? prop.format : undefined,
-        required: requiredSet.has(name),
-        description: typeof prop.description === 'string' ? prop.description : undefined,
-        default: prop.default,
-        example: prop.example,
-        enum: Array.isArray(prop.enum) ? prop.enum : undefined,
-        isFile,
-        isMultipleFile,
-        isJson: !isFile && jsonFields.has(name),
-      };
-    });
-}
-
-/** 根据 SchemaFieldRow 的类型推断初始值 */
-function initialFieldValue(field: SchemaFieldRow): string {
-  if (field.isFile) return '';
-  if (field.isJson) return field.example !== undefined ? JSON.stringify(field.example, null, 2) : '{}';
-  if (field.example !== undefined && field.example !== null) return String(field.example);
-  if (field.default !== undefined && field.default !== null) return String(field.default);
-  if (field.enum && field.enum.length > 0) return String(field.enum[0]);
-  if (field.type === 'boolean') return 'true';
-  if (field.type === 'integer' || field.type === 'number') return '0';
-  return '';
 }
 
 // ─── Raw mode types ───────────────────────────────────
@@ -915,6 +773,7 @@ function ParamNameCell({ param }: { param: DebugParam }) {
 
 interface BodyTabProps {
   debugModel: OperationDebugModel;
+  bodyDefaults: BodyContentDefaults;
   body: string;
   setBody: (v: string) => void;
   selectedContentType: string;
@@ -928,6 +787,7 @@ interface BodyTabProps {
 
 function BodyTab({
   debugModel,
+  bodyDefaults,
   body,
   setBody,
   selectedContentType,
@@ -954,21 +814,15 @@ function BodyTab({
     setSelectedContentType(mediaType);
     const target = bodyContents.find((b) => b.mediaType === mediaType);
     if (target) {
-      // 初始化 formFields
-      const fields = extractSchemaFields(target);
-      const initial: Record<string, string> = {};
-      for (const f of fields) {
-        initial[f.name] = initialFieldValue(f);
-      }
-      setFormFields(initial);
+      setFormFields(initialFormFieldsForContent(target, bodyDefaults));
       // 重置 fileFields
       fileFieldsRef.current = {};
 
       // 更新 body 文本
       if (target.category === 'json') {
-        setBody(target.exampleValue ?? '');
+        setBody(initialBodyValueForContent(target, bodyDefaults));
       } else if (target.category === 'raw') {
-        setBody(target.exampleValue ?? '');
+        setBody(initialBodyValueForContent(target, bodyDefaults));
       }
       setRawMode(inferRawMode(target));
     }
@@ -1119,7 +973,7 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
             <Text type="secondary" style={{ fontSize: 11 }}>
               {t('apiDebug.desc.default')}
               <Text code style={{ fontSize: 11 }}>
-                {String(record.default)}
+                {stringifyDebugValue(record.default, record.type)}
               </Text>
             </Text>
           )}
@@ -1127,7 +981,7 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
             <Text type="secondary" style={{ fontSize: 11 }}>
               {t('apiDebug.desc.example')}
               <Text code style={{ fontSize: 11 }}>
-                {String(record.example)}
+                {stringifyDebugValue(record.example, record.type)}
               </Text>
             </Text>
           )}
@@ -1547,19 +1401,12 @@ function inferRawMode(bodyContent: BodyContent | undefined): RawMode {
   return 'text';
 }
 
-function initialFormFieldsFor(bodyContent: BodyContent | undefined): Record<string, string> {
-  if (!bodyContent || (bodyContent.category !== 'urlencoded' && bodyContent.category !== 'multipart')) return {};
-  const initial: Record<string, string> = {};
-  for (const field of extractSchemaFields(bodyContent)) {
-    initial[field.name] = initialFieldValue(field);
-  }
-  return initial;
-}
-
 function buildInitialDebugState(
   debugModel: OperationDebugModel,
   operation: NonNullable<ReturnType<typeof useCurrentOperation>['operation']>,
+  swaggerDoc: NonNullable<ReturnType<typeof useCurrentOperation>['swaggerDoc']>,
   baseUrl: string,
+  bodyDefaults: BodyContentDefaults,
 ): InitialDebugState {
   const allParams = [
     ...debugModel.pathParams,
@@ -1567,10 +1414,9 @@ function buildInitialDebugState(
     ...debugModel.headerParams,
     ...debugModel.cookieParams,
   ];
-  const paramValues: ParamValueMap = {};
+  const paramValues = buildInitialParamValues(debugModel, swaggerDoc, operation);
   const paramEnabled: Record<string, boolean> = {};
   for (const param of allParams) {
-    paramValues[paramKey(param)] = initialValueFor(param);
     paramEnabled[paramKey(param)] = true;
   }
 
@@ -1582,8 +1428,8 @@ function buildInitialDebugState(
     paramValues,
     paramEnabled,
     selectedContentType: firstBody?.mediaType ?? '',
-    body: firstBody?.exampleValue ?? '',
-    formFields: initialFormFieldsFor(firstBody),
+    body: initialBodyValueForContent(firstBody, bodyDefaults),
+    formFields: initialFormFieldsForContent(firstBody, bodyDefaults),
     rawMode: inferRawMode(firstBody),
     customQueryParams: [],
     customHeaders: [],
@@ -1625,21 +1471,11 @@ function mergeCachedBooleanRecord(
   return next;
 }
 
-function mergeCachedFormFields(bodyContent: BodyContent | undefined, cached: Record<string, string>) {
-  const next = initialFormFieldsFor(bodyContent);
-  const allowedFields = new Set(Object.keys(next));
-  for (const [key, value] of Object.entries(cached)) {
-    if (allowedFields.has(key)) {
-      next[key] = value;
-    }
-  }
-  return next;
-}
-
 function restoreInitialDebugStateFromCache(
   initial: InitialDebugState,
   cached: DebugCacheState | null,
   debugModel: OperationDebugModel,
+  bodyDefaults: BodyContentDefaults,
 ): InitialDebugState {
   if (!cached) return initial;
 
@@ -1658,10 +1494,10 @@ function restoreInitialDebugStateFromCache(
     paramValues: mergeCachedStringRecord(initial.paramValues, cached.paramValues),
     paramEnabled: mergeCachedBooleanRecord(initial.paramEnabled, cached.paramEnabled),
     selectedContentType: selectedBody?.mediaType ?? '',
-    body: restoreCachedBody ? cached.body : (selectedBody?.exampleValue ?? initial.body),
+    body: restoreCachedBody ? cached.body : initialBodyValueForContent(selectedBody, bodyDefaults),
     formFields: restoreCachedBody
-      ? mergeCachedFormFields(selectedBody, cached.formFields)
-      : initialFormFieldsFor(selectedBody),
+      ? mergeCachedFormFields(selectedBody, cached.formFields, bodyDefaults)
+      : initialFormFieldsForContent(selectedBody, bodyDefaults),
     rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
     customQueryParams: cached.customQueryParams,
     customHeaders: cached.customHeaders,
@@ -1728,6 +1564,13 @@ export default function ApiDebug() {
       isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
     });
   }, [operation, swaggerDoc]);
+  const bodyDefaults = useMemo(
+    () =>
+      swaggerDoc && operation && debugModel
+        ? buildBodyContentDefaults(swaggerDoc, operation, debugModel)
+        : EMPTY_BODY_CONTENT_DEFAULTS,
+    [debugModel, operation, swaggerDoc],
+  );
   const [loading, setLoading] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
@@ -1755,9 +1598,9 @@ export default function ApiDebug() {
   const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
 
   const initialDebugState = useMemo(() => {
-    if (!debugModel || !operation) return null;
-    return buildInitialDebugState(debugModel, operation, defaultBaseUrl);
-  }, [debugModel, operation, defaultBaseUrl]);
+    if (!debugModel || !operation || !swaggerDoc) return null;
+    return buildInitialDebugState(debugModel, operation, swaggerDoc, defaultBaseUrl, bodyDefaults);
+  }, [bodyDefaults, debugModel, operation, swaggerDoc, defaultBaseUrl]);
 
   useLayoutEffect(() => {
     activeDebugCacheKeyRef.current = debugCacheKey;
@@ -1791,7 +1634,7 @@ export default function ApiDebug() {
   useEffect(() => {
     if (!initialDebugState || !debugModel) return;
     const cached = settings.enableRequestCache && debugCacheKey !== null ? readDebugCache(debugCacheKey) : null;
-    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel);
+    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel, bodyDefaults);
     skipNextDebugCacheWriteRef.current = true;
     requestSeqRef.current += 1;
     sseAbortRef.current?.abort();
@@ -1804,7 +1647,7 @@ export default function ApiDebug() {
     setBuiltRequest(cachedSession?.builtRequest ?? null);
     setSseEvents(cachedSession?.sseEvents ?? null);
     setHydratedDebugCacheKey(debugCacheKey);
-  }, [debugCacheKey, debugModel, initialDebugState, settings.enableRequestCache]);
+  }, [bodyDefaults, debugCacheKey, debugModel, initialDebugState, settings.enableRequestCache]);
 
   useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
@@ -2018,7 +1861,7 @@ export default function ApiDebug() {
               <Text type="secondary" style={{ fontSize: 11 }}>
                 {t('apiDebug.desc.default')}
                 <Text code style={{ fontSize: 11 }}>
-                  {stringify(record.default, record.type)}
+                  {stringifyDebugValue(record.default, record.type)}
                 </Text>
               </Text>
             )}
@@ -2026,7 +1869,7 @@ export default function ApiDebug() {
               <Text type="secondary" style={{ fontSize: 11 }}>
                 {t('apiDebug.desc.example')}
                 <Text code style={{ fontSize: 11 }}>
-                  {stringify(record.example, record.type)}
+                  {stringifyDebugValue(record.example, record.type)}
                 </Text>
               </Text>
             )}
@@ -2541,6 +2384,7 @@ export default function ApiDebug() {
         <BodyTab
           key={resetNonce}
           debugModel={debugModel}
+          bodyDefaults={bodyDefaults}
           body={body}
           setBody={setBody}
           selectedContentType={selectedContentType}
