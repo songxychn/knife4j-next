@@ -1,13 +1,19 @@
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { buildSchemaFieldTree, resolveRefMeta, type SchemaFieldNode } from 'knife4j-core';
+import {
+  buildMediaTypeExampleValue,
+  buildSchemaExample,
+  buildSchemaFieldTree,
+  generateApiMarkdown,
+  resolveRefMeta,
+  type SchemaFieldNode,
+} from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
-import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
+import type { ParameterObject, RequestBodyObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
-import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
@@ -33,6 +39,8 @@ interface ResponseRow {
   schema?: SchemaObject;
 }
 
+type RequestMediaObject = NonNullable<RequestBodyObject['content']>[string];
+
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
   if (!match) return undefined;
@@ -52,15 +60,19 @@ function parameterType(parameter: ParameterObject): string {
   return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
 }
 
+function firstRequestMedia(requestBody: RequestBodyObject | undefined): RequestMediaObject | undefined {
+  if (!requestBody?.content) return undefined;
+  return requestBody.content['application/json'] ?? Object.values(requestBody.content)[0];
+}
+
 function firstRequestSchema(
-  requestBody: { content?: Record<string, { schema?: SchemaObject }> } | undefined,
+  requestBody: RequestBodyObject | undefined,
   parameters: ParameterObject[] | undefined,
 ): SchemaObject | undefined {
   const bodyParameter = parameters?.find((parameter) => parameter.in === 'body')?.schema;
-  if (!requestBody?.content) return bodyParameter;
-  return (
-    requestBody.content['application/json']?.schema ?? Object.values(requestBody.content)[0]?.schema ?? bodyParameter
-  );
+  const mediaObj = firstRequestMedia(requestBody);
+  if (!mediaObj) return bodyParameter;
+  return mediaObj.schema ?? bodyParameter;
 }
 
 function responseSchema(response: ResponseObject): SchemaObject | undefined {
@@ -162,6 +174,26 @@ function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerDoc): st
   } catch {
     return null;
   }
+}
+
+function buildRequestBodyExample(
+  requestBody: RequestBodyObject | undefined,
+  bodySchema: SchemaObject | undefined,
+  doc: SwaggerDoc,
+): string | null {
+  const mediaObj = firstRequestMedia(requestBody);
+  if (!mediaObj) return buildJsonExample(bodySchema, doc);
+
+  try {
+    const example = buildMediaTypeExampleValue(mediaObj, undefined, {
+      doc: doc as unknown as Record<string, unknown>,
+    });
+    if (example !== undefined) return example;
+  } catch {
+    return null;
+  }
+
+  return buildJsonExample(mediaObj.schema ?? bodySchema, doc);
 }
 
 /** Extract per-status-code response schemas for example generation. */
@@ -322,7 +354,7 @@ export default function ApiDoc() {
     );
   })();
 
-  const requestExample = buildJsonExample(bodySchema, swaggerDoc);
+  const requestExample = buildRequestBodyExample(op.requestBody, bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
   const authors = operationAuthors(op);
 
@@ -422,7 +454,7 @@ export default function ApiDoc() {
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestBody')}
       </Title>
-      {bodySchema ? (
+      {bodySchema || requestExample !== null ? (
         <Tabs
           size="small"
           items={[
@@ -431,7 +463,7 @@ export default function ApiDoc() {
               label: t('apiDoc.tab.schema'),
               children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
             },
-            ...(requestExample
+            ...(requestExample !== null
               ? [
                   {
                     key: 'example',

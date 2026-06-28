@@ -52,3 +52,6 @@ export type { BuildRequestOptions } from './requestBuilder';
 
 // schemaExample
 export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';
+
+// mediaTypeExample
+export { buildMediaTypeExampleValue } from './mediaTypeExample';

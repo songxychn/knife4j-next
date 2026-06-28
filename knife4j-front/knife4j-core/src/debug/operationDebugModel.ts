@@ -19,6 +19,7 @@ import type {
 } from './types';
 import { resolveRef, dereference } from './resolveRef';
 import { buildSchemaExample } from './schemaExample';
+import { buildMediaTypeExampleValue } from './mediaTypeExample';
 
 // ─── 内部类型 ─────────────────────────────────────────
 
@@ -481,11 +482,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
-          exampleValue: schema
-            ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2)
-            : mediaObj.example
-              ? JSON.stringify(mediaObj.example, null, 2)
-              : undefined,
+          exampleValue: buildMediaTypeExampleValue(mediaObj, schema, ctx),
           fileFields: isMultipart ? extractFileFields(schema) : undefined,
           // 区分「单文件」与「多文件」语义（issue #251）：
           // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录

@@ -92,6 +92,52 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(parsed).toHaveProperty('age');
   });
 
+  test('uses OAS3 media type examples.value string before schema example', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/pictures': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      pictureUrl: { type: 'string' },
+                      title: { type: 'string' },
+                    },
+                  },
+                  examples: {
+                    emptyPictureUrl: {
+                      value: '{"pictureUrl":"","title":"cover"}',
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/pictures',
+      method: 'post',
+    });
+
+    expect(model.bodyContents).toHaveLength(1);
+    const exampleValue = model.bodyContents[0].exampleValue;
+    expect(exampleValue).toBeDefined();
+    const parsed = JSON.parse(exampleValue!);
+    expect(parsed.pictureUrl).toBe('');
+    expect(parsed.title).toBe('cover');
+    expect(exampleValue).not.toContain('"pictureUrl":"string"');
+  });
+
   test('parses OAS3 with $ref requestBody', () => {
     const docWithRef = {
       openapi: '3.0.1',
