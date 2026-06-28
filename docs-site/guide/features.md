@@ -210,12 +210,12 @@ knife4j:
 knife4j:
   enable: true
   setting:
-    enable-footer: true           # 保持 Footer 区域显示
+    enable-footer: true           # 显示默认 Footer
     enable-footer-custom: true    # 启用自定义 Footer 文案
     footer-custom-content: Apache License 2.0 | Copyright 2019-[Knife4j](https://github.com/songxychn/knife4j-next)
 ```
 
-`footer-custom-content` 支持 Markdown 格式。React 新前端会复用自身的 Markdown 安全清洗能力渲染该内容；当 `enable-footer=false` 时，Footer 仍会整体隐藏。
+`footer-custom-content` 支持 Markdown 格式。React 新前端会复用自身的 Markdown 安全清洗能力渲染该内容；当 `enable-footer-custom=true` 且内容非空时，自定义 Footer 优先展示，`enable-footer=false` 仅隐藏默认 Footer。
 
 ### 自定义 Host
 

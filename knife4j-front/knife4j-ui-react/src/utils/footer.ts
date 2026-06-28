@@ -11,14 +11,14 @@ export type ResolvedFooterContent =
     };
 
 export function resolveFooterContent(settings: AppSettings, defaultContent: string): ResolvedFooterContent | null {
-  if (!settings.enableFooter) return null;
-
   if (settings.enableFooterCustom && settings.footerCustomContent.trim()) {
     return {
       kind: 'custom',
       content: settings.footerCustomContent,
     };
   }
+
+  if (!settings.enableFooter) return null;
 
   return {
     kind: 'default',

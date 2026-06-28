@@ -8,8 +8,10 @@ function settings(overrides: Partial<AppSettings>): AppSettings {
 }
 
 describe('footer content resolution', () => {
-  it('hides footer when enableFooter is false', () => {
-    expect(resolveFooterContent(settings({ enableFooter: false }), 'Default footer')).toBeNull();
+  it('hides default footer when enableFooter is false', () => {
+    expect(
+      resolveFooterContent(settings({ enableFooter: false, enableFooterCustom: false }), 'Default footer'),
+    ).toBeNull();
   });
 
   it('uses default footer when custom footer is disabled', () => {
@@ -34,6 +36,22 @@ describe('footer content resolution', () => {
     ).toEqual({
       kind: 'custom',
       content: 'Apache License 2.0 | [Knife4j](https://github.com/songxychn/knife4j-next)',
+    });
+  });
+
+  it('uses custom footer when default footer is disabled', () => {
+    expect(
+      resolveFooterContent(
+        settings({
+          enableFooter: false,
+          enableFooterCustom: true,
+          footerCustomContent: 'Apache License 2.0 | Copyright 2022-[wxp](https://gitee.com/wxpid1)',
+        }),
+        'Default footer',
+      ),
+    ).toEqual({
+      kind: 'custom',
+      content: 'Apache License 2.0 | Copyright 2022-[wxp](https://gitee.com/wxpid1)',
     });
   });
 
