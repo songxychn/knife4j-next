@@ -145,17 +145,20 @@ const annotatedJsonPreStyle: React.CSSProperties = {
 
 const jsonLineStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 56ch) minmax(180px, 320px)',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(180px, 320px)',
+  columnGap: 16,
   alignItems: 'stretch',
-  minWidth: 'calc(56ch + 260px)',
+  width: '100%',
+  minWidth: 0,
 };
 
 /** Monospace, normal color — matches the surrounding <pre>. */
 const jsonCodeStyle: React.CSSProperties = {
   fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
   color: '#24292e',
-  whiteSpace: 'pre',
-  paddingRight: 14,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
   minWidth: 0,
 };
 
@@ -174,6 +177,8 @@ const jsonDescStyle: React.CSSProperties = {
   minHeight: '1.55em',
   lineHeight: 1.55,
   whiteSpace: 'normal',
+  overflowWrap: 'break-word',
+  minWidth: 0,
 };
 
 export default function ResponsePanel({
