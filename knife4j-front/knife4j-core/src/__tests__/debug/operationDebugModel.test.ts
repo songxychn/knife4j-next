@@ -138,6 +138,45 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(exampleValue).not.toContain('"pictureUrl":"string"');
   });
 
+  test('serializes OAS3 JSON scalar string example as a valid JSON payload', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/names': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: { type: 'string' },
+                  example: 'abc',
+                },
+                'text/plain': {
+                  schema: { type: 'string' },
+                  example: 'abc',
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/names',
+      method: 'post',
+    });
+
+    expect(model.bodyContents).toHaveLength(2);
+    const jsonBody = model.bodyContents.find((body) => body.mediaType === 'application/json');
+    const textBody = model.bodyContents.find((body) => body.mediaType === 'text/plain');
+    expect(jsonBody?.exampleValue).toBe('"abc"');
+    expect(JSON.parse(jsonBody!.exampleValue!)).toBe('abc');
+    expect(textBody?.exampleValue).toBe('abc');
+  });
+
   test('parses OAS3 with $ref requestBody', () => {
     const docWithRef = {
       openapi: '3.0.1',

@@ -482,7 +482,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
-          exampleValue: buildMediaTypeExampleValue(mediaObj, schema, ctx),
+          exampleValue: buildMediaTypeExampleValue(mediaObj, schema, ctx, { mediaType }),
           fileFields: isMultipart ? extractFileFields(schema) : undefined,
           // 区分「单文件」与「多文件」语义（issue #251）：
           // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录

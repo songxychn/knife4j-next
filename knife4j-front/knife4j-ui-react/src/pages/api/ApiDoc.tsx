@@ -40,6 +40,10 @@ interface ResponseRow {
 }
 
 type RequestMediaObject = NonNullable<RequestBodyObject['content']>[string];
+interface RequestMediaEntry {
+  mediaType: string;
+  mediaObj: RequestMediaObject;
+}
 
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
@@ -60,9 +64,15 @@ function parameterType(parameter: ParameterObject): string {
   return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
 }
 
-function firstRequestMedia(requestBody: RequestBodyObject | undefined): RequestMediaObject | undefined {
+function firstRequestMedia(requestBody: RequestBodyObject | undefined): RequestMediaEntry | undefined {
   if (!requestBody?.content) return undefined;
-  return requestBody.content['application/json'] ?? Object.values(requestBody.content)[0];
+  const jsonMedia = requestBody.content['application/json'];
+  if (jsonMedia) return { mediaType: 'application/json', mediaObj: jsonMedia };
+
+  const firstEntry = Object.entries(requestBody.content)[0];
+  if (!firstEntry) return undefined;
+  const [mediaType, mediaObj] = firstEntry;
+  return { mediaType, mediaObj };
 }
 
 function firstRequestSchema(
@@ -70,9 +80,9 @@ function firstRequestSchema(
   parameters: ParameterObject[] | undefined,
 ): SchemaObject | undefined {
   const bodyParameter = parameters?.find((parameter) => parameter.in === 'body')?.schema;
-  const mediaObj = firstRequestMedia(requestBody);
-  if (!mediaObj) return bodyParameter;
-  return mediaObj.schema ?? bodyParameter;
+  const mediaEntry = firstRequestMedia(requestBody);
+  if (!mediaEntry) return bodyParameter;
+  return mediaEntry.mediaObj.schema ?? bodyParameter;
 }
 
 function responseSchema(response: ResponseObject): SchemaObject | undefined {
@@ -181,19 +191,24 @@ function buildRequestBodyExample(
   bodySchema: SchemaObject | undefined,
   doc: SwaggerDoc,
 ): string | null {
-  const mediaObj = firstRequestMedia(requestBody);
-  if (!mediaObj) return buildJsonExample(bodySchema, doc);
+  const mediaEntry = firstRequestMedia(requestBody);
+  if (!mediaEntry) return buildJsonExample(bodySchema, doc);
 
   try {
-    const example = buildMediaTypeExampleValue(mediaObj, undefined, {
-      doc: doc as unknown as Record<string, unknown>,
-    });
+    const example = buildMediaTypeExampleValue(
+      mediaEntry.mediaObj,
+      undefined,
+      {
+        doc: doc as unknown as Record<string, unknown>,
+      },
+      { mediaType: mediaEntry.mediaType },
+    );
     if (example !== undefined) return example;
   } catch {
     return null;
   }
 
-  return buildJsonExample(mediaObj.schema ?? bodySchema, doc);
+  return buildJsonExample(mediaEntry.mediaObj.schema ?? bodySchema, doc);
 }
 
 /** Extract per-status-code response schemas for example generation. */
