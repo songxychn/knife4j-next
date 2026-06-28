@@ -8,6 +8,7 @@ import { normalizeGenericTitle } from '../components/schema/schemaUtils';
 import { useGroup } from '../context/GroupContext';
 import { useSettings } from '../context/SettingsContext';
 import type { SchemaObject, SwaggerDoc } from '../types/swagger';
+import DescriptionText from '../components/DescriptionText';
 import { resolveSchemaActiveKeys } from './schemaActiveKeys';
 
 const { Title, Text } = Typography;
@@ -116,9 +117,9 @@ export default function Schema() {
             </Text>
           )}
           {model.description && (
-            <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
+            <DescriptionText type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
               {model.description}
-            </Text>
+            </DescriptionText>
           )}
           <Tag style={{ marginLeft: 12 }} color="default">
             {model.fields.length} {t('schema.fields')}

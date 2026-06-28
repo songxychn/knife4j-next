@@ -16,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../context/GroupContext';
 import { useSettings } from '../context/SettingsContext';
+import DescriptionText from '../components/DescriptionText';
 import Markdown from '../components/Markdown';
 import type { SwaggerServer } from '../types/swagger';
 import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
@@ -387,7 +388,7 @@ export default function Home() {
               fontSize: 14,
             }}
           >
-            <Markdown source={heroDescription} />
+            <Markdown source={heroDescription} preserveLineBreaks />
           </Paragraph>
         )}
       </div>
@@ -551,7 +552,16 @@ export default function Home() {
                       <CloudServerOutlined />,
                       <Space direction="vertical" size={2} style={{ width: '100%' }}>
                         {servers.map((s, idx) => (
-                          <Tooltip key={`${s.url}-${idx}`} title={s.description}>
+                          <Tooltip
+                            key={`${s.url}-${idx}`}
+                            title={
+                              s.description ? (
+                                <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                                  {s.description}
+                                </span>
+                              ) : undefined
+                            }
+                          >
                             <span style={{ display: 'block' }}>
                               {s.name && (
                                 <Text strong style={{ display: 'block', fontSize: 12, overflowWrap: 'anywhere' }}>
@@ -569,7 +579,7 @@ export default function Home() {
                                 {s.url}
                               </span>
                               {s.description && (
-                                <Text
+                                <DescriptionText
                                   type="secondary"
                                   style={{
                                     display: 'block',
@@ -579,7 +589,7 @@ export default function Home() {
                                   }}
                                 >
                                   {s.description}
-                                </Text>
+                                </DescriptionText>
                               )}
                             </span>
                           </Tooltip>

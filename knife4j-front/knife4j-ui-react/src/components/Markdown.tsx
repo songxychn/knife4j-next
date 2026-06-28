@@ -1,17 +1,17 @@
 import { memo, useMemo } from 'react';
-import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { parseMarkdown } from '../utils/markdown';
 
 interface MarkdownProps {
   source: string;
+  preserveLineBreaks?: boolean;
 }
 
-const Markdown = memo(({ source }: MarkdownProps) => {
+const Markdown = memo(({ source, preserveLineBreaks = false }: MarkdownProps) => {
   const html = useMemo(() => {
-    if (!source) return '';
-    const rawHtml = marked.parse(source, { async: false }) as string;
+    const rawHtml = parseMarkdown(source, { preserveLineBreaks });
     return DOMPurify.sanitize(rawHtml);
-  }, [source]);
+  }, [preserveLineBreaks, source]);
 
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
 });

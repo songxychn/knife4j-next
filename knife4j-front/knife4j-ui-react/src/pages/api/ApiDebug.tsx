@@ -46,6 +46,7 @@ import {
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
+import DescriptionText from '../../components/DescriptionText';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -968,7 +969,7 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
       width: 240,
       render: (_value, record: SchemaFieldRow) => (
         <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
-          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
+          {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
           {record.default !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
               {t('apiDebug.desc.default')}
@@ -1113,7 +1114,7 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
       width: 240,
       render: (_value, record: SchemaFieldRow) => (
         <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
-          {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
+          {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
         </Space>
       ),
     },
@@ -1856,7 +1857,7 @@ export default function ApiDebug() {
         width: 280,
         render: (_value, record: DebugParam) => (
           <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
-            {record.description && <Text style={{ fontSize: 12 }}>{record.description}</Text>}
+            {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
             {record.default !== undefined && (
               <Text type="secondary" style={{ fontSize: 11 }}>
                 {t('apiDebug.desc.default')}
