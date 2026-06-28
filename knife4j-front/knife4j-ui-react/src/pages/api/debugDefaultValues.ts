@@ -268,7 +268,7 @@ export function buildBodyContentDefaults(
           ? stringifyBodyValue(example, bodyContent)
           : (bodyContent.exampleValue ?? '');
     }
-    formFieldsByMediaType[bodyContent.mediaType] = initialFormFieldsFor(bodyContent, doc);
+    formFieldsByMediaType[bodyContent.mediaType] = initialFormFieldsFor(bodyContent, doc, mediaExample);
   }
 
   return {
@@ -347,11 +347,25 @@ export function initialFieldValue(field: SchemaFieldRow, doc: SwaggerDoc | JsonR
   return '';
 }
 
-function initialFormFieldsFor(bodyContent: BodyContent, doc: SwaggerDoc | JsonRecord): Record<string, string> {
+function initialFormFieldsFor(
+  bodyContent: BodyContent,
+  doc: SwaggerDoc | JsonRecord,
+  mediaExample?: unknown,
+): Record<string, string> {
   if (bodyContent.category !== 'urlencoded' && bodyContent.category !== 'multipart') return {};
   const initial: Record<string, string> = {};
-  for (const field of extractSchemaFields(bodyContent)) {
+  const fields = extractSchemaFields(bodyContent);
+  for (const field of fields) {
     initial[field.name] = initialFieldValue(field, doc);
+  }
+  if (isRecord(mediaExample)) {
+    for (const field of fields) {
+      if (field.isFile) continue;
+      const exampleValue = mediaExample[field.name];
+      if (exampleValue !== undefined && exampleValue !== null) {
+        initial[field.name] = stringifyDebugValue(exampleValue, field.type);
+      }
+    }
   }
   return initial;
 }

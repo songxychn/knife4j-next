@@ -150,6 +150,66 @@ describe('debugDefaultValues', () => {
     });
   });
 
+  it('merges requestBody media examples into form field defaults', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        username: { type: 'string', default: 'schema-user' },
+        count: { type: 'integer', default: 1 },
+        prefs: {
+          type: 'object',
+          properties: {
+            theme: { type: 'string', default: 'light' },
+          },
+        },
+        retained: { type: 'string', default: 'schema-retained' },
+      },
+    };
+    const bodyContent: BodyContent = {
+      mediaType: 'application/x-www-form-urlencoded',
+      category: 'urlencoded',
+      schema,
+    };
+    const doc: SwaggerDoc = {
+      openapi: '3.0.3',
+      info: { title: 'demo', version: '1.0.0' },
+      paths: {
+        '/login': {
+          post: {
+            requestBody: {
+              content: {
+                'application/x-www-form-urlencoded': {
+                  schema,
+                  examples: {
+                    demo: {
+                      value: {
+                        username: 'alice',
+                        count: 5,
+                        prefs: { theme: 'dark' },
+                        ignored: 'not-a-schema-field',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            responses: {},
+          },
+        },
+      },
+    };
+    const debugModel = baseDebugModel({ bodyContents: [bodyContent], bodyRequired: true });
+
+    const defaults = buildBodyContentDefaults(doc, operationFrom(doc, '/login', 'post'), debugModel);
+    const fields = initialFormFieldsForContent(bodyContent, defaults);
+
+    expect(fields.username).toBe('alice');
+    expect(fields.count).toBe('5');
+    expect(JSON.parse(fields.prefs)).toEqual({ theme: 'dark' });
+    expect(fields.retained).toBe('schema-retained');
+    expect(fields.ignored).toBeUndefined();
+  });
+
   it('generates form field defaults from nested schema examples and lets cached edits win', () => {
     const schema = {
       type: 'object',
