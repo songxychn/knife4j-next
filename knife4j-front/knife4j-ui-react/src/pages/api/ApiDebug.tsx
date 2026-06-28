@@ -47,6 +47,7 @@ import {
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import { useAuth } from '../../context/AuthContext';
+import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
@@ -1440,6 +1441,7 @@ function buildInitialDebugState(
 const DEBUG_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']);
 
 function requestServerSourceLabel(source: RequestServerSource, t: ReturnType<typeof useTranslation>['t']): string {
+  if (source === 'gateway') return t('apiDebug.baseUrl.source.gateway');
   if (source === 'operation') return t('apiDebug.baseUrl.source.operation');
   if (source === 'path') return t('apiDebug.baseUrl.source.path');
   return t('apiDebug.baseUrl.source.document');
@@ -1511,7 +1513,9 @@ export default function ApiDebug() {
   const { t } = useTranslation();
   const { group, tag, operaterId } = useParams();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
+  const { activeSwaggerGroup } = useGroup();
   const { settings } = useSettings();
+  const groupContextPath = activeSwaggerGroup?.contextPath;
   const operationMethod = operation?.method;
   const operationPath = operation?.path;
   const debugCacheKey = useMemo(() => {
@@ -1525,15 +1529,17 @@ export default function ApiDebug() {
         operation,
         enableHost: settings.enableHost,
         enableHostText: settings.enableHostText,
+        groupContextPath,
         origin: currentOrigin(),
       }),
-    [operation, settings.enableHost, settings.enableHostText, swaggerDoc],
+    [groupContextPath, operation, settings.enableHost, settings.enableHostText, swaggerDoc],
   );
   const requestServerSelectOptions = useMemo(
     () =>
       resolveRequestServerOptions({
         swaggerDoc,
         operation,
+        groupContextPath,
         origin: currentOrigin(),
       }).map((server) => {
         const source = requestServerSourceLabel(server.source, t);
@@ -1543,7 +1549,7 @@ export default function ApiDebug() {
           label: description ? `${server.url} - ${description} (${source})` : `${server.url} (${source})`,
         };
       }),
-    [operation, swaggerDoc, t],
+    [groupContextPath, operation, swaggerDoc, t],
   );
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [method, setMethod] = useState('GET');

@@ -5,10 +5,11 @@ export interface ResolveRequestBaseUrlOptions {
   operation?: MenuOperation | null;
   enableHost: boolean;
   enableHostText: string;
+  groupContextPath?: string;
   origin: string;
 }
 
-export type RequestServerSource = 'operation' | 'path' | 'document';
+export type RequestServerSource = 'gateway' | 'operation' | 'path' | 'document';
 
 export interface RequestServerOption {
   source: RequestServerSource;
@@ -31,6 +32,38 @@ function trimTrailingSlashes(url: string): string {
 
 function shouldUpgradeSameHostHttpUrl(url: URL, origin: URL): boolean {
   return origin.protocol === 'https:' && url.protocol === 'http:' && url.hostname === origin.hostname;
+}
+
+function normalizeGroupContextPath(contextPath: string | undefined): string {
+  const trimmed = contextPath?.trim() ?? '';
+  if (!trimmed || trimmed === '/') return '';
+  return `/${trimmed.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+}
+
+function appendContextPath(baseUrl: string, contextPath: string | undefined, origin: string): string {
+  const normalizedBaseUrl = normalizeRequestBaseUrl(baseUrl, origin);
+  const normalizedContextPath = normalizeGroupContextPath(contextPath);
+  if (!normalizedContextPath) return normalizedBaseUrl;
+
+  try {
+    const url = new URL(normalizedBaseUrl);
+    const basePath = trimTrailingSlashes(url.pathname);
+    const hasContextPath = basePath === normalizedContextPath || basePath.endsWith(normalizedContextPath);
+    if (!hasContextPath) {
+      url.pathname = basePath && basePath !== '/' ? `${basePath}${normalizedContextPath}` : normalizedContextPath;
+    }
+    return trimTrailingSlashes(url.toString());
+  } catch {
+    return normalizedBaseUrl.endsWith(normalizedContextPath)
+      ? normalizedBaseUrl
+      : `${trimTrailingSlashes(normalizedBaseUrl)}${normalizedContextPath}`;
+  }
+}
+
+function resolveGatewayContextBaseUrl(origin: string, groupContextPath: string | undefined): string | null {
+  const normalizedContextPath = normalizeGroupContextPath(groupContextPath);
+  if (!normalizedContextPath) return null;
+  return appendContextPath(origin, groupContextPath, origin);
 }
 
 export function normalizeRequestBaseUrl(
@@ -84,11 +117,25 @@ function appendServerOptions(
 export function resolveRequestServerOptions({
   swaggerDoc,
   operation,
+  groupContextPath,
   origin,
-}: Pick<ResolveRequestBaseUrlOptions, 'swaggerDoc' | 'operation' | 'origin'>): RequestServerOption[] {
+}: Pick<
+  ResolveRequestBaseUrlOptions,
+  'swaggerDoc' | 'operation' | 'groupContextPath' | 'origin'
+>): RequestServerOption[] {
   const pathItem = operation ? swaggerDoc?.paths[operation.path] : undefined;
   const result: RequestServerOption[] = [];
   const seen = new Set<string>();
+  const gatewayContextBaseUrl = resolveGatewayContextBaseUrl(origin, groupContextPath);
+
+  if (gatewayContextBaseUrl) {
+    seen.add(gatewayContextBaseUrl);
+    result.push({
+      source: 'gateway',
+      url: gatewayContextBaseUrl,
+      rawUrl: normalizeGroupContextPath(groupContextPath),
+    });
+  }
 
   appendServerOptions(result, seen, 'operation', operation?.operation.servers, origin);
   appendServerOptions(result, seen, 'path', pathItem?.servers, origin);
@@ -102,6 +149,7 @@ export function resolveRequestBaseUrl({
   operation,
   enableHost,
   enableHostText,
+  groupContextPath,
   origin,
 }: ResolveRequestBaseUrlOptions): string {
   const hostOverride = enableHost ? enableHostText.trim() : '';
@@ -109,7 +157,7 @@ export function resolveRequestBaseUrl({
     return normalizeRequestBaseUrl(hostOverride, origin);
   }
 
-  const serverUrl = resolveRequestServerOptions({ swaggerDoc, operation, origin })[0]?.url;
+  const serverUrl = resolveRequestServerOptions({ swaggerDoc, operation, groupContextPath, origin })[0]?.url;
   if (serverUrl) {
     return serverUrl;
   }
