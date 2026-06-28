@@ -68,6 +68,14 @@ public class Knife4jOpenApiCustomizerOrderTest {
         return new Knife4jOpenApiCustomizer(props, docProps);
     }
 
+    private Knife4jOpenApiCustomizer buildCustomizerWithRootPackages(String... packages) {
+        Knife4jProperties props = new Knife4jProperties();
+        props.setEnable(true);
+        SpringDocConfigProperties docProps = new SpringDocConfigProperties();
+        docProps.setPackagesToScan(java.util.Arrays.asList(packages));
+        return new Knife4jOpenApiCustomizer(props, docProps);
+    }
+
     private OpenAPI buildOpenApi(String... tagNames) {
         OpenAPI openApi = new OpenAPI();
         for (String name : tagNames) {
@@ -82,6 +90,23 @@ public class Knife4jOpenApiCustomizerOrderTest {
     public void tagOrderAppliedWhenPackageScanConfigured() {
         String pkg = AlphaController.class.getPackage().getName();
         Knife4jOpenApiCustomizer customizer = buildCustomizer(pkg);
+
+        OpenAPI openApi = buildOpenApi("Alpha", "Beta");
+        customizer.customise(openApi);
+
+        io.swagger.v3.oas.models.tags.Tag alpha = openApi.getTags().stream()
+                .filter(t -> "Alpha".equals(t.getName())).findFirst().orElseThrow(AssertionError::new);
+        io.swagger.v3.oas.models.tags.Tag beta = openApi.getTags().stream()
+                .filter(t -> "Beta".equals(t.getName())).findFirst().orElseThrow(AssertionError::new);
+
+        Assert.assertEquals(10, alpha.getExtensions().get(ExtensionsConstants.EXTENSION_ORDER));
+        Assert.assertEquals(20, beta.getExtensions().get(ExtensionsConstants.EXTENSION_ORDER));
+    }
+
+    @Test
+    public void tagOrderAppliedWhenRootPackageScanConfigured() {
+        String pkg = AlphaController.class.getPackage().getName();
+        Knife4jOpenApiCustomizer customizer = buildCustomizerWithRootPackages(pkg);
 
         OpenAPI openApi = buildOpenApi("Alpha", "Beta");
         customizer.customise(openApi);
