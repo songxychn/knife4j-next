@@ -1,13 +1,19 @@
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { buildSchemaFieldTree, resolveRefMeta, type SchemaFieldNode } from 'knife4j-core';
+import {
+  buildMediaTypeExampleValue,
+  buildSchemaExample,
+  buildSchemaFieldTree,
+  generateApiMarkdown,
+  resolveRefMeta,
+  type SchemaFieldNode,
+} from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
-import type { ParameterObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
+import type { ParameterObject, RequestBodyObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
-import { buildSchemaExample, generateApiMarkdown } from 'knife4j-core';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
@@ -33,6 +39,12 @@ interface ResponseRow {
   schema?: SchemaObject;
 }
 
+type RequestMediaObject = NonNullable<RequestBodyObject['content']>[string];
+interface RequestMediaEntry {
+  mediaType: string;
+  mediaObj: RequestMediaObject;
+}
+
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
   if (!match) return undefined;
@@ -52,15 +64,25 @@ function parameterType(parameter: ParameterObject): string {
   return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
 }
 
+function firstRequestMedia(requestBody: RequestBodyObject | undefined): RequestMediaEntry | undefined {
+  if (!requestBody?.content) return undefined;
+  const jsonMedia = requestBody.content['application/json'];
+  if (jsonMedia) return { mediaType: 'application/json', mediaObj: jsonMedia };
+
+  const firstEntry = Object.entries(requestBody.content)[0];
+  if (!firstEntry) return undefined;
+  const [mediaType, mediaObj] = firstEntry;
+  return { mediaType, mediaObj };
+}
+
 function firstRequestSchema(
-  requestBody: { content?: Record<string, { schema?: SchemaObject }> } | undefined,
+  requestBody: RequestBodyObject | undefined,
   parameters: ParameterObject[] | undefined,
 ): SchemaObject | undefined {
   const bodyParameter = parameters?.find((parameter) => parameter.in === 'body')?.schema;
-  if (!requestBody?.content) return bodyParameter;
-  return (
-    requestBody.content['application/json']?.schema ?? Object.values(requestBody.content)[0]?.schema ?? bodyParameter
-  );
+  const mediaEntry = firstRequestMedia(requestBody);
+  if (!mediaEntry) return bodyParameter;
+  return mediaEntry.mediaObj.schema ?? bodyParameter;
 }
 
 function responseSchema(response: ResponseObject): SchemaObject | undefined {
@@ -162,6 +184,31 @@ function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerDoc): st
   } catch {
     return null;
   }
+}
+
+function buildRequestBodyExample(
+  requestBody: RequestBodyObject | undefined,
+  bodySchema: SchemaObject | undefined,
+  doc: SwaggerDoc,
+): string | null {
+  const mediaEntry = firstRequestMedia(requestBody);
+  if (!mediaEntry) return buildJsonExample(bodySchema, doc);
+
+  try {
+    const example = buildMediaTypeExampleValue(
+      mediaEntry.mediaObj,
+      undefined,
+      {
+        doc: doc as unknown as Record<string, unknown>,
+      },
+      { mediaType: mediaEntry.mediaType },
+    );
+    if (example !== undefined) return example;
+  } catch {
+    return null;
+  }
+
+  return buildJsonExample(mediaEntry.mediaObj.schema ?? bodySchema, doc);
 }
 
 /** Extract per-status-code response schemas for example generation. */
@@ -322,7 +369,7 @@ export default function ApiDoc() {
     );
   })();
 
-  const requestExample = buildJsonExample(bodySchema, swaggerDoc);
+  const requestExample = buildRequestBodyExample(op.requestBody, bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
   const authors = operationAuthors(op);
 
@@ -422,7 +469,7 @@ export default function ApiDoc() {
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestBody')}
       </Title>
-      {bodySchema ? (
+      {bodySchema || requestExample !== null ? (
         <Tabs
           size="small"
           items={[
@@ -431,7 +478,7 @@ export default function ApiDoc() {
               label: t('apiDoc.tab.schema'),
               children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
             },
-            ...(requestExample
+            ...(requestExample !== null
               ? [
                   {
                     key: 'example',

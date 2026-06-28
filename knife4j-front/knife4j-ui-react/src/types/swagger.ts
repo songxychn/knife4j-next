@@ -97,6 +97,14 @@ export interface SchemaObject {
   enum?: unknown[];
 }
 
+export interface ExampleObject {
+  summary?: string;
+  description?: string;
+  value?: unknown;
+  externalValue?: string;
+  $ref?: string;
+}
+
 export interface ParameterObject {
   name: string;
   in: 'query' | 'header' | 'path' | 'cookie' | 'body' | 'formData';
@@ -110,7 +118,14 @@ export interface ParameterObject {
 export interface RequestBodyObject {
   description?: string;
   required?: boolean;
-  content?: Record<string, { schema?: SchemaObject }>;
+  content?: Record<
+    string,
+    {
+      schema?: SchemaObject;
+      example?: unknown;
+      examples?: Record<string, ExampleObject>;
+    }
+  >;
 }
 
 export interface ResponseObject {
@@ -206,6 +221,7 @@ export interface SwaggerDoc {
   schemes?: string[];
   components?: {
     schemas?: Record<string, SchemaObject>;
+    examples?: Record<string, ExampleObject>;
     securitySchemes?: Record<string, SecuritySchemeObject>;
   };
   definitions?: Record<string, SchemaObject>; // OAS2
