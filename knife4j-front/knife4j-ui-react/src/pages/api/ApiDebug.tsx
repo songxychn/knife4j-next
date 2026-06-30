@@ -83,9 +83,11 @@ import {
   type ParamValueMap,
   type SchemaFieldRow,
 } from './debugDefaultValues';
+import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
+const PARAM_TABLE_SCROLL = { x: apiDebugParamTableScrollX() };
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'green',
@@ -562,10 +564,10 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
       <Select
         size="small"
         value={value || undefined}
-        onChange={onChange}
+        onChange={(next) => onChange(next ?? '')}
         allowClear
         status={status}
-        placeholder={param.description ?? t('apiDebug.enum.placeholder')}
+        placeholder={t('apiDebug.enum.placeholder')}
         options={param.enum.map((item) => ({
           value: String(item),
           label: String(item),
@@ -1800,7 +1802,7 @@ export default function ApiDebug() {
       {
         title: t('apiDebug.col.enabled'),
         key: 'enabled',
-        width: 48,
+        width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.enabled,
         render: (_value: unknown, record: DebugParam) => (
           <Checkbox
             checked={paramEnabled[paramKey(record)] !== false}
@@ -1817,14 +1819,14 @@ export default function ApiDebug() {
         title: t('apiDebug.col.paramName'),
         dataIndex: 'name',
         key: 'name',
-        width: 220,
+        width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.paramName,
         render: (_value: string, record: DebugParam) => <ParamNameCell param={record} />,
       },
       {
         title: t('apiDebug.col.type'),
         dataIndex: 'type',
         key: 'type',
-        width: 110,
+        width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.type,
         render: (_value: string, record: DebugParam) => (
           <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
             <Text code style={{ fontSize: 12 }}>
@@ -1842,6 +1844,7 @@ export default function ApiDebug() {
         title: t('apiDebug.col.value'),
         dataIndex: 'value',
         key: 'value',
+        width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.value,
         render: (_value: string, record: DebugParam) => (
           <ParamInput
             param={record}
@@ -1854,7 +1857,7 @@ export default function ApiDebug() {
       {
         title: t('apiDebug.col.description'),
         key: 'description',
-        width: 280,
+        width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.description,
         render: (_value, record: DebugParam) => (
           <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
             {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
@@ -2288,6 +2291,8 @@ export default function ApiDebug() {
           columns={paramColumns}
           pagination={false}
           rowKey={paramKey}
+          tableLayout="fixed"
+          scroll={PARAM_TABLE_SCROLL}
           locale={{ emptyText: t('apiDebug.noPathParams') }}
         />
       ),
@@ -2306,6 +2311,8 @@ export default function ApiDebug() {
             columns={paramColumns}
             pagination={false}
             rowKey={paramKey}
+            tableLayout="fixed"
+            scroll={PARAM_TABLE_SCROLL}
             locale={{ emptyText: t('apiDebug.noQueryParams') }}
           />
           <CustomParamsSection
@@ -2333,6 +2340,8 @@ export default function ApiDebug() {
             columns={paramColumns}
             pagination={false}
             rowKey={paramKey}
+            tableLayout="fixed"
+            scroll={PARAM_TABLE_SCROLL}
             locale={{
               emptyText:
                 debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
@@ -2364,6 +2373,8 @@ export default function ApiDebug() {
             columns={paramColumns}
             pagination={false}
             rowKey={paramKey}
+            tableLayout="fixed"
+            scroll={PARAM_TABLE_SCROLL}
             locale={{ emptyText: t('apiDebug.noCookieParams') }}
           />
           <CustomParamsSection
