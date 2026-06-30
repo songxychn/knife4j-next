@@ -21,6 +21,7 @@ import Markdown from '../components/Markdown';
 import type { SwaggerServer } from '../types/swagger';
 import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
 import knife4jMark from '../assets/logo/knife4j-next-mark.svg';
+import { currentHomeOrigin, normalizeHomeHost, resolveHomeHostLabel, resolveHomeServers } from './homeServerInfo';
 import { buildHomeStats, HOME_HTTP_METHODS, type HomeHttpMethod } from './homeStats';
 
 const { Title, Text, Paragraph, Link } = Typography;
@@ -80,21 +81,9 @@ export default function Home() {
   const { settings } = useSettings();
   const { token } = theme.useToken();
   const customHomeMarkdown = getCustomHomeMarkdown(settings);
+  const pageOrigin = currentHomeOrigin();
 
-  // Servers: prefer OAS3 servers, fall back to OAS2 host/basePath/schemes
-  const servers = useMemo<SwaggerServer[]>(() => {
-    if (!swaggerDoc) return [];
-    if (swaggerDoc.servers && swaggerDoc.servers.length > 0) {
-      return swaggerDoc.servers;
-    }
-    if (swaggerDoc.host) {
-      const schemes = swaggerDoc.schemes && swaggerDoc.schemes.length > 0 ? swaggerDoc.schemes : ['http'];
-      return schemes.map((scheme) => ({
-        url: `${scheme}://${swaggerDoc.host}${swaggerDoc.basePath ?? ''}`,
-      }));
-    }
-    return [];
-  }, [swaggerDoc]);
+  const servers = useMemo<SwaggerServer[]>(() => resolveHomeServers(swaggerDoc, pageOrigin), [pageOrigin, swaggerDoc]);
 
   const stats = useMemo(() => buildHomeStats(swaggerDoc, menuTags), [swaggerDoc, menuTags]);
 
@@ -128,18 +117,8 @@ export default function Home() {
       : 'OpenAPI';
 
   const versionLabel = info.version ? (/^v/i.test(info.version) ? info.version : `v${info.version}`) : '-';
-  const primaryServerUrl = servers[0]?.url;
-  const hostLabel =
-    swaggerDoc.host ||
-    (() => {
-      if (!primaryServerUrl) return '-';
-      try {
-        const parsed = new URL(primaryServerUrl, window.location.origin);
-        return parsed.host || primaryServerUrl;
-      } catch {
-        return primaryServerUrl;
-      }
-    })();
+  const hostLabel = resolveHomeHostLabel(swaggerDoc, servers, pageOrigin);
+  const sourceHost = normalizeHomeHost(swaggerDoc.host, pageOrigin);
 
   const securitySchemes = swaggerDoc.components?.securitySchemes ?? swaggerDoc.securityDefinitions ?? {};
   const securitySchemeCount = Object.keys(securitySchemes).length;
@@ -181,7 +160,7 @@ export default function Home() {
       value: activeSwaggerGroup?.location,
       icon: <CloudServerOutlined />,
     },
-    { key: 'host', label: 'home.meta.host', value: swaggerDoc.host, icon: <CloudServerOutlined /> },
+    { key: 'host', label: 'home.meta.host', value: sourceHost, icon: <CloudServerOutlined /> },
     { key: 'basePath', label: 'home.meta.basePath', value: swaggerDoc.basePath, icon: <LinkOutlined /> },
   ].flatMap((row) => (typeof row.value === 'string' && row.value.length > 0 ? [{ ...row, value: row.value }] : []));
   const hasSourceInfo = sourceRows.length > 0;
