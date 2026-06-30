@@ -17,8 +17,8 @@ export interface RequestServerOption {
   description?: string;
 }
 
-interface NormalizeRequestBaseUrlOptions {
-  upgradeSameHostHttpToHttps?: boolean;
+export interface NormalizeRequestBaseUrlOptions {
+  preferHttpsOriginForSameHost?: boolean;
 }
 
 export function currentOrigin(): string {
@@ -29,8 +29,15 @@ function trimTrailingSlashes(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
-function shouldUpgradeSameHostHttpUrl(url: URL, origin: URL): boolean {
-  return origin.protocol === 'https:' && url.protocol === 'http:' && url.hostname === origin.hostname;
+function alignSameHostWithHttpsOrigin(url: URL, origin: URL): void {
+  if (origin.protocol !== 'https:' || url.hostname !== origin.hostname) return;
+
+  if (url.protocol === 'http:') {
+    url.protocol = origin.protocol;
+  }
+  if (origin.port && !url.port) {
+    url.port = origin.port;
+  }
 }
 
 export function normalizeRequestBaseUrl(
@@ -44,8 +51,8 @@ export function normalizeRequestBaseUrl(
   try {
     const originUrl = new URL(`${origin.replace(/\/+$/, '')}/`);
     const requestUrl = new URL(trimmed, originUrl);
-    if (options.upgradeSameHostHttpToHttps && shouldUpgradeSameHostHttpUrl(requestUrl, originUrl)) {
-      requestUrl.protocol = originUrl.protocol;
+    if (options.preferHttpsOriginForSameHost) {
+      alignSameHostWithHttpsOrigin(requestUrl, originUrl);
     }
     return trimTrailingSlashes(requestUrl.toString());
   } catch {
@@ -67,7 +74,7 @@ function appendServerOptions(
     if (!rawUrl) continue;
 
     const url = normalizeRequestBaseUrl(rawUrl, origin, {
-      upgradeSameHostHttpToHttps: true,
+      preferHttpsOriginForSameHost: true,
     });
     if (seen.has(url)) continue;
 

@@ -70,6 +70,17 @@ describe('request base URL resolution', () => {
     ).toBe('https://api.example.test/api');
   });
 
+  it('keeps the HTTPS origin port for same-host generated server URLs when the server URL omits a port', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://mini.xxx.com']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://mini.xxx.com:27000',
+      }),
+    ).toBe('https://mini.xxx.com:27000');
+  });
+
   it('keeps cross-host OpenAPI server URLs on their declared protocol', () => {
     expect(
       resolveRequestBaseUrl({
