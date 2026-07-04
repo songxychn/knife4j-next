@@ -164,6 +164,7 @@ const zhCN = {
   'apiDebug.customCookie.title': '自定义 Cookie',
   'apiDebug.customCookie.namePlaceholder': 'Cookie 名称',
   'apiDebug.noBody': '该接口无请求体',
+  'apiDebug.baseUrl.source.gateway': '网关上下文',
   'apiDebug.baseUrl.source.operation': '接口服务地址',
   'apiDebug.baseUrl.source.path': '路径服务地址',
   'apiDebug.baseUrl.source.document': '文档服务地址',

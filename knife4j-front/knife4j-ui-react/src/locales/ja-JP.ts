@@ -170,6 +170,7 @@ const jaJP = {
   'apiDebug.customCookie.title': 'カスタム Cookie',
   'apiDebug.customCookie.namePlaceholder': 'Cookie 名',
   'apiDebug.noBody': 'この API にリクエストボディはありません',
+  'apiDebug.baseUrl.source.gateway': 'gateway context',
   'apiDebug.baseUrl.source.operation': 'operation server',
   'apiDebug.baseUrl.source.path': 'path server',
   'apiDebug.baseUrl.source.document': 'document server',

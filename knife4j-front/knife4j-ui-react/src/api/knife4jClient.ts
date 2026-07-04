@@ -91,7 +91,13 @@ async function fetchSwaggerUiConfigFrom(
  */
 export function parseGroupsFromConfig(config: SwaggerUiConfig): SwaggerGroup[] {
   if (config.urls && Array.isArray(config.urls) && config.urls.length > 0) {
-    return config.urls.map((u) => ({ name: u.name, url: u.url }));
+    return config.urls.map((u) => ({
+      name: u.name,
+      url: u.url,
+      ...(u.location ? { location: u.location } : {}),
+      ...(u.swaggerVersion ? { swaggerVersion: u.swaggerVersion } : {}),
+      ...(typeof u.contextPath === 'string' ? { contextPath: u.contextPath } : {}),
+    }));
   }
   if (typeof config.url === 'string' && config.url.length > 0) {
     return [{ name: 'default', url: config.url }];

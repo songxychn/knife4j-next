@@ -8,6 +8,7 @@ export interface SwaggerGroup {
   url: string; // api-docs 地址
   swaggerVersion?: string;
   location?: string; // swagger-resources 格式
+  contextPath?: string; // gateway / aggregation route context-path
 }
 
 /**
@@ -22,7 +23,13 @@ export interface SwaggerUiConfig {
   /** 单文档 api-docs 地址（springdoc 单文档场景） */
   url?: string;
   /** 分组列表（springdoc 多文档场景） */
-  urls?: Array<{ name: string; url: string }>;
+  urls?: Array<{
+    name: string;
+    url: string;
+    contextPath?: string;
+    swaggerVersion?: string;
+    location?: string;
+  }>;
   /** tag 排序策略（例如 'alpha'） */
   tagsSorter?: string;
   /** operation 排序策略（例如 'alpha' / 'method'） */

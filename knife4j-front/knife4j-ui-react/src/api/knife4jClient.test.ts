@@ -49,6 +49,14 @@ describe('knife4jClient', () => {
     expect(parseGroupsFromConfig({ url: '/api/openapi' })).toEqual([{ name: 'default', url: '/api/openapi' }]);
   });
 
+  it('preserves gateway route contextPath from swagger-config urls', () => {
+    expect(
+      parseGroupsFromConfig({
+        urls: [{ name: '用户中心', url: '/iam/v3/api-docs', contextPath: '/iam' }],
+      }),
+    ).toEqual([{ name: '用户中心', url: '/iam/v3/api-docs', contextPath: '/iam' }]);
+  });
+
   it('normalizes OpenAPI docs with missing info', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(textResponse(JSON.stringify({ openapi: '3.0.1', paths: {} })));
     vi.stubGlobal('fetch', fetchMock);
