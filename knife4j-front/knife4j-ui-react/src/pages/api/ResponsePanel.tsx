@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Checkbox, Space, Table, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Button, Checkbox, Space, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd';
 import { CopyOutlined, DownloadOutlined, StopOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { copyToClipboard } from '../../utils/clipboard';
@@ -8,6 +8,7 @@ import type { BuiltRequest } from 'knife4j-core';
 import { buildCurl } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import CodeBlock from './CodeBlock';
+import { formatSseEventTime } from './sseEventTime';
 
 const { Text } = Typography;
 
@@ -228,6 +229,14 @@ export default function ResponsePanel({
     );
   };
 
+  const handleCopySseEvent = (event: SseEvent) => {
+    copyToClipboard(
+      event.data,
+      () => message.success(t('apiDebug.response.copied')),
+      () => message.error(t('apiDebug.response.copyFailed')),
+    );
+  };
+
   const handleDownload = () => {
     if (!response) return;
     let url: string;
@@ -310,11 +319,30 @@ export default function ResponsePanel({
               <span style={{ color: '#8b949e' }}>{t('apiDebug.sse.waiting')}</span>
             ) : (
               sseEvents.map((ev, i) => (
-                <div key={i} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #21262d', padding: '2px 0' }}>
-                  <span style={{ color: '#8b949e', flexShrink: 0, userSelect: 'none' }}>
-                    {new Date(ev.timestamp).toISOString().slice(11, 23)}
-                  </span>
+                <div
+                  key={i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '44px 96px minmax(0, 1fr) 28px',
+                    columnGap: 12,
+                    alignItems: 'start',
+                    borderBottom: '1px solid #21262d',
+                    padding: '2px 0',
+                  }}
+                >
+                  <span style={{ color: '#8b949e', textAlign: 'right', userSelect: 'none' }}>#{i + 1}</span>
+                  <span style={{ color: '#8b949e', userSelect: 'none' }}>{formatSseEventTime(ev.timestamp)}</span>
                   <span style={{ color: '#e6edf3', wordBreak: 'break-all' }}>{ev.data}</span>
+                  <Tooltip title={t('apiDebug.sse.copyEvent', { index: i + 1 })}>
+                    <Button
+                      aria-label={t('apiDebug.sse.copyEvent', { index: i + 1 })}
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopySseEvent(ev)}
+                      size="small"
+                      style={{ color: '#8b949e', height: 24, padding: 0, width: 24 }}
+                      type="text"
+                    />
+                  </Tooltip>
                 </div>
               ))
             )}
