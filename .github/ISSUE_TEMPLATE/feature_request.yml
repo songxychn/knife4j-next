@@ -1,0 +1,85 @@
+name: 功能建议
+description: 提出功能、体验或兼容性建议
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提出建议。请重点描述真实使用场景和现有方案的不足，这比直接给实现细节更有帮助。
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 issue，确认没有重复建议。
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 背景问题
+      description: 请说明这个建议要解决什么问题。
+      placeholder: 例如：在多个分组之间切换时，现有交互难以快速定位目标接口。
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: 使用场景
+      description: 请描述谁会在什么场景下使用这个能力。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望方案
+      description: 请说明你希望发生什么变化。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已考虑的替代方案
+      description: 请说明现在是否有其他解决方式，以及为什么仍然不够。
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 适用范围
+      description: 可以多选；如果不确定，请选择“其他或不确定”。
+      multiple: true
+      options:
+        - OpenAPI 3 UI
+        - OpenAPI 2 / Swagger 2 UI
+        - Java starter
+        - 聚合或网关
+        - 文档
+        - 发布或仓库流程
+        - 其他或不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: 兼容性影响
+      description: 请说明是否会改变现有用户行为、配置项、默认值或迁移路径。
+      placeholder: 如果没有明显影响，也请写“无明显兼容性影响”。
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: 示例或参考
+      description: 可以提供截图、竞品行为、伪代码、接口片段或相关文档。
+
+  - type: textarea
+    id: related_links
+    attributes:
+      label: 相关链接
+      description: 如有相关 issue、讨论、复现仓库或外部 issue 链接，请填写。

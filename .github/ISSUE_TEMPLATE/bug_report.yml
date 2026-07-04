@@ -1,0 +1,133 @@
+name: 问题报告
+description: 报告可复现的问题、错误日志或显示异常
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈问题。请尽量提供可复现的信息、版本组合和关键日志；这些信息会直接影响定位速度。
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 issue，确认没有重复报告。
+          required: true
+        - label: 我可以提供复现步骤、最小复现工程或关键接口响应中的至少一种。
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 简要说明实际出现的问题。
+      placeholder: 例如：升级到某版本后，doc.html 中某个接口参数显示异常。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: 影响范围
+      description: 可以多选；如果不确定，请选择“其他或不确定”。
+      multiple: true
+      options:
+        - OpenAPI 3 UI
+        - OpenAPI 2 / Swagger 2 UI
+        - Java starter
+        - 聚合或网关
+        - 文档或构建流程
+        - 其他或不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请写出从启动应用到看到问题的具体步骤。
+      placeholder: |
+        1. 使用以下依赖版本启动应用：...
+        2. 打开 /doc.html
+        3. 点击 ...
+        4. 看到 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 请说明你期望看到的正确结果。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 请贴出错误信息、堆栈、截图描述或异常响应。
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal_reproduction
+    attributes:
+      label: 最小复现
+      description: 请提供最小复现仓库、关键 Controller / 配置代码，或能复现问题的说明。
+      placeholder: |
+        复现仓库：
+        关键代码：
+
+  - type: textarea
+    id: api_response
+    attributes:
+      label: 接口文档响应
+      description: 如果涉及页面展示或解析问题，请贴出相关的 /v3/api-docs、/v2/api-docs、/swagger-resources 或 /knife4j/config 片段。
+      render: json
+
+  - type: input
+    id: knife4j_version
+    attributes:
+      label: Knife4j 版本
+      placeholder: 例如：4.5.0
+    validations:
+      required: true
+
+  - type: input
+    id: spring_version
+    attributes:
+      label: Spring Boot / Spring Framework 版本
+      placeholder: 例如：Spring Boot 3.3.5
+
+  - type: input
+    id: openapi_dependency
+    attributes:
+      label: springdoc / springfox 版本
+      placeholder: 例如：springdoc-openapi 2.6.0
+
+  - type: input
+    id: java_version
+    attributes:
+      label: JDK 版本
+      placeholder: 例如：17.0.12
+
+  - type: input
+    id: browser_version
+    attributes:
+      label: 浏览器版本
+      description: 仅前端展示或交互问题需要填写。
+      placeholder: 例如：Chrome 126
+
+  - type: textarea
+    id: screenshots_logs
+    attributes:
+      label: 截图、日志或录屏
+      description: 可以拖拽上传图片、录屏，或粘贴关键日志。
+
+  - type: textarea
+    id: related_links
+    attributes:
+      label: 相关链接
+      description: 如有相关 issue、讨论、复现仓库或外部 issue 链接，请填写。

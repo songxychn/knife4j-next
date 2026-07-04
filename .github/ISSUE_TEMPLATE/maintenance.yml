@@ -1,0 +1,66 @@
+name: 文档或仓库维护
+description: 记录文档、流程、发布或仓库维护事项
+title: "[Maintenance] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这个模板用于不属于 bug 或功能建议的事项，例如文档缺口、仓库流程、发布说明或维护任务。
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 事项类型
+      options:
+        - 文档
+        - 仓库流程
+        - 发布说明
+        - 构建或 CI
+        - 依赖或元数据
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: 事项说明
+      description: 请说明需要处理的事项。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_result
+    attributes:
+      label: 预期结果
+      description: 请说明完成后应该达到什么状态。
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_files
+    attributes:
+      label: 相关文件或页面
+      description: 如果知道相关路径、页面或配置，请填写。
+      placeholder: 例如：docs-site/guide/features.md
+
+  - type: dropdown
+    id: sensitive_area
+    attributes:
+      label: 是否涉及敏感维护事项
+      description: 发布构件、凭据、兼容性承诺或大范围依赖升级需要维护者明确确认。
+      options:
+        - 不涉及
+        - 可能涉及发布构件
+        - 可能涉及凭据或权限
+        - 可能涉及兼容性承诺
+        - 可能涉及大范围依赖升级
+        - 不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: related_links
+    attributes:
+      label: 相关链接
+      description: 如有相关 issue、讨论、文档或参考链接，请填写。
