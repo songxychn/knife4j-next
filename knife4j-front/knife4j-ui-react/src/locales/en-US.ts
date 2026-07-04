@@ -193,6 +193,7 @@ const enUS = {
   'apiDebug.sse.eventCount': '{{count}} events',
   'apiDebug.sse.abort': 'Stop',
   'apiDebug.sse.waiting': 'Waiting for events\u2026',
+  'apiDebug.sse.copyEvent': 'Copy event #{{index}}',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': 'Value',
   'apiDebug.desc.default': 'Default: ',

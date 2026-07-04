@@ -192,6 +192,7 @@ const zhCN = {
   'apiDebug.sse.eventCount': '{{count}} 条事件',
   'apiDebug.sse.abort': '终止',
   'apiDebug.sse.waiting': '等待事件\u2026',
+  'apiDebug.sse.copyEvent': '复制第 {{index}} 条事件',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': '值',
   'apiDebug.desc.default': '默认：',

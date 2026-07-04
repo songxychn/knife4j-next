@@ -198,6 +198,7 @@ const jaJP = {
   'apiDebug.sse.eventCount': '{{count}} 件のイベント',
   'apiDebug.sse.abort': '停止',
   'apiDebug.sse.waiting': 'イベント待機中…',
+  'apiDebug.sse.copyEvent': '{{index}} 件目のイベントをコピー',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': '値',
   'apiDebug.desc.default': 'デフォルト：',

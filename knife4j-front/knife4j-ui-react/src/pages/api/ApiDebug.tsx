@@ -1586,6 +1586,7 @@ export default function ApiDebug() {
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
+  const [sseStreaming, setSseStreaming] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
   const requestSeqRef = useRef(0);
@@ -1631,6 +1632,7 @@ export default function ApiDebug() {
     setCustomCookies(initial.customCookies);
     setBuiltRequest(null);
     setSseEvents(null);
+    setSseStreaming(false);
     setValidationErrors([]);
     if (options.resetActiveTab) {
       setActiveTab(undefined);
@@ -1648,6 +1650,7 @@ export default function ApiDebug() {
     requestSeqRef.current += 1;
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
+    setSseStreaming(false);
     const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
     applyInitialDebugState(nextInitial, { resetActiveTab: true });
     setLoading(false);
@@ -2036,6 +2039,7 @@ export default function ApiDebug() {
     }
     setResponse(null);
     setSseEvents(null);
+    setSseStreaming(false);
     setBuiltRequest(built);
     const start = Date.now();
     let abortController: AbortController | null = null;
@@ -2111,6 +2115,7 @@ export default function ApiDebug() {
       if (res.status === 401) {
         setAuthModalOpen(true);
         setLoading(false);
+        setSseStreaming(false);
         return;
       }
 
@@ -2120,12 +2125,14 @@ export default function ApiDebug() {
         if (!res.body) {
           setError('SSE response has no body');
           sseAbortRef.current = null;
+          setSseStreaming(false);
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
         setSseEvents([]);
+        setSseStreaming(true);
 
         const processChunk = (chunk: string) => {
           if (!isCurrentDebugRequest()) return;
@@ -2168,6 +2175,7 @@ export default function ApiDebug() {
           if (sseAbortRef.current === abortController) {
             sseAbortRef.current = null;
           }
+          setSseStreaming(false);
         }
         return;
       }
@@ -2220,6 +2228,7 @@ export default function ApiDebug() {
   const handleSseAbort = () => {
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
+    setSseStreaming(false);
   };
 
   const handleReset = () => {
@@ -2500,7 +2509,7 @@ export default function ApiDebug() {
           swaggerDoc={swaggerDoc}
           sseEvents={sseEvents}
           onSseAbort={handleSseAbort}
-          sseStreaming={sseAbortRef.current !== null}
+          sseStreaming={sseStreaming}
         />
         <Modal
           open={authModalOpen}
