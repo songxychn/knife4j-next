@@ -82,6 +82,48 @@ describe('request base URL resolution', () => {
     ).toBe('https://api.example.test/api');
   });
 
+  it('keeps the HTTPS origin port for same-host generated server URLs when the server URL omits a port', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://mini.xxx.com']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://mini.xxx.com:27000',
+      }),
+    ).toBe('https://mini.xxx.com:27000');
+  });
+
+  it('preserves explicit same-host server ports while upgrading to the HTTPS origin protocol', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://mini.xxx.com:18080/api']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://mini.xxx.com:27000',
+      }),
+    ).toBe('https://mini.xxx.com:18080/api');
+  });
+
+  it('does not replace explicit same-host default ports with the HTTPS origin port', () => {
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['http://mini.xxx.com:443/api']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://mini.xxx.com:27000',
+      }),
+    ).toBe('https://mini.xxx.com/api');
+
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc: docWithServers(['https://mini.xxx.com:443/api']),
+        enableHost: false,
+        enableHostText: '',
+        origin: 'https://mini.xxx.com:27000',
+      }),
+    ).toBe('https://mini.xxx.com/api');
+  });
+
   it('keeps cross-host OpenAPI server URLs on their declared protocol', () => {
     expect(
       resolveRequestBaseUrl({

@@ -18,8 +18,8 @@ export interface RequestServerOption {
   description?: string;
 }
 
-interface NormalizeRequestBaseUrlOptions {
-  upgradeSameHostHttpToHttps?: boolean;
+export interface NormalizeRequestBaseUrlOptions {
+  preferHttpsOriginForSameHost?: boolean;
 }
 
 export function currentOrigin(): string {
@@ -30,8 +30,36 @@ function trimTrailingSlashes(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
-function shouldUpgradeSameHostHttpUrl(url: URL, origin: URL): boolean {
-  return origin.protocol === 'https:' && url.protocol === 'http:' && url.hostname === origin.hostname;
+function explicitPortFromAuthority(authority: string): string | undefined {
+  const hostPort = authority.slice(authority.lastIndexOf('@') + 1);
+  const ipv6PortMatch = /^\[[^\]]+\]:(\d+)$/.exec(hostPort);
+  if (ipv6PortMatch) return ipv6PortMatch[1];
+  if (hostPort.startsWith('[')) return undefined;
+
+  return /:(\d+)$/.exec(hostPort)?.[1];
+}
+
+function explicitPortFromUrlText(url: string): string | undefined {
+  const absoluteAuthority = /^[a-z][a-z\d+\-.]*:\/\/([^/?#]*)/i.exec(url)?.[1];
+  const protocolRelativeAuthority = /^\/\/([^/?#]*)/.exec(url)?.[1];
+  const authority = absoluteAuthority ?? protocolRelativeAuthority;
+
+  return authority ? explicitPortFromAuthority(authority) : undefined;
+}
+
+function alignSameHostWithHttpsOrigin(url: URL, origin: URL, explicitPort: string | undefined): void {
+  if (origin.protocol !== 'https:' || url.hostname !== origin.hostname) return;
+
+  if (url.protocol === 'http:') {
+    url.protocol = origin.protocol;
+  }
+  if (explicitPort) {
+    url.port = explicitPort;
+    return;
+  }
+  if (origin.port && !url.port) {
+    url.port = origin.port;
+  }
 }
 
 function normalizeGroupContextPath(contextPath: string | undefined): string {
@@ -77,8 +105,8 @@ export function normalizeRequestBaseUrl(
   try {
     const originUrl = new URL(`${origin.replace(/\/+$/, '')}/`);
     const requestUrl = new URL(trimmed, originUrl);
-    if (options.upgradeSameHostHttpToHttps && shouldUpgradeSameHostHttpUrl(requestUrl, originUrl)) {
-      requestUrl.protocol = originUrl.protocol;
+    if (options.preferHttpsOriginForSameHost) {
+      alignSameHostWithHttpsOrigin(requestUrl, originUrl, explicitPortFromUrlText(trimmed));
     }
     return trimTrailingSlashes(requestUrl.toString());
   } catch {
@@ -100,7 +128,7 @@ function appendServerOptions(
     if (!rawUrl) continue;
 
     const url = normalizeRequestBaseUrl(rawUrl, origin, {
-      upgradeSameHostHttpToHttps: true,
+      preferHttpsOriginForSameHost: true,
     });
     if (seen.has(url)) continue;
 
