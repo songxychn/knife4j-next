@@ -13,6 +13,18 @@ function normalizeHomeServerUrl(url: string, origin: string): string {
   });
 }
 
+function explicitPortFromHostText(host: string): string | undefined {
+  const absoluteAuthority = /^[a-z][a-z\d+\-.]*:\/\/([^/?#]*)/i.exec(host)?.[1];
+  const protocolRelativeAuthority = /^\/\/([^/?#]*)/.exec(host)?.[1];
+  const authority = absoluteAuthority ?? protocolRelativeAuthority ?? host.split(/[/?#]/)[0];
+  const hostPort = authority.slice(authority.lastIndexOf('@') + 1);
+  const ipv6PortMatch = /^\[[^\]]+\]:(\d+)$/.exec(hostPort);
+  if (ipv6PortMatch) return ipv6PortMatch[1];
+  if (hostPort.startsWith('[')) return undefined;
+
+  return /:(\d+)$/.exec(hostPort)?.[1];
+}
+
 export function normalizeHomeHost(host: string | undefined, origin: string): string | undefined {
   const trimmed = host?.trim();
   if (!trimmed) return undefined;
@@ -20,7 +32,13 @@ export function normalizeHomeHost(host: string | undefined, origin: string): str
   try {
     const originUrl = new URL(`${origin.replace(/\/+$/, '')}/`);
     const hostUrl = new URL(trimmed.includes('://') ? trimmed : `${originUrl.protocol}//${trimmed}`);
-    if (originUrl.protocol === 'https:' && hostUrl.hostname === originUrl.hostname && originUrl.port && !hostUrl.port) {
+    if (
+      originUrl.protocol === 'https:' &&
+      hostUrl.hostname === originUrl.hostname &&
+      originUrl.port &&
+      !hostUrl.port &&
+      !explicitPortFromHostText(trimmed)
+    ) {
       hostUrl.port = originUrl.port;
       return hostUrl.host;
     }
