@@ -440,16 +440,18 @@ const AppInner: React.FC = () => {
                 {langLabel}
               </Button>
             </Dropdown>
-            <Button
-              type="text"
-              icon={<SettingOutlined />}
-              onClick={() => setSettingsOpen(true)}
-              style={{ fontSize: 16, width: 48, height: 48 }}
-            />
+            {settings.enableDocumentManage && (
+              <Button
+                type="text"
+                icon={<SettingOutlined />}
+                onClick={() => setSettingsOpen(true)}
+                style={{ fontSize: 16, width: 48, height: 48 }}
+              />
+            )}
           </span>
         </Header>
 
-        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        {settings.enableDocumentManage && <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
 
         <Content
           style={{

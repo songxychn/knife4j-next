@@ -80,6 +80,9 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const swaggerModelName = readString(setting, 'swaggerModelName');
   if (swaggerModelName !== undefined && swaggerModelName.trim()) next.swaggerModelName = swaggerModelName;
 
+  const enableDocumentManage = readBoolean(setting, 'enableDocumentManage');
+  if (enableDocumentManage !== undefined) next.enableDocumentManage = enableDocumentManage;
+
   const enableGroup = readBoolean(setting, 'enableGroup');
   if (enableGroup !== undefined) next.enableGroup = enableGroup;
 
