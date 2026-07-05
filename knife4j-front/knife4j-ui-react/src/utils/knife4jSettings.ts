@@ -3,6 +3,7 @@ import { SUPPORTED_LANGS } from '../types/settings';
 import type { MarkdownFileGroup, SwaggerDoc } from '../types/swagger';
 
 type UnknownRecord = Record<string, unknown>;
+const FILTER_MULTIPART_METHOD_TYPES = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'] as const;
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -25,6 +26,12 @@ function readBoolean(source: UnknownRecord, key: string): boolean | undefined {
 
 function readString(source: UnknownRecord, key: string): string | undefined {
   return typeof source[key] === 'string' ? source[key] : undefined;
+}
+
+function normalizeFilterMultipartMethodType(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const methodType = value.trim().toUpperCase();
+  return (FILTER_MULTIPART_METHOD_TYPES as readonly string[]).includes(methodType) ? methodType : undefined;
 }
 
 function readOpenApiExtension(doc: SwaggerDoc | null | undefined): UnknownRecord | undefined {
@@ -100,6 +107,16 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
 
   const enableRequestCache = readBoolean(setting, 'enableRequestCache');
   if (enableRequestCache !== undefined) next.enableRequestCache = enableRequestCache;
+
+  const enableFilterMultipartApis = readBoolean(setting, 'enableFilterMultipartApis');
+  if (enableFilterMultipartApis !== undefined) next.enableFilterMultipartApis = enableFilterMultipartApis;
+
+  const enableFilterMultipartApiMethodType = normalizeFilterMultipartMethodType(
+    setting.enableFilterMultipartApiMethodType,
+  );
+  if (enableFilterMultipartApiMethodType !== undefined) {
+    next.enableFilterMultipartApiMethodType = enableFilterMultipartApiMethodType;
+  }
 
   return next;
 }

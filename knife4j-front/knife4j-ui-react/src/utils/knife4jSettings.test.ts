@@ -32,6 +32,8 @@ describe('knife4j setting extraction', () => {
           enableHost: true,
           enableHostText: 'http://localhost:9000',
           enableRequestCache: false,
+          enableFilterMultipartApis: true,
+          enableFilterMultipartApiMethodType: 'put',
           enableAfterScript: true,
         },
       },
@@ -53,6 +55,8 @@ describe('knife4j setting extraction', () => {
       enableHost: true,
       enableHostText: 'http://localhost:9000',
       enableRequestCache: false,
+      enableFilterMultipartApis: true,
+      enableFilterMultipartApiMethodType: 'PUT',
     });
   });
 
@@ -63,6 +67,8 @@ describe('knife4j setting extraction', () => {
           enableRequestCache: 'false',
           enableHomeCustom: 'true',
           homeCustomLocation: 123,
+          enableFilterMultipartApis: 'true',
+          enableFilterMultipartApiMethodType: 'TRACE',
         },
       },
     });

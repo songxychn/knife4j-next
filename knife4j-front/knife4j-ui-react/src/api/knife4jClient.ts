@@ -11,10 +11,12 @@ import type {
   MenuOperation,
   SwaggerUiConfig,
   Knife4jRuntimeConfig,
+  OperationObject,
 } from '../types/swagger';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
+type HttpMethod = (typeof HTTP_METHODS)[number];
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
 const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
 
@@ -250,6 +252,15 @@ export function normalizeOperationsSorter(value: unknown): OperationsSorter {
 export interface MenuSortOptions {
   tagsSorter?: TagsSorter;
   operationsSorter?: OperationsSorter;
+  filterMultipartApis?: boolean;
+  filterMultipartApiMethodType?: string;
+}
+
+interface ParsedOperation {
+  path: string;
+  method: HttpMethod;
+  operation: OperationObject;
+  tags: string[];
 }
 
 function sortOperations(ops: MenuOperation[], sorter: OperationsSorter): MenuOperation[] {
@@ -302,13 +313,40 @@ function sortByKnife4jOrder<T>(items: T[], getOrder: (item: T) => unknown): T[] 
     .map((entry) => entry.item);
 }
 
+function normalizeHttpMethod(value: unknown): HttpMethod | null {
+  if (typeof value !== 'string') return null;
+  const method = value.trim().toLowerCase();
+  return (HTTP_METHODS as readonly string[]).includes(method) ? (method as HttpMethod) : null;
+}
+
+function filterMultipartOperations(operations: ParsedOperation[], methodType: string | undefined): ParsedOperation[] {
+  const preferredMethod = normalizeHttpMethod(methodType) ?? 'post';
+  const operationsByPath = new Map<string, ParsedOperation[]>();
+
+  operations.forEach((operation) => {
+    const samePathOperations = operationsByPath.get(operation.path);
+    if (samePathOperations) {
+      samePathOperations.push(operation);
+    } else {
+      operationsByPath.set(operation.path, [operation]);
+    }
+  });
+
+  return Array.from(operationsByPath.values()).flatMap((samePathOperations) => {
+    if (samePathOperations.length <= 1) return samePathOperations;
+    return [samePathOperations.find((operation) => operation.method === preferredMethod) ?? samePathOperations[0]];
+  });
+}
+
 /** 将 SwaggerDoc 解析为侧边栏菜单结构 */
 export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): MenuTag[] {
   const tagsSorter = options.tagsSorter ?? 'preserve';
   const operationsSorter = options.operationsSorter ?? 'preserve';
+  const filterMultipartApis = options.filterMultipartApis ?? false;
 
   const tagMap = new Map<string, MenuTag>();
   const tagOrders = new Map<string, unknown>();
+  const parsedOperations: ParsedOperation[] = [];
 
   // 初始化 tag 列表（保持 doc.tags 原始顺序）
   (doc.tags ?? []).forEach((t) => {
@@ -322,21 +360,29 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
       if (!op) return;
 
       const tags = op.tags?.length ? op.tags : ['default'];
-      tags.forEach((tag) => {
-        if (!tagMap.has(tag)) {
-          tagMap.set(tag, { tag, operations: [] });
-        }
-        const menuOp: MenuOperation = {
-          key: `${encodeURIComponent(tag)}/${encodeURIComponent(op.operationId ?? path)}`,
-          path,
-          method,
-          summary: op.summary ?? path,
-          operationId: op.operationId,
-          deprecated: op.deprecated,
-          operation: op,
-        };
-        tagMap.get(tag)!.operations.push(menuOp);
-      });
+      parsedOperations.push({ path, method, operation: op, tags });
+    });
+  });
+
+  const visibleOperations = filterMultipartApis
+    ? filterMultipartOperations(parsedOperations, options.filterMultipartApiMethodType)
+    : parsedOperations;
+
+  visibleOperations.forEach(({ path, method, operation, tags }) => {
+    tags.forEach((tag) => {
+      if (!tagMap.has(tag)) {
+        tagMap.set(tag, { tag, operations: [] });
+      }
+      const menuOp: MenuOperation = {
+        key: `${encodeURIComponent(tag)}/${encodeURIComponent(operation.operationId ?? path)}`,
+        path,
+        method,
+        summary: operation.summary ?? path,
+        operationId: operation.operationId,
+        deprecated: operation.deprecated,
+        operation,
+      };
+      tagMap.get(tag)!.operations.push(menuOp);
     });
   });
 

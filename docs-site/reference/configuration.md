@@ -75,8 +75,8 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | ⚠️ |
 | `knife4j.setting.enableVersion` | `boolean` | `false` | 启用接口版本控制 | ⚠️ |
 | `knife4j.setting.enableRequestCache` | `boolean` | `true` | 启用请求参数缓存 | ✅ |
-| `knife4j.setting.enableFilterMultipartApis` | `boolean` | `false` | 过滤 RequestMapping 多方法显示 | ⚠️ |
-| `knife4j.setting.enableFilterMultipartApiMethodType` | `String` | `"POST"` | 过滤方法类型 | ⚠️ |
+| `knife4j.setting.enableFilterMultipartApis` | `boolean` | `false` | 过滤 RequestMapping 多方法显示 | ✅ |
+| `knife4j.setting.enableFilterMultipartApiMethodType` | `String` | `"POST"` | 过滤方法类型 | ✅ |
 | `knife4j.setting.enableHost` | `boolean` | `false` | 启用 Host | ✅ |
 | `knife4j.setting.enableHostText` | `String` | `""` | Host 地址 | ✅ |
 | `knife4j.setting.enableDynamicParameter` | `boolean` | `false` | 启用动态请求参数 | ⚠️ |
