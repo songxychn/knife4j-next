@@ -70,7 +70,7 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.language` | `ZH_CN` / `EN` | `ZH_CN` | 界面语言 | ✅ |
 | `knife4j.setting.enableSwaggerModels` | `boolean` | `true` | 显示 Swagger Models 功能 | ✅ |
 | `knife4j.setting.swaggerModelName` | `String` | `"Swagger Models"` | Swagger Models 名称 | ✅ |
-| `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ⚠️ |
+| `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ✅ |
 | `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | ⚠️ |
 | `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | ⚠️ |
 | `knife4j.setting.enableVersion` | `boolean` | `false` | 启用接口版本控制 | ⚠️ |

@@ -23,6 +23,8 @@ export interface AppSettings {
   enableSwaggerModels: boolean;
   /** Sidebar label for the schema/model entry. */
   swaggerModelName: string;
+  /** Whether the document-management drawer entry is shown. */
+  enableDocumentManage: boolean;
   /** Whether the group dropdown is shown. */
   enableGroup: boolean;
   /** Whether the default footer is shown. */
@@ -62,6 +64,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   homeCustomLocation: '',
   enableSwaggerModels: true,
   swaggerModelName: 'Swagger Models',
+  enableDocumentManage: true,
   enableGroup: true,
   enableFooter: true,
   enableFooterCustom: false,
