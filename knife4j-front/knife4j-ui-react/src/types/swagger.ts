@@ -187,6 +187,8 @@ export interface OperationObject {
   'x-order'?: number | string;
   /** Knife4j extension emitted from @ApiOperationSupport.author/authors. */
   'x-author'?: string;
+  /** Knife4j extension mapping validation group name to required request body fields. */
+  'x-validation-groups'?: Record<string, string[]>;
 }
 
 export interface PathItemObject {
