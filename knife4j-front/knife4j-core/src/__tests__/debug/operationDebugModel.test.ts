@@ -569,6 +569,38 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.bodyContents[2].category).toBe('raw');
   });
 
+  test('keeps application/graphql requestBody as raw text', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/graphql': {
+          post: {
+            requestBody: {
+              content: {
+                'application/graphql': {
+                  schema: { type: 'string' },
+                  example: 'query { hello }',
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/graphql',
+      method: 'post',
+    });
+
+    expect(model.bodyContents[0].mediaType).toBe('application/graphql');
+    expect(model.bodyContents[0].category).toBe('raw');
+    expect(model.bodyContents[0].exampleValue).toBe('query { hello }');
+  });
+
   test('returns empty model for non-existent path', () => {
     const model = buildOperationDebugModel({
       doc: oas3Doc as any,

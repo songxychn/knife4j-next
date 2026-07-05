@@ -212,6 +212,7 @@ const RAW_MODES = [
   { value: 'javascript', label: 'JavaScript(application/javascript)' },
   { value: 'xml', label: 'XML(application/xml)' },
   { value: 'html', label: 'HTML(text/html)' },
+  { value: 'graphql', label: 'GraphQL(application/graphql)' },
 ] as const satisfies ReadonlyArray<{ value: DebugCacheRawMode; label: string }>;
 
 type RawMode = DebugCacheRawMode;
@@ -223,6 +224,7 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
   javascript: 'application/javascript',
   xml: 'application/xml',
   html: 'text/html',
+  graphql: 'application/graphql',
 };
 
 const HTML_VOID_TAGS = new Set([
@@ -1141,12 +1143,13 @@ const RAW_MODE_LANGUAGE: Record<RawMode, CodeEditorLanguage> = {
   text: 'text',
   javascript: 'text',
   html: 'text',
+  graphql: 'text',
 };
 
 function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditorProps) {
   const { t } = useTranslation();
   const useCodeEditor = rawMode === 'json' || rawMode === 'xml';
-  const canBeautify = rawMode !== 'text';
+  const canBeautify = rawMode !== 'text' && rawMode !== 'graphql';
 
   return (
     <div>
@@ -1401,6 +1404,7 @@ function inferRawMode(bodyContent: BodyContent | undefined): RawMode {
   if (mediaType.includes('xml')) return 'xml';
   if (mediaType.includes('html')) return 'html';
   if (mediaType.includes('javascript')) return 'javascript';
+  if (mediaType.includes('graphql')) return 'graphql';
   return 'text';
 }
 

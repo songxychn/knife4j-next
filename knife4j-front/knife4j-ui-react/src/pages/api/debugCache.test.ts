@@ -63,6 +63,21 @@ describe('debugCache', () => {
     expect(readDebugCache(cacheKey, storage)).toEqual(state);
   });
 
+  it('round-trips GraphQL raw mode', () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'default|GraphQL|POST|/graphql';
+    const state = {
+      ...makeState(),
+      selectedContentType: 'application/graphql',
+      body: 'query { hello }',
+      rawMode: 'graphql',
+    } satisfies DebugCacheState;
+
+    writeDebugCache(cacheKey, state, storage);
+
+    expect(readDebugCache(cacheKey, storage)).toEqual(state);
+  });
+
   it('normalizes malformed cache payloads before restoring them', () => {
     const storage = new MemoryStorage();
     const cacheKey = 'default|demo';

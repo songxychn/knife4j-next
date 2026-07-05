@@ -2,7 +2,7 @@ export const DEBUG_CACHE_VERSION = 1;
 
 const STORAGE_PREFIX = 'knife4j-next:debug-cache:';
 
-export type DebugCacheRawMode = 'text' | 'json' | 'javascript' | 'xml' | 'html';
+export type DebugCacheRawMode = 'text' | 'json' | 'javascript' | 'xml' | 'html' | 'graphql';
 
 export interface DebugCacheCustomParamRow {
   id: string;
@@ -32,7 +32,7 @@ export interface DebugCacheStorage {
   removeItem(key: string): void;
 }
 
-const RAW_MODES = new Set<DebugCacheRawMode>(['text', 'json', 'javascript', 'xml', 'html']);
+const RAW_MODES = new Set<DebugCacheRawMode>(['text', 'json', 'javascript', 'xml', 'html', 'graphql']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
