@@ -352,6 +352,8 @@ const AppInner: React.FC = () => {
     closable: item.key !== HOME_KEY,
     children: item.key === activeKey ? <Outlet /> : item.children,
   }));
+  const rawHeaderTitle = swaggerDoc?.info?.title?.trim();
+  const headerTitle = rawHeaderTitle && rawHeaderTitle !== 'API Docs' ? rawHeaderTitle : t('app.header.title');
   const footerContent = resolveFooterContent(settings, t('app.footer'));
 
   return (
@@ -426,7 +428,7 @@ const AppInner: React.FC = () => {
             onClick={() => setCollapsed(!collapsed)}
             style={{ fontSize: 16, width: 64, height: 64 }}
           />
-          {t('app.header.title')}
+          {headerTitle}
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
             <Dropdown
               menu={{
