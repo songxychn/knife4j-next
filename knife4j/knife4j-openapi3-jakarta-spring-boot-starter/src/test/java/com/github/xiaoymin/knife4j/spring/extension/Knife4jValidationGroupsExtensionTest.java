@@ -22,6 +22,7 @@ import com.github.xiaoymin.knife4j.core.conf.ExtensionsConstants;
 import io.swagger.v3.oas.models.Operation;
 import org.junit.Assert;
 import org.junit.Test;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.HandlerMethod;
@@ -88,6 +89,9 @@ public class Knife4jValidationGroupsExtensionTest {
         public void update(@RequestBody UserFormRequest req) {
         }
 
+        public void createByValidated(@RequestBody @Validated(Create.class) UserFormRequest req) {
+        }
+
         @ApiOperationSupport(order = 3)
         public void noGroups(@RequestBody UserFormRequest req) {
         }
@@ -138,6 +142,20 @@ public class Knife4jValidationGroupsExtensionTest {
         Assert.assertTrue(groups.get("Update").contains("id"));
         Assert.assertTrue(groups.get("Update").contains("name"));
         Assert.assertFalse(groups.get("Update").contains("email"));
+    }
+
+    @Test
+    public void validatedRequestBodyProducesGroupExtensionWithoutApiOperationSupport() throws Exception {
+        Operation op = new Operation().operationId("createByValidated");
+        customizer().customize(op, handlerMethod("createByValidated"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, List<String>> groups =
+                (Map<String, List<String>>) op.getExtensions().get(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS);
+        Assert.assertNotNull(groups);
+        Assert.assertTrue(groups.get("Create").contains("name"));
+        Assert.assertTrue(groups.get("Create").contains("email"));
+        Assert.assertFalse(groups.get("Create").contains("id"));
     }
 
     @Test

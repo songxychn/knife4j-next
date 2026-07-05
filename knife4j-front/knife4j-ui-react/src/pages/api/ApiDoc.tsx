@@ -19,6 +19,7 @@ import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/Schema
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
+import { applyValidationGroupRequiredFields } from './validationGroups';
 
 const { Title, Text } = Typography;
 
@@ -351,7 +352,9 @@ export default function ApiDoc() {
     };
   });
   const bodySchema = firstRequestSchema(op.requestBody, op.parameters);
-  const bodyFields = bodySchema ? filterFieldNodes(schemaToFieldNodes(bodySchema, swaggerDoc), 'request') : [];
+  const bodyFields = bodySchema
+    ? filterFieldNodes(applyValidationGroupRequiredFields(schemaToFieldNodes(bodySchema, swaggerDoc), op), 'request')
+    : [];
   const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
     key: statusCode,
     statusCode,
