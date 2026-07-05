@@ -192,9 +192,17 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ? parseMenuTags(swaggerDoc, {
             tagsSorter: effectiveTagsSorter,
             operationsSorter: effectiveOperationsSorter,
+            filterMultipartApis: settings.enableFilterMultipartApis,
+            filterMultipartApiMethodType: settings.enableFilterMultipartApiMethodType,
           })
         : [],
-    [swaggerDoc, effectiveTagsSorter, effectiveOperationsSorter],
+    [
+      swaggerDoc,
+      effectiveTagsSorter,
+      effectiveOperationsSorter,
+      settings.enableFilterMultipartApis,
+      settings.enableFilterMultipartApiMethodType,
+    ],
   );
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 

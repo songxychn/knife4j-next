@@ -39,9 +39,9 @@ export interface AppSettings {
   enableRequestCache: boolean;
   /** Whether dynamic parameters are enabled. Reserved until dynamic parameter behavior is wired. */
   enableDynamicParameter: boolean;
-  /** Whether multipart/RequestMapping APIs are filtered. Reserved until filtering behavior is wired. */
+  /** Whether same-path multi-method RequestMapping APIs are collapsed to one configured method. */
   enableFilterMultipartApis: boolean;
-  /** Filtered method type for multipart/RequestMapping APIs. */
+  /** Preferred HTTP method kept when same-path multi-method APIs are filtered. */
   enableFilterMultipartApiMethodType: string;
   /** tag sorting override (default 'auto': follow springdoc.swagger-ui.tags-sorter). */
   tagsSorter: TagsSorterOverride;

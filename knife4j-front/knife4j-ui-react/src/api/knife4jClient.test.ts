@@ -237,6 +237,78 @@ describe('knife4jClient', () => {
     expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['listUsers', 'createUser']);
   });
 
+  it('filters same-path multi-method operations to the configured method', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [{ name: 'files' }],
+      paths: {
+        '/files/upload': {
+          get: {
+            tags: ['files'],
+            summary: 'Read upload endpoint',
+            operationId: 'readUpload',
+          },
+          post: {
+            tags: ['files'],
+            summary: 'Upload file',
+            operationId: 'uploadFile',
+          },
+          put: {
+            tags: ['files'],
+            summary: 'Replace upload',
+            operationId: 'replaceUpload',
+          },
+        },
+        '/files/status': {
+          get: {
+            tags: ['files'],
+            summary: 'Upload status',
+            operationId: 'uploadStatus',
+          },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc, {
+      filterMultipartApis: true,
+      filterMultipartApiMethodType: 'POST',
+    });
+
+    expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['uploadFile', 'uploadStatus']);
+    expect(menuTags[0].operations.map((operation) => operation.method)).toEqual(['post', 'get']);
+  });
+
+  it('falls back to the first same-path operation when the configured filter method is absent', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [{ name: 'files' }],
+      paths: {
+        '/files/upload': {
+          get: {
+            tags: ['files'],
+            summary: 'Read upload endpoint',
+            operationId: 'readUpload',
+          },
+          put: {
+            tags: ['files'],
+            summary: 'Replace upload',
+            operationId: 'replaceUpload',
+          },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc, {
+      filterMultipartApis: true,
+      filterMultipartApiMethodType: 'POST',
+    });
+
+    expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['readUpload']);
+    expect(menuTags[0].operations.map((operation) => operation.method)).toEqual(['get']);
+  });
+
   it('falls back to configured sorters when Knife4j x-order is absent', () => {
     const doc: SwaggerDoc = {
       openapi: '3.0.1',
