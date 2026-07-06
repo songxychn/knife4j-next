@@ -180,4 +180,4 @@ curl -I http://localhost:8080/doc.html   # 403 即正确
 - **找不到 `com.baizhukui` 坐标**：刷新 Maven 中央仓库镜像；企业私服需要手动同步（Central 已发布）。
 - **doc.html 404**：见 [FAQ / SpringBoot 访问 doc.html 404](./faq#doc-html-404)。
 - **`enable-version` / `enable-debug` 等开关对新前端无效**：见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
-- **Gateway context-path 下聚合出错**：升级到 `5.0.14` 即可包含该修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
+- **Gateway context-path 下聚合出错**：升级到 `5.0.0` 或更高版本即可包含该修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
