@@ -12,7 +12,25 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.13 <Badge type="tip" text="最新" />
+### 5.0.14 <Badge type="tip" text="最新" />
+
+`5.0.14` 是基于 `5.0.13` 的补丁版本，重点补强 React UI 在 Gateway 聚合、调试器、配置开关和请求体校验分组上的体验，并把 OpenAPI3 demo 升级到 Boot4。
+
+**前端（React UI）**
+
+- 修复 Gateway 聚合场景下调试 Base URL 未优先带上分组 `contextPath` 的问题；调试地址候选会先提供网关上下文地址，再回退到 operation、path 和文档级 `servers`（PR #476）。
+- 稳定调试页枚举参数清空后的表格布局，避免清空按钮和输入区挤压错位（PR #498）。
+- 调试响应面板补充 SSE 事件时间展示，并在 OpenAPI3 demo 中新增流式响应示例，便于验证事件流调试体验（PR #501）。
+- 接入 `enableFilterMultipartApis`、`enableFilterMultipartApiMethodType` 与 `enableDocumentManage` 等后端注入设置，React UI 会按服务端配置过滤多方法接口并展示文档管理开关默认值（PR #502、#503）。
+- 顶栏标题优先使用当前 OpenAPI 文档标题，避免固定品牌文案遮住实际文档身份（PR #506）。
+- 请求体字段必填标记支持按 `x-validation-groups` 校验分组结果展示，并补充后端扩展字段输出测试（PR #507）。
+
+**后端 & 文档**
+
+- `knife4j-demo-openapi3` 升级到 Spring Boot 4，文档中的 demo 说明同步更新为 Boot4 + React UI 示例（PR #508）。
+- GitHub Actions 升级到 Node 24 运行时，issue 表单改为结构化模板，降低后续发布和任务收集噪音（PR #495、#500）。
+
+### 5.0.13
 
 `5.0.13` 是基于 `5.0.12` 的补丁版本，重点修复 React UI 在请求示例、调试默认值、自定义 Footer 与多行描述展示上的细节问题，并修正 `@ApiSupport` 全局扫描包排序。
 
@@ -314,7 +332,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.13</version>
+    <version>5.0.14</version>
 </dependency>
 ```
 
