@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.13</version>
+    <version>5.0.14</version>
 </dependency>
 ```
 
@@ -72,13 +72,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.13 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.14 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧪 调试页默认请求数据优先使用 OpenAPI 示例值，显式空字符串、`false`、`0` 不再被覆盖
-- 📝 接口、模型、参数和首页说明支持描述文本换行展示
-- 🎛️ 自定义 Footer 配置优先级与服务端注入设置保持一致
-- 🧭 `@ApiSupport` 全局扫描包排序在 OpenAPI3 / Boot4 场景下保持稳定
-- 🧩 继续包含 Boot4 WebMVC 与 Boot4 Gateway starter，覆盖 Spring Boot 4.x 入口
+- 🧭 Gateway 聚合调试地址会优先带上分组 `contextPath`，避免请求打到错误根路径
+- 📡 调试响应面板补充 SSE 事件时间展示，OpenAPI3 demo 增加流式响应示例
+- 🎛️ React UI 接入多方法接口过滤和文档管理等后端注入设置
+- ✅ 请求体字段必填状态支持按校验分组展示
+- 🧩 `knife4j-demo-openapi3` 升级到 Spring Boot 4 + React UI 示例
 
 完整更新列表见 [发布说明](/release-notes/)。
 
