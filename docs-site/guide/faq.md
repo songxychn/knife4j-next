@@ -142,7 +142,7 @@ knife4j:
 
 ### 有安全修复吗
 
-本 fork 修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议升级到 `5.0.14`**。
+本 fork 从 `5.0.0` 起修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议至少升级到 `5.0.0` 或更高版本**。
 
 ### CSP（Content-Security-Policy）限制导致 UI 白屏
 
@@ -211,7 +211,7 @@ springdoc:
 
 OpenAPI3 starter 下，前端会请求 `/v3/api-docs/swagger-config`。如果 404，通常是：
 
-1. **未引入 `springdoc-openapi-*-ui` 依赖**——应由 starter 自动带入。如果你用的是本 fork `5.0.14`，starter 已包含该依赖，无需手动添加。如果你用的是 upstream `4.0.0`，需要手动加 `springdoc-openapi-ui`（已在 `4.1.0` 修复）。
+1. **未引入 `springdoc-openapi-*-ui` 依赖**——应由 starter 自动带入。如果你用的是本 fork `5.0.0` 或更高版本，starter 已包含该依赖，无需手动添加。如果你用的是 upstream `4.0.0`，需要手动加 `springdoc-openapi-ui`（已在 `4.1.0` 修复）。
 2. **网关层把 `/v3/api-docs/**` 拦截了**。
 3. **应用启动失败**，接口还未注册。
 
@@ -239,7 +239,7 @@ public class CommonWebMvcConfig implements WebMvcConfigurer {
 }
 ```
 
-使用最新版本（`5.0.14`）且未自定义 MessageConverter 时不会遇到此问题。
+使用本 fork `5.0.0` 或更高版本且未自定义 MessageConverter 时不会遇到此问题。
 
 ### `@ParameterObject` 展开的参数在 UI 上是扁平列表
 
@@ -292,7 +292,7 @@ public UserVO getById(
 
 如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.14`。
+修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.0` 或更高版本。
 
 ## 全局响应封装导致文档异常
 
@@ -398,7 +398,7 @@ public void upload(@RequestPart("file") MultipartFile file) { ... }
 
 upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-**修复**：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.14`。
+**修复**：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.0` 或更高版本。
 
 ### `Servlet` 相关的 ClassNotFoundException（WebFlux 环境）
 
