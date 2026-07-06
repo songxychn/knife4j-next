@@ -1,7 +1,7 @@
 {
   "name": "knife4j-core",
   "version": "5.0.0-snapshot",
-  "description": "Base Adapter core library parse Swagger2/OpenAPI3/AsyncAPI etc.",
+  "description": "Core utilities for the Knife4j OpenAPI UI.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "repository": {
@@ -22,10 +22,7 @@
   },
   "keywords": [
     "knife4j",
-    "OpenAPI3",
-    "Swagger2",
-    "AsyncAPI",
-    "Postman"
+    "OpenAPI3"
   ],
   "files": [
     "lib/**/*"

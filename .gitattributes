@@ -165,7 +165,6 @@ knife4j-doc/** linguist-documentation
 docs-site/     export-ignore
 knife4j-doc/   export-ignore
 scripts/       export-ignore
-backup/        export-ignore
 static/        export-ignore
 
 .editorconfig   export-ignore
@@ -173,4 +172,3 @@ static/        export-ignore
 .gitignore      export-ignore
 .nvmrc          export-ignore
 AGENTS.md       export-ignore
-
