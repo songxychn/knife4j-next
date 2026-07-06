@@ -55,6 +55,7 @@ title: 模块说明
 | `knife4j-gateway-boot4-spring-boot-starter` | 4.x | Spring Cloud Gateway 5 聚合 |
 | `knife4j-aggregation-spring-boot-starter` | 2.x | 独立聚合（Disk/Cloud/Nacos/Eureka/Polaris） |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | 3.x | 独立聚合（Jakarta 版） |
+| `knife4j-aggregation-boot4-spring-boot-starter` | 4.x | 独立聚合（springdoc-openapi 3.x） |
 
 ### 其他
 
@@ -62,7 +63,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 4.0.6 + Boot4 starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
-| `knife4j-smoke-tests` | 自动化冒烟测试（7 个子模块覆盖 Boot 2.x OAS2/OAS3、Boot 3.4.x/3.5.x Jakarta、Boot 4.x WebMVC 与 Boot 4.x Gateway） |
+| `knife4j-smoke-tests` | 自动化冒烟测试（13 个子模块覆盖 Boot 2.x OAS2/OAS3/WebFlux/独立聚合、Boot 3.x Jakarta/Gateway/WebFlux/独立聚合、Boot 4.x WebMVC/Gateway/独立聚合） |
 
 ## 选型决策树
 
@@ -92,8 +93,10 @@ title: 模块说明
 └── 非网关的微服务聚合
     ├── Boot 2.x
     │   └── knife4j-aggregation-spring-boot-starter
-    └── Boot 3.x
-        └── knife4j-aggregation-jakarta-spring-boot-starter
+    ├── Boot 3.x
+    │   └── knife4j-aggregation-jakarta-spring-boot-starter
+    └── Boot 4.x
+        └── knife4j-aggregation-boot4-spring-boot-starter
 ```
 
 ## 前端工作区（`knife4j-front/` 下）

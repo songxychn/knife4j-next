@@ -64,7 +64,7 @@ title: 版本对照
 | Swagger v3 models | `2.2.47` |
 | Servlet Jakarta API | `6.1.0` |
 
-> smoke-tests 中 `boot4-jakarta-app` 与 `boot4-gateway-app` 使用 Boot `4.0.6`，通过验证。
+> smoke-tests 中 `boot4-jakarta-app`、`boot4-gateway-app` 与 `boot4-aggregation-app` 使用 Boot `4.0.6`，通过验证。
 
 ### 其他共享依赖
 
