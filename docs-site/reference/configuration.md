@@ -199,7 +199,7 @@ knife4j:
 
 ## 聚合 Starter 配置
 
-适用于 `knife4j-aggregation-spring-boot-starter` 和 `knife4j-aggregation-jakarta-spring-boot-starter`。
+适用于 `knife4j-aggregation-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter` 和 `knife4j-aggregation-boot4-spring-boot-starter`。
 
 ### `knife4j.enableAggregation`
 

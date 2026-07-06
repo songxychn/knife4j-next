@@ -37,6 +37,7 @@
 | Spring Boot 4.x / Jakarta | `knife4j-openapi3-boot4-spring-boot-starter` |
 | Spring Cloud Gateway | `knife4j-gateway-spring-boot-starter` |
 | Spring Cloud Gateway / Spring Boot 4.x | `knife4j-gateway-boot4-spring-boot-starter` |
+| Spring Boot 4.x / 独立聚合 | `knife4j-aggregation-boot4-spring-boot-starter` |
 
 ### Maven 依赖
 
@@ -75,7 +76,7 @@ http://ip:port/doc.html
 | 模块 | 说明 |
 |---|---|
 | `knife4j` | Java 主工程，包含 starter、UI webjar、聚合组件、Gateway starter、WebFlux starter 与依赖管理 |
-| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.4/3.5 Jakarta、Boot 4.x WebMVC 与 Boot 4.x Gateway 等组合 |
+| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.4/3.5 Jakarta、Boot 4.x WebMVC、Boot 4.x Gateway 与 Boot 4.x 独立聚合等组合 |
 | `docs-site` | 当前文档站，基于 VitePress 构建 |
 | `knife4j-front` | React 前端工作区，活跃子模块为 `knife4j-core` 和 `knife4j-ui-react` |
 | `knife4j-vue3` | OAS2 兼容维护 UI，打包进 `knife4j-openapi2-ui` webjar |

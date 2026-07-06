@@ -128,6 +128,12 @@
 
             <dependency>
                 <groupId>com.baizhukui</groupId>
+                <artifactId>knife4j-aggregation-boot4-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>

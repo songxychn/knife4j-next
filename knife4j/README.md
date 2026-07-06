@@ -36,6 +36,7 @@
 | `knife4j-gateway-boot4-spring-boot-starter` | Spring Boot 4.x / Spring Cloud Gateway 5 聚合 |
 | `knife4j-aggregation-spring-boot-starter` | Spring Boot 2.x 独立聚合 |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | Spring Boot 3.x 独立聚合 |
+| `knife4j-aggregation-boot4-spring-boot-starter` | Spring Boot 4.x 独立聚合 |
 | `knife4j-demo-openapi2` | OpenAPI2 demo |
 | `knife4j-demo-openapi3` | OpenAPI3 demo |
 | `knife4j-smoke-tests` | 兼容性 smoke 测试集合 |
@@ -60,6 +61,16 @@ Spring Boot 4.x 的 Spring Cloud Gateway 5 聚合场景使用独立 gateway star
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
+    <version>5.0.14</version>
+</dependency>
+```
+
+Spring Boot 4.x 的独立聚合服务使用独立 aggregation starter：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-aggregation-boot4-spring-boot-starter</artifactId>
     <version>5.0.14</version>
 </dependency>
 ```

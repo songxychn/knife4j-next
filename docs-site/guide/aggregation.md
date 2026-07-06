@@ -4,7 +4,7 @@ title: Aggregation 聚合
 
 # Aggregation 聚合（knife4j-aggregation-*-starter）
 
-`knife4j-aggregation-spring-boot-starter`（Boot 2 / javax）和 `knife4j-aggregation-jakarta-spring-boot-starter`（Boot 3 / jakarta）提供**独立的聚合应用**方案：
+`knife4j-aggregation-spring-boot-starter`（Boot 2 / javax）、`knife4j-aggregation-jakarta-spring-boot-starter`（Boot 3 / jakarta）和 `knife4j-aggregation-boot4-spring-boot-starter`（Boot 4 / springdoc 3.x）提供**独立的聚合应用**方案：
 
 - 启动一个**专门用来聚合的 Servlet 应用**，读取若干下游服务的 OpenAPI 文档，合并成一套 `doc.html`。
 - 支持 **5 种数据源**：本地文件（Disk）、HTTP 直连（Cloud）、Nacos、Eureka、腾讯北极星（Polaris）。
@@ -34,6 +34,21 @@ Spring Boot 3（Jakarta）：
 ```
 
 Spring Boot 2（javax）换成 `knife4j-aggregation-spring-boot-starter`。
+
+Spring Boot 4 换成 `knife4j-aggregation-boot4-spring-boot-starter`：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-aggregation-boot4-spring-boot-starter</artifactId>
+    <version>5.0.14</version>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+```
 
 聚合服务 `Application` 类：
 
@@ -266,4 +281,3 @@ curl http://localhost:8080/swagger-resources
 - [Gateway 聚合](./gateway)：另一种形态。
 - [配置参考 / knife4j aggregation](../reference/configuration#aggregation)：全部 YAML 选项。
 - [模块说明](../reference/modules)：`knife4j-aggregation-*-starter` 在仓库里的位置。
-
