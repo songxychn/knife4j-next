@@ -93,8 +93,6 @@ http://ip:port/doc.html
 | 历史 Vue 2 UI | `knife4j-vue` | 无新增维护目标 | 仅作为 upstream 行为参考留存 |
 | 文档站 | `docs-site/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 
-`knife4j-front` 下的 `knife4j-cli`、`knife4j-extension` 及浏览器扩展目前仅有占位，暂未启动开发。
-
 ## 本地开发
 
 ### Java Demo
@@ -184,4 +182,3 @@ bun run dev
 
 - 本仓库当前仍可能保留部分历史文档、图片、站点配置和旧链接，后续会逐步替换为 fork 自己的叙事与入口。
 - 如果你正在从 upstream 迁移，短期内最重要的变化是 Maven `groupId` 已切换为 `com.baizhukui`；详见 [迁移指南](./knife4j/MIGRATION.md)。
-- `knife4j-front` 下的 `knife4j-cli`、`knife4j-extension` 及各浏览器扩展子目录目前仅有占位 README，尚未开始实际开发。

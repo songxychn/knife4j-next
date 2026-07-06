@@ -1,8 +1,6 @@
 import { SpecType } from './SpecType';
 import { ISpecParser } from './knife4j/ISpecParser';
 import { OpenAPIParser } from './openapi3/parse';
-import { SwaggerParser } from './swagger2/parse';
-import { AsyncAPIParser } from './asyncapi/parse';
 
 /**
  * 工厂类
@@ -14,9 +12,7 @@ export class SpecParserFactory {
   private parsers: Map<SpecType, ISpecParser> = new Map();
 
   constructor() {
-    this.registerParser(SpecType.Swagger, new SwaggerParser());
     this.registerParser(SpecType.OpenAPI, new OpenAPIParser());
-    this.registerParser(SpecType.AsyncAPI, new AsyncAPIParser());
   }
 
   /**
