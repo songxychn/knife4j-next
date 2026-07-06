@@ -20,6 +20,8 @@ import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
 import { applyValidationGroupRequiredFields } from './validationGroups';
+import { useSettings } from '../../context/SettingsContext';
+import { responseExamplesForDisplay, responseRowsForDisplay } from './responseCodeDisplay';
 
 const { Title, Text } = Typography;
 
@@ -242,6 +244,7 @@ const METHOD_COLOR: Record<string, string> = {
 export default function ApiDoc() {
   const { t } = useTranslation();
   const { loading, swaggerDoc, operation } = useCurrentOperation();
+  const { settings } = useSettings();
 
   if (loading) {
     return (
@@ -375,6 +378,8 @@ export default function ApiDoc() {
 
   const requestExample = buildRequestBodyExample(op.requestBody, bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
+  const visibleResponses = responseRowsForDisplay(responses, settings.enableResponseCode);
+  const visibleRespExamples = responseExamplesForDisplay(respExamples, settings.enableResponseCode);
   const authors = operationAuthors(op);
 
   return (
@@ -519,10 +524,10 @@ export default function ApiDoc() {
             label: t('apiDoc.tab.schema'),
             children: (
               <div>
-                {responses.length === 0 ? (
+                {visibleResponses.length === 0 ? (
                   <SchemaFieldTable fields={[]} emptyText={t('apiDoc.noResponse')} />
                 ) : (
-                  responses.map((row) => {
+                  visibleResponses.map((row) => {
                     const color = row.statusCode.startsWith('2')
                       ? 'success'
                       : row.statusCode.startsWith('4')
@@ -534,7 +539,7 @@ export default function ApiDoc() {
                     return (
                       <div key={row.key} style={{ marginBottom: 16 }}>
                         <Space size={8} style={{ marginBottom: 6 }}>
-                          <Tag color={color}>{row.statusCode}</Tag>
+                          {settings.enableResponseCode && <Tag color={color}>{row.statusCode}</Tag>}
                           {row.description && (
                             <DescriptionText type="secondary" style={{ fontSize: 13 }}>
                               {row.description}
@@ -550,9 +555,11 @@ export default function ApiDoc() {
               </div>
             ),
           },
-          ...respExamples.map(({ statusCode, example }) => ({
+          ...visibleRespExamples.map(({ statusCode, example }) => ({
             key: `resp-${statusCode}`,
-            label: `${t('apiDoc.tab.responseExample')} ${statusCode}`,
+            label: settings.enableResponseCode
+              ? `${t('apiDoc.tab.responseExample')} ${statusCode}`
+              : t('apiDoc.tab.responseExample'),
             children: (
               <CodeBlock
                 code={example}

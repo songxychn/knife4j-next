@@ -89,7 +89,7 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.enableHomeCustom` | `boolean` | `false` | 启用首页自定义 | ✅ |
 | `knife4j.setting.homeCustomLocation` | `String` | — | 首页自定义 Markdown 内容（通常由后端根据 `homeCustomPath` 读取后注入） | ✅ |
 | `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ✅ |
-| `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态码栏 | ⚠️ |
+| `knife4j.setting.enableResponseCode` | `boolean` | openapi2: `true` / openapi3: `false` | 显示响应状态码栏；React 默认隐藏，设为 `true` 时按 HTTP 状态码分组展示响应结构 | ✅ |
 | `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义 HTTP 状态码 | ✅ |
 
 > React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的配置仍会由后端写入 extension，但 React 暂不消费。详见 [FAQ](../guide/faq#react-setting-not-effective)。

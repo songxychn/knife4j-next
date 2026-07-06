@@ -111,6 +111,9 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableRequestCache = readBoolean(setting, 'enableRequestCache');
   if (enableRequestCache !== undefined) next.enableRequestCache = enableRequestCache;
 
+  const enableResponseCode = readBoolean(setting, 'enableResponseCode');
+  if (enableResponseCode !== undefined) next.enableResponseCode = enableResponseCode;
+
   const enableFilterMultipartApis = readBoolean(setting, 'enableFilterMultipartApis');
   if (enableFilterMultipartApis !== undefined) next.enableFilterMultipartApis = enableFilterMultipartApis;
 

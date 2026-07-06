@@ -342,6 +342,7 @@ const jaJP = {
   'settings.enableRequestCache':
     'リクエストパラメータのキャッシュを有効化（デバッグ画面で前回入力したパラメータ値を自動保存）',
   'settings.enableDynamicParameter': '動的パラメータを有効化（デバッグ時にリクエストパラメータへ動的に値を注入）',
+  'settings.enableResponseCode': 'レスポンスのステータスコード欄を表示',
   'settings.enableFilterMultipartApis':
     'API タイプをフィルタ（タイプ未指定の RequestMapping について、指定したタイプのみ表示）',
   'settings.filterMethodType': '保持するメソッドタイプ',

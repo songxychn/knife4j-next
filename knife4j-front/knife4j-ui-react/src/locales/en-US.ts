@@ -335,6 +335,7 @@ const enUS = {
   'settings.tip': 'After enabling personalized settings, API tabs need to be closed and reopened or refresh the page',
   'settings.enableRequestCache': 'Enable request parameter cache (Debug panel auto-caches last filled values)',
   'settings.enableDynamicParameter': 'Enable dynamic parameters (Support dynamic injection in debug mode)',
+  'settings.enableResponseCode': 'Show response status-code section',
   'settings.enableFilterMultipartApis':
     'Filter API types (For RequestMapping without specified type, show only selected type)',
   'settings.filterMethodType': 'Filter method type',

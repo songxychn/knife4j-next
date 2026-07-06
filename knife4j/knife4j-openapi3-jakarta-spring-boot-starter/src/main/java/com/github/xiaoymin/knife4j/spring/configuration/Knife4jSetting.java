@@ -150,6 +150,6 @@ public class Knife4jSetting {
      * https://gitee.com/xiaoym/knife4j/issues/I3TE0V
      * @since v4.0.0
      */
-    private boolean enableResponseCode = true;
+    private boolean enableResponseCode = false;
 
 }

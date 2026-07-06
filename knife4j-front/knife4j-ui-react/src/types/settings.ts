@@ -41,6 +41,8 @@ export interface AppSettings {
   enableRequestCache: boolean;
   /** Whether dynamic parameters are enabled. Reserved until dynamic parameter behavior is wired. */
   enableDynamicParameter: boolean;
+  /** Whether response schemas are grouped by HTTP status code. */
+  enableResponseCode: boolean;
   /** Whether same-path multi-method RequestMapping APIs are collapsed to one configured method. */
   enableFilterMultipartApis: boolean;
   /** Preferred HTTP method kept when same-path multi-method APIs are filtered. */
@@ -73,6 +75,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableHostText: '',
   enableRequestCache: true,
   enableDynamicParameter: false,
+  enableResponseCode: false,
   enableFilterMultipartApis: false,
   enableFilterMultipartApiMethodType: 'POST',
   tagsSorter: 'auto',
