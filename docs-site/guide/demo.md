@@ -10,7 +10,7 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 | Demo | 后端 | UI 产物 | 在线地址 |
 | --- | --- | --- | --- |
-| `knife4j-demo-openapi3` | Spring Boot 3.4 + springdoc + `knife4j-openapi3-jakarta-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
+| `knife4j-demo-openapi3` | Spring Boot 4.0 + springdoc + `knife4j-openapi3-boot4-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
 | `knife4j-demo-openapi2` | Spring Boot 2.7 + springfox 2.10.5 + `knife4j-openapi2-spring-boot-starter` | Vue 3（`knife4j-openapi2-ui`） | [https://openapi2.demo.knife4jnext.com/doc.html](https://openapi2.demo.knife4jnext.com/doc.html) |
 
 两个站点都跟随 `master` 分支自动构建与刷新，建议直接打开比对，看看 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
@@ -30,10 +30,10 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
-| Spring Boot | `3.4.5` | demo `pom.xml` 显式声明 |
-| knife4j starter | `knife4j-openapi3-jakarta-spring-boot-starter` | 本仓库 `5.0.13` |
+| Spring Boot | `4.0.6` | demo `pom.xml` 通过 Boot BOM 显式声明 |
+| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.0.13` |
 | JDK | 17 | Dockerfile base image `eclipse-temurin:17-jre-alpine` |
-| springdoc-openapi-jakarta | `2.8.9` | 由 starter 管理 |
+| springdoc-openapi | `3.0.3` | 由 starter 管理 |
 
 ### 展示了什么
 
@@ -166,7 +166,7 @@ docker run --rm -p 8081:8081 \
 
 如果你想拷贝某个 demo 做自己的工程：
 
-1. 选择和你后端栈匹配的目录：`knife4j/knife4j-demo-openapi3`（OpenAPI 3 + Boot 3）或 `knife4j/knife4j-demo-openapi2`（OpenAPI 2 + Boot 2）。
+1. 选择和你后端栈匹配的目录：`knife4j/knife4j-demo-openapi3`（OpenAPI 3 + Boot 4）或 `knife4j/knife4j-demo-openapi2`（OpenAPI 2 + Boot 2）。
 2. 改 `pom.xml` 的 `groupId`/`artifactId`/`name`。
 3. 替换 package 命名空间为你的项目命名空间。
 4. 按需调整 `application.yml`（OpenAPI 3 调 `springdoc.group-configs.packages-to-scan`，OpenAPI 2 调 `Docket` 中的 `basePackage`）。
