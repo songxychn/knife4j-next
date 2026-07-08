@@ -12,7 +12,25 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.14 <Badge type="tip" text="最新" />
+### 5.0.15 <Badge type="tip" text="最新" />
+
+`5.0.15` 是基于 `5.0.14` 的补丁版本，重点补齐 Boot4 独立聚合 starter，README 默认示例切换到 Boot4 坐标，并修复 React UI 调试页数值参数输入精度保留问题。
+
+**后端 & 聚合**
+
+- 新增 `knife4j-aggregation-boot4-spring-boot-starter`，覆盖 Spring Boot 4 独立聚合场景，并补充 `boot4-aggregation-app` smoke 验证与发布模块清单（PR #513）。
+
+**前端（React UI）**
+
+- 调试页数值参数输入会保留用户输入精度，避免 `1.0` 等文本过早转换成数字后丢失格式（PR #518）。
+
+**文档 & 仓库**
+
+- README 默认 Maven 示例切换为 Boot4 starter 坐标，并简化 Boot4 示例说明（PR #517）。
+- 清理闲置历史备份文件、过时扩展占位 README，以及未启用的 Swagger2 / AsyncAPI parser 空壳，降低仓库维护噪音（PR #511）。
+- 删除过期 Gitee issue 模板、Cloudflare Pages 手工部署备忘和无引用旧截图素材，减少仓库历史遗留文件（PR #520）。
+
+### 5.0.14
 
 `5.0.14` 是基于 `5.0.13` 的补丁版本，重点补强 React UI 在 Gateway 聚合、调试器、配置开关和请求体校验分组上的体验，并把 OpenAPI3 demo 升级到 Boot4。
 
@@ -332,7 +350,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.14</version>
+    <version>5.0.15</version>
 </dependency>
 ```
 

@@ -8,7 +8,8 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
-| `5.0.14` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 当前版本，补丁修复版本 |
+| `5.0.15` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 当前版本，补丁修复版本 |
+| `5.0.14` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
 | `5.0.13` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
 | `5.0.12` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
 | `5.0.11` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
@@ -25,11 +26,11 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.0.14` 包含 Boot4 WebMVC starter 与 Boot4 Gateway starter，可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.0.14` 和 `com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.0.14`。
+> `5.0.15` 包含 Boot4 WebMVC starter、Boot4 Gateway starter 与 Boot4 独立聚合 starter，可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.0.15`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.0.15` 和 `com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.0.15`。
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.0.14` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.0.15` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -81,7 +82,8 @@ title: 版本对照
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.0.14` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5/4.0 兼容 + Boot4 Gateway 聚合 + React UI + 补丁修复 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.0.15` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5/4.0 兼容 + Boot4 Gateway/独立聚合 + React UI + 补丁修复 |
+| `4.5.0` | `5.0.14` | 补丁修复版本 |
 | `4.5.0` | `5.0.13` | 补丁修复版本 |
 | `4.5.0` | `5.0.12` | 补丁修复版本 |
 | `4.5.0` | `5.0.11` | 补丁修复版本 |
