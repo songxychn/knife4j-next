@@ -44,12 +44,12 @@
 ```xml
 <dependency>
     <groupId>com.baizhukui</groupId>
-    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
     <version>5.0.14</version>
 </dependency>
 ```
 
-如果你的使用场景不是 Spring Boot 3.x / Jakarta，将 `artifactId` 替换为上表对应的 starter。
+如果你的使用场景不是 Spring Boot 4.x，将 `artifactId` 替换为上表对应的 starter。
 
 启动应用后访问：
 
