@@ -49,7 +49,7 @@
 </dependency>
 ```
 
-如果你的使用场景不是 Spring Boot 4.x / Jakarta，将 `artifactId` 替换为上表对应的 starter。
+如果你的使用场景不是 Spring Boot 4.x，将 `artifactId` 替换为上表对应的 starter。
 
 启动应用后访问：
 
