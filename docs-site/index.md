@@ -55,7 +55,7 @@ Spring Boot 3.x（Jakarta）：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.14</version>
+    <version>5.0.15</version>
 </dependency>
 ```
 
@@ -72,13 +72,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.14 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.15 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧭 Gateway 聚合调试地址会优先带上分组 `contextPath`，避免请求打到错误根路径
-- 📡 调试响应面板补充 SSE 事件时间展示，OpenAPI3 demo 增加流式响应示例
-- 🎛️ React UI 接入多方法接口过滤和文档管理等后端注入设置
-- ✅ 请求体字段必填状态支持按校验分组展示
-- 🧩 `knife4j-demo-openapi3` 升级到 Spring Boot 4 + React UI 示例
+- 🧩 新增 Boot4 独立聚合 starter，并补充 Boot 4.0.6 独立聚合 smoke 验证
+- 📦 发布模块清单纳入 Boot4 独立聚合构件，避免后续发布漏发
+- 🧮 React UI 调试页保留数值参数输入精度，`1.0` 等文本不会被提前归一化
+- 📚 README 默认 Maven 示例切换为 Boot4 starter 坐标
+- 🧹 清理闲置历史备份文件与未启用解析器空壳，降低仓库维护噪音
 
 完整更新列表见 [发布说明](/release-notes/)。
 

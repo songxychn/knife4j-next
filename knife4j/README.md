@@ -12,7 +12,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.14</version>
+    <version>5.0.15</version>
 </dependency>
 ```
 
@@ -49,7 +49,7 @@ Spring Boot 4.x 使用独立 starter，避免把现有 Spring Boot 3.x + springd
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.14</version>
+    <version>5.0.15</version>
 </dependency>
 ```
 
@@ -61,7 +61,7 @@ Spring Boot 4.x 的 Spring Cloud Gateway 5 聚合场景使用独立 gateway star
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
-    <version>5.0.14</version>
+    <version>5.0.15</version>
 </dependency>
 ```
 
@@ -71,7 +71,7 @@ Spring Boot 4.x 的独立聚合服务使用独立 aggregation starter：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-aggregation-boot4-spring-boot-starter</artifactId>
-    <version>5.0.14</version>
+    <version>5.0.15</version>
 </dependency>
 ```
 
