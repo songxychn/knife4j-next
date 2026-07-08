@@ -591,18 +591,17 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
     );
   }
 
-  // integer / number → InputNumber
+  // integer / number → Input; snowflake IDs can exceed JS safe integer precision.
   if (param.type === 'integer' || param.type === 'number') {
-    const numValue = value === '' ? undefined : Number(value);
     return (
-      <InputNumber
+      <Input
         size="small"
         status={status}
-        value={Number.isFinite(numValue) ? numValue : undefined}
-        onChange={(next) => onChange(next === null || next === undefined ? '' : String(next))}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={param.required ? t('apiDebug.inputNumber.required') : param.description}
+        inputMode={param.type === 'integer' ? 'numeric' : 'decimal'}
         style={{ width: '100%' }}
-        step={param.type === 'integer' ? 1 : undefined}
       />
     );
   }
