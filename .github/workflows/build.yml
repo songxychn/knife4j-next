@@ -7,13 +7,13 @@ on:
   pull_request:
     paths:
       - "knife4j/**"
-      - "knife4j-front/knife4j-core/**"
-      - "knife4j-front/knife4j-ui-react/**"
-      - "knife4j-front/package.json"
-      - "knife4j-front/bun.lock"
-      - "knife4j-vue3/**"
-      - "docs-site/**"
-      - "scripts/**"
+      - "front/core/**"
+      - "front/ui-react/**"
+      - "front/package.json"
+      - "front/bun.lock"
+      - "front/vue3/**"
+      - "docs/**"
+      - "tools/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/release.yml"
       - ".java-version"
@@ -26,13 +26,13 @@ on:
       - master
     paths:
       - "knife4j/**"
-      - "knife4j-front/knife4j-core/**"
-      - "knife4j-front/knife4j-ui-react/**"
-      - "knife4j-front/package.json"
-      - "knife4j-front/bun.lock"
-      - "knife4j-vue3/**"
-      - "docs-site/**"
-      - "scripts/**"
+      - "front/core/**"
+      - "front/ui-react/**"
+      - "front/package.json"
+      - "front/bun.lock"
+      - "front/vue3/**"
+      - "docs/**"
+      - "tools/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/release.yml"
       - ".java-version"
@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Verify release module list
-        run: scripts/verify-release-modules.sh
+        run: tools/verify-release-modules.sh
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -69,19 +69,19 @@ jobs:
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install knife4j-front workspace dependencies
+      - name: Install front workspace dependencies
         run: bun install --frozen-lockfile
-        working-directory: knife4j-front
+        working-directory: front
 
-      - name: Install knife4j-vue3 dependencies (bun)
+      - name: Install front/vue3 dependencies (bun)
         run: bun install --frozen-lockfile
-        working-directory: knife4j-vue3
+        working-directory: front/vue3
 
       - name: Verify Java modules
-        run: scripts/test-java.sh
+        run: tools/test-java.sh
 
       # issue #241 / #198 FU-3: make smoke-tests coverage visible in PR checks.
-      # The gate inside scripts/test-java.sh already fails the build if a smoke
+      # The gate inside tools/test-java.sh already fails the build if a smoke
       # module is missing; this step surfaces the per-module counts as a
       # dedicated summary and persists surefire reports on failure.
       - name: Smoke-tests evidence summary
@@ -139,7 +139,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Test front core
-        run: scripts/test-front-core.sh
+        run: tools/test-front-core.sh
 
   docs-build:
     runs-on: ubuntu-latest
@@ -154,4 +154,4 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Build docs site
-        run: scripts/test-docs.sh
+        run: tools/test-docs.sh

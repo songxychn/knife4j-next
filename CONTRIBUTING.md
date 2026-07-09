@@ -9,14 +9,14 @@ Thank you for your interest in contributing! This guide covers the development s
 git clone https://github.com/<your-username>/knife4j-next.git
 cd knife4j-next
 
-# 2. Install front-end dependencies (Node ≥ 22, see .nvmrc; Bun, see knife4j-front/package.json)
-cd knife4j-front && bun install --frozen-lockfile && cd ..
+# 2. Install front-end dependencies (Node ≥ 22, see .nvmrc; Bun, see front/package.json)
+cd front && bun install --frozen-lockfile && cd ..
 
 # 3. Build Java modules (JDK 17, see .java-version)
 cd knife4j && mvn -B -ntp verify && cd ..
 ```
 
-On a first clone, run `bun install` in `knife4j-front/`; the root `prepare` script installs Lefthook automatically so staged front-end files are formatted before commit.
+On a first clone, run `bun install` in `front/`; the root `prepare` script installs Lefthook automatically so staged front-end files are formatted before commit.
 
 ## Front-End Layout
 
@@ -24,25 +24,25 @@ There are two independent front-end product lines. Work in the one that matches 
 
 | Source | Package manager | Build output (webjar) | Downstream starter | OpenAPI |
 |---|---|---|---|---|
-| `knife4j-front/knife4j-ui-react` (React + Vite) | Bun (see `knife4j-front/package.json` and `knife4j-front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
-| `knife4j-vue3` (Vue 3 + Vite) | Bun (`packageManager: "bun@1.3.13"`, see `knife4j-vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
+| `front/ui-react` (React + Vite) | Bun (see `front/package.json` and `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
+| `front/vue3` (Vue 3 + Vite) | Bun (`packageManager: "bun@1.3.13"`, see `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
 
-The upstream Vue 2 source under `knife4j-vue/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `knife4j-vue/README.md`.
+The upstream Vue 2 source under `legacy/vue2/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `legacy/vue2/README.md`.
 
-### OAS 3 main line (`knife4j-front/knife4j-ui-react`)
+### OAS 3 main line (`front/ui-react`)
 
 ```bash
-cd knife4j-front
+cd front
 bun install --frozen-lockfile
 bun run --filter knife4j-ui-react dev
 ```
 
 Maven pipeline: `knife4j/knife4j-openapi3-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun x vite build` during `generate-resources` and copies the dist into `META-INF/resources/`.
 
-### OAS 2 compatibility line (`knife4j-vue3`)
+### OAS 2 compatibility line (`front/vue3`)
 
 ```bash
-cd knife4j-vue3
+cd front/vue3
 bun install --frozen-lockfile
 bun run dev
 ```
@@ -59,12 +59,12 @@ The repository enforces consistent formatting through a combination of tool-side
 
 | Tool | Config | Scope |
 |---|---|---|
-| Prettier | `knife4j-front/knife4j-core/.prettierrc`, `knife4j-front/knife4j-ui-react/.prettierrc` | All `.ts`, `.tsx`, `.css`, `.json` under `src/` |
+| Prettier | `front/core/.prettierrc`, `front/ui-react/.prettierrc` | All `.ts`, `.tsx`, `.css`, `.json` under `src/` |
 | ESLint | Per-project `.eslintrc` | Same scope |
 
 ```bash
 # Check formatting (CI uses this)
-cd knife4j-front
+cd front
 bun run --filter knife4j-core format:check
 bun run --filter knife4j-ui-react format:check
 
@@ -120,13 +120,13 @@ Run the same checks that CI runs:
 
 ```bash
 # Front-end (format:check + test + lint + build)
-./scripts/test-front-core.sh
+./tools/test-front-core.sh
 
 # Java (spotless:check + verify)
-./scripts/test-java.sh
+./tools/test-java.sh
 
 # Docs site build
-./scripts/test-docs.sh
+./tools/test-docs.sh
 ```
 
 ## Branch & Commit Conventions
@@ -141,8 +141,8 @@ Before submitting a PR, verify:
 
 - [ ] `bun run format:check` passes for all front-end workspaces (via `bun run --filter <pkg> format:check`)
 - [ ] `mvn spotless:check` passes for Java changes
-- [ ] `./scripts/test-front-core.sh` passes (if front-end code changed)
-- [ ] `./scripts/test-java.sh` passes (if Java code changed)
+- [ ] `./tools/test-front-core.sh` passes (if front-end code changed)
+- [ ] `./tools/test-java.sh` passes (if Java code changed)
 - [ ] No unintended line-ending or whitespace-only diffs
 
 ## Questions?

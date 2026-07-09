@@ -17,13 +17,13 @@
 先查看当前工作区和任务队列：
 
 ```bash
-./scripts/agent-status.sh snapshot
+./tools/agent-status.sh snapshot
 ```
 
 如果只想看任务看板：
 
 ```bash
-./scripts/agent-status.sh
+./tools/agent-status.sh
 ```
 
 ## 现场协作循环
@@ -149,7 +149,7 @@ CI 未到终态时，不要声称任务完成。
 - `Build and Deploy Demo` workflow 成功。
 - Maven Central 目标构件可访问。
 - GitHub Release `vX.Y.Z` 存在。
-- GitHub Release body 与 `docs-site/release-notes/index.md` 对应版本小节一致。
+- GitHub Release body 与 `docs/release-notes/index.md` 对应版本小节一致。
 
 ## 停止条件
 

@@ -14,7 +14,7 @@
 
     <properties>
         <destDir>${project.build.outputDirectory}/META-INF/resources/</destDir>
-        <knife4j-vue3.dir>${project.basedir}/../../knife4j-vue3</knife4j-vue3.dir>
+        <knife4j-vue3.dir>${project.basedir}/../../front/vue3</knife4j-vue3.dir>
         <knife4j-vue3.outDir>${project.build.directory}/knife4j-vue3-dist</knife4j-vue3.outDir>
     </properties>
 

@@ -1,0 +1,58 @@
+# front/vue3
+
+OAS2 兼容维护 UI（Vue 3 + Vite）。本目录产物被 `knife4j/knife4j-openapi2-ui` 打包为 webjar，供
+`knife4j-openapi2-spring-boot-starter` 与 `knife4j-aggregation-spring-boot-starter` 使用。
+
+> 关于职责边界：只接收 OAS2 / Swagger 2 侧的回归修复与显示层 bug 修复，**不做功能扩张**。新功能请求一律
+> 指向 OAS3 主线 `front/ui-react`。详见 `.agent/PROJECT.md` 的「前端分工策略」一节。
+
+## 包管理器
+
+本目录使用 [Bun](https://bun.com/) 作为包管理器（见 `package.json` 里的 `packageManager: "bun@1.3.13"` 与根目录
+`bun.lock`）。Maven 构建也通过 bun 调用 vite，参见
+`knife4j/knife4j-openapi2-ui/pom.xml` 中的 `exec-maven-plugin` 执行块。
+
+## 本地开发
+
+```bash
+cd front/vue3
+bun install --frozen-lockfile
+bun run dev
+```
+
+## 构建
+
+```bash
+bun run build
+```
+
+构建产物默认写入 `dist/`。在 Maven 流水线里，`knife4j-openapi2-ui` 模块会通过 `--outDir` 把产物重定向到
+`knife4j/knife4j-openapi2-ui/target/front/vue3-dist`，再由 `maven-resources-plugin` 拷贝到
+`META-INF/resources/`（`doc.html`、`webjars/`、`img/icons/`）。
+
+## 与 Java 模块的集成
+
+下游 starter 通过 Maven 依赖 `knife4j-openapi2-ui` 来获取 webjar：
+
+| Starter | 是否打包本目录产物 |
+|---|---|
+| `knife4j-openapi2-spring-boot-starter` | ✅（依赖 `knife4j-openapi2-ui`） |
+| `knife4j-aggregation-spring-boot-starter` | ✅（依赖 `knife4j-openapi2-ui`） |
+| `knife4j-aggregation-jakarta-spring-boot-starter` | ❌（使用 `knife4j-openapi3-ui`，即 React UI） |
+
+## 验证命令
+
+修改本目录 Vue3 / OAS2 UI 后，优先从仓库根目录运行：
+
+```bash
+./tools/test-vue3.sh
+```
+
+该脚本会进入 `front/vue3/`，执行 `bun install --frozen-lockfile` 与 `bun run build:Knife4jSpringUi`，
+并检查 `dist/doc.html`、`dist/webjars/`、`dist/webjars/oauth/oauth2.html` 是否生成。
+
+修改 Java 模块或本目录产物集成逻辑后，还需运行：
+
+```bash
+./tools/test-java.sh
+```

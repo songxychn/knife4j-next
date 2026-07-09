@@ -24,8 +24,8 @@
 | --- | --- |
 | `knife4j-core` | 核心增强逻辑、配置解析、vendor extension 与 OpenAPI 自定义器 |
 | `knife4j-dependencies` | BOM / dependencyManagement |
-| `knife4j-openapi2-ui` | OpenAPI2 / Springfox UI webjar，打包 `knife4j-vue3` 构建产物 |
-| `knife4j-openapi3-ui` | OpenAPI3 UI webjar，打包 `knife4j-front/knife4j-ui-react` 构建产物 |
+| `knife4j-openapi2-ui` | OpenAPI2 / Springfox UI webjar，打包 `front/vue3` 构建产物 |
+| `knife4j-openapi3-ui` | OpenAPI3 UI webjar，打包 `front/ui-react` 构建产物 |
 | `knife4j-openapi2-spring-boot-starter` | Spring Boot 2.x + Springfox / Swagger2 |
 | `knife4j-openapi3-spring-boot-starter` | Spring Boot 2.x + springdoc-openapi 1.x / OpenAPI3 |
 | `knife4j-openapi3-jakarta-spring-boot-starter` | Spring Boot 3.x + springdoc-openapi 2.x / OpenAPI3 |
@@ -124,7 +124,7 @@ OpenAPI3 运行时发现入口为：
 从仓库根目录运行：
 
 ```bash
-./scripts/test-java.sh
+./tools/test-java.sh
 ```
 
 如需手动复现脚本中的 Maven 步骤：
@@ -135,6 +135,6 @@ mvn -B -ntp spotless:check
 mvn -B -ntp -Dknife4j-skipTests=false verify
 ```
 
-提交前仍以根目录 `./scripts/test-java.sh` 为准；它还会在 Maven 构建后检查 smoke 测试证据。
+提交前仍以根目录 `./tools/test-java.sh` 为准；它还会在 Maven 构建后检查 smoke 测试证据。
 
-更多接入、迁移和模块说明见仓库根目录 `README.md` 与 `docs-site/`。
+更多接入、迁移和模块说明见仓库根目录 `README.md` 与 `docs/`。

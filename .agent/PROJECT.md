@@ -12,7 +12,7 @@
 2. 修复 Spring Boot 2.7 / 3.x 与 Spring Framework 5.3 / 6.x 相关兼容性问题。
 3. 降低聚合、UI 交付和 starter 行为中的回归风险。
 4. 让发布流程更可重复，减少对人工临场操作的依赖。
-5. 通过 `knife4j-front` 增量推进下一代前端，而不是一次性重写。
+5. 通过 `front` 增量推进下一代前端，而不是一次性重写。
 
 ## 自治 Agent 的非目标
 
@@ -27,21 +27,21 @@
 
 | 前端源码 | 产物 webjar | 对应 starter | OpenAPI 版本 | 维护策略 |
 |---|---|---|---|---|
-| `knife4j-front/knife4j-ui-react` (React + Vite) | `knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`、`knife4j-gateway-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter` | **OpenAPI 3.x only** | **主线**：承接所有新功能、UX 改进、调试器增强 |
-| `knife4j-vue3` (Vue 3 + Vite) | `knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only** | **兼容维护**：只接收回归修复、安全补丁与显示层 bug；不做功能扩张 |
+| `front/ui-react` (React + Vite) | `knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`、`knife4j-gateway-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter` | **OpenAPI 3.x only** | **主线**：承接所有新功能、UX 改进、调试器增强 |
+| `front/vue3` (Vue 3 + Vite) | `knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only** | **兼容维护**：只接收回归修复、安全补丁与显示层 bug；不做功能扩张 |
 
 ### 处理 upstream issue / 社区反馈的固定规则
 
-1. **OAS3-only 场景** → 归入 `area:ui-react`，在 `knife4j-front/knife4j-ui-react` 修。
-2. **OAS2-only / Swagger 2 注解相关** → 归入 `area:ui-vue3`，只在 `knife4j-vue3` 修显示与兼容性 bug。
+1. **OAS3-only 场景** → 归入 `area:ui-react`，在 `front/ui-react` 修。
+2. **OAS2-only / Swagger 2 注解相关** → 归入 `area:ui-vue3`，只在 `front/vue3` 修显示与兼容性 bug。
 3. **OAS2 + OAS3 都存在的共性 bug** → 优先在 OAS3 主线修；OAS2 侧仅做最小兼容修复或接受现状。
 4. **OAS2 侧的新功能请求（sorter、OAuth2 弹窗授权、Markdown 新特性、导出等）** → 一律按 `wontfix: scope-policy` 关闭，并引导用户迁移到 OAS3 starter。
-5. **`knife4j-core`（TypeScript 解析库）** 是 OAS3 主线的依赖，不为 OAS2 扩展。OAS2 语义由 `knife4j-vue3` 内部 `src/core/oas2` 自行处理。
+5. **`knife4j-core`（TypeScript 解析库）** 是 OAS3 主线的依赖，不为 OAS2 扩展。OAS2 语义由 `front/vue3` 内部 `src/core/oas2` 自行处理。
 
 ### 不允许 Agent 自主推翻的边界
 
 - 不允许把 OAS2 starter 切回 upstream Vue 2 webjar。
-- 不允许让 `knife4j-vue3` 接入 OAS3 数据源。
+- 不允许让 `front/vue3` 接入 OAS3 数据源。
 - 不允许让 `knife4j-ui-react` 增加 OAS2 兼容层，除非维护者明确批准。
 - 不允许在 `knife4j-openapi2-ui` 的 pom/plugin 里引入 React 产物。
 
@@ -49,7 +49,7 @@
 
 ### 关于 `knife4j-ui-react` 中已存在的 OAS2 类型字段
 
-`knife4j-front/knife4j-ui-react/src/types/swagger.ts` 目前保留了若干 OAS2 字段：`definitions`、`securityDefinitions`、`host`、`basePath`、`schemes`、`in: 'body'` 等。少数渲染代码也为这些字段写了回退分支（例如 `Home.tsx` 的 servers 回退、`ApiDoc.tsx` 的 `$ref` 双正则）。
+`front/ui-react/src/types/swagger.ts` 目前保留了若干 OAS2 字段：`definitions`、`securityDefinitions`、`host`、`basePath`、`schemes`、`in: 'body'` 等。少数渲染代码也为这些字段写了回退分支（例如 `Home.tsx` 的 servers 回退、`ApiDoc.tsx` 的 `$ref` 双正则）。
 
 这些是 React UI 早期开发时遗留的**类型兼容**，**不构成对 OAS2 的功能承诺**：
 
@@ -63,21 +63,33 @@
 
 Java 多模块主工程。这里是最关键的维护面，因为它影响下游用户使用的 starter 和 UI webjar。
 
-### `knife4j-front/knife4j-core`
+### `front/core`
 
 TypeScript 解析核心，服务于 `knife4j-ui-react`（OAS3 主线）。只要测试能证明行为，适合做窄范围自治任务。不为 OAS2 扩展。
 
-### `knife4j-front/knife4j-ui-react`
+### `front/ui-react`
 
 **OAS3 主线 UI**。所有新功能、UX 改进、调试器增强都在这里落地。Agent 改动必须保持增量，不要隐含产品承诺。
 
-### `knife4j-vue3`
+### `front/vue3`
 
 **OAS2 兼容维护 UI**。只做回归修复、安全补丁、显示层 bug 修复，不做功能扩张。新功能请求一律指向 OAS3 迁移。
 
-### `docs-site`
+### `docs`
 
 当前维护的文档站（VitePress）。适合自治清理、迁移说明和 release note 改进，前提是文档构建通过。
+
+### `knife4x`
+
+Go / Rust 嵌入式 OpenAPI 控制台（规划中）。**只放宿主壳**；UI 必须复用 `front/ui-react` 构建产物，禁止第二份前端。详见 `knife4x/README.md` 与 issue #524。
+
+### `legacy`
+
+冻结历史代码（`vue2`、`insight`、`sandbox`）。不参与 CI 主构建，不接常规 agent 功能任务。
+
+### `tools`
+
+验证与发布脚本（`test-*.sh` 等）。文档与 agent 约定中一律使用 `./tools/...`，不再使用 `./scripts/...`。
 
 ## 稳定性优先
 
@@ -97,10 +109,10 @@ TypeScript 解析核心，服务于 `knife4j-ui-react`（OAS3 主线）。只要
 
 | 模块 | 工具链 |
 |---|---|
-| `knife4j-front/`（含 `knife4j-core` + `knife4j-ui-react`）| bun (`packageManager: "bun@1.3.13"`, `bun.lock`) |
-| `knife4j-vue3/` | bun (`packageManager: "bun@1.3.13"`, `bun.lock`) |
-| `docs-site/` | bun (`bun.lock`) |
+| `front/`（含 `knife4j-core` + `knife4j-ui-react`）| bun (`packageManager: "bun@1.3.13"`, `bun.lock`) |
+| `front/vue3/` | bun (`packageManager: "bun@1.3.13"`, `bun.lock`) |
+| `docs/` | bun (`bun.lock`) |
 
-- 新任务中 `knife4j-front/` 相关操作一律使用 `bun install --frozen-lockfile` 而非 `npm ci`。
-- `package-lock.json` 已从 `knife4j-front/` 删除，不要恢复。
+- 新任务中 `front/` 相关操作一律使用 `bun install --frozen-lockfile` 而非 `npm ci`。
+- `package-lock.json` 已从 `front/` 删除，不要恢复。
 - Maven 构建（`knife4j-openapi3-ui`）通过 `bun install --frozen-lockfile` + `bun x vite build` 完成。

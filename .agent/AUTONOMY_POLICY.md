@@ -18,7 +18,7 @@
 - 修改依赖版本
 - 引入新模块或 package
 - 更新生成物
-- 改变 `knife4j-front/knife4j-ui-react` 的公开行为
+- 改变 `front/ui-react` 的公开行为
 
 ## 永远不要自治执行
 

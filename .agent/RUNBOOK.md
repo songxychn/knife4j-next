@@ -15,7 +15,7 @@
 从仓库根目录运行：
 
 ```bash
-./scripts/test-java.sh
+./tools/test-java.sh
 ```
 
 它会：
@@ -32,24 +32,24 @@
 > **Smoke 证据要求（issue #241 / #198 FU-3）**：
 > 任何涉及 `knife4j/**` Java 代码，或 `knife4j-*-spring-boot-starter/**`、`knife4j-openapi*-ui/**`、`knife4j-gateway-spring-boot-starter/**` 配置的改动，agent 必须在对应 issue 评论或 PR 描述里附上以下任一证据：
 >
-> - 本地 `./scripts/test-java.sh` 尾部的 `==> Smoke-tests evidence OK (N modules)` 行；或
+> - 本地 `./tools/test-java.sh` 尾部的 `==> Smoke-tests evidence OK (N modules)` 行；或
 > - CI 上 `java-build-test` job 内 `Smoke-tests evidence summary` step 的绿色链接。
 >
-> `scripts/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot2-openapi3-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
+> `tools/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot2-openapi3-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
 >
-> 如果未来有模块被有意下线，须同步更新 `scripts/test-java.sh` 中的 `SMOKE_MODULES` 列表和 `.github/workflows/build.yml` 里 `Smoke-tests evidence summary` 的循环列表，并在 PR 描述里说明原因。
+> 如果未来有模块被有意下线，须同步更新 `tools/test-java.sh` 中的 `SMOKE_MODULES` 列表和 `.github/workflows/build.yml` 里 `Smoke-tests evidence summary` 的循环列表，并在 PR 描述里说明原因。
 
 ### Front Core / UI React
 
 从仓库根目录运行：
 
 ```bash
-./scripts/test-front-core.sh
+./tools/test-front-core.sh
 ```
 
 它会：
 
-- 进入 `knife4j-front/`（workspace 根）
+- 进入 `front/`（workspace 根）
 - 运行 `bun install --frozen-lockfile`（统一安装所有 workspace 依赖）
 - 对 `knife4j-core` workspace 运行 test、lint 和 build
 - 对 `knife4j-ui-react` workspace 运行 `format:check`、`tsc` 和 `vite build`（与 CI 等价）
@@ -57,26 +57,26 @@
 适用于：
 
 - 修改解析逻辑
-- 修改 `knife4j-front/knife4j-core` 下的 TypeScript 源码
-- 修改 `knife4j-front/knife4j-ui-react` 下任何源码
-- 修改 `knife4j-front/package.json` 或 workspace 配置
+- 修改 `front/core` 下的 TypeScript 源码
+- 修改 `front/ui-react` 下任何源码
+- 修改 `front/package.json` 或 workspace 配置
 
-> **强制**：修改 `knife4j-front/**` 下任何源码时，必须跑 `./scripts/test-front-core.sh`。
+> **强制**：修改 `front/**` 下任何源码时，必须跑 `./tools/test-front-core.sh`。
 > 不得用单步 `tsc --noEmit` / `vite build` 替代，因为 CI 还会跑 `prettier --check` 与 `eslint`，这两项本地单跑极易漏。
 
-> **注意**：`knife4j-front/` 使用 Bun workspace。`knife4j-core` 和 `knife4j-ui-react` 共享根 `node_modules`，通过 symlink 联动。子项目不再有独立的 `package-lock.json`。
+> **注意**：`front/` 使用 Bun workspace。`knife4j-core` 和 `knife4j-ui-react` 共享根 `node_modules`，通过 symlink 联动。子项目不再有独立的 `package-lock.json`。
 
 ### 文档站
 
 从仓库根目录运行：
 
 ```bash
-./scripts/test-docs.sh
+./tools/test-docs.sh
 ```
 
 它会：
 
-- 进入 `docs-site`
+- 进入 `docs`
 - 运行 `bun install --frozen-lockfile`
 - 运行文档构建
 
@@ -90,7 +90,7 @@
 从仓库根目录运行：
 
 ```bash
-./scripts/test-all.sh
+./tools/test-all.sh
 ```
 
 适用于：
@@ -103,7 +103,7 @@
 凡 issue 正文含 `Upstream: https://github.com/xiaoymin/knife4j/issues/<N>` 或标题带 `(upstream #<N>)` 的任务，动手写修复代码之前必须完成以下步骤：
 
 1. **阅读 upstream issue**：拉下完整错误堆栈、触发代码、依赖版本组合。如 upstream 没贴堆栈，不要臆造修复方向，先在 issue 评论里列出需要的上游信息并转 `status:blocked`。
-2. **挑选或新建最小复现工程**：优先复用 `knife4j-smoke-tests/` 下已有模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）。如必须新建，`pom.xml` 里**显式 pin**触发问题的 Spring Boot / springdoc 版本（不要只依赖 starter 的传递解析），并在 `knife4j-smoke-tests/pom.xml`、`scripts/test-java.sh` 的 `SMOKE_MODULES`、`.github/workflows/build.yml` 的 smoke loop 三处同步登记。
+2. **挑选或新建最小复现工程**：优先复用 `knife4j-smoke-tests/` 下已有模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）。如必须新建，`pom.xml` 里**显式 pin**触发问题的 Spring Boot / springdoc 版本（不要只依赖 starter 的传递解析），并在 `knife4j-smoke-tests/pom.xml`、`tools/test-java.sh` 的 `SMOKE_MODULES`、`.github/workflows/build.yml` 的 smoke loop 三处同步登记。
 3. **在 master（未打任何修复）上先跑一次复现**：记录精确异常、错误响应或错误日志，把证据贴到 issue 评论。
 4. **根据复现结果分流**：
    - **已无法复现**：在 issue 写明已尝试的触发条件（SB 版本、springdoc 版本、controller 签名等），保留 smoke 工程作为回归防护，然后：
@@ -145,12 +145,12 @@ coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 
 
 ### 对齐 CI 的本地起步脚本
 
-为降低本地绿、CI 红的风险，优先使用 `./scripts/test-*.sh` 而不是手动拼命令：
+为降低本地绿、CI 红的风险，优先使用 `./tools/test-*.sh` 而不是手动拼命令：
 
-- 前端改动→ `./scripts/test-front-core.sh`（含 `format:check`、`lint`、`test`、`build`）
-- Java 改动→ `./scripts/test-java.sh`
-- 文档改动→ `./scripts/test-docs.sh`
-- 跨区域改动→ `./scripts/test-all.sh`
+- 前端改动→ `./tools/test-front-core.sh`（含 `format:check`、`lint`、`test`、`build`）
+- Java 改动→ `./tools/test-java.sh`
+- 文档改动→ `./tools/test-docs.sh`
+- 跨区域改动→ `./tools/test-all.sh`
 
 如果某个子项目（如 `knife4j-ui-react`）CI 跑的步骤本地脚本没覆盖，应该扩展脚本而不是绕过。
 
@@ -158,10 +158,10 @@ coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 
 
 发布构件前仍必须获得维护者明确确认；确认后由 tag push 触发 `.github/workflows/release.yml`。
 
-Release workflow 必须在 Maven Central 发布成功后创建或更新 GitHub Release，并调用 `scripts/verify-github-release.sh` 校验：
+Release workflow 必须在 Maven Central 发布成功后创建或更新 GitHub Release，并调用 `tools/verify-github-release.sh` 校验：
 
 - GitHub Release `vX.Y.Z` 存在。
-- GitHub Release body 与 `docs-site/release-notes/index.md` 中 `X.Y.Z` 对应小节一致。
+- GitHub Release body 与 `docs/release-notes/index.md` 中 `X.Y.Z` 对应小节一致。
 
 正式发布完成条件：
 
@@ -170,7 +170,7 @@ Release workflow 必须在 Maven Central 发布成功后创建或更新 GitHub R
 - `Build and Deploy Demo` workflow 成功。
 - Maven Central 目标构件可访问。
 - GitHub Release `vX.Y.Z` 存在。
-- GitHub Release body 与 docs-site release note 对应小节一致。
+- GitHub Release body 与 docs release note 对应小节一致。
 
 如果缺少 GitHub Release，不能把发布报告为完成；应先补齐 Release 或修复 workflow，再写回发布状态。
 

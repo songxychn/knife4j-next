@@ -32,7 +32,7 @@
 - 如果验证无法运行，或因范围外原因失败，报告精确命令和摘要后的失败原因。
 - 不要为了声称成功而降低验证标准。
 - 如果改动涉及前端文件（.ts/.tsx/.css/.json），提交前必须先跑：
-  `cd knife4j-front/knife4j-ui-react && npx prettier --write "src/**/*.{ts,tsx,css,json}"`
+  `cd front/ui-react && npx prettier --write "src/**/*.{ts,tsx,css,json}"`
   然后重新 `git add` 格式化后的文件再提交。
 
 只返回以下 handoff：

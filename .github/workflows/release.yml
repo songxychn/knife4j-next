@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Verify release module list
-        run: scripts/verify-release-modules.sh
+        run: tools/verify-release-modules.sh
         working-directory: .
 
       - name: Set up JDK 17
@@ -50,25 +50,25 @@ jobs:
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install knife4j-vue3 dependencies (bun)
+      - name: Install front/vue3 dependencies (bun)
         run: bun install --frozen-lockfile
-        working-directory: knife4j-vue3
+        working-directory: front/vue3
 
-      - name: Install knife4j-front workspace dependencies
+      - name: Install front workspace dependencies
         run: bun install --frozen-lockfile
-        working-directory: knife4j-front
+        working-directory: front
 
       - name: Prepare GitHub Release notes
         run: |
           version="${GITHUB_REF_NAME#v}"
           release_notes="$RUNNER_TEMP/github-release-notes.md"
-          scripts/extract-release-note.sh "$version" > "$release_notes"
+          tools/extract-release-note.sh "$version" > "$release_notes"
           echo "GITHUB_RELEASE_NOTES=$release_notes" >> "$GITHUB_ENV"
         working-directory: .
 
       - name: Publish to Maven Central
         run: |
-          release_modules="$(sed -E 's/[[:space:]]*#.*$//' ../scripts/release-modules.txt | sed '/^[[:space:]]*$/d' | paste -sd, -)"
+          release_modules="$(sed -E 's/[[:space:]]*#.*$//' ../tools/release-modules.txt | sed '/^[[:space:]]*$/d' | paste -sd, -)"
           mvn -B -ntp -Prelease deploy \
             -pl "$release_modules" \
             -am
@@ -95,5 +95,5 @@ jobs:
       - name: Verify GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/verify-github-release.sh "$GITHUB_REF_NAME" "$GITHUB_RELEASE_NOTES"
+        run: tools/verify-github-release.sh "$GITHUB_REF_NAME" "$GITHUB_RELEASE_NOTES"
         working-directory: .

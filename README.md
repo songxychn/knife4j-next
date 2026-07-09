@@ -73,26 +73,27 @@ http://ip:port/doc.html
 
 ## 仓库结构
 
-| 模块 | 说明 |
+| 路径 | 说明 |
 |---|---|
-| `knife4j` | Java 主工程，包含 starter、UI webjar、聚合组件、Gateway starter、WebFlux starter 与依赖管理 |
-| `knife4j-smoke-tests` | smoke 测试，覆盖 Boot 2.x OAS2/OAS3、Boot 3.4/3.5 Jakarta、Boot 4.x WebMVC、Boot 4.x Gateway 与 Boot 4.x 独立聚合等组合 |
-| `docs-site` | 当前文档站，基于 VitePress 构建 |
-| `knife4j-front` | React 前端工作区，活跃子模块为 `knife4j-core` 和 `knife4j-ui-react` |
-| `knife4j-vue3` | OAS2 兼容维护 UI，打包进 `knife4j-openapi2-ui` webjar |
-| `knife4j-vue` | upstream 旧版 Vue 2 前端实现，仅作为行为参考留存 |
-| `knife4j-insight` | 独立渲染/聚合方向的扩展方案 |
+| `knife4j/` | Java 主工程（starter、UI webjar、聚合、Gateway、WebFlux、smoke 与 demo） |
+| `front/` | 活跃前端：`core` + `ui-react`（OAS3 workspace）、`vue3`（OAS2 兼容） |
+| `knife4x/` | Go/Rust 嵌入式控制台骨架（规划中，与 `front/ui-react` 共用 UI） |
+| `docs/` | VitePress 文档站 |
+| `tools/` | 验证与发布辅助脚本（原 `scripts/`） |
+| `legacy/` | 冻结参考：`vue2`、`insight`、`sandbox`（不参与主线构建） |
+| `static/` | README 配图等静态资源 |
 
 ## 维护策略
 
 | 方向 | 源码 | 产物 / 使用方 | 策略 |
 |---|---|---|---|
 | Java 后端 | `knife4j/` | starter、UI webjar、聚合组件 | 优先做兼容性修复、回归修复和发布维护 |
-| OAS3 主线 UI | `knife4j-front/knife4j-ui-react` | `knife4j-openapi3-ui` webjar | 承接新功能、UX 改进和调试器增强 |
-| OAS3 解析核心 | `knife4j-front/knife4j-core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
-| OAS2 兼容 UI | `knife4j-vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| 历史 Vue 2 UI | `knife4j-vue` | 无新增维护目标 | 仅作为 upstream 行为参考留存 |
-| 文档站 | `docs-site/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
+| OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
+| OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
+| OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
+| Knife4x | `knife4x/` | Go / Rust 宿主壳 | 骨架阶段；UI 不另开工程 |
+| 历史代码 | `legacy/` | 无发布目标 | 仅参考，勿接常规功能任务 |
+| 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 
 ## 本地开发
 
@@ -113,7 +114,7 @@ mvn -pl knife4j-demo-openapi2 -am spring-boot:run
 ### 文档站
 
 ```bash
-cd docs-site
+cd docs
 bun install --frozen-lockfile
 bun run dev
 ```
@@ -121,7 +122,7 @@ bun run dev
 ### React 前端
 
 ```bash
-cd knife4j-front
+cd front
 bun install --frozen-lockfile
 bun run --filter knife4j-ui-react dev
 ```
@@ -129,7 +130,7 @@ bun run --filter knife4j-ui-react dev
 ### Vue3 前端
 
 ```bash
-cd knife4j-vue3
+cd front/vue3
 bun install --frozen-lockfile
 bun run dev
 ```
@@ -138,12 +139,12 @@ bun run dev
 
 | 改动范围 | 推荐命令 |
 |---|---|
-| Java 主工程 | `./scripts/test-java.sh` |
-| React 前端 / `knife4j-core` | `./scripts/test-front-core.sh` |
-| 文档站 | `./scripts/test-docs.sh` |
-| 跨多个区域 | `./scripts/test-all.sh` |
+| Java 主工程 | `./tools/test-java.sh` |
+| React 前端 / `knife4j-core` | `./tools/test-front-core.sh` |
+| 文档站 | `./tools/test-docs.sh` |
+| 跨多个区域 | `./tools/test-all.sh` |
 
-`./scripts/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据。不要用单独的
+`./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据。不要用单独的
 `mvn -B -ntp verify` 替代提交前验证。
 
 ## 文档与链接
@@ -154,7 +155,7 @@ bun run dev
 - Release 记录：[GitHub Releases](https://github.com/songxychn/knife4j-next/releases)
 - Java 发布说明：[knife4j/RELEASE.md](./knife4j/RELEASE.md)
 - 迁移指南：[knife4j/MIGRATION.md](./knife4j/MIGRATION.md)
-- 文档站源码：[docs-site](./docs-site)
+- 文档站源码：[docs](./docs)
 
 涉及历史功能细节时，仍可参考 upstream 文档站 `https://doc.xiaominfo.com/`；该站点不由本仓库维护。
 
