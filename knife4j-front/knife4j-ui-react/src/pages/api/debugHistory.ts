@@ -115,6 +115,26 @@ const SENSITIVE_HEADER_NAMES = new Set([
   'x-token',
 ]);
 
+/** Common session / auth cookie names (case-insensitive). */
+const SENSITIVE_COOKIE_NAMES = new Set([
+  'jsessionid',
+  'session',
+  'sessionid',
+  'session_id',
+  'sid',
+  'ssid',
+  'token',
+  'access_token',
+  'access-token',
+  'refresh_token',
+  'refresh-token',
+  'auth',
+  'auth_token',
+  'authtoken',
+  'id_token',
+  'id-token',
+]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -227,6 +247,18 @@ export function isSensitiveHeaderName(name: string): boolean {
   return false;
 }
 
+/** Cookie names that commonly carry session or auth material. */
+export function isSensitiveCookieName(name: string): boolean {
+  const lower = name.trim().toLowerCase();
+  if (isSensitiveHeaderName(name)) return true;
+  if (SENSITIVE_COOKIE_NAMES.has(lower)) return true;
+  const normalized = lower.replace(/[_-]/g, '');
+  if (normalized.includes('session') || normalized.includes('token') || normalized.includes('auth')) {
+    return true;
+  }
+  return false;
+}
+
 export function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [name, value] of Object.entries(headers)) {
@@ -237,6 +269,30 @@ export function sanitizeHeaders(headers: Record<string, string>): Record<string,
 
 export function sanitizeCustomRows(rows: DebugHistoryCustomParamRow[]): DebugHistoryCustomParamRow[] {
   return rows.map((row) => (isSensitiveHeaderName(row.name) ? { ...row, value: DEBUG_HISTORY_MASK } : { ...row }));
+}
+
+export function sanitizeCustomCookieRows(rows: DebugHistoryCustomParamRow[]): DebugHistoryCustomParamRow[] {
+  return rows.map((row) => (isSensitiveCookieName(row.name) ? { ...row, value: DEBUG_HISTORY_MASK } : { ...row }));
+}
+
+function truncateStringRecord(fields: Record<string, string>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    result[key] = truncateBody(value).text;
+  }
+  return result;
+}
+
+/** Sanitize + truncate form snapshot fields before persist / after read. */
+export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHistoryFormSnapshot {
+  return {
+    ...snapshot,
+    body: truncateBody(snapshot.body).text,
+    formFields: truncateStringRecord(snapshot.formFields),
+    paramValues: truncateStringRecord(snapshot.paramValues),
+    customHeaders: sanitizeCustomRows(snapshot.customHeaders),
+    customCookies: sanitizeCustomCookieRows(snapshot.customCookies),
+  };
 }
 
 export function truncateBody(
@@ -260,7 +316,7 @@ export function createHistoryEntryId(): string {
 function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undefined {
   if (!isRecord(value)) return undefined;
   const fileFieldNames = readStringArrayRecord(value.fileFieldNames);
-  return {
+  return prepareFormSnapshot({
     baseUrl: readString(value.baseUrl),
     method: readString(value.method),
     path: readString(value.path),
@@ -271,12 +327,12 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     formFields: readStringRecord(value.formFields),
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
-    customHeaders: sanitizeCustomRows(readCustomRows(value.customHeaders)),
-    customCookies: sanitizeCustomRows(readCustomRows(value.customCookies)),
+    customHeaders: readCustomRows(value.customHeaders),
+    customCookies: readCustomRows(value.customCookies),
     fileFieldNames,
     hasFileFields:
       readBoolean(value.hasFileFields) ?? Boolean(fileFieldNames && Object.keys(fileFieldNames).length > 0),
-  };
+  });
 }
 
 function normalizeEntry(value: unknown): DebugHistoryEntry | null {
@@ -349,11 +405,36 @@ function readHistoryList(cacheKey: string, storage: DebugHistoryStorage | null):
   }
 }
 
+/**
+ * Cap history length while protecting in-flight pending entries.
+ * Newest-first order is preserved. Prefer dropping completed/error/aborted
+ * (oldest first among them); only drop pending when every entry is pending.
+ */
+export function limitHistoryEntries(entries: DebugHistoryEntry[]): DebugHistoryEntry[] {
+  if (entries.length <= DEBUG_HISTORY_MAX_ENTRIES) return entries;
+
+  const result = entries.slice();
+  while (result.length > DEBUG_HISTORY_MAX_ENTRIES) {
+    let dropIndex = -1;
+    for (let i = result.length - 1; i >= 0; i -= 1) {
+      if (result[i].status !== 'pending') {
+        dropIndex = i;
+        break;
+      }
+    }
+    if (dropIndex === -1) {
+      // All remaining are pending; drop the oldest (last) pending.
+      dropIndex = result.length - 1;
+    }
+    result.splice(dropIndex, 1);
+  }
+  return result;
+}
+
 function writeHistoryList(cacheKey: string, entries: DebugHistoryEntry[], storage: DebugHistoryStorage | null): void {
   if (!storage) return;
   try {
-    // Newest first; enforce FIFO max.
-    const limited = entries.slice(0, DEBUG_HISTORY_MAX_ENTRIES);
+    const limited = limitHistoryEntries(entries);
     storage.setItem(debugHistoryStorageKey(cacheKey), JSON.stringify(limited));
   } catch {
     // localStorage can be disabled or full; history must never block the UI.
@@ -370,13 +451,7 @@ export function createPendingEntry(input: CreatePendingEntryInput): DebugHistory
     bodyTruncated = truncated.truncated || undefined;
   }
 
-  const formSnapshot = input.formSnapshot
-    ? {
-        ...input.formSnapshot,
-        customHeaders: sanitizeCustomRows(input.formSnapshot.customHeaders),
-        customCookies: sanitizeCustomRows(input.formSnapshot.customCookies),
-      }
-    : undefined;
+  const formSnapshot = input.formSnapshot ? prepareFormSnapshot(input.formSnapshot) : undefined;
 
   return {
     id: input.id ?? createHistoryEntryId(),
@@ -450,8 +525,9 @@ export function appendPending(
 ): DebugHistoryEntry[] {
   const pending = entry.status === 'pending' ? entry : { ...entry, status: 'pending' as const };
   const next = [pending, ...readHistoryList(cacheKey, storage).filter((item) => item.id !== pending.id)];
-  writeHistoryList(cacheKey, next, storage);
-  return next.slice(0, DEBUG_HISTORY_MAX_ENTRIES);
+  const limited = limitHistoryEntries(next);
+  writeHistoryList(cacheKey, limited, storage);
+  return limited;
 }
 
 export function updateEntry(

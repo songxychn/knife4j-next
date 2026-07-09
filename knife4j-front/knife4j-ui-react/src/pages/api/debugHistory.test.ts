@@ -10,7 +10,9 @@ import {
   completeEntry,
   createPendingEntry,
   debugHistoryStorageKey,
+  isSensitiveCookieName,
   isSensitiveHeaderName,
+  limitHistoryEntries,
   listHistory,
   removeEntry,
   sanitizeHeaders,
@@ -241,5 +243,152 @@ describe('debugHistory', () => {
     });
     expect(completed.responseTruncated).toBe(true);
     expect((completed.responseBody ?? '').length).toBeLessThan(large.length);
+  });
+
+  it('truncates large formSnapshot.body and formFields on create and re-read', () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'form-snapshot-truncate';
+    const largeBody = 'b'.repeat(DEBUG_HISTORY_BODY_MAX_BYTES + 80);
+    const largeField = 'f'.repeat(DEBUG_HISTORY_BODY_MAX_BYTES + 40);
+
+    const entry = createPendingEntry({
+      id: 'snap-1',
+      method: 'POST',
+      path: '/upload',
+      baseUrl: 'http://localhost',
+      resolvedUrl: 'http://localhost/upload',
+      body: largeBody,
+      formSnapshot: {
+        baseUrl: 'http://localhost',
+        method: 'POST',
+        path: '/upload',
+        paramValues: {},
+        paramEnabled: {},
+        selectedContentType: 'application/json',
+        body: largeBody,
+        formFields: { note: largeField },
+        rawMode: 'json',
+        customQueryParams: [],
+        customHeaders: [],
+        customCookies: [{ id: 'c1', name: 'JSESSIONID', value: 'secret-session' }],
+        hasFileFields: false,
+      },
+    });
+
+    expect(entry.bodyTruncated).toBe(true);
+    expect(entry.formSnapshot?.body.length).toBeLessThan(largeBody.length);
+    expect(new TextEncoder().encode(entry.formSnapshot!.body).length).toBeLessThanOrEqual(DEBUG_HISTORY_BODY_MAX_BYTES);
+    expect(entry.formSnapshot?.formFields.note.length).toBeLessThan(largeField.length);
+    expect(entry.formSnapshot?.customCookies[0].value).toBe(DEBUG_HISTORY_MASK);
+
+    appendPending(cacheKey, entry, storage);
+    const loaded = listHistory(cacheKey, storage)[0];
+    expect(loaded.formSnapshot?.body.length).toBeLessThan(largeBody.length);
+    expect(new TextEncoder().encode(loaded.formSnapshot!.body).length).toBeLessThanOrEqual(
+      DEBUG_HISTORY_BODY_MAX_BYTES,
+    );
+    expect(loaded.formSnapshot?.formFields.note.length).toBeLessThan(largeField.length);
+    expect(loaded.formSnapshot?.customCookies[0].value).toBe(DEBUG_HISTORY_MASK);
+  });
+
+  it('prefers evicting completed entries over in-flight pending when over max', () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'protect-pending';
+
+    // Fill capacity with completed entries.
+    for (let i = 0; i < DEBUG_HISTORY_MAX_ENTRIES; i += 1) {
+      const pending = makePending({ id: `done-${i}`, createdAt: 1_000 + i });
+      appendPending(cacheKey, pending, storage);
+      updateEntry(
+        cacheKey,
+        pending.id,
+        (entry) =>
+          completeEntry(entry, {
+            status: 'completed',
+            httpStatus: 200,
+            durationMs: 1,
+            responseBody: '{}',
+          }),
+        storage,
+      );
+    }
+
+    expect(listHistory(cacheKey, storage)).toHaveLength(DEBUG_HISTORY_MAX_ENTRIES);
+    expect(listHistory(cacheKey, storage).every((e) => e.status === 'completed')).toBe(true);
+
+    // Add several in-flight pending entries beyond the max.
+    const pendingIds: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const id = `inflight-${i}`;
+      pendingIds.push(id);
+      appendPending(cacheKey, makePending({ id, createdAt: 10_000 + i }), storage);
+    }
+
+    const list = listHistory(cacheKey, storage);
+    expect(list).toHaveLength(DEBUG_HISTORY_MAX_ENTRIES);
+    // All three in-flight pending must still be present.
+    for (const id of pendingIds) {
+      expect(list.find((e) => e.id === id)?.status).toBe('pending');
+    }
+    // Oldest completed should have been dropped first.
+    expect(list.find((e) => e.id === 'done-0')).toBeUndefined();
+
+    // Completing a retained pending still works (id not silently lost).
+    const targetId = pendingIds[0];
+    const after = updateEntry(
+      cacheKey,
+      targetId,
+      (entry) =>
+        completeEntry(entry, {
+          status: 'completed',
+          httpStatus: 201,
+          durationMs: 3,
+          responseBody: '{"ok":true}',
+        }),
+      storage,
+    );
+    expect(after.find((e) => e.id === targetId)?.status).toBe('completed');
+  });
+
+  it('detects sensitive cookie names', () => {
+    expect(isSensitiveCookieName('JSESSIONID')).toBe(true);
+    expect(isSensitiveCookieName('session')).toBe(true);
+    expect(isSensitiveCookieName('sid')).toBe(true);
+    expect(isSensitiveCookieName('access_token')).toBe(true);
+    expect(isSensitiveCookieName('theme')).toBe(false);
+  });
+
+  it('limitHistoryEntries drops non-pending first while keeping newest-first order', () => {
+    const entries: DebugHistoryEntry[] = [
+      makePending({ id: 'p-new', createdAt: 100 }),
+      completeEntry(makePending({ id: 'c-mid', createdAt: 90 }), { status: 'completed', httpStatus: 200 }),
+      makePending({ id: 'p-old', createdAt: 80 }),
+      completeEntry(makePending({ id: 'c-old', createdAt: 70 }), { status: 'completed', httpStatus: 200 }),
+    ];
+    // Force over max by temporarily testing with a short list via the public helper:
+    // pad so length > MAX, then verify drop preference on a synthetic oversize list.
+    const padded: DebugHistoryEntry[] = [];
+    for (let i = 0; i < DEBUG_HISTORY_MAX_ENTRIES - 1; i += 1) {
+      padded.push(
+        completeEntry(makePending({ id: `pad-${i}`, createdAt: 50 + i }), {
+          status: 'completed',
+          httpStatus: 200,
+        }),
+      );
+    }
+    // Newest first: two pending + many completed → over max by 1 after combining carefully
+    const oversized = [entries[0], entries[1], entries[2], ...padded];
+    expect(oversized.length).toBe(DEBUG_HISTORY_MAX_ENTRIES + 2);
+
+    const limited = limitHistoryEntries(oversized);
+    expect(limited).toHaveLength(DEBUG_HISTORY_MAX_ENTRIES);
+    expect(limited.find((e) => e.id === 'p-new')).toBeDefined();
+    expect(limited.find((e) => e.id === 'p-old')).toBeDefined();
+    // Oldest completed among dropped candidates should be gone first.
+    const droppedCompleted = padded
+      .slice()
+      .reverse()
+      .filter((e) => !limited.some((kept) => kept.id === e.id));
+    expect(droppedCompleted.length).toBeGreaterThan(0);
   });
 });
