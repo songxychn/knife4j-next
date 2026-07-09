@@ -9,3 +9,20 @@ export function formatSseEventTime(timestamp: number): string {
     2,
   )}.${padNumber(date.getMilliseconds(), 3)}`;
 }
+
+/**
+ * Serialize SSE events into a readable response body for send history.
+ * Keeps full event payloads (subject to history truncation elsewhere).
+ */
+export function formatSseHistoryResponseBody(events: Array<{ data: string; timestamp?: number }>): string {
+  if (events.length === 0) return '';
+  return events
+    .map((event, index) => {
+      const time =
+        typeof event.timestamp === 'number' && Number.isFinite(event.timestamp)
+          ? ` ${formatSseEventTime(event.timestamp)}`
+          : '';
+      return `#${index + 1}${time}\n${event.data}`;
+    })
+    .join('\n\n');
+}

@@ -36,6 +36,17 @@ export default function Settings() {
       </div>
       <Divider style={{ margin: '4px 0' }} />
 
+      {/* 发送历史 */}
+      <div style={{ height: 50, lineHeight: '50px' }}>
+        <Checkbox
+          checked={settings.enableRequestHistory}
+          onChange={(e) => setSetting('enableRequestHistory', e.target.checked)}
+        >
+          {t('settings.enableRequestHistory')}
+        </Checkbox>
+      </div>
+      <Divider style={{ margin: '4px 0' }} />
+
       {/* 动态参数 */}
       <div style={{ height: 50, lineHeight: '50px' }}>
         <Checkbox
