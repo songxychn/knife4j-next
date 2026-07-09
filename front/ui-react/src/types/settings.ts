@@ -39,6 +39,11 @@ export interface AppSettings {
   enableHostText: string;
   /** Whether the debug panel restores the last filled request parameters for each operation. */
   enableRequestCache: boolean;
+  /**
+   * Whether the debug panel records per-operation send history (localStorage).
+   * Independent of enableRequestCache.
+   */
+  enableRequestHistory: boolean;
   /** Whether dynamic parameters are enabled. Reserved until dynamic parameter behavior is wired. */
   enableDynamicParameter: boolean;
   /** Whether same-path multi-method RequestMapping APIs are collapsed to one configured method. */
@@ -72,6 +77,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableHost: false,
   enableHostText: '',
   enableRequestCache: true,
+  enableRequestHistory: true,
   enableDynamicParameter: false,
   enableFilterMultipartApis: false,
   enableFilterMultipartApiMethodType: 'POST',
