@@ -177,10 +177,10 @@ const jaJP = {
   'apiDebug.send': '送信',
   'apiDebug.reset': 'リセット',
   'apiDebug.sending': '送信中...',
-  'apiDebug.history.title': '送信履歴',
-  'apiDebug.history.expand': '送信履歴を展開',
-  'apiDebug.history.collapse': '送信履歴を折りたたむ',
-  'apiDebug.history.empty': '送信履歴はまだありません',
+  'apiDebug.history.title': 'リクエスト履歴',
+  'apiDebug.history.expand': 'リクエスト履歴を展開',
+  'apiDebug.history.collapse': 'リクエスト履歴を折りたたむ',
+  'apiDebug.history.empty': 'リクエスト履歴はまだありません',
   'apiDebug.history.clear': 'この API の履歴をクリア',
   'apiDebug.history.delete': '削除',
   'apiDebug.history.apply': 'フォームに適用',
@@ -375,7 +375,7 @@ const jaJP = {
   'settings.enableRequestCache':
     'リクエストパラメータのキャッシュを有効化（デバッグ画面で前回入力したパラメータ値を自動保存）',
   'settings.enableRequestHistory':
-    'リクエスト送信履歴を有効化（デバッグ画面で API ごとに直近の送信を記録し、フォームへ適用可能）',
+    'リクエスト履歴を有効化（デバッグ画面で API ごとに直近のリクエストを記録し、フォームへ適用可能）',
   'settings.enableDynamicParameter': '動的パラメータを有効化（デバッグ時にリクエストパラメータへ動的に値を注入）',
   'settings.enableFilterMultipartApis':
     'API タイプをフィルタ（タイプ未指定の RequestMapping について、指定したタイプのみ表示）',

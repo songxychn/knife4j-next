@@ -172,10 +172,10 @@ const enUS = {
   'apiDebug.send': 'Send',
   'apiDebug.reset': 'Reset',
   'apiDebug.sending': 'Sending...',
-  'apiDebug.history.title': 'Send History',
-  'apiDebug.history.expand': 'Expand send history',
-  'apiDebug.history.collapse': 'Collapse send history',
-  'apiDebug.history.empty': 'No send history yet',
+  'apiDebug.history.title': 'Request History',
+  'apiDebug.history.expand': 'Expand request history',
+  'apiDebug.history.collapse': 'Collapse request history',
+  'apiDebug.history.empty': 'No request history yet',
   'apiDebug.history.clear': 'Clear history for this API',
   'apiDebug.history.delete': 'Delete',
   'apiDebug.history.apply': 'Apply to form',
@@ -369,7 +369,7 @@ const enUS = {
   'settings.tip': 'After enabling personalized settings, API tabs need to be closed and reopened or refresh the page',
   'settings.enableRequestCache': 'Enable request parameter cache (Debug panel auto-caches last filled values)',
   'settings.enableRequestHistory':
-    'Enable request send history (Debug panel keeps recent sends per operation; apply to form)',
+    'Enable request history (Debug panel keeps recent requests per operation; apply to form)',
   'settings.enableDynamicParameter': 'Enable dynamic parameters (Support dynamic injection in debug mode)',
   'settings.enableFilterMultipartApis':
     'Filter API types (For RequestMapping without specified type, show only selected type)',
