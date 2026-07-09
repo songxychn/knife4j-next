@@ -2717,8 +2717,16 @@ export default function ApiDebug() {
 
   return (
     <OperationModeLayout activeKey="debug">
-      <div id="knife4j-api-debug-page" style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* Peer columns: main debug + history share one surface (no floating overlay). */}
+      <div
+        id="knife4j-api-debug-page"
+        style={{
+          display: 'flex',
+          alignItems: 'stretch',
+          minHeight: 'calc(100vh - 120px)',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0, paddingRight: settings.enableRequestHistory ? 16 : 0 }}>
           <Space align="center" style={{ marginBottom: 12 }}>
             <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
               {method}

@@ -135,6 +135,15 @@ body {
   padding: 0 24px 24px;
 }
 
+/* Debug page with request-history peer column: use full content width, not 1080 cap. */
+.knife4j-operation-content:has(#knife4j-api-debug-page) {
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
 .knife4j-footer-markdown p {
   margin: 0;
 }
