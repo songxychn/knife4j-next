@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-modules_file="$repo_root/tools/release-modules.txt"
-parent_pom="$repo_root/knife4j/pom.xml"
-bom_pom="$repo_root/knife4j/knife4j-dependencies/pom.xml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
+
+modules_file="${SCRIPT_DIR}/release-modules.txt"
+parent_pom="${repo_root}/knife4j/pom.xml"
+bom_pom="${repo_root}/knife4j/knife4j-dependencies/pom.xml"
 
 release_modules=()
 while IFS= read -r line; do
-  line="${line%%#*}"
-  line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-  if [ -n "$line" ]; then
-    release_modules+=("$line")
-  fi
-done < "$modules_file"
+  release_modules+=("$line")
+done < <(read_list_file "$modules_file")
 
 if [ "${#release_modules[@]}" -eq 0 ]; then
   echo "::error::release module list is empty: $modules_file"

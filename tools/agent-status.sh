@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
-# agent-status.sh — 查看 GitHub Issues 驱动的任务看板
+# agent-status.sh — 查看 GitHub Issues 驱动的任务看板（agent 无关）
 # 用法: ./tools/agent-status.sh [ready|in-progress|review|blocked|all|snapshot]
+#
+# 仓库解析顺序：GH_REPO / GITHUB_REPOSITORY → gh repo view → git origin
 
 set -euo pipefail
 
-REPO="songxychn/knife4j-next"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "GitHub CLI 'gh' is required." >&2
+  exit 1
+fi
+
+if ! REPO="$(resolve_github_repo)"; then
+  echo "Unable to resolve GitHub repository. Set GH_REPO=owner/name or run inside a git clone." >&2
+  exit 1
+fi
+
 STATUS="${1:-all}"
 
 # 颜色
@@ -41,25 +56,26 @@ print_status_group() {
 
   while IFS='|' read -r num title area; do
     printf "  #%-4s %-8s %s\n" "$num" "[${area:-?}]" "$title"
-  done <<< "$issues"
+  done <<<"$issues"
 }
 
 print_git_snapshot() {
   echo -e "${CYAN}━━━ git snapshot ━━━${NC}"
+  echo "repo: $REPO"
 
   local branch
-  branch=$(git branch --show-current 2>/dev/null || true)
+  branch=$(git -C "$repo_root" branch --show-current 2>/dev/null || true)
   if [ -z "$branch" ]; then
     branch="(detached HEAD)"
   fi
   echo "branch: $branch"
 
   local head
-  head=$(git rev-parse --short HEAD 2>/dev/null || true)
+  head=$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || true)
   echo "head: ${head:-unknown}"
 
   local status
-  status=$(git status --short 2>/dev/null || true)
+  status=$(git -C "$repo_root" status --short 2>/dev/null || true)
   if [ -z "$status" ]; then
     echo "worktree: clean"
   else
@@ -69,12 +85,6 @@ print_git_snapshot() {
 }
 
 print_pr_snapshot() {
-  if ! command -v gh >/dev/null 2>&1; then
-    echo -e "\n${YELLOW}━━━ github snapshot ━━━${NC}"
-    echo "gh not found"
-    return
-  fi
-
   echo -e "\n${CYAN}━━━ github snapshot ━━━${NC}"
 
   local current_pr
@@ -96,17 +106,17 @@ print_snapshot() {
 }
 
 if [ "$STATUS" = "all" ]; then
-  echo -e "${CYAN}📋 knife4j-next Agent Task Board${NC}"
+  echo -e "${CYAN}📋 knife4j-next Agent Task Board (${REPO})${NC}"
   for st in ready in-progress review blocked; do
     print_status_group "$st"
   done
   echo ""
   echo "Quick commands:"
-  echo "  ./tools/agent-status.sh snapshot                                      # local + GitHub snapshot"
-  echo "  gh issue edit <N> --remove-label status:ready --add-label status:in-progress --add-assignee @me"
-  echo "  gh issue edit <N> --remove-label status:in-progress --add-label status:review"
-  echo "  gh issue comment <N> --body 'progress update'"
-  echo "  gh issue close <N>"
+  echo "  ./tools/agent-status.sh snapshot"
+  echo "  gh issue edit <N> --repo ${REPO} --remove-label status:ready --add-label status:in-progress --add-assignee @me"
+  echo "  gh issue edit <N> --repo ${REPO} --remove-label status:in-progress --add-label status:review"
+  echo "  gh issue comment <N> --repo ${REPO} --body 'progress update'"
+  echo "  gh issue close <N> --repo ${REPO}"
 elif [ "$STATUS" = "snapshot" ]; then
   print_snapshot
 else

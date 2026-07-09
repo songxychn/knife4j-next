@@ -12,7 +12,7 @@ title: 模块说明
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3）、`vue3`（OAS2 兼容） |
 | `knife4x/` | Go/Rust 嵌入式控制台骨架（规划中，UI 共用 `front/ui-react`） |
 | `docs/` | 当前 VitePress 文档站 |
-| `tools/` | 验证与发布脚本 |
+| `tools/` | 验证、发布与任务看板脚本（与具体 agent 运行时解耦） |
 | `legacy/` | 冻结参考（`vue2`、`insight`、`sandbox`），不参与主线构建 |
 
 ## Java 模块（`knife4j/` 下）

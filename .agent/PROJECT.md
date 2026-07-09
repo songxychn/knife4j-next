@@ -89,7 +89,7 @@ Go / Rust 嵌入式 OpenAPI 控制台（规划中）。**只放宿主壳**；UI 
 
 ### `tools`
 
-验证与发布脚本（`test-*.sh` 等）。文档与 agent 约定中一律使用 `./tools/...`，不再使用 `./scripts/...`。
+验证、发布与任务看板脚本（`test-*.sh`、`agent-status.sh` 等）。与具体 agent 运行时解耦；文档与约定中一律使用 `./tools/...`，不再使用 `./scripts/...`。详见 `tools/README.md`。
 
 ## 稳定性优先
 

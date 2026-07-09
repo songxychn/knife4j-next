@@ -1,0 +1,16 @@
+# knife4j-smoke-tests 下必须被 verify 的模块列表（单一数据源）
+# 被 tools/test-java.sh 与 .github/workflows/build.yml 共同读取。
+# 新增或下线 smoke 模块时只改本文件，并在 PR 中说明原因。
+boot2-app
+boot2-openapi3-app
+boot2-webflux-app
+aggregation-boot2-app
+boot3-aggregation-jakarta-app
+boot4-aggregation-app
+boot3-app
+boot3-jakarta-app
+boot3-webflux-jakarta-app
+boot3-gateway-app
+boot35-jakarta-app
+boot4-jakarta-app
+boot4-gateway-app

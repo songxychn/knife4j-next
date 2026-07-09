@@ -89,7 +89,7 @@ User/Maintainer -> Coordinator -> Worker -> Reviewer -> Worker(如需返工) -> 
 
 允许跳过 worker 或 reviewer 的情况必须很窄：纯 label/issue/PR 元数据操作、极小的文档/模板文字修订，或当前运行时确实无法启动独立 agent。跳过时必须在 issue 评论或 PR 描述中写明跳过了哪个角色、原因和风险；不能把 coordinator 自查包装成独立审查。
 
-启动 OpenClaw agent 时使用：
+启动 coordinator / worker / reviewer 时使用（与具体 LLM 产品无关）：
 
 - `.agent/prompts/openclaw-orchestrator.md`
 - `.agent/prompts/worker.md`

@@ -35,9 +35,9 @@
 > - 本地 `./tools/test-java.sh` 尾部的 `==> Smoke-tests evidence OK (N modules)` 行；或
 > - CI 上 `java-build-test` job 内 `Smoke-tests evidence summary` step 的绿色链接。
 >
-> `tools/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot2-openapi3-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
+> `tools/test-java.sh` 结尾包含一个哨兵：按 `tools/smoke-modules.txt` 检查每个模块是否有 surefire 报告、报告非空且 failures/errors 为 0；任一失败则非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
 >
-> 如果未来有模块被有意下线，须同步更新 `tools/test-java.sh` 中的 `SMOKE_MODULES` 列表和 `.github/workflows/build.yml` 里 `Smoke-tests evidence summary` 的循环列表，并在 PR 描述里说明原因。
+> 如果未来有模块被有意下线或新增，**只改** `tools/smoke-modules.txt`（`test-java.sh` 与 `build.yml` 共用该文件），并在 PR 描述里说明原因。
 
 ### Front Core / UI React
 
@@ -103,7 +103,7 @@
 凡 issue 正文含 `Upstream: https://github.com/xiaoymin/knife4j/issues/<N>` 或标题带 `(upstream #<N>)` 的任务，动手写修复代码之前必须完成以下步骤：
 
 1. **阅读 upstream issue**：拉下完整错误堆栈、触发代码、依赖版本组合。如 upstream 没贴堆栈，不要臆造修复方向，先在 issue 评论里列出需要的上游信息并转 `status:blocked`。
-2. **挑选或新建最小复现工程**：优先复用 `knife4j-smoke-tests/` 下已有模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）。如必须新建，`pom.xml` 里**显式 pin**触发问题的 Spring Boot / springdoc 版本（不要只依赖 starter 的传递解析），并在 `knife4j-smoke-tests/pom.xml`、`tools/test-java.sh` 的 `SMOKE_MODULES`、`.github/workflows/build.yml` 的 smoke loop 三处同步登记。
+2. **挑选或新建最小复现工程**：优先复用 `knife4j-smoke-tests/` 下已有模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）。如必须新建，`pom.xml` 里**显式 pin**触发问题的 Spring Boot / springdoc 版本（不要只依赖 starter 的传递解析），并在 `knife4j-smoke-tests/pom.xml` 与 `tools/smoke-modules.txt` 两处同步登记。
 3. **在 master（未打任何修复）上先跑一次复现**：记录精确异常、错误响应或错误日志，把证据贴到 issue 评论。
 4. **根据复现结果分流**：
    - **已无法复现**：在 issue 写明已尝试的触发条件（SB 版本、springdoc 版本、controller 签名等），保留 smoke 工程作为回归防护，然后：
@@ -147,10 +147,11 @@ coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 
 
 为降低本地绿、CI 红的风险，优先使用 `./tools/test-*.sh` 而不是手动拼命令：
 
-- 前端改动→ `./tools/test-front-core.sh`（含 `format:check`、`lint`、`test`、`build`）
+- 前端 React / core 改动→ `./tools/test-front-core.sh`（含 `format:check`、`lint`、`test`、`build`）
+- 前端 Vue3 / OAS2 UI 改动→ `./tools/test-vue3.sh`
 - Java 改动→ `./tools/test-java.sh`
 - 文档改动→ `./tools/test-docs.sh`
-- 跨区域改动→ `./tools/test-all.sh`
+- 跨区域改动→ `./tools/test-all.sh`（java + front-core + vue3 + docs）
 
 如果某个子项目（如 `knife4j-ui-react`）CI 跑的步骤本地脚本没覆盖，应该扩展脚本而不是绕过。
 

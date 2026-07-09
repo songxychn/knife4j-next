@@ -141,8 +141,9 @@ bun run dev
 |---|---|
 | Java 主工程 | `./tools/test-java.sh` |
 | React 前端 / `knife4j-core` | `./tools/test-front-core.sh` |
+| Vue3 前端（OAS2 `doc.html`） | `./tools/test-vue3.sh` |
 | 文档站 | `./tools/test-docs.sh` |
-| 跨多个区域 | `./tools/test-all.sh` |
+| 跨多个区域 | `./tools/test-all.sh`（含 java / front-core / vue3 / docs） |
 
 `./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据。不要用单独的
 `mvn -B -ntp verify` 替代提交前验证。

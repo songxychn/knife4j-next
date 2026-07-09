@@ -88,13 +88,15 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
+          # shellcheck source=tools/common.sh
+          source tools/common.sh
           root="knife4j/knife4j-smoke-tests"
           {
             echo "### Smoke-tests evidence"
             echo ""
             echo "| module | tests | failures | errors |"
             echo "| --- | ---: | ---: | ---: |"
-            for module in boot2-app boot2-openapi3-app boot2-webflux-app aggregation-boot2-app boot3-aggregation-jakarta-app boot4-aggregation-app boot3-app boot3-jakarta-app boot3-webflux-jakarta-app boot3-gateway-app boot35-jakarta-app boot4-jakarta-app boot4-gateway-app; do
+            while IFS= read -r module; do
               dir="$root/$module/target/surefire-reports"
               if [ ! -d "$dir" ]; then
                 echo "| $module | (missing) | - | - |"
@@ -110,7 +112,7 @@ jobs:
               done
               shopt -u nullglob
               echo "| $module | $tests | $failures | $errors |"
-            done
+            done < <(read_list_file tools/smoke-modules.txt)
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload smoke-tests surefire reports on failure

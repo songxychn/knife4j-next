@@ -119,14 +119,20 @@ These rules are enforced by `.editorconfig` and `.gitattributes` at the reposito
 Run the same checks that CI runs:
 
 ```bash
-# Front-end (format:check + test + lint + build)
+# Front-end React / core (format:check + test + lint + build)
 ./tools/test-front-core.sh
 
-# Java (spotless:check + verify)
+# Front-end Vue3 (OAS2 doc.html build)
+./tools/test-vue3.sh
+
+# Java (spotless:check + verify + smoke evidence)
 ./tools/test-java.sh
 
 # Docs site build
 ./tools/test-docs.sh
+
+# Cross-area (java + front-core + vue3 + docs)
+./tools/test-all.sh
 ```
 
 ## Branch & Commit Conventions
@@ -141,7 +147,8 @@ Before submitting a PR, verify:
 
 - [ ] `bun run format:check` passes for all front-end workspaces (via `bun run --filter <pkg> format:check`)
 - [ ] `mvn spotless:check` passes for Java changes
-- [ ] `./tools/test-front-core.sh` passes (if front-end code changed)
+- [ ] `./tools/test-front-core.sh` passes (if React / core changed)
+- [ ] `./tools/test-vue3.sh` passes (if Vue3 / OAS2 UI changed)
 - [ ] `./tools/test-java.sh` passes (if Java code changed)
 - [ ] No unintended line-ending or whitespace-only diffs
 

@@ -1,13 +1,12 @@
 # 服务器运行手册
 
-本文件描述 OpenClaw 在服务器上的无人值守运行方式。目标不是让 agent 无限工作，而是让它以稳定、可恢复、可停止的节奏推进一个个小任务。
+本文件描述无人值守或定时唤醒场景下的运行方式。目标不是让 agent 无限工作，而是让它以稳定、可恢复、可停止的节奏推进一个个小任务。与具体 LLM CLI 或消息 bot 解耦。
 
-维护者在电脑前使用 Codex 推进任务时，优先阅读 `.agent/CODEX_PLAYBOOK.md`。本文件只约束
-无人值守或定时唤醒场景。
+维护者在电脑前现场推进任务时，优先阅读 `.agent/CODEX_PLAYBOOK.md`。本文件只约束无人值守或定时唤醒场景。
 
 ## 运行目标
 
-服务器上的 OpenClaw 每次唤醒只推进至多一个安全任务，或把一个已在进行中的任务推进一个检查点。
+每次唤醒只推进至多一个安全任务，或把一个已在进行中的任务推进一个检查点。
 
 不要在单次唤醒中连续吞掉多个任务，也不要为了“效率”牺牲可审查性。
 
@@ -25,7 +24,8 @@
 1. 拉取最新仓库状态并检查工作区是否干净。
 2. 如果当前分支对应某个 `in_progress` 任务，先处理该任务。
 3. 如果没有进行中的任务，从 GitHub Issues 选择一个 `status:ready` 任务：
-   `gh issue list --repo songxychn/knife4j-next --label agent-task --label status:ready --state open`
+   `gh issue list --label agent-task --label status:ready --state open`
+   （或先 `./tools/agent-status.sh ready`；仓库可用 `GH_REPO` 覆盖）
 4. 判断任务是否符合 `.agent/AUTONOMY_POLICY.md` 中的安全条件。
 5. 按 `.agent/COORDINATION.md` 判断是否必须派 worker；若跳过 worker，先记录例外原因。
 6. 完成最小改动后，运行最窄相关验证。

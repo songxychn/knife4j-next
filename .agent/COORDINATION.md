@@ -82,13 +82,13 @@ reviewer 的输入包至少包含：
 
 ## Prompt 模板
 
-启动 OpenClaw agent 时使用这些模板：
+启动 coordinator / worker / reviewer 时使用这些模板（与具体 LLM 产品无关）：
 
 - `.agent/prompts/openclaw-orchestrator.md` 用于长期运行的 coordinator
 - `.agent/prompts/worker.md` 用于短命实现或探索 worker
 - `.agent/prompts/reviewer.md` 用于独立审查 worker
 
-coordinator 应在 worker 和 reviewer 模板后追加具体任务分配，而不是每次修改模板本身。
+coordinator 应在 worker 和 reviewer 模板后追加具体任务分配，而不是每次修改模板本身。委派方式由当前运行时决定，不要假设 Claude、Codex 或某一 bot 通道。
 
 ## Worker 门禁
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Auto-detect JAVA_HOME if not set (needed for maven-javadoc-plugin)
-if [ -z "${JAVA_HOME:-}" ]; then
-  JAVA_HOME=$(dirname "$(dirname "$(readlink -f "$(which java)")")") && export JAVA_HOME
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO_ROOT/knife4j"
+# Auto-detect JAVA_HOME if not set (needed for maven-javadoc-plugin)
+ensure_java_home
+
+cd "${repo_root}/knife4j"
 
 mvn -B -ntp spotless:check
 mvn -B -ntp -Dknife4j-skipTests=false verify
@@ -22,33 +23,26 @@ mvn -B -ntp -Dknife4j-skipTests=false verify
 #   - every known smoke module must have produced a surefire report
 #   - every produced report must show > 0 tests executed and 0 failures/errors
 #
-# The check is cheap (it only reads XML files already written by surefire) and
-# fails loudly if a future change silently drops a smoke module from the build.
+# Module list source of truth: tools/smoke-modules.txt
 # ---------------------------------------------------------------------------
 
-SMOKE_MODULES=(
-  "boot2-app"
-  "boot2-openapi3-app"
-  "boot2-webflux-app"
-  "aggregation-boot2-app"
-  "boot3-aggregation-jakarta-app"
-  "boot4-aggregation-app"
-  "boot3-app"
-  "boot3-jakarta-app"
-  "boot3-webflux-jakarta-app"
-  "boot3-gateway-app"
-  "boot35-jakarta-app"
-  "boot4-jakarta-app"
-  "boot4-gateway-app"
-)
+SMOKE_MODULES=()
+while IFS= read -r _smoke_module; do
+  SMOKE_MODULES+=("$_smoke_module")
+done < <(read_list_file "${SCRIPT_DIR}/smoke-modules.txt")
 
-SMOKE_ROOT="$REPO_ROOT/knife4j/knife4j-smoke-tests"
+if [ "${#SMOKE_MODULES[@]}" -eq 0 ]; then
+  echo "Smoke module list is empty: ${SCRIPT_DIR}/smoke-modules.txt" >&2
+  exit 1
+fi
+
+SMOKE_ROOT="${repo_root}/knife4j/knife4j-smoke-tests"
 missing=()
 
 echo ""
 echo "==> Verifying smoke-tests evidence (issue #241)"
 for module in "${SMOKE_MODULES[@]}"; do
-  reports_dir="$SMOKE_ROOT/$module/target/surefire-reports"
+  reports_dir="${SMOKE_ROOT}/${module}/target/surefire-reports"
   if [ ! -d "$reports_dir" ]; then
     echo "   [MISSING] $module: no surefire-reports directory at $reports_dir"
     missing+=("$module")
@@ -96,7 +90,7 @@ if [ "${#missing[@]}" -ne 0 ]; then
   echo ""
   echo "Smoke evidence gate failed for: ${missing[*]}" >&2
   echo "The main 'mvn verify' must exercise every module under knife4j-smoke-tests/." >&2
-  echo "If a module was intentionally removed, update SMOKE_MODULES in tools/test-java.sh." >&2
+  echo "If a module was intentionally removed, update tools/smoke-modules.txt." >&2
   exit 1
 fi
 
