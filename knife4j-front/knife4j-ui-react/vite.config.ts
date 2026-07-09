@@ -28,9 +28,11 @@ export default defineConfig({
       '/v3/api-docs': BACKEND_PROXY,
       '/swagger-resources': BACKEND_PROXY,
       '/swagger-ui': BACKEND_PROXY,
-      // Demo 后端业务接口（UserController 的 /api/user/**），
-      // 供「接口文档调试」在 dev 下直接命中后端。
+      // Demo 后端业务接口，供「接口文档调试」在 dev 下直接命中后端。
+      // - /api/**：UserController、Stream、validation 等
+      // - /upload/**：UploadController（multipart），此前未代理会导致调试 404
       '/api': BACKEND_PROXY,
+      '/upload': BACKEND_PROXY,
     },
   },
   build: {

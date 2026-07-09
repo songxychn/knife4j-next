@@ -73,6 +73,7 @@ import {
   DEBUG_HISTORY_MASK,
   abortEntry,
   appendPending,
+  buildMultipartHistoryBody,
   clearHistory,
   completeEntry,
   createPendingEntry,
@@ -84,6 +85,7 @@ import {
   type DebugHistoryFormSnapshot,
 } from './debugHistory';
 import DebugHistoryPanel from './DebugHistoryPanel';
+import { formatSseHistoryResponseBody } from './sseEventTime';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
 import {
   EMPTY_BODY_CONTENT_DEFAULTS,
@@ -2164,20 +2166,19 @@ export default function ApiDebug() {
     const historyEnabled = settings.enableRequestHistory && requestDebugCacheKey !== null;
     let pendingHistoryId: string | null = null;
     if (historyEnabled && requestDebugCacheKey) {
-      const fileFieldNames: Record<string, string[]> = {};
-      for (const [name, fileList] of Object.entries(fileFieldsRef.current)) {
-        if (fileList.length > 0) {
-          fileFieldNames[name] = fileList.map((file) => file.name);
-        }
-      }
-      const historyBody =
-        built.body ??
-        (isMultipart
-          ? JSON.stringify({
-              formFields,
-              files: fileFieldNames,
-            })
-          : undefined);
+      // multipart: never use built.body (JSON of text formFields only — file keys become "").
+      // Persist text parts + filename/size placeholders (binary content is never stored).
+      const historyBody = isMultipart
+        ? buildMultipartHistoryBody(
+            formFields,
+            Object.fromEntries(
+              Object.entries(fileFieldsRef.current).map(([name, fileList]) => [
+                name,
+                fileList.map((file) => ({ name: file.name, size: file.size })),
+              ]),
+            ),
+          )
+        : built.body;
       const pending = createPendingEntry({
         method: built.method,
         path,
@@ -2212,7 +2213,8 @@ export default function ApiDebug() {
     setBuiltRequest(built);
     const start = Date.now();
     let abortController: AbortController | null = null;
-    let sseEventCount = 0;
+    /** Accumulated SSE payloads for history (mirrors UI events, independent of React state). */
+    const sseCollected: SseEvent[] = [];
     try {
       abortController = new AbortController();
       sseAbortRef.current = abortController;
@@ -2337,6 +2339,14 @@ export default function ApiDebug() {
         setSseEvents([]);
         setSseStreaming(true);
 
+        const pushSseEvent = (data: string) => {
+          const event: SseEvent = { data, timestamp: Date.now() };
+          sseCollected.push(event);
+          setSseEvents((prev) => [...(prev ?? []), event]);
+        };
+
+        const sseHistoryBody = () => formatSseHistoryResponseBody(sseCollected);
+
         const processChunk = (chunk: string) => {
           if (!isCurrentDebugRequest()) return;
           buffer += chunk;
@@ -2345,9 +2355,7 @@ export default function ApiDebug() {
           for (const line of lines) {
             const trimmed = line.trimEnd();
             if (trimmed.startsWith('data:')) {
-              const data = trimmed.slice(5).trimStart();
-              sseEventCount += 1;
-              setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
+              pushSseEvent(trimmed.slice(5).trimStart());
             }
           }
         };
@@ -2358,9 +2366,13 @@ export default function ApiDebug() {
             const { done, value } = await reader.read();
             if (done) break;
             if (!isCurrentDebugRequest()) {
-              finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
-                abortEntry(entry, { durationMs: Date.now() - start }),
-              );
+              finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) => ({
+                ...abortEntry(entry, { durationMs: Date.now() - start }),
+                isSse: true,
+                httpStatus: res.status,
+                statusText: res.statusText,
+                responseBody: sseHistoryBody() || undefined,
+              }));
               return;
             }
             processChunk(decoder.decode(value, { stream: true }));
@@ -2369,8 +2381,7 @@ export default function ApiDebug() {
           if (buffer.trim().startsWith('data:')) {
             const data = buffer.trim().slice(5).trimStart();
             if (data && isCurrentDebugRequest()) {
-              sseEventCount += 1;
-              setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
+              pushSseEvent(data);
             }
           }
           finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
@@ -2380,14 +2391,20 @@ export default function ApiDebug() {
               statusText: res.statusText,
               durationMs: Date.now() - start,
               isSse: true,
-              responseBody: `[SSE] ${sseEventCount} event(s)`,
+              // Full event payloads (truncated by debugHistory completeEntry if over 64KB).
+              responseBody: sseHistoryBody() || undefined,
             }),
           );
         } catch (err: unknown) {
           if (err instanceof Error && err.name === 'AbortError') {
-            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
-              abortEntry(entry, { durationMs: Date.now() - start }),
-            );
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) => ({
+              ...abortEntry(entry, { durationMs: Date.now() - start }),
+              isSse: true,
+              httpStatus: res.status,
+              statusText: res.statusText,
+              // Keep partial stream so history is still useful after cancel.
+              responseBody: sseHistoryBody() || undefined,
+            }));
             if (!isCurrentDebugRequest()) {
               return;
             }
@@ -2399,6 +2416,7 @@ export default function ApiDebug() {
                 durationMs: Date.now() - start,
                 isSse: true,
                 errorMessage: err instanceof Error ? err.message : String(err),
+                responseBody: sseHistoryBody() || undefined,
               }),
             );
             return;
@@ -2412,6 +2430,7 @@ export default function ApiDebug() {
                 durationMs: Date.now() - start,
                 isSse: true,
                 errorMessage: msg,
+                responseBody: sseHistoryBody() || undefined,
               }),
             );
             setError(msg);

@@ -275,6 +275,50 @@ export function sanitizeCustomCookieRows(rows: DebugHistoryCustomParamRow[]): De
   return rows.map((row) => (isSensitiveCookieName(row.name) ? { ...row, value: DEBUG_HISTORY_MASK } : { ...row }));
 }
 
+export interface HistoryFileMeta {
+  name: string;
+  size?: number;
+}
+
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/**
+ * Build a readable multipart request-body snapshot for send history.
+ *
+ * File binary is never persisted; only filename (+ size) placeholders.
+ * Do not use requestBuilder's multipart `body` (JSON of formFields only) —
+ * that leaves file parts as empty strings.
+ */
+export function buildMultipartHistoryBody(
+  formFields: Record<string, string>,
+  files: Record<string, HistoryFileMeta[]>,
+): string {
+  const snapshot: Record<string, string> = { ...formFields };
+
+  for (const [name, list] of Object.entries(files)) {
+    if (!list || list.length === 0) {
+      if (snapshot[name] === undefined || snapshot[name] === '') {
+        snapshot[name] = '[file] (none)';
+      }
+      continue;
+    }
+    snapshot[name] = list
+      .map((file) => {
+        const sizePart =
+          typeof file.size === 'number' && Number.isFinite(file.size) ? ` · ${formatFileSize(file.size)}` : '';
+        return `[file] ${file.name}${sizePart}`;
+      })
+      .join(', ');
+  }
+
+  return JSON.stringify(snapshot, null, 2);
+}
+
 function truncateStringRecord(fields: Record<string, string>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(fields)) {

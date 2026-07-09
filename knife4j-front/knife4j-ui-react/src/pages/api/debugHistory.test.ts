@@ -6,6 +6,7 @@ import {
   DEBUG_HISTORY_VERSION,
   abortEntry,
   appendPending,
+  buildMultipartHistoryBody,
   clearHistory,
   completeEntry,
   createPendingEntry,
@@ -114,6 +115,23 @@ describe('debugHistory', () => {
     expect(entry.headers.Accept).toBe('application/json');
     expect(entry.bodyTruncated).toBe(true);
     expect(entry.body?.length).toBeLessThan(largeBody.length);
+  });
+
+  it('buildMultipartHistoryBody uses file name placeholders instead of empty strings', () => {
+    const body = buildMultipartHistoryBody(
+      {
+        file: '',
+        meta: '{\n  "description": "用户头像"\n}',
+      },
+      {
+        file: [{ name: 'avatar.png', size: 2048 }],
+      },
+    );
+    const parsed = JSON.parse(body) as Record<string, string>;
+    expect(parsed.file).toContain('[file] avatar.png');
+    expect(parsed.file).toContain('2.0 KB');
+    expect(parsed.meta).toContain('用户头像');
+    expect(parsed.file).not.toBe('');
   });
 
   it('appends pending entries, completes them, and keeps newest-first FIFO at 20', () => {
