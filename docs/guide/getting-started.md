@@ -15,7 +15,7 @@ title: 快速开始
 如果不确定哪个版本合适，先看 [版本参考表](../reference/version-ref)。
 :::
 
-## 路径一：Spring Boot 4.x + OpenAPI3 Boot4
+## 路径一：Spring Boot 4.x + OpenAPI3 Boot4（默认推荐）
 
 ### 环境要求
 
@@ -65,7 +65,7 @@ Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.
 
 ---
 
-## 路径二：Spring Boot 3.x + OpenAPI3 Jakarta（推荐）
+## 路径二：Spring Boot 3.x + OpenAPI3 Jakarta
 
 ### 环境要求
 
