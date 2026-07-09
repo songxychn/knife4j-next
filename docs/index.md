@@ -49,7 +49,17 @@ features:
 
 ## 60 秒上手
 
-Spring Boot 3.x（Jakarta）：
+默认推荐 **Spring Boot 4.x**：
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+    <version>5.0.15</version>
+</dependency>
+```
+
+仍在 **Spring Boot 3.x** 时：
 
 ```xml
 <dependency>
@@ -58,6 +68,8 @@ Spring Boot 3.x（Jakarta）：
     <version>5.0.15</version>
 </dependency>
 ```
+
+Spring Boot 2.x / Gateway / 独立聚合等场景，将 `artifactId` 换成对应 starter，见 [快速开始](/guide/getting-started)。
 
 最小配置（使用 springdoc 默认 `/v3/api-docs` 和 `/swagger-ui.html`）：
 
