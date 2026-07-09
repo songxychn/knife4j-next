@@ -59,9 +59,22 @@ function statusLabel(entry: DebugHistoryEntry, t: (key: string, opts?: Record<st
   return t('apiDebug.history.status.completed');
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** Format timestamp as yyyy-MM-dd HH:mm:ss (local time). */
 function formatTime(ts: number): string {
   try {
-    return new Date(ts).toLocaleString();
+    const date = new Date(ts);
+    if (Number.isNaN(date.getTime())) return String(ts);
+    const yyyy = date.getFullYear();
+    const MM = pad2(date.getMonth() + 1);
+    const dd = pad2(date.getDate());
+    const HH = pad2(date.getHours());
+    const mm = pad2(date.getMinutes());
+    const ss = pad2(date.getSeconds());
+    return `${yyyy}-${MM}-${dd} ${HH}:${mm}:${ss}`;
   } catch {
     return String(ts);
   }
