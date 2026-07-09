@@ -69,6 +69,21 @@ import {
   type DebugCacheRawMode,
   type DebugCacheState,
 } from './debugCache';
+import {
+  DEBUG_HISTORY_MASK,
+  abortEntry,
+  appendPending,
+  clearHistory,
+  completeEntry,
+  createPendingEntry,
+  isSensitiveHeaderName,
+  listHistory,
+  removeEntry,
+  updateEntry,
+  type DebugHistoryEntry,
+  type DebugHistoryFormSnapshot,
+} from './debugHistory';
+import DebugHistoryPanel from './DebugHistoryPanel';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
 import {
   EMPTY_BODY_CONTENT_DEFAULTS,
@@ -1589,6 +1604,9 @@ export default function ApiDebug() {
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
   const requestSeqRef = useRef(0);
+  /** Pending history entry id for the in-flight request (strategy C). */
+  const pendingHistoryIdRef = useRef<string | null>(null);
+  const pendingHistoryCacheKeyRef = useRef<string | null>(null);
 
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
@@ -1598,6 +1616,7 @@ export default function ApiDebug() {
   const [resetNonce, setResetNonce] = useState(0);
   const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
   const skipNextDebugCacheWriteRef = useRef(false);
+  const [historyEntries, setHistoryEntries] = useState<DebugHistoryEntry[]>([]);
 
   // ── TASK-028: 校验错误与预览 ──
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1614,6 +1633,14 @@ export default function ApiDebug() {
   useLayoutEffect(() => {
     activeDebugCacheKeyRef.current = debugCacheKey;
   }, [debugCacheKey]);
+
+  useEffect(() => {
+    if (!settings.enableRequestHistory || debugCacheKey === null) {
+      setHistoryEntries([]);
+      return;
+    }
+    setHistoryEntries(listHistory(debugCacheKey));
+  }, [debugCacheKey, settings.enableRequestHistory]);
 
   const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
     setBaseUrl(initial.baseUrl);
@@ -2000,6 +2027,113 @@ export default function ApiDebug() {
     return { formValues, built, curl };
   };
 
+  const buildHistoryFormSnapshot = (): DebugHistoryFormSnapshot => {
+    const fileFieldNames: Record<string, string[]> = {};
+    for (const [name, fileList] of Object.entries(fileFieldsRef.current)) {
+      if (fileList.length > 0) {
+        fileFieldNames[name] = fileList.map((file) => file.name);
+      }
+    }
+    const hasFileFields = Object.keys(fileFieldNames).length > 0;
+    return {
+      baseUrl,
+      method,
+      path,
+      paramValues: { ...paramValues },
+      paramEnabled: { ...paramEnabled },
+      selectedContentType,
+      body,
+      formFields: { ...formFields },
+      rawMode,
+      customQueryParams: customQueryParams.map((row) => ({ ...row })),
+      customHeaders: customHeaders.map((row) => ({ ...row })),
+      customCookies: customCookies.map((row) => ({ ...row })),
+      fileFieldNames: hasFileFields ? fileFieldNames : undefined,
+      hasFileFields,
+    };
+  };
+
+  const refreshHistoryEntries = (cacheKey: string | null) => {
+    if (!cacheKey || !settings.enableRequestHistory) {
+      setHistoryEntries([]);
+      return;
+    }
+    if (activeDebugCacheKeyRef.current === cacheKey) {
+      setHistoryEntries(listHistory(cacheKey));
+    }
+  };
+
+  const finalizeHistoryEntry = (
+    cacheKey: string | null,
+    entryId: string | null,
+    updater: (entry: DebugHistoryEntry) => DebugHistoryEntry,
+  ) => {
+    // Only requires an id: if a pending row was written, always complete it even if the
+    // setting is toggled off mid-flight (switch only controls new writes + panel visibility).
+    if (!cacheKey || !entryId) return;
+    updateEntry(cacheKey, entryId, updater);
+    if (pendingHistoryIdRef.current === entryId) {
+      pendingHistoryIdRef.current = null;
+      pendingHistoryCacheKeyRef.current = null;
+    }
+    refreshHistoryEntries(cacheKey);
+  };
+
+  const handleApplyHistory = (entry: DebugHistoryEntry) => {
+    const snap = entry.formSnapshot;
+    if (snap) {
+      setBaseUrl(snap.baseUrl);
+      setMethod(snap.method);
+      setPath(snap.path);
+      setParamValues(snap.paramValues);
+      setParamEnabled(snap.paramEnabled);
+      setSelectedContentType(snap.selectedContentType);
+      setBody(snap.body);
+      setFormFields(snap.formFields);
+      setRawMode(snap.rawMode);
+      setCustomQueryParams(snap.customQueryParams);
+      const restoredHeaders = snap.customHeaders.filter(
+        (row) => row.value !== DEBUG_HISTORY_MASK && !isSensitiveHeaderName(row.name),
+      );
+      const restoredCookies = snap.customCookies.filter(
+        (row) => row.value !== DEBUG_HISTORY_MASK && !isSensitiveHeaderName(row.name),
+      );
+      setCustomHeaders(restoredHeaders);
+      setCustomCookies(restoredCookies);
+      fileFieldsRef.current = {};
+      setResetNonce((value) => value + 1);
+      void message.success(t('apiDebug.history.applied'));
+      if (snap.hasFileFields) {
+        void message.warning(t('apiDebug.history.reselectFiles'));
+      }
+      const hadSensitive =
+        snap.customHeaders.some((row) => row.value === DEBUG_HISTORY_MASK || isSensitiveHeaderName(row.name)) ||
+        snap.customCookies.some((row) => row.value === DEBUG_HISTORY_MASK || isSensitiveHeaderName(row.name));
+      if (hadSensitive) {
+        void message.info(t('apiDebug.history.sensitiveSkipped'));
+      }
+      return;
+    }
+
+    setBaseUrl(entry.baseUrl);
+    setMethod(entry.method);
+    setPath(entry.path);
+    if (entry.body !== undefined) setBody(entry.body);
+    if (entry.contentType) setSelectedContentType(entry.contentType);
+    void message.success(t('apiDebug.history.applied'));
+  };
+
+  const handleRemoveHistory = (id: string) => {
+    if (debugCacheKey === null) return;
+    setHistoryEntries(removeEntry(debugCacheKey, id));
+  };
+
+  const handleClearHistory = () => {
+    if (debugCacheKey === null) return;
+    clearHistory(debugCacheKey);
+    setHistoryEntries([]);
+  };
+
   const handleSend = async () => {
     if (!debugModel) return;
     setError(null);
@@ -2027,6 +2161,42 @@ export default function ApiDebug() {
     const isCurrentDebugRequest = () =>
       activeDebugCacheKeyRef.current === requestDebugCacheKey && requestSeqRef.current === requestSeq;
 
+    const historyEnabled = settings.enableRequestHistory && requestDebugCacheKey !== null;
+    let pendingHistoryId: string | null = null;
+    if (historyEnabled && requestDebugCacheKey) {
+      const fileFieldNames: Record<string, string[]> = {};
+      for (const [name, fileList] of Object.entries(fileFieldsRef.current)) {
+        if (fileList.length > 0) {
+          fileFieldNames[name] = fileList.map((file) => file.name);
+        }
+      }
+      const historyBody =
+        built.body ??
+        (isMultipart
+          ? JSON.stringify({
+              formFields,
+              files: fileFieldNames,
+            })
+          : undefined);
+      const pending = createPendingEntry({
+        method: built.method,
+        path,
+        baseUrl,
+        resolvedUrl: built.url,
+        headers: built.headers,
+        query: built.query,
+        body: historyBody,
+        contentType: built.contentType || getEffectiveContentType(),
+        groupName: group,
+        operationId: operaterId,
+        formSnapshot: buildHistoryFormSnapshot(),
+      });
+      pendingHistoryId = pending.id;
+      pendingHistoryIdRef.current = pending.id;
+      pendingHistoryCacheKeyRef.current = requestDebugCacheKey;
+      setHistoryEntries(appendPending(requestDebugCacheKey, pending));
+    }
+
     setLoading(true);
     // Revoke any previous object URL to avoid memory leaks across consecutive sends.
     if (response?.objectUrl) {
@@ -2042,6 +2212,7 @@ export default function ApiDebug() {
     setBuiltRequest(built);
     const start = Date.now();
     let abortController: AbortController | null = null;
+    let sseEventCount = 0;
     try {
       abortController = new AbortController();
       sseAbortRef.current = abortController;
@@ -2104,14 +2275,23 @@ export default function ApiDebug() {
       res.headers.forEach((value, key) => {
         responseHeaders[key] = value;
       });
-      if (!isCurrentDebugRequest()) return;
 
       const contentType = responseHeaders['content-type'] ?? '';
+      const durationMs = Date.now() - start;
 
       // 401 check must come before SSE/non-SSE branching:
       // a 401 response typically has Content-Type: application/json or text/html,
       // so it would never enter the SSE branch and the modal would never open.
       if (res.status === 401) {
+        finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+          completeEntry(entry, {
+            status: 'completed',
+            httpStatus: 401,
+            statusText: res.statusText,
+            durationMs,
+          }),
+        );
+        if (!isCurrentDebugRequest()) return;
         setAuthModalOpen(true);
         setLoading(false);
         setSseStreaming(false);
@@ -2120,8 +2300,32 @@ export default function ApiDebug() {
 
       // SSE path: text/event-stream → stream via ReadableStream reader
       if (contentType.toLowerCase().includes('text/event-stream')) {
+        if (!isCurrentDebugRequest()) {
+          // Still record that SSE started and was superseded.
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'completed',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs,
+              isSse: true,
+              responseBody: '[SSE] superseded by another request',
+            }),
+          );
+          return;
+        }
         setLoading(false);
         if (!res.body) {
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'error',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs,
+              isSse: true,
+              errorMessage: 'SSE response has no body',
+            }),
+          );
           setError('SSE response has no body');
           sseAbortRef.current = null;
           setSseStreaming(false);
@@ -2142,6 +2346,7 @@ export default function ApiDebug() {
             const trimmed = line.trimEnd();
             if (trimmed.startsWith('data:')) {
               const data = trimmed.slice(5).trimStart();
+              sseEventCount += 1;
               setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
             }
           }
@@ -2152,23 +2357,64 @@ export default function ApiDebug() {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            if (!isCurrentDebugRequest()) return;
+            if (!isCurrentDebugRequest()) {
+              finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+                abortEntry(entry, { durationMs: Date.now() - start }),
+              );
+              return;
+            }
             processChunk(decoder.decode(value, { stream: true }));
           }
           // flush remaining buffer
           if (buffer.trim().startsWith('data:')) {
             const data = buffer.trim().slice(5).trimStart();
             if (data && isCurrentDebugRequest()) {
+              sseEventCount += 1;
               setSseEvents((prev) => [...(prev ?? []), { data, timestamp: Date.now() }]);
             }
           }
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'completed',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs: Date.now() - start,
+              isSse: true,
+              responseBody: `[SSE] ${sseEventCount} event(s)`,
+            }),
+          );
         } catch (err: unknown) {
-          if (!isCurrentDebugRequest()) {
-            return;
-          } else if (err instanceof Error && err.name === 'AbortError') {
+          if (err instanceof Error && err.name === 'AbortError') {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              abortEntry(entry, { durationMs: Date.now() - start }),
+            );
+            if (!isCurrentDebugRequest()) {
+              return;
+            }
             // user aborted — not an error
+          } else if (!isCurrentDebugRequest()) {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: 'error',
+                durationMs: Date.now() - start,
+                isSse: true,
+                errorMessage: err instanceof Error ? err.message : String(err),
+              }),
+            );
+            return;
           } else {
-            setError(err instanceof Error ? err.message : String(err));
+            const msg = err instanceof Error ? err.message : String(err);
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: 'error',
+                httpStatus: res.status,
+                statusText: res.statusText,
+                durationMs: Date.now() - start,
+                isSse: true,
+                errorMessage: msg,
+              }),
+            );
+            setError(msg);
           }
         } finally {
           if (sseAbortRef.current === abortController) {
@@ -2189,6 +2435,17 @@ export default function ApiDebug() {
         built.url,
         contentDisposition,
       );
+
+      finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+        completeEntry(entry, {
+          status: 'completed',
+          httpStatus: res.status,
+          statusText: res.statusText,
+          durationMs: Date.now() - start,
+          responseBody: rawText,
+        }),
+      );
+
       if (!isCurrentDebugRequest()) {
         if (objectUrl) {
           URL.revokeObjectURL(objectUrl);
@@ -2210,9 +2467,22 @@ export default function ApiDebug() {
         kind,
       });
     } catch (reason: unknown) {
-      if (!isCurrentDebugRequest()) return;
-      if (!(reason instanceof Error && reason.name === 'AbortError')) {
-        setError(reason instanceof Error ? reason.message : String(reason));
+      if (reason instanceof Error && reason.name === 'AbortError') {
+        finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+          abortEntry(entry, { durationMs: Date.now() - start }),
+        );
+        if (!isCurrentDebugRequest()) return;
+      } else {
+        const msg = reason instanceof Error ? reason.message : String(reason);
+        finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+          completeEntry(entry, {
+            status: 'error',
+            durationMs: Date.now() - start,
+            errorMessage: msg,
+          }),
+        );
+        if (!isCurrentDebugRequest()) return;
+        setError(msg);
       }
     } finally {
       if (isCurrentDebugRequest()) {
@@ -2447,94 +2717,105 @@ export default function ApiDebug() {
 
   return (
     <OperationModeLayout activeKey="debug">
-      <div id="knife4j-api-debug-page">
-        <Space align="center" style={{ marginBottom: 12 }}>
-          <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
-            {method}
-          </Tag>
-          <Title level={5} style={{ margin: 0 }}>
-            {operation.operation.summary ?? operation.path}
-          </Title>
-        </Space>
+      <div id="knife4j-api-debug-page" style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Space align="center" style={{ marginBottom: 12 }}>
+            <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
+              {method}
+            </Tag>
+            <Title level={5} style={{ margin: 0 }}>
+              {operation.operation.summary ?? operation.path}
+            </Title>
+          </Space>
 
-        <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
-          <Select
-            value={method}
-            onChange={setMethod}
-            style={{ width: 110, flex: '0 0 110px' }}
-            options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
-              value: item,
-              label: item,
-            }))}
+          <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
+            <Select
+              value={method}
+              onChange={setMethod}
+              style={{ width: 110, flex: '0 0 110px' }}
+              options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
+                value: item,
+                label: item,
+              }))}
+            />
+            <AutoComplete
+              value={baseUrl}
+              title={baseUrl}
+              onChange={setBaseUrl}
+              options={requestServerSelectOptions}
+              filterOption={false}
+              style={{ flex: '0 1 420px', minWidth: 320 }}
+            />
+            <Input
+              value={displayPath}
+              title={displayPath}
+              onChange={(event) => handlePathInputChange(event.target.value)}
+              style={{ flex: '1 1 220px', minWidth: 0 }}
+            />
+            <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
+              {t('apiDebug.send')}
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={handleReset}>
+              {t('apiDebug.reset')}
+            </Button>
+          </Space.Compact>
+
+          <Tabs
+            activeKey={currentActiveTab}
+            defaultActiveKey={defaultTab}
+            onChange={(key) => setActiveTab(key)}
+            size="small"
+            items={tabItems}
           />
-          <AutoComplete
-            value={baseUrl}
-            title={baseUrl}
-            onChange={setBaseUrl}
-            options={requestServerSelectOptions}
-            filterOption={false}
-            style={{ flex: '0 1 420px', minWidth: 320 }}
+
+          <Divider style={{ margin: '16px 0' }} />
+
+          {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
+          <ResponsePanel
+            response={response}
+            error={error}
+            builtRequest={builtRequest}
+            operation={operation}
+            swaggerDoc={swaggerDoc}
+            sseEvents={sseEvents}
+            onSseAbort={handleSseAbort}
+            sseStreaming={sseStreaming}
           />
-          <Input
-            value={displayPath}
-            title={displayPath}
-            onChange={(event) => handlePathInputChange(event.target.value)}
-            style={{ flex: '1 1 220px', minWidth: 0 }}
+          <Modal
+            open={authModalOpen}
+            onCancel={() => setAuthModalOpen(false)}
+            title={t('auth.modal401.title')}
+            footer={[
+              <Button
+                key="resend"
+                type="primary"
+                onClick={() => {
+                  setAuthModalOpen(false);
+                  void handleSend();
+                }}
+              >
+                {t('auth.modal401.resend')}
+              </Button>,
+              <Button key="close" onClick={() => setAuthModalOpen(false)}>
+                {t('auth.modal401.close')}
+              </Button>,
+            ]}
+            width={680}
+            destroyOnHidden
+          >
+            <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
+            <Authorize />
+          </Modal>
+        </div>
+
+        {settings.enableRequestHistory && (
+          <DebugHistoryPanel
+            entries={historyEntries}
+            onApply={handleApplyHistory}
+            onRemove={handleRemoveHistory}
+            onClear={handleClearHistory}
           />
-          <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
-            {t('apiDebug.send')}
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleReset}>
-            {t('apiDebug.reset')}
-          </Button>
-        </Space.Compact>
-
-        <Tabs
-          activeKey={currentActiveTab}
-          defaultActiveKey={defaultTab}
-          onChange={(key) => setActiveTab(key)}
-          size="small"
-          items={tabItems}
-        />
-
-        <Divider style={{ margin: '16px 0' }} />
-
-        {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
-        <ResponsePanel
-          response={response}
-          error={error}
-          builtRequest={builtRequest}
-          operation={operation}
-          swaggerDoc={swaggerDoc}
-          sseEvents={sseEvents}
-          onSseAbort={handleSseAbort}
-          sseStreaming={sseStreaming}
-        />
-        <Modal
-          open={authModalOpen}
-          onCancel={() => setAuthModalOpen(false)}
-          title={t('auth.modal401.title')}
-          footer={[
-            <Button
-              key="resend"
-              type="primary"
-              onClick={() => {
-                setAuthModalOpen(false);
-                void handleSend();
-              }}
-            >
-              {t('auth.modal401.resend')}
-            </Button>,
-            <Button key="close" onClick={() => setAuthModalOpen(false)}>
-              {t('auth.modal401.close')}
-            </Button>,
-          ]}
-          width={680}
-          destroyOnHidden
-        >
-          <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
-          <Authorize />
-        </Modal>
+        )}
       </div>
     </OperationModeLayout>
   );
