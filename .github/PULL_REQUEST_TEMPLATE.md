@@ -40,8 +40,8 @@
 <!-- 列出实际跑了哪些命令 / 测试 / 手动验证步骤。 -->
 
 - [ ] 相关 smoke-tests 模块 `mvn -pl ... -am test` 通过
-- [ ] 如涉及前端：`knife4j-front/knife4j-core` 或 `knife4j-ui-react` 的 test / build 通过
-- [ ] 如涉及文档：`docs-site` 本地构建通过
+- [ ] 如涉及前端：`front/core` 或 `knife4j-ui-react` 的 test / build 通过
+- [ ] 如涉及文档：`docs` 本地构建通过
 
 ```
 # 粘贴关键命令输出

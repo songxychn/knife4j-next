@@ -91,7 +91,7 @@
 
 只有满足以下条件时才应创建或更新 PR：
 
-- 至少完成该任务要求的最窄验证（含 `./scripts/test-*.sh`，不只用 `tsc` / `vite build` 单步替代）
+- 至少完成该任务要求的最窄验证（含 `./tools/test-*.sh`，不只用 `tsc` / `vite build` 单步替代）
 - 在对应 GitHub Issue 评论里已记录摘要、验证和下一步
 - 已记录 worker handoff，或跳过 worker 的明确例外
 - 已记录 reviewer handoff，或跳过 reviewer 的明确例外
@@ -195,7 +195,7 @@ PR 描述格式规范：
 3. 监控 `Build and Deploy Demo` workflow 到终态。
 4. 确认 Maven Central 目标构件可访问。
 5. 确认 GitHub Release `vX.Y.Z` 存在。
-6. 确认 GitHub Release body 来自 `docs-site/release-notes/index.md` 对应版本小节。
+6. 确认 GitHub Release body 来自 `docs/release-notes/index.md` 对应版本小节。
 
 如果第 5 或第 6 项失败，发布尚未完成；不要只凭 tag 或 Maven Central 结果向维护者报告“发布完成”。
 

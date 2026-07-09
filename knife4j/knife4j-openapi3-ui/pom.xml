@@ -16,7 +16,8 @@
     <properties>
         <!--<destDir>${project.build.outputDirectory}/META-INF/resources/webjars/${project.artifactId}/${project.version}</destDir>-->
         <destDir>${project.build.outputDirectory}/META-INF/resources/</destDir>
-        <knife4j-ui-react.dir>${project.basedir}/../../knife4j-front/knife4j-ui-react</knife4j-ui-react.dir>
+        <knife4j-front.dir>${project.basedir}/../../front</knife4j-front.dir>
+        <knife4j-ui-react.dir>${project.basedir}/../../front/ui-react</knife4j-ui-react.dir>
         <knife4j-ui-react.outDir>${project.build.directory}/knife4j-ui-react-dist</knife4j-ui-react.outDir>
     </properties>
 
@@ -79,7 +80,8 @@
                                 <argument>install</argument>
                                 <argument>--frozen-lockfile</argument>
                             </arguments>
-                            <workingDirectory>${knife4j-ui-react.dir}</workingDirectory>
+                            <!-- workspace root: core + ui-react share front/bun.lock -->
+                            <workingDirectory>${knife4j-front.dir}</workingDirectory>
                         </configuration>
                     </execution>
                     <execution>

@@ -42,7 +42,7 @@ body:
     attributes:
       label: 相关文件或页面
       description: 如果知道相关路径、页面或配置，请填写。
-      placeholder: 例如：docs-site/guide/features.md
+      placeholder: 例如：docs/guide/features.md
 
   - type: dropdown
     id: sensitive_area

@@ -125,7 +125,7 @@ User/Maintainer -> Coordinator -> Worker -> Reviewer -> Worker(如需返工) -> 
 - `Build and Deploy Demo` workflow 成功。
 - Maven Central 目标构件可访问。
 - GitHub Release `vX.Y.Z` 存在。
-- GitHub Release body 与 `docs-site/release-notes/index.md` 中对应版本小节一致。
+- GitHub Release body 与 `docs/release-notes/index.md` 中对应版本小节一致。
 
 如果 GitHub Release 缺失，发布状态仍视为未完成，必须修复 workflow 或补齐 Release 后再报告完成。
 

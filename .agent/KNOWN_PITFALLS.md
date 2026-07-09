@@ -14,8 +14,8 @@
 
 ## 前端
 
-- `knife4j-front/knife4j-core` 有直接 test/lint/build 命令，是最适合自治任务的前端区域。
-- `knife4j-front/knife4j-ui-react` 属于探索区，不要通过实现暗示产品级承诺。
+- `front/core` 有直接 test/lint/build 命令，是最适合自治任务的前端区域。
+- `front/ui-react` 属于探索区，不要通过实现暗示产品级承诺。
 - 部分前端模块的 package metadata 可能仍反映 upstream 信息；除非涉及运行时行为，否则把 metadata 清理视作文档/仓库工作。
 
 ## 文档

@@ -6,11 +6,11 @@ on:
       - master
     paths:
       - 'knife4j/**'
-      - 'knife4j-front/knife4j-core/**'
-      - 'knife4j-front/knife4j-ui-react/**'
-      - 'knife4j-front/package.json'
-      - 'knife4j-front/bun.lock'
-      - 'knife4j-vue3/**'
+      - 'front/core/**'
+      - 'front/ui-react/**'
+      - 'front/package.json'
+      - 'front/bun.lock'
+      - 'front/vue3/**'
       - '.github/workflows/deploy-demo.yml'
     tags:
       - 'v*'
@@ -55,13 +55,13 @@ jobs:
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install knife4j-front workspace dependencies
+      - name: Install front workspace dependencies
         run: bun install --frozen-lockfile
-        working-directory: knife4j-front
+        working-directory: front
 
-      - name: Install knife4j-vue3 dependencies
+      - name: Install front/vue3 dependencies
         run: bun install --frozen-lockfile
-        working-directory: knife4j-vue3
+        working-directory: front/vue3
 
       - name: Build jar
         working-directory: knife4j

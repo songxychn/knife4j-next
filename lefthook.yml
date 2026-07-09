@@ -1,2 +1,2 @@
 extends:
-  - knife4j-front/lefthook.yml
+  - front/lefthook.yml

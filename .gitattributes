@@ -141,14 +141,15 @@ bun.lock          merge=ours
 # 5. GitHub 语言统计（linguist）
 # -----------------------------------------------------------------------------
 # 历史 Vue2 前端：不计入主语言统计
-knife4j-vue/**                                linguist-vendored
+legacy/vue2/**                                linguist-vendored
+legacy/insight/**                             linguist-vendored
 
 # 已打包进仓库的 webjar 产物（压缩 JS/CSS/字体等）：视为生成物
-knife4j-openapi2-ui/src/main/resources/webjars/**  linguist-generated
-knife4j-openapi3-ui/src/main/resources/webjars/**  linguist-generated
+knife4j/knife4j-openapi2-ui/src/main/resources/webjars/**  linguist-generated
+knife4j/knife4j-openapi3-ui/src/main/resources/webjars/**  linguist-generated
 
 # 文档站
-docs-site/**   linguist-documentation
+docs/**   linguist-documentation
 knife4j-doc/** linguist-documentation
 
 # 常见 min 产物
@@ -162,9 +163,9 @@ knife4j-doc/** linguist-documentation
 .agent/        export-ignore
 .github/       export-ignore
 .gitee/        export-ignore
-docs-site/     export-ignore
+docs/     export-ignore
 knife4j-doc/   export-ignore
-scripts/       export-ignore
+tools/         export-ignore
 static/        export-ignore
 
 .editorconfig   export-ignore
