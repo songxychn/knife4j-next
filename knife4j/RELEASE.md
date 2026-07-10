@@ -18,6 +18,7 @@
 
 - `.github/workflows/build.yml` 在 PR 和 `master` push 时运行 `mvn verify` 等验证。
 - `.github/workflows/release.yml` 在推送 `v*` tag 时发布 Maven Central 构件，并创建 GitHub Release。
+- `.github/workflows/deploy-demo.yml` 仅在推送 `v*` tag（或 `workflow_dispatch`）时构建并部署在线 demo，**不在** `master` 合并时自动部署，避免 demo 超前于已发布版本。
 
 ## Release flow
 
@@ -26,11 +27,11 @@
 3. 提交并合并 release prep PR，等待 PR CI 和 `master` push CI 通过。
 4. 创建并推送 tag，例如 `v5.0.8`。
 5. 等待 GitHub Actions `Release` workflow 完成发布。
-6. 等待 `Build and Deploy Demo` workflow 完成 demo 镜像发布。
+6. 等待同一次 tag 触发的 `Build and Deploy Demo` workflow 完成 demo 镜像发布。
 7. 验收发布完成条件：
    - `vX.Y.Z` tag 已推送。
    - `Release` workflow 成功。
-   - `Build and Deploy Demo` workflow 成功。
+   - `Build and Deploy Demo` workflow 成功（与 tag 对齐，非 master 合并触发）。
    - Maven Central 目标构件可访问。
    - GitHub Release `vX.Y.Z` 存在。
    - GitHub Release body 与 `docs/release-notes/index.md` 中对应版本小节一致。

@@ -1,17 +1,10 @@
 name: Build and Deploy Demo
 
+# Demo 只跟已发布版本对齐：master 合并不自动部署，避免线上 demo 跑到
+# 用户尚未能通过 Maven Central 拿到的未发版 master 代码。
+# 紧急手动部署仍可用 workflow_dispatch。
 on:
   push:
-    branches:
-      - master
-    paths:
-      - 'knife4j/**'
-      - 'front/core/**'
-      - 'front/ui-react/**'
-      - 'front/package.json'
-      - 'front/bun.lock'
-      - 'front/vue3/**'
-      - '.github/workflows/deploy-demo.yml'
     tags:
       - 'v*'
   workflow_dispatch:
