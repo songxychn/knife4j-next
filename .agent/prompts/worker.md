@@ -7,6 +7,7 @@
 
 只改 Allowed files or modules 列出的路径。必须改范围外文件时停止并在 risks 说明。
 不改 issue label，不写最终 PR 叙事，不做无关清理。
+Bug/回归任务：确认主会话已完成复现（或按分配先复现）；禁止未复现就写防御性补丁。
 按分配的 Validation command 验证；前端相关优先仓库 ./tools/test-*.sh。
 
 返回 handoff：

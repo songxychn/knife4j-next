@@ -25,15 +25,28 @@
 - Java 改动的 PR / issue 应能指向 smoke 证据：本地 `test-java.sh` 尾部 `Smoke-tests evidence OK`，或 CI 的 smoke summary。
 - 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表（若仓库已抽出 `tools/smoke-modules.txt` 则只改该文件）。
 
-## 上游 issue 复现（强制）
+## Bug 复现（强制）
 
-正文含 `Upstream: ...` 或标题带 `(upstream #N)` 时，**先复现再写修复**：
+凡 **bug / 回归 / 错误行为** 类任务（本仓 issue 或 upstream 关联），**先复现再写修复**。  
+不适用于：纯文档、流程文案、明确的新功能、无行为主张的格式化/重构。
 
-1. 读完 upstream 堆栈、触发条件、版本组合；缺信息 → 评论说明并 `status:blocked`。
-2. 在 `knife4j-smoke-tests/` 复用或新建最小工程，**显式 pin** 相关版本。
-3. 在未打补丁的 master 上复现，把证据贴 issue。
-4. 复现不到：写明尝试条件；已修复则 close 并链 commit；否则 blocked。**禁止**空想 try-catch / null-guard。
-5. 能复现：先写会失败的断言，再修，修后应变绿。
+### 通用步骤
+
+1. **读完问题描述**：堆栈、触发步骤、版本组合、期望 vs 实际；缺信息 → 评论说明并 `status:blocked`，不要猜。
+2. **在未打补丁的 master（或任务指定的基线）上复现**，留下可核对证据（命令输出、HTTP 响应、日志片段、失败测试）。证据贴 issue 评论。
+3. **复现手段按区域选择**（能自动化的优先自动化）：
+   - Java / starter / 兼容：优先 `knife4j-smoke-tests/` 复用或新建最小工程；相关版本**显式 pin**；登记 smoke 列表（见上）。
+   - `front/core`：失败单测或最小解析夹具。
+   - UI：最小复现步骤 + 能固定的测试/断言；纯视觉问题至少写清浏览器与操作路径及截图/描述。
+4. **复现不到**：写明已尝试条件；若历史已修则 close 并链 commit；否则 `status:blocked` 等补充信息。**禁止**空想 try-catch / null-guard /「防御性」补丁。
+5. **能复现**：先增加（或确认）在修复前会失败的断言/复现步骤，再修；修后同一证据应变绿或现象消失。
+
+### 额外：upstream 关联
+
+正文含 `Upstream: ...` 或标题带 `(upstream #N)` 时，在上述步骤之外还须：
+
+- 读完 upstream 原文、堆栈与评论，再定本仓范围。
+- 若本仓只做衍生增强，issue 须写明**不自认为修了 upstream #N**。
 
 ## PR 与 CI
 
