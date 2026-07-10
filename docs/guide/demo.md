@@ -155,7 +155,7 @@ docker run --rm -p 8081:8081 \
 
 ## 镜像发布
 
-两个 demo 镜像都由 `.github/workflows/deploy-demo.yml` 在 `master` 推送时通过 matrix 构建并推送到 GitHub Container Registry：
+两个 demo 镜像都由 `.github/workflows/deploy-demo.yml` 在推送 `v*` 发布 tag 时通过 matrix 构建并推送到 GitHub Container Registry（`master` 合并不自动部署，保证在线 demo 与已发布版本一致；紧急情况可 `workflow_dispatch` 手动跑）：
 
 - `ghcr.io/songxychn/knife4j-next/knife4j-next-demo-openapi3:latest`
 - `ghcr.io/songxychn/knife4j-next/knife4j-next-demo-openapi2:latest`
