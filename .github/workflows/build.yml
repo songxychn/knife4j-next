@@ -5,44 +5,45 @@ env:
 
 on:
   pull_request:
-    paths:
-      - "knife4j/**"
-      - "front/core/**"
-      - "front/ui-react/**"
-      - "front/package.json"
-      - "front/bun.lock"
-      - "front/vue3/**"
-      - "docs/**"
-      - "tools/**"
-      - ".github/workflows/build.yml"
-      - ".github/workflows/release.yml"
-      - ".java-version"
-      - ".nvmrc"
-      - ".editorconfig"
-      - ".gitattributes"
-      - "CONTRIBUTING.md"
   push:
     branches:
       - master
-    paths:
-      - "knife4j/**"
-      - "front/core/**"
-      - "front/ui-react/**"
-      - "front/package.json"
-      - "front/bun.lock"
-      - "front/vue3/**"
-      - "docs/**"
-      - "tools/**"
-      - ".github/workflows/build.yml"
-      - ".github/workflows/release.yml"
-      - ".java-version"
-      - ".nvmrc"
-      - ".editorconfig"
-      - ".gitattributes"
-      - "CONTRIBUTING.md"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      java: ${{ steps.classify.outputs.java }}
+      react: ${{ steps.classify.outputs.react }}
+      vue3: ${{ steps.classify.outputs.vue3 }}
+      docs: ${{ steps.classify.outputs.docs }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          changed_paths="$(mktemp)"
+          trap 'rm -f "$changed_paths"' EXIT
+          if [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA" >/dev/null 2>&1 || true
+          fi
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null || ! git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null || ! git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$changed_paths"; then
+            tools/ci-changes.sh </dev/null >> "$GITHUB_OUTPUT"
+          else
+            tools/ci-changes.sh < "$changed_paths" >> "$GITHUB_OUTPUT"
+          fi
+
   java-build-test:
+    needs: changes
+    if: needs.changes.outputs.java == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -68,14 +69,6 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
-
-      - name: Install front workspace dependencies
-        run: bun install --frozen-lockfile
-        working-directory: front
-
-      - name: Install front/vue3 dependencies (bun)
-        run: bun install --frozen-lockfile
-        working-directory: front/vue3
 
       - name: Verify Java modules
         run: tools/test-java.sh
@@ -122,6 +115,8 @@ jobs:
           if-no-files-found: ignore
 
   front-core-test:
+    needs: changes
+    if: needs.changes.outputs.react == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -141,7 +136,31 @@ jobs:
       - name: Test front core
         run: tools/test-front-core.sh
 
+  vue3-test:
+    needs: changes
+    if: needs.changes.outputs.vue3 == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Test Vue3 UI
+        run: tools/test-vue3.sh
+
   docs-build:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
