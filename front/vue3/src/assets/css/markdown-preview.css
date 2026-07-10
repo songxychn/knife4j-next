@@ -1,6 +1,7 @@
 .markdown-body {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  box-sizing: border-box;
   color: #333;
   overflow: hidden;
   font-family:
@@ -9,7 +10,12 @@
     sans-serif;
   font-size: 16px;
   line-height: 1.6;
+  /* #528: contain long unbroken tokens inside flex/layout parents */
+  min-width: 0;
+  max-width: 100%;
   word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-body * {
@@ -203,6 +209,8 @@
   font-size: 85%;
   background-color: rgba(0, 0, 0, 0.04);
   border-radius: 3px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-body code:before,
@@ -213,7 +221,10 @@
 
 .markdown-body pre {
   padding: 16px;
-  overflow: auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
   font-size: 85%;
   line-height: 1.45;
   word-wrap: normal;
@@ -231,6 +242,7 @@
   line-height: inherit;
   word-break: normal;
   word-wrap: normal;
+  overflow-wrap: normal;
   white-space: pre;
   background: transparent;
   border: 0;
@@ -397,7 +409,10 @@
 
 .editormd-preview-container,
 .editormd-html-preview {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 20px;
   overflow: auto;
   font-size: 14px;

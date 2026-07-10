@@ -13,7 +13,7 @@ const Markdown = memo(({ source, preserveLineBreaks = false }: MarkdownProps) =>
     return DOMPurify.sanitize(rawHtml);
   }, [preserveLineBreaks, source]);
 
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className="knife4j-markdown" dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
 Markdown.displayName = 'Markdown';

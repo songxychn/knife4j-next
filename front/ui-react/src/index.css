@@ -148,6 +148,39 @@ body {
   margin: 0;
 }
 
+/*
+ * Markdown long-token overflow (#528):
+ * Unbreakable English/API-key strings and <pre> blocks must not stretch the page.
+ */
+.knife4j-markdown {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.knife4j-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.knife4j-markdown pre code {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.knife4j-markdown :not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.knife4j-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 @media (max-width: 800px) {
   .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-nav {
     min-width: 88px;

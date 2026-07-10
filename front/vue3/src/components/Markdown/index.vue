@@ -52,3 +52,13 @@ export default {
   }
 }
 </script>
+
+<style>
+/* #528: flex parents (e.g. a-row.markdown-body) must not grow with long tokens / pre */
+.knife4j-markdown {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+</style>
