@@ -31,7 +31,7 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
 | Spring Boot | `4.0.6` | demo `pom.xml` 通过 Boot BOM 显式声明 |
-| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.0.15` |
+| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.0.16` |
 | JDK | 17 | Dockerfile base image `eclipse-temurin:17-jre-alpine` |
 | springdoc-openapi | `3.0.3` | 由 starter 管理 |
 
@@ -100,7 +100,7 @@ docker run --rm -p 8080:8080 \
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
 | Spring Boot | `2.7.18` | 由根 pom `knife4j-spring-boot.version` 管理 |
-| knife4j starter | `knife4j-openapi2-spring-boot-starter` | 本仓库 `5.0.15` |
+| knife4j starter | `knife4j-openapi2-spring-boot-starter` | 本仓库 `5.0.16` |
 | JDK | 8 | Dockerfile base image `eclipse-temurin:8-jre-alpine` |
 | springfox | `2.10.5` | Swagger 2 注解解析 |
 
