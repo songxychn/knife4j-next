@@ -27,8 +27,8 @@ const MarkdownDocument: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '16px 24px', maxWidth: 900 }}>
-      <h2 style={{ marginBottom: 16 }}>{doc.title}</h2>
+    <div style={{ padding: '16px 24px', minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+      <h2 style={{ marginBottom: 16, overflowWrap: 'anywhere' }}>{doc.title}</h2>
       <Markdown source={doc.content} />
     </div>
   );
