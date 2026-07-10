@@ -11,8 +11,8 @@
 | 本文件 | 始终 |
 | `.agent/PROJECT.md` | 改产品行为、前端线、模块边界时 |
 | `.agent/AUTONOMY_POLICY.md` | 不确定能不能改某类东西时 |
-| `.agent/RUNBOOK.md` | 需要选验证命令、发版验收、复现 upstream 时 |
-| `.agent/KNOWN_PITFALLS.md` | 触碰 Java 兼容、upstream、审查结论时 |
+| `.agent/RUNBOOK.md` | 选验证命令、**bug 复现**、发版验收时 |
+| `.agent/KNOWN_PITFALLS.md` | 触碰 Java 兼容、bug/upstream、审查结论时 |
 | `.agent/PLAYBOOK.md` | 需要完整工作循环时 |
 | `.agent/COORDINATION.md` | 需要拆 worker / 独立 reviewer 时 |
 
@@ -27,6 +27,7 @@
 3. 不删除大模块或重要历史路径，除非维护者明确批准。
 4. OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
 5. 一个分支只做一件可独立验证的事；优先小而可回滚。
+6. **Bug / 回归类任务先复现再修**（本仓 issue 与 upstream 关联均适用）；证据写入 issue。细则见 `.agent/RUNBOOK.md`。
 
 ## 任务状态（Issue）
 
@@ -45,7 +46,7 @@
 
 ## 默认工作方式
 
-维护者在场时：**单 agent 端到端** 即可（实现 → `./tools/test-*` → PR → 等 CI）。  
+维护者在场时：**单 agent 端到端** 即可。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → PR → 等 CI。  
 高风险改动需要第二意见（独立 agent 或维护者人工审），见 `.agent/COORDINATION.md` 与 `.agent/PLAYBOOK.md`。
 
 分支：`agent/<task-id>-<slug>`；无 issue 的现场小改可用 `agent/codex-<slug>` 并在 PR 说明原因。

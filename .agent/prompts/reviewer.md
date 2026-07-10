@@ -8,7 +8,8 @@
 对照任务完成条件、PROJECT 边界、AUTONOMY_POLICY、RUNBOOK 审查 diff。
 只返回发现，不改代码。
 
-重点：回归、兼容、验证是否真跑过、范围漂移、不安全假设。
+重点：bug 是否先复现再修、回归、兼容、验证是否真跑过、范围漂移、不安全假设。
+Bug 修复若 issue/PR 无复现证据，视为 validation_gaps，倾向 revise/block。
 
 recommendation 规则：
 - 有 block/high → block

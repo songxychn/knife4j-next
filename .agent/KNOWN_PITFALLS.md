@@ -2,11 +2,12 @@
 
 只列「违反一次就很痛」的项目特有经验。通用工程常识不写。
 
-## 上游与复现
+## 复现
 
-- **先复现再修。** upstream 问题可能在本 fork 已不存在（依赖升级、历史 fix、默认配置不同）。未复现就写 try-catch / null-guard 等于噪音；#303 是反面教材（真实是 springdoc 内 `StackOverflowError`，外层 NPE catch 拦不到）。
-- **读完 upstream 正文 + 堆栈 + 评论再定本仓库范围。** 可以「受 upstream 启发做本仓增强」，但 issue 必须写明**不自认为修了 upstream #N**。
-- **一分支一任务。** 不要一个 commit 绑多个 upstream 编号；smoke 必须构造报告场景再断言。
+- **本仓 bug 与 upstream 关联 bug 都要先复现再修。** 未复现就写 try-catch / null-guard /「防御性」补丁等于噪音。证据写进 issue，再动修复代码。
+- **upstream 问题可能在本 fork 已不存在**（依赖升级、历史 fix、默认配置不同）。#303 是反面教材（真实是 springdoc 内 `StackOverflowError`，外层 NPE catch 拦不到）。
+- **读完正文 + 堆栈 + 评论再定范围。** 受 upstream 启发做本仓增强时，issue 必须写明**不自认为修了 upstream #N**。
+- **一分支一任务。** 不要一个 commit 绑多个 issue 编号；回归测试必须构造报告场景再断言。
 
 ## 审查
 

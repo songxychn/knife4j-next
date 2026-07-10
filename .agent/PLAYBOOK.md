@@ -14,11 +14,12 @@
 1. 读 `AGENTS.md`；按任务补读 `.agent/PROJECT.md` / `RUNBOOK.md` 等。
 2. 确认任务：维护者指定，或 `agent-task` + `status:ready` 的 issue。
 3. 可执行性检查（见下）；缺信息先补 issue 或问维护者。
-4. 开/切分支：`agent/<task-id>-<slug>`（无 issue：`agent/codex-<slug>`）。
-5. 最小改动；不夹带无关清理。
-6. 跑 `.agent/RUNBOOK.md` 中最窄验证。
-7. 开/更新 PR，`gh pr checks <N> --watch`。
-8. 本地验证 + 审查结论 + CI 全绿后，才把 issue 标 `status:review`。
+4. **Bug 类任务：先按 RUNBOOK 复现并贴证据，再写修复。**
+5. 开/切分支：`agent/<task-id>-<slug>`（无 issue：`agent/codex-<slug>`）。
+6. 最小改动；不夹带无关清理。
+7. 跑 `.agent/RUNBOOK.md` 中最窄验证。
+8. 开/更新 PR，`gh pr checks <N> --watch`。
+9. 本地验证 + 审查结论 + CI 全绿后，才把 issue 标 `status:review`。
 
 ## 可执行性检查
 
@@ -30,12 +31,15 @@
 - 完成条件
 - 风险与是否需要人工决策
 
-Upstream 相关还必须：
+**Bug / 回归 / 错误行为**（本仓 issue 与 upstream 关联均适用）还必须：
+
+- 在未打补丁基线上复现成功，证据已写进 issue（见 RUNBOOK「Bug 复现」）
+- 或已说明复现失败并 `blocked` / close——**不得**在未复现时直接写修复
+
+Upstream 关联额外：
 
 - 读完 upstream 原文、堆栈、截图与评论
-- 在本仓库能否复现（见 RUNBOOK）
 - 若只是衍生范围，issue 须写明**不自认为修了 upstream**
-
 ## 风险与审查
 
 | 级别 | 例子 | 做法 |
