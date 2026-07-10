@@ -12,7 +12,21 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.15 <Badge type="tip" text="最新" />
+### 5.0.16 <Badge type="tip" text="最新" />
+
+`5.0.16` 是基于 `5.0.15` 的补丁版本，重点增强 React UI 调试页按接口记录请求历史，修复自定义 Markdown 文档中超长连续英文撑开页面的问题，并完成仓库按产品线重组与文档默认 Boot4 坐标对齐。
+
+**前端（React UI）**
+
+- 调试页新增按接口维度的请求历史：发送时写入 `pending`，响应/失败/取消后补全；本机 `localStorage` 持久化，支持列表、详情、应用到表单、删除与清空，以及 `enableRequestHistory` 开关（PR #523）。
+- 修复自定义 Markdown 文档中超长连续英文字符（如 API key）把页面横向撑开的问题；段落内可断行，代码块仅内部横向滚动（PR #531，issue #528）。
+
+**文档 & 仓库**
+
+- 按产品线重组 monorepo 顶层结构：前端收拢到 `front/`，文档与脚本迁至 `docs/`、`tools/`，历史模块归档到 `legacy/`，并新增 `knife4x/` 骨架（PR #525）。
+- 文档站首页「60 秒上手」默认 Maven 示例切换为 Boot4 starter，并保留 Boot 3.x 示例（PR #526）。
+
+### 5.0.15
 
 `5.0.15` 是基于 `5.0.14` 的补丁版本，重点补齐 Boot4 独立聚合 starter，README 默认示例切换到 Boot4 坐标，并修复 React UI 调试页数值参数输入精度保留问题。
 
@@ -350,7 +364,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.15</version>
+    <version>5.0.16</version>
 </dependency>
 ```
 
