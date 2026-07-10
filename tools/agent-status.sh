@@ -1,10 +1,23 @@
 #!/usr/bin/env bash
 # agent-status.sh — 查看 GitHub Issues 驱动的任务看板
 # 用法: ./tools/agent-status.sh [ready|in-progress|review|blocked|all|snapshot]
+# 仓库：GH_REPO / GITHUB_REPOSITORY → gh repo view → 默认 songxychn/knife4j-next
 
 set -euo pipefail
 
-REPO="songxychn/knife4j-next"
+if ! command -v gh >/dev/null 2>&1; then
+  echo "GitHub CLI 'gh' is required." >&2
+  exit 1
+fi
+
+if [ -n "${GH_REPO:-}" ]; then
+  REPO="$GH_REPO"
+elif [ -n "${GITHUB_REPOSITORY:-}" ]; then
+  REPO="$GITHUB_REPOSITORY"
+else
+  REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
+fi
+REPO="${REPO:-songxychn/knife4j-next}"
 STATUS="${1:-all}"
 
 # 颜色
@@ -46,6 +59,7 @@ print_status_group() {
 
 print_git_snapshot() {
   echo -e "${CYAN}━━━ git snapshot ━━━${NC}"
+  echo "repo: $REPO"
 
   local branch
   branch=$(git branch --show-current 2>/dev/null || true)
@@ -69,12 +83,6 @@ print_git_snapshot() {
 }
 
 print_pr_snapshot() {
-  if ! command -v gh >/dev/null 2>&1; then
-    echo -e "\n${YELLOW}━━━ github snapshot ━━━${NC}"
-    echo "gh not found"
-    return
-  fi
-
   echo -e "\n${CYAN}━━━ github snapshot ━━━${NC}"
 
   local current_pr
@@ -96,17 +104,17 @@ print_snapshot() {
 }
 
 if [ "$STATUS" = "all" ]; then
-  echo -e "${CYAN}📋 knife4j-next Agent Task Board${NC}"
+  echo -e "${CYAN}📋 knife4j-next Agent Task Board (${REPO})${NC}"
   for st in ready in-progress review blocked; do
     print_status_group "$st"
   done
   echo ""
   echo "Quick commands:"
-  echo "  ./tools/agent-status.sh snapshot                                      # local + GitHub snapshot"
-  echo "  gh issue edit <N> --remove-label status:ready --add-label status:in-progress --add-assignee @me"
-  echo "  gh issue edit <N> --remove-label status:in-progress --add-label status:review"
-  echo "  gh issue comment <N> --body 'progress update'"
-  echo "  gh issue close <N>"
+  echo "  ./tools/agent-status.sh snapshot"
+  echo "  gh issue edit <N> --repo ${REPO} --remove-label status:ready --add-label status:in-progress --add-assignee @me"
+  echo "  gh issue edit <N> --repo ${REPO} --remove-label status:in-progress --add-label status:review"
+  echo "  gh issue comment <N> --repo ${REPO} --body 'progress update'"
+  echo "  gh issue close <N> --repo ${REPO}"
 elif [ "$STATUS" = "snapshot" ]; then
   print_snapshot
 else

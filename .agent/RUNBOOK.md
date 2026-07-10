@@ -1,198 +1,67 @@
 # 运行手册
 
-使用与改动匹配的最窄验证。不要在小改动上默认运行完整测试套件。
+使用与改动匹配的**最窄**验证。小改动不要默认跑全套。
 
-## 环境信号
+## 环境
 
-- Java 版本由 `.java-version` 控制。
-- Node 版本由 `.nvmrc` 控制。
-- CI 定义位于 `.github/workflows/build.yml` 和 `.github/workflows/release.yml`。
+- Java：`.java-version`
+- Node：`.nvmrc`
+- 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）
+- CI：`.github/workflows/build.yml`、`release.yml`
 
-## 核心验证命令
+## 验证命令
 
-### Java
+| 改动 | 命令 | 说明 |
+|---|---|---|
+| `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + smoke 证据门禁 |
+| `front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
+| `front/vue3` | `./tools/test-vue3.sh` | 构建并检查 `doc.html` / webjars |
+| `docs/**` | `./tools/test-docs.sh` | 文档站构建 |
+| 跨多区域 | `./tools/test-all.sh` | 依次跑上述（含 vue3） |
 
-从仓库根目录运行：
+强制：
 
-```bash
-./tools/test-java.sh
-```
+- 改前端源码时用对应脚本，不要用单独 `tsc` / `vite build` 冒充全量。
+- Java 改动的 PR / issue 应能指向 smoke 证据：本地 `test-java.sh` 尾部 `Smoke-tests evidence OK`，或 CI 的 smoke summary。
+- 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表（若仓库已抽出 `tools/smoke-modules.txt` 则只改该文件）。
 
-它会：
+## 上游 issue 复现（强制）
 
-- 进入 `knife4j/`
-- 运行 Maven `verify`
+正文含 `Upstream: ...` 或标题带 `(upstream #N)` 时，**先复现再写修复**：
 
-适用于：
+1. 读完 upstream 堆栈、触发条件、版本组合；缺信息 → 评论说明并 `status:blocked`。
+2. 在 `knife4j-smoke-tests/` 复用或新建最小工程，**显式 pin** 相关版本。
+3. 在未打补丁的 master 上复现，把证据贴 issue。
+4. 复现不到：写明尝试条件；已修复则 close 并链 commit；否则 blocked。**禁止**空想 try-catch / null-guard。
+5. 能复现：先写会失败的断言，再修，修后应变绿。
 
-- 修改 `knife4j/` 下任何代码
-- 修改 Java 兼容性行为
-- 触碰 starter 模块、UI webjar 打包或发布敏感 Java 代码
+## PR 与 CI
 
-> **Smoke 证据要求（issue #241 / #198 FU-3）**：
-> 任何涉及 `knife4j/**` Java 代码，或 `knife4j-*-spring-boot-starter/**`、`knife4j-openapi*-ui/**`、`knife4j-gateway-spring-boot-starter/**` 配置的改动，agent 必须在对应 issue 评论或 PR 描述里附上以下任一证据：
->
-> - 本地 `./tools/test-java.sh` 尾部的 `==> Smoke-tests evidence OK (N modules)` 行；或
-> - CI 上 `java-build-test` job 内 `Smoke-tests evidence summary` step 的绿色链接。
->
-> `tools/test-java.sh` 结尾包含一个哨兵，若任一 smoke 模块（`boot2-app`、`boot2-openapi3-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）缺少 surefire 报告、报告为空、或存在 failures/errors，脚本会非零退出。CI 同时会把 smoke 结果写进 job summary，失败时上传 surefire 报告 artifact 便于定位。
->
-> 如果未来有模块被有意下线，须同步更新 `tools/test-java.sh` 中的 `SMOKE_MODULES` 列表和 `.github/workflows/build.yml` 里 `Smoke-tests evidence summary` 的循环列表，并在 PR 描述里说明原因。
-
-### Front Core / UI React
-
-从仓库根目录运行：
+`push` / 开 PR **不是**完成。完成后：
 
 ```bash
-./tools/test-front-core.sh
+gh pr checks <N> --watch
 ```
 
-它会：
+CI 红：同分支修，再等。全绿且审查结论具备后，才标 `status:review`。
 
-- 进入 `front/`（workspace 根）
-- 运行 `bun install --frozen-lockfile`（统一安装所有 workspace 依赖）
-- 对 `knife4j-core` workspace 运行 test、lint 和 build
-- 对 `knife4j-ui-react` workspace 运行 `format:check`、`tsc` 和 `vite build`（与 CI 等价）
+PR 至少写清：关联 issue、范围、验证命令与结果、风险。
 
-适用于：
+## 正式发布验收
 
-- 修改解析逻辑
-- 修改 `front/core` 下的 TypeScript 源码
-- 修改 `front/ui-react` 下任何源码
-- 修改 `front/package.json` 或 workspace 配置
+须维护者明确确认后再 tag。完成条件同时满足：
 
-> **强制**：修改 `front/**` 下任何源码时，必须跑 `./tools/test-front-core.sh`。
-> 不得用单步 `tsc --noEmit` / `vite build` 替代，因为 CI 还会跑 `prettier --check` 与 `eslint`，这两项本地单跑极易漏。
+- `vX.Y.Z` tag 已推送
+- `Release` workflow 成功
+- `Build and Deploy Demo` workflow 成功
+- Maven Central 目标构件可访问
+- GitHub Release 存在且 body 与 `docs/release-notes/index.md` 对应小节一致
 
-> **注意**：`front/` 使用 Bun workspace。`knife4j-core` 和 `knife4j-ui-react` 共享根 `node_modules`，通过 symlink 联动。子项目不再有独立的 `package-lock.json`。
+缺 GitHub Release 不得报「发布完成」。
 
-### 文档站
+## 验证失败时
 
-从仓库根目录运行：
-
-```bash
-./tools/test-docs.sh
-```
-
-它会：
-
-- 进入 `docs`
-- 运行 `bun install --frozen-lockfile`
-- 运行文档构建
-
-适用于：
-
-- 修改文档站源码
-- 修改会影响站点构建的迁移指南或 release note
-
-### 完整本地验证
-
-从仓库根目录运行：
-
-```bash
-./tools/test-all.sh
-```
-
-适用于：
-
-- 改动横跨多个区域
-- 准备的 PR 同时触碰 Java 和前端/文档
-
-## 上游 issue 复现前置流程（强制）
-
-凡 issue 正文含 `Upstream: https://github.com/xiaoymin/knife4j/issues/<N>` 或标题带 `(upstream #<N>)` 的任务，动手写修复代码之前必须完成以下步骤：
-
-1. **阅读 upstream issue**：拉下完整错误堆栈、触发代码、依赖版本组合。如 upstream 没贴堆栈，不要臆造修复方向，先在 issue 评论里列出需要的上游信息并转 `status:blocked`。
-2. **挑选或新建最小复现工程**：优先复用 `knife4j-smoke-tests/` 下已有模块（`boot2-app`、`boot3-app`、`boot3-jakarta-app`、`boot35-jakarta-app`）。如必须新建，`pom.xml` 里**显式 pin**触发问题的 Spring Boot / springdoc 版本（不要只依赖 starter 的传递解析），并在 `knife4j-smoke-tests/pom.xml`、`tools/test-java.sh` 的 `SMOKE_MODULES`、`.github/workflows/build.yml` 的 smoke loop 三处同步登记。
-3. **在 master（未打任何修复）上先跑一次复现**：记录精确异常、错误响应或错误日志，把证据贴到 issue 评论。
-4. **根据复现结果分流**：
-   - **已无法复现**：在 issue 写明已尝试的触发条件（SB 版本、springdoc 版本、controller 签名等），保留 smoke 工程作为回归防护，然后：
-     - 若已在本仓库 fix 历史中修过，把对应 commit 链接贴出来 → `gh issue close <N> --comment "cannot reproduce; fixed in <sha>"`。
-     - 若只是上游触发条件不明 → 加 `status:blocked` 等上游补信息。
-   - **能复现**：保留该 smoke 工程，在其中加入断言复现条件的测试（例如断言特定 WARN 日志、断言特定 JSON 字段），再进入修复阶段。修复后同一测试应从失败转为通过，这才是有效的回归证据。
-5. **禁止在未复现的前提下写"防御性"代码**（盲目加 `try-catch`、`if (x != null)` guard 等）。这种改动无法被 smoke 证伪，等同于噪音；#303 已有血泪案例，详见 `KNOWN_PITFALLS.md`。
-
-## 选择验证的规则
-
-- 纯文档改动通常不需要 Java 或前端验证，除非触碰生成物或已知会影响构建的代码示例。
-- 仓库流程类改动通常可以通过一致性审查验证，不需要编译。
-- 对高风险 Java 改动，优先增加或更新定向测试，再做大范围修复。
-
-## PR 后 CI 验证（强制）
-
-`push` 或创建/更新 PR **不是**任务完成，CI 通过才是。
-
-coordinator 或 worker 在 push 完带 `agent/` 前缀的分支或新开/更新 PR 后，必须：
-
-1. 立即轮询或监听 PR checks，直到所有 check 达到终态：
-
-   ```bash
-   gh pr checks <N> --watch
-   # 或等价的轮询：
-   gh pr checks <N>
-   ```
-
-2. 任一 check 失败时：
-
-   - 用 `gh run view <run-id> --log-failed` 定位失败片段
-   - 在**同一分支**上修复（新增 commit，不 force-push 到 master）
-   - 再次等待 CI 终态
-
-3. 只有当所有 check 通过，且 `.agent/COORDINATION.md` 的 reviewer 门禁已通过或明确记录例外，才允许：
-
-   - 把 issue 切到 `status:review`
-   - 在 issue 评论里声称实现完成
-
-### 对齐 CI 的本地起步脚本
-
-为降低本地绿、CI 红的风险，优先使用 `./tools/test-*.sh` 而不是手动拼命令：
-
-- 前端改动→ `./tools/test-front-core.sh`（含 `format:check`、`lint`、`test`、`build`）
-- Java 改动→ `./tools/test-java.sh`
-- 文档改动→ `./tools/test-docs.sh`
-- 跨区域改动→ `./tools/test-all.sh`
-
-如果某个子项目（如 `knife4j-ui-react`）CI 跑的步骤本地脚本没覆盖，应该扩展脚本而不是绕过。
-
-## 正式发布验收（强制）
-
-发布构件前仍必须获得维护者明确确认；确认后由 tag push 触发 `.github/workflows/release.yml`。
-
-Release workflow 必须在 Maven Central 发布成功后创建或更新 GitHub Release，并调用 `tools/verify-github-release.sh` 校验：
-
-- GitHub Release `vX.Y.Z` 存在。
-- GitHub Release body 与 `docs/release-notes/index.md` 中 `X.Y.Z` 对应小节一致。
-
-正式发布完成条件：
-
-- `vX.Y.Z` tag 已推送。
-- `Release` workflow 成功。
-- `Build and Deploy Demo` workflow 成功。
-- Maven Central 目标构件可访问。
-- GitHub Release `vX.Y.Z` 存在。
-- GitHub Release body 与 docs release note 对应小节一致。
-
-如果缺少 GitHub Release，不能把发布报告为完成；应先补齐 Release 或修复 workflow，再写回发布状态。
-
-## PR 期望
-
-每个 PR 或自治工作报告都应包含：
-
-- task id
-- 范围摘要
-- worker handoff 摘要，或跳过 worker 的明确例外原因
-- reviewer handoff 摘要，或跳过 reviewer 的明确例外原因
-- 精确验证命令
-- 验证结果
-- 未解决风险
-
-## 恢复规则
-
-如果验证失败：
-
-1. 记录精确失败命令
-2. 在对应 issue 的评论里概括失败
-3. 判断失败是否属于当前任务范围
-4. 如果不属于范围，将 issue 标记为 `status:blocked`，并创建或更新后续任务
-
-不要为了让任务看起来完成而静默降低验证标准。
+1. 记录精确失败命令  
+2. 判断是否本任务引入  
+3. 超范围 → `status:blocked` 或后续 issue  
+4. 不要为了“看起来完成”降低验证标准  

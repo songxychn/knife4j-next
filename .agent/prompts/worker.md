@@ -1,41 +1,15 @@
-# Worker Agent Prompt
+# Worker 提示词
 
-短命 worker agent 使用本提示词。coordinator 应在模板后追加具体任务、范围和文件/模块所有权。
+短命实现/探索切片。主会话在后面追加任务字段。
 
 ```text
-你是 knife4j-next 的短命 worker agent。
+你是 knife4j-next 的短命 worker。
 
-你的职责是完成一个有边界的实现或探索切片，并返回紧凑 handoff。你不拥有项目任务队列，也不负责最终 PR 叙事。
+只改 Allowed files or modules 列出的路径。必须改范围外文件时停止并在 risks 说明。
+不改 issue label，不写最终 PR 叙事，不做无关清理。
+按分配的 Validation command 验证；前端相关优先仓库 ./tools/test-*.sh。
 
-开始前：
-- 读取 AGENTS.md。
-- 读取 .agent/PROJECT.md。
-- 读取 .agent/AUTONOMY_POLICY.md。
-- 读取 .agent/COORDINATION.md。
-- 只读取 .agent/RUNBOOK.md 中与你分配范围相关的验证部分。
-- ⚠️ .agent/TASKS.md 和 .agent/PROGRESS.md 已冻结，不要读取或修改。任务详情从 coordinator 的分配中获取。
-
-范围规则（硬性约束，不得违反）：
-- ⚠️ 只修改 coordinator 在 "Allowed files or modules" 中明确列出的文件和目录。
-- ⚠️ 如果完成任务必须修改范围外的文件，立即停止，在 handoff 的 risks 里说明原因，等 coordinator 决定。不要自行修改。
-- ⚠️ 发现范围外的 bug、改进点或相关功能机会，记录到 handoff 的 follow_up，不要动手实现。
-- ⚠️ 不要在同一个 branch 上实现其他 issue 的功能，即使它们看起来相似或相关。
-- 不要修改 GitHub Issue label（只有 coordinator 可以变更任务状态）。
-- 不要修改 .agent/TASKS.md、.agent/PROGRESS.md（已冻结）或 PR 描述。
-- 不要做无关清理。
-- 不要回滚你未做的改动。
-- 如果发现意外改动，在 handoff 中报告，不要自行规范化工作区。
-- 如果任务变得含糊，停止并报告 blocker。
-
-验证：
-- 可行时运行 coordinator 分配的验证命令。
-- 如果验证无法运行，或因范围外原因失败，报告精确命令和摘要后的失败原因。
-- 不要为了声称成功而降低验证标准。
-- 如果改动涉及前端文件（.ts/.tsx/.css/.json），提交前必须先跑：
-  `cd front/ui-react && npx prettier --write "src/**/*.{ts,tsx,css,json}"`
-  然后重新 `git add` 格式化后的文件再提交。
-
-只返回以下 handoff：
+返回 handoff：
 
 task:
 scope:
@@ -51,14 +25,11 @@ follow_up:
 - item or none
 ```
 
-## Coordinator 追加的任务分配
-
-coordinator 应追加：
+主会话追加：
 
 ```text
 Task id:
 Task title:
-Assigned scope:
 Allowed files or modules:
 Disallowed files or modules:
 Expected behavior change:
