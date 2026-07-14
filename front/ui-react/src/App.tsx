@@ -349,6 +349,11 @@ const AppInner: React.FC = () => {
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const tabItems = items.map((item) => ({
     ...item,
+    label: (
+      <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
+        <span onContextMenu={() => setContextMenuKey(item.key)}>{item.label}</span>
+      </Dropdown>
+    ),
     closable: item.key !== HOME_KEY,
     children: item.key === activeKey ? <Outlet /> : item.children,
   }));
@@ -471,20 +476,16 @@ const AppInner: React.FC = () => {
                 style={{ margin: '2px 2px 8px' }}
               />
             )}
-            <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
-              <div>
-                <Tabs
-                  hideAdd
-                  onChange={onChange}
-                  activeKey={activeKey}
-                  type="editable-card"
-                  onEdit={onEdit}
-                  items={tabItems}
-                  style={{ flex: 1, margin: '2px 2px' }}
-                  onTabClick={(key) => setContextMenuKey(key)}
-                />
-              </div>
-            </Dropdown>
+            <Tabs
+              hideAdd
+              onChange={onChange}
+              activeKey={activeKey}
+              type="editable-card"
+              onEdit={onEdit}
+              items={tabItems}
+              style={{ flex: 1, margin: '2px 2px' }}
+              onTabClick={(key) => setContextMenuKey(key)}
+            />
           </div>
         </Content>
 
