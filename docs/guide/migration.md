@@ -35,7 +35,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.16</version>
+    <version>5.0.17</version>
 </dependency>
 ```
 
@@ -57,7 +57,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.0.16</version>
+    <version>5.0.17</version>
 </dependency>
 ```
 
@@ -85,7 +85,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.0.16</version>
+    <version>5.0.17</version>
 </dependency>
 ```
 
@@ -131,7 +131,7 @@ knife4j:
 ## 迁移步骤
 
 1. **更新 Maven 依赖坐标**：全部 `com.github.xiaoymin` → `com.baizhukui`。
-2. **确认版本**：升到 `5.0.16`（当前稳定补丁版本）。
+2. **确认版本**：升到 `5.0.17`（当前稳定补丁版本）。
 3. **刷新依赖**：`mvn -U clean verify` 或 `mvn dependency:tree | grep knife4j` 检查无残留旧坐标。
 4. **启动验证**：访问 `/doc.html`，确认能看到接口列表。
 5. **如切到 OpenAPI3 系列 starter**：额外检查是否用了 Springfox 专属注解（`@DynamicParameters` 等），必要时替换为 DTO 实体类方式（参考 [注解速查](../reference/annotations)）。
