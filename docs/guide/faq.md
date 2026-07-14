@@ -22,13 +22,14 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
-1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.0.16`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.0.17`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
 2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；OAuth2、离线导出、自定义 Markdown 文档、自定义 Footer 等能力则已在 React UI 中补齐或重做。这些历史功能在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.0.17` | 补丁修复：React UI Tab 右键菜单只在标签上触发，避免文档内容区右键误弹菜单；在线 demo 仅随发布 tag 更新 | — |
 | `5.0.16` | 补丁修复：React UI 调试页按接口请求历史、自定义 Markdown 超长英文换行，以及仓库按产品线重组与文档默认 Boot4 坐标 | — |
 | `5.0.15` | 补丁修复：新增 Boot4 独立聚合 starter 和 smoke 验证，README 默认使用 Boot4 Maven 坐标，React UI 调试页保留数值参数输入精度，并清理闲置前端占位与历史备份文件 | — |
 | `5.0.14` | 补丁修复：React UI Gateway 聚合调试地址、SSE 调试响应展示、多方法接口过滤、文档管理开关、OpenAPI 文档标题展示、请求体校验分组必填字段，以及 OpenAPI3 demo 升级 Boot4 | — |

@@ -55,7 +55,7 @@ features:
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.16</version>
+    <version>5.0.17</version>
 </dependency>
 ```
 
@@ -65,7 +65,7 @@ features:
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.16</version>
+    <version>5.0.17</version>
 </dependency>
 ```
 
@@ -84,12 +84,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.16 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.17 版本亮点 <Badge type="tip" text="最新" />
 
-- 🕘 React UI 调试页按接口记录请求历史，支持详情回看与应用到表单
-- 📝 自定义 Markdown 文档中超长连续英文不再横向撑开页面
-- 📁 仓库按产品线重组：`front/`、`docs/`、`tools/` 与 `legacy/`
-- 📚 文档站首页默认 Maven 示例对齐 Boot4 starter 坐标
+- 🖱️ React UI 的 Tab 右键菜单只在 Tab 标签触发，文档内容区右键不再误弹关闭菜单
+- 🚀 在线 demo 仅随 `v*` 正式发布 tag 更新，避免展示 Maven Central 尚不可用的未发版代码
 
 完整更新列表见 [发布说明](/release-notes/)。
 

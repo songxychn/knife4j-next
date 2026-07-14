@@ -12,7 +12,19 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.16 <Badge type="tip" text="最新" />
+### 5.0.17 <Badge type="tip" text="最新" />
+
+`5.0.17` 是基于 `5.0.16` 的补丁版本，修复 React UI 中 Tab 右键菜单误作用于文档内容区的问题，并让在线 demo 仅跟随正式发布版本更新。
+
+**前端（React UI）**
+
+- Tab 右键菜单的触发范围收窄到各个 Tab 标签；文档内容区右键不再弹出 Tab 关闭菜单，既有关闭当前、关闭其他和关闭全部操作保持不变（PR #537，issue #536）。
+
+**交付 & 在线 Demo**
+
+- 在线 demo 镜像仅在推送 `v*` 发布 tag 时构建部署，紧急情况可手动触发；`master` 合并不再自动更新，避免 demo 超前于 Maven Central 稳定版（PR #535）。
+
+### 5.0.16
 
 `5.0.16` 是基于 `5.0.15` 的补丁版本，重点增强 React UI 调试页按接口记录请求历史，修复自定义 Markdown 文档中超长连续英文撑开页面的问题，并完成仓库按产品线重组与文档默认 Boot4 坐标对齐。
 
@@ -364,7 +376,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.16</version>
+    <version>5.0.17</version>
 </dependency>
 ```
 
