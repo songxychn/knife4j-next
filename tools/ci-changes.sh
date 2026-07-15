@@ -14,7 +14,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     docs/*|tools/test-docs.sh)
       docs=true
       ;;
-    knife4j/*|tools/test-java.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
+    knife4j/*|tools/test-java.sh|tools/verify-configuration-metadata.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
       java=true
       ;;
     front/core/*|front/ui-react/*|front/package.json|front/bun.lock|tools/test-front-core.sh)

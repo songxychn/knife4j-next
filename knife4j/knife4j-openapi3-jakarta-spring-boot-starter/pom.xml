@@ -79,11 +79,16 @@
                     <source>${knife4j-java.version}</source>
                     <target>${knife4j-java.version}</target>
                     <encoding>${knife4j-project.build.sourceEncoding}</encoding>
-                    <annotationProcessorPaths>
+                    <annotationProcessorPaths combine.self="override">
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>${knife4j-lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                            <version>${knife4j-spring-boot3.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
