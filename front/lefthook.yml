@@ -1,4 +1,0 @@
-pre-commit:
-  commands:
-    lint-staged:
-      run: cd front && bunx lint-staged --no-stash

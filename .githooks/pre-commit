@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+check_package() {
+  (
+    cd "$repo_root/front"
+    bun run --filter "$1" format:check
+    bun run --filter "$1" lint
+  )
+}
+
+if grep -q '^front/core/' <<<"$staged_files"; then
+  echo 'pre-commit: checking knife4j-core'
+  check_package knife4j-core
+fi
+
+if grep -q '^front/ui-react/' <<<"$staged_files"; then
+  echo 'pre-commit: checking knife4j-ui-react'
+  check_package knife4j-ui-react
+fi
