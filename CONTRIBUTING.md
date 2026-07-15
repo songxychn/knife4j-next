@@ -12,11 +12,14 @@ cd knife4j-next
 # 2. Install front-end dependencies (Node ≥ 22, see .nvmrc; Bun, see front/package.json)
 cd front && bun install --frozen-lockfile && cd ..
 
-# 3. Build Java modules (JDK 17, see .java-version)
+# 3. Enable the versioned pre-commit checks (optional)
+git config core.hooksPath .githooks
+
+# 4. Build Java modules (JDK 17, see .java-version)
 cd knife4j && mvn -B -ntp verify && cd ..
 ```
 
-On a first clone, run `bun install` in `front/`; the root `prepare` script installs Lefthook automatically so staged front-end files are formatted before commit.
+The optional pre-commit hook checks formatting and lint only for staged changes under `front/core/` and `front/ui-react/`. CI remains the required merge gate.
 
 ## Front-End Layout
 

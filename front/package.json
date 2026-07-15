@@ -3,23 +3,12 @@
   "version": "5.0.0-snapshot",
   "private": true,
   "description": "knife4j front-end workspace (OAS3 core + ui-react; vue3 is sibling)",
-  "scripts": {
-    "prepare": "lefthook install"
-  },
   "workspaces": [
     "core",
     "ui-react"
   ],
   "engines": {
     "node": ">=22"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": "prettier --write",
-    "*.{css,json}": "prettier --write"
-  },
-  "devDependencies": {
-    "lefthook": "^2.1.6",
-    "lint-staged": "^16.4.0"
   },
   "packageManager": "bun@1.3.13"
 }
