@@ -25,7 +25,7 @@ features:
     link: /guide/migration
     linkText: 迁移指引
   - title: Spring Boot 2.7、3.4、3.5、4.0 都跑过
-    details: 13 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.0 Jakarta/Gateway/WebFlux/独立聚合、Boot 4.0.6 WebMVC/Gateway/独立聚合组合。
+    details: 14 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.0 Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.0.6 WebMVC/Gateway/独立聚合组合。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
@@ -33,7 +33,7 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: Gateway 与多服务聚合
-    details: Gateway starter 覆盖 Boot 3.x 与 Boot 4.x，支持 DISCOVER / MANUAL 两种策略；aggregation starter 覆盖 Boot 2.x、3.x、4.x，提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
+    details: Gateway starter 覆盖 Boot 3.x WebFlux / Server Web MVC 与 Boot 4.x WebFlux，支持 DISCOVER / MANUAL 两种策略；aggregation starter 覆盖 Boot 2.x、3.x、4.x，提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
     link: /guide/gateway
     linkText: 网关接入
 ---
@@ -55,7 +55,7 @@ features:
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 
@@ -65,7 +65,7 @@ features:
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 
@@ -84,10 +84,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.17 版本亮点 <Badge type="tip" text="最新" />
+## 5.0.18 版本亮点 <Badge type="tip" text="最新" />
 
-- 🖱️ React UI 的 Tab 右键菜单只在 Tab 标签触发，文档内容区右键不再误弹关闭菜单
-- 🚀 在线 demo 仅随 `v*` 正式发布 tag 更新，避免展示 Maven Central 尚不可用的未发版代码
+- 🚪 新增 Spring Cloud Gateway Server Web MVC 聚合 starter，覆盖 Boot 3.5 的 MANUAL、受限 DISCOVER、Basic 认证与 `/doc.html` smoke 场景
+- ⚙️ 发布 starter JAR 内置 Spring Boot 配置元数据，IDE 可识别 `knife4j.enable`、`knife4j.production` 等配置项
 
 完整更新列表见 [发布说明](/release-notes/)。
 

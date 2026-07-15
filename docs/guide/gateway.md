@@ -42,7 +42,7 @@ Gateway 主工程 `pom.xml`：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 
@@ -59,7 +59,7 @@ Spring Cloud Gateway 5 使用新的 WebFlux starter 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 
@@ -78,7 +78,7 @@ Server Web MVC 使用 Servlet 技术栈，不能引入上面的 WebFlux Gateway 
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-webmvc-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 

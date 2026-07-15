@@ -10,7 +10,7 @@
 | 仓库来源 | fork 自 `xiaoymin/knife4j` |
 | 当前定位 | 社区维护分支，不是 upstream 官方仓库 |
 | Java 主坐标 | `com.baizhukui` |
-| 当前稳定版本 | `5.0.17` |
+| 当前稳定版本 | `5.0.18` |
 | 默认访问入口 | `http://ip:port/doc.html` |
 | 文档站 | [knife4jnext.com](https://knife4jnext.com) |
 
@@ -27,7 +27,7 @@
 
 ### 选择 Starter
 
-版本统一使用当前稳定版本 `5.0.17`。
+版本统一使用当前稳定版本 `5.0.18`。
 
 | 使用场景 | Maven `artifactId` |
 |---|---|
@@ -35,7 +35,8 @@
 | Spring Boot 2.x / OpenAPI 3 / Javax | `knife4j-openapi3-spring-boot-starter` |
 | Spring Boot 3.x / Jakarta | `knife4j-openapi3-jakarta-spring-boot-starter` |
 | Spring Boot 4.x / Jakarta | `knife4j-openapi3-boot4-spring-boot-starter` |
-| Spring Cloud Gateway | `knife4j-gateway-spring-boot-starter` |
+| Spring Cloud Gateway WebFlux / Boot 3.x | `knife4j-gateway-spring-boot-starter` |
+| Spring Cloud Gateway Server Web MVC / Boot 3.5 | `knife4j-gateway-webmvc-spring-boot-starter` |
 | Spring Cloud Gateway / Spring Boot 4.x | `knife4j-gateway-boot4-spring-boot-starter` |
 | Spring Boot 4.x / 独立聚合 | `knife4j-aggregation-boot4-spring-boot-starter` |
 
@@ -45,7 +46,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 

@@ -12,7 +12,21 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.17 <Badge type="tip" text="最新" />
+### 5.0.18 <Badge type="tip" text="最新" />
+
+`5.0.18` 是基于 `5.0.17` 的补丁版本，新增 Spring Cloud Gateway Server Web MVC 聚合 starter，补齐 starter 发布包的 Spring Boot 配置元数据，并将提交前检查收敛为版本化 Git hook。
+
+**Gateway Server Web MVC 聚合**
+
+- 新增 `knife4j-gateway-webmvc-spring-boot-starter`，面向 Spring Boot 3.5 / Spring Cloud 2025.0.x 的 Gateway Server Web MVC；支持 MANUAL 路由、Basic 认证，以及只读取已配置 `lb://` + `Path` 路由的受限 DISCOVER 模式（PR #544，issue #540）。
+- 新增 `boot35-gateway-webmvc-app` HTTP smoke，覆盖 MANUAL、DISCOVER、`/doc.html` 与 Basic 认证，并将 starter 纳入 BOM、发布模块清单和 CI smoke 汇总（PR #544）。
+
+**发布产物 & 开发体验**
+
+- 6 个含本地 `@ConfigurationProperties` 的 starter 发布 JAR 现在都会携带 `META-INF/spring-configuration-metadata.json`；新增最终 JAR 元数据门禁，确保 IDE 能识别 `knife4j.enable`、`knife4j.production` 等配置项（PR #542，issue #541）。
+- 以版本化 `.githooks/pre-commit` 替换会引用旧 worktree 路径的 Lefthook；仅对暂存的 React/core 改动运行本地格式检查与 lint，CI 仍为合并门禁（PR #543）。
+
+### 5.0.17
 
 `5.0.17` 是基于 `5.0.16` 的补丁版本，修复 React UI 中 Tab 右键菜单误作用于文档内容区的问题，并让在线 demo 仅跟随正式发布版本更新。
 
@@ -376,7 +390,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.17</version>
+    <version>5.0.18</version>
 </dependency>
 ```
 
