@@ -4,7 +4,12 @@ title: Gateway 聚合
 
 # Gateway 聚合
 
-`knife4j-gateway-spring-boot-starter` 和 `knife4j-gateway-boot4-spring-boot-starter` 让 Spring Cloud Gateway 充当聚合入口：一次访问 `https://gateway/doc.html`，下面挂着所有下游微服务的 OpenAPI 分组。
+Knife4j 支持两种 Spring Cloud Gateway 聚合实现：
+
+- WebFlux Gateway：`knife4j-gateway-spring-boot-starter`（Boot 3.x）和 `knife4j-gateway-boot4-spring-boot-starter`（Boot 4.x）。
+- Gateway Server Web MVC：`knife4j-gateway-webmvc-spring-boot-starter`（Boot 3.5 / Spring Cloud 2025.0.x）。
+
+它们都让 Gateway 充当聚合入口：一次访问 `https://gateway/doc.html`，下面挂着所有下游微服务的 OpenAPI 分组。
 
 它解决三件事：
 
@@ -14,17 +19,17 @@ title: Gateway 聚合
 
 ## 适用场景
 
-- 项目使用 Spring Cloud Gateway（WebFlux 技术栈）。
+- 项目使用 Spring Cloud Gateway；WebFlux 与 Server Web MVC 要引入各自对应的 starter。
 - 下游服务已经用任一 knife4j starter 暴露 `/v2/api-docs` 或 `/v3/api-docs`。
 - 需要在 Gateway 层面合并、排序、打分组。
 
 ::: info 和 knife4j-aggregation-*-starter 的区别
-`knife4j-gateway-*-starter` 只跑在 Gateway 进程里（WebFlux）；`knife4j-aggregation-*-starter` 可以独立部署成聚合服务（Servlet）。二者不要在同一 Gateway 里同时启用。[Aggregation](./aggregation) 里有详细对比。
+`knife4j-gateway-*-starter` 只跑在 Gateway 进程里（WebFlux 或 Server Web MVC）；`knife4j-aggregation-*-starter` 可以独立部署成聚合服务（Servlet）。二者不要在同一 Gateway 里同时启用。[Aggregation](./aggregation) 里有详细对比。
 :::
 
 ## 最小依赖
 
-### Spring Boot 3.x / Spring Cloud Gateway 4.x
+### Spring Boot 3.x / Spring Cloud Gateway 4.x（WebFlux）
 
 Gateway 主工程 `pom.xml`：
 
@@ -60,6 +65,27 @@ Spring Cloud Gateway 5 使用新的 WebFlux starter 坐标：
 
 Boot 4.x 下 `knife4j.gateway.*` 配置保持不变；Spring Cloud Gateway 自身的 route / discovery 配置按 Gateway 5 文档使用。
 
+### Spring Boot 3.5 / Spring Cloud Gateway Server Web MVC
+
+Server Web MVC 使用 Servlet 技术栈，不能引入上面的 WebFlux Gateway starter：
+
+```xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-gateway-webmvc-spring-boot-starter</artifactId>
+    <version>5.0.17</version>
+</dependency>
+```
+
+::: warning Server Web MVC 的 DISCOVER 有意限定为配置路由发现
+它只聚合已经配置在 `spring.cloud.gateway.server.webmvc.routes` 中、同时满足 `uri: lb://<service>` 与 `Path` predicate 的路由。`DiscoveryClient` 仅用来确认服务仍在注册中心；它不会从注册中心自动创建 Gateway 路由，也不会读取运行时动态路由。
+:::
+
 ::: warning 不要把 knife4j 的 openapi starter 加到 Gateway
 `knife4j-gateway-starter` 不是 UI 生成器，而是路由+聚合。Gateway 本身**不生成** OpenAPI 文档，只**汇聚**下游的。
 :::
@@ -70,12 +96,12 @@ Starter 通过 `knife4j.gateway.strategy` 切换：
 
 | 策略 | 值 | 场景 |
 | --- | --- | --- |
-| 服务发现 | `DISCOVER` | 下游服务都注册到 Nacos/Eureka/Consul，自动聚合全部 |
+| 服务发现 | `DISCOVER` | WebFlux 自动聚合注册服务；Server Web MVC 聚合已配置的 `lb://` 路由 |
 | 手动路由 | `MANUAL`（默认） | 没接服务发现，或只想聚合一部分下游 |
 
 ## 策略 A：服务发现（DISCOVER）
 
-下面示例使用 Spring Cloud Gateway 4.x 常见配置前缀；Boot 4.x / Gateway 5.x 项目只需要把 `spring.cloud.gateway.*` 部分按 Gateway 5 迁移，`knife4j.gateway.*` 部分不变。
+下面示例适用于 WebFlux Gateway。Boot 4.x / Gateway 5.x 项目只需要把 `spring.cloud.gateway.*` 部分按 Gateway 5 迁移，`knife4j.gateway.*` 部分不变。
 
 ```yaml
 server:
@@ -134,6 +160,34 @@ knife4j:
 - `order`：排序权重，越小越靠前。
 - `group-names`：如果下游用 springdoc 的 `group-configs` 拆了多个 group，这里列出要聚合哪些 group。缺省只聚合 `default`。
 - `context-path`：下游挂在非根路径（比如 `/api`），在此填写让聚合 UI 调用下游时路径正确。
+
+### Server Web MVC 的配置路由 DISCOVER
+
+Server Web MVC 没有 WebFlux Gateway 的动态 `DiscoveryClientRouteDefinitionLocator`。因此先把真实业务路由写进 Gateway，再让 Knife4j 从这些路由生成文档入口：
+
+```yaml
+spring:
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/users/**
+
+knife4j:
+  gateway:
+    enabled: true
+    strategy: DISCOVER
+    discover:
+      version: OpenAPI3
+      oas3:
+        url: /v3/api-docs
+```
+
+上例会生成 `/users/v3/api-docs` 文档入口，调试接口的 `context-path` 也是 `/users`。要排除服务、改分组名、排序或为下游配置额外 group，继续使用上面的 `discover.excluded-services` 和 `discover.service-config`。没有 `lb://` + `Path` 的静态路由时，请改用 `MANUAL`。
 
 ## 策略 B：手动路由（MANUAL）
 
@@ -222,8 +276,8 @@ curl http://gateway:8080/v3/api-docs/swagger-config
 | `doc.html` 打不开 | 确认 `knife4j.gateway.enabled: true`，以及 Spring Cloud Gateway starter 和 knife4j gateway starter 版本兼容 |
 | UI 列出了服务但点进去 404 | 多半是 `context-path` 漏填；或 Gateway route 的 `StripPrefix` 与 `context-path` 不匹配 |
 | 聚合路径命中 Gateway 路由规则 | 确保 `knife4j.gateway.discover.oas3.url` 指向的路径能被 Gateway 透传到下游 |
-| 依然只看到一个服务 | 检查服务发现是否实际注册成功（`/actuator/gateway/routes`）；确认 `excluded-services` 没把目标服务排除掉 |
-| 某些配置不生效 | knife4j gateway starter 跑在 WebFlux 栈，不要混用 spring-boot-starter-web（会冲突） |
+| Server Web MVC 的 DISCOVER 未列出服务 | 确认服务已注册，并且 `spring.cloud.gateway.server.webmvc.routes` 中有对应的 `lb://服务名` 和 `Path` predicate |
+| 某些配置不生效 | 确认 starter 与 Gateway 实现匹配：WebFlux 用 `knife4j-gateway-*-starter`，Server Web MVC 用 `knife4j-gateway-webmvc-spring-boot-starter` |
 
 ## 相关
 

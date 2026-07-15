@@ -31,6 +31,7 @@
         <module>boot3-webflux-jakarta-app</module>
         <module>boot3-app</module>
         <module>boot3-gateway-app</module>
+        <module>boot35-gateway-webmvc-app</module>
         <module>boot35-jakarta-app</module>
         <module>boot4-jakarta-app</module>
         <module>boot4-gateway-app</module>

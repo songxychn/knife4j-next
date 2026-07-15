@@ -8,7 +8,7 @@ title: Aggregation 聚合
 
 - 启动一个**专门用来聚合的 Servlet 应用**，读取若干下游服务的 OpenAPI 文档，合并成一套 `doc.html`。
 - 支持 **5 种数据源**：本地文件（Disk）、HTTP 直连（Cloud）、Nacos、Eureka、腾讯北极星（Polaris）。
-- 与 [Gateway starter](./gateway) 二选一：Gateway 跑在 WebFlux 技术栈内嵌；Aggregation 是独立 Servlet 应用。
+- 与 [Gateway starter](./gateway) 二选一：Gateway 聚合内嵌在 Gateway 进程中（WebFlux 或 Server Web MVC）；Aggregation 是独立 Servlet 应用。
 
 ## 何时选 aggregation 而不是 gateway
 
@@ -270,7 +270,7 @@ curl http://localhost:8080/swagger-resources
 | 对比项 | Gateway starter | Aggregation starter |
 | --- | --- | --- |
 | 运行形态 | 嵌入 Spring Cloud Gateway 进程 | 独立 Spring Boot 应用 |
-| 技术栈 | WebFlux | Servlet（spring-boot-starter-web） |
+| 技术栈 | WebFlux 或 Spring Cloud Gateway Server Web MVC | Servlet（spring-boot-starter-web） |
 | 数据源 | 服务发现 / 手动路由 | Disk / Cloud / Nacos / Eureka / Polaris |
 | 典型场景 | 已有 Gateway，顺带聚合 | 无 Gateway 或想独立部署聚合 |
 | 是否支持本地 JSON | ❌ | ✅（Disk 模式） |

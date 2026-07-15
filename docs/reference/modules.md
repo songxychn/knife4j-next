@@ -51,8 +51,9 @@ title: 模块说明
 
 | 模块 | 适用 Boot 版本 | 场景 |
 | --- | --- | --- |
-| `knife4j-gateway-spring-boot-starter` | 3.x | Spring Cloud Gateway 聚合 |
-| `knife4j-gateway-boot4-spring-boot-starter` | 4.x | Spring Cloud Gateway 5 聚合 |
+| `knife4j-gateway-spring-boot-starter` | 3.x | Spring Cloud Gateway WebFlux 聚合 |
+| `knife4j-gateway-webmvc-spring-boot-starter` | 3.5 | Spring Cloud Gateway Server Web MVC 聚合；DISCOVER 读取已配置的 `lb://` 路由 |
+| `knife4j-gateway-boot4-spring-boot-starter` | 4.x | Spring Cloud Gateway 5 WebFlux 聚合 |
 | `knife4j-aggregation-spring-boot-starter` | 2.x | 独立聚合（Disk/Cloud/Nacos/Eureka/Polaris） |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | 3.x | 独立聚合（Jakarta 版） |
 | `knife4j-aggregation-boot4-spring-boot-starter` | 4.x | 独立聚合（springdoc-openapi 3.x） |
@@ -63,7 +64,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 4.0.6 + Boot4 starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
-| `knife4j-smoke-tests` | 自动化冒烟测试（13 个子模块覆盖 Boot 2.x OAS2/OAS3/WebFlux/独立聚合、Boot 3.x Jakarta/Gateway/WebFlux/独立聚合、Boot 4.x WebMVC/Gateway/独立聚合） |
+| `knife4j-smoke-tests` | 自动化冒烟测试（14 个子模块覆盖 Boot 2.x OAS2/OAS3/WebFlux/独立聚合、Boot 3.x Jakarta/WebFlux/Gateway WebFlux/Gateway Server Web MVC/独立聚合、Boot 4.x WebMVC/Gateway/独立聚合） |
 
 ## 选型决策树
 
@@ -87,8 +88,9 @@ title: 模块说明
 │       └── knife4j-openapi3-webflux-jakarta-spring-boot-starter
 │
 ├── Spring Cloud Gateway 网关
-│   ├── Boot 3.x → knife4j-gateway-spring-boot-starter
-│   └── Boot 4.x → knife4j-gateway-boot4-spring-boot-starter
+│   ├── Boot 3.x WebFlux → knife4j-gateway-spring-boot-starter
+│   ├── Boot 3.5 Server Web MVC → knife4j-gateway-webmvc-spring-boot-starter
+│   └── Boot 4.x WebFlux → knife4j-gateway-boot4-spring-boot-starter
 │
 └── 非网关的微服务聚合
     ├── Boot 2.x

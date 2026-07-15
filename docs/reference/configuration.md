@@ -151,7 +151,9 @@ knife4j:
 
 ## Gateway Starter 配置
 
-适用于 `knife4j-gateway-spring-boot-starter` 和 `knife4j-gateway-boot4-spring-boot-starter`。
+适用于 `knife4j-gateway-spring-boot-starter`、`knife4j-gateway-webmvc-spring-boot-starter` 和 `knife4j-gateway-boot4-spring-boot-starter`。
+
+`knife4j-gateway-webmvc-spring-boot-starter` 仅适用于 Boot 3.5 的 Spring Cloud Gateway Server Web MVC。其 `DISCOVER` 只读取 `spring.cloud.gateway.server.webmvc.routes` 中已配置的 `lb://` + `Path` 路由，不会从注册中心创建或读取动态 Gateway 路由。
 
 ### `knife4j.gateway.*`
 
