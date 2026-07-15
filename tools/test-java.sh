@@ -12,6 +12,8 @@ cd "$REPO_ROOT/knife4j"
 mvn -B -ntp spotless:check
 mvn -B -ntp -Dknife4j-skipTests=false verify
 
+"$REPO_ROOT/tools/verify-configuration-metadata.sh"
+
 # ---------------------------------------------------------------------------
 # Smoke-tests evidence gate (issue #241 / #198 FU-3)
 #

@@ -34,7 +34,7 @@ vue3_and_java="$(outputs true false true false)"
 all="$(outputs true true true true)"
 
 assert_case "docs" "$docs_only" $'docs/guide/index.md\ntools/test-docs.sh'
-assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
+assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
 assert_case "react" "$react_and_java" $'front/core/src/index.ts\nfront/ui-react/src/App.tsx\nfront/package.json\nfront/bun.lock\ntools/test-front-core.sh'
 assert_case "vue3" "$vue3_and_java" $'front/vue3/src/App.vue\ntools/test-vue3.sh'
 assert_case "shared configuration" "$all" $'.github/workflows/build.yml\n.editorconfig\n.gitattributes\n.nvmrc\ntools/ci-changes.sh\ntools/test-ci-changes.sh'
