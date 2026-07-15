@@ -51,13 +51,14 @@ title: 兼容矩阵
 
 | Starter | Boot 2.7 | Boot 3.x | Boot 4.0 | 说明 | 验证状态 |
 | --- | --- | --- | --- | --- | --- |
-| `knife4j-gateway-spring-boot-starter` | ❌ | ✅ | ❌ | Spring Cloud Gateway 聚合 | [boot3-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-gateway-app) |
-| `knife4j-gateway-boot4-spring-boot-starter` | ❌ | ❌ | ✅ | Spring Cloud Gateway 5 聚合 | [boot4-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot4-gateway-app) |
+| `knife4j-gateway-spring-boot-starter` | ❌ | ✅ | ❌ | Spring Cloud Gateway WebFlux 聚合 | [boot3-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-gateway-app) |
+| `knife4j-gateway-webmvc-spring-boot-starter` | ❌ | ✅（3.5） | ❌ | Spring Cloud Gateway Server Web MVC 聚合；DISCOVER 仅读取已配置的 `lb://` + `Path` 路由 | [boot35-gateway-webmvc-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot35-gateway-webmvc-app) |
+| `knife4j-gateway-boot4-spring-boot-starter` | ❌ | ❌ | ✅ | Spring Cloud Gateway 5 WebFlux 聚合 | [boot4-gateway-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot4-gateway-app) |
 | `knife4j-aggregation-spring-boot-starter` | ✅ | ❌ | ❌ | 独立聚合（Boot 2.x） | [aggregation-boot2-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/aggregation-boot2-app) |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | ❌ | ✅ | ❌ | 独立聚合（Boot 3.x） | [boot3-aggregation-jakarta-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot3-aggregation-jakarta-app) |
 | `knife4j-aggregation-boot4-spring-boot-starter` | ❌ | ❌ | ✅ | 独立聚合（Boot 4.x） | [boot4-aggregation-app](https://github.com/songxychn/knife4j-next/tree/master/knife4j/knife4j-smoke-tests/boot4-aggregation-app) |
 
-- Gateway starter 仅用于 Spring Cloud Gateway（WebFlux），**不适用于普通 WebMvc 项目**。
+- Gateway starter 仅用于 Spring Cloud Gateway：WebFlux 与 Server Web MVC 是不同实现，必须使用各自对应的 starter；它们都**不适用于普通 WebMvc 业务应用**。
 - 聚合 starter 用于**非网关**的微服务聚合场景。
 - 详见 [Gateway 聚合](../guide/gateway) 和 [独立聚合](../guide/aggregation)。
 
@@ -94,10 +95,11 @@ WebFlux starter 是纯依赖编排，不声明 `/knife4j/config` 等 WebMvc star
 │   ├── WebMvc → knife4j-openapi3-jakarta-spring-boot-starter（React UI）
 │   ├── WebFlux → knife4j-openapi3-webflux-jakarta-spring-boot-starter（React UI）
 │   └── Spring Cloud Gateway？
-│       └── knife4j-gateway-spring-boot-starter
+│       ├── WebFlux → knife4j-gateway-spring-boot-starter
+│       └── Server Web MVC（Boot 3.5）→ knife4j-gateway-webmvc-spring-boot-starter
 └── 4.x
     ├── WebMvc → knife4j-openapi3-boot4-spring-boot-starter（React UI）
-    ├── Spring Cloud Gateway → knife4j-gateway-boot4-spring-boot-starter
+    ├── Spring Cloud Gateway WebFlux → knife4j-gateway-boot4-spring-boot-starter
     └── 非网关聚合 → knife4j-aggregation-boot4-spring-boot-starter
 ```
 

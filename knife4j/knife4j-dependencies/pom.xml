@@ -140,6 +140,12 @@
 
             <dependency>
                 <groupId>com.baizhukui</groupId>
+                <artifactId>knife4j-gateway-webmvc-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
