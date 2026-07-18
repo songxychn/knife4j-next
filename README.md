@@ -164,12 +164,8 @@ bun run dev
 ## Star History
 
 <p align="center">
-  <a href="https://www.star-history.com/songxychn/knife4j-next">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=songxychn/knife4j-next&type=date&theme=dark&legend=top-left" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=songxychn/knife4j-next&type=date&legend=top-left" />
-      <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=songxychn/knife4j-next&type=date&legend=top-left" />
-    </picture>
+  <a href="https://github.com/songxychn/knife4j-next/tree/star-history">
+    <img alt="Star History Chart" src="https://raw.githubusercontent.com/songxychn/knife4j-next/star-history/star-history.svg" />
   </a>
 </p>
 
