@@ -1,17 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  fetchSwaggerDocResult,
-  fetchSwaggerUiConfig,
   getSchemas,
   normalizeOperationsSorter,
   normalizeTagsSorter,
-  parseGroupsFromConfig,
   parseMenuTags,
   type OperationsSorter,
   type TagsSorter,
 } from '../api/knife4jClient';
-import { fetchWithAcceptLanguage } from '../api/acceptLanguage';
+import { readKnife4xBootstrap } from '../config/knife4xConfig';
+import { fetchSwaggerDocForMode, loadInitialGroups } from '../config/knife4xStartup';
 import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
 import { extractKnife4jSettings, extractMarkdownFiles } from '../utils/knife4jSettings';
 import { groupNameFromPathname, selectInitialGroupName } from '../utils/groupRoute';
@@ -80,44 +78,27 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
+  const knife4xBootstrap = useMemo(() => readKnife4xBootstrap(), []);
 
-  // 初始化：优先拉取 swagger-config（拿到 tagsSorter / operationsSorter），失败回退到 swagger-resources
+  // Knife4x 直接加载宿主注入的 spec；Java 模式保留现有 discovery 顺序。
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const preferredLanguage = initialLanguageRef.current;
-      const config = await fetchSwaggerUiConfig({ preferredLanguage });
+      const result = await loadInitialGroups(knife4xBootstrap, preferredLanguage);
       if (cancelled) return;
 
-      if (config) {
-        setSwaggerUiConfig(config);
-        const groups = parseGroupsFromConfig(config);
-        if (groups.length > 0) {
-          setRawGroups(groups);
-          setActiveGroupValue(selectInitialGroupName(groups, initialPathnameRef.current));
-          return;
-        }
+      if (result.mode === 'error') {
+        setGroupError(result.error);
+        setLoading(false);
+        return;
       }
 
-      // swagger-config 不可用 → 回退 springfox swagger-resources
-      try {
-        const res = await fetchWithAcceptLanguage('swagger-resources', preferredLanguage);
-        if (res.ok) {
-          const data: Array<{ name: string; location: string; swaggerVersion?: string }> = await res.json();
-          const groups: SwaggerGroup[] = data.map((g) => ({
-            name: g.name,
-            url: g.location,
-            location: g.location,
-            swaggerVersion: g.swaggerVersion,
-          }));
-          if (groups.length > 0) {
-            setRawGroups(groups);
-            setActiveGroupValue(selectInitialGroupName(groups, initialPathnameRef.current));
-            return;
-          }
-        }
-      } catch {
-        /* ignore */
+      if (result.mode === 'ready') {
+        setSwaggerUiConfig(result.swaggerUiConfig);
+        setRawGroups(result.groups);
+        setActiveGroupValue(selectInitialGroupName(result.groups, initialPathnameRef.current));
+        return;
       }
 
       // 完全拿不到 → mock
@@ -128,7 +109,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [knife4xBootstrap]);
 
   const routeGroupName = useMemo(() => groupNameFromPathname(location.pathname), [location.pathname]);
 
@@ -149,7 +130,8 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let cancelled = false;
     setLoading(true);
     setGroupError(null);
-    fetchSwaggerDocResult(group.url, { preferredLanguage }).then((result) => {
+    const mode = knife4xBootstrap.mode === 'embed' ? 'embed' : 'java';
+    fetchSwaggerDocForMode(group.url, mode, { preferredLanguage }).then((result) => {
       if (cancelled) return;
       if (result.doc) {
         setSwaggerDoc(result.doc);
@@ -163,7 +145,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       cancelled = true;
     };
-  }, [activeGroupValue, rawGroups, userSettings.language, usingMock]);
+  }, [activeGroupValue, knife4xBootstrap.mode, rawGroups, userSettings.language, usingMock]);
 
   useEffect(() => {
     setServerSettings(extractKnife4jSettings(swaggerDoc));

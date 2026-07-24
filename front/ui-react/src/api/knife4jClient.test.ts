@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SwaggerDoc } from '../types/swagger';
-import { fetchSwaggerDocResult, fetchSwaggerUiConfig, parseGroupsFromConfig, parseMenuTags } from './knife4jClient';
+import {
+  fetchSwaggerDocResult,
+  fetchSwaggerUiConfig,
+  isOpenApi3Document,
+  parseGroupsFromConfig,
+  parseMenuTags,
+} from './knife4jClient';
 
 function jsonResponse(body: unknown, ok = true): Response {
   return {
@@ -47,6 +53,12 @@ describe('knife4jClient', () => {
 
   it('uses the single springdoc url when swagger-config has no urls array', () => {
     expect(parseGroupsFromConfig({ url: '/api/openapi' })).toEqual([{ name: 'default', url: '/api/openapi' }]);
+  });
+
+  it('distinguishes OpenAPI 3 from Swagger 2 documents', () => {
+    expect(isOpenApi3Document({ openapi: '3.1.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(true);
+    expect(isOpenApi3Document({ openapi: '3.bad', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
+    expect(isOpenApi3Document({ swagger: '2.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
   });
 
   it('preserves gateway route contextPath from swagger-config urls', () => {
