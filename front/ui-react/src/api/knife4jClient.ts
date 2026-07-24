@@ -107,6 +107,10 @@ export function parseGroupsFromConfig(config: SwaggerUiConfig): SwaggerGroup[] {
   return [{ name: 'default', url: 'v3/api-docs' }];
 }
 
+export function isOpenApi3Document(doc: SwaggerDoc): boolean {
+  return typeof doc.openapi === 'string' && /^3\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?$/.test(doc.openapi);
+}
+
 /** 拉取 group 列表（兼容 springfox / springdoc） */
 export async function fetchGroups(options: LanguageAwareRequestOptions = {}): Promise<SwaggerGroup[]> {
   // 优先尝试 springdoc: v3/api-docs/swagger-config
