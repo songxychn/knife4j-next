@@ -372,14 +372,27 @@ describe('validateRequired', () => {
     expect(errors.map((e) => e.key)).toContain('body:requestBody');
   });
 
-  test('multipart body: ok when at least one file uploaded', () => {
+  test('multipart body: validates a required file field', () => {
     const multipartModel: OperationDebugModel = {
       pathParams: [],
       queryParams: [],
       headerParams: [],
       cookieParams: [],
-      bodyContents: [{ mediaType: 'multipart/form-data', category: 'multipart', schema: {} }],
-      bodyRequired: true,
+      bodyContents: [
+        {
+          mediaType: 'multipart/form-data',
+          category: 'multipart',
+          schema: {
+            type: 'object',
+            required: ['file'],
+            properties: {
+              file: { type: 'string', format: 'binary' },
+            },
+          },
+          fileFields: ['file'],
+        },
+      ],
+      bodyRequired: false,
     };
     const form: DebugFormValues = {
       pathParams: {},
@@ -387,11 +400,15 @@ describe('validateRequired', () => {
       headerParams: {},
       cookieParams: {},
       selectedContentType: 'multipart/form-data',
-      formFields: {},
-      fileFields: { file: [new Uint8Array([1, 2, 3])] },
+      fileFields: { file: [] },
     };
-    const errors = validateRequired(multipartModel, form);
-    expect(errors.filter((e) => e.in === 'body')).toHaveLength(0);
+
+    expect(validateRequired(multipartModel, form)).toEqual([
+      expect.objectContaining({ name: 'file', in: 'body', key: 'body:file' }),
+    ]);
+
+    form.fileFields = { file: [new Uint8Array([1, 2, 3])] };
+    expect(validateRequired(multipartModel, form)).toHaveLength(0);
   });
 });
 
