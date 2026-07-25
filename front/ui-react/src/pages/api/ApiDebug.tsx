@@ -21,7 +21,14 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import { SendOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+  CopyOutlined,
+  SendOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
@@ -87,6 +94,7 @@ import {
 import DebugHistoryPanel from './DebugHistoryPanel';
 import { formatSseHistoryResponseBody } from './sseEventTime';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
+import { copyToClipboard } from '../../utils/clipboard';
 import {
   EMPTY_BODY_CONTENT_DEFAULTS,
   buildBodyContentDefaults,
@@ -104,7 +112,7 @@ import {
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 
 const { TextArea } = Input;
-const { Text, Title } = Typography;
+const { Paragraph, Text, Title } = Typography;
 const PARAM_TABLE_SCROLL = { x: apiDebugParamTableScrollX() };
 
 const METHOD_COLORS: Record<string, string> = {
@@ -1220,10 +1228,10 @@ interface PreviewTabPanelProps {
     built: BuiltRequest;
     curl: string;
   };
-  onCopyCurl: (curl: string) => void;
+  onCopyText: (text: string) => void;
 }
 
-function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
+function PreviewTabPanel({ build, onCopyText }: PreviewTabPanelProps) {
   const { t } = useTranslation();
   // 每次渲染都实时重建一次，保证与当前表单同步（避免额外状态）
   const { built, curl } = build();
@@ -1256,6 +1264,34 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
     );
   };
 
+  const renderPreviewValue = (value: string) => (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+      <Paragraph
+        key={value}
+        ellipsis={{
+          rows: 2,
+          expandable: 'collapsible',
+          symbol: (expanded) => t(expanded ? 'apiDebug.preview.collapseValue' : 'apiDebug.preview.expandValue'),
+        }}
+        style={{ flex: 1, minWidth: 0, marginBottom: 0, wordBreak: 'break-all' }}
+      >
+        {value}
+      </Paragraph>
+      {value && (
+        <Tooltip title={t('apiDebug.preview.copyValue')}>
+          <Button
+            type="text"
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={() => onCopyText(value)}
+            aria-label={t('apiDebug.preview.copyValue')}
+            style={{ flex: 'none' }}
+          />
+        </Tooltip>
+      )}
+    </div>
+  );
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={14}>
       {/* URL + method */}
@@ -1279,6 +1315,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
         {headerPairs.length > 0 ? (
           <Table
             size="small"
+            tableLayout="fixed"
             pagination={false}
             dataSource={headerPairs.map(([key, value]) => ({
               key,
@@ -1303,6 +1340,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
                 title: t('apiDebug.col.headerValue'),
                 dataIndex: 'value',
                 key: 'value',
+                render: renderPreviewValue,
               },
             ]}
             style={{ marginTop: 4 }}
@@ -1320,6 +1358,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
         {queryPairs.length > 0 ? (
           <Table
             size="small"
+            tableLayout="fixed"
             pagination={false}
             dataSource={queryPairs.map(([key, value]) => ({
               key,
@@ -1344,6 +1383,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
                 title: t('apiDebug.col.value'),
                 dataIndex: 'value',
                 key: 'value',
+                render: renderPreviewValue,
               },
             ]}
             style={{ marginTop: 4 }}
@@ -1373,7 +1413,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
       <div>
         <Space style={{ marginBottom: 4 }}>
           <Text strong>{t('apiDebug.preview.curl')}</Text>
-          <Button size="small" onClick={() => onCopyCurl(curl)}>
+          <Button size="small" onClick={() => onCopyText(curl)}>
             {t('apiDebug.preview.copyCurl')}
           </Button>
         </Space>
@@ -2542,30 +2582,11 @@ export default function ApiDebug() {
     setError(null);
   };
 
-  /** 复制 curl 命令到剪贴板 */
-  const handleCopyCurl = (curl: string) => {
+  /** 复制请求预览内容到剪贴板 */
+  const handleCopyPreviewText = (text: string) => {
     const done = () => message.success(t('apiDebug.preview.copied'));
     const fail = () => message.error(t('apiDebug.preview.copyFailed'));
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(curl).then(done).catch(fail);
-        return;
-      }
-    } catch {
-      // ignore
-    }
-    // 兜底：用临时 textarea
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = curl;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      done();
-    } catch {
-      fail();
-    }
+    copyToClipboard(text, done, fail);
   };
 
   const headerNameOptions = (input: string) =>
@@ -2716,7 +2737,7 @@ export default function ApiDebug() {
       key: 'preview',
       label: t('apiDebug.tab.preview'),
       disabled: false,
-      children: <PreviewTabPanel build={buildPreview} onCopyCurl={handleCopyCurl} />,
+      children: <PreviewTabPanel build={buildPreview} onCopyText={handleCopyPreviewText} />,
     },
   ];
 
