@@ -125,7 +125,50 @@ export interface GenerateApiMarkdownOptions {
   path: string;
   operation: MdOperationObject;
   docContext: MdDocContext;
+  labels?: Partial<ApiMarkdownLabels>;
 }
+
+export interface ApiMarkdownLabels {
+  deprecated: string;
+  requestParameters: string;
+  noRequestParameters: string;
+  requestBody: string;
+  noRequestBody: string;
+  requestBodyNotExpandable: string;
+  responseStructure: string;
+  noResponse: string;
+  name: string;
+  location: string;
+  type: string;
+  required: string;
+  description: string;
+  field: string;
+  yes: string;
+  no: string;
+  status: string;
+  schema: string;
+}
+
+const DEFAULT_LABELS: ApiMarkdownLabels = {
+  deprecated: 'This API is deprecated.',
+  requestParameters: 'Request Parameters',
+  noRequestParameters: 'No request parameters.',
+  requestBody: 'Request Body',
+  noRequestBody: 'No request body.',
+  requestBodyNotExpandable: 'Request body schema cannot be expanded.',
+  responseStructure: 'Response Structure',
+  noResponse: 'No response defined.',
+  name: 'Name',
+  location: 'In',
+  type: 'Type',
+  required: 'Required',
+  description: 'Description',
+  field: 'Field',
+  yes: 'Yes',
+  no: 'No',
+  status: 'Status',
+  schema: 'Schema',
+};
 
 /**
  * Generates a Markdown string for a single API operation.
@@ -140,6 +183,7 @@ export interface GenerateApiMarkdownOptions {
  */
 export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
   const { method, path, operation, docContext } = opts;
+  const labels = { ...DEFAULT_LABELS, ...opts.labels };
   const m = method.toUpperCase();
   const op = operation;
 
@@ -152,7 +196,7 @@ export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
   // Method + path
   lines.push(`**${m}** \`${path}\``);
   if (op.deprecated) lines.push('');
-  if (op.deprecated) lines.push('> ⚠️ This API is deprecated.');
+  if (op.deprecated) lines.push(`> ⚠️ ${labels.deprecated}`);
   lines.push('');
 
   // Description
@@ -162,20 +206,20 @@ export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
   }
 
   // Request Parameters
-  lines.push('## Request Parameters');
+  lines.push(`## ${labels.requestParameters}`);
   lines.push('');
   const params = op.parameters ?? [];
   if (params.length === 0) {
-    lines.push('_No request parameters._');
+    lines.push(`_${labels.noRequestParameters}_`);
   } else {
     lines.push(
       mdTable(
-        ['Name', 'In', 'Type', 'Required', 'Description'],
+        [labels.name, labels.location, labels.type, labels.required, labels.description],
         params.map((p) => [
           escape(`\`${p.name}\``),
           escape(p.in),
           escape(paramType(p)),
-          p.required ? 'Yes' : 'No',
+          p.required ? labels.yes : labels.no,
           escape(p.description ?? ''),
         ]),
       ),
@@ -184,20 +228,25 @@ export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
   lines.push('');
 
   // Request Body
-  lines.push('## Request Body');
+  lines.push(`## ${labels.requestBody}`);
   lines.push('');
   const bodySchema = firstRequestSchema(op.requestBody);
   if (!bodySchema) {
-    lines.push('_No request body._');
+    lines.push(`_${labels.noRequestBody}_`);
   } else {
     const rows = bodyRows(bodySchema, docContext);
     if (rows.length === 0) {
-      lines.push('_Request body schema cannot be expanded._');
+      lines.push(`_${labels.requestBodyNotExpandable}_`);
     } else {
       lines.push(
         mdTable(
-          ['Field', 'Type', 'Required', 'Description'],
-          rows.map((r) => [escape(`\`${r.name}\``), escape(r.type), r.required ? 'Yes' : 'No', escape(r.description)]),
+          [labels.field, labels.type, labels.required, labels.description],
+          rows.map((r) => [
+            escape(`\`${r.name}\``),
+            escape(r.type),
+            r.required ? labels.yes : labels.no,
+            escape(r.description),
+          ]),
         ),
       );
     }
@@ -205,15 +254,15 @@ export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
   lines.push('');
 
   // Response Structure
-  lines.push('## Response Structure');
+  lines.push(`## ${labels.responseStructure}`);
   lines.push('');
   const responses = Object.entries(op.responses ?? {});
   if (responses.length === 0) {
-    lines.push('_No response defined._');
+    lines.push(`_${labels.noResponse}_`);
   } else {
     lines.push(
       mdTable(
-        ['Status', 'Description', 'Schema'],
+        [labels.status, labels.description, labels.schema],
         responses.map(([code, r]) => [escape(code), escape(r.description ?? ''), escape(responseSchemaName(r))]),
       ),
     );

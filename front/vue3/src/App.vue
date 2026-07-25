@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <a-config-provider >
+    <a-config-provider :locale="antDesignLocale">
       <a-spin :spinning="showLoading" :tip="loadingTip">
         <router-view />
       </a-spin>
@@ -10,15 +10,34 @@
 <script setup>
 
 import { useGlobalsStore } from '@/store/modules/global.js'
-import { computed } from 'vue'
+import { normalizeLanguage } from '@/lang/index.js'
+import { computed, watchEffect } from 'vue'
+import { useI18n } from 'vue-i18n'
+import zhCN from 'ant-design-vue/es/locale/zh_CN'
+import enUS from 'ant-design-vue/es/locale/en_US'
+import jaJP from 'ant-design-vue/es/locale/ja_JP'
 
 const store = useGlobalsStore()
+const { t } = useI18n()
+
+const antDesignLocales = {
+  'zh-CN': zhCN,
+  'en-US': enUS,
+  'ja-JP': jaJP,
+}
 
 const showLoading = computed(() => {
   return store.loading.show
 })
 const loadingTip = computed(() => {
-  return store.loading.text
+  return store.loading.text || t('app.loading')
+})
+const antDesignLocale = computed(() => {
+  return antDesignLocales[normalizeLanguage(store.language)]
+})
+
+watchEffect(() => {
+  document.documentElement.lang = normalizeLanguage(store.language)
 })
 </script>
 

@@ -6,6 +6,25 @@ const enUS = {
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'Failed to load API docs',
 
+  // Runtime diagnostics
+  'error.apiDocs.http': 'api-docs request failed: HTTP {{status}}',
+  'error.apiDocs.load': 'Failed to load api-docs. Check the backend service.',
+  'error.apiDocs.invalidJson': 'The api-docs response is not valid JSON. Check the actual response body.',
+  'error.apiDocs.stringPayload': 'The api-docs response is a string, not an OpenAPI/Swagger JSON object.',
+  'error.apiDocs.invalidObject': 'The api-docs response is not an OpenAPI/Swagger JSON object. Check the API docs URL.',
+  'error.apiDocs.base64':
+    'The api-docs response is a Base64 string, not an OpenAPI/Swagger JSON object.\nCheck the Spring HttpMessageConverter configuration so the Jackson JSON converter does not handle byte[] or String responses.',
+  'error.knife4x.notObject': 'Knife4x startup configuration error: the configuration value must be an object.',
+  'error.knife4x.specUrlRequired': 'Knife4x startup configuration error: specUrl must be a non-empty string.',
+  'error.knife4x.basePathRequired': 'Knife4x startup configuration error: basePath must be a non-empty string.',
+  'error.knife4x.basePathInvalid': 'Knife4x startup configuration error: basePath must be a URL path.',
+  'error.knife4x.pageProtocol': 'Knife4x startup configuration error: the page must be served over HTTP(S).',
+  'error.knife4x.protocolRelativeSpecUrl':
+    'Knife4x startup configuration error: specUrl cannot be a protocol-relative cross-origin URL.',
+  'error.knife4x.specUrlProtocol': 'Knife4x startup configuration error: specUrl only supports HTTP(S) URLs.',
+  'error.knife4x.invalidUrl': 'Knife4x startup configuration error: specUrl or the page origin is not a valid URL.',
+  'error.knife4x.openApi3Only': 'Knife4x only supports OpenAPI 3.x documents.',
+
   // Header language switch
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
@@ -74,6 +93,7 @@ const enUS = {
   'schema.flag.readOnly': 'ReadOnly',
   'schema.flag.writeOnly': 'WriteOnly',
   'schema.flag.truncated': 'Truncated',
+  'schema.resizeColumn': 'Resize column',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API doc not found',
@@ -108,6 +128,7 @@ const enUS = {
   'apiDoc.copy.url': 'Copy Page URL',
   'apiDoc.copy.url.success': 'Page URL copied',
   'apiDoc.copy.failed': 'Copy failed, please select text manually',
+  'apiDoc.markdown.deprecated': 'This API is deprecated.',
 
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'Doc',
@@ -127,6 +148,11 @@ const enUS = {
   'apiScript.title': 'Code Generation',
   'apiScript.copied': 'Code copied',
   'apiScript.noCode': 'No code can be generated for this operation',
+  'apiScript.comment.requestBody': 'request body',
+  'apiScript.comment.requestInterface': 'Request parameter interface',
+  'apiScript.comment.requestType': 'Request parameter type',
+  'apiScript.comment.responseInterface': 'Response interface',
+  'apiScript.comment.responseType': 'Response type',
 
   // ApiDebug
   'apiDebug.notFound.title': 'Debug interface not found',
@@ -355,6 +381,9 @@ const enUS = {
   'officeDoc.btn.word': 'Download Word (.doc)',
   'officeDoc.btn.markdown': 'Download Markdown',
   'officeDoc.btn.openapi': 'Download OpenAPI JSON',
+  'officeDoc.response': 'Response',
+  'officeDoc.circularReference': 'Circular reference',
+  'officeDoc.fallbackTitle': 'API Documentation',
 
   // Tab context menu
   'tab.context.closeCurrent': 'Close Current',

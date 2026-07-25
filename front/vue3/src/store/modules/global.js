@@ -17,7 +17,7 @@ export const useGlobalsStore = defineStore('Globals',{
       defaultServiceOption: '',
       loading: {
         show: false,
-        text: '加载中...'
+        text: null
       }
     }
   },
@@ -67,7 +67,7 @@ export const useGlobalsStore = defineStore('Globals',{
     },
     destroyLoading() {
       this.loading.show = false
-      this.loading.text = '加载中...'
+      this.loading.text = null
     }
   }
 })

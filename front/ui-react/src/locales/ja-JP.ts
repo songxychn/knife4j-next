@@ -6,6 +6,28 @@ const jaJP = {
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'API ドキュメントを読み込めません',
 
+  // Runtime diagnostics
+  'error.apiDocs.http': 'api-docs リクエストに失敗しました：HTTP {{status}}',
+  'error.apiDocs.load': 'api-docs を読み込めません。バックエンドサービスを確認してください。',
+  'error.apiDocs.invalidJson':
+    'api-docs のレスポンスは有効な JSON ではありません。実際のレスポンスを確認してください。',
+  'error.apiDocs.stringPayload':
+    'api-docs のレスポンスは文字列であり、OpenAPI/Swagger JSON オブジェクトではありません。',
+  'error.apiDocs.invalidObject':
+    'api-docs のレスポンスは OpenAPI/Swagger JSON オブジェクトではありません。API ドキュメントの URL を確認してください。',
+  'error.apiDocs.base64':
+    'api-docs のレスポンスは Base64 文字列であり、OpenAPI/Swagger JSON オブジェクトではありません。\nJackson JSON converter が byte[] または String のレスポンスを処理しないよう、Spring HttpMessageConverter の設定を確認してください。',
+  'error.knife4x.notObject': 'Knife4x 起動設定エラー：設定値はオブジェクトである必要があります。',
+  'error.knife4x.specUrlRequired': 'Knife4x 起動設定エラー：specUrl は空でない文字列である必要があります。',
+  'error.knife4x.basePathRequired': 'Knife4x 起動設定エラー：basePath は空でない文字列である必要があります。',
+  'error.knife4x.basePathInvalid': 'Knife4x 起動設定エラー：basePath は URL パスである必要があります。',
+  'error.knife4x.pageProtocol': 'Knife4x 起動設定エラー：ページは HTTP(S) で配信する必要があります。',
+  'error.knife4x.protocolRelativeSpecUrl':
+    'Knife4x 起動設定エラー：specUrl にプロトコルを省略したクロスオリジン URL は使用できません。',
+  'error.knife4x.specUrlProtocol': 'Knife4x 起動設定エラー：specUrl には HTTP(S) URL のみ使用できます。',
+  'error.knife4x.invalidUrl': 'Knife4x 起動設定エラー：specUrl またはページの origin が有効な URL ではありません。',
+  'error.knife4x.openApi3Only': 'Knife4x は OpenAPI 3.x ドキュメントのみサポートします。',
+
   // Header language switch
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
@@ -74,6 +96,7 @@ const jaJP = {
   'schema.flag.readOnly': '読み取り専用',
   'schema.flag.writeOnly': '書き込み専用',
   'schema.flag.truncated': '省略',
+  'schema.resizeColumn': '列幅を調整',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API ドキュメントが見つかりません',
@@ -94,7 +117,7 @@ const jaJP = {
   'apiDoc.responseStructure': 'レスポンス構造',
   'apiDoc.relatedModels': '関連モデル：',
   'apiDoc.col.statusCode': 'ステータスコード',
-  'apiDoc.col.schema': 'Schema',
+  'apiDoc.col.schema': 'スキーマ',
   'apiDoc.col.fieldName': 'フィールド名',
   'apiDoc.tab.schema': 'Schema',
   'apiDoc.tab.requestExample': 'リクエスト例',
@@ -109,6 +132,7 @@ const jaJP = {
   'apiDoc.copy.url': 'ページ URL をコピー',
   'apiDoc.copy.url.success': 'ページ URL をコピーしました',
   'apiDoc.copy.failed': 'コピーに失敗しました。手動でテキストを選択してください',
+  'apiDoc.markdown.deprecated': 'この API は非推奨です。',
 
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': 'ドキュメント',
@@ -130,6 +154,11 @@ const jaJP = {
   'apiScript.title': 'コード生成',
   'apiScript.copied': 'コードをコピーしました',
   'apiScript.noCode': 'この API 用に生成可能なコードはありません',
+  'apiScript.comment.requestBody': 'リクエストボディ',
+  'apiScript.comment.requestInterface': 'リクエストパラメータインターフェース',
+  'apiScript.comment.requestType': 'リクエストパラメータ型',
+  'apiScript.comment.responseInterface': 'レスポンスインターフェース',
+  'apiScript.comment.responseType': 'レスポンス型',
 
   // ApiDebug
   'apiDebug.notFound.title': 'デバッグ対象の API が見つかりません',
@@ -170,10 +199,10 @@ const jaJP = {
   'apiDebug.customCookie.title': 'カスタム Cookie',
   'apiDebug.customCookie.namePlaceholder': 'Cookie 名',
   'apiDebug.noBody': 'この API にリクエストボディはありません',
-  'apiDebug.baseUrl.source.gateway': 'gateway context',
-  'apiDebug.baseUrl.source.operation': 'operation server',
-  'apiDebug.baseUrl.source.path': 'path server',
-  'apiDebug.baseUrl.source.document': 'document server',
+  'apiDebug.baseUrl.source.gateway': 'ゲートウェイコンテキスト',
+  'apiDebug.baseUrl.source.operation': 'オペレーションのサーバー',
+  'apiDebug.baseUrl.source.path': 'パスのサーバー',
+  'apiDebug.baseUrl.source.document': 'ドキュメントのサーバー',
   'apiDebug.send': '送信',
   'apiDebug.reset': 'リセット',
   'apiDebug.sending': '送信中...',
@@ -360,6 +389,9 @@ const jaJP = {
   'officeDoc.btn.word': 'Word (.doc) をダウンロード',
   'officeDoc.btn.markdown': 'Markdown をダウンロード',
   'officeDoc.btn.openapi': 'OpenAPI JSON をダウンロード',
+  'officeDoc.response': 'レスポンス',
+  'officeDoc.circularReference': '循環参照',
+  'officeDoc.fallbackTitle': 'API ドキュメント',
 
   // Tab context menu
   'tab.context.closeCurrent': '現在のタブを閉じる',

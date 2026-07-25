@@ -122,7 +122,7 @@ public void delete(@PathVariable Long id) { ... }
 
 ### 国际化（i18n）
 
-Knife4j UI 支持中文（`zh-CN`）和英文（`en-US`）两种界面语言。
+Knife4j UI 支持中文（`zh-CN`）、英文（`en-US`）和日语（`ja-JP`）三种界面语言。
 
 **方式一：UI 界面手动切换**
 
@@ -132,6 +132,7 @@ Knife4j UI 支持中文（`zh-CN`）和英文（`en-US`）两种界面语言。
 
 - 中文：`http://host:port/doc.html#/home/zh-CN`
 - 英文：`http://host:port/doc.html#/home/en-US`
+- 日语：`http://host:port/doc.html#/home/ja-JP`
 
 **方式三：服务端 YAML 配置默认语言**
 
@@ -139,7 +140,7 @@ Knife4j UI 支持中文（`zh-CN`）和英文（`en-US`）两种界面语言。
 knife4j:
   enable: true
   setting:
-    language: zh-CN   # 或 en-US
+    language: zh-CN   # 也可使用 en-US 或 ja-JP
 ```
 
 ::: warning React UI

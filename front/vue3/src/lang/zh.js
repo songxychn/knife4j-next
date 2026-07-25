@@ -271,17 +271,25 @@ const langOptions = {
     auth: {
       invalid: '值无效',
       confirm: '确定注销吗?',
-      success: '注销成功'
+      success: '注销成功',
+      usernameRequired: '用户名不能为空',
+      passwordRequired: '密码不能为空',
+      clientIdRequired: 'clientId 不能为空',
+      clientSecretRequired: 'clientSecret 不能为空',
+      authorizeSuccess: '授权成功',
+      resetSuccess: '授权信息已重置'
     },
     global: {
       iptname: '请输入全局参数名称',
       iptvalue: '请输入全局参数值',
-      deleteSuccess: '删除成功'
+      deleteSuccess: '删除成功',
+      exists: '参数已存在，不可重复添加'
     },
     settings: {
       plusFail: '无法开启Knife4j增强功能,请确保后端启用注解@EnableKnife4j',
       plusError: '无法开启Knife4j增强功能,错误原因:',
-      success: '保存成功,请刷新该文档页'
+      success: '保存成功,请刷新该文档页',
+      hostRequired: '请填写 Host'
     },
     offline: {
       imple:'该功能尚未实现...',
@@ -300,7 +308,8 @@ const langOptions = {
       contentToBigBlob:'接口响应数据量超过限制,不在响应内容中显示'
     },
     sys: {
-      loadErr: '请确保swagger资源接口正确.'
+      loadErr: '请确保swagger资源接口正确.',
+      requestErr: 'Knife4j 文档请求异常'
     }
   },
   swaggerModel: {
@@ -342,7 +351,8 @@ const langOptions = {
       type:'参数类型',
       validate:{
         name:'请输入参数名称',
-        value:'请输入参数值'
+        value:'请输入参数值',
+        type:'请选择参数类型'
       }
     },
     ok:'确定',
@@ -357,7 +367,7 @@ const langOptions = {
     openCache: '开启请求参数缓存',
     dynamicParameter: '开启动态请求参数',
     showApi: '菜单Api地址显示',
-    tagDes: '分组tag显示dsecription说明属性',
+    tagDes: '分组标签显示 description 属性',
     apiFilter: '开启RequestMapping接口过滤,默认只显示',
     openCacheApi: '开启缓存已打开的api文档',
     plus: '启用Knife4j提供的增强功能',
@@ -493,6 +503,8 @@ const langOptions = {
   },
   app: {
     brand: 'Knife4j Next',
+    loading: '加载中...',
+    cacheCleared: '清除本地缓存成功',
     footer: 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors'
   }
 }

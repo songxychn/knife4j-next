@@ -6,6 +6,24 @@ const zhCN = {
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': '接口文档加载失败',
 
+  // Runtime diagnostics
+  'error.apiDocs.http': 'api-docs 请求失败：HTTP {{status}}',
+  'error.apiDocs.load': 'api-docs 加载失败，请检查后端服务。',
+  'error.apiDocs.invalidJson': 'api-docs 响应不是有效的 JSON，请检查实际返回内容。',
+  'error.apiDocs.stringPayload': 'api-docs 响应是字符串，不是 OpenAPI/Swagger JSON 对象。',
+  'error.apiDocs.invalidObject': 'api-docs 响应不是 OpenAPI/Swagger JSON 对象，请检查接口文档地址。',
+  'error.apiDocs.base64':
+    'api-docs 响应是 Base64 字符串，不是 OpenAPI/Swagger JSON 对象。\n请检查 Spring HttpMessageConverter 配置，避免 Jackson JSON converter 接管 byte[] 或 String 响应。',
+  'error.knife4x.notObject': 'Knife4x 启动配置错误：配置值必须是对象。',
+  'error.knife4x.specUrlRequired': 'Knife4x 启动配置错误：specUrl 必须是非空字符串。',
+  'error.knife4x.basePathRequired': 'Knife4x 启动配置错误：basePath 必须是非空字符串。',
+  'error.knife4x.basePathInvalid': 'Knife4x 启动配置错误：basePath 必须是 URL 路径。',
+  'error.knife4x.pageProtocol': 'Knife4x 启动配置错误：页面必须通过 HTTP(S) 提供。',
+  'error.knife4x.protocolRelativeSpecUrl': 'Knife4x 启动配置错误：specUrl 不支持省略协议的跨域地址。',
+  'error.knife4x.specUrlProtocol': 'Knife4x 启动配置错误：specUrl 只支持 HTTP(S) URL。',
+  'error.knife4x.invalidUrl': 'Knife4x 启动配置错误：specUrl 或页面 origin 不是有效 URL。',
+  'error.knife4x.openApi3Only': 'Knife4x 仅支持 OpenAPI 3.x 文档。',
+
   // Header language switch
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
@@ -73,6 +91,7 @@ const zhCN = {
   'schema.flag.readOnly': '只读',
   'schema.flag.writeOnly': '只写',
   'schema.flag.truncated': '已截断',
+  'schema.resizeColumn': '调整列宽',
 
   // ApiDoc
   'apiDoc.notFound.title': '未找到接口文档',
@@ -107,6 +126,7 @@ const zhCN = {
   'apiDoc.copy.url': '复制本页地址',
   'apiDoc.copy.url.success': '本页地址已复制',
   'apiDoc.copy.failed': '复制失败，请手动选择文本',
+  'apiDoc.markdown.deprecated': '此接口已废弃。',
 
   // Operation mode tabs (doc / debug)
   'operation.tab.doc': '文档',
@@ -126,6 +146,11 @@ const zhCN = {
   'apiScript.title': '代码生成',
   'apiScript.copied': '代码已复制',
   'apiScript.noCode': '当前接口暂无可生成的代码',
+  'apiScript.comment.requestBody': '请求体',
+  'apiScript.comment.requestInterface': '请求参数接口',
+  'apiScript.comment.requestType': '请求参数类型',
+  'apiScript.comment.responseInterface': '响应接口',
+  'apiScript.comment.responseType': '响应类型',
 
   // ApiDebug
   'apiDebug.notFound.title': '未找到调试接口',
@@ -352,6 +377,9 @@ const zhCN = {
   'officeDoc.btn.word': '下载 Word (.doc)',
   'officeDoc.btn.markdown': '下载 Markdown',
   'officeDoc.btn.openapi': '下载 OpenAPI JSON',
+  'officeDoc.response': '响应',
+  'officeDoc.circularReference': '循环引用',
+  'officeDoc.fallbackTitle': 'API 文档',
 
   // Tab context menu
   'tab.context.closeCurrent': '关闭当前',

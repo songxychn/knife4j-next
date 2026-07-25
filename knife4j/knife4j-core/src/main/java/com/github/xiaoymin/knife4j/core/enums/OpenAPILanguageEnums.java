@@ -32,7 +32,12 @@ public enum OpenAPILanguageEnums {
     /**
      * English
      */
-    EN("en-US");
+    EN("en-US"),
+
+    /**
+     * Japanese
+     */
+    JA_JP("ja-JP");
 
     private String value;
     OpenAPILanguageEnums(String value) {

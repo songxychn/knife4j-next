@@ -45,7 +45,7 @@
           <a-input v-model:value="form.value" :placeholder="$t('global.form.validate.value')"/>
         </a-form-item>
         <a-form-item
-            name="in" :rules="{ required: true, message: '请选择参数类型' }"
+            name="in" :rules="{ required: true, message: $t('global.form.validate.type') }"
             :label-col="labelCol" :wrapper-col="wrapperCol" :label="$t('global.form.type')">
           <a-select v-model:value="form.in">
             <a-select-option value="header">header</a-select-option>
@@ -197,7 +197,7 @@ export default {
         this.globalParameters = newArrs;
         this.storeGlobalParameters();
       } else {
-        message.info("参数已存在,不可重复添加");
+        message.info(this.getCurrentI18nInstance().message.global.exists);
         this.globalParameters = [];
         setTimeout(() => {
           this.globalParameters = tmpArrs;
@@ -254,7 +254,7 @@ export default {
           })
           this.visible = false;
         } else {
-          message.info("参数已存在,不可重复添加");
+          message.info(this.getCurrentI18nInstance().message.global.exists);
         }
       })
     },
