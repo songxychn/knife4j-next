@@ -11,6 +11,7 @@ import {
 import { readKnife4xBootstrap } from '../config/knife4xConfig';
 import { fetchSwaggerDocForMode, loadInitialGroups } from '../config/knife4xStartup';
 import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
+import type { LocalizedMessage } from '../types/i18n';
 import { extractKnife4jSettings, extractMarkdownFiles } from '../utils/knife4jSettings';
 import { groupNameFromPathname, selectInitialGroupName } from '../utils/groupRoute';
 import { useSettings } from './SettingsContext';
@@ -61,7 +62,7 @@ interface GroupContextValue {
   loading: boolean;
   usingMock: boolean;
   /** 当前激活 group 的加载错误信息，null 表示无错误 */
-  groupError: string | null;
+  groupError: LocalizedMessage | null;
 }
 
 const GroupContext = createContext<GroupContextValue | null>(null);
@@ -77,7 +78,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [swaggerDoc, setSwaggerDoc] = useState<SwaggerDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
-  const [groupError, setGroupError] = useState<string | null>(null);
+  const [groupError, setGroupError] = useState<LocalizedMessage | null>(null);
   const knife4xBootstrap = useMemo(() => readKnife4xBootstrap(), []);
 
   // Knife4x 直接加载宿主注入的 spec；Java 模式保留现有 discovery 顺序。
@@ -138,7 +139,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else {
         // 单个 provider 加载失败：保留其他 group 可用，仅标记当前 group 错误
         setSwaggerDoc(null);
-        setGroupError(result.error ?? '加载失败，请检查后端服务。');
+        setGroupError(result.error ?? { key: 'error.apiDocs.load' });
       }
       setLoading(false);
     });

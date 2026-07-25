@@ -46,6 +46,7 @@ interface SchemaFieldTableProps {
 interface ResizableTitleProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
   width?: number;
   minWidth?: number;
+  resizeLabel?: string;
   onResize?: (event: React.SyntheticEvent<Element>, data: ResizeCallbackData) => void;
 }
 
@@ -160,7 +161,7 @@ function ConstraintTooltip({ node, children }: { node: SchemaFieldNode; children
   );
 }
 
-function ResizableTitle({ width, minWidth, onResize, children, ...restProps }: ResizableTitleProps) {
+function ResizableTitle({ width, minWidth, resizeLabel, onResize, children, ...restProps }: ResizableTitleProps) {
   if (!width || !onResize) {
     return <th {...restProps}>{children}</th>;
   }
@@ -177,7 +178,7 @@ function ResizableTitle({ width, minWidth, onResize, children, ...restProps }: R
           className="knife4j-schema-resize-handle"
           role="separator"
           aria-orientation="vertical"
-          aria-label="调整列宽"
+          aria-label={resizeLabel}
           onClick={(event) => event.stopPropagation()}
         />
       }
@@ -217,9 +218,10 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       ({
         width: columnWidths[columnKey],
         minWidth: SCHEMA_FIELD_COLUMN_MIN_WIDTHS[columnKey],
+        resizeLabel: t('schema.resizeColumn'),
         onResize: handleResize(columnKey),
       }) as unknown as React.HTMLAttributes<HTMLTableCellElement>,
-    [columnWidths, handleResize],
+    [columnWidths, handleResize, t],
   );
 
   const columns: ColumnsType<SchemaFieldRow> = [

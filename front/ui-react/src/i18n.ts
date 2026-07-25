@@ -4,6 +4,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import zhCN from './locales/zh-CN';
 import enUS from './locales/en-US';
 import jaJP from './locales/ja-JP';
+import { normalizeSupportedLanguage } from './locales/language';
 
 i18n
   .use(LanguageDetector)
@@ -22,6 +23,7 @@ i18n
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
       lookupLocalStorage: 'knife4j-lang',
+      convertDetectedLanguage: (language) => normalizeSupportedLanguage(language) ?? language,
     },
   });
 

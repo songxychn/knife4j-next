@@ -78,6 +78,20 @@ describe('knife4j setting extraction', () => {
     expect(extractKnife4jSettings(doc)).toEqual({});
   });
 
+  it.each([
+    ['zh_TW', 'zh-CN'],
+    ['en-GB', 'en-US'],
+    ['ja', 'ja-JP'],
+  ])('normalizes backend language %s to %s', (language, expected) => {
+    const doc = baseDoc({
+      'x-openapi': {
+        'x-setting': { language },
+      },
+    });
+
+    expect(extractKnife4jSettings(doc).language).toBe(expected);
+  });
+
   it('ignores invalid custom footer values', () => {
     const doc = baseDoc({
       'x-openapi': {

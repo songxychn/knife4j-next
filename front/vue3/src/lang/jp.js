@@ -213,7 +213,7 @@ const langOptions = {
   //主页显示
   homePage: {
     description: '紹介',
-    author: '作者',
+    author: '作成者',
     version: 'バージョン',
     host: 'host',
     basePath: 'basePath',
@@ -232,7 +232,7 @@ const langOptions = {
     title: 'その他のドキュメント'
   },
   message: {
-    success: '保存成功',
+    success: '保存しました',
     settingTip: '個性化設定有効後、インターフェースタブを閉じてから再度開くか、または現在のページをリフレッシュする必要があります。',
     settingHost: 'Hostの有効化が成功しました。インターフェースタブを閉じるか、または現在のページをリフレッシュしてデバッグしてください。',
     unsupportstore: '現在のブラウザはlocalStorageオブジェクトをサポートしていないため、この機能は使用できません。',
@@ -270,17 +270,25 @@ const langOptions = {
     auth: {
       invalid: '値が無効。',
       confirm: 'ログアウトしますか？',
-      success: 'ログアウトが成功しました。'
+      success: 'ログアウトが成功しました。',
+      usernameRequired: 'ユーザー名を入力してください。',
+      passwordRequired: 'パスワードを入力してください。',
+      clientIdRequired: 'clientIdを入力してください。',
+      clientSecretRequired: 'clientSecretを入力してください。',
+      authorizeSuccess: '認証に成功しました。',
+      resetSuccess: '認証情報をリセットしました。'
     },
     global: {
-      iptname: '全局パラメータ名を入力してください',
-      iptvalue: '全局パラメータ値を入力してください',
-      deleteSuccess: '削除が成功しました'
+      iptname: 'グローバルパラメータ名を入力してください',
+      iptvalue: 'グローバルパラメータ値を入力してください',
+      deleteSuccess: '削除が成功しました',
+      exists: 'パラメータはすでに存在します。'
     },
     settings: {
       plusFail: 'Knife4jの拡張機能を有効にできません。バックエンドで@EnableKnife4jアノテーションが有効になっていることを確認してください。',
       plusError: 'Knife4jの拡張機能を有効にできません。エラーの原因：',
-      success: '保存が成功しました。このドキュメントページをリフレッシュしてください。'
+      success: '保存が成功しました。このドキュメントページをリフレッシュしてください。',
+      hostRequired: 'Hostを入力してください。'
     },
     offline: {
       imple: 'この機能はまだ実装されていません...',
@@ -299,7 +307,8 @@ const langOptions = {
       contentToBigBlob: 'インターフェースの応答データ量が制限を超えており、応答内容に表示されていません。'
     },
     sys: {
-      loadErr: 'swaggerリソースインターフェースが正確であることを確認してください。'
+      loadErr: 'Swaggerリソースのエンドポイントが正しいことを確認してください。',
+      requestErr: 'Knife4jドキュメントの読み込みに失敗しました。'
     }
   },
   swaggerModel: {
@@ -341,7 +350,8 @@ const langOptions = {
       type: 'パラメータのタイプ',
       validate: {
         name: 'パラメータ名を入力してください',
-        value: 'パラメータ値を入力してください'
+        value: 'パラメータ値を入力してください',
+        type: 'パラメータタイプを選択してください'
       }
     },
     ok: '確定',
@@ -356,7 +366,7 @@ const langOptions = {
     openCache: 'リクエストパラメータキャッシュを有効にする',
     dynamicParameter: '動的リクエストパラメータを有効にする',
     showApi: 'メニューにAPIアドレスを表示する',
-    tagDes: '分組tagにdsecription属性を表示する',
+    tagDes: 'グループタグにdescription属性を表示する',
     apiFilter: 'RequestMappingインターフェースのフィルターを有効にし、デフォルトでは表示されるものだけ表示する',
     openCacheApi: '既に開いているAPIドキュメントをキャッシュする',
     plus: 'Knife4jが提供する拡張機能を有効にする',
@@ -365,7 +375,7 @@ const langOptions = {
     fastTitle: '<h5>以下のアドレスを <kbd>ctrl + c</kbd> でコピーして、ブラウザを開いて個性化設定を行います。</h5>'
   },
   auth: {
-    cancel: '注销',
+    cancel: 'ログアウト',
     save: '保存',
     tableHeader: {
       key: 'パラメータキー',
@@ -492,6 +502,8 @@ const langOptions = {
   },
   app: {
     brand: 'Knife4j Next',
+    loading: '読み込み中...',
+    cacheCleared: 'ローカルキャッシュをクリアしました',
     footer: 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors'
   }
 }

@@ -1,5 +1,5 @@
-import type { AppSettings, SupportedLang } from '../types/settings';
-import { SUPPORTED_LANGS } from '../types/settings';
+import { normalizeSupportedLanguage } from '../locales/language';
+import type { AppSettings } from '../types/settings';
 import type { MarkdownFileGroup, SwaggerDoc } from '../types/swagger';
 
 type UnknownRecord = Record<string, unknown>;
@@ -7,17 +7,6 @@ const FILTER_MULTIPART_METHOD_TYPES = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function normalizeLanguage(value: unknown): SupportedLang | undefined {
-  if (typeof value !== 'string') return undefined;
-  if ((SUPPORTED_LANGS as readonly string[]).includes(value)) return value as SupportedLang;
-
-  const normalized = value.trim().toLowerCase().replace(/_/g, '-');
-  if (normalized === 'zh-cn' || normalized === 'zh') return 'zh-CN';
-  if (normalized === 'en-us' || normalized === 'en') return 'en-US';
-  if (normalized === 'ja-jp' || normalized === 'ja') return 'ja-JP';
-  return undefined;
 }
 
 function readBoolean(source: UnknownRecord, key: string): boolean | undefined {
@@ -63,7 +52,7 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   if (!setting) return {};
 
   const next: Partial<AppSettings> = {};
-  const language = normalizeLanguage(setting.language);
+  const language = normalizeSupportedLanguage(setting.language);
   if (language) next.language = language;
 
   const enableSearch = readBoolean(setting, 'enableSearch');

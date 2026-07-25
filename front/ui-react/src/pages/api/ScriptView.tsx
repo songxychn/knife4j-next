@@ -106,7 +106,16 @@ interface GeneratedCode {
   ts: string;
 }
 
-function generateCode(
+export interface CodeCommentLabels {
+  requestBody: string;
+  requestInterface: string;
+  requestType: string;
+  responseInterface: string;
+  responseType: string;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function generateCode(
   method: string,
   path: string,
   operationId: string | undefined,
@@ -115,6 +124,7 @@ function generateCode(
   requestBodySchema: SchemaObject | undefined,
   responseSchema: SchemaObject | undefined,
   doc: SwaggerDoc,
+  labels: CodeCommentLabels,
 ): GeneratedCode {
   const fnName = deriveFunctionName(operationId, method, path);
   const interfaceName = upperFirst(fnName);
@@ -142,7 +152,7 @@ function generateCode(
     ` * ${summary ?? fnName}`,
     ...pathParams.map((p) => ` * @param {string} ${p.name} ${p.description ?? ''}`),
     ...queryParams.map((p) => ` * @param {string} ${p.name} ${p.description ?? ''}`),
-    ...(hasBody ? [` * @param {object} params request body`] : []),
+    ...(hasBody ? [` * @param {object} params ${labels.requestBody}`] : []),
     ` * @returns {Promise}`,
     ` */`,
   ].join('\n');
@@ -165,9 +175,9 @@ function generateCode(
           return `  ${k}${req ? '' : '?'}: ${schemaToTsType(v, doc)};`;
         })
         .join('\n');
-      tsParamsInterface = `// 请求参数接口\nexport interface ${interfaceName}Params {\n${props}\n}\n\n`;
+      tsParamsInterface = `// ${labels.requestInterface}\nexport interface ${interfaceName}Params {\n${props}\n}\n\n`;
     } else if (resolved?.type === 'array') {
-      tsParamsInterface = `// 请求参数类型\nexport type ${interfaceName}Params = ${schemaToTsType(resolved, doc)};\n\n`;
+      tsParamsInterface = `// ${labels.requestType}\nexport type ${interfaceName}Params = ${schemaToTsType(resolved, doc)};\n\n`;
     }
   }
 
@@ -181,9 +191,9 @@ function generateCode(
           return `  ${k}${req ? '' : '?'}: ${schemaToTsType(v, doc)};`;
         })
         .join('\n');
-      tsResInterface = `// 响应接口\nexport interface ${interfaceName}Res {\n${props}\n}\n\n`;
+      tsResInterface = `// ${labels.responseInterface}\nexport interface ${interfaceName}Res {\n${props}\n}\n\n`;
     } else if (resolved?.type === 'array') {
-      tsResInterface = `// 响应类型\nexport type ${interfaceName}Res = ${schemaToTsType(resolved, doc)};\n\n`;
+      tsResInterface = `// ${labels.responseType}\nexport type ${interfaceName}Res = ${schemaToTsType(resolved, doc)};\n\n`;
     }
   }
 
@@ -208,7 +218,7 @@ function generateCode(
     ` * ${summary ?? fnName}`,
     ...pathParams.map((p) => ` * @param ${p.name} ${p.description ?? ''}`),
     ...queryParams.map((p) => ` * @param ${p.name} ${p.description ?? ''}`),
-    ...(hasBody ? [` * @param params request body`] : []),
+    ...(hasBody ? [` * @param params ${labels.requestBody}`] : []),
     ` * @returns Promise<${resType}>`,
     ` */`,
   ].join('\n');
@@ -272,11 +282,18 @@ export default function ScriptView() {
         requestBodySchema,
         responseSchema,
         swaggerDoc,
+        {
+          requestBody: t('apiScript.comment.requestBody'),
+          requestInterface: t('apiScript.comment.requestInterface'),
+          requestType: t('apiScript.comment.requestType'),
+          responseInterface: t('apiScript.comment.responseInterface'),
+          responseType: t('apiScript.comment.responseType'),
+        },
       );
     } catch {
       return null;
     }
-  }, [swaggerDoc, operation]);
+  }, [swaggerDoc, operation, t]);
 
   if (loading) {
     return (

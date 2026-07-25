@@ -1,6 +1,6 @@
 import { Button, Space, Typography, Alert } from 'antd';
 import { FileTextOutlined, FileWordOutlined, FileMarkdownOutlined, CodeOutlined } from '@ant-design/icons';
-import { generateApiMarkdown } from 'knife4j-core';
+import { generateApiMarkdown, type ApiMarkdownLabels } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
 import {
   Document,
@@ -17,6 +17,8 @@ import {
   ShadingType,
 } from 'docx';
 import { useGroup } from '../../context/GroupContext';
+import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from '../../locales/language';
+import type { SupportedLang } from '../../types/settings';
 import type {
   SwaggerDoc,
   MenuTag,
@@ -27,6 +29,29 @@ import type {
 } from '../../types/swagger';
 
 const { Title, Paragraph } = Typography;
+
+export interface OfficeDocLabels {
+  language: SupportedLang;
+  version: string;
+  description: string;
+  name: string;
+  location: string;
+  required: string;
+  type: string;
+  field: string;
+  yes: string;
+  no: string;
+  requestBody: string;
+  responses: string;
+  response: string;
+  statusCode: string;
+  schema: string;
+  deprecated: string;
+  parameters: string;
+  circularReference: string;
+  fallbackTitle: string;
+  markdown: ApiMarkdownLabels;
+}
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[/\\:*?"<>|]/g, '_').trim() || 'document';
@@ -126,6 +151,10 @@ interface FieldRow {
 const CIRCULAR_REF_PLACEHOLDER = '... circular reference ...';
 const MAX_FLATTEN_DEPTH = 30;
 
+function localizedFieldValue(value: string, labels: OfficeDocLabels): string {
+  return value === CIRCULAR_REF_PLACEHOLDER ? labels.circularReference : value;
+}
+
 function circularPlaceholder(prefix: string): FieldRow[] {
   return [
     {
@@ -220,7 +249,7 @@ function flattenSchemaFields(
 
 // ─── HTML renderers ─────────────────────────────────────────────────────────
 
-function renderParamTable(params: ParameterObject[]): string {
+function renderParamTable(params: ParameterObject[], labels: OfficeDocLabels): string {
   if (!params.length) return '';
   const rows = params
     .map(
@@ -228,7 +257,7 @@ function renderParamTable(params: ParameterObject[]): string {
     <tr>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.name)}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.in)}</td>
-      <td style="border:1px solid #ddd;padding:5px 8px;">${p.required ? 'Yes' : 'No'}</td>
+      <td style="border:1px solid #ddd;padding:5px 8px;">${p.required ? labels.yes : labels.no}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(schemaDisplayType(p.schema) || p.type || '')}</td>
       <td style="border:1px solid #ddd;padding:5px 8px;">${escapeHtml(p.description)}</td>
     </tr>`,
@@ -237,25 +266,25 @@ function renderParamTable(params: ParameterObject[]): string {
   return `
     <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;">
       <thead><tr style="background:#f5f5f5;">
-        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">Name</th>
-        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">In</th>
-        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">Required</th>
-        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">Type</th>
-        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">Description</th>
+        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">${labels.name}</th>
+        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">${labels.location}</th>
+        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">${labels.required}</th>
+        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">${labels.type}</th>
+        <th style="border:1px solid #ddd;padding:5px 8px;text-align:left;">${labels.description}</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
 
-function renderFieldTable(rows: FieldRow[], borderStyle: string): string {
+function renderFieldTable(rows: FieldRow[], borderStyle: string, labels: OfficeDocLabels): string {
   if (!rows.length) return '';
   const body = rows
     .map(
       (r) => `
     <tr>
-      <td style="${borderStyle}">${escapeHtml(r.fieldPath)}</td>
-      <td style="${borderStyle}">${escapeHtml(r.typeDisplay)}</td>
-      <td style="${borderStyle}">${r.required ? 'Yes' : 'No'}</td>
+      <td style="${borderStyle}">${escapeHtml(localizedFieldValue(r.fieldPath, labels))}</td>
+      <td style="${borderStyle}">${escapeHtml(localizedFieldValue(r.typeDisplay, labels))}</td>
+      <td style="${borderStyle}">${r.required ? labels.yes : labels.no}</td>
       <td style="${borderStyle}">${escapeHtml(r.description)}</td>
     </tr>`,
     )
@@ -263,16 +292,21 @@ function renderFieldTable(rows: FieldRow[], borderStyle: string): string {
   return `
     <table style="width:100%;border-collapse:collapse;margin:4px 0;font-size:13px;">
       <thead><tr style="background:#f5f5f5;">
-        <th style="${borderStyle}text-align:left;">Field</th>
-        <th style="${borderStyle}text-align:left;">Type</th>
-        <th style="${borderStyle}text-align:left;">Required</th>
-        <th style="${borderStyle}text-align:left;">Description</th>
+        <th style="${borderStyle}text-align:left;">${labels.field}</th>
+        <th style="${borderStyle}text-align:left;">${labels.type}</th>
+        <th style="${borderStyle}text-align:left;">${labels.required}</th>
+        <th style="${borderStyle}text-align:left;">${labels.description}</th>
       </tr></thead>
       <tbody>${body}</tbody>
     </table>`;
 }
 
-function renderRequestBodySection(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
+function renderRequestBodySection(
+  op: OperationObject,
+  doc: SwaggerDoc,
+  borderStyle: string,
+  labels: OfficeDocLabels,
+): string {
   const rb = op.requestBody;
   if (!rb) return '';
   const picked = pickContentSchema(rb.content);
@@ -281,23 +315,28 @@ function renderRequestBodySection(op: OperationObject, doc: SwaggerDoc, borderSt
   const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
   const typeDisplay = schemaDisplayType(picked.schema);
   return `
-    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">Request Body (${escapeHtml(
+    <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">${labels.requestBody} (${escapeHtml(
       picked.mediaType,
-    )}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(typeDisplay)}</code></span></p>
-    ${rows.length ? renderFieldTable(rows, borderStyle) : ''}`;
+    )}) &nbsp;<span style="font-weight:400;color:#555;">${labels.type}: <code>${escapeHtml(typeDisplay)}</code></span></p>
+    ${rows.length ? renderFieldTable(rows, borderStyle, labels) : ''}`;
 }
 
-function renderResponseSection(op: OperationObject, doc: SwaggerDoc, borderStyle: string): string {
+function renderResponseSection(
+  op: OperationObject,
+  doc: SwaggerDoc,
+  borderStyle: string,
+  labels: OfficeDocLabels,
+): string {
   const responses = op.responses;
   if (!responses || !Object.keys(responses).length) return '';
 
-  const parts: string[] = ['<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Responses</p>'];
+  const parts: string[] = [`<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${labels.responses}</p>`];
   parts.push(`
     <table style="width:100%;border-collapse:collapse;margin:4px 0 10px;font-size:13px;">
       <thead><tr style="background:#f5f5f5;">
-        <th style="${borderStyle}text-align:left;width:90px;">Code</th>
-        <th style="${borderStyle}text-align:left;">Description</th>
-        <th style="${borderStyle}text-align:left;width:220px;">Schema</th>
+        <th style="${borderStyle}text-align:left;width:90px;">${labels.statusCode}</th>
+        <th style="${borderStyle}text-align:left;">${labels.description}</th>
+        <th style="${borderStyle}text-align:left;width:220px;">${labels.schema}</th>
       </tr></thead>
       <tbody>
         ${Object.entries(responses)
@@ -323,24 +362,30 @@ function renderResponseSection(op: OperationObject, doc: SwaggerDoc, borderStyle
     const rows = flattenSchemaFields(unwrapped, doc, '', new Set(unwrapped.required ?? []));
     if (!rows.length) continue;
     parts.push(`
-      <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">Response <code>${escapeHtml(
+      <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${labels.response} <code>${escapeHtml(
         code,
       )}</code> (${escapeHtml(
         picked.mediaType,
-      )}) &nbsp;<span style="font-weight:400;color:#555;">Type: <code>${escapeHtml(
+      )}) &nbsp;<span style="font-weight:400;color:#555;">${labels.type}: <code>${escapeHtml(
         schemaDisplayType(picked.schema),
       )}</code></span></p>
-      ${renderFieldTable(rows, borderStyle)}`);
+      ${renderFieldTable(rows, borderStyle, labels)}`);
   }
 
   return parts.join('');
 }
 
-function renderOperation(path: string, method: string, op: OperationObject, doc: SwaggerDoc): string {
+function renderOperation(
+  path: string,
+  method: string,
+  op: OperationObject,
+  doc: SwaggerDoc,
+  labels: OfficeDocLabels,
+): string {
   const color = methodColor(method);
   const params = op.parameters ?? [];
-  const bodyHtml = renderRequestBodySection(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
-  const responseHtml = renderResponseSection(op, doc, 'border:1px solid #ddd;padding:5px 8px;');
+  const bodyHtml = renderRequestBodySection(op, doc, 'border:1px solid #ddd;padding:5px 8px;', labels);
+  const responseHtml = renderResponseSection(op, doc, 'border:1px solid #ddd;padding:5px 8px;', labels);
   return `
     <div style="margin:14px 0;border:1px solid #e8e8e8;border-radius:4px;overflow:hidden;">
       <div style="padding:8px 12px;background:#fafafa;display:flex;align-items:center;gap:10px;">
@@ -348,7 +393,7 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
           method.toUpperCase(),
         )}</span>
         <span style="font-family:monospace;font-size:14px;">${escapeHtml(path)}</span>
-        ${op.deprecated ? '<span style="color:#f93e3e;font-size:12px;margin-left:8px;">[Deprecated]</span>' : ''}
+        ${op.deprecated ? `<span style="color:#f93e3e;font-size:12px;margin-left:8px;">[${labels.deprecated}]</span>` : ''}
       </div>
       ${op.summary ? `<div style="padding:5px 12px;font-size:14px;">${escapeHtml(op.summary)}</div>` : ''}
       ${
@@ -356,16 +401,17 @@ function renderOperation(path: string, method: string, op: OperationObject, doc:
           ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(op.description)}</div>`
           : ''
       }
-      ${params.length ? `<div style="padding:5px 12px;">${renderParamTable(params)}</div>` : ''}
+      ${params.length ? `<div style="padding:5px 12px;">${renderParamTable(params, labels)}</div>` : ''}
       ${bodyHtml ? `<div style="padding:5px 12px;">${bodyHtml}</div>` : ''}
       ${responseHtml ? `<div style="padding:5px 12px;">${responseHtml}</div>` : ''}
     </div>`;
 }
 
-function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
   const sections = tags
     .map((t) => {
-      const ops = t.operations.map((op) => renderOperation(op.path, op.method, op.operation, doc)).join('');
+      const ops = t.operations.map((op) => renderOperation(op.path, op.method, op.operation, doc, labels)).join('');
       return `
       <div style="margin-bottom:28px;">
         <h2 style="border-left:4px solid #00ab6d;padding-left:10px;margin:20px 0 10px;">${escapeHtml(t.tag)}</h2>
@@ -376,7 +422,7 @@ function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
     .join('');
 
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${labels.language}">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -393,8 +439,8 @@ function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
   <div class="wrap">
     <h1>${escapeHtml(doc.info.title)}</h1>
     <div class="info">
-      <p><strong>Version:</strong> ${escapeHtml(doc.info.version)}</p>
-      ${doc.info.description ? `<p><strong>Description:</strong> ${escapeHtml(doc.info.description)}</p>` : ''}
+      <p><strong>${labels.version}:</strong> ${escapeHtml(doc.info.version)}</p>
+      ${doc.info.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(doc.info.description)}</p>` : ''}
     </div>
     ${sections}
   </div>
@@ -402,7 +448,8 @@ function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 </html>`;
 }
 
-function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
   const border = 'border:1px solid #000;padding:4px 6px;';
   const sections = tags
     .map((t) => {
@@ -415,7 +462,7 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
         <tr>
           <td style="${border}">${escapeHtml(p.name)}</td>
           <td style="${border}">${escapeHtml(p.in)}</td>
-          <td style="${border}">${p.required ? 'Yes' : 'No'}</td>
+          <td style="${border}">${p.required ? labels.yes : labels.no}</td>
           <td style="${border}">${escapeHtml(schemaDisplayType(p.schema) || p.type || '')}</td>
           <td style="${border}">${escapeHtml(p.description)}</td>
         </tr>`,
@@ -425,23 +472,23 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
             ? `
         <table style="width:100%;border-collapse:collapse;margin:6px 0;font-size:12px;">
           <thead><tr style="background:#e8e8e8;">
-            <th style="${border}">Name</th>
-            <th style="${border}">In</th>
-            <th style="${border}">Required</th>
-            <th style="${border}">Type</th>
-            <th style="${border}">Description</th>
+            <th style="${border}">${labels.name}</th>
+            <th style="${border}">${labels.location}</th>
+            <th style="${border}">${labels.required}</th>
+            <th style="${border}">${labels.type}</th>
+            <th style="${border}">${labels.description}</th>
           </tr></thead>
           <tbody>${paramRows}</tbody>
         </table>`
             : '';
-          const bodyHtml = renderRequestBodySection(op.operation, doc, border);
-          const responseHtml = renderResponseSection(op.operation, doc, border);
+          const bodyHtml = renderRequestBodySection(op.operation, doc, border, labels);
+          const responseHtml = renderResponseSection(op.operation, doc, border, labels);
           return `
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
           <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(
             op.method.toUpperCase(),
           )}]</strong> <code>${escapeHtml(op.path)}</code>${
-            op.operation.deprecated ? ' <em style="color:red;">[Deprecated]</em>' : ''
+            op.operation.deprecated ? ` <em style="color:red;">[${labels.deprecated}]</em>` : ''
           }</p>
           ${
             op.operation.summary
@@ -461,20 +508,20 @@ function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
     .join('');
 
   return `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<html>
+<html lang="${labels.language}">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
   <title>${escapeHtml(doc.info.title)}</title>
   <style>
-    body{font-family:"宋体",serif;font-size:14px;margin:20px;}
+    body{font-family:Arial,"Yu Gothic","Microsoft YaHei",sans-serif;font-size:14px;margin:20px;}
     h1{text-align:center;}
     code{font-family:monospace;}
   </style>
 </head>
 <body>
   <h1>${escapeHtml(doc.info.title)}</h1>
-  <p><strong>Version:</strong> ${escapeHtml(doc.info.version)}</p>
-  ${doc.info.description ? `<p><strong>Description:</strong> ${escapeHtml(doc.info.description)}</p>` : ''}
+  <p><strong>${labels.version}:</strong> ${escapeHtml(doc.info.version)}</p>
+  ${doc.info.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(doc.info.description)}</p>` : ''}
   <hr/>
   ${sections}
 </body>
@@ -503,22 +550,22 @@ function docxTextCell(text: string, opts?: { bold?: boolean; shading?: string })
   });
 }
 
-function docxFieldTable(rows: FieldRow[]): DocxTable {
+function docxFieldTable(rows: FieldRow[], labels: OfficeDocLabels): DocxTable {
   const header = new DocxTableRow({
     children: [
-      docxTextCell('Field', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.field, { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.type, { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.required, { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.description, { bold: true, shading: 'f5f5f5' }),
     ],
   });
   const dataRows = rows.map(
     (r) =>
       new DocxTableRow({
         children: [
-          docxTextCell(r.fieldPath),
-          docxTextCell(r.typeDisplay),
-          docxTextCell(r.required ? 'Yes' : 'No'),
+          docxTextCell(localizedFieldValue(r.fieldPath, labels)),
+          docxTextCell(localizedFieldValue(r.typeDisplay, labels)),
+          docxTextCell(r.required ? labels.yes : labels.no),
           docxTextCell(r.description),
         ],
       }),
@@ -526,14 +573,14 @@ function docxFieldTable(rows: FieldRow[]): DocxTable {
   return new DocxTable({ rows: [header, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } });
 }
 
-function docxParamRows(params: ParameterObject[]): DocxTableRow[] {
+function docxParamRows(params: ParameterObject[], labels: OfficeDocLabels): DocxTableRow[] {
   return params.map(
     (p) =>
       new DocxTableRow({
         children: [
           docxTextCell(p.name),
           docxTextCell(p.in),
-          docxTextCell(p.required ? 'Yes' : 'No'),
+          docxTextCell(p.required ? labels.yes : labels.no),
           docxTextCell(schemaDisplayType(p.schema) || p.type || ''),
           docxTextCell(p.description ?? ''),
         ],
@@ -541,7 +588,11 @@ function docxParamRows(params: ParameterObject[]): DocxTableRow[] {
   );
 }
 
-function docxRequestBodySection(op: OperationObject, doc: SwaggerDoc): (DocxParagraph | DocxTable)[] {
+function docxRequestBodySection(
+  op: OperationObject,
+  doc: SwaggerDoc,
+  labels: OfficeDocLabels,
+): (DocxParagraph | DocxTable)[] {
   const rb = op.requestBody;
   if (!rb) return [];
   const picked = pickContentSchema(rb.content);
@@ -552,32 +603,36 @@ function docxRequestBodySection(op: OperationObject, doc: SwaggerDoc): (DocxPara
   const children: (DocxParagraph | DocxTable)[] = [
     new DocxParagraph({
       children: [
-        new TextRun({ text: `Request Body (${picked.mediaType})  `, bold: true, size: 22 }),
-        new TextRun({ text: `Type: ${typeDisplay}`, size: 22 }),
+        new TextRun({ text: `${labels.requestBody} (${picked.mediaType})  `, bold: true, size: 22 }),
+        new TextRun({ text: `${labels.type}: ${typeDisplay}`, size: 22 }),
       ],
       spacing: { before: 120, after: 40 },
     }),
   ];
-  if (rows.length) children.push(docxFieldTable(rows));
+  if (rows.length) children.push(docxFieldTable(rows, labels));
   return children;
 }
 
-function docxResponseSection(op: OperationObject, doc: SwaggerDoc): (DocxParagraph | DocxTable)[] {
+function docxResponseSection(
+  op: OperationObject,
+  doc: SwaggerDoc,
+  labels: OfficeDocLabels,
+): (DocxParagraph | DocxTable)[] {
   const responses = op.responses;
   if (!responses || !Object.keys(responses).length) return [];
 
   const children: (DocxParagraph | DocxTable)[] = [
     new DocxParagraph({
-      children: [new TextRun({ text: 'Responses', bold: true, size: 22 })],
+      children: [new TextRun({ text: labels.responses, bold: true, size: 22 })],
       spacing: { before: 160, after: 40 },
     }),
   ];
 
   const summaryHeader = new DocxTableRow({
     children: [
-      docxTextCell('Code', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
-      docxTextCell('Schema', { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.statusCode, { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.description, { bold: true, shading: 'f5f5f5' }),
+      docxTextCell(labels.schema, { bold: true, shading: 'f5f5f5' }),
     ],
   });
   const summaryRows = Object.entries(responses).map(([code, resp]) => {
@@ -605,19 +660,20 @@ function docxResponseSection(op: OperationObject, doc: SwaggerDoc): (DocxParagra
     children.push(
       new DocxParagraph({
         children: [
-          new TextRun({ text: `Response ${code} (${picked.mediaType})  `, bold: true, size: 22 }),
-          new TextRun({ text: `Type: ${schemaDisplayType(picked.schema)}`, size: 22 }),
+          new TextRun({ text: `${labels.response} ${code} (${picked.mediaType})  `, bold: true, size: 22 }),
+          new TextRun({ text: `${labels.type}: ${schemaDisplayType(picked.schema)}`, size: 22 }),
         ],
         spacing: { before: 120, after: 40 },
       }),
-      docxFieldTable(rows),
+      docxFieldTable(rows, labels),
     );
   }
 
   return children;
 }
 
-async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
+// eslint-disable-next-line react-refresh/only-export-components
+export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): Promise<Blob> {
   const children: (DocxParagraph | DocxTable)[] = [];
 
   children.push(
@@ -628,10 +684,16 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
       spacing: { after: 200 },
     }),
   );
-  children.push(new DocxParagraph({ children: [new TextRun({ text: `Version: ${doc.info.version}`, size: 22 })] }));
+  children.push(
+    new DocxParagraph({
+      children: [new TextRun({ text: `${labels.version}: ${doc.info.version}`, size: 22 })],
+    }),
+  );
   if (doc.info.description) {
     children.push(
-      new DocxParagraph({ children: [new TextRun({ text: `Description: ${doc.info.description}`, size: 22 })] }),
+      new DocxParagraph({
+        children: [new TextRun({ text: `${labels.description}: ${doc.info.description}`, size: 22 })],
+      }),
     );
   }
   children.push(new DocxParagraph({ text: '' }));
@@ -660,7 +722,9 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
           children: [
             new TextRun({ text: `[${method}] `, bold: true, color: methodColor(op.method).replace('#', ''), size: 24 }),
             new TextRun({ text: op.path, font: 'Courier New', size: 24 }),
-            ...(op.operation.deprecated ? [new TextRun({ text: ' [Deprecated]', color: 'f93e3e', size: 22 })] : []),
+            ...(op.operation.deprecated
+              ? [new TextRun({ text: ` [${labels.deprecated}]`, color: 'f93e3e', size: 22 })]
+              : []),
           ],
           spacing: { before: 200, after: 60 },
         }),
@@ -673,27 +737,27 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
       if (params.length) {
         const paramHeader = new DocxTableRow({
           children: [
-            docxTextCell('Name', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('In', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('Required', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('Type', { bold: true, shading: 'f5f5f5' }),
-            docxTextCell('Description', { bold: true, shading: 'f5f5f5' }),
+            docxTextCell(labels.name, { bold: true, shading: 'f5f5f5' }),
+            docxTextCell(labels.location, { bold: true, shading: 'f5f5f5' }),
+            docxTextCell(labels.required, { bold: true, shading: 'f5f5f5' }),
+            docxTextCell(labels.type, { bold: true, shading: 'f5f5f5' }),
+            docxTextCell(labels.description, { bold: true, shading: 'f5f5f5' }),
           ],
         });
         children.push(
           new DocxParagraph({
-            children: [new TextRun({ text: 'Parameters', bold: true, size: 22 })],
+            children: [new TextRun({ text: labels.parameters, bold: true, size: 22 })],
             spacing: { before: 80, after: 40 },
           }),
           new DocxTable({
-            rows: [paramHeader, ...docxParamRows(params)],
+            rows: [paramHeader, ...docxParamRows(params, labels)],
             width: { size: 100, type: WidthType.PERCENTAGE },
           }),
         );
       }
 
-      children.push(...docxRequestBodySection(op.operation, doc));
-      children.push(...docxResponseSection(op.operation, doc));
+      children.push(...docxRequestBodySection(op.operation, doc, labels));
+      children.push(...docxResponseSection(op.operation, doc, labels));
     }
   }
 
@@ -705,9 +769,10 @@ async function buildDocx(doc: SwaggerDoc, tags: MenuTag[]): Promise<Blob> {
  * Build a full-document Markdown string by iterating all tags and operations.
  * Reuses generateApiMarkdown from knife4j-core (shared with TASK-042 copy action).
  */
-function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
   const sections: string[] = [];
-  sections.push(`# ${doc.info.title || 'API Documentation'}`);
+  sections.push(`# ${doc.info.title || labels.fallbackTitle}`);
   if (doc.info.description) {
     sections.push('');
     sections.push(doc.info.description);
@@ -725,6 +790,7 @@ function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
         path: op.path,
         operation: op.operation as Parameters<typeof generateApiMarkdown>[0]['operation'],
         docContext: doc,
+        labels: labels.markdown,
       });
       sections.push(md);
       sections.push('---');
@@ -736,26 +802,67 @@ function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[]): string {
 }
 
 export default function OfficeDoc() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { swaggerDoc, menuTags, loading, usingMock } = useGroup();
+  const labels: OfficeDocLabels = {
+    language: normalizeSupportedLanguage(i18n.language) ?? DEFAULT_LANGUAGE,
+    version: t('home.version'),
+    description: t('home.description'),
+    name: t('apiDoc.col.paramName'),
+    location: t('apiDoc.col.location'),
+    required: t('apiDoc.col.required'),
+    type: t('apiDoc.col.type'),
+    field: t('schema.col.fieldName'),
+    yes: t('schema.required.yes'),
+    no: t('schema.required.no'),
+    requestBody: t('apiDoc.requestBody'),
+    responses: t('apiDoc.responseStructure'),
+    response: t('officeDoc.response'),
+    statusCode: t('apiDoc.col.statusCode'),
+    schema: t('apiDoc.col.schema'),
+    deprecated: t('apiDoc.deprecated'),
+    parameters: t('apiDoc.requestParams'),
+    circularReference: t('officeDoc.circularReference'),
+    fallbackTitle: t('officeDoc.fallbackTitle'),
+    markdown: {
+      deprecated: t('apiDoc.markdown.deprecated'),
+      requestParameters: t('apiDoc.requestParams'),
+      noRequestParameters: t('apiDoc.noParams'),
+      requestBody: t('apiDoc.requestBody'),
+      noRequestBody: t('apiDoc.noBody'),
+      requestBodyNotExpandable: t('apiDoc.body.notExpandable'),
+      responseStructure: t('apiDoc.responseStructure'),
+      noResponse: t('apiDoc.noResponse'),
+      name: t('apiDoc.col.paramName'),
+      location: t('apiDoc.col.location'),
+      type: t('apiDoc.col.type'),
+      required: t('apiDoc.col.required'),
+      description: t('apiDoc.col.description'),
+      field: t('apiDoc.col.fieldName'),
+      yes: t('schema.required.yes'),
+      no: t('schema.required.no'),
+      status: t('apiDoc.col.statusCode'),
+      schema: t('apiDoc.col.schema'),
+    },
+  };
 
   function handleDownloadHtml() {
     if (!swaggerDoc) return;
-    const html = buildHtmlDoc(swaggerDoc, menuTags);
+    const html = buildHtmlDoc(swaggerDoc, menuTags, labels);
     const title = swaggerDoc.info.title || 'api-docs';
     downloadBlob(html, `${title}.html`, 'text/html;charset=utf-8');
   }
 
   function handleDownloadWord() {
     if (!swaggerDoc) return;
-    const html = buildWordDoc(swaggerDoc, menuTags);
+    const html = buildWordDoc(swaggerDoc, menuTags, labels);
     const title = swaggerDoc.info.title || 'api-docs';
     downloadBlob(html, `${title}.doc`, 'application/msword');
   }
 
   async function handleDownloadDocx() {
     if (!swaggerDoc) return;
-    const blob = await buildDocx(swaggerDoc, menuTags);
+    const blob = await buildDocx(swaggerDoc, menuTags, labels);
     const title = swaggerDoc.info.title || 'api-docs';
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -767,7 +874,7 @@ export default function OfficeDoc() {
 
   function handleDownloadMarkdown() {
     if (!swaggerDoc) return;
-    const md = buildMarkdownDoc(swaggerDoc, menuTags);
+    const md = buildMarkdownDoc(swaggerDoc, menuTags, labels);
     const title = swaggerDoc.info.title || 'api-docs';
     downloadBlob(md, `${title}.md`, 'text/markdown;charset=utf-8');
   }

@@ -269,17 +269,25 @@ const langOptions = {
     auth: {
       invalid: 'Invalid value',
       confirm: 'Are you sure you want to logout?',
-      success: 'Logout Success'
+      success: 'Logout Success',
+      usernameRequired: 'Username cannot be empty.',
+      passwordRequired: 'Password cannot be empty.',
+      clientIdRequired: 'clientId cannot be empty.',
+      clientSecretRequired: 'clientSecret cannot be empty.',
+      authorizeSuccess: 'Authorization succeeded.',
+      resetSuccess: 'Authorization reset.'
     },
     global: {
       iptname: 'Please enter the global parameter name',
       iptvalue: 'Please enter the global parameter value',
-      deleteSuccess: 'Delete Success'
+      deleteSuccess: 'Delete Success',
+      exists: 'The parameter already exists.'
     },
     settings: {
       plusFail: 'Knife4j enhancements cannot be turned on. Make sure that the annotation @EnableKnife4j is enabled on the back end',
       plusError: 'Unable to turn on Swagger BootstrapUi Enhancement, Error Cause:',
-      success: 'Save successfully, please refresh the document page'
+      success: 'Save successfully, please refresh the document page',
+      hostRequired: 'Please enter a Host value.'
     },
     offline: {
       imple:'This feature has not been implemented ...',
@@ -298,19 +306,9 @@ const langOptions = {
       contentToBigBlob:'The amount of interface response data exceeds the limit and is not displayed in the response content.'
     },
     sys: {
-      loadErr: 'Make sure the swagger resource interface is correct.'
+      loadErr: 'Make sure the swagger resource interface is correct.',
+      requestErr: 'Failed to load the Knife4j document.'
     }
-  },
-  home: {
-    des: 'Description',
-    author: 'Author',
-    version: 'Version',
-    serviceUrl: 'serviceUrl',
-    groupName: 'Group Name',
-    groupUrl: 'Group url',
-    groupLocation: 'Group Location',
-    apiCount: 'Api Counts',
-    searchText: 'Search...'
   },
   swaggerModel: {
     nodata: 'No Swagger Models',
@@ -351,7 +349,8 @@ const langOptions = {
       type:'type',
       validate:{
         name:'Please enter the parameter name',
-        value:'Please enter the parameter value'
+        value:'Please enter the parameter value',
+        type:'Please select a parameter type'
       }
     },
     ok:'ok',
@@ -366,7 +365,7 @@ const langOptions = {
     openCache: 'Enable request parameter cache',
     dynamicParameter: 'Enable dynamic request parameters',
     showApi: 'Enable Menu Api Address Display',
-    tagDes: 'Enable Grouping tag displays dsecription description properties',
+    tagDes: 'Show the description for grouped tags',
     apiFilter: 'Open RequestMapping Interface Filtering,Default',
     openCacheApi: 'Enable Open cached open API documents',
     plus: 'Enabling enhancements provided by Knife4j',
@@ -501,6 +500,8 @@ const langOptions = {
   },
   app: {
     brand: 'Knife4j Next',
+    loading: 'Loading...',
+    cacheCleared: 'Local cache cleared',
     footer: 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors'
   }
 };

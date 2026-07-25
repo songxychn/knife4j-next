@@ -31,6 +31,7 @@
         <a-layout-header style="padding: 0;background: #fff;    height: 56px; line-height: 56px;">
           <GlobalHeader @searchKey="searchKey" @searchClear="searchClear" :documentTitle="state.documentTitle"
                         :collapsed="state.collapsed" :headerClass="state.headerClass" :currentUser="currentUser"
+                        @languageChange="changeLanguage"
                         :onCollapse="handleMenuCollapse" :onMenuClick="item => handleMenuClick(item)"/>
         </a-layout-header>
         <context-menu :itemList="state.menuItemList" v-model:visible="state.menuVisible" @select="onMenuSelect"/>
@@ -67,6 +68,7 @@ import { useHeadersStore } from '@/store/modules/header.js'
 import { useRoute, useRouter } from 'vue-router'
 import localStore from '@/store/local.js'
 import { useI18n } from 'vue-i18n'
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage } from '@/lang/index.js'
 import Main from '@/views/index/Main.vue'
 
 const OtherMarkdown = defineAsyncComponent(() => import('@/views/othermarkdown/index.vue'))
@@ -125,12 +127,11 @@ const route = useRoute()
 function getI18nFromUrl() {
   const param = route.params;
   let include = false;
-  let i18n = "zh-CN";
+  let i18n = DEFAULT_LANGUAGE;
   if (KUtils.checkUndefined(param)) {
     const i18nFromUrl = param["i18n"];
     if (KUtils.checkUndefined(i18nFromUrl)) {
-      const langs = ["zh-CN", "en-US"];
-      if (langs.includes(i18nFromUrl)) {
+      if (SUPPORTED_LANGUAGES.includes(i18nFromUrl)) {
         include = true;
         i18n = i18nFromUrl;
       }
@@ -188,219 +189,96 @@ const settings = computed(() => {
 })
 
 function getCurrentI18nInstance() {
-  state.i18n = messages.value[language.value];
+  state.i18n = messages.value[normalizeLanguage(language.value)];
   return state.i18n;
 }
 
-function initSpringDocOpenApi() {
-  //该版本是最终打包到knife4j-springdoc-ui的模块
-  const i18nParams = getI18nFromUrl();
-  let tmpI18n = i18nParams.i18n;
-  //console.log(tmpI18n)
-  //读取settings
-  localStore.getItem(constant.globalSettingsKey).then(settingCache => {
-    const settings = getCacheSettings(settingCache)
-    //console.log("layout---")
-    //console.log(settings)
-    //重新赋值是否开启增强
-    if (!settings.enableSwaggerBootstrapUi) {
-      settings.enableSwaggerBootstrapUi = getPlusStatus();
-    }
-    settings.language = tmpI18n;
-    localStore.setItem(constant.globalSettingsKey, settings);
-    localStore.getItem(constant.globalGitApiVersionCaches).then(gitVal => {
-      const cacheApis = getCacheGitVersion(gitVal);
-      if (i18nParams.include) {
-        //写入本地缓存
-        globalsStore.setLang(tmpI18n)
-        localStore.setItem(constant.globalI18nCache, tmpI18n);
-        locale.value = tmpI18n;
-        state.enableVersion = settings.enableVersion;
-        initSwagger({
-          springdoc: true,
-          baseSpringFox: true,
-          localStore: localStore,
-          settings: settings,
-          cacheApis: cacheApis,
-          routeParams: route.params,
-          plus: getPlusStatus(),
-          i18n: tmpI18n,
-          i18nFlag: i18nParams.include,
-          configSupport: false,
-          i18nInstance: getCurrentI18nInstance()
-        })
-      } else {
-        //不包含
-        //初始化读取i18n的配置，add by xiaoymin 2020-5-16 09:51:51
-        localStore.getItem(constant.globalI18nCache).then(i18n => {
-          if (KUtils.checkUndefined(i18n)) {
-            globalsStore.setLang(i18n)
-            tmpI18n = i18n;
-          }
-          locale.value = tmpI18n;
-          state.enableVersion = settings.enableVersion;
-          initSwagger({
-            springdoc: true,
-            baseSpringFox: true,
-            localStore: localStore,
-            settings: settings,
-            cacheApis: cacheApis,
-            routeParams: route.params,
-            plus: getPlusStatus(),
-            i18n: tmpI18n,
-            i18nFlag: i18nParams.include,
-            configSupport: false,
-            i18nInstance: getCurrentI18nInstance()
-          })
-        })
-      }
-    })
+function syncLanguageState(nextLanguage) {
+  const normalizedLanguage = normalizeLanguage(nextLanguage)
+  locale.value = normalizedLanguage
+  state.i18n = messages.value[normalizedLanguage]
+  if (globalsStore.language !== normalizedLanguage) {
+    globalsStore.setLang(normalizedLanguage)
+  }
+
+  const currentSwagger = globalsStore.swagger
+  if (currentSwagger) {
+    currentSwagger.i18n = normalizedLanguage
+    currentSwagger.i18nInstance = state.i18n
+    currentSwagger.settings.language = normalizedLanguage
+  }
+  return normalizedLanguage
+}
+
+async function resolveInitialLanguage() {
+  const i18nFromUrl = getI18nFromUrl()
+  if (i18nFromUrl.include) {
+    await localStore.setItem(constant.globalI18nCache, i18nFromUrl.i18n)
+    return { language: i18nFromUrl.i18n, locked: true }
+  }
+
+  const cachedLanguage = await localStore.getItem(constant.globalI18nCache)
+  if (SUPPORTED_LANGUAGES.includes(cachedLanguage)) {
+    return { language: cachedLanguage, locked: true }
+  }
+  return { language: DEFAULT_LANGUAGE, locked: false }
+}
+
+async function initConfiguredSwagger(releaseOptions = {}) {
+  const languageChoice = await resolveInitialLanguage()
+  const selectedLanguage = syncLanguageState(languageChoice.language)
+  const settingCache = await localStore.getItem(constant.globalSettingsKey)
+  const swaggerSettings = getCacheSettings(settingCache)
+  if (!swaggerSettings.enableSwaggerBootstrapUi) {
+    swaggerSettings.enableSwaggerBootstrapUi = getPlusStatus()
+  }
+  swaggerSettings.language = selectedLanguage
+  await localStore.setItem(constant.globalSettingsKey, swaggerSettings)
+
+  const gitVal = await localStore.getItem(constant.globalGitApiVersionCaches)
+  state.enableVersion = swaggerSettings.enableVersion
+  initSwagger({
+    baseSpringFox: true,
+    localStore: localStore,
+    settings: swaggerSettings,
+    cacheApis: getCacheGitVersion(gitVal),
+    routeParams: route.params,
+    plus: getPlusStatus(),
+    i18n: selectedLanguage,
+    i18nFlag: languageChoice.locked,
+    configSupport: false,
+    i18nInstance: getCurrentI18nInstance(),
+    onLanguageChange: syncLanguageState,
+    ...releaseOptions,
   })
 }
 
+function initSpringDocOpenApi() {
+  return initConfiguredSwagger({ springdoc: true })
+}
+
 function initKnife4jSpringUi() {
-  //该版本是最终打包到knife4j-spring-ui的模块,默认是调用该方法
-  const i18nParams = getI18nFromUrl()
-  let tmpI18n = i18nParams.i18n
-  //console.log(tmpI18n)
-  //读取settings
-  localStore.getItem(constant.globalSettingsKey).then(settingCache => {
-    const settings = getCacheSettings(settingCache)
-    //console.log("layout---")
-    //console.log(settings)
-    //重新赋值是否开启增强
-    if (!settings.enableSwaggerBootstrapUi) {
-      settings.enableSwaggerBootstrapUi = getPlusStatus();
-    }
-    settings.language = tmpI18n;
-    localStore.setItem(constant.globalSettingsKey, settings);
-    localStore.getItem(constant.globalGitApiVersionCaches).then(gitVal => {
-      const cacheApis = getCacheGitVersion(gitVal)
-      if (i18nParams.include) {
-        //写入本地缓存
-        globalsStore.setLang(tmpI18n)
-        localStore.setItem(constant.globalI18nCache, tmpI18n);
-        locale.value = tmpI18n
-        state.enableVersion = settings.enableVersion;
-        initSwagger({
-          baseSpringFox: true,
-          localStore: localStore,
-          settings: settings,
-          cacheApis: cacheApis,
-          routeParams: route.params,
-          plus: getPlusStatus(),
-          i18n: tmpI18n,
-          i18nFlag: i18nParams.include,
-          configSupport: false,
-          desktop: true,
-          i18nInstance: getCurrentI18nInstance()
-        })
-      } else {
-        //不包含
-        //console.log("不包含")
-        //初始化读取i18n的配置，add by xiaoymin 2020-5-16 09:51:51
-        localStore.getItem(constant.globalI18nCache).then(i18n => {
-          if (KUtils.checkUndefined(i18n)) {
-            globalsStore.setLang(i18n)
-            tmpI18n = i18n;
-          }
-          locale.value = tmpI18n;
-          state.enableVersion = settings.enableVersion;
-          initSwagger({
-            baseSpringFox: true,
-            localStore: localStore,
-            settings: settings,
-            cacheApis: cacheApis,
-            routeParams: route.params,
-            plus: getPlusStatus(),
-            i18n: tmpI18n,
-            i18nFlag: i18nParams.include,
-            configSupport: false,
-            desktop: true,
-            i18nInstance: getCurrentI18nInstance()
-          })
-        })
-      }
-    })
-  })
+  return initConfiguredSwagger({ desktop: true })
 }
+
 function initKnife4jJFinal() {
-  //该版本是最终打包到knife4j-jfinal-ui的模块,默认是调用该方法
-  const i18nParams = getI18nFromUrl()
-  let tmpI18n = i18nParams.i18n
-  //console.log(tmpI18n)
-  //读取settings
-  localStore.getItem(constant.globalSettingsKey).then(settingCache => {
-    const settings = getCacheSettings(settingCache)
-    //console.log("layout---")
-    //console.log(settings)
-    //重新赋值是否开启增强
-    if (!settings.enableSwaggerBootstrapUi) {
-      settings.enableSwaggerBootstrapUi = getPlusStatus();
-    }
-    settings.language = tmpI18n;
-    localStore.setItem(constant.globalSettingsKey, settings);
-    localStore.getItem(constant.globalGitApiVersionCaches).then(gitVal => {
-      const cacheApis = getCacheGitVersion(gitVal)
-      if (i18nParams.include) {
-        //写入本地缓存
-        globalsStore.setLang(tmpI18n)
-        localStore.setItem(constant.globalI18nCache, tmpI18n);
-        locale.value = tmpI18n;
-        state.enableVersion = settings.enableVersion;
-        initSwagger({
-          baseSpringFox: true,
-          localStore: localStore,
-          settings: settings,
-          cacheApis: cacheApis,
-          routeParams: route.params,
-          plus: getPlusStatus(),
-          i18n: tmpI18n,
-          url: 'jf-swagger/swagger-resources',
-          i18nFlag: i18nParams.include,
-          configSupport: false,
-          i18nInstance: getCurrentI18nInstance()
-        })
-      } else {
-        //不包含
-        //console.log("不包含")
-        //初始化读取i18n的配置，add by xiaoymin 2020-5-16 09:51:51
-        localStore.getItem(constant.globalI18nCache).then(i18n => {
-          if (KUtils.checkUndefined(i18n)) {
-            globalsStore.setLang(i18n)
-            tmpI18n = i18n;
-          }
-          locale.value = tmpI18n;
-          state.enableVersion = settings.enableVersion;
-          initSwagger({
-            baseSpringFox: true,
-            localStore: localStore,
-            settings: settings,
-            cacheApis: cacheApis,
-            routeParams: route.params,
-            plus: getPlusStatus(),
-            i18n: tmpI18n,
-            url: 'jf-swagger/swagger-resources',
-            i18nFlag: i18nParams.include,
-            configSupport: false,
-            i18nInstance: getCurrentI18nInstance()
-          })
-        })
-      }
-    })
-  })
+  return initConfiguredSwagger({ url: 'jf-swagger/swagger-resources' })
 }
-function initKnife4jFront() {
+
+async function initKnife4jFront() {
   //该版本区别于Spring-ui的版本,提供给其它语言来集成knife4j
-  const i18nParams = getI18nFromUrl()
-  const tmpI18n = i18nParams.i18n
+  const languageChoice = await resolveInitialLanguage()
+  const selectedLanguage = syncLanguageState(languageChoice.language)
   const swaggerOptions = {
     routeParams: route.params,
     plus: getPlusStatus(),
-    i18n: tmpI18n,
+    i18n: selectedLanguage,
+    i18nFlag: languageChoice.locked,
     localStore: localStore,
     configSupport: false,
+    settings: { ...constant.defaultSettings, language: selectedLanguage },
     i18nInstance: getCurrentI18nInstance(),
+    onLanguageChange: syncLanguageState,
     //覆盖url地址,多个服务的组合
     url: "/services.json"
   }
@@ -443,8 +321,8 @@ onMounted(() => {
 function updateMenuI18n() {
   //根据i18n的切换,更新菜单的显示
   //console.log("根据i18n的切换,更新菜单的显示")
-  if (KUtils.arrNotEmpty(state.MenuData)) {
-    state.MenuData.forEach(m => {
+  if (KUtils.arrNotEmpty(state.localMenuData)) {
+    state.localMenuData.forEach(m => {
       if (KUtils.checkUndefined(m.i18n)) {
         m.name = getCurrentI18nInstance().menu[m.i18n];
         if (KUtils.arrNotEmpty(m.children)) {
@@ -476,7 +354,7 @@ function getCacheSettings(val) {
       settings = defaultPlusSettings;
     } else {
       //判断是否开启增强
-      settings = defaultSettings;
+      settings = Object.assign({}, defaultSettings);
     }
   }
   return settings;
@@ -522,7 +400,27 @@ const searchClear = () => {
   state.localMenuData = currentMenuData.value;
 }
 
-watch(() => language.value, () =>{
+function changeLanguage(nextLanguage) {
+  const normalizedLanguage = normalizeLanguage(nextLanguage)
+  const currentSwagger = globalsStore.swagger
+  const shouldReload = normalizedLanguage !== language.value
+      || currentSwagger?.settings.language !== normalizedLanguage
+
+  syncLanguageState(normalizedLanguage)
+  localStore.setItem(constant.globalI18nCache, normalizedLanguage)
+
+  if (currentSwagger) {
+    currentSwagger.i18n = normalizedLanguage
+    currentSwagger.i18nFlag = true
+    currentSwagger.settings.language = normalizedLanguage
+    if (shouldReload && currentSwagger.currentInstance) {
+      currentSwagger.analysisApi(currentSwagger.currentInstance, true)
+    }
+  }
+}
+
+watch(() => language.value, (nextLanguage) =>{
+  syncLanguageState(nextLanguage)
   initI18n();
   updateMenuI18n();
 })

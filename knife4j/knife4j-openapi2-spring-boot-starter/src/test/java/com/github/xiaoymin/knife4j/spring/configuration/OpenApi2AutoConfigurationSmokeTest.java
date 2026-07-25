@@ -17,12 +17,22 @@
 
 package com.github.xiaoymin.knife4j.spring.configuration;
 
+import com.github.xiaoymin.knife4j.core.enums.OpenAPILanguageEnums;
+import com.github.xiaoymin.knife4j.spring.extension.OpenApiExtensionResolver;
+import com.github.xiaoymin.knife4j.spring.extension.OpenApiSettingExtension;
 import org.junit.Assert;
 import org.junit.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+import springfox.documentation.service.ObjectVendorExtension;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public class OpenApi2AutoConfigurationSmokeTest {
 
@@ -37,6 +47,27 @@ public class OpenApi2AutoConfigurationSmokeTest {
         String autoConfigurationImports = readResource("META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports");
         Assert.assertTrue(autoConfigurationImports.contains(Knife4jAutoConfiguration.class.getName()));
         Assert.assertTrue(autoConfigurationImports.contains("com.github.xiaoymin.knife4j.spring.configuration.insight.Knife4jInsightAutoConfiguration"));
+    }
+
+    @Test
+    public void shouldBindJapaneseLanguageAndExposeItInXSetting() {
+        Map<String, Object> values = new HashMap<>();
+        values.put("knife4j.enable", "true");
+        values.put("knife4j.setting.language", "ja-JP");
+        StandardEnvironment environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(new MapPropertySource("test", values));
+
+        Knife4jProperties properties =
+                Binder.get(environment).bind("knife4j", Bindable.of(Knife4jProperties.class)).get();
+        Assert.assertEquals(OpenAPILanguageEnums.JA_JP, properties.getSetting().getLanguage());
+
+        OpenApiExtensionResolver resolver =
+                new Knife4jAutoConfiguration(environment).markdownResolver(properties);
+        ObjectVendorExtension openApiExtension =
+                (ObjectVendorExtension) resolver.buildSettingExtensions().get(0);
+        OpenApiSettingExtension settingExtension =
+                (OpenApiSettingExtension) openApiExtension.getValue().get(0);
+        Assert.assertEquals(OpenAPILanguageEnums.JA_JP.getValue(), settingExtension.getValue().getLanguage());
     }
 
     private String readResource(String path) throws IOException {
