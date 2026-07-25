@@ -17,6 +17,7 @@ jobs:
       react: ${{ steps.classify.outputs.react }}
       vue3: ${{ steps.classify.outputs.vue3 }}
       docs: ${{ steps.classify.outputs.docs }}
+      knife4x_go: ${{ steps.classify.outputs.knife4x_go }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -135,6 +136,30 @@ jobs:
 
       - name: Test front core
         run: tools/test-front-core.sh
+
+  knife4x-go-test:
+    needs: changes
+    if: needs.changes.outputs.knife4x_go == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: front/package.json
+
+      - name: Verify Knife4x Go UI assets
+        run: ./tools/sync-knife4x-ui.sh --check
 
   vue3-test:
     needs: changes
