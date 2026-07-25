@@ -196,6 +196,8 @@ const zhCN = {
   'apiDebug.send': '发送',
   'apiDebug.reset': '重置',
   'apiDebug.sending': '请求中...',
+  'apiDebug.receiving': '正在接收响应：{{received}}',
+  'apiDebug.receivingOf': '正在接收响应：{{received}} / {{total}}',
   'apiDebug.history.title': '请求历史',
   'apiDebug.history.expand': '展开请求历史',
   'apiDebug.history.collapse': '折叠请求历史',

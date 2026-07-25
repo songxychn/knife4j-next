@@ -9,6 +9,7 @@ import {
   InputNumber,
   message,
   Modal,
+  Progress,
   Radio,
   Select,
   Space,
@@ -110,6 +111,7 @@ import {
   type SchemaFieldRow,
 } from './debugDefaultValues';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
+import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -1637,6 +1639,7 @@ export default function ApiDebug() {
     [debugModel, operation, swaggerDoc],
   );
   const [loading, setLoading] = useState(false);
+  const [responseProgress, setResponseProgress] = useState<ResponseBodyProgress | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1701,6 +1704,7 @@ export default function ApiDebug() {
     setBuiltRequest(null);
     setSseEvents(null);
     setSseStreaming(false);
+    setResponseProgress(null);
     setValidationErrors([]);
     if (options.resetActiveTab) {
       setActiveTab(undefined);
@@ -2239,6 +2243,7 @@ export default function ApiDebug() {
     }
 
     setLoading(true);
+    setResponseProgress(null);
     // Revoke any previous object URL to avoid memory leaks across consecutive sends.
     if (response?.objectUrl) {
       try {
@@ -2485,7 +2490,9 @@ export default function ApiDebug() {
       }
 
       // Non-SSE path: read once as blob so we can branch by content-type without draining the stream twice.
-      const blob = await res.blob();
+      const blob = await readResponseBlob(res, (progress) => {
+        if (isCurrentDebugRequest()) setResponseProgress(progress);
+      });
       const blobContentType = contentType || blob.type;
       const contentDisposition = responseHeaders['content-disposition'];
       const { kind, rawText, objectUrl, filename } = await interpretResponseBlob(
@@ -2546,6 +2553,7 @@ export default function ApiDebug() {
     } finally {
       if (isCurrentDebugRequest()) {
         setLoading(false);
+        setResponseProgress(null);
       }
       if (sseAbortRef.current === abortController) {
         sseAbortRef.current = null;
@@ -2578,6 +2586,7 @@ export default function ApiDebug() {
     }
     applyInitialDebugState(initialDebugState);
     setLoading(false);
+    setResponseProgress(null);
     setResponse(null);
     setError(null);
   };
@@ -2754,6 +2763,10 @@ export default function ApiDebug() {
               ? 'body'
               : 'preview';
   const currentActiveTab = activeTab ?? defaultTab;
+  const responsePercent =
+    responseProgress?.totalBytes === null || responseProgress === null
+      ? null
+      : Math.min(99, Math.floor((responseProgress.receivedBytes / responseProgress.totalBytes) * 100));
 
   return (
     <OperationModeLayout activeKey="debug">
@@ -2818,7 +2831,27 @@ export default function ApiDebug() {
 
           <Divider style={{ margin: '16px 0' }} />
 
-          {loading && <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />}
+          {loading &&
+            (responseProgress === null ? (
+              <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />
+            ) : responsePercent === null ? (
+              <div style={{ margin: '24px auto', textAlign: 'center' }}>
+                <Spin />
+                <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                  {t('apiDebug.receiving', { received: formatByteSize(responseProgress.receivedBytes) })}
+                </Text>
+              </div>
+            ) : (
+              <div style={{ maxWidth: 480, margin: '24px auto', textAlign: 'center' }}>
+                <Progress percent={responsePercent} status="active" />
+                <Text type="secondary">
+                  {t('apiDebug.receivingOf', {
+                    received: formatByteSize(responseProgress.receivedBytes),
+                    total: formatByteSize(responseProgress.totalBytes!),
+                  })}
+                </Text>
+              </div>
+            ))}
           <ResponsePanel
             response={response}
             error={error}

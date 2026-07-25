@@ -206,6 +206,8 @@ const jaJP = {
   'apiDebug.send': '送信',
   'apiDebug.reset': 'リセット',
   'apiDebug.sending': '送信中...',
+  'apiDebug.receiving': 'レスポンス受信中：{{received}}',
+  'apiDebug.receivingOf': 'レスポンス受信中：{{received}} / {{total}}',
   'apiDebug.history.title': 'リクエスト履歴',
   'apiDebug.history.expand': 'リクエスト履歴を展開',
   'apiDebug.history.collapse': 'リクエスト履歴を折りたたむ',
