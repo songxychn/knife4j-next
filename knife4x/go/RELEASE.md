@@ -78,8 +78,8 @@ version=v0.1.0
 curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info"
 ```
 
-再用全新 consumer 下载、编译并挂载 Handler。临时 `GOMODCACHE` 保证验证的确来自公共
-proxy，不复用仓库内 module 或 `replace`：
+再用全新 consumer 下载、编译并挂载 Handler。`GONOPROXY=none` 强制该公开 module
+仍通过公共 proxy 下载；临时 `GOMODCACHE` 避免复用本机缓存：
 
 ```bash
 consumer_dir="$(mktemp -d)"
@@ -88,6 +88,7 @@ trap 'rm -rf "$consumer_dir"' EXIT
 module=github.com/songxychn/knife4j-next/knife4x/go
 version=v0.1.0
 export GOPROXY=https://proxy.golang.org
+export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
 
 cd "$consumer_dir"
