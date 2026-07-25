@@ -31,7 +31,7 @@ while IFS= read -r path || [ -n "$path" ]; do
       java=true
       vue3=true
       ;;
-    knife4x/go/*|tools/sync-knife4x-ui.sh)
+    knife4x/go/*|tools/sync-knife4x-ui.sh|tools/test-knife4x-go.sh)
       knife4x_go=true
       ;;
     .github/workflows/*|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)

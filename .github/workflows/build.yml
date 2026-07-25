@@ -148,6 +148,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: knife4x/go/go.mod
+          cache: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -157,6 +163,9 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: front/package.json
+
+      - name: Test Knife4x Go
+        run: ./tools/test-knife4x-go.sh
 
       - name: Verify Knife4x Go UI assets
         run: ./tools/sync-knife4x-ui.sh --check
