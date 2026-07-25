@@ -147,6 +147,7 @@ legacy/insight/**                             linguist-vendored
 # 已打包进仓库的 webjar 产物（压缩 JS/CSS/字体等）：视为生成物
 knife4j/knife4j-openapi2-ui/src/main/resources/webjars/**  linguist-generated
 knife4j/knife4j-openapi3-ui/src/main/resources/webjars/**  linguist-generated
+knife4x/go/internal/ui/static/**                           linguist-generated -diff
 
 # 文档站
 docs/**   linguist-documentation
