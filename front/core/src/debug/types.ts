@@ -221,8 +221,8 @@ export interface ValidationError {
   /** 错误信息 */
   message: string;
   /**
-   * 表单定位 key，统一格式 `${in}:${name}`；body 错误时为 `body:requestBody`，
-   * UI 层可用它高亮或聚焦对应输入项。
+   * 表单定位 key，统一格式 `${in}:${name}`；整个 body 缺失时为
+   * `body:requestBody`，字段缺失时为 `body:${name}`。
    */
   key: string;
 }

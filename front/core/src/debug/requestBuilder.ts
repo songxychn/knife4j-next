@@ -210,10 +210,32 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
   check(model.headerParams, form.headerParams, 'header');
   check(model.cookieParams, form.cookieParams, 'cookie');
 
+  const selected = form.selectedContentType ?? model.bodyContents[0]?.mediaType;
+  const current = model.bodyContents.find((body) => body.mediaType === selected) ?? model.bodyContents[0];
+  let hasMissingRequiredFile = false;
+
+  if (current?.category === 'multipart' && current.schema) {
+    const requiredFields = Array.isArray(current.schema.required) ? current.schema.required : [];
+    const properties = current.schema.properties as Record<string, Record<string, unknown>> | undefined;
+    const fileFields = new Set(current.fileFields ?? []);
+
+    for (const name of requiredFields) {
+      if (typeof name !== 'string' || !fileFields.has(name) || properties?.[name]?.readOnly) continue;
+      const value = form.fileFields?.[name];
+      if (!Array.isArray(value) || value.length === 0) {
+        errors.push({
+          name,
+          in: 'body',
+          message: `参数 ${name} 为必填项`,
+          key: `body:${name}`,
+        });
+        hasMissingRequiredFile = true;
+      }
+    }
+  }
+
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
-  if (model.bodyRequired && model.bodyContents.length > 0) {
-    const selected = form.selectedContentType ?? model.bodyContents[0].mediaType;
-    const current = model.bodyContents.find((b) => b.mediaType === selected) ?? model.bodyContents[0];
+  if (model.bodyRequired && current) {
     const category = current.category;
 
     let bodyMissing = false;
@@ -229,7 +251,7 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
       bodyMissing = !hasFormField && !hasFile;
     }
 
-    if (bodyMissing) {
+    if (bodyMissing && !hasMissingRequiredFile) {
       errors.push({
         name: 'requestBody',
         in: 'body',
