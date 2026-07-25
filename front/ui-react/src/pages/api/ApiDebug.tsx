@@ -1279,6 +1279,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
         {headerPairs.length > 0 ? (
           <Table
             size="small"
+            tableLayout="fixed"
             pagination={false}
             dataSource={headerPairs.map(([key, value]) => ({
               key,
@@ -1320,6 +1321,7 @@ function PreviewTabPanel({ build, onCopyCurl }: PreviewTabPanelProps) {
         {queryPairs.length > 0 ? (
           <Table
             size="small"
+            tableLayout="fixed"
             pagination={false}
             dataSource={queryPairs.map(([key, value]) => ({
               key,
