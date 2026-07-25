@@ -16,8 +16,9 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-首个公开版本尚未发布。当前可从仓库 checkout 直接运行
-[Gin example](examples/gin/README.md)；发布后的安装版本与 tag 以 release 信息为准。
+Go 首个公开版本固定为 `v0.1.0`，对应仓库 tag `knife4x/go/v0.1.0`。tag 发布前可从
+仓库 checkout 直接运行 [Gin example](examples/gin/README.md)；发布状态与完整验收步骤见
+[Go 发布清单](go/RELEASE.md)。
 
 ## 快速开始
 
@@ -64,5 +65,6 @@ Go Handler 的公开配置只有 `SpecURL` 与 `BasePath`。默认入口是 `/do
 内嵌 UI 只能通过 `tools/sync-knife4x-ui.sh` 从共享前端源码生成，禁止手工修改
 `knife4x/go/internal/ui/static/`。
 
-本目录采用 [Apache-2.0](go/LICENSE) 许可证。产品需求与决策基线见
+本目录与 Java 主线同样采用 [Apache-2.0](go/LICENSE) 许可证（SPDX 标识：
+`Apache-2.0`），但 module、版本与发布流程相互独立。产品需求与决策基线见
 [issue #524](https://github.com/songxychn/knife4j-next/issues/524)。
