@@ -9,6 +9,7 @@ import { buildCurl } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import CodeBlock from './CodeBlock';
 import { formatSseEventTime } from './sseEventTime';
+import { formatByteSize } from './responseBodyProgress';
 
 const { Text } = Typography;
 
@@ -77,16 +78,6 @@ const METHOD_COLORS: Record<string, string> = {
   HEAD: 'cyan',
   OPTIONS: 'default',
 };
-
-/** Human-readable byte size, matching Vue2 DebugResponse.vue logic. */
-function formatSize(size: number): string {
-  if (!Number.isFinite(size) || size <= 0) return '0 B';
-  const kb = size / 1024;
-  const mb = kb / 1024;
-  if (mb >= 1) return `${mb.toFixed(2)} MB`;
-  if (kb >= 1) return `${kb.toFixed(2)} KB`;
-  return `${size} B`;
-}
 
 /** Try to pretty-print JSON; fall back to raw text on parse failure. */
 function prettyJson(raw: string): string {
@@ -364,7 +355,7 @@ export default function ResponsePanel({
             </Text>
             <Text type="secondary">
               {t('apiDebug.response.size')}
-              {formatSize(response.size)}
+              {formatByteSize(response.size)}
             </Text>
             <Button size="small" icon={<CopyOutlined />} onClick={handleCopyRaw}>
               {t('apiDebug.response.copyRaw')}

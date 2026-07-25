@@ -198,6 +198,8 @@ const enUS = {
   'apiDebug.send': 'Send',
   'apiDebug.reset': 'Reset',
   'apiDebug.sending': 'Sending...',
+  'apiDebug.receiving': 'Receiving response: {{received}}',
+  'apiDebug.receivingOf': 'Receiving response: {{received}} / {{total}}',
   'apiDebug.history.title': 'Request History',
   'apiDebug.history.expand': 'Expand request history',
   'apiDebug.history.collapse': 'Collapse request history',
