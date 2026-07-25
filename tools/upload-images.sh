@@ -32,7 +32,7 @@ response="$(
     --connect-timeout 2 --max-time 60 \
     --header 'Content-Type: application/json' \
     --data "$payload" \
-    'http://127.0.0.1:36677/upload?picbed=aws-s3-plist&configName=knife4j-next'
+    'http://127.0.0.1:36677/upload'
 )"
 
 if ! jq -e '.success == true and (.result | type == "array")' >/dev/null <<<"$response"; then
