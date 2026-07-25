@@ -137,7 +137,14 @@ export interface RequestBodyObject {
 
 export interface ResponseObject {
   description?: string;
-  content?: Record<string, { schema?: SchemaObject }>;
+  content?: Record<
+    string,
+    {
+      schema?: SchemaObject;
+      example?: unknown;
+      examples?: Record<string, ExampleObject>;
+    }
+  >;
   schema?: SchemaObject; // OAS2
 }
 

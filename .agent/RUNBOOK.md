@@ -41,6 +41,20 @@
 4. **复现不到**：写明已尝试条件；若历史已修则 close 并链 commit；否则 `status:blocked` 等补充信息。**禁止**空想 try-catch / null-guard /「防御性」补丁。
 5. **能复现**：先增加（或确认）在修复前会失败的断言/复现步骤，再修；修后同一证据应变绿或现象消失。
 
+### UI 截图上传
+
+需要在本仓 issue / PR 展示截图时，可直接使用维护者本机的 PicGo / PicList：
+
+```bash
+./tools/upload-images.sh /absolute/path/before.png /absolute/path/after.png
+```
+
+脚本通过 `127.0.0.1:36677` 调用本机 PicGo，验证公开 URL 后输出可粘贴的 Markdown。维护者已持续授权上传本仓任务产生的**非敏感图片**，无需逐次询问。上传前必须检查截图并遮盖 Authorization、Cookie、JWT、Access Token 等敏感内容；不要上传配置、日志或其他可能含凭据/隐私的文件。该授权不包含修改图床配置、删除远端对象或上传本仓任务以外的文件。
+
+PicGo / PicList 必须已启动，并已选中可用的默认图床配置；脚本不指定图床类型或配置名。图床凭据只保存在本机应用中，禁止写入仓库或日志；截图二进制也不要提交到仓库。
+
+上传请求超时或公开链接验证失败时，远端对象仍可能已经创建；先检查 PicList 相册或返回记录，不要盲目重试。
+
 ### 额外：upstream 关联
 
 正文含 `Upstream: ...` 或标题带 `(upstream #N)` 时，在上述步骤之外还须：

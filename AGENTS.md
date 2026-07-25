@@ -28,6 +28,7 @@
 4. OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
 5. 一个分支只做一件可独立验证的事；优先小而可回滚。
 6. **Bug / 回归类任务先复现再修**（本仓 issue 与 upstream 关联均适用）；证据写入 issue。细则见 `.agent/RUNBOOK.md`。
+7. 维护者已持续授权：本仓任务需要在 issue / PR 展示非敏感截图时，可直接运行 `./tools/upload-images.sh`，无需逐次询问。边界见 `.agent/RUNBOOK.md`。
 
 ## 任务状态（Issue）
 
