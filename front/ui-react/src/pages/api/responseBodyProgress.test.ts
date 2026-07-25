@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 
 function responseFrom(chunks: string[], headers: Record<string, string> = {}) {
@@ -15,6 +15,10 @@ function responseFrom(chunks: string[], headers: Record<string, string> = {}) {
 }
 
 describe('readResponseBlob', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('reports received bytes against a known content length', async () => {
     const progress: ResponseBodyProgress[] = [];
     const blob = await readResponseBlob(
@@ -41,6 +45,32 @@ describe('readResponseBlob', () => {
       (value) => progress.push(value),
     );
 
+    expect(progress).toEqual([
+      { receivedBytes: 0, totalBytes: null },
+      { receivedBytes: 11, totalBytes: null },
+    ]);
+  });
+
+  it('updates unknown-length progress before receiving one MiB', async () => {
+    const progress: ResponseBodyProgress[] = [];
+    await readResponseBlob(responseFrom(['a'.repeat(64 * 1024), 'b'.repeat(64 * 1024)]), (value) =>
+      progress.push(value),
+    );
+
+    expect(progress).toEqual([
+      { receivedBytes: 0, totalBytes: null },
+      { receivedBytes: 64 * 1024, totalBytes: null },
+      { receivedBytes: 128 * 1024, totalBytes: null },
+    ]);
+  });
+
+  it('falls back to response.blob when TransformStream is unavailable', async () => {
+    vi.stubGlobal('TransformStream', undefined);
+    const progress: ResponseBodyProgress[] = [];
+
+    const blob = await readResponseBlob(responseFrom(['hello world']), (value) => progress.push(value));
+
+    expect(await blob.text()).toBe('hello world');
     expect(progress).toEqual([
       { receivedBytes: 0, totalBytes: null },
       { receivedBytes: 11, totalBytes: null },

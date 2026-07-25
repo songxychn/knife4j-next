@@ -3,7 +3,7 @@ export interface ResponseBodyProgress {
   totalBytes: number | null;
 }
 
-const UNKNOWN_LENGTH_UPDATE_BYTES = 1024 * 1024;
+const UNKNOWN_LENGTH_UPDATE_BYTES = 64 * 1024;
 
 /** Human-readable byte size, matching Vue2 DebugResponse.vue logic. */
 export function formatByteSize(size: number): string {
@@ -33,6 +33,15 @@ export async function readResponseBlob(
   let reportedPercent = -1;
 
   onProgress({ receivedBytes, totalBytes });
+
+  if (typeof TransformStream === 'undefined') {
+    const blob = await response.blob();
+    if (totalBytes !== null && blob.size > totalBytes) {
+      totalBytes = null;
+    }
+    onProgress({ receivedBytes: blob.size, totalBytes });
+    return blob;
+  }
 
   const stream = response.body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
