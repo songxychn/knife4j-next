@@ -46,7 +46,13 @@ import cloneDeep from 'lodash/cloneDeep';
 import unset from 'lodash/unset';
 import isNull from 'lodash/isNull';
 import isUndefined from 'lodash/isUndefined';
-import { prepareInstanceForLanguageReload, replaceGroupMenuData } from './languageReload';
+import {
+  beginDocumentRequest,
+  getDocumentLoadDecision,
+  isCurrentDocumentRequest,
+  prepareInstanceForLanguageReload,
+  replaceGroupMenuData
+} from './languageReload';
 // import xml2js from 'xml2js';
 import DebugAxios from 'axios';
 import { useGlobalsStore } from '@/store/modules/global.js'
@@ -82,6 +88,7 @@ function SwaggerBootstrapUi(options) {
     this.url = options.url || 'swagger-resources';
   }
   this.i18n = options.i18n || 'zh-CN';
+  this.documentRequestId = 0;
   this.onLanguageChange = typeof options.onLanguageChange === 'function'
     ? options.onLanguageChange
     : language => language;
@@ -716,8 +723,9 @@ SwaggerBootstrapUi.prototype.analysisApi = function (instance, forceReload = fal
   try {
     // 赋值
     that.currentInstance = instance;
-    const addMenu = !that.currentInstance.load;
-    if (addMenu || forceReload) {
+    const request = beginDocumentRequest(that, instance, that.settings.language);
+    const loadDecision = getDocumentLoadDecision(instance, request.language, forceReload);
+    if (loadDecision.shouldRequest) {
       var api = instance.url;
       if (api == undefined || api == null || api == '') {
         api = instance.location;
@@ -739,7 +747,7 @@ SwaggerBootstrapUi.prototype.analysisApi = function (instance, forceReload = fal
       // api = 'run.json';
       // 此处加上transformResponse参数,防止Long类型在前端丢失精度
       // https://github.com/xiaoymin/swagger-bootstrap-ui/issues/269
-      var reqHeaders = { 'language': that.settings.language };
+      var reqHeaders = { 'language': request.language };
       var requestConfig = {
         url: api,
         dataType: 'json',
@@ -763,10 +771,14 @@ SwaggerBootstrapUi.prototype.analysisApi = function (instance, forceReload = fal
       }
       requestConfig = Object.assign({}, requestConfig, { headers: reqHeaders });
       that.ajax(requestConfig, data => {
-        that.analysisApiSuccess(data, addMenu);
+        if (isCurrentDocumentRequest(that, request)) {
+          that.analysisApiSuccess(data, loadDecision.addMenu, request.language);
+        }
       }, err => {
-        message.error(that.getI18n().message.sys.requestErr);
-        that.error(err);
+        if (isCurrentDocumentRequest(that, request)) {
+          message.error(that.getI18n().message.sys.requestErr);
+          that.error(err);
+        }
       })
       /*  DebugAxios.create().request({
          url: api,
@@ -848,7 +860,7 @@ SwaggerBootstrapUi.prototype.initOpenTable = function () {
 /**
  * 接口请求api成功时的操作
  */
-SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data, addMenu = true) {
+SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data, addMenu = true, language = this.settings.language) {
   var that = this;
   that.hasLoad = true;
   that.log(data);
@@ -882,6 +894,7 @@ SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data, addMenu = true
   that.createDescriptionElement();
   // 当前实例已加载
   that.currentInstance.load = true;
+  that.currentInstance.loadedLanguage = language;
   // 创建swaggerbootstrapui主菜单
   that.createDetailMenu(addMenu);
   // opentab
@@ -7039,6 +7052,7 @@ function SwaggerBootstrapUiInstance(name, location, version) {
   this.id = 'SwaggerBootstrapUiInstance' + md5(name + location + version)
   // 默认未加载
   this.load = false;
+  this.loadedLanguage = null;
   // 分组名称
   this.name = name;
   // 分组url地址

@@ -4,6 +4,9 @@ import {
   messages,
 } from '../src/lang/index.js'
 import {
+  beginDocumentRequest,
+  getDocumentLoadDecision,
+  isCurrentDocumentRequest,
   prepareInstanceForLanguageReload,
   replaceGroupMenuData,
 } from '../src/core/languageReload.js'
@@ -73,6 +76,39 @@ const replacedGroupMenus = replaceGroupMenuData(
 )
 if (replacedGroupMenus.map(menu => menu.key).join(',') !== 'new-first,keep-second') {
   failures.push('language reload must replace the current group menu without duplicates')
+}
+
+const requestSwagger = {
+  currentInstance: null,
+  documentRequestId: 0,
+  settings: { language: 'zh-CN' },
+}
+const requestInstance = { load: false, loadedLanguage: null }
+requestSwagger.currentInstance = requestInstance
+const staleRequest = beginDocumentRequest(requestSwagger, requestInstance, 'zh-CN')
+requestSwagger.settings.language = 'en-US'
+if (isCurrentDocumentRequest(requestSwagger, staleRequest)) {
+  failures.push('every language source must invalidate pending responses')
+}
+beginDocumentRequest(requestSwagger, requestInstance, 'en-US')
+requestSwagger.settings.language = 'zh-CN'
+const currentRequest = beginDocumentRequest(requestSwagger, requestInstance, 'zh-CN')
+const acceptedRequests = [currentRequest, staleRequest]
+  .filter(request => isCurrentDocumentRequest(requestSwagger, request))
+if (acceptedRequests.length !== 1 || acceptedRequests[0] !== currentRequest) {
+  failures.push('language reload must ignore stale responses returned out of order')
+}
+
+const loadedGroup = { load: true, loadedLanguage: 'zh-CN' }
+const sameLanguageDecision = getDocumentLoadDecision(loadedGroup, 'zh-CN')
+const changedLanguageDecision = getDocumentLoadDecision(loadedGroup, 'ja-JP')
+if (
+  sameLanguageDecision.shouldRequest
+  || sameLanguageDecision.addMenu
+  || !changedLanguageDecision.shouldRequest
+  || changedLanguageDecision.addMenu
+) {
+  failures.push('loaded groups must reload once after a language change without becoming new menus')
 }
 
 const cachedPathId = 'get-/pets'
