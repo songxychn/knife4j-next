@@ -10,6 +10,8 @@ const enUS = {
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
   'header.lang.ja': '日',
+  'common.value.show': 'Show value',
+  'common.value.hide': 'Hide value',
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'Search API name/path...',
@@ -266,8 +268,6 @@ const enUS = {
   'apiDebug.preview.source.interface': 'Interface',
   'apiDebug.preview.source.global': 'Global',
   'apiDebug.globalParams.readOnly': 'Read-only; edit from Global Parameters in the sidebar',
-  'apiDebug.globalParams.showValue': 'Show value',
-  'apiDebug.globalParams.hideValue': 'Hide value',
   'apiDebug.preview.source.auth': 'Auth',
 
   // Authorize

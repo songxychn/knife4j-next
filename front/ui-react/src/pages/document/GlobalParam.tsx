@@ -37,6 +37,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import { currentOrigin, resolveRequestBaseUrl } from '../api/requestBaseUrl';
 import Authorize from '../Authorize';
+import RevealableValue from '../../components/RevealableValue';
 import { executeConfiguredRequest, fetchGlobalParamValue } from './globalParamRequest';
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -214,9 +215,7 @@ function GlobalParamInner() {
       dataIndex: 'value',
       key: 'value',
       ellipsis: true,
-      render: (value: string, record: GlobalParamItem) => (
-        <Text copyable={value ? { text: value } : false}>{record.masked && value ? '••••••' : value || '—'}</Text>
-      ),
+      render: (value: string, record: GlobalParamItem) => <RevealableValue value={value} masked={record.masked} />,
     },
     {
       title: t('globalParam.col.in'),

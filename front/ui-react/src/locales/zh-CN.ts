@@ -10,6 +10,8 @@ const zhCN = {
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
   'header.lang.ja': '日',
+  'common.value.show': '显示真实值',
+  'common.value.hide': '隐藏真实值',
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': '搜索接口名/路径...',
@@ -264,8 +266,6 @@ const zhCN = {
   'apiDebug.preview.source.interface': '接口',
   'apiDebug.preview.source.global': '全局',
   'apiDebug.globalParams.readOnly': '只读；请到左侧“全局参数”中修改',
-  'apiDebug.globalParams.showValue': '显示真实值',
-  'apiDebug.globalParams.hideValue': '隐藏真实值',
   'apiDebug.preview.source.auth': '鉴权',
 
   // Authorize

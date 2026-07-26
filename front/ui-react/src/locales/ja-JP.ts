@@ -10,6 +10,8 @@ const jaJP = {
   'header.lang.zh': '中',
   'header.lang.en': 'EN',
   'header.lang.ja': '日',
+  'common.value.show': '値を表示',
+  'common.value.hide': '値を隠す',
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'API 名またはパスで検索...',
@@ -270,8 +272,6 @@ const jaJP = {
   'apiDebug.preview.source.interface': 'API',
   'apiDebug.preview.source.global': 'グローバル',
   'apiDebug.globalParams.readOnly': '読み取り専用。左側のグローバルパラメータから編集してください',
-  'apiDebug.globalParams.showValue': '値を表示',
-  'apiDebug.globalParams.hideValue': '値を隠す',
   'apiDebug.preview.source.auth': '認証',
 
   // Authorize

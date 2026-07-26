@@ -47,9 +47,11 @@ export interface DebugHistoryEntry {
   path: string;
   baseUrl: string;
   resolvedUrl: string;
-  /** Request headers with sensitive values masked. */
+  /** Actual request headers. `maskedHeaders` controls display only. */
   headers: Record<string, string>;
   query?: Record<string, string>;
+  maskedHeaders?: string[];
+  maskedQuery?: string[];
   body?: string;
   bodyTruncated?: boolean;
   contentType?: string;
@@ -81,6 +83,8 @@ export interface CreatePendingEntryInput {
   resolvedUrl: string;
   headers?: Record<string, string>;
   query?: Record<string, string>;
+  maskedHeaders?: string[];
+  maskedQuery?: string[];
   body?: string;
   contentType?: string;
   formSnapshot?: DebugHistoryFormSnapshot;
@@ -164,6 +168,10 @@ function readStringRecord(value: unknown): Record<string, string> {
     }
   }
   return result;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
 function readBooleanRecord(value: unknown): Record<string, boolean> {
@@ -259,20 +267,23 @@ export function isSensitiveCookieName(name: string): boolean {
   return false;
 }
 
-export function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [name, value] of Object.entries(headers)) {
-    result[name] = isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : value;
-  }
-  return result;
-}
-
 export function sanitizeCustomRows(rows: DebugHistoryCustomParamRow[]): DebugHistoryCustomParamRow[] {
   return rows.map((row) => (isSensitiveHeaderName(row.name) ? { ...row, value: DEBUG_HISTORY_MASK } : { ...row }));
 }
 
 export function sanitizeCustomCookieRows(rows: DebugHistoryCustomParamRow[]): DebugHistoryCustomParamRow[] {
   return rows.map((row) => (isSensitiveCookieName(row.name) ? { ...row, value: DEBUG_HISTORY_MASK } : { ...row }));
+}
+
+function resolveMaskedNames(
+  values: Record<string, string>,
+  requested: string[] = [],
+  isSensitive: (name: string) => boolean = () => false,
+): string[] {
+  const requestedNames = new Set(requested);
+  return Object.keys(values).filter(
+    (name) => values[name] !== DEBUG_HISTORY_MASK && (isSensitive(name) || requestedNames.has(name)),
+  );
 }
 
 export interface HistoryFileMeta {
@@ -408,6 +419,9 @@ function normalizeEntry(value: unknown): DebugHistoryEntry | null {
     responseWasTruncated = responseWasTruncated || truncated.truncated;
   }
 
+  const headers = readStringRecord(value.headers);
+  const query = isRecord(value.query) ? readStringRecord(value.query) : undefined;
+
   return {
     id: value.id,
     version: DEBUG_HISTORY_VERSION,
@@ -420,8 +434,10 @@ function normalizeEntry(value: unknown): DebugHistoryEntry | null {
     path: readString(value.path),
     baseUrl: readString(value.baseUrl),
     resolvedUrl: readString(value.resolvedUrl),
-    headers: sanitizeHeaders(readStringRecord(value.headers)),
-    query: isRecord(value.query) ? readStringRecord(value.query) : undefined,
+    headers,
+    query,
+    maskedHeaders: resolveMaskedNames(headers, readStringArray(value.maskedHeaders), isSensitiveHeaderName),
+    maskedQuery: query ? resolveMaskedNames(query, readStringArray(value.maskedQuery)) : undefined,
     body,
     bodyTruncated: body !== undefined ? bodyWasTruncated : undefined,
     contentType: readOptionalString(value.contentType),
@@ -496,6 +512,8 @@ export function createPendingEntry(input: CreatePendingEntryInput): DebugHistory
   }
 
   const formSnapshot = input.formSnapshot ? prepareFormSnapshot(input.formSnapshot) : undefined;
+  const headers = { ...(input.headers ?? {}) };
+  const query = input.query ? { ...input.query } : undefined;
 
   return {
     id: input.id ?? createHistoryEntryId(),
@@ -508,8 +526,10 @@ export function createPendingEntry(input: CreatePendingEntryInput): DebugHistory
     path: input.path,
     baseUrl: input.baseUrl,
     resolvedUrl: input.resolvedUrl,
-    headers: sanitizeHeaders(input.headers ?? {}),
-    query: input.query,
+    headers,
+    query,
+    maskedHeaders: resolveMaskedNames(headers, input.maskedHeaders, isSensitiveHeaderName),
+    maskedQuery: query ? resolveMaskedNames(query, input.maskedQuery) : undefined,
     body,
     bodyTruncated,
     contentType: input.contentType,

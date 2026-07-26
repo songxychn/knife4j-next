@@ -20,15 +20,7 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import {
-  DeleteOutlined,
-  EyeInvisibleOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SendOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined, ReloadOutlined, SendOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
@@ -54,6 +46,7 @@ import {
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import DescriptionText from '../../components/DescriptionText';
+import RevealableValue from '../../components/RevealableValue';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
@@ -1260,17 +1253,7 @@ interface InjectedGlobalParamRow {
 
 function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] }) {
   const { t } = useTranslation();
-  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(() => new Set());
   if (rows.length === 0) return null;
-
-  const toggleRevealed = (key: string) => {
-    setRevealedKeys((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -1300,23 +1283,9 @@ function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] 
             title: t('apiDebug.col.value'),
             dataIndex: 'value',
             key: 'value',
-            render: (value: string, record: InjectedGlobalParamRow) => {
-              const revealed = revealedKeys.has(record.key);
-              return (
-                <Space size={4}>
-                  <Text copyable={{ text: value }}>{record.masked && !revealed ? '••••••' : value}</Text>
-                  {record.masked && (
-                    <Button
-                      type="text"
-                      size="small"
-                      title={t(revealed ? 'apiDebug.globalParams.hideValue' : 'apiDebug.globalParams.showValue')}
-                      icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                      onClick={() => toggleRevealed(record.key)}
-                    />
-                  )}
-                </Space>
-              );
-            },
+            render: (value: string, record: InjectedGlobalParamRow) => (
+              <RevealableValue value={value} masked={record.masked} />
+            ),
           },
         ]}
         rowKey="key"
@@ -2295,6 +2264,18 @@ export default function ApiDebug() {
         resolvedUrl: built.url,
         headers: built.headers,
         query: built.query,
+        maskedHeaders: Object.keys(built.headers).filter(
+          (name) =>
+            built.sourceMap?.headers[name] === 'global' &&
+            globalParamItems.some(
+              (param) => param.masked && param.in === 'header' && param.name.toLowerCase() === name.toLowerCase(),
+            ),
+        ),
+        maskedQuery: Object.keys(built.query).filter(
+          (name) =>
+            built.sourceMap?.query[name] === 'global' &&
+            globalParamItems.some((param) => param.masked && param.in === 'query' && param.name === name),
+        ),
         body: historyBody,
         contentType: built.contentType || getEffectiveContentType(),
         groupName: group,
