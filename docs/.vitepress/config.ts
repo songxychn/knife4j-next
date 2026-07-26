@@ -48,7 +48,7 @@ export default defineConfig({
       {
         text: '在线 Demo',
         items: [
-          { text: 'OpenAPI 3（Spring Boot 3 + React UI）', link: 'https://openapi3.demo.knife4jnext.com/doc.html' },
+          { text: 'OpenAPI 3（Spring Boot 4 + React UI）', link: 'https://openapi3.demo.knife4jnext.com/doc.html' },
           { text: 'OpenAPI 2（Spring Boot 2 + Vue 3 UI）', link: 'https://openapi2.demo.knife4jnext.com/doc.html' }
         ]
       },
