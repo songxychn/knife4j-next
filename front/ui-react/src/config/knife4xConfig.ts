@@ -8,9 +8,7 @@ export interface Knife4xConfig {
 }
 
 export type Knife4xBootstrap =
-  | { mode: 'java' }
-  | { mode: 'embed'; config: Knife4xConfig }
-  | { mode: 'error'; error: LocalizedMessage };
+  { mode: 'java' } | { mode: 'embed'; config: Knife4xConfig } | { mode: 'error'; error: LocalizedMessage };
 
 interface Knife4xWindow {
   location: {
