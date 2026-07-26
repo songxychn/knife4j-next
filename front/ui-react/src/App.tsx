@@ -50,6 +50,8 @@ const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string }
   };
 };
 
+const isGlobalParamRoute = (key: string): boolean => /^\/[^/]+\/globalParam$/.test(key);
+
 interface PersistedTab {
   key: string;
   label: string;
@@ -179,6 +181,23 @@ const AppInner: React.FC = () => {
     setSelectedKey(info.menuKey);
   }, [location.pathname, settings.swaggerModelName, settings.enableSwaggerModels, t]);
 
+  useEffect(() => {
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(location.pathname);
+    } catch {
+      pathname = location.pathname;
+    }
+    if (!isGlobalParamRoute(pathname)) return;
+
+    const title = `${t('globalParam.title')} - ${activeGroup.label || activeGroup.value}`;
+    setItems((prev) =>
+      prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+    );
+    setActiveKey(pathname);
+    setSelectedKey(pathname);
+  }, [activeGroup.label, activeGroup.value, location.pathname, t]);
+
   // Keep a ref to markdownDocs so the pathname-change effect below can read
   // the latest value without adding markdownDocs to its dependency array.
   // Adding markdownDocs directly would cause the effect to re-fire on every
@@ -217,19 +236,24 @@ const AppInner: React.FC = () => {
   const menuClick: MenuProps['onClick'] = (info) => {
     const rawKey = String(info.key);
     const schemaInfo = schemaRouteInfo(rawKey);
+    const globalParamRoute = isGlobalParamRoute(rawKey);
     const markdownDoc: MarkdownDocItem | undefined = markdownDocs.find((doc) => doc.key === rawKey);
-    const existingOperationKey = schemaInfo || markdownDoc ? null : findOperationRouteKey(items, rawKey);
-    const newActiveKey = schemaInfo || markdownDoc ? rawKey : (existingOperationKey ?? `${rawKey}/doc`);
+    const existingOperationKey =
+      schemaInfo || globalParamRoute || markdownDoc ? null : findOperationRouteKey(items, rawKey);
+    const newActiveKey =
+      schemaInfo || globalParamRoute || markdownDoc ? rawKey : (existingOperationKey ?? `${rawKey}/doc`);
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
       const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
       const title = schemaInfo
         ? settings.swaggerModelName || t('schema.title')
-        : markdownDoc
-          ? markdownDoc.title
-          : api
-            ? `${api.method.toUpperCase()} ${api.summary}`
-            : rawKey;
+        : globalParamRoute
+          ? `${t('globalParam.title')} - ${activeGroup.label || activeGroup.value}`
+          : markdownDoc
+            ? markdownDoc.title
+            : api
+              ? `${api.method.toUpperCase()} ${api.summary}`
+              : rawKey;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
     setSelectedKey(routeKeyToMenuKey(newActiveKey));
@@ -347,6 +371,27 @@ const AppInner: React.FC = () => {
   const langLabel = langLabelMap[currentLang];
 
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
+  const handleGroupChange = (value: string) => {
+    setActiveGroupValue(value);
+
+    if (isGlobalParamRoute(location.pathname)) {
+      const key = `/${value}/globalParam`;
+      const groupLabel = groups.find((group) => group.value === value)?.label || value;
+      setItems((prev) =>
+        prev.some((pane) => pane.key === key)
+          ? prev
+          : [...prev, { label: `${t('globalParam.title')} - ${groupLabel}`, children: '', key }],
+      );
+      setSelectedKey(key);
+      setActiveKey(key);
+      navigate(key);
+      return;
+    }
+
+    setSelectedKey(HOME_KEY);
+    setActiveKey(HOME_KEY);
+    navigate(`/${value}/home`);
+  };
   const tabItems = items.map((item) => ({
     ...item,
     label: (
@@ -408,7 +453,7 @@ const AppInner: React.FC = () => {
                 options={groupOptions}
                 value={activeGroup.value}
                 style={{ width: '100%' }}
-                onChange={(val) => setActiveGroupValue(val)}
+                onChange={handleGroupChange}
               />
             </div>
           )}
@@ -508,15 +553,24 @@ const AppInner: React.FC = () => {
 const App: React.FC = () => (
   <ConfigProvider>
     <SettingsProvider>
-      <AuthProvider>
-        <GlobalParamProvider>
-          <GroupProvider>
-            <AppInner />
-          </GroupProvider>
-        </GlobalParamProvider>
-      </AuthProvider>
+      <GroupProvider>
+        <GroupScopedApp />
+      </GroupProvider>
     </SettingsProvider>
   </ConfigProvider>
 );
+
+const GroupScopedApp: React.FC = () => {
+  const { activeGroup } = useGroup();
+  const groupId = activeGroup.value || 'default';
+
+  return (
+    <AuthProvider initialGroupId={groupId}>
+      <GlobalParamProvider groupId={groupId}>
+        <AppInner />
+      </GlobalParamProvider>
+    </AuthProvider>
+  );
+};
 
 export default App;
