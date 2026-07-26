@@ -12,7 +12,23 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.0.18 <Badge type="tip" text="最新" />
+### 5.1.0 <Badge type="tip" text="最新" />
+
+`5.1.0` 是基于 `5.0.18` 的向后兼容次版本，新增 React 嵌入式启动能力，集中增强调试与文档体验，并补齐中英日国际化链路。
+
+**调试与文档体验（React UI）**
+
+- React UI 支持通过 `window.__KNIFE4X_CONFIG__` 进入嵌入模式，校验 `specUrl` / `basePath`，直接加载单一 OpenAPI 3 文档且不请求 Java discovery 端点（PR #549，issue #548）。
+- 响应文档示例优先展示 OpenAPI media type 中显式声明的 `example` / `examples.*.value`，没有显式示例时再回退到 schema 生成值（PR #560，issue #550）。
+- 请求预览中的 Header / Query 长连续值不再撑坏表格；默认折叠为两行，可展开并复制完整值（PR #559，issue #551）。
+- multipart schema `required` 声明的文件字段会在发送前校验；未选择必填文件时显示字段级错误并阻止请求（PR #570，issue #569）。
+- 非 SSE 响应在接收阶段显示进度：可安全读取总长时展示百分比和总量，否则展示已接收大小（PR #571，issue #567）。
+
+**中英日国际化**
+
+- 后端补充 `ja-JP` 语言枚举；React 与 Vue3 统一 `zh-CN`、`en-US`、`ja-JP` 的规范化、旧缓存迁移、语言切换和 `Accept-Language` 行为，并补齐文档、Schema、导出与运行时提示等三语文案（PR #568）。
+
+### 5.0.18
 
 `5.0.18` 是基于 `5.0.17` 的补丁版本，新增 Spring Cloud Gateway Server Web MVC 聚合 starter，补齐 starter 发布包的 Spring Boot 配置元数据，并将提交前检查收敛为版本化 Git hook。
 
@@ -390,7 +406,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.18</version>
+    <version>5.1.0</version>
 </dependency>
 ```
 
