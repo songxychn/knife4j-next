@@ -17,12 +17,12 @@
 
 package com.github.xiaoymin.knife4j.aggre.core.executor;
 
-import cn.hutool.core.collection.CollectionUtil;
 import com.github.xiaoymin.knife4j.aggre.core.RouteExecutor;
 import com.github.xiaoymin.knife4j.aggre.core.RouteRequestContext;
 import com.github.xiaoymin.knife4j.aggre.core.RouteResponse;
 import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.HeaderWrapper;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
 import org.apache.http.Header;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -78,13 +78,13 @@ public class ApacheClientExecutor extends PoolingConnectionManager implements Ro
             logger.debug("ApacheClient Uri:{}", routeContext.getUrl());
         }
         builder.setUri(routeContext.getUrl());
-        if (CollectionUtil.isNotEmpty(routeContext.getHeaders())) {
+        if (CollectionUtils.isNotEmpty(routeContext.getHeaders())) {
             // 构建Header
             for (HeaderWrapper headerWrapper : routeContext.getHeaders()) {
                 builder.addHeader(headerWrapper.getName(), headerWrapper.getValue());
             }
         }
-        if (CollectionUtil.isNotEmpty(routeContext.getParams())) {
+        if (CollectionUtils.isNotEmpty(routeContext.getParams())) {
             // 构建Params
             for (Map.Entry<String, String> entry : routeContext.getParams().entrySet()) {
                 builder.addParameter(entry.getKey(), entry.getValue());
@@ -92,7 +92,7 @@ public class ApacheClientExecutor extends PoolingConnectionManager implements Ro
         }
         if (routeContext.getRequestContent() != null) {
             // 文件请求是否为空 since 2.0.9
-            if (CollectionUtil.isNotEmpty(routeContext.getParts())) {
+            if (CollectionUtils.isNotEmpty(routeContext.getParts())) {
                 MultipartEntityBuilder partFileBuilder = MultipartEntityBuilder.create();
                 partFileBuilder.setCharset(StandardCharsets.UTF_8);
                 partFileBuilder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);

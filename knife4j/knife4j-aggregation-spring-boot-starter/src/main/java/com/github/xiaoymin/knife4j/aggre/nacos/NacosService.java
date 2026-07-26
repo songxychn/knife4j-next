@@ -17,9 +17,9 @@
 
 package com.github.xiaoymin.knife4j.aggre.nacos;
 
-import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -75,20 +75,20 @@ public class NacosService extends PoolingConnectionManager implements Callable<O
         params.add("serviceName=" + nacosRoute.getServiceName());
         // 默认聚合时只返回健康实例
         params.add("healthyOnly=true");
-        if (StrUtil.isNotBlank(nacosRoute.getGroupName())) {
+        if (TextUtils.isNotBlank(nacosRoute.getGroupName())) {
             params.add("groupName=" + nacosRoute.getGroupName());
         }
-        if (StrUtil.isNotBlank(nacosRoute.getNamespaceId())) {
+        if (TextUtils.isNotBlank(nacosRoute.getNamespaceId())) {
             params.add("namespaceId=" + nacosRoute.getNamespaceId());
         }
-        if (StrUtil.isNotBlank(nacosRoute.getClusters())) {
+        if (TextUtils.isNotBlank(nacosRoute.getClusters())) {
             params.add("clusters=" + nacosRoute.getClusters());
         }
         // Nacos鉴权 since2.0.9
-        if (StrUtil.isNotBlank(this.accessToken)) {
+        if (TextUtils.isNotBlank(this.accessToken)) {
             params.add("accessToken=" + this.accessToken);
         }
-        String parameter = CollectionUtil.join(params, "&");
+        String parameter = String.join("&", params);
         String api = serviceUrl + NACOS_INSTANCE_LIST_API + "?" + parameter;
         if (logger.isDebugEnabled()) {
             logger.debug("Nacos API:{}", api);
@@ -102,7 +102,7 @@ public class NacosService extends PoolingConnectionManager implements Callable<O
             }
             if (statusCode == HttpStatus.SC_OK) {
                 String content = EntityUtils.toString(response.getEntity(), "UTF-8");
-                if (StrUtil.isNotBlank(content)) {
+                if (TextUtils.isNotBlank(content)) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Response Content:{}", content);
                     }
@@ -113,7 +113,7 @@ public class NacosService extends PoolingConnectionManager implements Callable<O
                             Type type = new TypeToken<List<NacosInstance>>() {
                             }.getType();
                             List<NacosInstance> nacosInstances = new Gson().fromJson(instances, type);
-                            if (CollectionUtil.isNotEmpty(nacosInstances)) {
+                            if (CollectionUtils.isNotEmpty(nacosInstances)) {
                                 NacosInstance nacosInstance = nacosInstances.stream().findAny().get();
                                 nacosInstance.setServiceName(nacosRoute.getServiceName());
                                 return Optional.of(nacosInstance);

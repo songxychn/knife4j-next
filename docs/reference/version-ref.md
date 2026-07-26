@@ -77,7 +77,6 @@ title: 版本对照
 | --- | --- |
 | Java 最低版本 | `1.8`（非 Jakarta）；`17`（Jakarta / Boot4） |
 | SLF4J | `2.0.16` |
-| Hutool | `5.8.34` |
 | Gson | `2.11.0` |
 | Javassist | `3.30.2-GA` |
 | Lombok | `1.18.36` |

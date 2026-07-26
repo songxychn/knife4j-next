@@ -17,9 +17,6 @@
 
 package com.github.xiaoymin.knife4j.aggre.core.pojo;
 
-import cn.hutool.core.util.NumberUtil;
-import cn.hutool.core.util.ReUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.cloud.CloudRoute;
 import com.github.xiaoymin.knife4j.aggre.core.RouteDispatcher;
 import com.github.xiaoymin.knife4j.aggre.disk.DiskRoute;
@@ -31,8 +28,13 @@ import com.github.xiaoymin.knife4j.aggre.polaris.PolarisInstance;
 import com.github.xiaoymin.knife4j.aggre.polaris.PolarisRoute;
 import com.github.xiaoymin.knife4j.core.conf.GlobalConstants;
 import com.github.xiaoymin.knife4j.core.util.CommonUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /***
  * 最终返回前端Swagger的数据结构
@@ -41,6 +43,8 @@ import java.util.Objects;
  * 2020/10/31 9:34
  */
 public class SwaggerRoute {
+
+    private static final Pattern HTTP_URL_PATTERN = Pattern.compile("(http|https)://.*?$", Pattern.DOTALL);
 
     private String name;
     /**
@@ -91,12 +95,12 @@ public class SwaggerRoute {
      * @param content 本地OpenAPI规范JSON具体内容
      */
     public SwaggerRoute(DiskRoute diskRoute, String content) {
-        if (diskRoute != null && StrUtil.isNotBlank(content)) {
+        if (diskRoute != null && TextUtils.isNotBlank(content)) {
             this.pkId = diskRoute.pkId();
             this.name = diskRoute.getName();
-            if (StrUtil.isNotBlank(diskRoute.getServicePath()) && !StrUtil.equals(diskRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+            if (TextUtils.isNotBlank(diskRoute.getServicePath()) && !Objects.equals(diskRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
                 // 判断是否是/开头
-                if (!StrUtil.startWith(diskRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+                if (!diskRoute.getServicePath().startsWith(RouteDispatcher.ROUTE_BASE_PATH)) {
                     this.servicePath = RouteDispatcher.ROUTE_BASE_PATH + diskRoute.getServicePath();
                 } else {
                     this.servicePath = diskRoute.getServicePath();
@@ -109,18 +113,18 @@ public class SwaggerRoute {
             // 调试地址
             this.debugUrl = diskRoute.getDebugUrl();
             // since 4.0 优先使用debugUrl
-            if (StrUtil.isNotBlank(diskRoute.getDebugUrl())) {
+            if (TextUtils.isNotBlank(diskRoute.getDebugUrl())) {
                 // disk模式不需要，只有debug调试时才需要
                 this.routeProxy = false;
                 this.header = diskRoute.pkId();
                 this.uri = CommonUtils.getDebugUri(diskRoute.getDebugUrl());
             } else {
                 // 如果服务端设置了Disk模式的Host，代表可以调试
-                if (StrUtil.isNotBlank(diskRoute.getHost())) {
+                if (TextUtils.isNotBlank(diskRoute.getHost())) {
                     // disk模式不需要，只有debug调试时才需要
                     this.routeProxy = false;
                     // 判断
-                    if (!ReUtil.isMatch("(http|https)://.*?$", diskRoute.getHost())) {
+                    if (!HTTP_URL_PATTERN.matcher(diskRoute.getHost()).matches()) {
                         this.uri = "http://" + diskRoute.getHost();
                     } else {
                         this.uri = diskRoute.getHost();
@@ -147,17 +151,19 @@ public class SwaggerRoute {
             this.name = cloudRoute.getName();
             // 调试地址
             this.debugUrl = cloudRoute.getDebugUrl();
-            if (StrUtil.isNotBlank(cloudRoute.getUri())) {
+            if (TextUtils.isNotBlank(cloudRoute.getUri())) {
                 // 判断
-                if (!ReUtil.isMatch("(http|https)://.*?$", cloudRoute.getUri())) {
+                if (!HTTP_URL_PATTERN.matcher(cloudRoute.getUri()).matches()) {
                     this.uri = "http://" + cloudRoute.getUri();
                 } else {
                     this.uri = cloudRoute.getUri();
                 }
             }
-            if (StrUtil.isNotBlank(cloudRoute.getServicePath()) && !StrUtil.equals(cloudRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+            if (TextUtils.isNotBlank(cloudRoute.getServicePath()) && !Objects.equals(cloudRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
                 // 判断是否是/开头
-                if (!StrUtil.startWithAny(cloudRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH, "http://", "https://")) {
+                if (!cloudRoute.getServicePath().startsWith(RouteDispatcher.ROUTE_BASE_PATH)
+                        && !cloudRoute.getServicePath().startsWith("http://")
+                        && !cloudRoute.getServicePath().startsWith("https://")) {
                     this.servicePath = RouteDispatcher.ROUTE_BASE_PATH + cloudRoute.getServicePath();
                 } else {
                     this.servicePath = cloudRoute.getServicePath();
@@ -183,16 +189,16 @@ public class SwaggerRoute {
                 this.basicAuth = eurekaRoute.pkId();
             }
             this.name = eurekaRoute.getServiceName();
-            if (StrUtil.isNotBlank(eurekaRoute.getName())) {
+            if (TextUtils.isNotBlank(eurekaRoute.getName())) {
                 this.name = eurekaRoute.getName();
             }
             // 调试地址
             this.debugUrl = eurekaRoute.getDebugUrl();
             // 如果端口获取不到，给一个默认值80
-            this.uri = "http://" + eurekaInstance.getIpAddr() + ":" + NumberUtil.parseInt(Objects.toString(eurekaInstance.getPort().get("$"), "80"));
-            if (StrUtil.isNotBlank(eurekaRoute.getServicePath()) && !StrUtil.equals(eurekaRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+            this.uri = "http://" + eurekaInstance.getIpAddr() + ":" + parseInt(Objects.toString(eurekaInstance.getPort().get("$"), "80"));
+            if (TextUtils.isNotBlank(eurekaRoute.getServicePath()) && !Objects.equals(eurekaRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
                 // 判断是否是/开头
-                if (!StrUtil.startWith(eurekaRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+                if (!eurekaRoute.getServicePath().startsWith(RouteDispatcher.ROUTE_BASE_PATH)) {
                     this.servicePath = RouteDispatcher.ROUTE_BASE_PATH + eurekaRoute.getServicePath();
                 } else {
                     this.servicePath = eurekaRoute.getServicePath();
@@ -218,16 +224,16 @@ public class SwaggerRoute {
                 this.basicAuth = nacosRoute.pkId();
             }
             this.name = nacosRoute.getServiceName();
-            if (StrUtil.isNotBlank(nacosRoute.getName())) {
+            if (TextUtils.isNotBlank(nacosRoute.getName())) {
                 this.name = nacosRoute.getName();
             }
             // 调试地址
             this.debugUrl = nacosRoute.getDebugUrl();
             // 远程uri
             this.uri = GlobalConstants.PROTOCOL_HTTP + nacosInstance.getIp() + ":" + nacosInstance.getPort();
-            if (StrUtil.isNotBlank(nacosRoute.getServicePath()) && !StrUtil.equals(nacosRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+            if (TextUtils.isNotBlank(nacosRoute.getServicePath()) && !Objects.equals(nacosRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
                 // 判断是否是/开头
-                if (!StrUtil.startWith(nacosRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+                if (!nacosRoute.getServicePath().startsWith(RouteDispatcher.ROUTE_BASE_PATH)) {
                     this.servicePath = RouteDispatcher.ROUTE_BASE_PATH + nacosRoute.getServicePath();
                 } else {
                     this.servicePath = nacosRoute.getServicePath();
@@ -248,16 +254,16 @@ public class SwaggerRoute {
                 this.basicAuth = polarisRoute.pkId();
             }
             this.name = polarisRoute.getService();
-            if (StrUtil.isNotBlank(polarisRoute.getName())) {
+            if (TextUtils.isNotBlank(polarisRoute.getName())) {
                 this.name = polarisRoute.getName();
             }
             // 调试地址
             this.debugUrl = polarisRoute.getDebugUrl();
             // 远程uri
             this.uri = GlobalConstants.PROTOCOL_HTTP + polarisInstance.getHost() + ":" + polarisInstance.getPort();
-            if (StrUtil.isNotBlank(polarisRoute.getServicePath()) && !StrUtil.equals(polarisRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+            if (TextUtils.isNotBlank(polarisRoute.getServicePath()) && !Objects.equals(polarisRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
                 // 判断是否是/开头
-                if (!StrUtil.startWith(polarisRoute.getServicePath(), RouteDispatcher.ROUTE_BASE_PATH)) {
+                if (!polarisRoute.getServicePath().startsWith(RouteDispatcher.ROUTE_BASE_PATH)) {
                     this.servicePath = RouteDispatcher.ROUTE_BASE_PATH + polarisRoute.getServicePath();
                 } else {
                     this.servicePath = polarisRoute.getServicePath();
@@ -272,6 +278,34 @@ public class SwaggerRoute {
 
     public String getPkId() {
         return pkId;
+    }
+
+    private static int parseInt(String value) {
+        if (TextUtils.isBlank(value)) {
+            return 0;
+        }
+        if (value.regionMatches(true, 0, "0x", 0, 2)) {
+            return Integer.parseInt(value.substring(2), 16);
+        }
+        if (value.indexOf('E') >= 0 || value.indexOf('e') >= 0) {
+            throw new NumberFormatException("Unsupported int format: [" + value + "]");
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            String number = value.startsWith("+") ? value.substring(1) : value;
+            NumberFormat format = NumberFormat.getInstance();
+            if (format instanceof DecimalFormat) {
+                ((DecimalFormat) format).setParseBigDecimal(true);
+            }
+            try {
+                return format.parse(number).intValue();
+            } catch (ParseException e) {
+                NumberFormatException exception = new NumberFormatException(e.getMessage());
+                exception.initCause(e);
+                throw exception;
+            }
+        }
     }
 
     public void setPkId(String pkId) {

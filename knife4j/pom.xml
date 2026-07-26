@@ -72,7 +72,6 @@
         <knife4j-servlet-jakarta.version>6.1.0</knife4j-servlet-jakarta.version>
 
         <knife4j-slf4j.version>2.0.16</knife4j-slf4j.version>
-        <knife4j-hutool.version>5.8.34</knife4j-hutool.version>
         <knife4j-httpclient.version>4.5.14</knife4j-httpclient.version>
         <knife4j-gson.version>2.11.0</knife4j-gson.version>
         <knife4j-commons-lang3.version>3.20.0</knife4j-commons-lang3.version>
@@ -131,12 +130,6 @@
                 <groupId>com.baizhukui</groupId>
                 <artifactId>knife4j-openapi3-ui</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-            <!-- https://mvnrepository.com/artifact/cn.hutool/hutool-all -->
-            <dependency>
-                <groupId>cn.hutool</groupId>
-                <artifactId>hutool-all</artifactId>
-                <version>${knife4j-hutool.version}</version>
             </dependency>
             <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
             <dependency>

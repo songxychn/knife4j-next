@@ -17,21 +17,19 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.thread.ThreadUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.cloud.CloudRoute;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
 import com.github.xiaoymin.knife4j.aggre.eureka.EurekaRoute;
 import com.github.xiaoymin.knife4j.aggre.spring.support.CloudSetting;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,7 +48,7 @@ public class CloudRepository extends AbstractRepository {
     private CloudSetting cloudSetting;
     public CloudRepository(CloudSetting cloudSetting) {
         this.cloudSetting = cloudSetting;
-        if (cloudSetting != null && CollectionUtil.isNotEmpty(cloudSetting.getRoutes())) {
+        if (cloudSetting != null && CollectionUtils.isNotEmpty(cloudSetting.getRoutes())) {
             cloudSetting.getRoutes().stream().forEach(cloudRoute -> {
                 if (cloudRoute.getRouteAuth() == null || !cloudRoute.getRouteAuth().isEnable()) {
                     cloudRoute.setRouteAuth(cloudSetting.getRouteAuth());
@@ -62,7 +60,7 @@ public class CloudRepository extends AbstractRepository {
     @Override
     public BasicAuth getAuth(String header) {
         BasicAuth basicAuth = null;
-        if (cloudSetting != null && CollectionUtil.isNotEmpty(cloudSetting.getRoutes())) {
+        if (cloudSetting != null && CollectionUtils.isNotEmpty(cloudSetting.getRoutes())) {
             if (cloudSetting.getRouteAuth() != null && cloudSetting.getRouteAuth().isEnable()) {
                 basicAuth = cloudSetting.getRouteAuth();
                 // 判断route服务中是否再单独配置
@@ -88,17 +86,17 @@ public class CloudRepository extends AbstractRepository {
             while (!stop) {
                 try {
                     logger.debug("Cloud hearbeat start working...");
-                    if (this.cloudSetting != null && CollectionUtil.isNotEmpty(this.cloudSetting.getRoutes())) {
+                    if (this.cloudSetting != null && CollectionUtils.isNotEmpty(this.cloudSetting.getRoutes())) {
                         this.cloudSetting.getRoutes().forEach(cloudRoute -> {
                             String uri = cloudRoute.getUri();
                             String health = cloudRoute.getHealth();
                             StringBuilder urlBuilder = new StringBuilder();
-                            if (!StrUtil.startWith(uri, "http")) {
+                            if (uri == null || !uri.startsWith("http")) {
                                 urlBuilder.append("http://");
                             }
                             urlBuilder.append(uri);
-                            if (StrUtil.isNotBlank(health)) {
-                                urlBuilder.append(StrUtil.startWith(health, "/") ? health : "/" + health);
+                            if (TextUtils.isNotBlank(health)) {
+                                urlBuilder.append(health.startsWith("/") ? health : "/" + health);
                             }
                             if (logger.isDebugEnabled()) {
                                 logger.debug("hearbeat url:{}", urlBuilder.toString());
@@ -148,7 +146,7 @@ public class CloudRepository extends AbstractRepository {
                 } catch (Exception e) {
                     logger.debug(e.getMessage(), e);
                 }
-                ThreadUtil.sleep(HEART_BEAT_DURATION);
+                sleep(HEART_BEAT_DURATION);
             }
         });
         thread.setDaemon(true);
@@ -160,7 +158,7 @@ public class CloudRepository extends AbstractRepository {
         logger.info("stop Cloud heartbeat Holder thread.");
         this.stop = true;
         if (this.thread != null) {
-            ThreadUtil.interrupt(this.thread, true);
+            interruptAndWait(this.thread);
         }
     }
 }

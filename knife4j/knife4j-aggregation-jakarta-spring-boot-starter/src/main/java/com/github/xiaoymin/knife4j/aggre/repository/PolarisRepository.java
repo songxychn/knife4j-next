@@ -17,7 +17,6 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.thread.ThreadUtil;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
 import com.github.xiaoymin.knife4j.aggre.polaris.PolarisInstance;
@@ -45,7 +44,7 @@ public class PolarisRepository extends AbstractRepository {
 
     private PolarisSetting polarisSetting;
 
-    final ThreadPoolExecutor threadPoolExecutor = ThreadUtil.newExecutor(5, 5);
+    final ThreadPoolExecutor threadPoolExecutor = newThreadPoolExecutor();
 
     private Map<String, PolarisInstance> polarisInstanceMap = new HashMap<>();
 
@@ -134,7 +133,7 @@ public class PolarisRepository extends AbstractRepository {
                 } catch (Exception e) {
                     logger.debug(e.getMessage(), e);
                 }
-                ThreadUtil.sleep(HEART_BEAT_DURATION);
+                sleep(HEART_BEAT_DURATION);
             }
         });
         thread.setDaemon(true);
@@ -146,7 +145,7 @@ public class PolarisRepository extends AbstractRepository {
         logger.info("stop Polaris heartbeat Holder thread.");
         this.stop = true;
         if (thread != null) {
-            ThreadUtil.interrupt(thread, true);
+            interruptAndWait(thread);
         }
     }
 

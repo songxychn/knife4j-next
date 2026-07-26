@@ -17,8 +17,7 @@
 
 package com.github.xiaoymin.knife4j.aggre.core.executor;
 
-import cn.hutool.core.util.ArrayUtil;
-import cn.hutool.core.util.StrUtil;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.github.xiaoymin.knife4j.aggre.core.RouteResponse;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.HeaderWrapper;
 import org.apache.http.Header;
@@ -62,7 +61,7 @@ public class ApacheClientResponse implements RouteResponse {
     public List<HeaderWrapper> getHeaders() {
         Header[] headers = this.httpResponse.getAllHeaders();
         List<HeaderWrapper> headerWrappers = new ArrayList<>();
-        if (ArrayUtil.isNotEmpty(headers)) {
+        if (headers != null && headers.length > 0) {
             for (Header header : headers) {
                 if (header != null) {
                     headerWrappers.add(new HeaderWrapper(header.getName(), header.getValue()));
@@ -105,7 +104,7 @@ public class ApacheClientResponse implements RouteResponse {
     public Charset getCharsetEncoding() {
         if (httpEntity != null) {
             Header header = httpEntity.getContentEncoding();
-            if (header != null && StrUtil.isNotBlank(header.getValue())) {
+            if (header != null && TextUtils.isNotBlank(header.getValue())) {
                 return Charset.forName(header.getValue());
             }
         }
