@@ -43,6 +43,7 @@ export default defineConfig({
       { text: '快速开始', link: '/guide/getting-started' },
       { text: '功能', link: '/guide/features' },
       { text: '迁移', link: '/guide/migration' },
+      { text: 'Knife4x', link: '/knife4x/' },
       { text: '配置参考', link: '/reference/configuration' },
       {
         text: '在线 Demo',
@@ -69,6 +70,7 @@ export default defineConfig({
       {
         text: '接入指南',
         items: [
+          { text: 'Knife4x Go', link: '/knife4x/' },
           { text: 'Spring Cloud Gateway 聚合', link: '/guide/gateway' },
           { text: 'Disk / Nacos / Eureka 聚合', link: '/guide/aggregation' },
           { text: 'Spring WebFlux 接入', link: '/guide/webflux' },

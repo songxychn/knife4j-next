@@ -38,6 +38,11 @@ features:
     linkText: 网关接入
 ---
 
+::: tip Knife4x Go v0.1.0
+Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
+UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
+:::
+
 ## 这是 Knife4j 的 fork，不是重写
 
 `knife4j-next` 是 [`xiaoymin/knife4j`](https://github.com/xiaoymin/knife4j) 的社区维护分支。
