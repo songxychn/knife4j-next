@@ -35,7 +35,7 @@
             <version>${knife4j-spring-boot.version}</version>
         </dependency>
         <!--
-          覆盖 root pom 的 slf4j-api 2.0.16（provided），回到与 Spring Boot 2.7.18
+          覆盖 root pom 的 slf4j-api 2.0.18（provided），回到与 Spring Boot 2.7.18
           自带的 logback-classic 1.2.12 兼容的 1.7.x。SLF4J 2.x 走 ServiceLoader
           查找 SLF4JServiceProvider，logback 1.2.x 只提供 1.x 的 StaticLoggerBinder
           SPI，会让 LoggerFactory fallback 到 NOPLoggerFactory，Spring Boot banner、
