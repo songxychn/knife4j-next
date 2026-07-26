@@ -16,7 +16,7 @@
 
     <properties>
         <knife4j-java.version>17</knife4j-java.version>
-        <knife4j-spring-boot3.version>3.5.14</knife4j-spring-boot3.version>
+        <knife4j-spring-boot3.version>3.5.16</knife4j-spring-boot3.version>
         <knife4j-spring-cloud3.version>2025.0.3</knife4j-spring-cloud3.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     </properties>
