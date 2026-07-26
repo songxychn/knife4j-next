@@ -17,14 +17,14 @@
 
 package com.github.xiaoymin.knife4j.aggre.core;
 
-import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.cloud.CloudRoute;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.CommonAuthRoute;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /***
@@ -84,9 +84,13 @@ public interface RouteRepository {
      */
     default BasicAuth getAuthByRoute(String header, List<? extends CommonAuthRoute> commonAuthRoutes) {
         BasicAuth basicAuth = null;
-        if (CollectionUtil.isNotEmpty(commonAuthRoutes)) {
+        if (CollectionUtils.isNotEmpty(commonAuthRoutes)) {
             // 判断route中是否设置了basic，如果route中存在，则以route中为准
-            Optional<? extends CommonAuthRoute> cloudRouteOptional = commonAuthRoutes.stream().filter(cloudRoute -> StrUtil.equalsIgnoreCase(cloudRoute.pkId(), header)).findFirst();
+            Optional<? extends CommonAuthRoute> cloudRouteOptional = commonAuthRoutes.stream().filter(cloudRoute -> {
+                String routeId = cloudRoute.pkId();
+                return Objects.equals(routeId, header) || (routeId != null && routeId.equalsIgnoreCase(header));
+            })
+                    .findFirst();
             if (cloudRouteOptional.isPresent()) {
                 CommonAuthRoute route = cloudRouteOptional.get();
                 if (route.getRouteAuth() != null && route.getRouteAuth().isEnable()) {

@@ -17,9 +17,9 @@
 
 package com.github.xiaoymin.knife4j.aggre.nacos;
 
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.apache.http.HttpStatus;
@@ -90,7 +90,7 @@ public class NacosOpenApi extends PoolingConnectionManager {
                 }
                 if (statusCode == HttpStatus.SC_OK) {
                     String content = EntityUtils.toString(response.getEntity(), "UTF-8");
-                    if (StrUtil.isNotBlank(content)) {
+                    if (TextUtils.isNotBlank(content)) {
                         if (logger.isDebugEnabled()) {
                             logger.debug("Response Content:{}", content);
                         }

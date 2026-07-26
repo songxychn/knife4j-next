@@ -17,8 +17,6 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.thread.ThreadUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.core.RouteDispatcher;
 import com.github.xiaoymin.knife4j.aggre.core.common.RouteUtils;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
@@ -29,6 +27,7 @@ import com.github.xiaoymin.knife4j.aggre.eureka.EurekaRoute;
 import com.github.xiaoymin.knife4j.aggre.nacos.NacosRoute;
 import com.github.xiaoymin.knife4j.aggre.spring.support.EurekaSetting;
 import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -60,7 +59,7 @@ public class EurekaRepository extends AbstractRepository {
     public EurekaRepository(EurekaSetting eurekaSetting) {
         this.eurekaSetting = eurekaSetting;
         if (eurekaSetting != null && CollectionUtils.isNotEmpty(eurekaSetting.getRoutes())) {
-            if (StrUtil.isBlank(eurekaSetting.getServiceUrl())) {
+            if (TextUtils.isBlank(eurekaSetting.getServiceUrl())) {
                 throw new RuntimeException("Eureka ServiceUrl can't empty!!!");
             }
             // 从注册中心进行初始化获取EurekaApplication
@@ -77,7 +76,7 @@ public class EurekaRepository extends AbstractRepository {
         List<EurekaApplication> eurekaApps = null;
         StringBuilder requestUrl = new StringBuilder();
         requestUrl.append(eurekaSetting.getServiceUrl());
-        if (!StrUtil.endWith(eurekaSetting.getServiceUrl(), RouteDispatcher.ROUTE_BASE_PATH)) {
+        if (eurekaSetting.getServiceUrl() == null || !eurekaSetting.getServiceUrl().endsWith(RouteDispatcher.ROUTE_BASE_PATH)) {
             requestUrl.append(RouteDispatcher.ROUTE_BASE_PATH);
         }
         requestUrl.append("apps");
@@ -104,7 +103,7 @@ public class EurekaRepository extends AbstractRepository {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Eureka Response Content:{}", content);
                     }
-                    if (StrUtil.isNotBlank(content)) {
+                    if (TextUtils.isNotBlank(content)) {
                         JsonElement jsonElement = JsonParser.parseString(content);
                         if (jsonElement != null && jsonElement.isJsonObject()) {
                             JsonElement applications = jsonElement.getAsJsonObject().get("applications");
@@ -135,11 +134,14 @@ public class EurekaRepository extends AbstractRepository {
         for (EurekaApplication eurekaApplication : eurekaApps) {
             // 判断当前instance不可为空，并且取status="UP"的服务
             if (serviceNames.contains(eurekaApplication.getName().toLowerCase()) && CollectionUtils.isNotEmpty(eurekaApplication.getInstance())) {
-                Optional<EurekaInstance> instanceOptional = eurekaApplication.getInstance().stream().filter(eurekaInstance -> StrUtil.equalsIgnoreCase(eurekaInstance.getStatus(), "up")).findFirst();
+                Optional<EurekaInstance> instanceOptional = eurekaApplication.getInstance().stream().filter(eurekaInstance -> "up".equalsIgnoreCase(eurekaInstance.getStatus())).findFirst();
                 if (instanceOptional.isPresent()) {
                     // 根据服务配置获取外部setting
-                    Optional<EurekaRoute> eurekaRouteOptional =
-                            eurekaSetting.getRoutes().stream().filter(eurekaRoute -> StrUtil.equalsIgnoreCase(eurekaRoute.getServiceName(), eurekaApplication.getName())).findFirst();
+                    Optional<EurekaRoute> eurekaRouteOptional = eurekaSetting.getRoutes().stream().filter(eurekaRoute -> {
+                        String serviceName = eurekaRoute.getServiceName();
+                        return Objects.equals(serviceName, eurekaApplication.getName())
+                                || (serviceName != null && serviceName.equalsIgnoreCase(eurekaApplication.getName()));
+                    }).findFirst();
                     if (eurekaRouteOptional.isPresent()) {
                         EurekaRoute eurekaRoute = eurekaRouteOptional.get();
                         EurekaInstance eurekaInstance = instanceOptional.get();
@@ -204,7 +206,7 @@ public class EurekaRepository extends AbstractRepository {
                         logger.debug("Knife4jAggregation Eureka heartbeat working...");
                     }
                     if (this.eurekaSetting != null && CollectionUtils.isNotEmpty(this.eurekaSetting.getRoutes())) {
-                        if (StrUtil.isBlank(this.eurekaSetting.getServiceUrl())) {
+                        if (TextUtils.isBlank(this.eurekaSetting.getServiceUrl())) {
                             throw new RuntimeException("Eureka ServiceUrl can't empty!!!");
                         }
                         List<EurekaApplication> eurekaApps = getApplications(this.eurekaSetting);
@@ -239,7 +241,7 @@ public class EurekaRepository extends AbstractRepository {
                 } catch (Exception e) {
                     logger.debug(e.getMessage(), e);
                 }
-                ThreadUtil.sleep(HEART_BEAT_DURATION);
+                sleep(HEART_BEAT_DURATION);
             }
         });
         thread.setDaemon(true);
@@ -251,7 +253,7 @@ public class EurekaRepository extends AbstractRepository {
         logger.info("stop Eureka heartbeat Holder thread.");
         this.stop = true;
         if (thread != null) {
-            ThreadUtil.interrupt(thread, true);
+            interruptAndWait(thread);
         }
     }
 }

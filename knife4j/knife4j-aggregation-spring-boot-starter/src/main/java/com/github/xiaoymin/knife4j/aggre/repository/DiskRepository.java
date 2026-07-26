@@ -17,12 +17,11 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.io.IoUtil;
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
 import com.github.xiaoymin.knife4j.aggre.disk.DiskRoute;
 import com.github.xiaoymin.knife4j.aggre.spring.support.DiskSetting;
 import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -53,7 +52,7 @@ public class DiskRepository extends AbstractRepository {
 
     private void init(DiskSetting diskSetting) {
         for (DiskRoute diskRoute : diskSetting.getRoutes()) {
-            if (StrUtil.isNotBlank(diskRoute.getLocation())) {
+            if (TextUtils.isNotBlank(diskRoute.getLocation())) {
                 try {
                     InputStream resource = getResource(diskRoute.getLocation());
                     if (resource != null) {
@@ -107,7 +106,10 @@ public class DiskRepository extends AbstractRepository {
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
-            IoUtil.close(ins);
+            try {
+                ins.close();
+            } catch (Exception ignored) {
+            }
         }
         return byteOutArr.toByteArray();
     }

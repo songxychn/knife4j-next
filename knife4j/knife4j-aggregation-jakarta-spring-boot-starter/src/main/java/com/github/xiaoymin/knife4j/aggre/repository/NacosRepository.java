@@ -17,7 +17,6 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.thread.ThreadUtil;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
 import com.github.xiaoymin.knife4j.aggre.nacos.NacosInstance;
@@ -46,7 +45,7 @@ public class NacosRepository extends AbstractRepository {
 
     private NacosSetting nacosSetting;
 
-    final ThreadPoolExecutor threadPoolExecutor = ThreadUtil.newExecutor(5, 5);
+    final ThreadPoolExecutor threadPoolExecutor = newThreadPoolExecutor();
 
     private Map<String, NacosInstance> nacosInstanceMap = new HashMap<>();
 
@@ -143,7 +142,7 @@ public class NacosRepository extends AbstractRepository {
                 } catch (Exception e) {
                     logger.debug(e.getMessage(), e);
                 }
-                ThreadUtil.sleep(HEART_BEAT_DURATION);
+                sleep(HEART_BEAT_DURATION);
             }
         });
         thread.setDaemon(true);
@@ -155,7 +154,7 @@ public class NacosRepository extends AbstractRepository {
         logger.info("stop Nacos heartbeat Holder thread.");
         this.stop = true;
         if (thread != null) {
-            ThreadUtil.interrupt(thread, true);
+            interruptAndWait(thread);
         }
     }
 }

@@ -17,13 +17,16 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.util.StrUtil;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.github.xiaoymin.knife4j.aggre.core.RouteRepository;
 import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
 import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
 
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -40,9 +43,13 @@ public abstract class AbstractRepository extends PoolingConnectionManager implem
 
     protected final Map<String, SwaggerRoute> routeMap = new HashMap<>();
 
+    protected static ThreadPoolExecutor newThreadPoolExecutor() {
+        return new ThreadPoolExecutor(5, 5, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(1024));
+    }
+
     @Override
     public boolean checkRoute(String header) {
-        if (StrUtil.isNotBlank(header)) {
+        if (TextUtils.isNotBlank(header)) {
             return routeMap.containsKey(header);
         }
         return false;
@@ -74,6 +81,31 @@ public abstract class AbstractRepository extends PoolingConnectionManager implem
             if (CollectionUtils.isNotEmpty(settingRouteIds)) {
                 // 缓存中移出，避免重复
                 settingCacheRouteIds.forEach(s -> this.routeMap.remove(s));
+            }
+        }
+    }
+
+    protected static void sleep(long millis) {
+        if (millis > 0) {
+            try {
+                Thread.sleep(millis);
+            } catch (InterruptedException ignored) {
+                // Keep the previous heartbeat behavior: stop is checked by the surrounding loop.
+            }
+        }
+    }
+
+    protected static void interruptAndWait(Thread thread) {
+        if (thread == null || thread.isInterrupted()) {
+            return;
+        }
+        thread.interrupt();
+        while (true) {
+            try {
+                thread.join();
+                return;
+            } catch (InterruptedException ignored) {
+                // Keep waiting until the heartbeat thread exits.
             }
         }
     }

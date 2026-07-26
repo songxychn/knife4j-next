@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import cn.hutool.core.util.StrUtil;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -66,7 +65,7 @@ public class Knife4jRouteProxyFilter implements Filter {
         HttpServletResponse response = (HttpServletResponse) servletResponse;
         String uri = request.getRequestURI();
         if (routeDispatcher.checkRoute(request.getHeader(RouteDispatcher.ROUTE_PROXY_HEADER_NAME))) {
-            if (StrUtil.endWith(uri, RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT)) {
+            if (uri != null && uri.endsWith(RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT)) {
                 String group = request.getParameter("group");
                 SwaggerRoute swaggerRoute = routeDispatcher.getRoute(group);
                 writeRouteResponse(response, swaggerRoute == null ? "" : swaggerRoute.getContent());
@@ -79,13 +78,13 @@ public class Knife4jRouteProxyFilter implements Filter {
             }
         } else {
             // go on
-            if (StrUtil.endWith(uri, RouteDispatcher.OPENAPI3_GROUP_ENDPOINT)) {
+            if (uri != null && uri.endsWith(RouteDispatcher.OPENAPI3_GROUP_ENDPOINT)) {
                 // 响应当前服务聚合结构
                 writeRouteResponse(response, gson.toJson(routeDispatcher.getOpenAPI3Response(request)));
-            } else if (StrUtil.endWith(uri, RouteDispatcher.OPENAPI_GROUP_ENDPOINT)) {
+            } else if (uri != null && uri.endsWith(RouteDispatcher.OPENAPI_GROUP_ENDPOINT)) {
                 // 响应当前服务聚合结构
                 writeRouteResponse(response, gson.toJson(routeDispatcher.getRoutes()));
-            } else if (StrUtil.endWith(uri, RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT)) {
+            } else if (uri != null && uri.endsWith(RouteDispatcher.OPENAPI_GROUP_INSTANCE_ENDPOINT)) {
                 // 响应当前服务disk-实例
                 String group = request.getParameter("group");
                 SwaggerRoute swaggerRoute = routeDispatcher.getRoute(group);

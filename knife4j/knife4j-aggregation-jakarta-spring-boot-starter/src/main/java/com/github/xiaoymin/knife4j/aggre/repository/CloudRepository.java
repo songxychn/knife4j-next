@@ -17,9 +17,8 @@
 
 package com.github.xiaoymin.knife4j.aggre.repository;
 
-import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.thread.ThreadUtil;
-import cn.hutool.core.util.StrUtil;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.github.xiaoymin.knife4j.aggre.cloud.CloudRoute;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
@@ -48,7 +47,7 @@ public class CloudRepository extends AbstractRepository {
     private CloudSetting cloudSetting;
     public CloudRepository(CloudSetting cloudSetting) {
         this.cloudSetting = cloudSetting;
-        if (cloudSetting != null && CollectionUtil.isNotEmpty(cloudSetting.getRoutes())) {
+        if (cloudSetting != null && CollectionUtils.isNotEmpty(cloudSetting.getRoutes())) {
             cloudSetting.getRoutes().stream().forEach(cloudRoute -> {
                 if (cloudRoute.getRouteAuth() == null || !cloudRoute.getRouteAuth().isEnable()) {
                     cloudRoute.setRouteAuth(cloudSetting.getRouteAuth());
@@ -60,7 +59,7 @@ public class CloudRepository extends AbstractRepository {
     @Override
     public BasicAuth getAuth(String header) {
         BasicAuth basicAuth = null;
-        if (cloudSetting != null && CollectionUtil.isNotEmpty(cloudSetting.getRoutes())) {
+        if (cloudSetting != null && CollectionUtils.isNotEmpty(cloudSetting.getRoutes())) {
             if (cloudSetting.getRouteAuth() != null && cloudSetting.getRouteAuth().isEnable()) {
                 basicAuth = cloudSetting.getRouteAuth();
                 // 判断route服务中是否再单独配置
@@ -86,11 +85,11 @@ public class CloudRepository extends AbstractRepository {
             while (!stop) {
                 try {
                     logger.debug("Cloud hearbeat start working...");
-                    if (this.cloudSetting != null && CollectionUtil.isNotEmpty(this.cloudSetting.getRoutes())) {
+                    if (this.cloudSetting != null && CollectionUtils.isNotEmpty(this.cloudSetting.getRoutes())) {
                         this.cloudSetting.getRoutes().forEach(cloudRoute -> {
                             String uri = cloudRoute.getUri();
                             StringBuilder urlBuilder = new StringBuilder();
-                            if (!StrUtil.startWith(uri, "http")) {
+                            if (uri == null || !uri.startsWith("http")) {
                                 urlBuilder.append("http://");
                             }
                             urlBuilder.append(uri);
@@ -142,7 +141,7 @@ public class CloudRepository extends AbstractRepository {
                 } catch (Exception e) {
                     logger.debug(e.getMessage(), e);
                 }
-                ThreadUtil.sleep(HEART_BEAT_DURATION);
+                sleep(HEART_BEAT_DURATION);
             }
         });
         thread.setDaemon(true);
@@ -154,7 +153,7 @@ public class CloudRepository extends AbstractRepository {
         logger.info("stop Cloud heartbeat Holder thread.");
         this.stop = true;
         if (this.thread != null) {
-            ThreadUtil.interrupt(this.thread, true);
+            interruptAndWait(this.thread);
         }
     }
 }

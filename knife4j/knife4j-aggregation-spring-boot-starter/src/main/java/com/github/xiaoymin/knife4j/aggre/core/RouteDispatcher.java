@@ -17,11 +17,6 @@
 
 package com.github.xiaoymin.knife4j.aggre.core;
 
-import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.io.IoUtil;
-import cn.hutool.core.lang.Assert;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONObject;
 import com.github.xiaoymin.knife4j.aggre.core.common.ExecutorEnum;
 import com.github.xiaoymin.knife4j.aggre.core.common.RouteUtils;
 import com.github.xiaoymin.knife4j.aggre.core.executor.ApacheClientExecutor;
@@ -29,6 +24,10 @@ import com.github.xiaoymin.knife4j.aggre.core.executor.OkHttpClientExecutor;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.HeaderWrapper;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -38,6 +37,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -51,6 +51,8 @@ import java.util.*;
  * 2020/10/29 20:08
  */
 public class RouteDispatcher {
+
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().serializeNulls().create();
 
     /**
      * header
@@ -108,10 +110,10 @@ public class RouteDispatcher {
     }
 
     public boolean checkRoute(String header) {
-        if (StrUtil.isNotBlank(header)) {
+        if (TextUtils.isNotBlank(header)) {
             SwaggerRoute swaggerRoute = routeRepository.getRoute(header);
             if (swaggerRoute != null) {
-                return StrUtil.isNotBlank(swaggerRoute.getUri());
+                return TextUtils.isNotBlank(swaggerRoute.getUri());
             }
         }
         return false;
@@ -142,7 +144,7 @@ public class RouteDispatcher {
             map.put("message", errMsg);
             map.put("code", "500");
             map.put("path", request.getRequestURI());
-            new JSONObject(map).write(printWriter);
+            GSON.toJson(map, printWriter);
             printWriter.close();
         } catch (IOException e) {
             // ignore
@@ -169,9 +171,9 @@ public class RouteDispatcher {
      */
     protected void writeResponseHeader(RouteResponse routeResponse, HttpServletResponse response) {
         if (routeResponse != null) {
-            if (CollectionUtil.isNotEmpty(routeResponse.getHeaders())) {
+            if (CollectionUtils.isNotEmpty(routeResponse.getHeaders())) {
                 for (HeaderWrapper header : routeResponse.getHeaders()) {
-                    if (!StrUtil.equalsIgnoreCase(header.getName(), "Transfer-Encoding")) {
+                    if (!"Transfer-Encoding".equalsIgnoreCase(header.getName())) {
                         response.addHeader(header.getName(), header.getValue());
                     }
                 }
@@ -204,12 +206,12 @@ public class RouteDispatcher {
                     while ((read = inputStream.read(bytes)) != -1) {
                         outputStream.write(bytes, 0, read);
                     }
-                    IoUtil.close(inputStream);
-                    IoUtil.close(outputStream);
+                    closeQuietly(inputStream);
+                    closeQuietly(outputStream);
                 }
             } else {
                 String text = routeResponse.text();
-                if (StrUtil.isNotBlank(text)) {
+                if (TextUtils.isNotBlank(text)) {
                     PrintWriter printWriter = response.getWriter();
                     printWriter.write(text);
                     printWriter.close();
@@ -227,7 +229,7 @@ public class RouteDispatcher {
     protected void buildContext(RouteRequestContext routeRequestContext, HttpServletRequest request) throws IOException {
         // Whether Basic
         String basicHeader = request.getHeader(ROUTE_PROXY_HEADER_BASIC_NAME);
-        if (StrUtil.isNotBlank(basicHeader)) {
+        if (TextUtils.isNotBlank(basicHeader)) {
             BasicAuth basicAuth = routeRepository.getAuth(basicHeader);
             if (basicAuth != null) {
                 // add Basic header
@@ -240,31 +242,33 @@ public class RouteDispatcher {
         String uri = swaggerRoute.getUri();
         String fromUri = request.getRequestURI();
         // get project servlet.contextPath
-        if (StrUtil.isNotBlank(this.rootPath) && !StrUtil.equals(this.rootPath, ROUTE_BASE_PATH)) {
+        if (TextUtils.isNotBlank(this.rootPath) && !Objects.equals(this.rootPath, ROUTE_BASE_PATH)) {
             fromUri = fromUri.replaceFirst(this.rootPath, "");
             // 此处需要追加一个请求头basePath，因为父项目设置了context-path
             routeRequestContext.addHeader("X-Forwarded-Prefix", this.rootPath);
         }
         // 判断servicePath
-        if (StrUtil.isNotBlank(swaggerRoute.getServicePath()) && !StrUtil.equals(swaggerRoute.getServicePath(),
+        if (TextUtils.isNotBlank(swaggerRoute.getServicePath()) && !Objects.equals(swaggerRoute.getServicePath(),
                 ROUTE_BASE_PATH)) {
-            if (StrUtil.startWith(fromUri, swaggerRoute.getServicePath())) {
+            if (fromUri != null && fromUri.startsWith(swaggerRoute.getServicePath())) {
                 // 实际在请求时,剔除servicePath,否则会造成404
                 fromUri = fromUri.replaceFirst(swaggerRoute.getServicePath(), "");
             }
         }
-        if (StrUtil.isNotBlank(swaggerRoute.getLocation())) {
+        if (TextUtils.isNotBlank(swaggerRoute.getLocation())) {
             if (swaggerRoute.getLocation().indexOf(fromUri) == -1) {
                 logger.debug("location:{},fromURI:{}", swaggerRoute.getLocation(), fromUri);
                 // 当前路径是请求非获取OpenAPI实例路径地址，判断debugURL
-                if (StrUtil.isNotBlank(swaggerRoute.getDebugUrl())) {
+                if (TextUtils.isNotBlank(swaggerRoute.getDebugUrl())) {
                     // 设置为调试地址
                     uri = swaggerRoute.getDebugUrl();
                 }
             }
         }
         logger.debug("Debug URI:{},fromURI:{}", uri, fromUri);
-        Assert.notEmpty(uri, "Uri is Empty");
+        if (uri == null || uri.isEmpty()) {
+            throw new IllegalArgumentException("Uri is Empty");
+        }
         StringBuilder requestUrlBuilder = new StringBuilder();
         requestUrlBuilder.append(uri);
         requestUrlBuilder.append(fromUri);
@@ -299,7 +303,7 @@ public class RouteDispatcher {
                 contentType.contains("multipart/form-data")) {
             try {
                 Collection<Part> parts = request.getParts();
-                if (CollectionUtil.isNotEmpty(parts)) {
+                if (CollectionUtils.isNotEmpty(parts)) {
                     Map<String, String> paramMap = routeRequestContext.getParams();
                     parts.forEach(part -> {
                         String key = part.getName();
@@ -329,5 +333,14 @@ public class RouteDispatcher {
 
     public String getRootPath() {
         return rootPath;
+    }
+
+    private static void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (Exception ignored) {
+            }
+        }
     }
 }

@@ -17,8 +17,8 @@
 
 package com.github.xiaoymin.knife4j.aggre.polaris;
 
-import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.util.StrUtil;
+import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
 import com.github.xiaoymin.knife4j.aggre.spring.support.PolarisSetting;
 import com.google.gson.Gson;
@@ -70,7 +70,7 @@ public class PolarisService extends PoolingConnectionManager implements Callable
         // 默认聚合时只返回健康实例
         params.add("healthy=true");
         params.add("service=" + route.getService());
-        String parameter = CollectionUtil.join(params, "&");
+        String parameter = String.join("&", params);
         String api = serviceUrl + POLARIS_INSTANCES_API + "?" + parameter;
         if (logger.isDebugEnabled()) {
             logger.debug("Polaris API:{}", api);
@@ -85,7 +85,7 @@ public class PolarisService extends PoolingConnectionManager implements Callable
             }
             if (statusCode == HttpStatus.SC_OK) {
                 String content = EntityUtils.toString(response.getEntity(), "UTF-8");
-                if (StrUtil.isNotBlank(content)) {
+                if (TextUtils.isNotBlank(content)) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Response Content:{}", content);
                     }
@@ -103,7 +103,7 @@ public class PolarisService extends PoolingConnectionManager implements Callable
                                 Type type = new TypeToken<List<PolarisInstance>>() {
                                 }.getType();
                                 List<PolarisInstance> polarisInstances = new Gson().fromJson(instances, type);
-                                if (CollectionUtil.isNotEmpty(polarisInstances)) {
+                                if (CollectionUtils.isNotEmpty(polarisInstances)) {
                                     PolarisInstance polarisInstance = polarisInstances.stream().findAny().get();
                                     polarisInstance.setService(route.getService());
                                     return Optional.of(polarisInstance);

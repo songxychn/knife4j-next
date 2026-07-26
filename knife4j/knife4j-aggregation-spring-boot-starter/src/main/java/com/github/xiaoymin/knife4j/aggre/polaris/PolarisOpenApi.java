@@ -17,9 +17,10 @@
 
 package com.github.xiaoymin.knife4j.aggre.polaris;
 
-import cn.hutool.json.JSONObject;
 import com.github.xiaoymin.knife4j.aggre.core.ext.PoolingConnectionManager;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -28,11 +29,16 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * @author zc
  * @date 2023/3/21 17:18
  */
 public class PolarisOpenApi extends PoolingConnectionManager {
+
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
     Logger logger = LoggerFactory.getLogger(PolarisOpenApi.class);
 
@@ -63,10 +69,10 @@ public class PolarisOpenApi extends PoolingConnectionManager {
         }
         HttpPost post = new HttpPost(api);
         post.setHeader("Content-Type", "application/json");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.putOnce("name", basicAuth.getUsername());
-        jsonObject.putOnce("password", basicAuth.getPassword());
-        String body = jsonObject.toString();
+        Map<String, String> jsonObject = new LinkedHashMap<>();
+        jsonObject.put("name", basicAuth.getUsername());
+        jsonObject.put("password", basicAuth.getPassword());
+        String body = GSON.toJson(jsonObject);
         // 设置请求体
         try {
             post.setEntity(new StringEntity(body));

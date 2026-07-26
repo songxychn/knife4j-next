@@ -17,7 +17,9 @@
 
 package com.github.xiaoymin.knife4j.aggre.disk;
 
-import cn.hutool.crypto.digest.MD5;
+import org.springframework.util.DigestUtils;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
@@ -119,7 +121,7 @@ public class DiskRoute {
     }
 
     public String pkId() {
-        return MD5.create().digestHex(this.toString());
+        return DigestUtils.md5DigestAsHex(this.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     @Override

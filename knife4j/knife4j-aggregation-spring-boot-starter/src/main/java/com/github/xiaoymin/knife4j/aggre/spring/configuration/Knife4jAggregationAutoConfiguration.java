@@ -17,7 +17,6 @@
 
 package com.github.xiaoymin.knife4j.aggre.spring.configuration;
 
-import cn.hutool.core.util.StrUtil;
 import com.github.xiaoymin.knife4j.aggre.core.RouteCache;
 import com.github.xiaoymin.knife4j.aggre.core.RouteDispatcher;
 import com.github.xiaoymin.knife4j.aggre.core.RouteRepository;
@@ -30,6 +29,7 @@ import com.github.xiaoymin.knife4j.aggre.core.pojo.SwaggerRoute;
 import com.github.xiaoymin.knife4j.aggre.repository.*;
 import com.github.xiaoymin.knife4j.aggre.spring.condiotion.PolarisSettingCondition;
 import com.github.xiaoymin.knife4j.aggre.spring.support.*;
+import com.github.xiaoymin.knife4j.aggre.core.common.TextUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -101,12 +101,12 @@ public class Knife4jAggregationAutoConfiguration {
                                            @Autowired Knife4jAggregationProperties knife4jAggregationProperties) {
         // 获取当前项目的contextPath
         String contextPath = Objects.toString(environment.getProperty("server.servlet.context-path"), "");
-        if (StrUtil.isBlank(contextPath)) {
+        if (TextUtils.isBlank(contextPath)) {
             contextPath = "/";
         }
-        if (StrUtil.isNotBlank(contextPath) && !StrUtil.equals(contextPath, RouteDispatcher.ROUTE_BASE_PATH)) {
+        if (TextUtils.isNotBlank(contextPath) && !Objects.equals(contextPath, RouteDispatcher.ROUTE_BASE_PATH)) {
             // 判断是否/开头
-            if (!StrUtil.startWith(contextPath, RouteDispatcher.ROUTE_BASE_PATH)) {
+            if (!contextPath.startsWith(RouteDispatcher.ROUTE_BASE_PATH)) {
                 contextPath = RouteDispatcher.ROUTE_BASE_PATH + contextPath;
             }
         }
