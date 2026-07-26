@@ -8,7 +8,8 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
-| `5.1.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 当前版本，前端体验与国际化 |
+| `5.2.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，分组级全局参数与依赖维护 |
+| `5.1.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 前端体验与国际化 |
 | `5.0.18` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
 | `5.0.17` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
 | `5.0.16` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ✅ 4.0.6 | 补丁修复版本 |
@@ -30,11 +31,11 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.1.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.1.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.1.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.1.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.1.0`。
+> `5.2.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.2.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.2.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.2.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.2.0`。
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.1.0` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.2.0` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -57,19 +58,19 @@ title: 版本对照
 | Swagger v3 Jakarta models | `2.2.47` |
 | Servlet Jakarta API | `6.1.0` |
 
-> smoke-tests 中 `boot3-jakarta-app` 使用 Boot `3.4.5`，`boot35-jakarta-app` 使用 Boot `3.5.0`，均通过验证。
+> smoke-tests 中 `boot3-jakarta-app` 使用 Boot `3.4.5`，`boot35-jakarta-app` 使用 Boot `3.5.0`，`boot35-gateway-webmvc-app` 使用 Boot `3.5.16`，均通过验证。
 
 ### Boot 4.x（Jakarta）线
 
 | 依赖 | 版本 |
 | --- | --- |
-| Spring Boot | `4.0.6` |
-| Spring Cloud | `2025.1.1`（Gateway 5.x） |
+| Spring Boot | `4.0.7` |
+| Spring Cloud | `2025.1.2`（Gateway 5.x） |
 | springdoc-openapi | `3.0.3` |
 | Swagger v3 models | `2.2.47` |
 | Servlet Jakarta API | `6.1.0` |
 
-> smoke-tests 中 `boot4-jakarta-app`、`boot4-gateway-app` 与 `boot4-aggregation-app` 使用 Boot `4.0.6`，通过验证。
+> smoke-tests 中 `boot4-jakarta-app`、`boot4-gateway-app` 与 `boot4-aggregation-app` 使用 Boot `4.0.7`，通过验证。
 
 ### 其他共享依赖
 
@@ -85,7 +86,8 @@ title: 版本对照
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.1.0` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5/4.0 兼容 + React UI 调试与三语增强 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.2.0` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5/4.0 兼容 + React UI 分组级全局参数 |
+| `4.5.0` | `5.1.0` | 前端体验与国际化 |
 | `4.5.0` | `5.0.18` | 补丁修复版本 |
 | `4.5.0` | `5.0.17` | 补丁修复版本 |
 | `4.5.0` | `5.0.16` | 补丁修复版本 |

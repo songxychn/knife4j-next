@@ -17,14 +17,14 @@ title: 产品介绍
 | 访问入口（doc.html / v2 / v3 api-docs） | 保留 | 完全一致 |
 | 仓库 | `xiaoymin/knife4j` | [`songxychn/knife4j-next`](https://github.com/songxychn/knife4j-next) |
 | 发布渠道 | Maven Central | Maven Central |
-| 当前版本 | `4.5.0`（最后一个 Maven Central 发布版本） | `5.1.0` |
+| 当前版本 | `4.5.0`（最后一个 Maven Central 发布版本） | `5.2.0` |
 | 文档站 | [doc.xiaominfo.com](https://doc.xiaominfo.com/) | 本站（`knife4jnext.com`） |
 
 **迁移的最小单位是改 `groupId`，业务代码、配置键、访问路径都不必动。** 详见 [迁移指引](./migration)。
 
 ## 这份 fork 想解决什么
 
-1. **兼容性修复**。upstream 对 Spring Boot 3.4 / 3.5 的适配步伐变慢，fork 已经升级 `springdoc-openapi-jakarta` 到 `2.8.9`，并通过 smoke-tests 覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x/3.5.0 Jakarta 与 Boot 4.0.6 Jakarta/Gateway/独立聚合组合。
+1. **兼容性修复**。upstream 对 Spring Boot 3.4 / 3.5 的适配步伐变慢，fork 已经升级 `springdoc-openapi-jakarta` 到 `2.8.9`，并通过 smoke-tests 覆盖 Boot 2.7.18 的 OAS2/OAS3、Boot 3.4.x/3.5.x Jakarta 与 Boot 4.0.7 Jakarta/Gateway/独立聚合组合。
 2. **安全修复**。修复了 `/v2/api-docs;xxx` 分号绕过 Basic 认证的漏洞（[#886](https://github.com/xiaoymin/knife4j/issues/886)），以及 gateway `context-path` 下聚合 host 少斜杠的问题（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
 3. **可重复发布流程**。`.github/workflows/release.yml` 通过 Central Publishing Plugin 直接推送 Maven Central，不依赖人工临场操作。
 4. **可试用的 Demo**。`knife4j-demo-openapi3`（Spring Boot 4.0 + OpenAPI 3 + React UI）和 `knife4j-demo-openapi2`（Spring Boot 2.7 + OpenAPI 2 + Vue 3 UI）两个示例工程都附带 Dockerfile，可分别本地运行或在线预览。
@@ -36,11 +36,11 @@ title: 产品介绍
 | 方向 | 已合并 | 对应资料 |
 | --- | --- | --- |
 | Boot 2.7.18 starter + UI webjar | ✅ | [快速开始](./getting-started) |
-| Boot 3.4.0 / 3.5.0 兼容 | ✅ | smoke-tests 模块 `boot3-jakarta-app`、`boot35-jakarta-app` |
-| Boot 4.0.6 WebMVC starter | ✅ | smoke-tests 模块 `boot4-jakarta-app` |
-| Boot 4.0.6 Gateway starter | ✅ | smoke-tests 模块 `boot4-gateway-app` |
+| Boot 3.4.x / 3.5.x 兼容 | ✅ | smoke-tests 模块 `boot3-jakarta-app`、`boot35-jakarta-app`、`boot35-gateway-webmvc-app` |
+| Boot 4.0.7 WebMVC starter | ✅ | smoke-tests 模块 `boot4-jakarta-app` |
+| Boot 4.0.7 Gateway starter | ✅ | smoke-tests 模块 `boot4-gateway-app` |
 | Boot 3.5 Gateway Server Web MVC starter | ✅ | smoke-tests 模块 `boot35-gateway-webmvc-app` |
-| Boot 4.0.6 独立聚合 starter | ✅ | smoke-tests 模块 `boot4-aggregation-app` |
+| Boot 4.0.7 独立聚合 starter | ✅ | smoke-tests 模块 `boot4-aggregation-app` |
 | /doc.html 分号绕过修复 | ✅ `#886` | [发布说明](../release-notes/) |
 | Gateway context-path 修复 | ✅ `#954` | [Gateway 接入](./gateway) |
 | React + Vite 新前端 webjar | ✅ | 在 `knife4j-openapi3-ui` 生效；`knife4j-openapi2-ui` 交由本仓库 `front/vue3` 维护 |

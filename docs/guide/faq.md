@@ -22,13 +22,14 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
-1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.1.0`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.2.0`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
 2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；OAuth2、离线导出、自定义 Markdown 文档、自定义 Footer 等能力则已在 React UI 中补齐或重做。这些历史功能在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.2.0` | 次版本：React 分组级全局参数、请求取值、Cookie 会话与敏感值查看交互；聚合 starter 移除 Hutool，并更新兼容线依赖 | — |
 | `5.1.0` | 次版本：React 嵌入式启动、调试器响应进度、multipart 必填文件校验、响应示例与长 Token 预览，以及中英日国际化 | — |
 | `5.0.18` | 补丁修复：新增 Gateway Server Web MVC 聚合 starter 和 Boot 3.5 smoke，starter 发布包补齐 Spring Boot 配置元数据 | — |
 | `5.0.17` | 补丁修复：React UI Tab 右键菜单只在标签上触发，避免文档内容区右键误弹菜单；在线 demo 仅随发布 tag 更新 | — |

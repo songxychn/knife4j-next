@@ -20,7 +20,7 @@ title: 快速开始
 ### 环境要求
 
 - JDK 17+
-- Spring Boot `4.0.x`（smoke-tests 覆盖 `4.0.6`）
+- Spring Boot `4.0.x`（smoke-tests 覆盖 `4.0.7`）
 - springdoc-openapi `3.0.3`（starter 已管理，无需显式声明）
 
 ### 依赖
@@ -29,7 +29,7 @@ title: 快速开始
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.
 ### 环境要求
 
 - JDK 17+
-- Spring Boot `3.4.0` ~ `3.5.x`（smoke-tests 覆盖 `3.4.0` 与 `3.5.0`）
+- Spring Boot `3.4.0` ~ `3.5.x`（smoke-tests 覆盖 `3.4.5`、`3.5.0`，以及 Gateway Server Web MVC 的 `3.5.16`）
 - springdoc-openapi-jakarta `2.8.9`（starter 已管理，无需显式声明）
 
 ### 依赖
@@ -79,7 +79,7 @@ Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 
@@ -154,7 +154,7 @@ React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `langua
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 
@@ -188,7 +188,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 
