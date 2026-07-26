@@ -1,8 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Input, Menu, MenuProps, Tooltip } from 'antd';
-import { ApiOutlined, DatabaseOutlined, FileMarkdownOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  ControlOutlined,
+  DatabaseOutlined,
+  FileMarkdownOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
+import { useGlobalParam } from '../context/GlobalParamContext';
 import { useSettings } from '../context/SettingsContext';
 import Markdown from '../components/Markdown';
 
@@ -48,6 +55,7 @@ interface SidebarSearchMenuProps {
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
   const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
+  const { params: globalParams } = useGlobalParam();
   const { settings } = useSettings();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
@@ -105,6 +113,26 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const menuItems = useMemo(() => {
     const q = searchText.trim();
     const items: NonNullable<MenuProps['items']> = [];
+    if (activeGroup.value) {
+      items.push({
+        key: `/${activeGroup.value}/globalParam`,
+        label: (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ControlOutlined />
+            <span>{t('globalParam.title')}</span>
+            <span
+              style={{
+                marginLeft: 'auto',
+                color: 'rgba(255,255,255,0.45)',
+                fontSize: 12,
+              }}
+            >
+              {globalParams.filter((param) => param.enabled).length}
+            </span>
+          </span>
+        ),
+      });
+    }
     if (activeGroup.value && settings.enableSwaggerModels) {
       items.push({
         key: `/${activeGroup.value}/schema`,
@@ -206,6 +234,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   }, [
     activeGroup.value,
     filteredByTag,
+    globalParams,
     markdownDocs,
     menuTags,
     schemas,

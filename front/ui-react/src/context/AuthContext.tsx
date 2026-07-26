@@ -114,6 +114,11 @@ export const AuthProvider: React.FC<{
   const [schemes, setSchemes] = useState<Record<string, SchemeValue>>({});
   const [loaded, setLoaded] = useState(false);
 
+  useEffect(() => {
+    setLoaded(false);
+    setActiveGroupIdState(initialGroupId);
+  }, [initialGroupId]);
+
   // 加载 + 迁移
   useEffect(() => {
     let cancelled = false;
@@ -163,13 +168,12 @@ export const AuthProvider: React.FC<{
     setActiveGroupIdState(groupId);
   }, []);
 
-  // 未加载完成前返回空
-  if (!loaded) {
-    return null;
-  }
+  const activeSchemes = loaded && activeGroupId === initialGroupId ? schemes : {};
 
   return (
-    <AuthContext.Provider value={{ schemes, setScheme, removeScheme, clearGroup, activeGroupId, setActiveGroupId }}>
+    <AuthContext.Provider
+      value={{ schemes: activeSchemes, setScheme, removeScheme, clearGroup, activeGroupId, setActiveGroupId }}
+    >
       {children}
     </AuthContext.Provider>
   );

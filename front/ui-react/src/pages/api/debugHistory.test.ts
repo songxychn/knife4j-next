@@ -16,7 +16,6 @@ import {
   limitHistoryEntries,
   listHistory,
   removeEntry,
-  sanitizeHeaders,
   truncateBody,
   updateEntry,
   type DebugHistoryEntry,
@@ -53,6 +52,8 @@ function makePending(overrides: Partial<Parameters<typeof createPendingEntry>[0]
       Cookie: 'sid=abc',
     },
     query: overrides.query ?? { page: '1' },
+    maskedHeaders: overrides.maskedHeaders,
+    maskedQuery: overrides.maskedQuery,
     body: overrides.body ?? '{"name":"alice"}',
     contentType: overrides.contentType ?? 'application/json',
     groupName: overrides.groupName,
@@ -67,23 +68,11 @@ describe('debugHistory', () => {
     expect(debugHistoryStorageKey(cacheKey)).toBe(`knife4j-next:debug-history:${encodeURIComponent(cacheKey)}`);
   });
 
-  it('sanitizes sensitive headers and detects sensitive names', () => {
+  it('detects sensitive header names', () => {
     expect(isSensitiveHeaderName('Authorization')).toBe(true);
     expect(isSensitiveHeaderName('X-Api-Key')).toBe(true);
     expect(isSensitiveHeaderName('apiKey')).toBe(true);
     expect(isSensitiveHeaderName('Content-Type')).toBe(false);
-
-    expect(
-      sanitizeHeaders({
-        Authorization: 'Bearer secret',
-        Cookie: 'a=b',
-        'X-Trace': '1',
-      }),
-    ).toEqual({
-      Authorization: DEBUG_HISTORY_MASK,
-      Cookie: DEBUG_HISTORY_MASK,
-      'X-Trace': '1',
-    });
   });
 
   it('truncates large bodies and marks truncated', () => {
@@ -97,7 +86,7 @@ describe('debugHistory', () => {
     expect(small).toEqual({ text: 'hello', truncated: false });
   });
 
-  it('creates a pending entry with sanitized headers and truncated body', () => {
+  it('keeps request values and marks sensitive or explicitly masked parameters', () => {
     const largeBody = 'y'.repeat(DEBUG_HISTORY_BODY_MAX_BYTES + 50);
     const entry = createPendingEntry({
       id: 'p1',
@@ -105,14 +94,21 @@ describe('debugHistory', () => {
       path: '/echo',
       baseUrl: 'http://localhost',
       resolvedUrl: 'http://localhost/echo',
-      headers: { Authorization: 'Bearer t', Accept: 'application/json' },
+      headers: { Authorization: 'Bearer t', 'X-Secret': 'hidden', Accept: 'application/json' },
+      query: { token: 'query-secret', page: '1' },
+      maskedHeaders: ['X-Secret'],
+      maskedQuery: ['token'],
       body: largeBody,
     });
 
     expect(entry.version).toBe(DEBUG_HISTORY_VERSION);
     expect(entry.status).toBe('pending');
-    expect(entry.headers.Authorization).toBe(DEBUG_HISTORY_MASK);
+    expect(entry.headers.Authorization).toBe('Bearer t');
+    expect(entry.headers['X-Secret']).toBe('hidden');
     expect(entry.headers.Accept).toBe('application/json');
+    expect(entry.query?.token).toBe('query-secret');
+    expect(entry.maskedHeaders).toEqual(['Authorization', 'X-Secret']);
+    expect(entry.maskedQuery).toEqual(['token']);
     expect(entry.bodyTruncated).toBe(true);
     expect(entry.body?.length).toBeLessThan(largeBody.length);
   });
@@ -218,7 +214,7 @@ describe('debugHistory', () => {
     expect(storage.values.has(debugHistoryStorageKey(cacheKey))).toBe(false);
   });
 
-  it('round-trips through storage and re-sanitizes on read', () => {
+  it('round-trips actual request headers while keeping form snapshots sanitized', () => {
     const storage = new MemoryStorage();
     const cacheKey = 'roundtrip';
     const entry = makePending({
@@ -241,14 +237,14 @@ describe('debugHistory', () => {
     });
     appendPending(cacheKey, entry, storage);
 
-    // Corrupt the stored Authorization value to prove normalize re-masks on read.
     const key = debugHistoryStorageKey(cacheKey);
     const raw = JSON.parse(storage.getItem(key)!) as Array<Record<string, unknown>>;
     (raw[0].headers as Record<string, string>).Authorization = 'Bearer still-secret';
     storage.setItem(key, JSON.stringify(raw));
 
     const loaded = listHistory(cacheKey, storage)[0];
-    expect(loaded.headers.Authorization).toBe(DEBUG_HISTORY_MASK);
+    expect(loaded.headers.Authorization).toBe('Bearer still-secret');
+    expect(loaded.maskedHeaders).toContain('Authorization');
     expect(loaded.formSnapshot?.customHeaders[0].value).toBe(DEBUG_HISTORY_MASK);
   });
 

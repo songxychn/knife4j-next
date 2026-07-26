@@ -628,7 +628,7 @@ function OAuth2FlowForm({
 
 // ─── Main Component ────────────────────────────────────
 
-export default function Authorize() {
+export default function Authorize({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const { schemes, setScheme, removeScheme, clearGroup } = useAuth();
   const { swaggerDoc } = useGroup();
@@ -656,6 +656,7 @@ export default function Authorize() {
   }, [clearGroup, t]);
 
   if (schemeEntries.length === 0) {
+    if (embedded) return null;
     return (
       <div id="knife4j-authorize" style={{ maxWidth: 600, padding: 24 }}>
         <h2>{t('auth.title')}</h2>
@@ -736,8 +737,8 @@ export default function Authorize() {
   });
 
   return (
-    <div id="knife4j-authorize" style={{ maxWidth: 600, padding: 24 }}>
-      <h2>{t('auth.title')}</h2>
+    <div id="knife4j-authorize" style={{ maxWidth: embedded ? undefined : 600, padding: embedded ? 0 : 24 }}>
+      {!embedded && <h2>{t('auth.title')}</h2>}
       <Collapse items={collapseItems} defaultActiveKey={schemeEntries.map(([key]) => key)} />
       {Object.keys(schemes).length > 0 && (
         <Button danger onClick={handleClearAll} style={{ marginTop: 16 }}>

@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { DebugHistoryEntry } from './debugHistory';
 import { copyToClipboard } from '../../utils/clipboard';
+import RevealableValue from '../../components/RevealableValue';
 
 const { Text, Paragraph } = Typography;
 
@@ -108,7 +109,7 @@ function SnapshotBlock({ title, extra, children }: { title: string; extra?: Reac
   );
 }
 
-function KvList({ data }: { data: Record<string, string> | undefined }) {
+function KvList({ data, maskedKeys = [] }: { data: Record<string, string> | undefined; maskedKeys?: string[] }) {
   const items = Object.entries(data ?? {});
   if (items.length === 0) {
     return (
@@ -124,7 +125,7 @@ function KvList({ data }: { data: Record<string, string> | undefined }) {
           <Text code style={{ fontSize: 11 }}>
             {k}
           </Text>
-          : {v}
+          : <RevealableValue value={v} masked={maskedKeys.includes(k)} />
         </div>
       ))}
     </div>
@@ -345,11 +346,11 @@ export default function DebugHistoryPanel({
           </SnapshotBlock>
 
           <SnapshotBlock title={t('apiDebug.history.requestHeaders')}>
-            <KvList data={selected.headers} />
+            <KvList data={selected.headers} maskedKeys={selected.maskedHeaders} />
           </SnapshotBlock>
 
           <SnapshotBlock title={t('apiDebug.history.requestQuery')}>
-            <KvList data={selected.query} />
+            <KvList data={selected.query} maskedKeys={selected.maskedQuery} />
           </SnapshotBlock>
 
           <SnapshotBlock title={t('apiDebug.history.requestBody')}>

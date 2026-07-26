@@ -8,7 +8,6 @@ import {
   Input,
   InputNumber,
   message,
-  Modal,
   Progress,
   Radio,
   Select,
@@ -24,10 +23,10 @@ import {
 } from 'antd';
 import {
   CopyOutlined,
-  SendOutlined,
   DeleteOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SendOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -55,12 +54,12 @@ import {
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import DescriptionText from '../../components/DescriptionText';
+import RevealableValue from '../../components/RevealableValue';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
-import Authorize from '../Authorize';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import {
   currentOrigin,
@@ -516,6 +515,8 @@ function CustomParamsSection({
   onChange,
   nameOptions,
 }: CustomParamsSectionProps) {
+  const { t } = useTranslation();
+
   const updateRow = (id: string, field: 'name' | 'value', val: string) => {
     onChange(rows.map((row) => (row.id === id ? { ...row, [field]: val } : row)));
   };
@@ -529,37 +530,66 @@ function CustomParamsSection({
   };
 
   return (
-    <div style={{ marginTop: 8 }}>
-      <Space style={{ marginBottom: 4 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {title}
-        </Text>
-        <Button size="small" icon={<PlusOutlined />} onClick={addRow}>
-          {addLabel}
-        </Button>
-      </Space>
-      {rows.map((row) => (
-        <Space key={row.id} style={{ display: 'flex', marginBottom: 4 }} align="center">
-          <AutoComplete
-            size="small"
-            value={row.name}
-            options={nameOptions?.(row.name)}
-            onChange={(val) => updateRow(row.id, 'name', val)}
-            onSelect={(val) => updateRow(row.id, 'name', val)}
-            placeholder={namePlaceholder}
-            style={{ width: 200 }}
-            filterOption={false}
-          />
-          <Input
-            size="small"
-            value={row.value}
-            onChange={(e) => updateRow(row.id, 'value', e.target.value)}
-            placeholder={valuePlaceholder}
-            style={{ width: 260 }}
-          />
-          <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteRow(row.id)} />
-        </Space>
-      ))}
+    <div style={{ marginTop: 16 }}>
+      <Table
+        bordered
+        size="small"
+        pagination={false}
+        dataSource={rows}
+        rowKey="id"
+        tableLayout="fixed"
+        title={() => (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text strong>{title}</Text>
+            <Button size="small" icon={<PlusOutlined />} onClick={addRow}>
+              {addLabel}
+            </Button>
+          </div>
+        )}
+        columns={[
+          {
+            title: t('apiDebug.col.paramName'),
+            dataIndex: 'name',
+            key: 'name',
+            width: 240,
+            render: (_name: string, row: CustomParamRow) => (
+              <AutoComplete
+                size="small"
+                value={row.name}
+                options={nameOptions?.(row.name)}
+                onChange={(val) => updateRow(row.id, 'name', val)}
+                onSelect={(val) => updateRow(row.id, 'name', val)}
+                placeholder={namePlaceholder}
+                style={{ width: '100%' }}
+                filterOption={false}
+              />
+            ),
+          },
+          {
+            title: t('apiDebug.col.value'),
+            dataIndex: 'value',
+            key: 'value',
+            render: (_value: string, row: CustomParamRow) => (
+              <Input
+                size="small"
+                value={row.value}
+                onChange={(event) => updateRow(row.id, 'value', event.target.value)}
+                placeholder={valuePlaceholder}
+              />
+            ),
+          },
+          {
+            title: t('apiDebug.col.action'),
+            key: 'action',
+            width: 72,
+            align: 'center',
+            render: (_value: unknown, row: CustomParamRow) => (
+              <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteRow(row.id)} />
+            ),
+          },
+        ]}
+        locale={{ emptyText: t('apiDebug.customParams.empty') }}
+      />
     </div>
   );
 }
@@ -1224,6 +1254,56 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
 
 // ─── Preview Tab (TASK-028) ───────────────────────────
 
+interface InjectedGlobalParamRow {
+  key: string;
+  name: string;
+  value: string;
+  masked: boolean;
+}
+
+function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] }) {
+  const { t } = useTranslation();
+  if (rows.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <Space size={8} style={{ marginBottom: 8 }}>
+        <Text strong>{t('globalParam.title')}</Text>
+        <Text type="secondary">{t('apiDebug.globalParams.readOnly')}</Text>
+      </Space>
+      <Table
+        bordered
+        size="small"
+        pagination={false}
+        dataSource={rows}
+        columns={[
+          {
+            title: t('apiDebug.col.paramName'),
+            dataIndex: 'name',
+            key: 'name',
+            width: 240,
+            render: (name: string) => (
+              <Space size={4}>
+                <Text code>{name}</Text>
+                <Tag color="green">{t('apiDebug.preview.source.global')}</Tag>
+              </Space>
+            ),
+          },
+          {
+            title: t('apiDebug.col.value'),
+            dataIndex: 'value',
+            key: 'value',
+            render: (value: string, record: InjectedGlobalParamRow) => (
+              <RevealableValue value={value} masked={record.masked} />
+            ),
+          },
+        ]}
+        rowKey="key"
+      />
+    </div>
+  );
+}
+
 interface PreviewTabPanelProps {
   build: () => {
     formValues: DebugFormValues;
@@ -1640,7 +1720,6 @@ export default function ApiDebug() {
   );
   const [loading, setLoading] = useState(false);
   const [responseProgress, setResponseProgress] = useState<ResponseBodyProgress | null>(null);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
@@ -1709,7 +1788,6 @@ export default function ApiDebug() {
     if (options.resetActiveTab) {
       setActiveTab(undefined);
     }
-    setAuthModalOpen(false);
     setResetNonce((value) => value + 1);
   };
 
@@ -1864,13 +1942,13 @@ export default function ApiDebug() {
   }, [operation]);
 
   // ── 从 GlobalParamContext 转换为 GlobalParamValues ──
-  const { params: globalParamItems } = useGlobalParam();
+  const { params: globalParamItems, cookieSession } = useGlobalParam();
   const globalParamValues: GlobalParamValues | undefined = useMemo(() => {
     if (!globalParamItems || globalParamItems.length === 0) return undefined;
     const headers: Record<string, string> = {};
     const queries: Record<string, string> = {};
     for (const p of globalParamItems) {
-      if (p.value !== undefined && p.value !== '') {
+      if (p.enabled && p.value !== undefined && p.value !== '') {
         if (p.in === 'header') headers[p.name] = p.value;
         else if (p.in === 'query') queries[p.name] = p.value;
       }
@@ -2230,6 +2308,18 @@ export default function ApiDebug() {
         resolvedUrl: built.url,
         headers: built.headers,
         query: built.query,
+        maskedHeaders: Object.keys(built.headers).filter(
+          (name) =>
+            built.sourceMap?.headers[name] === 'global' &&
+            globalParamItems.some(
+              (param) => param.masked && param.in === 'header' && param.name.toLowerCase() === name.toLowerCase(),
+            ),
+        ),
+        maskedQuery: Object.keys(built.query).filter(
+          (name) =>
+            built.sourceMap?.query[name] === 'global' &&
+            globalParamItems.some((param) => param.masked && param.in === 'query' && param.name === name),
+        ),
         body: historyBody,
         contentType: built.contentType || getEffectiveContentType(),
         groupName: group,
@@ -2267,6 +2357,7 @@ export default function ApiDebug() {
       const init: RequestInit = {
         method: built.method,
         headers: built.headers,
+        credentials: cookieSession.credentials,
         signal: abortController.signal,
       };
 
@@ -2325,25 +2416,6 @@ export default function ApiDebug() {
 
       const contentType = responseHeaders['content-type'] ?? '';
       const durationMs = Date.now() - start;
-
-      // 401 check must come before SSE/non-SSE branching:
-      // a 401 response typically has Content-Type: application/json or text/html,
-      // so it would never enter the SSE branch and the modal would never open.
-      if (res.status === 401) {
-        finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
-          completeEntry(entry, {
-            status: 'completed',
-            httpStatus: 401,
-            statusText: res.statusText,
-            durationMs,
-          }),
-        );
-        if (!isCurrentDebugRequest()) return;
-        setAuthModalOpen(true);
-        setLoading(false);
-        setSseStreaming(false);
-        return;
-      }
 
       // SSE path: text/event-stream → stream via ReadableStream reader
       if (contentType.toLowerCase().includes('text/event-stream')) {
@@ -2606,6 +2678,26 @@ export default function ApiDebug() {
       }),
     );
 
+  const previewBuilt = buildPreview().built;
+  const injectedGlobalHeaders: InjectedGlobalParamRow[] = Object.entries(previewBuilt.headers)
+    .filter(([name]) => previewBuilt.sourceMap?.headers[name] === 'global')
+    .map(([name, value]) => ({
+      key: `header:${name}`,
+      name,
+      value,
+      masked: globalParamItems.some(
+        (param) => param.in === 'header' && param.name.toLowerCase() === name.toLowerCase() && param.masked,
+      ),
+    }));
+  const injectedGlobalQueries: InjectedGlobalParamRow[] = Object.entries(previewBuilt.query)
+    .filter(([name]) => previewBuilt.sourceMap?.query[name] === 'global')
+    .map(([name, value]) => ({
+      key: `query:${name}`,
+      name,
+      value,
+      masked: globalParamItems.some((param) => param.in === 'query' && param.name === name && param.masked),
+    }));
+
   // body tab 的标签含当前 content-type
   const bodyLabel =
     debugModel.bodyContents.length > 0
@@ -2633,21 +2725,26 @@ export default function ApiDebug() {
     {
       key: 'query',
       label: `${t('apiDebug.tab.query')} (${
-        debugModel.queryParams.length + customQueryParams.filter((row) => row.name.trim()).length
+        debugModel.queryParams.length +
+        customQueryParams.filter((row) => row.name.trim()).length +
+        injectedGlobalQueries.length
       })`,
       disabled: false,
       children: (
         <>
-          <Table
-            size="small"
-            dataSource={debugModel.queryParams.filter((p) => !p.readOnly)}
-            columns={paramColumns}
-            pagination={false}
-            rowKey={paramKey}
-            tableLayout="fixed"
-            scroll={PARAM_TABLE_SCROLL}
-            locale={{ emptyText: t('apiDebug.noQueryParams') }}
-          />
+          {(debugModel.queryParams.some((param) => !param.readOnly) || injectedGlobalQueries.length === 0) && (
+            <Table
+              size="small"
+              dataSource={debugModel.queryParams.filter((p) => !p.readOnly)}
+              columns={paramColumns}
+              pagination={false}
+              rowKey={paramKey}
+              tableLayout="fixed"
+              scroll={PARAM_TABLE_SCROLL}
+              locale={{ emptyText: t('apiDebug.noQueryParams') }}
+            />
+          )}
+          <InjectedGlobalParamsSection rows={injectedGlobalQueries} />
           <CustomParamsSection
             title={t('apiDebug.customQuery.title')}
             addLabel={t('apiDebug.customParams.add')}
@@ -2662,24 +2759,29 @@ export default function ApiDebug() {
     {
       key: 'header',
       label: `${t('apiDebug.tab.header')} (${
-        debugModel.headerParams.length + customHeaders.filter((r) => r.name.trim()).length
+        debugModel.headerParams.length +
+        customHeaders.filter((r) => r.name.trim()).length +
+        injectedGlobalHeaders.length
       })`,
       disabled: false,
       children: (
         <>
-          <Table
-            size="small"
-            dataSource={debugModel.headerParams.filter((p) => !p.readOnly)}
-            columns={paramColumns}
-            pagination={false}
-            rowKey={paramKey}
-            tableLayout="fixed"
-            scroll={PARAM_TABLE_SCROLL}
-            locale={{
-              emptyText:
-                debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
-            }}
-          />
+          {(debugModel.headerParams.some((param) => !param.readOnly) || injectedGlobalHeaders.length === 0) && (
+            <Table
+              size="small"
+              dataSource={debugModel.headerParams.filter((p) => !p.readOnly)}
+              columns={paramColumns}
+              pagination={false}
+              rowKey={paramKey}
+              tableLayout="fixed"
+              scroll={PARAM_TABLE_SCROLL}
+              locale={{
+                emptyText:
+                  debugModel.bodyContents.length > 0 ? t('apiDebug.header.autoInject') : t('apiDebug.noHeaderParams'),
+              }}
+            />
+          )}
+          <InjectedGlobalParamsSection rows={injectedGlobalHeaders} />
           <CustomParamsSection
             title={t('apiDebug.customHeaders.title')}
             addLabel={t('apiDebug.customParams.add')}
@@ -2753,9 +2855,9 @@ export default function ApiDebug() {
   const defaultTab =
     debugModel.pathParams.length > 0
       ? 'path'
-      : debugModel.queryParams.length > 0
+      : debugModel.queryParams.length > 0 || injectedGlobalQueries.length > 0
         ? 'query'
-        : debugModel.headerParams.length > 0
+        : debugModel.headerParams.length > 0 || injectedGlobalHeaders.length > 0
           ? 'header'
           : debugModel.cookieParams.length > 0
             ? 'cookie'
@@ -2862,31 +2964,6 @@ export default function ApiDebug() {
             onSseAbort={handleSseAbort}
             sseStreaming={sseStreaming}
           />
-          <Modal
-            open={authModalOpen}
-            onCancel={() => setAuthModalOpen(false)}
-            title={t('auth.modal401.title')}
-            footer={[
-              <Button
-                key="resend"
-                type="primary"
-                onClick={() => {
-                  setAuthModalOpen(false);
-                  void handleSend();
-                }}
-              >
-                {t('auth.modal401.resend')}
-              </Button>,
-              <Button key="close" onClick={() => setAuthModalOpen(false)}>
-                {t('auth.modal401.close')}
-              </Button>,
-            ]}
-            width={680}
-            destroyOnHidden
-          >
-            <p style={{ marginBottom: 16, color: 'rgba(0,0,0,0.65)' }}>{t('auth.modal401.description')}</p>
-            <Authorize />
-          </Modal>
         </div>
 
         {settings.enableRequestHistory && (
