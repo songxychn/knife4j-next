@@ -12,7 +12,26 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.1.0 <Badge type="tip" text="最新" />
+### 5.2.0 <Badge type="tip" text="最新" />
+
+`5.2.0` 是基于 `5.1.0` 的向后兼容次版本，重点将 React UI 的全局参数收敛为分组级能力，支持请求取值、Cookie 会话与敏感值交互，并完成前后端兼容线依赖维护。
+
+**分组级全局参数（React UI）**
+
+- “全局参数”调整为当前 OpenAPI 分组级能力，并与 OpenAPI 鉴权预设统一入口；调试页会提前展示实际注入的 Header、Query 与 Cookie 参数，同名接口参数仍优先（PR #577，issue #552）。
+- 参数值既可手工填写，也可由用户显式发送固定请求后通过 JSONPath 提取；支持浏览器管理的 Cookie 会话和 credentials 策略（PR #577）。
+- 敏感值默认隐藏，支持复制真实值和临时显示；全局参数与调试页自定义参数统一为表格交互（PR #577）。
+
+> 该能力仅适用于 OpenAPI 3 React UI；请求取值需用户主动触发，不自动处理 401/403、刷新或重试，也不读取 HttpOnly Cookie。
+
+**依赖与构建维护**
+
+- 更新 React/core、Vue3 与文档站的同主版本依赖，移除冗余 `@types/dompurify` 与 React Router v5 类型包，并同步 lockfile 和内嵌 UI 产物（PR #576）。
+- Spring Boot 4 更新到 `4.0.7`、Spring Cloud Gateway 5 更新到 `2025.1.2`；Gateway Server Web MVC 使用 Spring Boot `3.5.16` 与 Spring Cloud `2025.0.3`（PR #578）。
+- Boot 2 / Jakarta 聚合 starter 移除 Hutool，改用 JDK、Spring、Gson 与仓库现有工具，并以兼容测试锁定既有 MD5、空白字符、正则、JSON、线程和关闭语义（PR #580）。
+- SLF4J 更新到 `2.0.18`、Lombok 更新到 `1.18.46`、JUnit Jupiter 更新到 `5.14.4`、Maven Surefire Plugin 更新到 `3.5.6`，均保留既有兼容主版本（PR #581）。
+
+### 5.1.0
 
 `5.1.0` 是基于 `5.0.18` 的向后兼容次版本，新增 React 嵌入式启动能力，集中增强调试与文档体验，并补齐中英日国际化链路。
 
@@ -406,7 +425,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 

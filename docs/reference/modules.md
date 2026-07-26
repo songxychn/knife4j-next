@@ -64,7 +64,7 @@ Go 服务不使用 Maven starter，请直接查看 [Knife4x Go 接入](/knife4x/
 
 | 模块 | 说明 |
 | --- | --- |
-| `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 4.0.6 + Boot4 starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
+| `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 4.0.7 + Boot4 starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
 | `knife4j-smoke-tests` | 自动化冒烟测试（14 个子模块覆盖 Boot 2.x OAS2/OAS3/WebFlux/独立聚合、Boot 3.x Jakarta/WebFlux/Gateway WebFlux/Gateway Server Web MVC/独立聚合、Boot 4.x WebMVC/Gateway/独立聚合） |
 

@@ -25,7 +25,7 @@ features:
     link: /guide/migration
     linkText: 迁移指引
   - title: Spring Boot 2.7、3.4、3.5、4.0 都跑过
-    details: 14 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.0 Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.0.6 WebMVC/Gateway/独立聚合组合。
+    details: 14 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.x Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.0.7 WebMVC/Gateway/独立聚合组合。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.1.0</version>
+    <version>5.2.0</version>
 </dependency>
 ```
 
@@ -89,11 +89,11 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.1.0 版本亮点 <Badge type="tip" text="最新" />
+## 5.2.0 版本亮点 <Badge type="tip" text="最新" />
 
-- 🌍 后端、React 与 Vue3 补齐中英日国际化链路，语言切换与 `Accept-Language` 行为保持一致
-- ⬇️ React 调试器支持响应接收进度，已知总长时展示百分比，否则展示已接收大小
-- 🧪 补强 multipart 必填文件校验、响应媒体示例与长 Token 请求预览
+- 🔐 React UI 新增分组级全局参数，可手工填写或发送请求后通过 JSONPath 提取 Header、Query 与 Cookie 参数值
+- 🍪 支持 Cookie 会话、实际注入参数预览、同名接口参数优先，以及敏感值隐藏、复制和临时查看
+- 🧰 Spring Boot 4 / Spring Cloud 基线更新到 `4.0.7` / `2025.1.2`，聚合 starter 移除 Hutool，并完成前后端兼容线依赖维护
 
 完整更新列表见 [发布说明](/release-notes/)。
 
