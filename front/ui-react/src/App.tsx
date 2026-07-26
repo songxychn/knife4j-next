@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Alert, Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
+import enUSLocale from 'antd/locale/en_US';
+import jaJPLocale from 'antd/locale/ja_JP';
+import zhCNLocale from 'antd/locale/zh_CN';
 import { Resizable } from 'react-resizable';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +11,8 @@ import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/Gro
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
-import { SUPPORTED_LANGS, type SupportedLang } from './types/settings';
+import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from './locales/language';
+import type { SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import Markdown from './components/Markdown';
@@ -31,14 +35,10 @@ const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
 const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
 const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
 
-/** Normalise the raw i18next language (which may be `zh`, `ja-jp`, etc.) into one of our supported tags. */
-const normalizeLang = (raw: string | undefined): SupportedLang => {
-  if (!raw) return 'zh-CN';
-  if ((SUPPORTED_LANGS as readonly string[]).includes(raw)) return raw as SupportedLang;
-  const lower = raw.toLowerCase();
-  if (lower.startsWith('ja')) return 'ja-JP';
-  if (lower.startsWith('en')) return 'en-US';
-  return 'zh-CN';
+const antdLocaleMap: Record<SupportedLang, typeof enUSLocale> = {
+  'zh-CN': zhCNLocale,
+  'en-US': enUSLocale,
+  'ja-JP': jaJPLocale,
 };
 
 const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string } | null => {
@@ -342,12 +342,25 @@ const AppInner: React.FC = () => {
   ];
 
   useEffect(() => {
-    if (settings.language && normalizeLang(i18n.language) !== settings.language) {
+    if (settings.language && normalizeSupportedLanguage(i18n.language) !== settings.language) {
       i18n.changeLanguage(settings.language);
     }
   }, [i18n, settings.language]);
 
-  const currentLang = normalizeLang(i18n.language);
+  const currentLang = normalizeSupportedLanguage(i18n.language) ?? DEFAULT_LANGUAGE;
+
+  useEffect(() => {
+    document.documentElement.lang = currentLang;
+  }, [currentLang]);
+
+  useEffect(() => {
+    const homeLabel = t('app.tab.home');
+    setItems((prev) =>
+      prev.some((item) => item.key === HOME_KEY && item.label !== homeLabel)
+        ? prev.map((item) => (item.key === HOME_KEY ? { ...item, label: homeLabel } : item))
+        : prev,
+    );
+  }, [currentLang, t]);
 
   const langLabelMap: Record<SupportedLang, string> = {
     'zh-CN': t('header.lang.zh'),
@@ -362,8 +375,8 @@ const AppInner: React.FC = () => {
   ];
 
   const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
-    const next = normalizeLang(key);
-    if (next !== currentLang) {
+    const next = normalizeSupportedLanguage(key);
+    if (next) {
       setSetting('language', next);
     }
   };
@@ -407,146 +420,150 @@ const AppInner: React.FC = () => {
   const footerContent = resolveFooterContent(settings, t('app.footer'));
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Resizable
-        width={siderWidth}
-        height={Infinity}
-        handle={<div className="react-resizable-handle" />}
-        resizeHandles={['e']}
-        onResize={handleResize}
-        minConstraints={[260, Infinity]}
-        maxConstraints={[520, Infinity]}
-        draggableOpts={{ enableUserSelectHack: false }}
-      >
-        <Sider
-          trigger={null}
-          collapsible
-          collapsed={collapsed}
-          collapsedWidth={56}
+    <ConfigProvider locale={antdLocaleMap[currentLang]}>
+      <Layout style={{ minHeight: '100vh' }}>
+        <Resizable
           width={siderWidth}
-          style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          height={Infinity}
+          handle={<div className="react-resizable-handle" />}
+          resizeHandles={['e']}
+          onResize={handleResize}
+          minConstraints={[260, Infinity]}
+          maxConstraints={[520, Infinity]}
+          draggableOpts={{ enableUserSelectHack: false }}
         >
-          {/* Brand */}
-          <div
+          <Sider
+            trigger={null}
+            collapsible
+            collapsed={collapsed}
+            collapsedWidth={56}
+            width={siderWidth}
+            style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          >
+            {/* Brand */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 10,
+                minHeight: 56,
+                padding: collapsed ? '12px 0' : '12px 16px',
+                color: '#fff',
+                fontSize: collapsed ? 14 : 20,
+                fontWeight: 700,
+                letterSpacing: collapsed ? 0 : 0.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
+              {!collapsed && <span>{t('app.brand')}</span>}
+            </div>
+
+            {/* Group switcher */}
+            {!collapsed && settings.enableGroup && groupOptions.length > 0 && (
+              <div style={{ padding: '0 8px 8px' }}>
+                <Select
+                  options={groupOptions}
+                  value={activeGroup.value}
+                  style={{ width: '100%' }}
+                  onChange={handleGroupChange}
+                />
+              </div>
+            )}
+
+            {/* Search + Menu */}
+            <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={collapsed} />
+          </Sider>
+        </Resizable>
+
+        <Layout>
+          <Header
             style={{
+              padding: 0,
+              background: colorBgContainer,
               display: 'flex',
-              justifyContent: 'center',
               alignItems: 'center',
-              gap: 10,
-              minHeight: 56,
-              padding: collapsed ? '12px 0' : '12px 16px',
-              color: '#fff',
-              fontSize: collapsed ? 14 : 20,
-              fontWeight: 700,
-              letterSpacing: collapsed ? 0 : 0.2,
-              whiteSpace: 'nowrap',
             }}
           >
-            <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
-            {!collapsed && <span>{t('app.brand')}</span>}
-          </div>
-
-          {/* Group switcher */}
-          {!collapsed && settings.enableGroup && groupOptions.length > 0 && (
-            <div style={{ padding: '0 8px 8px' }}>
-              <Select
-                options={groupOptions}
-                value={activeGroup.value}
-                style={{ width: '100%' }}
-                onChange={handleGroupChange}
-              />
-            </div>
-          )}
-
-          {/* Search + Menu */}
-          <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={collapsed} />
-        </Sider>
-      </Resizable>
-
-      <Layout>
-        <Header
-          style={{
-            padding: 0,
-            background: colorBgContainer,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: 16, width: 64, height: 64 }}
-          />
-          {headerTitle}
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-            <Dropdown
-              menu={{
-                items: langMenuItems,
-                selectedKeys: [currentLang],
-                onClick: onLangMenuClick,
-              }}
-              trigger={['click']}
-            >
-              <Button type="text" style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}>
-                {langLabel}
-              </Button>
-            </Dropdown>
             <Button
               type="text"
-              icon={<SettingOutlined />}
-              onClick={() => setSettingsOpen(true)}
-              style={{ fontSize: 16, width: 48, height: 48 }}
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              style={{ fontSize: 16, width: 64, height: 64 }}
             />
-          </span>
-        </Header>
-
-        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-
-        <Content
-          style={{
-            margin: '6px 4px',
-            minHeight: 610,
-            padding: 6,
-            background: colorBgContainer,
-          }}
-        >
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {groupError && (
-              <Alert
-                type="error"
-                showIcon
-                message={t('app.groupError.title')}
-                description={<span style={{ whiteSpace: 'pre-wrap' }}>{groupError}</span>}
-                style={{ margin: '2px 2px 8px' }}
+            {headerTitle}
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+              <Dropdown
+                menu={{
+                  items: langMenuItems,
+                  selectedKeys: [currentLang],
+                  onClick: onLangMenuClick,
+                }}
+                trigger={['click']}
+              >
+                <Button type="text" style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}>
+                  {langLabel}
+                </Button>
+              </Dropdown>
+              <Button
+                type="text"
+                icon={<SettingOutlined />}
+                onClick={() => setSettingsOpen(true)}
+                style={{ fontSize: 16, width: 48, height: 48 }}
               />
-            )}
-            <Tabs
-              hideAdd
-              onChange={onChange}
-              activeKey={activeKey}
-              type="editable-card"
-              onEdit={onEdit}
-              items={tabItems}
-              style={{ flex: 1, margin: '2px 2px' }}
-              onTabClick={(key) => setContextMenuKey(key)}
-            />
-          </div>
-        </Content>
+            </span>
+          </Header>
 
-        {footerContent && (
-          <Footer style={footerStyle}>
-            {footerContent.kind === 'custom' ? (
-              <div className="knife4j-footer-markdown">
-                <Markdown source={footerContent.content} />
-              </div>
-            ) : (
-              footerContent.content
-            )}
-          </Footer>
-        )}
+          <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+          <Content
+            style={{
+              margin: '6px 4px',
+              minHeight: 610,
+              padding: 6,
+              background: colorBgContainer,
+            }}
+          >
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {groupError && (
+                <Alert
+                  type="error"
+                  showIcon
+                  message={t('app.groupError.title')}
+                  description={
+                    <span style={{ whiteSpace: 'pre-wrap' }}>{t(groupError.key, groupError.values ?? {})}</span>
+                  }
+                  style={{ margin: '2px 2px 8px' }}
+                />
+              )}
+              <Tabs
+                hideAdd
+                onChange={onChange}
+                activeKey={activeKey}
+                type="editable-card"
+                onEdit={onEdit}
+                items={tabItems}
+                style={{ flex: 1, margin: '2px 2px' }}
+                onTabClick={(key) => setContextMenuKey(key)}
+              />
+            </div>
+          </Content>
+
+          {footerContent && (
+            <Footer style={footerStyle}>
+              {footerContent.kind === 'custom' ? (
+                <div className="knife4j-footer-markdown">
+                  <Markdown source={footerContent.content} />
+                </div>
+              ) : (
+                footerContent.content
+              )}
+            </Footer>
+          )}
+        </Layout>
       </Layout>
-    </Layout>
+    </ConfigProvider>
   );
 };
 

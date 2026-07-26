@@ -38,7 +38,10 @@ public class OpenAPILanguageEnumsTest {
         Locale locale1 = Locale.forLanguageTag(OpenAPILanguageEnums.EN.getValue());
         Assert.assertEquals(locale1, Locale.US);
         System.out.println(locale1.toString());
-        Locale locale2 = Locale.forLanguageTag("zh-cn");
+        Locale locale2 = Locale.forLanguageTag(OpenAPILanguageEnums.JA_JP.getValue());
+        Assert.assertEquals(locale2, Locale.JAPAN);
         System.out.println(locale2.toString());
+        Locale locale3 = Locale.forLanguageTag("zh-cn");
+        System.out.println(locale3.toString());
     }
 }

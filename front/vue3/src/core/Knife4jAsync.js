@@ -46,6 +46,13 @@ import cloneDeep from 'lodash/cloneDeep';
 import unset from 'lodash/unset';
 import isNull from 'lodash/isNull';
 import isUndefined from 'lodash/isUndefined';
+import {
+  beginDocumentRequest,
+  getDocumentLoadDecision,
+  isCurrentDocumentRequest,
+  prepareInstanceForLanguageReload,
+  replaceGroupMenuData
+} from './languageReload';
 // import xml2js from 'xml2js';
 import DebugAxios from 'axios';
 import { useGlobalsStore } from '@/store/modules/global.js'
@@ -81,10 +88,13 @@ function SwaggerBootstrapUi(options) {
     this.url = options.url || 'swagger-resources';
   }
   this.i18n = options.i18n || 'zh-CN';
+  this.documentRequestId = 0;
+  this.onLanguageChange = typeof options.onLanguageChange === 'function'
+    ? options.onLanguageChange
+    : language => language;
   //  是否Knife4jAggregationDesktop
   this.desktop = options.desktop || false;
   this.desktopCode = null;
-  this.i18nVue = options.i18nVue || null;
   //  是否从地址栏设置i18n，如果是，那么默认以外部地址传入为主，否则会根据后台配置的setting中的language进行合并显示具体对应的i18n版本
   this.i18nFlag = options.i18nFlag || false;
   //  服务端版本是否依赖springfox2.10.5版本
@@ -103,7 +113,6 @@ function SwaggerBootstrapUi(options) {
   this.defaultServiceOption = null;
   this.routeParams = options.routeParams || null;
   this.menuData = null;
-  this.store = options.store || {};
   this.localStore = options.localStore || {};
   //
   this.plus = options.plus;
@@ -374,7 +383,7 @@ SwaggerBootstrapUi.prototype.analysisGroup = function () {
       // 创建分组元素
       that.createGroupElement();
     }, err => {
-      message.error('Knife4j文档请求异常');
+      message.error(that.getI18n().message.sys.requestErr);
       that.error(err);
     })
   } catch (err) {
@@ -709,12 +718,14 @@ SwaggerBootstrapUi.prototype.selectInstanceByGroupName = function (name) {
  * 加载swagger的分组详情接口
  * @param instance 分组接口请求实例
  */
-SwaggerBootstrapUi.prototype.analysisApi = function (instance) {
+SwaggerBootstrapUi.prototype.analysisApi = function (instance, forceReload = false) {
   var that = this;
   try {
     // 赋值
     that.currentInstance = instance;
-    if (!that.currentInstance.load) {
+    const request = beginDocumentRequest(that, instance, that.settings.language);
+    const loadDecision = getDocumentLoadDecision(instance, request.language, forceReload);
+    if (loadDecision.shouldRequest) {
       var api = instance.url;
       if (api == undefined || api == null || api == '') {
         api = instance.location;
@@ -736,7 +747,7 @@ SwaggerBootstrapUi.prototype.analysisApi = function (instance) {
       // api = 'run.json';
       // 此处加上transformResponse参数,防止Long类型在前端丢失精度
       // https://github.com/xiaoymin/swagger-bootstrap-ui/issues/269
-      var reqHeaders = { 'language': that.settings.language };
+      var reqHeaders = { 'language': request.language };
       var requestConfig = {
         url: api,
         dataType: 'json',
@@ -760,10 +771,14 @@ SwaggerBootstrapUi.prototype.analysisApi = function (instance) {
       }
       requestConfig = Object.assign({}, requestConfig, { headers: reqHeaders });
       that.ajax(requestConfig, data => {
-        that.analysisApiSuccess(data);
+        if (isCurrentDocumentRequest(that, request)) {
+          that.analysisApiSuccess(data, loadDecision.addMenu, request.language);
+        }
       }, err => {
-        message.error('Knife4j文档请求异常');
-        that.error(err);
+        if (isCurrentDocumentRequest(that, request)) {
+          message.error(that.getI18n().message.sys.requestErr);
+          that.error(err);
+        }
       })
       /*  DebugAxios.create().request({
          url: api,
@@ -845,7 +860,7 @@ SwaggerBootstrapUi.prototype.initOpenTable = function () {
 /**
  * 接口请求api成功时的操作
  */
-SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data) {
+SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data, addMenu = true, language = this.settings.language) {
   var that = this;
   that.hasLoad = true;
   that.log(data);
@@ -857,6 +872,9 @@ SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data) {
     menu = KUtils.json5parse(data);
   } else {
     menu = data;
+  }
+  if (!addMenu) {
+    prepareInstanceForLanguageReload(that.currentInstance);
   }
   that.setInstanceBasicPorperties(menu);
   that.resolvedOASVersion(menu);
@@ -876,8 +894,9 @@ SwaggerBootstrapUi.prototype.analysisApiSuccess = function (data) {
   that.createDescriptionElement();
   // 当前实例已加载
   that.currentInstance.load = true;
+  that.currentInstance.loadedLanguage = language;
   // 创建swaggerbootstrapui主菜单
-  that.createDetailMenu(true);
+  that.createDetailMenu(addMenu);
   // opentab
   // that.initOpenTable();
   // that.afterApiInitSuccess();
@@ -1009,17 +1028,12 @@ SwaggerBootstrapUi.prototype.openSettings = function (data) {
         // 外部i18n传参
         mergeSetting = Object.assign({}, mergeSetting, { 'language': that.i18n });
       }
-      that.settings = mergeSetting;
-      that.localStore.setItem(Constants.globalSettingsKey, mergeSetting);
       // 设置i18n
       var i18n = KUtils.getValue(mergeSetting, 'language', 'zh-CN', true);
-      this.localStore.setItem(Constants.globalI18nCache, i18n);
-      setTimeout(() => {
-        if (KUtils.checkUndefined(that.i18nVue)) {
-          that.i18nVue.locale = i18n;
-        }
-        that.store.dispatch('globals/setLang', i18n);
-      }, 500);
+      i18n = that.onLanguageChange(i18n);
+      mergeSetting.language = i18n;
+      that.settings = mergeSetting;
+      that.localStore.setItem(Constants.globalSettingsKey, mergeSetting);
     } else {
       // 此处逻辑存在问题,如果开发者通过界面中的个性化设置保存了部分操作,则需要继承开发者的配置(2021/05/02)
       // https://gitee.com/xiaoym/knife4j/issues/I27CN8
@@ -1047,11 +1061,13 @@ SwaggerBootstrapUi.prototype.setDefaultSettings = function () {
   // https://gitee.com/xiaoym/knife4j/issues/I27CN8
   // 不存在，直接移除缓存
   let extSettings = this.settings;
+  const language = extSettings.language;
   let defaultSettings = Constants.defaultSettings;
   let defaultWebSettings = Constants.defaultWebSettings;
   var mergeSetting = Object.assign({}, defaultSettings, extSettings);
   // 默认配置需要排除Ui界面中的几个配置，因为界面开发者可能存在保存操作，在界面初始化加载的时候需要从缓存读取继承
   mergeSetting = Object.assign({}, mergeSetting, defaultWebSettings);
+  mergeSetting.language = language;
   this.localStore.setItem(Constants.globalSettingsKey, mergeSetting);
   // 当前settings设置为默认值
   this.settings = mergeSetting;
@@ -1074,17 +1090,12 @@ SwaggerBootstrapUi.prototype.openV3Settings = function (data) {
           // 外部i18n传参
           mergeSetting = Object.assign({}, mergeSetting, { 'language': that.i18n });
         }
-        that.settings = mergeSetting;
-        that.localStore.setItem(Constants.globalSettingsKey, mergeSetting);
         // 设置i18n
         var i18n = KUtils.getValue(mergeSetting, 'language', 'zh-CN', true);
-        this.localStore.setItem(Constants.globalI18nCache, i18n);
-        setTimeout(() => {
-          if (KUtils.checkUndefined(that.i18nVue)) {
-            that.i18nVue.locale = i18n;
-          }
-          that.store.dispatch('globals/setLang', i18n);
-        }, 500);
+        i18n = that.onLanguageChange(i18n);
+        mergeSetting.language = i18n;
+        that.settings = mergeSetting;
+        that.localStore.setItem(Constants.globalSettingsKey, mergeSetting);
       }
     } else {
       // 不存在，直接移除缓存
@@ -3383,16 +3394,19 @@ SwaggerBootstrapUi.prototype.createDetailMenu = function (addFlag) {
   // //console(menuArr)
   var mdata = KUtils.formatter(menuArr);
   // 添加全局参数
+  const globalsStore = useGlobalsStore()
   if (addFlag) {
     that.globalMenuDatas = that.globalMenuDatas.concat(mdata);
+    globalsStore.setMenuData(mdata)
+  } else {
+    that.globalMenuDatas = replaceGroupMenuData(that.globalMenuDatas, groupId, mdata)
+    globalsStore.setCurrentMenuData(mdata)
   }
   // //console(JSON.stringify(mdata))
   // 双向绑定
   // console.log(mdata)
 
   this.menuData = mdata;
-  const globalsStore = useGlobalsStore()
-  globalsStore.setMenuData(mdata)
   // setGitVersion
   globalsStore.setGitVersion(this.settings.enableVersion)
   /* that.$Vue.MenuData = mdata;
@@ -7038,6 +7052,7 @@ function SwaggerBootstrapUiInstance(name, location, version) {
   this.id = 'SwaggerBootstrapUiInstance' + md5(name + location + version)
   // 默认未加载
   this.load = false;
+  this.loadedLanguage = null;
   // 分组名称
   this.name = name;
   // 分组url地址

@@ -114,7 +114,7 @@ describe('knife4jClient', () => {
     const result = await fetchSwaggerDocResult('/v3/api-docs');
 
     expect(result.doc).toBeNull();
-    expect(result.error).toContain('不是 OpenAPI/Swagger JSON 对象');
+    expect(result.error?.key).toBe('error.apiDocs.invalidObject');
   });
 
   it('diagnoses Base64 encoded api-docs responses', async () => {
@@ -125,8 +125,7 @@ describe('knife4jClient', () => {
     const result = await fetchSwaggerDocResult('/v3/api-docs');
 
     expect(result.doc).toBeNull();
-    expect(result.error).toContain('Base64');
-    expect(result.error).toContain('HttpMessageConverter');
+    expect(result.error?.key).toBe('error.apiDocs.base64');
   });
 
   it('sorts tags and operations by Knife4j x-order extensions', () => {

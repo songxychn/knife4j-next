@@ -23,3 +23,11 @@
 ```bash
 ./tools/agent-status.sh snapshot
 ```
+
+## 截图上传
+
+`upload-images.sh` — 通过本机 PicGo / PicList 上传非敏感截图，验证公开链接并输出 Markdown。
+
+```bash
+./tools/upload-images.sh /absolute/path/before.png /absolute/path/after.png
+```

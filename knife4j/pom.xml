@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j</artifactId>
-    <version>5.0.18</version>
+    <version>5.1.0</version>
     <modules>
         <module>knife4j-core</module>
         <module>knife4j-dependencies</module>
@@ -52,8 +52,8 @@
         <knife4j-spring-boot.version>2.7.18</knife4j-spring-boot.version>
         <knife4j-spring3.version>6.2.0</knife4j-spring3.version>
         <knife4j-spring-boot3.version>3.4.0</knife4j-spring-boot3.version>
-        <knife4j-spring-boot4.version>4.0.6</knife4j-spring-boot4.version>
-        <knife4j-spring-cloud-boot4.version>2025.1.1</knife4j-spring-cloud-boot4.version>
+        <knife4j-spring-boot4.version>4.0.7</knife4j-spring-boot4.version>
+        <knife4j-spring-cloud-boot4.version>2025.1.2</knife4j-spring-cloud-boot4.version>
         <knife4j-junit-jupiter-api.version>5.11.3</knife4j-junit-jupiter-api.version>
 
         <knife4j-springfox.version>2.10.5</knife4j-springfox.version>

@@ -10,10 +10,12 @@ title: 模块说明
 | --- | --- |
 | `knife4j/` | Java 主工程——用户实际引入的 starter 和 webjar 都在这里构建 |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3）、`vue3`（OAS2 兼容） |
-| `knife4x/` | Go/Rust 嵌入式控制台骨架（规划中，UI 共用 `front/ui-react`） |
+| `knife4x/` | 嵌入式控制台：Go `v0.1.0` 已发布，Rust 后置；UI 共用 `front/ui-react` |
 | `docs/` | 当前 VitePress 文档站 |
 | `tools/` | 验证、发布与任务看板脚本 |
 | `legacy/` | 冻结参考（`vue2`、`insight`、`sandbox`），不参与主线构建 |
+
+Go 服务不使用 Maven starter，请直接查看 [Knife4x Go 接入](/knife4x/)。
 
 ## Java 模块（`knife4j/` 下）
 

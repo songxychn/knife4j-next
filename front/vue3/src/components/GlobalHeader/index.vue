@@ -24,13 +24,13 @@
               <delete-outlined /> <span v-html="$t('cacheText')"></span>
             </a-menu-item>
             <a-menu-divider />
-            <a-menu-item key="logout" @click="changeZh">
+            <a-menu-item key="langZh" @click="changeLanguage('zh-CN')">
               <environment-outlined /> 简体中文
             </a-menu-item>
-            <a-menu-item key="triggerError" @click="changeEn">
+            <a-menu-item key="langEn" @click="changeLanguage('en-US')">
               <environment-outlined /> English
             </a-menu-item>
-            <a-menu-item key="langJp" @click="changeJp">
+            <a-menu-item key="langJp" @click="changeLanguage('ja-JP')">
               <environment-outlined /> 日本語
             </a-menu-item>
           </a-menu>
@@ -45,7 +45,6 @@
 </template>
 <script>
 import HeaderSearch from "../HeaderSearch/index.vue";
-import constant from "@/store/constants.js";
 import { useGlobalsStore } from "@/store/modules/global.js";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
@@ -58,10 +57,10 @@ import {
   EnvironmentOutlined,
 } from "@ant-design/icons-vue";
 import { useI18n } from "vue-i18n";
-import localStore from "@/store/local.js";
 
 export default {
   name: "GlobalHeader",
+  emits: ["searchKey", "searchClear", "languageChange"],
   components: {
     HeaderSearch,
     MenuFoldOutlined,
@@ -108,35 +107,15 @@ export default {
     const globalsStore = useGlobalsStore();
     const router = useRouter();
 
-    const { locale } = useI18n();
-
-    function changeZh() {
-      locale.value = "zh-CN";
-      globalsStore.setLang("zh-CN");
-      localStore.setItem(constant.globalI18nCache, "zh-CN");
-    }
-    function changeEn() {
-      // 英文
-      // console.log(this);
-      locale.value = "en-US";
-      globalsStore.setLang("en-US");
-      localStore.setItem(constant.globalI18nCache, "en-US");
-    }
-    function changeJp() {
-      // 日语
-      // console.log(this);
-      locale.value = "ja-JP";
-      globalsStore.setLang("ja-JP");
-      localStore.setItem(constant.globalI18nCache, "ja-JP");
-    }
+    const { t } = useI18n();
 
     return {
       settings: computed(() => {
         return globalsStore.settings;
       }),
-      changeZh,
-      changeEn,
-      changeJp,
+      changeLanguage(language) {
+        emit("languageChange", language);
+      },
       handleMenuClick: () => {},
       jumpSettings: () => {
         router.push({ path: "/documentManager/Settings" });
@@ -160,7 +139,7 @@ export default {
           // TODO
           // this.$localStore.clear();
         } catch (error) {}
-        message.info("清除本地缓存成功");
+        message.info(t("app.cacheCleared"));
       },
     };
   },

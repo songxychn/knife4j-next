@@ -1,30 +1,12 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { DEFAULT_SETTINGS, type AppSettings } from '../types/settings';
+import { readSettingsOverrides, SETTINGS_STORAGE_VERSION, type SettingsOverrides } from './settingsStorage';
 
 const STORAGE_KEY = 'Knife4jGlobalSettings';
-const STORAGE_VERSION = 2;
-
-type SettingsOverrides = Partial<AppSettings>;
 
 interface StoredSettings {
-  version: typeof STORAGE_VERSION;
+  version: typeof SETTINGS_STORAGE_VERSION;
   overrides: SettingsOverrides;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function migrateLegacyOverrides(parsed: unknown): SettingsOverrides {
-  if (!isRecord(parsed)) return {};
-  const overrides: SettingsOverrides = {};
-  (Object.keys(DEFAULT_SETTINGS) as Array<keyof AppSettings>).forEach((key) => {
-    const value = parsed[key];
-    if (value !== undefined && value !== DEFAULT_SETTINGS[key]) {
-      overrides[key] = value as never;
-    }
-  });
-  return overrides;
 }
 
 function loadOverrides(): SettingsOverrides {
@@ -32,10 +14,7 @@ function loadOverrides(): SettingsOverrides {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
-    if (isRecord(parsed) && parsed.version === STORAGE_VERSION && isRecord(parsed.overrides)) {
-      return parsed.overrides as SettingsOverrides;
-    }
-    return migrateLegacyOverrides(parsed);
+    return readSettingsOverrides(parsed);
   } catch {
     return {};
   }
@@ -43,7 +22,7 @@ function loadOverrides(): SettingsOverrides {
 
 function saveOverrides(overrides: SettingsOverrides): void {
   try {
-    const payload: StoredSettings = { version: STORAGE_VERSION, overrides };
+    const payload: StoredSettings = { version: SETTINGS_STORAGE_VERSION, overrides };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
     // ignore quota errors

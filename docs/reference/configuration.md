@@ -67,7 +67,7 @@ public OpenAPI customOpenAPI() {
 
 | 属性 | 类型 | 默认值 | 说明 | React UI |
 | --- | --- | --- | --- | --- |
-| `knife4j.setting.language` | `ZH_CN` / `EN` | `ZH_CN` | 界面语言 | ✅ |
+| `knife4j.setting.language` | `ZH_CN` / `EN` / `JA_JP` | `ZH_CN` | 界面语言 | ✅ |
 | `knife4j.setting.enableSwaggerModels` | `boolean` | `true` | 显示 Swagger Models 功能 | ✅ |
 | `knife4j.setting.swaggerModelName` | `String` | `"Swagger Models"` | Swagger Models 名称 | ✅ |
 | `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ✅ |

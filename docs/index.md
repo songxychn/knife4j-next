@@ -38,6 +38,11 @@ features:
     linkText: 网关接入
 ---
 
+::: tip Knife4x Go v0.1.0
+Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
+UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
+:::
+
 ## 这是 Knife4j 的 fork，不是重写
 
 `knife4j-next` 是 [`xiaoymin/knife4j`](https://github.com/xiaoymin/knife4j) 的社区维护分支。
@@ -55,7 +60,7 @@ features:
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.0.18</version>
+    <version>5.1.0</version>
 </dependency>
 ```
 
@@ -65,7 +70,7 @@ features:
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.0.18</version>
+    <version>5.1.0</version>
 </dependency>
 ```
 
@@ -84,10 +89,11 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.0.18 版本亮点 <Badge type="tip" text="最新" />
+## 5.1.0 版本亮点 <Badge type="tip" text="最新" />
 
-- 🚪 新增 Spring Cloud Gateway Server Web MVC 聚合 starter，覆盖 Boot 3.5 的 MANUAL、受限 DISCOVER、Basic 认证与 `/doc.html` smoke 场景
-- ⚙️ 发布 starter JAR 内置 Spring Boot 配置元数据，IDE 可识别 `knife4j.enable`、`knife4j.production` 等配置项
+- 🌍 后端、React 与 Vue3 补齐中英日国际化链路，语言切换与 `Accept-Language` 行为保持一致
+- ⬇️ React 调试器支持响应接收进度，已知总长时展示百分比，否则展示已接收大小
+- 🧪 补强 multipart 必填文件校验、响应媒体示例与长 Token 请求预览
 
 完整更新列表见 [发布说明](/release-notes/)。
 

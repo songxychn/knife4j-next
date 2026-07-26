@@ -13,6 +13,7 @@ import type {
   Knife4jRuntimeConfig,
   OperationObject,
 } from '../types/swagger';
+import type { LocalizedMessage } from '../types/i18n';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
@@ -22,7 +23,7 @@ const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
 
 export interface SwaggerDocFetchResult {
   doc: SwaggerDoc | null;
-  error: string | null;
+  error: LocalizedMessage | null;
 }
 
 export interface LanguageAwareRequestOptions {
@@ -146,12 +147,12 @@ export async function fetchSwaggerDocResult(
   try {
     const res = await fetchWithAcceptLanguage(url, options.preferredLanguage);
     if (!res.ok) {
-      return { doc: null, error: `api-docs 请求失败：HTTP ${res.status}` };
+      return { doc: null, error: { key: 'error.apiDocs.http', values: { status: res.status } } };
     }
     const text = await res.text();
     return normalizeSwaggerDocResponse(text);
   } catch (_) {
-    return { doc: null, error: 'api-docs 加载失败，请检查后端服务。' };
+    return { doc: null, error: { key: 'error.apiDocs.load' } };
   }
 }
 
@@ -173,18 +174,18 @@ function normalizeSwaggerDocResponse(text: string): SwaggerDocFetchResult {
     if (isBase64EncodedJson(text)) {
       return { doc: null, error: base64ApiDocsError() };
     }
-    return { doc: null, error: 'api-docs 响应不是有效的 JSON，请检查实际返回内容。' };
+    return { doc: null, error: { key: 'error.apiDocs.invalidJson' } };
   }
 
   if (typeof payload === 'string') {
     if (isBase64EncodedJson(payload)) {
       return { doc: null, error: base64ApiDocsError() };
     }
-    return { doc: null, error: 'api-docs 响应是字符串，不是 OpenAPI/Swagger JSON 对象。' };
+    return { doc: null, error: { key: 'error.apiDocs.stringPayload' } };
   }
 
   if (!isSwaggerDocLike(payload)) {
-    return { doc: null, error: 'api-docs 响应不是 OpenAPI/Swagger JSON 对象，请检查接口文档地址。' };
+    return { doc: null, error: { key: 'error.apiDocs.invalidObject' } };
   }
 
   return { doc: normalizeSwaggerDoc(payload), error: null };
@@ -233,11 +234,8 @@ function isBase64EncodedJson(value: string): boolean {
   }
 }
 
-function base64ApiDocsError(): string {
-  return [
-    'api-docs 响应是 Base64 字符串，不是 OpenAPI/Swagger JSON 对象。',
-    '请检查 Spring HttpMessageConverter 配置，避免 Jackson JSON converter 接管 byte[] 或 String 响应。',
-  ].join('\n');
+function base64ApiDocsError(): LocalizedMessage {
+  return { key: 'error.apiDocs.base64' };
 }
 
 /** 将外部传入的字符串归一化为 TagsSorter；无法识别的值一律视为 'preserve'（保持原序） */

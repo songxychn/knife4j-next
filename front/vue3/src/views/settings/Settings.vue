@@ -198,7 +198,7 @@ export default {
       const hostValue = this.settings.enableHostText
       if (hostValue == null || hostValue == '' || hostValue == undefined) {
         this.settings.enableHost = false;
-        message.error('Please Check Host Value');
+        message.error(this.getCurrentI18nInstance().message.settings.hostRequired);
         return false;
       }
       const i18n = this.getCurrentI18nInstance()

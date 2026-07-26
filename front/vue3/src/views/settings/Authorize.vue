@@ -152,21 +152,21 @@ export default {
     auth() {
       if (this.oauth.grantType == "password") {
         if (KUtils.strBlank(this.oauth.username)) {
-          message.info('username can\'t empty!!!');
+          message.info(this.getCurrentI18nInstance().message.auth.usernameRequired);
           return false;
         }
         if (KUtils.strBlank(this.oauth.password)) {
-          message.info('password can\'t empty!!!');
+          message.info(this.getCurrentI18nInstance().message.auth.passwordRequired);
           return false;
         }
       }
       if (KUtils.strBlank(this.oauth.clientId)) {
-        message.info('clientId can\'t empty!!!');
+        message.info(this.getCurrentI18nInstance().message.auth.clientIdRequired);
         return false;
       }
       if (this.oauth.grantType == "accessCode" || this.oauth.grantType == "password" || this.oauth.grantType == "application" || this.oauth.grantType == "client_credentials") {
         if (KUtils.strBlank(this.oauth.clientSecret)) {
-          message.info('clientSecret can\'t empty!!!');
+          message.info(this.getCurrentI18nInstance().message.auth.clientSecretRequired);
           return false;
         }
       }
@@ -239,7 +239,7 @@ export default {
             this.applyHignSecurityVersion(data);
             this.oauth.granted = true;
             this.oauth.sync();
-            message.info("SUCCESS");
+            message.info(this.getCurrentI18nInstance().message.auth.authorizeSuccess);
           })
           .catch(err => {
             if (err.response) {
@@ -272,7 +272,7 @@ export default {
             this.applyHignSecurityVersion(data);
             this.oauth.granted = true;
             this.oauth.sync();
-            message.info("SUCCESS");
+            message.info(this.getCurrentI18nInstance().message.auth.authorizeSuccess);
           })
           .catch(err => {
             if (err.response) {
@@ -387,7 +387,7 @@ export default {
       if (this.securityKeyFlag) {
         this.resetCommonSecurtyAuth();
       }
-      message.info("SUCCESS");
+      message.info(this.getCurrentI18nInstance().message.auth.resetSuccess);
     },
     resetOAuth2() {
       this.oauth.clear();

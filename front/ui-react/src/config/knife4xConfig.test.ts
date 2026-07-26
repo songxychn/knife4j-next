@@ -74,7 +74,7 @@ describe('readKnife4xBootstrap', () => {
 
     expect(result.mode).toBe('error');
     if (result.mode === 'error') {
-      expect(result.error).toContain('Knife4x 启动配置错误');
+      expect(result.error.key).toMatch(/^error\.knife4x\./);
     }
   });
 });

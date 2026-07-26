@@ -7,12 +7,13 @@ import {
   type SwaggerDocFetchResult,
 } from '../api/knife4jClient';
 import { fetchWithAcceptLanguage } from '../api/acceptLanguage';
+import type { LocalizedMessage } from '../types/i18n';
 import type { SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
 import type { Knife4xBootstrap } from './knife4xConfig';
 
 export type InitialGroupsResult =
   | { mode: 'ready'; groups: SwaggerGroup[]; swaggerUiConfig: SwaggerUiConfig | null }
-  | { mode: 'error'; error: string }
+  | { mode: 'error'; error: LocalizedMessage }
   | { mode: 'mock' };
 
 export async function loadInitialGroups(
@@ -71,7 +72,7 @@ export async function fetchSwaggerDocForMode(
 ): Promise<SwaggerDocFetchResult> {
   const result = await fetchSwaggerDocResult(url, options);
   if (mode === 'embed' && result.doc && !isOpenApi3Document(result.doc)) {
-    return { doc: null, error: 'Knife4x 仅支持 OpenAPI 3.x 文档。' };
+    return { doc: null, error: { key: 'error.knife4x.openApi3Only' } };
   }
   return result;
 }

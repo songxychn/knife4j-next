@@ -8,7 +8,7 @@ title: 路线图
 
 ---
 
-## 当前阶段：5.0.18 已发布
+## 当前阶段：5.1.0 已发布
 
 ### 已完成 ✅
 
@@ -37,7 +37,7 @@ title: 路线图
 | React 前端 | 离线文档导出（HTML / Word） | ✅ |
 | React 前端 | 真实 API 数据对接（/v3/api-docs） | ✅ |
 | React 前端 | 集成到 `knife4j-openapi3-ui` webjar | ✅ |
-| React 前端 | i18n 中英文切换 | ✅ |
+| React 前端 | i18n 中英日切换 | ✅ |
 | React 前端 | 设置面板（Header 右上角整合） | ✅ |
 | React 前端 | Tab 右键菜单 + 刷新后状态持久化 | ✅ |
 | React 前端 | 侧边栏接口搜索高亮 + Method 过滤条 | ✅ |

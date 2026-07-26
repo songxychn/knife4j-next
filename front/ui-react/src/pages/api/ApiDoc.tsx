@@ -3,7 +3,6 @@ import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   buildMediaTypeExampleValue,
-  buildSchemaExample,
   buildSchemaFieldTree,
   generateApiMarkdown,
   resolveRefMeta,
@@ -20,6 +19,7 @@ import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
 import { applyValidationGroupRequiredFields } from './validationGroups';
+import { buildJsonExample, responseExamples } from './apiDocExamples';
 
 const { Title, Text } = Typography;
 
@@ -174,20 +174,6 @@ function collectSchemaRefs(
   }
 }
 
-/** Build a pretty-printed JSON example string from a schema, or return null. */
-function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerDoc): string | null {
-  if (!schema) return null;
-  try {
-    const example = buildSchemaExample(schema as Record<string, unknown>, {
-      doc: doc as unknown as Record<string, unknown>,
-    });
-    if (example === null || example === undefined) return null;
-    return JSON.stringify(example, null, 2);
-  } catch {
-    return null;
-  }
-}
-
 function buildRequestBodyExample(
   requestBody: RequestBodyObject | undefined,
   bodySchema: SchemaObject | undefined,
@@ -211,22 +197,6 @@ function buildRequestBodyExample(
   }
 
   return buildJsonExample(mediaEntry.mediaObj.schema ?? bodySchema, doc);
-}
-
-/** Extract per-status-code response schemas for example generation. */
-function responseExamples(
-  responses: Record<string, ResponseObject> | undefined,
-  doc: SwaggerDoc,
-): Array<{ statusCode: string; example: string }> {
-  if (!responses) return [];
-  return Object.entries(responses)
-    .map(([statusCode, resp]) => {
-      const schema =
-        resp.content?.['application/json']?.schema ?? resp.schema ?? Object.values(resp.content ?? {})[0]?.schema;
-      const example = buildJsonExample(schema, doc);
-      return example ? { statusCode, example } : null;
-    })
-    .filter((x): x is { statusCode: string; example: string } => x !== null);
 }
 
 const METHOD_COLOR: Record<string, string> = {
@@ -268,6 +238,26 @@ export default function ApiDoc() {
       path: operation.path,
       operation: op,
       docContext: swaggerDoc,
+      labels: {
+        deprecated: t('apiDoc.markdown.deprecated'),
+        requestParameters: t('apiDoc.requestParams'),
+        noRequestParameters: t('apiDoc.noParams'),
+        requestBody: t('apiDoc.requestBody'),
+        noRequestBody: t('apiDoc.noBody'),
+        requestBodyNotExpandable: t('apiDoc.body.notExpandable'),
+        responseStructure: t('apiDoc.responseStructure'),
+        noResponse: t('apiDoc.noResponse'),
+        name: t('apiDoc.col.paramName'),
+        location: t('apiDoc.col.location'),
+        type: t('apiDoc.col.type'),
+        required: t('apiDoc.col.required'),
+        description: t('apiDoc.col.description'),
+        field: t('apiDoc.col.fieldName'),
+        yes: t('schema.required.yes'),
+        no: t('schema.required.no'),
+        status: t('apiDoc.col.statusCode'),
+        schema: t('apiDoc.col.schema'),
+      },
     });
     copyToClipboard(
       md,

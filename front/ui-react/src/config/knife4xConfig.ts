@@ -1,3 +1,5 @@
+import type { LocalizedMessage } from '../types/i18n';
+
 const CONFIG_KEY = '__KNIFE4X_CONFIG__';
 
 export interface Knife4xConfig {
@@ -6,9 +8,7 @@ export interface Knife4xConfig {
 }
 
 export type Knife4xBootstrap =
-  | { mode: 'java' }
-  | { mode: 'embed'; config: Knife4xConfig }
-  | { mode: 'error'; error: string };
+  { mode: 'java' } | { mode: 'embed'; config: Knife4xConfig } | { mode: 'error'; error: LocalizedMessage };
 
 interface Knife4xWindow {
   location: {
@@ -24,38 +24,38 @@ export function readKnife4xBootstrap(host: Knife4xWindow = window): Knife4xBoots
 
   const raw = host.__KNIFE4X_CONFIG__;
   if (!isRecord(raw)) {
-    return configError('必须是对象');
+    return configError('error.knife4x.notObject');
   }
 
   const specUrl = readNonEmptyString(raw.specUrl);
   if (!specUrl) {
-    return configError('specUrl 必须是非空字符串');
+    return configError('error.knife4x.specUrlRequired');
   }
 
   const basePathValue = readNonEmptyString(raw.basePath);
   if (!basePathValue) {
-    return configError('basePath 必须是非空字符串');
+    return configError('error.knife4x.basePathRequired');
   }
 
   const basePath = normalizeBasePath(basePathValue);
   if (!basePath) {
-    return configError('basePath 必须是 URL 路径');
+    return configError('error.knife4x.basePathInvalid');
   }
 
   try {
     const origin = new URL(host.location.origin);
     if (!isHttpProtocol(origin.protocol)) {
-      return configError('页面必须通过 HTTP(S) 提供');
+      return configError('error.knife4x.pageProtocol');
     }
 
     if (specUrl.startsWith('//')) {
-      return configError('specUrl 不支持省略协议的跨域地址');
+      return configError('error.knife4x.protocolRelativeSpecUrl');
     }
 
     const baseUrl = new URL(basePath === '/' ? '/' : `${basePath}/`, origin);
     const resolvedSpecUrl = new URL(specUrl, baseUrl);
     if (!isHttpProtocol(resolvedSpecUrl.protocol)) {
-      return configError('specUrl 只支持 HTTP(S) URL');
+      return configError('error.knife4x.specUrlProtocol');
     }
 
     return {
@@ -66,7 +66,7 @@ export function readKnife4xBootstrap(host: Knife4xWindow = window): Knife4xBoots
       },
     };
   } catch {
-    return configError('specUrl 或页面 origin 不是有效 URL');
+    return configError('error.knife4x.invalidUrl');
   }
 }
 
@@ -100,6 +100,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function configError(message: string): Knife4xBootstrap {
-  return { mode: 'error', error: `Knife4x 启动配置错误：${message}。` };
+function configError(key: string): Knife4xBootstrap {
+  return { mode: 'error', error: { key } };
 }

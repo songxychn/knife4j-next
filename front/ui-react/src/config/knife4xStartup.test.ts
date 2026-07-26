@@ -97,7 +97,7 @@ describe('Knife4x startup', () => {
 
     await expect(fetchSwaggerDocForMode('/swagger.json', 'embed')).resolves.toEqual({
       doc: null,
-      error: 'Knife4x 仅支持 OpenAPI 3.x 文档。',
+      error: { key: 'error.knife4x.openApi3Only' },
     });
   });
 });
