@@ -88,6 +88,8 @@ export interface SwaggerServer {
 export interface SwaggerTag {
   name: string;
   description?: string;
+  /** Compatibility alias used by some generated documents. */
+  order?: number | string;
   /** Knife4j extension emitted from @ApiSupport.order. */
   'x-order'?: number | string;
 }

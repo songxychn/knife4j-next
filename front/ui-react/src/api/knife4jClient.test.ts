@@ -133,8 +133,8 @@ describe('knife4jClient', () => {
       openapi: '3.0.1',
       info: { title: 'demo', version: '1.0.0' },
       tags: [
-        { name: 'users', description: 'User APIs', 'x-order': 20 },
-        { name: 'pets', description: 'Pet APIs', 'x-order': 10 },
+        { name: 'users', description: 'User APIs', order: 5, 'x-order': 20 },
+        { name: 'pets', description: 'Pet APIs', order: 30, 'x-order': 10 },
       ],
       paths: {
         '/pets/search': {
@@ -168,6 +168,33 @@ describe('knife4jClient', () => {
 
     expect(menuTags.map((tag) => tag.tag)).toEqual(['pets', 'users']);
     expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['createPet', 'searchPets']);
+  });
+
+  it('sorts tags by the plain order field before the configured sorter', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.0.1',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [
+        { name: 'ProductController', order: 1 },
+        { name: 'TestController', order: 2 },
+        { name: 'FileController', order: 4 },
+        { name: 'UserController', order: 3 },
+        { name: 'SseController', order: 5 },
+        { name: 'EnumTestController', order: 6 },
+      ],
+      paths: {},
+    };
+
+    const menuTags = parseMenuTags(doc, { tagsSorter: 'alpha' });
+
+    expect(menuTags.map((tag) => tag.tag)).toEqual([
+      'ProductController',
+      'TestController',
+      'UserController',
+      'FileController',
+      'SseController',
+      'EnumTestController',
+    ]);
   });
 
   it('keeps a stable fallback when Knife4j x-order values tie or are invalid', () => {

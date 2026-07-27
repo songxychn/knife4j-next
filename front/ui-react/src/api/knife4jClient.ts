@@ -352,7 +352,7 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
 
   // 初始化 tag 列表（保持 doc.tags 原始顺序）
   (doc.tags ?? []).forEach((t) => {
-    tagOrders.set(t.name, t[KNIFE4J_ORDER_EXTENSION]);
+    tagOrders.set(t.name, t[KNIFE4J_ORDER_EXTENSION] ?? t.order);
     tagMap.set(t.name, { tag: t.name, description: t.description, operations: [] });
   });
 
