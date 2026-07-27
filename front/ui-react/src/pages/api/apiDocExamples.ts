@@ -1,4 +1,4 @@
-import { buildMediaTypeExampleValue, buildSchemaExample } from 'knife4j-core';
+import { buildMediaTypeExampleValue, buildSchemaExample, dereference } from 'knife4j-core';
 import type { ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 
 /** Build a pretty-printed JSON example string from a schema, or return null. */
@@ -30,9 +30,20 @@ export function responseExamples(
         : undefined;
       const schema =
         resp.content?.['application/json']?.schema ?? resp.schema ?? Object.values(resp.content ?? {})[0]?.schema;
+      const resolvedSchema = schema?.$ref
+        ? (dereference(
+            schema as unknown as Record<string, unknown>,
+            doc as unknown as Record<string, unknown>,
+          ) as SchemaObject)
+        : schema;
       let example: string | null | undefined;
 
       if (mediaEntry) {
+        const hasExplicitExample =
+          'example' in mediaEntry[1] ||
+          Object.keys(mediaEntry[1].examples ?? {}).length > 0 ||
+          Boolean(resolvedSchema && 'example' in resolvedSchema);
+        if (resolvedSchema?.format === 'binary' && !hasExplicitExample) return null;
         try {
           example = buildMediaTypeExampleValue(
             mediaEntry[1],

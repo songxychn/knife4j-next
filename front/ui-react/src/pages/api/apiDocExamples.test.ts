@@ -74,6 +74,61 @@ describe('API document examples', () => {
     expect(responseExamples(responses, doc)).toEqual([{ statusCode: '204', example: '' }]);
   });
 
+  it('does not invent a text example for a binary response', () => {
+    const responses = {
+      '200': {
+        description: '文件流',
+        content: {
+          'application/octet-stream': {
+            schema: { type: 'string', format: 'binary' },
+          },
+        },
+      },
+    } satisfies Record<string, ResponseObject>;
+    const doc = {
+      openapi: '3.1.0',
+      info: { title: 'Issue 579', version: '1.0.0' },
+      paths: {},
+    } as SwaggerDoc;
+
+    expect(responseExamples(responses, doc)).toEqual([]);
+  });
+
+  it('keeps binary schema examples and resolves binary schema refs', () => {
+    const responses = {
+      '200': {
+        description: 'Explicit binary example',
+        content: {
+          'application/octet-stream': {
+            schema: { type: 'string', format: 'binary', example: 'PDF bytes' },
+          },
+        },
+      },
+      '206': {
+        description: 'Referenced binary without example',
+        content: {
+          'application/octet-stream': {
+            schema: { $ref: '#/components/schemas/BinaryFile' },
+          },
+        },
+      },
+    } satisfies Record<string, ResponseObject>;
+    const doc = {
+      openapi: '3.1.0',
+      info: { title: 'Binary examples', version: '1.0.0' },
+      paths: {},
+      components: {
+        schemas: {
+          BinaryFile: { type: 'string', format: 'binary' },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(responseExamples(responses, doc)).toEqual([
+      { statusCode: '200', example: JSON.stringify('PDF bytes', null, 2) },
+    ]);
+  });
+
   it('keeps the schema fallback when no media example is declared', () => {
     const responses = {
       '200': {
