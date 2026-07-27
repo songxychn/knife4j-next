@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.1.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前已发布 Go `v0.2.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ## 安装
@@ -14,8 +14,14 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试�
 Go module 需要 Go 1.22 或更高版本：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.1.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.2.0
 ```
+
+## v0.2.0
+
+Go `Handler` API 与路由语义保持不变，内嵌 React UI 新增中英日国际化、multipart
+必填文件校验、响应接收进度、分组级全局参数，以及二进制响应和响应 Header 展示；
+同时修复 JSON/XML 调试编辑器的 CodeMirror 运行时错误。
 
 ## 最小接入
 
@@ -82,4 +88,4 @@ func main() {
 - [完整 Go 接入说明](https://github.com/songxychn/knife4j-next/blob/master/knife4x/go/README.md)
 - [Gin 可运行示例](https://github.com/songxychn/knife4j-next/tree/master/knife4x/examples/gin)
 - [从 gin-swagger 迁移](https://github.com/songxychn/knife4j-next/blob/master/knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md)
-- [Go v0.1.0 发布与验收规则](https://github.com/songxychn/knife4j-next/blob/master/knife4x/go/RELEASE.md)
+- [Go 发布与验收规则](https://github.com/songxychn/knife4j-next/blob/master/knife4x/go/RELEASE.md)
