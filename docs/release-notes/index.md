@@ -12,7 +12,21 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.2.0 <Badge type="tip" text="最新" />
+### 5.2.1 <Badge type="tip" text="最新" />
+
+`5.2.1` 是基于 `5.2.0` 的向后兼容补丁版本，修复调试页编辑器运行时错误，并完善文件下载等二进制响应的文档展示。
+
+**响应文档（React UI）**
+
+- 响应 Schema 会展示对应 media type；响应 Header 会展示类型、必填状态、说明与 example，并支持 `components.headers` 引用（PR #588，issue #579）。
+- binary 响应未声明 example 时不再生成误导性的空字符串；显式 example 与 schema `$ref` 仍会正确展示（PR #588）。
+- OpenAPI 3 demo 新增文件下载接口，覆盖实际二进制响应文档场景（PR #588）。
+
+**调试器兼容**
+
+- 修复重复 CodeMirror 依赖导致 JSON/XML 调试编辑器加载时报错的问题，并补充语言扩展回归测试（PR #589，issue #586）。
+
+### 5.2.0
 
 `5.2.0` 是基于 `5.1.0` 的向后兼容次版本，重点将 React UI 的全局参数收敛为分组级能力，支持请求取值、Cookie 会话与敏感值交互，并完成前后端兼容线依赖维护。
 
@@ -425,7 +439,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.0</version>
+    <version>5.2.1</version>
 </dependency>
 ```
 
