@@ -1,6 +1,6 @@
 # Knife4x Go 发布
 
-本文只冻结 Knife4x Go 的版本、tag 与验收步骤。实际创建或推送 tag 必须由维护者另行明确授权。
+本文冻结 Knife4x Go 的版本、tag 与验收步骤。实际创建或推送 tag 必须由维护者明确授权。
 
 ## 固定坐标
 
@@ -8,7 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 仓库 tag | `knife4x/go/v0.1.0` |
+| 当前版本 | `v0.2.0` |
+| 当前 tag | `knife4x/go/v0.2.0` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -50,8 +51,8 @@ test -f knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-grep -Fq 'knife4x/go/v0.1.0' knife4x/README.md knife4x/go/README.md
-grep -Fq 'go@v0.1.0' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
+grep -Fq 'knife4x/go/v0.2.0' knife4x/README.md knife4x/go/README.md
+grep -Fq 'go@v0.2.0' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 grep -Fq 'OAS2 不能直接迁移' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 test -z "$(git status --porcelain)"
 ```
@@ -61,11 +62,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.1.0 -m "Knife4x Go v0.1.0"
-git push origin knife4x/go/v0.1.0
+git tag -a knife4x/go/v0.2.0 -m "Knife4x Go v0.2.0"
+git push origin knife4x/go/v0.2.0
 ```
 
-不要同时创建根级 `v0.1.0` tag，不要运行 Java Maven Release，不要为首版新增
+不要同时创建根级 `v0.2.0` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -74,7 +75,7 @@ registry、OIDC、secret 或 GitHub Release。
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.1.0
+version=v0.2.0
 curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info"
 ```
 
@@ -86,7 +87,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.1.0
+version=v0.2.0
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -132,11 +133,11 @@ test -f "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 查询、无 `replace` consumer 编译和下载内容检查都通过后，才可宣布
-Knife4x Go `v0.1.0` 发布完成。
+Knife4x Go `v0.2.0` 发布完成。
 
 ## 补丁原则
 
 - 已发布 tag 不移动、不覆盖；有问题发布新的 patch 版本。
 - 只修兼容 bug 时递增 patch；新增向后兼容能力时递增 minor。
 - `0.x` 的破坏性变更至少递增 minor，并提供迁移说明。
-- Rust 尚未发布，不为 Go `v0.1.0` 创建空 crate 或同步 tag。
+- Rust 尚未发布，不为本次 Go 版本创建空 crate 或同步 tag。
