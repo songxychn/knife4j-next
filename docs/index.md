@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.2.0</version>
+    <version>5.2.1</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.0</version>
+    <version>5.2.1</version>
 </dependency>
 ```
 
@@ -89,11 +89,11 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.2.0 版本亮点 <Badge type="tip" text="最新" />
+## 5.2.1 版本亮点 <Badge type="tip" text="最新" />
 
-- 🔐 React UI 新增分组级全局参数，可手工填写或发送请求后通过 JSONPath 提取 Header、Query 与 Cookie 参数值
-- 🍪 支持 Cookie 会话、实际注入参数预览、同名接口参数优先，以及敏感值隐藏、复制和临时查看
-- 🧰 Spring Boot 4 / Spring Cloud 基线更新到 `4.0.7` / `2025.1.2`，聚合 starter 移除 Hutool，并完成前后端兼容线依赖维护
+- 🧩 修复 JSON/XML 调试编辑器加载时的 CodeMirror 运行时错误
+- 📥 二进制响应未声明 example 时不再生成误导性文本，文件下载文档更准确
+- 🧾 响应文档新增 media type 与 Header 类型、说明、example 展示
 
 完整更新列表见 [发布说明](/release-notes/)。
 
