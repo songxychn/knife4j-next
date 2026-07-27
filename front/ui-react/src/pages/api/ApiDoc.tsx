@@ -4,12 +4,20 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   buildMediaTypeExampleValue,
   buildSchemaFieldTree,
+  dereference,
   generateApiMarkdown,
   resolveRefMeta,
   type SchemaFieldNode,
 } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
-import type { ParameterObject, RequestBodyObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
+import type {
+  ParameterObject,
+  RequestBodyObject,
+  ResponseHeaderObject,
+  ResponseObject,
+  SchemaObject,
+  SwaggerDoc,
+} from '../../types/swagger';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import DescriptionText from '../../components/DescriptionText';
 import Markdown from '../../components/Markdown';
@@ -39,6 +47,15 @@ interface ResponseRow {
   statusCode: string;
   description: string;
   schema?: SchemaObject;
+  mediaType?: string;
+  headers: Array<{
+    key: string;
+    name: string;
+    type: string;
+    required: boolean;
+    description: string;
+    example: string;
+  }>;
 }
 
 type RequestMediaObject = NonNullable<RequestBodyObject['content']>[string];
@@ -93,6 +110,16 @@ function responseSchema(response: ResponseObject): SchemaObject | undefined {
     response.schema ??
     Object.values(response.content ?? {})[0]?.schema
   );
+}
+
+function responseMediaType(response: ResponseObject): string | undefined {
+  if (response.content?.['application/json']) return 'application/json';
+  return Object.keys(response.content ?? {})[0];
+}
+
+function exampleText(value: unknown): string {
+  if (value === undefined) return '-';
+  return typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
 }
 
 function schemaToFieldNodes(schema: SchemaObject, doc: SwaggerDoc): SchemaFieldNode[] {
@@ -324,6 +351,28 @@ export default function ApiDoc() {
       ),
     },
   ];
+  const responseHeaderColumns: ColumnsType<ResponseRow['headers'][number]> = [
+    {
+      title: t('apiDebug.col.header'),
+      dataIndex: 'name',
+      width: 220,
+      render: (value) => <Text code>{value}</Text>,
+    },
+    { title: t('apiDoc.col.type'), dataIndex: 'type', width: 130 },
+    {
+      title: t('apiDoc.col.required'),
+      dataIndex: 'required',
+      width: 80,
+      render: (value) =>
+        value ? (
+          <Badge status="error" text={t('schema.required.yes')} />
+        ) : (
+          <Badge status="default" text={t('schema.required.no')} />
+        ),
+    },
+    { title: t('apiDoc.col.description'), dataIndex: 'description' },
+    { title: t('apiDebug.col.headerValue'), dataIndex: 'example' },
+  ];
 
   const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => {
     const ref = (parameter as ParameterObject & { $ref?: string }).$ref ?? parameter.schema?.$ref;
@@ -345,12 +394,32 @@ export default function ApiDoc() {
   const bodyFields = bodySchema
     ? filterFieldNodes(applyValidationGroupRequiredFields(schemaToFieldNodes(bodySchema, swaggerDoc), op), 'request')
     : [];
-  const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => ({
-    key: statusCode,
-    statusCode,
-    description: response.description ?? '',
-    schema: responseSchema(response),
-  }));
+  const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => {
+    const headers = Object.entries(response.headers ?? {}).map(([name, header]) => {
+      const resolvedHeader = header.$ref
+        ? (dereference(
+            header as unknown as Record<string, unknown>,
+            swaggerDoc as unknown as Record<string, unknown>,
+          ) as ResponseHeaderObject)
+        : header;
+      return {
+        key: name,
+        name,
+        type: schemaName(resolvedHeader.schema) || '-',
+        required: Boolean(resolvedHeader.required),
+        description: resolvedHeader.description ?? '',
+        example: exampleText(resolvedHeader.example ?? resolvedHeader.schema?.example),
+      };
+    });
+    return {
+      key: statusCode,
+      statusCode,
+      description: response.description ?? '',
+      schema: responseSchema(response),
+      mediaType: responseMediaType(response),
+      headers,
+    };
+  });
   const relatedModelNames = (() => {
     const refs = new Set<string>();
     (op.parameters ?? []).forEach((parameter) => collectSchemaRefs(parameter.schema, swaggerDoc, refs));
@@ -523,7 +592,7 @@ export default function ApiDoc() {
                       : [];
                     return (
                       <div key={row.key} style={{ marginBottom: 16 }}>
-                        <Space size={8} style={{ marginBottom: 6 }}>
+                        <Space size={8} wrap style={{ marginBottom: 6 }}>
                           <Tag color={color}>{row.statusCode}</Tag>
                           {row.description && (
                             <DescriptionText type="secondary" style={{ fontSize: 13 }}>
@@ -531,8 +600,22 @@ export default function ApiDoc() {
                             </DescriptionText>
                           )}
                           {row.schema && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
+                          {row.mediaType && <Tag>{row.mediaType}</Tag>}
                         </Space>
                         <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
+                        {row.headers.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <Text strong>{t('apiDebug.response.headers')}</Text>
+                            <Table
+                              columns={responseHeaderColumns}
+                              dataSource={row.headers}
+                              pagination={false}
+                              size="small"
+                              bordered
+                              style={{ marginTop: 6 }}
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })

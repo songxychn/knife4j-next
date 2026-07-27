@@ -97,6 +97,7 @@ export interface SchemaObject {
   format?: string;
   title?: string;
   description?: string;
+  example?: unknown;
   properties?: Record<string, SchemaObject>;
   items?: SchemaObject;
   $ref?: string;
@@ -135,8 +136,17 @@ export interface RequestBodyObject {
   >;
 }
 
+export interface ResponseHeaderObject {
+  description?: string;
+  required?: boolean;
+  schema?: SchemaObject;
+  example?: unknown;
+  $ref?: string;
+}
+
 export interface ResponseObject {
   description?: string;
+  headers?: Record<string, ResponseHeaderObject>;
   content?: Record<
     string,
     {
@@ -238,6 +248,7 @@ export interface SwaggerDoc {
   components?: {
     schemas?: Record<string, SchemaObject>;
     examples?: Record<string, ExampleObject>;
+    headers?: Record<string, ResponseHeaderObject>;
     securitySchemes?: Record<string, SecuritySchemeObject>;
   };
   definitions?: Record<string, SchemaObject>; // OAS2
