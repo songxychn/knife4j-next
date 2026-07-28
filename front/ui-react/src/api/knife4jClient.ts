@@ -355,6 +355,11 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
     tagOrders.set(t.name, t[KNIFE4J_ORDER_EXTENSION]);
     tagMap.set(t.name, { tag: t.name, description: t.description, operations: [] });
   });
+  (doc.tags ?? []).forEach((t) => {
+    if (t.description && !tagMap.has(t.description) && !tagOrders.has(t.description)) {
+      tagOrders.set(t.description, t[KNIFE4J_ORDER_EXTENSION]);
+    }
+  });
 
   Object.entries(doc.paths ?? {}).forEach(([path, pathItem]) => {
     HTTP_METHODS.forEach((method) => {

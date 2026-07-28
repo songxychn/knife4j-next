@@ -170,6 +170,29 @@ describe('knife4jClient', () => {
     expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['createPet', 'searchPets']);
   });
 
+  it('sorts operation tag names by matching tag descriptions', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.2.0',
+      info: { title: 'demo', version: '1.0.0' },
+      tags: [
+        { name: 'ProductController', description: '产品控制器', 'x-order': 1 },
+        { name: 'UserController', description: '用户控制器', 'x-order': 2 },
+      ],
+      paths: {
+        '/users': {
+          get: { tags: ['用户控制器'], summary: 'List users', operationId: 'listUsers', 'x-order': 1 },
+        },
+        '/products': {
+          get: { tags: ['产品控制器'], summary: 'List products', operationId: 'listProducts', 'x-order': 1 },
+        },
+      },
+    };
+
+    const menuTags = parseMenuTags(doc).filter((tag) => tag.operations.length > 0);
+
+    expect(menuTags.map((tag) => tag.tag)).toEqual(['产品控制器', '用户控制器']);
+  });
+
   it('keeps a stable fallback when Knife4j x-order values tie or are invalid', () => {
     const doc: SwaggerDoc = {
       openapi: '3.0.1',
