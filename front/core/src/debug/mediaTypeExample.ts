@@ -21,22 +21,10 @@ function isJsonMediaType(mediaType: string | undefined): boolean {
   return normalized === 'application/json' || normalized.endsWith('+json');
 }
 
-function isJsonDocumentString(value: string): boolean {
-  try {
-    JSON.parse(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function formatExampleValue(value: unknown, options: MediaTypeExampleOptions = {}): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value === 'string') {
-    if (isJsonMediaType(options.mediaType) && !isJsonDocumentString(value)) {
-      return JSON.stringify(value);
-    }
-    return value;
+    return isJsonMediaType(options.mediaType) ? JSON.stringify(value) : value;
   }
   return JSON.stringify(value, null, 2);
 }

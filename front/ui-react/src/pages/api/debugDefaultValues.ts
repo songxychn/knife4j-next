@@ -115,10 +115,6 @@ export function stringifyDebugValue(value: unknown, type?: string): string {
 function stringifyBodyValue(value: unknown, bodyContent: BodyContent): string {
   if (value === undefined || value === null) return '';
   if (bodyContent.category === 'json') {
-    if (typeof value === 'string') {
-      const schemaType = isRecord(bodyContent.schema) ? bodyContent.schema.type : undefined;
-      return schemaType === 'string' ? JSON.stringify(value, null, 2) : value;
-    }
     return JSON.stringify(value, null, 2);
   }
   if (typeof value === 'object') return stringifyDebugValue(value);

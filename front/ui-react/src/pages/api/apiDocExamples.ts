@@ -1,5 +1,23 @@
 import { buildMediaTypeExampleValue, buildSchemaExample, dereference } from 'knife4j-core';
-import type { ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
+import type { RequestBodyObject, ResponseObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
+
+type RequestMediaObject = NonNullable<RequestBodyObject['content']>[string];
+
+export interface RequestMediaEntry {
+  mediaType: string;
+  mediaObj: RequestMediaObject;
+}
+
+export function firstRequestMedia(requestBody: RequestBodyObject | undefined): RequestMediaEntry | undefined {
+  if (!requestBody?.content) return undefined;
+  const jsonMedia = requestBody.content['application/json'];
+  if (jsonMedia) return { mediaType: 'application/json', mediaObj: jsonMedia };
+
+  const firstEntry = Object.entries(requestBody.content)[0];
+  if (!firstEntry) return undefined;
+  const [mediaType, mediaObj] = firstEntry;
+  return { mediaType, mediaObj };
+}
 
 /** Build a pretty-printed JSON example string from a schema, or return null. */
 export function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerDoc): string | null {
@@ -13,6 +31,32 @@ export function buildJsonExample(schema: SchemaObject | undefined, doc: SwaggerD
   } catch {
     return null;
   }
+}
+
+/** Build the request body example shown in the API document. */
+export function requestBodyExample(
+  requestBody: RequestBodyObject | undefined,
+  bodySchema: SchemaObject | undefined,
+  doc: SwaggerDoc,
+): string | null {
+  const mediaEntry = firstRequestMedia(requestBody);
+  if (!mediaEntry) return buildJsonExample(bodySchema, doc);
+
+  try {
+    const example = buildMediaTypeExampleValue(
+      mediaEntry.mediaObj,
+      undefined,
+      {
+        doc: doc as unknown as Record<string, unknown>,
+      },
+      { mediaType: mediaEntry.mediaType },
+    );
+    if (example !== undefined) return example;
+  } catch {
+    return null;
+  }
+
+  return buildJsonExample(mediaEntry.mediaObj.schema ?? bodySchema, doc);
 }
 
 /** Extract per-status-code response examples, preferring explicit media examples over generated schema values. */

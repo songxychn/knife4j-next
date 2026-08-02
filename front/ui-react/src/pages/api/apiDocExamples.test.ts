@@ -1,20 +1,115 @@
 import { describe, expect, it } from 'vitest';
 import type { ResponseObject, SwaggerDoc } from '../../types/swagger';
-import { responseExamples } from './apiDocExamples';
+import { requestBodyExample, responseExamples } from './apiDocExamples';
 
 describe('API document examples', () => {
-  it('uses an OAS3 response examples.value JSON string before the schema example', () => {
-    const value = JSON.stringify(
-      {
-        success: true,
-        status: '200',
-        message: '',
-        data: 'SUCCESS',
-        timestamp: '',
+  it('keeps a JSON-looking request example string as a string', () => {
+    const literal = '{"kind":"literal"}';
+    const schema = { type: 'string' } as const;
+    const requestBody = {
+      content: {
+        'application/json': {
+          schema,
+          example: literal,
+        },
       },
-      null,
-      2,
-    );
+    };
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'String request example', version: '1.0.0' },
+      paths: {},
+    } as SwaggerDoc;
+
+    const rendered = requestBodyExample(requestBody, schema, doc);
+
+    expect(JSON.parse(rendered!)).toBe(literal);
+  });
+
+  it('preserves a native request example object and its empty string property', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        pictureUrl: { type: 'string', default: 'schema-picture' },
+        title: { type: 'string' },
+      },
+    } as const;
+    const requestBody = {
+      content: {
+        'application/json': {
+          schema,
+          examples: {
+            cover: {
+              value: { pictureUrl: '', title: 'cover' },
+            },
+          },
+        },
+      },
+    };
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'Object request example', version: '1.0.0' },
+      paths: {},
+    } as SwaggerDoc;
+
+    expect(JSON.parse(requestBodyExample(requestBody, schema, doc)!)).toEqual({
+      pictureUrl: '',
+      title: 'cover',
+    });
+  });
+
+  it('keeps the request schema fallback when no media example is declared', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    } as const;
+    const requestBody = {
+      content: {
+        'application/json': { schema },
+      },
+    };
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'Request schema fallback', version: '1.0.0' },
+      paths: {},
+    } as SwaggerDoc;
+
+    expect(JSON.parse(requestBodyExample(requestBody, schema, doc)!)).toEqual({ message: 'string' });
+  });
+
+  it('keeps a JSON-looking response example string as a string', () => {
+    const literal = '{"kind":"literal"}';
+    const responses = {
+      '200': {
+        description: 'OK',
+        content: {
+          'application/json': {
+            schema: { type: 'string' },
+            example: literal,
+          },
+        },
+      },
+    } satisfies Record<string, ResponseObject>;
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'String example', version: '1.0.0' },
+      paths: {},
+    } as SwaggerDoc;
+
+    const [response] = responseExamples(responses, doc);
+
+    expect(JSON.parse(response.example)).toBe(literal);
+  });
+
+  it('uses an OAS3 response examples.value object before the schema example', () => {
+    const value = {
+      success: true,
+      status: '200',
+      message: '',
+      data: 'SUCCESS',
+      timestamp: '',
+    };
     const responses = {
       '200': {
         description: 'OK',
@@ -51,7 +146,7 @@ describe('API document examples', () => {
       },
     } as SwaggerDoc;
 
-    expect(responseExamples(responses, doc)).toEqual([{ statusCode: '200', example: value }]);
+    expect(responseExamples(responses, doc)).toEqual([{ statusCode: '200', example: JSON.stringify(value, null, 2) }]);
   });
 
   it('keeps an explicitly empty response example', () => {

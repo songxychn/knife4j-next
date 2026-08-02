@@ -288,7 +288,7 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(parsed).toHaveProperty('age');
   });
 
-  test('uses OAS3 media type examples.value string before schema example', () => {
+  test('uses an OAS3 media type examples.value object before the schema example', () => {
     const doc = {
       openapi: '3.0.1',
       info: { title: 'T', version: '1' },
@@ -307,7 +307,7 @@ describe('buildOperationDebugModel — OAS3', () => {
                   },
                   examples: {
                     emptyPictureUrl: {
-                      value: '{"pictureUrl":"","title":"cover"}',
+                      value: { pictureUrl: '', title: 'cover' },
                     },
                   },
                 },
@@ -334,7 +334,7 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(exampleValue).not.toContain('"pictureUrl":"string"');
   });
 
-  test('serializes OAS3 JSON scalar string example as a valid JSON payload', () => {
+  test('serializes OAS3 JSON string examples by their declared value type', () => {
     const doc = {
       openapi: '3.0.1',
       info: { title: 'T', version: '1' },
@@ -345,7 +345,11 @@ describe('buildOperationDebugModel — OAS3', () => {
               content: {
                 'application/json': {
                   schema: { type: 'string' },
-                  example: 'abc',
+                  example: '{"kind":"literal"}',
+                },
+                'application/problem+json': {
+                  schema: { type: 'string' },
+                  example: 'null',
                 },
                 'text/plain': {
                   schema: { type: 'string' },
@@ -365,11 +369,12 @@ describe('buildOperationDebugModel — OAS3', () => {
       method: 'post',
     });
 
-    expect(model.bodyContents).toHaveLength(2);
+    expect(model.bodyContents).toHaveLength(3);
     const jsonBody = model.bodyContents.find((body) => body.mediaType === 'application/json');
+    const problemJsonBody = model.bodyContents.find((body) => body.mediaType === 'application/problem+json');
     const textBody = model.bodyContents.find((body) => body.mediaType === 'text/plain');
-    expect(jsonBody?.exampleValue).toBe('"abc"');
-    expect(JSON.parse(jsonBody!.exampleValue!)).toBe('abc');
+    expect(JSON.parse(jsonBody!.exampleValue!)).toBe('{"kind":"literal"}');
+    expect(JSON.parse(problemJsonBody!.exampleValue!)).toBe('null');
     expect(textBody?.exampleValue).toBe('abc');
   });
 

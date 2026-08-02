@@ -2,7 +2,6 @@ import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, messag
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  buildMediaTypeExampleValue,
   buildSchemaFieldTree,
   dereference,
   generateApiMarkdown,
@@ -27,7 +26,7 @@ import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
 import { applyValidationGroupRequiredFields } from './validationGroups';
-import { buildJsonExample, responseExamples } from './apiDocExamples';
+import { firstRequestMedia, requestBodyExample, responseExamples } from './apiDocExamples';
 
 const { Title, Text } = Typography;
 
@@ -58,12 +57,6 @@ interface ResponseRow {
   }>;
 }
 
-type RequestMediaObject = NonNullable<RequestBodyObject['content']>[string];
-interface RequestMediaEntry {
-  mediaType: string;
-  mediaObj: RequestMediaObject;
-}
-
 function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
   if (!match) return undefined;
@@ -81,17 +74,6 @@ function schemaName(schema?: SchemaObject): string {
 
 function parameterType(parameter: ParameterObject): string {
   return schemaName(parameter.schema) || [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
-}
-
-function firstRequestMedia(requestBody: RequestBodyObject | undefined): RequestMediaEntry | undefined {
-  if (!requestBody?.content) return undefined;
-  const jsonMedia = requestBody.content['application/json'];
-  if (jsonMedia) return { mediaType: 'application/json', mediaObj: jsonMedia };
-
-  const firstEntry = Object.entries(requestBody.content)[0];
-  if (!firstEntry) return undefined;
-  const [mediaType, mediaObj] = firstEntry;
-  return { mediaType, mediaObj };
 }
 
 function firstRequestSchema(
@@ -199,31 +181,6 @@ function collectSchemaRefs(
   if (additionalProperties && typeof additionalProperties === 'object') {
     collectSchemaRefs(additionalProperties as SchemaObject, doc, refs, seenRefs, depth + 1);
   }
-}
-
-function buildRequestBodyExample(
-  requestBody: RequestBodyObject | undefined,
-  bodySchema: SchemaObject | undefined,
-  doc: SwaggerDoc,
-): string | null {
-  const mediaEntry = firstRequestMedia(requestBody);
-  if (!mediaEntry) return buildJsonExample(bodySchema, doc);
-
-  try {
-    const example = buildMediaTypeExampleValue(
-      mediaEntry.mediaObj,
-      undefined,
-      {
-        doc: doc as unknown as Record<string, unknown>,
-      },
-      { mediaType: mediaEntry.mediaType },
-    );
-    if (example !== undefined) return example;
-  } catch {
-    return null;
-  }
-
-  return buildJsonExample(mediaEntry.mediaObj.schema ?? bodySchema, doc);
 }
 
 const METHOD_COLOR: Record<string, string> = {
@@ -432,7 +389,7 @@ export default function ApiDoc() {
     );
   })();
 
-  const requestExample = buildRequestBodyExample(op.requestBody, bodySchema, swaggerDoc);
+  const requestExample = requestBodyExample(op.requestBody, bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
   const authors = operationAuthors(op);
 
