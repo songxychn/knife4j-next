@@ -9,13 +9,15 @@ github.com/songxychn/knife4j-next/knife4x/go
 Knife4x 只消费 OpenAPI 3 JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2。核心只依赖
 标准库 `net/http`；Gin 只是可运行的组合示例，不是库依赖。
 
-当前公开版本为 `v0.2.0`，对应仓库 tag `knife4x/go/v0.2.0`：
+当前公开版本为 `v0.2.1`，对应仓库 tag `knife4x/go/v0.2.1`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.2.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.2.1
 ```
 
-`v0.2.0` 保持 `Config`、`NewHandler` 与路由语义不变，只升级内嵌 React UI。
+`v0.2.1` 保持 `Config`、`NewHandler` 与路由语义不变，只同步内嵌 React UI 补丁
+（数组枚举多选与查询参数序列化、集合请求体分组校验、JSON example 原生类型、
+移除非规范 `extensions` 包装兼容）。
 
 发布门禁、tag 规则与公共消费验证见 [RELEASE.md](RELEASE.md)。
 
