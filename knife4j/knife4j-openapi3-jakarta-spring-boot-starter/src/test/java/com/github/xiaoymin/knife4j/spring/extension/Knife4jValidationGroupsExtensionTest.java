@@ -89,10 +89,14 @@ public class Knife4jValidationGroupsExtensionTest {
         public void update(@RequestBody UserFormRequest req) {
         }
 
+        @ApiOperationSupport(order = 3, validationGroups = {Create.class})
+        public void batchCreate(@RequestBody List<UserFormRequest> req) {
+        }
+
         public void createByValidated(@RequestBody @Validated(Create.class) UserFormRequest req) {
         }
 
-        @ApiOperationSupport(order = 3)
+        @ApiOperationSupport(order = 4)
         public void noGroups(@RequestBody UserFormRequest req) {
         }
 
@@ -105,6 +109,12 @@ public class Knife4jValidationGroupsExtensionTest {
     private HandlerMethod handlerMethod(String methodName) throws Exception {
         DemoController bean = new DemoController();
         java.lang.reflect.Method m = DemoController.class.getMethod(methodName, UserFormRequest.class);
+        return new HandlerMethod(bean, m);
+    }
+
+    private HandlerMethod collectionHandlerMethod(String methodName) throws Exception {
+        DemoController bean = new DemoController();
+        java.lang.reflect.Method m = DemoController.class.getMethod(methodName, List.class);
         return new HandlerMethod(bean, m);
     }
 
@@ -142,6 +152,20 @@ public class Knife4jValidationGroupsExtensionTest {
         Assert.assertTrue(groups.get("Update").contains("id"));
         Assert.assertTrue(groups.get("Update").contains("name"));
         Assert.assertFalse(groups.get("Update").contains("email"));
+    }
+
+    @Test
+    public void collectionRequestBodyProducesCreateGroupExtension() throws Exception {
+        Operation op = new Operation().operationId("batchCreate");
+        customizer().customize(op, collectionHandlerMethod("batchCreate"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, List<String>> groups =
+                (Map<String, List<String>>) op.getExtensions().get(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS);
+        Assert.assertNotNull(groups);
+        Assert.assertTrue(groups.get("Create").contains("name"));
+        Assert.assertTrue(groups.get("Create").contains("email"));
+        Assert.assertFalse(groups.get("Create").contains("id"));
     }
 
     @Test

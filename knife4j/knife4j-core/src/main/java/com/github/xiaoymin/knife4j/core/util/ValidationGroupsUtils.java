@@ -20,7 +20,12 @@ package com.github.xiaoymin.knife4j.core.util;
 import com.github.xiaoymin.knife4j.core.spi.ValidatorAnnotationResolverRegistry;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.*;
 
 /**
@@ -41,6 +46,41 @@ public final class ValidationGroupsUtils {
             "NotNull", "NotBlank", "NotEmpty"));
 
     private ValidationGroupsUtils() {
+    }
+
+    /**
+     * Resolves the model class represented by a request-body type.
+     *
+     * <p>Collection and array request bodies are unwrapped to their element model
+     * so validation annotations are read from the DTO rather than from
+     * {@link Collection} or the array class itself. Nested collections and bounded
+     * wildcard/type-variable elements are handled recursively. Raw collections
+     * fall back to their raw class because no element model is available.
+     *
+     * @param requestBodyType the generic request-body type from reflection
+     * @return the request-body model class, or {@code null} when it cannot be resolved
+     * @since knife4j-next (issue #598)
+     */
+    public static Class<?> resolveRequestBodyModelClass(Type requestBodyType) {
+        Class<?> rawClass = rawClass(requestBodyType);
+        if (rawClass == null) {
+            return null;
+        }
+        if (rawClass.isArray()) {
+            return resolveRequestBodyModelClass(rawClass.getComponentType());
+        }
+        if (!Collection.class.isAssignableFrom(rawClass)) {
+            return rawClass;
+        }
+        if (!(requestBodyType instanceof ParameterizedType)) {
+            return rawClass;
+        }
+        Type[] arguments = ((ParameterizedType) requestBodyType).getActualTypeArguments();
+        if (arguments.length == 0) {
+            return rawClass;
+        }
+        Class<?> elementClass = resolveRequestBodyModelClass(arguments[0]);
+        return elementClass == null ? rawClass : elementClass;
     }
 
     /**
@@ -105,6 +145,28 @@ public final class ValidationGroupsUtils {
     }
 
     // ---- private helpers ----
+
+    private static Class<?> rawClass(Type type) {
+        if (type instanceof Class<?>) {
+            return (Class<?>) type;
+        }
+        if (type instanceof ParameterizedType) {
+            return rawClass(((ParameterizedType) type).getRawType());
+        }
+        if (type instanceof GenericArrayType) {
+            Class<?> componentClass = rawClass(((GenericArrayType) type).getGenericComponentType());
+            return componentClass == null ? null : java.lang.reflect.Array.newInstance(componentClass, 0).getClass();
+        }
+        if (type instanceof WildcardType) {
+            Type[] upperBounds = ((WildcardType) type).getUpperBounds();
+            return upperBounds.length == 0 ? null : rawClass(upperBounds[0]);
+        }
+        if (type instanceof TypeVariable<?>) {
+            Type[] bounds = ((TypeVariable<?>) type).getBounds();
+            return bounds.length == 0 ? null : rawClass(bounds[0]);
+        }
+        return null;
+    }
 
     private static boolean isRequiredConstraint(Annotation ann) {
         return REQUIRED_CONSTRAINT_NAMES.contains(ann.annotationType().getSimpleName());
