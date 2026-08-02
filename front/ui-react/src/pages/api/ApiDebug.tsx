@@ -93,6 +93,7 @@ import {
 } from './debugHistory';
 import DebugHistoryPanel from './DebugHistoryPanel';
 import { formatSseHistoryResponseBody } from './sseEventTime';
+import { enumParamSelectMode, enumParamSelectValue, serializeEnumParamSelection } from './enumParamValue';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
@@ -621,8 +622,9 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
     return (
       <Select
         size="small"
-        value={value || undefined}
-        onChange={(next) => onChange(next ?? '')}
+        mode={enumParamSelectMode(param)}
+        value={enumParamSelectValue(param, value)}
+        onChange={(next) => onChange(serializeEnumParamSelection(param, next))}
         allowClear
         status={status}
         placeholder={t('apiDebug.enum.placeholder')}
