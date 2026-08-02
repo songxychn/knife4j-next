@@ -69,6 +69,9 @@ public class Knife4jValidationGroupsExtensionTest {
         public void create(@RequestBody @Validated(Create.class) UserFormRequest req) {
         }
 
+        public void batchCreate(@RequestBody @Validated(Create.class) List<UserFormRequest> req) {
+        }
+
         public void update(@RequestBody @Validated(Update.class) UserFormRequest req) {
         }
     }
@@ -79,11 +82,32 @@ public class Knife4jValidationGroupsExtensionTest {
         return new HandlerMethod(bean, method);
     }
 
+    private HandlerMethod collectionHandlerMethod(String methodName) throws Exception {
+        DemoController bean = new DemoController();
+        java.lang.reflect.Method method = DemoController.class.getMethod(methodName, List.class);
+        return new HandlerMethod(bean, method);
+    }
+
     @Test
     public void validatedRequestBodyProducesCreateGroupExtension() throws Exception {
         Operation op = new Operation().operationId("create");
         new Knife4jOperationCustomizer().customize(op, handlerMethod("create"));
 
+        @SuppressWarnings("unchecked")
+        Map<String, List<String>> groups =
+                (Map<String, List<String>>) op.getExtensions().get(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS);
+        Assert.assertNotNull(groups);
+        Assert.assertTrue(groups.get("Create").contains("name"));
+        Assert.assertTrue(groups.get("Create").contains("email"));
+        Assert.assertFalse(groups.get("Create").contains("id"));
+    }
+
+    @Test
+    public void validatedCollectionRequestBodyProducesCreateGroupExtension() throws Exception {
+        Operation op = new Operation().operationId("batchCreate");
+        new Knife4jOperationCustomizer().customize(op, collectionHandlerMethod("batchCreate"));
+
+        Assert.assertNotNull(op.getExtensions());
         @SuppressWarnings("unchecked")
         Map<String, List<String>> groups =
                 (Map<String, List<String>>) op.getExtensions().get(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS);

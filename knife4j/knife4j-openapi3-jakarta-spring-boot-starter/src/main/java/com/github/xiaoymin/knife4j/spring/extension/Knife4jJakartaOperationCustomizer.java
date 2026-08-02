@@ -88,11 +88,11 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
                                                 HandlerMethod handlerMethod,
                                                 ApiOperationSupport operationSupport) {
         Class<?>[] groups = operationSupport == null ? null : operationSupport.validationGroups();
-        Class<?> bodyType = null;
+        java.lang.reflect.Type bodyType = null;
         java.lang.reflect.Parameter[] params = handlerMethod.getMethod().getParameters();
         for (java.lang.reflect.Parameter p : params) {
             if (p.isAnnotationPresent(org.springframework.web.bind.annotation.RequestBody.class)) {
-                bodyType = p.getType();
+                bodyType = p.getParameterizedType();
                 if (groups == null || groups.length == 0) {
                     Validated validated = p.getAnnotation(Validated.class);
                     if (validated != null) {
@@ -105,12 +105,13 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
         if (bodyType == null || groups == null || groups.length == 0) {
             return;
         }
-        Map<String, List<String>> groupMap = ValidationGroupsUtils.resolveRequiredFields(bodyType, groups);
+        Class<?> bodyModelClass = ValidationGroupsUtils.resolveRequestBodyModelClass(bodyType);
+        Map<String, List<String>> groupMap = ValidationGroupsUtils.resolveRequiredFields(bodyModelClass, groups);
         if (!groupMap.isEmpty()) {
             operation.addExtension(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS, groupMap);
         }
         Map<String, Map<String, Object>> fieldConstraints =
-                ValidationGroupsUtils.resolveFieldSchemaExtensions(bodyType);
+                ValidationGroupsUtils.resolveFieldSchemaExtensions(bodyModelClass);
         if (!fieldConstraints.isEmpty()) {
             operation.addExtension(ExtensionsConstants.EXTENSION_FIELD_CONSTRAINTS, fieldConstraints);
         }
