@@ -64,7 +64,6 @@ export interface SwaggerLicense {
   name?: string;
   url?: string;
   identifier?: string;
-  extensions?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

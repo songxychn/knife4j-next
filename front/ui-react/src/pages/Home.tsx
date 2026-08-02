@@ -22,6 +22,7 @@ import type { SwaggerServer } from '../types/swagger';
 import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
 import knife4jMark from '../assets/logo/knife4j-next-mark.svg';
 import { currentHomeOrigin, normalizeHomeHost, resolveHomeHostLabel, resolveHomeServers } from './homeServerInfo';
+import { collectSpecificationExtensions, type DisplayExtension } from './homeSpecificationExtensions';
 import { buildHomeStats, HOME_HTTP_METHODS, type HomeHttpMethod } from './homeStats';
 
 const { Title, Text, Paragraph, Link } = Typography;
@@ -35,45 +36,6 @@ const METHOD_COLORS: Record<HomeHttpMethod, string> = {
   head: '#9012fe',
   options: '#0d5aa7',
 };
-
-interface DisplayExtension {
-  key: string;
-  value: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function toDisplayExtensionValue(value: unknown): string | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return null;
-}
-
-function collectSpecificationExtensions(source: Record<string, unknown> | undefined): DisplayExtension[] {
-  if (!source) return [];
-  const result: DisplayExtension[] = [];
-  const seen = new Set<string>();
-  const add = (key: string, value: unknown) => {
-    if (!key.startsWith('x-') || seen.has(key)) return;
-    const displayValue = toDisplayExtensionValue(value);
-    if (!displayValue) return;
-    seen.add(key);
-    result.push({ key, value: displayValue });
-  };
-
-  Object.entries(source).forEach(([key, value]) => add(key, value));
-  if (isRecord(source.extensions)) {
-    Object.entries(source.extensions).forEach(([key, value]) => add(key, value));
-  }
-  return result;
-}
 
 export default function Home() {
   const { t } = useTranslation();
