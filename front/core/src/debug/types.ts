@@ -38,7 +38,7 @@ export interface DebugParam {
   readOnly?: boolean;
   /** 原始 schema 引用（可用于深层字段树展开） */
   schema?: Record<string, unknown>;
-  /** 查询参数序列化样式（OAS3 style，或由 OAS2 collectionFormat 映射）。 */
+  /** 查询参数序列化样式（OAS3 Parameter Object style）。 */
   style?: string;
   /** 查询参数是否展开数组/对象值。 */
   explode?: boolean;
@@ -101,7 +101,7 @@ export interface OperationDebugModel {
 
 // ─── RequestBuilder 输入/输出 ─────────────────────────
 
-/** query 参数值；数组会按 OAS3 Parameter Object 规则序列化。 */
+/** query 参数值；数组会按 OAS3 query 参数的 style / explode 规则序列化。 */
 export type QueryParamValue = string | string[];
 
 /** requestBuilder 的用户填写输入 */

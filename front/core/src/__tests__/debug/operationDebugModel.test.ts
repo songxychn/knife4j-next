@@ -120,6 +120,155 @@ describe('buildOperationDebugModel — OAS3', () => {
     );
   });
 
+  test('resolves a referenced OAS3 array item enum', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      components: {
+        schemas: {
+          Status: { type: 'string', enum: ['OPEN', 'CLOSED'] },
+        },
+      },
+      paths: {
+        '/statuses': {
+          get: {
+            parameters: [
+              {
+                name: 'status',
+                in: 'query',
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Status' },
+                },
+              },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/statuses',
+      method: 'get',
+    });
+
+    expect(model.queryParams[0].enum).toEqual(['OPEN', 'CLOSED']);
+  });
+
+  test('intersects a referenced enum with OAS 3.1 sibling enum constraints', () => {
+    const doc = {
+      openapi: '3.1.1',
+      info: { title: 'T', version: '1' },
+      components: {
+        schemas: {
+          Status: { type: 'string', enum: ['OPEN', 'CLOSED', 'REMOVED'] },
+        },
+      },
+      paths: {
+        '/statuses': {
+          get: {
+            parameters: [
+              {
+                name: 'status',
+                in: 'query',
+                schema: {
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/Status',
+                    enum: ['OPEN', 'CLOSED'],
+                  },
+                },
+              },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/statuses',
+      method: 'get',
+    });
+
+    expect(model.queryParams[0].enum).toEqual(['OPEN', 'CLOSED']);
+  });
+
+  test('ignores Reference Object siblings in OAS 3.0', () => {
+    const doc = {
+      openapi: '3.0.4',
+      info: { title: 'T', version: '1' },
+      components: {
+        schemas: {
+          Status: { type: 'string', enum: ['OPEN', 'CLOSED'] },
+        },
+      },
+      paths: {
+        '/statuses': {
+          get: {
+            parameters: [
+              {
+                name: 'status',
+                in: 'query',
+                schema: {
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/Status',
+                    enum: ['REMOVED'],
+                  },
+                },
+              },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/statuses',
+      method: 'get',
+    });
+
+    expect(model.queryParams[0].enum).toEqual(['OPEN', 'CLOSED']);
+  });
+
+  test('does not reinterpret an array-level scalar enum as item choices', () => {
+    const doc = {
+      openapi: '3.2.0',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/statuses': {
+          get: {
+            parameters: [
+              {
+                name: 'status',
+                in: 'query',
+                schema: {
+                  type: 'array',
+                  enum: ['OPEN', 'CLOSED'],
+                },
+              },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/statuses',
+      method: 'get',
+    });
+
+    expect(model.queryParams[0].enum).toBeUndefined();
+  });
+
   test('parses OAS3 POST with requestBody', () => {
     const model = buildOperationDebugModel({
       doc: oas3Doc as any,
@@ -832,42 +981,6 @@ describe('buildOperationDebugModel — OAS2', () => {
 
     expect(model.headerParams).toHaveLength(1);
     expect(model.headerParams[0].name).toBe('X-Token');
-  });
-
-  test('maps OAS2 array collectionFormat without adopting OAS3 defaults', () => {
-    const doc = {
-      swagger: '2.0',
-      info: { title: 'T', version: '1' },
-      paths: {
-        '/items': {
-          get: {
-            parameters: [
-              { name: 'csv', in: 'query', type: 'array', items: { type: 'string' } },
-              { name: 'multi', in: 'query', type: 'array', collectionFormat: 'multi', items: { type: 'string' } },
-              { name: 'ssv', in: 'query', type: 'array', collectionFormat: 'ssv', items: { type: 'string' } },
-              { name: 'pipes', in: 'query', type: 'array', collectionFormat: 'pipes', items: { type: 'string' } },
-              { name: 'tsv', in: 'query', type: 'array', collectionFormat: 'tsv', items: { type: 'string' } },
-            ],
-            responses: { '200': { description: 'OK' } },
-          },
-        },
-      },
-    };
-
-    const model = buildOperationDebugModel({
-      doc: doc as any,
-      path: '/items',
-      method: 'get',
-      isOAS2: true,
-    });
-
-    expect(model.queryParams.map(({ name, style, explode }) => ({ name, style, explode }))).toEqual([
-      { name: 'csv', style: 'form', explode: false },
-      { name: 'multi', style: 'form', explode: true },
-      { name: 'ssv', style: 'spaceDelimited', explode: false },
-      { name: 'pipes', style: 'pipeDelimited', explode: false },
-      { name: 'tsv', style: 'tabDelimited', explode: false },
-    ]);
   });
 
   test('parses OAS2 POST with in=body parameter', () => {

@@ -53,7 +53,6 @@ interface OAS2Param {
   $ref?: string;
   items?: Record<string, unknown>;
   allowMultiple?: boolean;
-  collectionFormat?: string;
 }
 
 /** OAS3 RequestBodyObject（简化） */
@@ -149,30 +148,89 @@ function extractEnum(
   param: OAS2Param | OAS3Param,
   schema: Record<string, unknown> | undefined,
   type: string,
+  doc: DocLike,
+  isOAS2: boolean,
 ): unknown[] | undefined {
   const schemaEnum = schema?.enum;
-  if (Array.isArray(schemaEnum)) return schemaEnum as unknown[];
   if (type === 'array') {
-    const items = (schema?.items as Record<string, unknown> | undefined) ?? (param as OAS2Param).items;
-    const itemsEnum = items?.enum;
-    if (Array.isArray(itemsEnum)) return itemsEnum as unknown[];
+    // OAS3 的 schema.enum 约束整个数组实例；只有 items.enum 才表示元素候选值。
+    // OAS2 保留本 PR 之前的顶层 enum 行为，不在 React/OAS3 任务中扩展 OAS2。
+    if (isOAS2) {
+      if (Array.isArray(schemaEnum)) return schemaEnum as unknown[];
+      return (param as OAS2Param).enum;
+    }
+
+    const items = schema?.items;
+    if (!items || typeof items !== 'object' || Array.isArray(items)) return undefined;
+    return extractArrayItemEnum(items as Record<string, unknown>, doc);
   }
+  if (Array.isArray(schemaEnum)) return schemaEnum as unknown[];
   return (param as OAS2Param).enum;
 }
 
-function oas2ArrayQueryEncoding(param: OAS2Param): { style: string; explode: boolean } {
-  switch (param.collectionFormat ?? 'csv') {
-    case 'multi':
-      return { style: 'form', explode: true };
-    case 'ssv':
-      return { style: 'spaceDelimited', explode: false };
-    case 'pipes':
-      return { style: 'pipeDelimited', explode: false };
-    case 'tsv':
-      return { style: 'tabDelimited', explode: false };
-    default:
-      return { style: 'form', explode: false };
+function supportsSchemaRefSiblings(doc: DocLike): boolean {
+  const [majorText, minorText] = (doc.openapi ?? '').split('.');
+  const major = Number(majorText);
+  const minor = Number(minorText);
+  return major > 3 || (major === 3 && minor >= 1);
+}
+
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((item, index) => jsonValuesEqual(item, right[index]))
+    );
   }
+  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  const rightKeys = Object.keys(rightRecord);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(rightRecord, key) && jsonValuesEqual(leftRecord[key], rightRecord[key]),
+    )
+  );
+}
+
+function intersectEnums(left: unknown[] | undefined, right: unknown[]): unknown[] {
+  if (!left) return [...right];
+  return left.filter((candidate) => right.some((value) => jsonValuesEqual(candidate, value)));
+}
+
+/**
+ * 提取 OAS3 数组元素的 enum 约束。
+ *
+ * OAS 3.0 的 `items.$ref` 是 Reference Object，普通相邻字段不生效；OAS 3.1+
+ * 的 Schema Object 采用 JSON Schema 语义，`$ref` 与相邻关键字共同约束实例。
+ * 因此 3.1+ 中多个 enum 约束必须取交集，而不能用任一侧覆盖另一侧。
+ */
+function extractArrayItemEnum(items: Record<string, unknown>, doc: DocLike): unknown[] | undefined {
+  const allowRefSiblings = supportsSchemaRefSiblings(doc);
+  const seenRefs = new Set<string>();
+  let current = items;
+  let candidates: unknown[] | undefined;
+
+  for (let depth = 0; depth < 10; depth++) {
+    const ref = typeof current.$ref === 'string' ? current.$ref : undefined;
+    const currentEnum = current.enum;
+    if ((!ref || allowRefSiblings) && Array.isArray(currentEnum)) {
+      candidates = intersectEnums(candidates, currentEnum);
+    }
+    if (!ref || seenRefs.has(ref)) break;
+    seenRefs.add(ref);
+    const resolved = resolveRef(ref, doc as Record<string, unknown>);
+    if (!resolved) break;
+    current = resolved;
+  }
+
+  return candidates;
 }
 
 /** 分类 content-type */
@@ -455,10 +513,6 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
     const schema = raw.schema ? dereference(raw.schema, doc as Record<string, unknown>) : undefined;
     const type = extractType(raw, schema);
-    const serialization =
-      isOAS2 && paramIn === 'query' && type === 'array'
-        ? oas2ArrayQueryEncoding(raw as OAS2Param)
-        : { style: (raw as OAS3Param).style, explode: (raw as OAS3Param).explode };
     const debugParam: DebugParam = {
       name: raw.name ?? '',
       in: paramIn,
@@ -468,12 +522,12 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       format: (schema?.format as string | undefined) ?? (raw as OAS2Param).format,
       default: schema?.default ?? (raw as OAS2Param).default,
       example: schema?.example ?? raw.example,
-      enum: extractEnum(raw, schema, type),
+      enum: extractEnum(raw, schema, type, doc, isOAS2),
       deprecated: raw.deprecated,
       readOnly: schema?.readOnly as boolean | undefined,
       schema: schema ?? (raw.schema ? { ...raw.schema } : undefined),
-      style: serialization.style,
-      explode: serialization.explode,
+      style: isOAS2 ? undefined : (raw as OAS3Param).style,
+      explode: isOAS2 ? undefined : (raw as OAS3Param).explode,
     };
 
     switch (paramIn) {

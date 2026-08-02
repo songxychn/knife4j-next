@@ -98,10 +98,16 @@ import {
   displayQueryParamValue,
   enumParamSelectMode,
   enumParamSelectValue,
+  isEnumParamSelectSupported,
   queryParamRequestValue,
   serializeEnumParamSelection,
 } from './enumParamValue';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
+import {
+  buildRequestPreviewSafely,
+  type RequestPreviewBuild,
+  type RequestPreviewBuildResult,
+} from './requestPreviewBuild';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
   EMPTY_BODY_CONTENT_DEFAULTS,
@@ -625,7 +631,7 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
   const { t } = useTranslation();
   const status = hasError ? ('error' as const) : undefined;
   // enum → Select
-  if (param.enum && param.enum.length > 0) {
+  if (param.enum && param.enum.length > 0 && isEnumParamSelectSupported(param)) {
     return (
       <Select
         size="small"
@@ -1314,18 +1320,16 @@ function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] 
 }
 
 interface PreviewTabPanelProps {
-  build: () => {
-    formValues: DebugFormValues;
-    built: BuiltRequest;
-    curl: string;
-  };
+  result: RequestPreviewBuildResult;
   onCopyText: (text: string) => void;
 }
 
-function PreviewTabPanel({ build, onCopyText }: PreviewTabPanelProps) {
+function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   const { t } = useTranslation();
-  // 每次渲染都实时重建一次，保证与当前表单同步（避免额外状态）
-  const { built, curl } = build();
+  if (!result.ok) {
+    return <Alert type="error" showIcon message={t('apiDebug.error.title')} description={result.error} />;
+  }
+  const { built, curl } = result.value;
   const isMultipart = built.contentType.toLowerCase().includes('multipart/form-data');
   const hasBody = built.body !== undefined && built.body !== '';
 
@@ -2153,11 +2157,7 @@ export default function ApiDebug() {
   };
 
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
-  const buildPreview = (): {
-    formValues: DebugFormValues;
-    built: BuiltRequest;
-    curl: string;
-  } => {
+  const buildPreview = (): RequestPreviewBuild => {
     const formValues = collectFormValues();
     const built = coreBuildRequest({
       baseUrl,
@@ -2284,7 +2284,14 @@ export default function ApiDebug() {
     if (!debugModel) return;
     setError(null);
 
-    const { formValues, built } = buildPreview();
+    const previewResult = buildRequestPreviewSafely(buildPreview);
+    if (!previewResult.ok) {
+      setValidationErrors([]);
+      setActiveTab('query');
+      setError(previewResult.error);
+      return;
+    }
+    const { formValues, built } = previewResult.value;
 
     // required 校验 — 用 core 侧统一校验，并携带定位 key
     const errors = validateRequired(debugModel, formValues);
@@ -2702,25 +2709,31 @@ export default function ApiDebug() {
       }),
     );
 
-  const previewBuilt = buildPreview().built;
-  const injectedGlobalHeaders: InjectedGlobalParamRow[] = Object.entries(previewBuilt.headers)
-    .filter(([name]) => previewBuilt.sourceMap?.headers[name] === 'global')
-    .map(([name, value]) => ({
-      key: `header:${name}`,
-      name,
-      value,
-      masked: globalParamItems.some(
-        (param) => param.in === 'header' && param.name.toLowerCase() === name.toLowerCase() && param.masked,
-      ),
-    }));
-  const injectedGlobalQueries: InjectedGlobalParamRow[] = Object.entries(previewBuilt.query)
-    .filter(([name]) => previewBuilt.sourceMap?.query[name] === 'global')
-    .map(([name, value]) => ({
-      key: `query:${name}`,
-      name,
-      value: displayQueryParamValue(value),
-      masked: globalParamItems.some((param) => param.in === 'query' && param.name === name && param.masked),
-    }));
+  // 每次渲染都实时重建一次，保证预览与当前表单同步；非法规范组合转成可见错误。
+  const previewResult = buildRequestPreviewSafely(buildPreview);
+  const previewBuilt = previewResult.ok ? previewResult.value.built : undefined;
+  const injectedGlobalHeaders: InjectedGlobalParamRow[] = previewBuilt
+    ? Object.entries(previewBuilt.headers)
+        .filter(([name]) => previewBuilt.sourceMap?.headers[name] === 'global')
+        .map(([name, value]) => ({
+          key: `header:${name}`,
+          name,
+          value,
+          masked: globalParamItems.some(
+            (param) => param.in === 'header' && param.name.toLowerCase() === name.toLowerCase() && param.masked,
+          ),
+        }))
+    : [];
+  const injectedGlobalQueries: InjectedGlobalParamRow[] = previewBuilt
+    ? Object.entries(previewBuilt.query)
+        .filter(([name]) => previewBuilt.sourceMap?.query[name] === 'global')
+        .map(([name, value]) => ({
+          key: `query:${name}`,
+          name,
+          value: displayQueryParamValue(value),
+          masked: globalParamItems.some((param) => param.in === 'query' && param.name === name && param.masked),
+        }))
+    : [];
 
   // body tab 的标签含当前 content-type
   const bodyLabel =
@@ -2872,7 +2885,7 @@ export default function ApiDebug() {
       key: 'preview',
       label: t('apiDebug.tab.preview'),
       disabled: false,
-      children: <PreviewTabPanel build={buildPreview} onCopyText={handleCopyPreviewText} />,
+      children: <PreviewTabPanel result={previewResult} onCopyText={handleCopyPreviewText} />,
     },
   ];
 

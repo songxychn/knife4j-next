@@ -38,7 +38,7 @@ export interface QueryParamEncoding {
   explode?: boolean;
 }
 
-/** 按 OAS3 Parameter Object 规则拼接 query 字符串。 */
+/** 按 OAS3 query 数组参数的 style / explode 规则拼接 query 字符串。 */
 export function buildQueryString(
   queryParams: Record<string, QueryParamValue>,
   encodings: Record<string, QueryParamEncoding> = {},
@@ -50,18 +50,31 @@ export function buildQueryString(
       const encoding = encodings[name];
       const style = encoding?.style ?? 'form';
       const explode = encoding?.explode ?? style === 'form';
+      const encodedName = encodeURIComponent(name);
+      const encodedItems = value.map((item) => encodeURIComponent(item));
       if (style === 'form' && explode) {
-        for (const item of value) {
+        for (let index = 0; index < value.length; index++) {
+          const item = value[index];
           if (!name && !item) continue;
-          pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(item)}`);
+          pairs.push(`${encodedName}=${encodedItems[index]}`);
         }
         continue;
       }
-
-      const delimiter =
-        style === 'spaceDelimited' ? ' ' : style === 'pipeDelimited' ? '|' : style === 'tabDelimited' ? '\t' : ',';
-      pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(value.join(delimiter))}`);
-      continue;
+      if (style === 'form' && !explode) {
+        pairs.push(`${encodedName}=${encodedItems.join(',')}`);
+        continue;
+      }
+      if (style === 'spaceDelimited' && !explode) {
+        pairs.push(`${encodedName}=${encodedItems.join('%20')}`);
+        continue;
+      }
+      if (style === 'pipeDelimited' && !explode) {
+        pairs.push(`${encodedName}=${encodedItems.join('%7C')}`);
+        continue;
+      }
+      throw new Error(
+        `Unsupported OAS3 query array serialization for "${name}": style=${style}, explode=${String(explode)}`,
+      );
     }
     if (!name && !value) continue;
     pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
