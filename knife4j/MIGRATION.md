@@ -20,7 +20,7 @@ With:
 <dependency>
   <groupId>com.baizhukui</groupId>
   <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-  <version>5.2.1</version>
+  <version>5.2.2</version>
 </dependency>
 ```
 

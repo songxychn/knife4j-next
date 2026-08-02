@@ -12,7 +12,21 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.2.1 <Badge type="tip" text="最新" />
+### 5.2.2 <Badge type="tip" text="最新" />
+
+`5.2.2` 是基于 `5.2.1` 的向后兼容补丁版本，修复调试页数组枚举与查询参数序列化、集合请求体分组校验，以及文档信息扩展字段与 JSON 示例类型展示问题。
+
+**调试与请求体（React UI + OpenAPI3 starter）**
+
+- 修复集合请求体字段上 `x-validation-groups` 分组校验失效的问题，后端扩展输出与前端必填判定对齐（PR #600，issue #598）。
+- 数组类型枚举参数支持多选；查询参数按 OAS3 规范序列化，并收紧数组枚举取值行为（PR #601，issue #597）。
+
+**文档展示（React UI）**
+
+- OAS3 JSON media example 按原生类型序列化，避免数字、布尔等被错误写成字符串（PR #606，issue #604）。
+- 首页文档信息移除非规范 `extensions` 包装兼容，只展示标准 `x-*` 扩展字段（PR #605，issue #603）。
+
+### 5.2.1
 
 `5.2.1` 是基于 `5.2.0` 的向后兼容补丁版本，修复调试页编辑器运行时错误，并完善文件下载等二进制响应的文档展示。
 
@@ -439,7 +453,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.1</version>
+    <version>5.2.2</version>
 </dependency>
 ```
 
