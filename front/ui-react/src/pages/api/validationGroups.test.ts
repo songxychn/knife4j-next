@@ -37,6 +37,46 @@ describe('validation groups', () => {
     ).toEqual([field('id', false), field('firstName', true), field('email', false)]);
   });
 
+  it('overrides array item request body required flags when extension exists', () => {
+    const operation: OperationObject = {
+      responses: {},
+      'x-validation-groups': {
+        AddGroup: ['firstName', 'lastName'],
+      },
+    };
+    const fields: SchemaFieldNode[] = [
+      {
+        name: '',
+        type: 'array',
+        required: false,
+        children: [
+          {
+            name: 'items',
+            type: 'object',
+            required: false,
+            children: [field('id', true), field('firstName'), field('email')],
+          },
+        ],
+      },
+    ];
+
+    expect(applyValidationGroupRequiredFields(fields, operation)).toEqual([
+      {
+        name: '',
+        type: 'array',
+        required: false,
+        children: [
+          {
+            name: 'items',
+            type: 'object',
+            required: false,
+            children: [field('id', false), field('firstName', true), field('email', false)],
+          },
+        ],
+      },
+    ]);
+  });
+
   it('keeps schema required flags when extension is absent', () => {
     const fields = [field('id', true), field('name')];
     expect(applyValidationGroupRequiredFields(fields, { responses: {} })).toBe(fields);

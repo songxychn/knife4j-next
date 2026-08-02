@@ -21,5 +21,27 @@ export function applyValidationGroupRequiredFields(
 ): SchemaFieldNode[] {
   const requiredFields = validationGroupRequiredFields(operation);
   if (!requiredFields) return fields;
-  return fields.map((field) => ({ ...field, required: requiredFields.has(field.name) }));
+
+  const applyToModelFields = (modelFields: SchemaFieldNode[]) =>
+    modelFields.map((field) => ({ ...field, required: requiredFields.has(field.name) }));
+
+  const applyToArrayItem = (item: SchemaFieldNode): SchemaFieldNode => {
+    if (!item.children) return item;
+    if (item.type === 'array') {
+      return { ...item, children: item.children.map(applyToArrayItem) };
+    }
+    return { ...item, children: applyToModelFields(item.children) };
+  };
+
+  if (fields.length === 1 && fields[0].type === 'array') {
+    const arrayField = fields[0];
+    return [
+      {
+        ...arrayField,
+        children: arrayField.children?.map(applyToArrayItem),
+      },
+    ];
+  }
+
+  return applyToModelFields(fields);
 }

@@ -22,6 +22,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.annotation.*;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
@@ -80,6 +81,17 @@ public class ValidationGroupsUtilsTest {
         String email;
 
         String phone; // no constraint
+    }
+
+    static class RequestBodyTypes {
+
+        UserFormRequest single;
+
+        List<UserFormRequest> collection;
+
+        List<List<UserFormRequest>> nestedCollection;
+
+        UserFormRequest[] array;
     }
 
     // ---- tests ----
@@ -147,5 +159,26 @@ public class ValidationGroupsUtilsTest {
         for (List<String> fields : result.values()) {
             Assert.assertFalse(fields.contains("phone"));
         }
+    }
+
+    @Test
+    public void resolvesCollectionElementAsRequestBodyModel() throws Exception {
+        Type type = RequestBodyTypes.class.getDeclaredField("collection").getGenericType();
+        Assert.assertEquals(UserFormRequest.class, ValidationGroupsUtils.resolveRequestBodyModelClass(type));
+    }
+
+    @Test
+    public void resolvesNestedCollectionElementAsRequestBodyModel() throws Exception {
+        Type type = RequestBodyTypes.class.getDeclaredField("nestedCollection").getGenericType();
+        Assert.assertEquals(UserFormRequest.class, ValidationGroupsUtils.resolveRequestBodyModelClass(type));
+    }
+
+    @Test
+    public void resolvesSingleAndArrayRequestBodyModels() throws Exception {
+        Type singleType = RequestBodyTypes.class.getDeclaredField("single").getGenericType();
+        Type arrayType = RequestBodyTypes.class.getDeclaredField("array").getGenericType();
+
+        Assert.assertEquals(UserFormRequest.class, ValidationGroupsUtils.resolveRequestBodyModelClass(singleType));
+        Assert.assertEquals(UserFormRequest.class, ValidationGroupsUtils.resolveRequestBodyModelClass(arrayType));
     }
 }
