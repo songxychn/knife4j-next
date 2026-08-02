@@ -60,6 +60,29 @@ describe('buildQueryString', () => {
   test('handles empty input', () => {
     expect(buildQueryString({})).toBe('');
   });
+
+  test('repeats query parameter names for OAS3 arrays by default', () => {
+    expect(buildQueryString({ httpCode: ['SUCCESS', 'BAD_REQUEST'] })).toBe('httpCode=SUCCESS&httpCode=BAD_REQUEST');
+  });
+
+  test('joins OAS3 array values for explicit form explode=false', () => {
+    expect(
+      buildQueryString({ httpCode: ['SUCCESS', 'BAD_REQUEST'] }, { httpCode: { style: 'form', explode: false } }),
+    ).toBe('httpCode=SUCCESS%2CBAD_REQUEST');
+  });
+
+  test('supports spaceDelimited, pipeDelimited, and OAS2 tsv array styles', () => {
+    expect(
+      buildQueryString(
+        { spaces: ['a', 'b'], pipes: ['a', 'b'], tabs: ['a', 'b'] },
+        {
+          spaces: { style: 'spaceDelimited' },
+          pipes: { style: 'pipeDelimited' },
+          tabs: { style: 'tabDelimited' },
+        },
+      ),
+    ).toBe('spaces=a%20b&pipes=a%7Cb&tabs=a%09b');
+  });
 });
 
 // ─── mergeHeaders ─────────────────────────────────────
@@ -441,6 +464,37 @@ describe('buildRequest', () => {
     expect(result.url).toBe('http://localhost:8080/users/42?verbose=true');
     expect(result.method).toBe('GET');
     expect(result.body).toBeUndefined();
+  });
+
+  test('serializes array query params with their OAS3 style and explode metadata', () => {
+    const arrayQueryModel: OperationDebugModel = {
+      ...debugModel,
+      pathParams: [],
+      queryParams: [
+        { name: 'httpCode', in: 'query', required: false, type: 'array' },
+        { name: 'status', in: 'query', required: false, type: 'array', style: 'form', explode: false },
+      ],
+    };
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/enum/batch',
+      method: 'GET',
+      debugModel: arrayQueryModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {
+          httpCode: ['SUCCESS', 'BAD_REQUEST'],
+          status: ['OPEN', 'CLOSED'],
+        },
+        headerParams: {},
+        cookieParams: {},
+      },
+    });
+
+    expect(result.url).toBe(
+      'http://localhost:8080/enum/batch?httpCode=SUCCESS&httpCode=BAD_REQUEST&status=OPEN%2CCLOSED',
+    );
+    expect(result.query.httpCode).toEqual(['SUCCESS', 'BAD_REQUEST']);
   });
 
   test('builds POST request with body', () => {

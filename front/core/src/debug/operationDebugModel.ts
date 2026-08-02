@@ -32,6 +32,8 @@ interface OAS3Param {
   schema?: Record<string, unknown>;
   example?: unknown;
   deprecated?: boolean;
+  style?: string;
+  explode?: boolean;
   $ref?: string;
 }
 
@@ -51,6 +53,7 @@ interface OAS2Param {
   $ref?: string;
   items?: Record<string, unknown>;
   allowMultiple?: boolean;
+  collectionFormat?: string;
 }
 
 /** OAS3 RequestBodyObject（简化） */
@@ -140,6 +143,36 @@ function extractType(param: OAS2Param | OAS3Param, schema?: Record<string, unkno
     return 'string';
   }
   return 'string';
+}
+
+function extractEnum(
+  param: OAS2Param | OAS3Param,
+  schema: Record<string, unknown> | undefined,
+  type: string,
+): unknown[] | undefined {
+  const schemaEnum = schema?.enum;
+  if (Array.isArray(schemaEnum)) return schemaEnum as unknown[];
+  if (type === 'array') {
+    const items = (schema?.items as Record<string, unknown> | undefined) ?? (param as OAS2Param).items;
+    const itemsEnum = items?.enum;
+    if (Array.isArray(itemsEnum)) return itemsEnum as unknown[];
+  }
+  return (param as OAS2Param).enum;
+}
+
+function oas2ArrayQueryEncoding(param: OAS2Param): { style: string; explode: boolean } {
+  switch (param.collectionFormat ?? 'csv') {
+    case 'multi':
+      return { style: 'form', explode: true };
+    case 'ssv':
+      return { style: 'spaceDelimited', explode: false };
+    case 'pipes':
+      return { style: 'pipeDelimited', explode: false };
+    case 'tsv':
+      return { style: 'tabDelimited', explode: false };
+    default:
+      return { style: 'form', explode: false };
+  }
 }
 
 /** 分类 content-type */
@@ -421,19 +454,26 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     if (!['path', 'query', 'header', 'cookie'].includes(paramIn)) continue;
 
     const schema = raw.schema ? dereference(raw.schema, doc as Record<string, unknown>) : undefined;
+    const type = extractType(raw, schema);
+    const serialization =
+      isOAS2 && paramIn === 'query' && type === 'array'
+        ? oas2ArrayQueryEncoding(raw as OAS2Param)
+        : { style: (raw as OAS3Param).style, explode: (raw as OAS3Param).explode };
     const debugParam: DebugParam = {
       name: raw.name ?? '',
       in: paramIn,
       required: paramIn === 'path' ? true : Boolean(raw.required), // path 参数始终 required
       description: raw.description,
-      type: extractType(raw, schema),
+      type,
       format: (schema?.format as string | undefined) ?? (raw as OAS2Param).format,
       default: schema?.default ?? (raw as OAS2Param).default,
       example: schema?.example ?? raw.example,
-      enum: (schema?.enum as unknown[] | undefined) ?? (raw as OAS2Param).enum,
+      enum: extractEnum(raw, schema, type),
       deprecated: raw.deprecated,
       readOnly: schema?.readOnly as boolean | undefined,
       schema: schema ?? (raw.schema ? { ...raw.schema } : undefined),
+      style: serialization.style,
+      explode: serialization.explode,
     };
 
     switch (paramIn) {

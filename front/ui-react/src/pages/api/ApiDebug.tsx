@@ -41,6 +41,7 @@ import type {
   GlobalParamValues,
   OperationDebugModel,
   ParamSource,
+  QueryParamValue,
   SchemeValue,
   ValidationError,
 } from 'knife4j-core';
@@ -93,7 +94,13 @@ import {
 } from './debugHistory';
 import DebugHistoryPanel from './DebugHistoryPanel';
 import { formatSseHistoryResponseBody } from './sseEventTime';
-import { enumParamSelectMode, enumParamSelectValue, serializeEnumParamSelection } from './enumParamValue';
+import {
+  displayQueryParamValue,
+  enumParamSelectMode,
+  enumParamSelectValue,
+  queryParamRequestValue,
+  serializeEnumParamSelection,
+} from './enumParamValue';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
@@ -1348,33 +1355,36 @@ function PreviewTabPanel({ build, onCopyText }: PreviewTabPanelProps) {
     );
   };
 
-  const renderPreviewValue = (value: string) => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
-      <Paragraph
-        key={value}
-        ellipsis={{
-          rows: 2,
-          expandable: 'collapsible',
-          symbol: (expanded) => t(expanded ? 'apiDebug.preview.collapseValue' : 'apiDebug.preview.expandValue'),
-        }}
-        style={{ flex: 1, minWidth: 0, marginBottom: 0, wordBreak: 'break-all' }}
-      >
-        {value}
-      </Paragraph>
-      {value && (
-        <Tooltip title={t('apiDebug.preview.copyValue')}>
-          <Button
-            type="text"
-            size="small"
-            icon={<CopyOutlined />}
-            onClick={() => onCopyText(value)}
-            aria-label={t('apiDebug.preview.copyValue')}
-            style={{ flex: 'none' }}
-          />
-        </Tooltip>
-      )}
-    </div>
-  );
+  const renderPreviewValue = (value: QueryParamValue) => {
+    const displayValue = displayQueryParamValue(value);
+    return (
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+        <Paragraph
+          key={displayValue}
+          ellipsis={{
+            rows: 2,
+            expandable: 'collapsible',
+            symbol: (expanded) => t(expanded ? 'apiDebug.preview.collapseValue' : 'apiDebug.preview.expandValue'),
+          }}
+          style={{ flex: 1, minWidth: 0, marginBottom: 0, wordBreak: 'break-all' }}
+        >
+          {displayValue}
+        </Paragraph>
+        {displayValue && (
+          <Tooltip title={t('apiDebug.preview.copyValue')}>
+            <Button
+              type="text"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => onCopyText(displayValue)}
+              aria-label={t('apiDebug.preview.copyValue')}
+              style={{ flex: 'none' }}
+            />
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={14}>
@@ -2087,6 +2097,16 @@ export default function ApiDebug() {
     return result;
   };
 
+  const collectQueryParams = (): Record<string, QueryParamValue> => {
+    const result: Record<string, QueryParamValue> = {};
+    for (const param of debugModel.queryParams) {
+      if (paramEnabled[paramKey(param)] === false) continue;
+      const value = paramValues[paramKey(param)];
+      if (value !== undefined && value !== '') result[param.name] = queryParamRequestValue(param, value);
+    }
+    return result;
+  };
+
   /** 获取当前选中的 body content 分类 */
   const getCurrentCategory = (): string => {
     const bc = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
@@ -2112,7 +2132,7 @@ export default function ApiDebug() {
   const collectFormValues = (): DebugFormValues => {
     const category = getCurrentCategory();
     const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
-    const specQueryParams = collectForIn(debugModel.queryParams);
+    const specQueryParams = collectQueryParams();
     const specHeaders = collectForIn(debugModel.headerParams);
     const specCookieParams = collectForIn(debugModel.cookieParams);
     const extraQueryParams = customRowsToRecord(customQueryParams);
@@ -2309,7 +2329,9 @@ export default function ApiDebug() {
         baseUrl,
         resolvedUrl: built.url,
         headers: built.headers,
-        query: built.query,
+        query: Object.fromEntries(
+          Object.entries(built.query).map(([name, value]) => [name, displayQueryParamValue(value)]),
+        ),
         maskedHeaders: Object.keys(built.headers).filter(
           (name) =>
             built.sourceMap?.headers[name] === 'global' &&
@@ -2696,7 +2718,7 @@ export default function ApiDebug() {
     .map(([name, value]) => ({
       key: `query:${name}`,
       name,
-      value,
+      value: displayQueryParamValue(value),
       masked: globalParamItems.some((param) => param.in === 'query' && param.name === name && param.masked),
     }));
 

@@ -16,6 +16,7 @@ export type {
   BodyContent,
   OperationDebugModel,
   DebugFormValues,
+  QueryParamValue,
   GlobalParamValues,
   SchemeValue,
   AuthValues,

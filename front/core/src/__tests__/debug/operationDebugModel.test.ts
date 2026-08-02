@@ -11,7 +11,14 @@ describe('buildOperationDebugModel — OAS3', () => {
           summary: 'Get user by ID',
           parameters: [
             { name: 'id', in: 'path', required: true, schema: { type: 'integer', format: 'int64' } },
-            { name: 'detail', in: 'query', required: false, schema: { type: 'boolean' } },
+            {
+              name: 'detail',
+              in: 'query',
+              required: false,
+              style: 'form',
+              explode: false,
+              schema: { type: 'boolean' },
+            },
             { name: 'X-Request-Id', in: 'header', required: false, schema: { type: 'string', format: 'uuid' } },
           ],
           responses: { '200': { description: 'OK' } },
@@ -65,12 +72,52 @@ describe('buildOperationDebugModel — OAS3', () => {
     expect(model.queryParams[0].name).toBe('detail');
     expect(model.queryParams[0].type).toBe('boolean');
     expect(model.queryParams[0].required).toBe(false);
+    expect(model.queryParams[0].style).toBe('form');
+    expect(model.queryParams[0].explode).toBe(false);
 
     expect(model.headerParams).toHaveLength(1);
     expect(model.headerParams[0].name).toBe('X-Request-Id');
 
     expect(model.bodyContents).toHaveLength(0);
     expect(model.bodyRequired).toBe(false);
+  });
+
+  test('reads an array item enum from the standard OAS3 schema.items.enum location', () => {
+    const doc = {
+      openapi: '3.0.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/statuses': {
+          get: {
+            parameters: [
+              {
+                name: 'status',
+                in: 'query',
+                schema: {
+                  type: 'array',
+                  items: { type: 'string', enum: ['OPEN', 'CLOSED'] },
+                },
+              },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/statuses',
+      method: 'get',
+    });
+
+    expect(model.queryParams[0]).toEqual(
+      expect.objectContaining({
+        name: 'status',
+        type: 'array',
+        enum: ['OPEN', 'CLOSED'],
+      }),
+    );
   });
 
   test('parses OAS3 POST with requestBody', () => {
@@ -785,6 +832,42 @@ describe('buildOperationDebugModel — OAS2', () => {
 
     expect(model.headerParams).toHaveLength(1);
     expect(model.headerParams[0].name).toBe('X-Token');
+  });
+
+  test('maps OAS2 array collectionFormat without adopting OAS3 defaults', () => {
+    const doc = {
+      swagger: '2.0',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/items': {
+          get: {
+            parameters: [
+              { name: 'csv', in: 'query', type: 'array', items: { type: 'string' } },
+              { name: 'multi', in: 'query', type: 'array', collectionFormat: 'multi', items: { type: 'string' } },
+              { name: 'ssv', in: 'query', type: 'array', collectionFormat: 'ssv', items: { type: 'string' } },
+              { name: 'pipes', in: 'query', type: 'array', collectionFormat: 'pipes', items: { type: 'string' } },
+              { name: 'tsv', in: 'query', type: 'array', collectionFormat: 'tsv', items: { type: 'string' } },
+            ],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/items',
+      method: 'get',
+      isOAS2: true,
+    });
+
+    expect(model.queryParams.map(({ name, style, explode }) => ({ name, style, explode }))).toEqual([
+      { name: 'csv', style: 'form', explode: false },
+      { name: 'multi', style: 'form', explode: true },
+      { name: 'ssv', style: 'spaceDelimited', explode: false },
+      { name: 'pipes', style: 'pipeDelimited', explode: false },
+      { name: 'tsv', style: 'tabDelimited', explode: false },
+    ]);
   });
 
   test('parses OAS2 POST with in=body parameter', () => {

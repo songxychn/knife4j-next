@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { DebugParam } from 'knife4j-core';
-import { enumParamSelectMode, enumParamSelectValue, serializeEnumParamSelection } from './enumParamValue';
+import {
+  displayQueryParamValue,
+  enumParamSelectMode,
+  enumParamSelectValue,
+  queryParamRequestValue,
+  serializeEnumParamSelection,
+} from './enumParamValue';
 
 const batchEnumParam: DebugParam = {
   name: 'httpCode',
@@ -14,8 +20,11 @@ const batchEnumParam: DebugParam = {
 describe('enumParamValue', () => {
   it('keeps every selected enum value for an array parameter', () => {
     expect(enumParamSelectMode(batchEnumParam)).toBe('multiple');
-    expect(serializeEnumParamSelection(batchEnumParam, ['SUCCESS', 'BAD_REQUEST'])).toBe('SUCCESS,BAD_REQUEST');
+    expect(serializeEnumParamSelection(batchEnumParam, ['SUCCESS', 'BAD_REQUEST'])).toBe('["SUCCESS","BAD_REQUEST"]');
+    expect(enumParamSelectValue(batchEnumParam, '["SUCCESS","BAD_REQUEST"]')).toEqual(['SUCCESS', 'BAD_REQUEST']);
     expect(enumParamSelectValue(batchEnumParam, 'SUCCESS,BAD_REQUEST')).toEqual(['SUCCESS', 'BAD_REQUEST']);
+    expect(queryParamRequestValue(batchEnumParam, '["SUCCESS","BAD_REQUEST"]')).toEqual(['SUCCESS', 'BAD_REQUEST']);
+    expect(displayQueryParamValue(['SUCCESS', 'BAD_REQUEST'])).toBe('SUCCESS, BAD_REQUEST');
     expect(serializeEnumParamSelection(batchEnumParam, [])).toBe('');
   });
 
