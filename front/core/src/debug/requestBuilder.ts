@@ -16,6 +16,7 @@ import type {
   OperationDebugModel,
   ParamIn,
   ParamSource,
+  QueryParamValue,
   ValidationError,
 } from './types';
 
@@ -32,10 +33,49 @@ export function replacePathParams(path: string, pathParams: Record<string, strin
   return result;
 }
 
-/** 拼接 query 字符串 */
-export function buildQueryString(queryParams: Record<string, string>): string {
+export interface QueryParamEncoding {
+  style?: string;
+  explode?: boolean;
+}
+
+/** 按 OAS3 query 数组参数的 style / explode 规则拼接 query 字符串。 */
+export function buildQueryString(
+  queryParams: Record<string, QueryParamValue>,
+  encodings: Record<string, QueryParamEncoding> = {},
+): string {
   const pairs: string[] = [];
   for (const [name, value] of Object.entries(queryParams)) {
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue;
+      const encoding = encodings[name];
+      const style = encoding?.style ?? 'form';
+      const explode = encoding?.explode ?? style === 'form';
+      const encodedName = encodeURIComponent(name);
+      const encodedItems = value.map((item) => encodeURIComponent(item));
+      if (style === 'form' && explode) {
+        for (let index = 0; index < value.length; index++) {
+          const item = value[index];
+          if (!name && !item) continue;
+          pairs.push(`${encodedName}=${encodedItems[index]}`);
+        }
+        continue;
+      }
+      if (style === 'form' && !explode) {
+        pairs.push(`${encodedName}=${encodedItems.join(',')}`);
+        continue;
+      }
+      if (style === 'spaceDelimited' && !explode) {
+        pairs.push(`${encodedName}=${encodedItems.join('%20')}`);
+        continue;
+      }
+      if (style === 'pipeDelimited' && !explode) {
+        pairs.push(`${encodedName}=${encodedItems.join('%7C')}`);
+        continue;
+      }
+      throw new Error(
+        `Unsupported OAS3 query array serialization for "${name}": style=${style}, explode=${String(explode)}`,
+      );
+    }
     if (!name && !value) continue;
     pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
   }
@@ -190,11 +230,11 @@ export function splitGlobalParams(globalParams: GlobalParamValues | undefined): 
 export function validateRequired(model: OperationDebugModel, form: DebugFormValues): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const check = (params: typeof model.pathParams, values: Record<string, string>, in_: ParamIn) => {
+  const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
       if (!param.required) continue;
       const value = values[param.name];
-      if (value === undefined || value === '') {
+      if (value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
         errors.push({
           name: param.name,
           in: in_,
@@ -311,7 +351,11 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   );
   const headersWithCookies = appendCookieParams(mergedHeaders, formValues.cookieParams);
   // 鉴权 query 参数合并（鉴权 < 全局 < 接口级）
-  const mergedQuery: Record<string, string> = { ...authResult.queries, ...gp.queries, ...formValues.queryParams };
+  const mergedQuery: Record<string, QueryParamValue> = {
+    ...authResult.queries,
+    ...gp.queries,
+    ...formValues.queryParams,
+  };
 
   // 3.5 sourceMap 追踪（仅当存在 auth 或 globalParams 时生成）
   const hasMultiSource = auth !== undefined || globalParams !== undefined;
@@ -341,7 +385,8 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
       }
     }
     for (const key of Object.keys(formValues.queryParams)) {
-      if (formValues.queryParams[key] !== undefined && formValues.queryParams[key] !== '') {
+      const value = formValues.queryParams[key];
+      if (value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)) {
         querySource[key] = 'interface';
       }
     }
@@ -381,7 +426,10 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   }
 
   // 5. URL
-  const queryString = buildQueryString(mergedQuery);
+  const queryEncodings = Object.fromEntries(
+    debugModel.queryParams.map((param) => [param.name, { style: param.style, explode: param.explode }]),
+  );
+  const queryString = buildQueryString(mergedQuery, queryEncodings);
   const url = `${baseUrl}${resolvedPath}${queryString ? `?${queryString}` : ''}`;
 
   return {

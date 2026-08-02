@@ -60,6 +60,43 @@ describe('buildQueryString', () => {
   test('handles empty input', () => {
     expect(buildQueryString({})).toBe('');
   });
+
+  test('repeats query parameter names for OAS3 arrays by default', () => {
+    expect(buildQueryString({ httpCode: ['SUCCESS', 'BAD_REQUEST'] })).toBe('httpCode=SUCCESS&httpCode=BAD_REQUEST');
+  });
+
+  test('joins OAS3 array values for explicit form explode=false', () => {
+    expect(
+      buildQueryString({ httpCode: ['SUCCESS', 'BAD_REQUEST'] }, { httpCode: { style: 'form', explode: false } }),
+    ).toBe('httpCode=SUCCESS,BAD_REQUEST');
+  });
+
+  test('encodes item commas separately from the form array delimiter', () => {
+    expect(buildQueryString({ status: ['A,B', 'C'] }, { status: { style: 'form', explode: false } })).toBe(
+      'status=A%2CB,C',
+    );
+  });
+
+  test('supports OAS3 spaceDelimited and pipeDelimited array styles', () => {
+    expect(
+      buildQueryString(
+        { spaces: ['a', 'b'], pipes: ['a', 'b'] },
+        {
+          spaces: { style: 'spaceDelimited' },
+          pipes: { style: 'pipeDelimited' },
+        },
+      ),
+    ).toBe('spaces=a%20b&pipes=a%7Cb');
+  });
+
+  test('rejects style and explode combinations that OAS3 does not define for query arrays', () => {
+    expect(() =>
+      buildQueryString({ status: ['OPEN', 'CLOSED'] }, { status: { style: 'pipeDelimited', explode: true } }),
+    ).toThrow('Unsupported OAS3 query array serialization');
+    expect(() =>
+      buildQueryString({ status: ['OPEN', 'CLOSED'] }, { status: { style: 'deepObject', explode: false } }),
+    ).toThrow('Unsupported OAS3 query array serialization');
+  });
 });
 
 // ─── mergeHeaders ─────────────────────────────────────
@@ -441,6 +478,37 @@ describe('buildRequest', () => {
     expect(result.url).toBe('http://localhost:8080/users/42?verbose=true');
     expect(result.method).toBe('GET');
     expect(result.body).toBeUndefined();
+  });
+
+  test('serializes array query params with their OAS3 style and explode metadata', () => {
+    const arrayQueryModel: OperationDebugModel = {
+      ...debugModel,
+      pathParams: [],
+      queryParams: [
+        { name: 'httpCode', in: 'query', required: false, type: 'array' },
+        { name: 'status', in: 'query', required: false, type: 'array', style: 'form', explode: false },
+      ],
+    };
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/enum/batch',
+      method: 'GET',
+      debugModel: arrayQueryModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {
+          httpCode: ['SUCCESS', 'BAD_REQUEST'],
+          status: ['OPEN', 'CLOSED'],
+        },
+        headerParams: {},
+        cookieParams: {},
+      },
+    });
+
+    expect(result.url).toBe(
+      'http://localhost:8080/enum/batch?httpCode=SUCCESS&httpCode=BAD_REQUEST&status=OPEN,CLOSED',
+    );
+    expect(result.query.httpCode).toEqual(['SUCCESS', 'BAD_REQUEST']);
   });
 
   test('builds POST request with body', () => {

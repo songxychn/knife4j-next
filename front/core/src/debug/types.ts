@@ -38,6 +38,10 @@ export interface DebugParam {
   readOnly?: boolean;
   /** 原始 schema 引用（可用于深层字段树展开） */
   schema?: Record<string, unknown>;
+  /** 查询参数序列化样式（OAS3 Parameter Object style）。 */
+  style?: string;
+  /** 查询参数是否展开数组/对象值。 */
+  explode?: boolean;
 }
 
 // ─── RequestBody 模型 ─────────────────────────────────
@@ -97,10 +101,13 @@ export interface OperationDebugModel {
 
 // ─── RequestBuilder 输入/输出 ─────────────────────────
 
+/** query 参数值；数组会按 OAS3 query 参数的 style / explode 规则序列化。 */
+export type QueryParamValue = string | string[];
+
 /** requestBuilder 的用户填写输入 */
 export interface DebugFormValues {
   pathParams: Record<string, string>;
-  queryParams: Record<string, string>;
+  queryParams: Record<string, QueryParamValue>;
   headerParams: Record<string, string>;
   cookieParams: Record<string, string>;
   /** 当前选中的 content-type */
@@ -198,7 +205,7 @@ export interface BuiltRequest {
   /** 合并后的 headers */
   headers: Record<string, string>;
   /** query 参数（解码后，用于预览） */
-  query: Record<string, string>;
+  query: Record<string, QueryParamValue>;
   /** 请求体（原始字符串，或 FormData 引用 — 后者由 UI 层处理） */
   body?: string;
   /** Content-Type */
