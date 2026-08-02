@@ -129,7 +129,7 @@ describe('debugDefaultValues', () => {
                   schema,
                   examples: {
                     demo: {
-                      value: { name: 'media-example', age: 3 },
+                      value: { name: '', age: 3 },
                     },
                   },
                 },
@@ -145,9 +145,41 @@ describe('debugDefaultValues', () => {
     const defaults = buildBodyContentDefaults(doc, operationFrom(doc, '/pets', 'post'), debugModel);
 
     expect(JSON.parse(initialBodyValueForContent(bodyContent, defaults))).toEqual({
-      name: 'media-example',
+      name: '',
       age: 3,
     });
+  });
+
+  it('keeps a JSON-looking media example string as a string when the schema is omitted', () => {
+    const literal = '{"kind":"literal"}';
+    const bodyContent: BodyContent = {
+      mediaType: 'application/json',
+      category: 'json',
+      exampleValue: literal,
+    };
+    const doc: SwaggerDoc = {
+      openapi: '3.0.3',
+      info: { title: 'demo', version: '1.0.0' },
+      paths: {
+        '/literal': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: literal,
+                },
+              },
+            },
+            responses: {},
+          },
+        },
+      },
+    };
+    const debugModel = baseDebugModel({ bodyContents: [bodyContent], bodyRequired: true });
+
+    const defaults = buildBodyContentDefaults(doc, operationFrom(doc, '/literal', 'post'), debugModel);
+
+    expect(JSON.parse(initialBodyValueForContent(bodyContent, defaults))).toBe(literal);
   });
 
   it('merges requestBody media examples into form field defaults', () => {
