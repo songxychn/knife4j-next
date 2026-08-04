@@ -61,12 +61,26 @@ describe('knife4jClient', () => {
     expect(isOpenApi3Document({ swagger: '2.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
   });
 
-  it('preserves gateway route contextPath from swagger-config urls', () => {
+  it('preserves aggregation route metadata from swagger-config urls', () => {
     expect(
       parseGroupsFromConfig({
-        urls: [{ name: '用户中心', url: '/iam/v3/api-docs', contextPath: '/iam' }],
+        urls: [
+          {
+            name: '用户中心',
+            url: '/iam/v3/api-docs',
+            contextPath: '/iam',
+            header: 'nacos-user-service',
+          },
+        ],
       }),
-    ).toEqual([{ name: '用户中心', url: '/iam/v3/api-docs', contextPath: '/iam' }]);
+    ).toEqual([
+      {
+        name: '用户中心',
+        url: '/iam/v3/api-docs',
+        contextPath: '/iam',
+        header: 'nacos-user-service',
+      },
+    ]);
   });
 
   it('normalizes OpenAPI docs with missing info', async () => {
@@ -102,6 +116,34 @@ describe('knife4jClient', () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           'Accept-Language': expect.stringMatching(/^en-US(?:,|$)/),
+        }),
+      }),
+    );
+  });
+
+  it('sends the aggregation route header alongside the selected language when fetching api-docs', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      textResponse(
+        JSON.stringify({
+          openapi: '3.0.1',
+          info: { title: 'demo', version: '1.0.0' },
+          paths: {},
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchSwaggerDocResult('/v3/api-docs', {
+      preferredLanguage: 'zh-CN',
+      routeHeader: 'nacos-user-service',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/v3/api-docs',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Accept-Language': expect.stringMatching(/^zh-CN(?:,|$)/),
+          'knife4j-gateway-request': 'nacos-user-service',
         }),
       }),
     );

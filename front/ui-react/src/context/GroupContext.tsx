@@ -132,7 +132,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLoading(true);
     setGroupError(null);
     const mode = knife4xBootstrap.mode === 'embed' ? 'embed' : 'java';
-    fetchSwaggerDocForMode(group.url, mode, { preferredLanguage }).then((result) => {
+    fetchSwaggerDocForMode(group.url, mode, { preferredLanguage, routeHeader: group.header }).then((result) => {
       if (cancelled) return;
       if (result.doc) {
         setSwaggerDoc(result.doc);

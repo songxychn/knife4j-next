@@ -9,6 +9,7 @@ export interface SwaggerGroup {
   swaggerVersion?: string;
   location?: string; // swagger-resources 格式
   contextPath?: string; // gateway / aggregation route context-path
+  header?: string; // Knife4j aggregation route identifier
 }
 
 /**
@@ -29,6 +30,7 @@ export interface SwaggerUiConfig {
     contextPath?: string;
     swaggerVersion?: string;
     location?: string;
+    header?: string;
   }>;
   /** tag 排序策略（例如 'alpha'） */
   tagsSorter?: string;

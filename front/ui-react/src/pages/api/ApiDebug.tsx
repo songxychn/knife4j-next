@@ -60,6 +60,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
+import { applyRouteProxyHeader } from '../../api/routeProxyHeader';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import {
@@ -2159,16 +2160,19 @@ export default function ApiDebug() {
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
   const buildPreview = (): RequestPreviewBuild => {
     const formValues = collectFormValues();
-    const built = coreBuildRequest({
-      baseUrl,
-      path,
-      method,
-      debugModel,
-      formValues,
-      auth: authValues,
-      globalParams: globalParamValues,
-      securityKeys,
-    });
+    const built = applyRouteProxyHeader(
+      coreBuildRequest({
+        baseUrl,
+        path,
+        method,
+        debugModel,
+        formValues,
+        auth: authValues,
+        globalParams: globalParamValues,
+        securityKeys,
+      }),
+      activeSwaggerGroup?.header,
+    );
     const curl = buildCurl(built);
     return { formValues, built, curl };
   };
