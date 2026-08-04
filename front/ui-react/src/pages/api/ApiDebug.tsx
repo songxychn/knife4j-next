@@ -2172,6 +2172,10 @@ export default function ApiDebug() {
         securityKeys,
       }),
       activeSwaggerGroup?.header,
+      {
+        origin: currentOrigin(),
+        contextPath: groupContextPath,
+      },
     );
     const curl = buildCurl(built);
     return { formValues, built, curl };
