@@ -3,7 +3,7 @@ import {
   fetchSwaggerUiConfig,
   isOpenApi3Document,
   parseGroupsFromConfig,
-  type LanguageAwareRequestOptions,
+  type SwaggerDocRequestOptions,
   type SwaggerDocFetchResult,
 } from '../api/knife4jClient';
 import { fetchWithAcceptLanguage } from '../api/acceptLanguage';
@@ -44,7 +44,8 @@ export async function loadInitialGroups(
   try {
     const response = await fetchWithAcceptLanguage('swagger-resources', preferredLanguage);
     if (response.ok) {
-      const resources: Array<{ name: string; location: string; swaggerVersion?: string }> = await response.json();
+      const resources: Array<{ name: string; location: string; swaggerVersion?: string; header?: string }> =
+        await response.json();
       if (resources.length > 0) {
         return {
           mode: 'ready',
@@ -53,6 +54,7 @@ export async function loadInitialGroups(
             url: group.location,
             location: group.location,
             swaggerVersion: group.swaggerVersion,
+            ...(typeof group.header === 'string' ? { header: group.header } : {}),
           })),
           swaggerUiConfig: null,
         };
@@ -68,7 +70,7 @@ export async function loadInitialGroups(
 export async function fetchSwaggerDocForMode(
   url: string,
   mode: 'java' | 'embed',
-  options: LanguageAwareRequestOptions = {},
+  options: SwaggerDocRequestOptions = {},
 ): Promise<SwaggerDocFetchResult> {
   const result = await fetchSwaggerDocResult(url, options);
   if (mode === 'embed' && result.doc && !isOpenApi3Document(result.doc)) {

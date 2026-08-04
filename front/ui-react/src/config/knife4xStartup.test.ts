@@ -40,6 +40,38 @@ describe('Knife4x startup', () => {
     );
   });
 
+  it('preserves the aggregation route header from swagger-resources fallback', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, false))
+      .mockResolvedValueOnce(jsonResponse({}, false))
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            name: '用户中心',
+            location: '/iam/v3/api-docs',
+            swaggerVersion: '3.0',
+            header: 'nacos-user-service',
+          },
+        ]),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(loadInitialGroups({ mode: 'java' })).resolves.toEqual({
+      mode: 'ready',
+      groups: [
+        {
+          name: '用户中心',
+          url: '/iam/v3/api-docs',
+          location: '/iam/v3/api-docs',
+          swaggerVersion: '3.0',
+          header: 'nacos-user-service',
+        },
+      ],
+      swaggerUiConfig: null,
+    });
+  });
+
   it('creates one default group in Embed mode without Java discovery', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

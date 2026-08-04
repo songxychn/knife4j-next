@@ -15,6 +15,7 @@ import type {
 } from '../types/swagger';
 import type { LocalizedMessage } from '../types/i18n';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
+import { buildRouteProxyHeaders } from './routeProxyHeader';
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
 type HttpMethod = (typeof HTTP_METHODS)[number];
@@ -28,6 +29,10 @@ export interface SwaggerDocFetchResult {
 
 export interface LanguageAwareRequestOptions {
   preferredLanguage?: string;
+}
+
+export interface SwaggerDocRequestOptions extends LanguageAwareRequestOptions {
+  routeHeader?: string;
 }
 
 /** HTTP method 在 swagger-ui 'method' sorter 下的固定顺序 */
@@ -100,6 +105,7 @@ export function parseGroupsFromConfig(config: SwaggerUiConfig): SwaggerGroup[] {
       ...(u.location ? { location: u.location } : {}),
       ...(u.swaggerVersion ? { swaggerVersion: u.swaggerVersion } : {}),
       ...(typeof u.contextPath === 'string' ? { contextPath: u.contextPath } : {}),
+      ...(typeof u.header === 'string' ? { header: u.header } : {}),
     }));
   }
   if (typeof config.url === 'string' && config.url.length > 0) {
@@ -124,12 +130,14 @@ export async function fetchGroups(options: LanguageAwareRequestOptions = {}): Pr
   try {
     const res = await fetchWithAcceptLanguage('swagger-resources', options.preferredLanguage);
     if (res.ok) {
-      const data: Array<{ name: string; location: string; swaggerVersion?: string }> = await res.json();
+      const data: Array<{ name: string; location: string; swaggerVersion?: string; header?: string }> =
+        await res.json();
       return data.map((g) => ({
         name: g.name,
         url: g.location,
         location: g.location,
         swaggerVersion: g.swaggerVersion,
+        ...(typeof g.header === 'string' ? { header: g.header } : {}),
       }));
     }
   } catch (_) {
@@ -142,10 +150,14 @@ export async function fetchGroups(options: LanguageAwareRequestOptions = {}): Pr
 /** 拉取指定 group 的 api-docs，并返回可展示的诊断信息 */
 export async function fetchSwaggerDocResult(
   url: string,
-  options: LanguageAwareRequestOptions = {},
+  options: SwaggerDocRequestOptions = {},
 ): Promise<SwaggerDocFetchResult> {
   try {
-    const res = await fetchWithAcceptLanguage(url, options.preferredLanguage);
+    const res = await fetchWithAcceptLanguage(
+      url,
+      options.preferredLanguage,
+      buildRouteProxyHeaders(options.routeHeader),
+    );
     if (!res.ok) {
       return { doc: null, error: { key: 'error.apiDocs.http', values: { status: res.status } } };
     }
@@ -157,10 +169,7 @@ export async function fetchSwaggerDocResult(
 }
 
 /** 拉取指定 group 的 api-docs */
-export async function fetchSwaggerDoc(
-  url: string,
-  options: LanguageAwareRequestOptions = {},
-): Promise<SwaggerDoc | null> {
+export async function fetchSwaggerDoc(url: string, options: SwaggerDocRequestOptions = {}): Promise<SwaggerDoc | null> {
   const result = await fetchSwaggerDocResult(url, options);
   return result.doc;
 }

@@ -43,17 +43,26 @@ export function buildAcceptLanguageHeader(
     .join(',');
 }
 
-export function createLanguageAwareRequestInit(preferredLanguage?: string): RequestInit | undefined {
+export function createLanguageAwareRequestInit(
+  preferredLanguage?: string,
+  additionalHeaders: Record<string, string> = {},
+): RequestInit | undefined {
   const acceptLanguage = buildAcceptLanguageHeader(preferredLanguage);
-  if (!acceptLanguage) return undefined;
+  const headers = { ...additionalHeaders };
+  if (acceptLanguage) {
+    headers['Accept-Language'] = acceptLanguage;
+  }
+  if (Object.keys(headers).length === 0) return undefined;
   return {
-    headers: {
-      'Accept-Language': acceptLanguage,
-    },
+    headers,
   };
 }
 
-export function fetchWithAcceptLanguage(input: RequestInfo | URL, preferredLanguage?: string): Promise<Response> {
-  const init = createLanguageAwareRequestInit(preferredLanguage);
+export function fetchWithAcceptLanguage(
+  input: RequestInfo | URL,
+  preferredLanguage?: string,
+  additionalHeaders: Record<string, string> = {},
+): Promise<Response> {
+  const init = createLanguageAwareRequestInit(preferredLanguage, additionalHeaders);
   return init ? fetch(input, init) : fetch(input);
 }
