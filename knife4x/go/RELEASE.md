@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.2.1` |
-| 当前 tag | `knife4x/go/v0.2.1` |
+| 当前版本 | `v0.2.2` |
+| 当前 tag | `knife4x/go/v0.2.2` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -51,8 +51,8 @@ test -f knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-grep -Fq 'knife4x/go/v0.2.1' knife4x/README.md knife4x/go/README.md
-grep -Fq 'go@v0.2.1' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
+grep -Fq 'knife4x/go/v0.2.2' knife4x/README.md knife4x/go/README.md
+grep -Fq 'go@v0.2.2' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 grep -Fq 'OAS2 不能直接迁移' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 test -z "$(git status --porcelain)"
 ```
@@ -62,11 +62,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.2.1 -m "Knife4x Go v0.2.1"
-git push origin knife4x/go/v0.2.1
+git tag -a knife4x/go/v0.2.2 -m "Knife4x Go v0.2.2"
+git push origin knife4x/go/v0.2.2
 ```
 
-不要同时创建根级 `v0.2.1` tag，不要运行 Java Maven Release，不要为本次发布新增
+不要同时创建根级 `v0.2.2` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -75,7 +75,7 @@ registry、OIDC、secret 或 GitHub Release。
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.2.1
+version=v0.2.2
 curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info"
 ```
 
@@ -87,7 +87,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.2.1
+version=v0.2.2
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -133,7 +133,7 @@ test -f "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 查询、无 `replace` consumer 编译和下载内容检查都通过后，才可宣布
-Knife4x Go `v0.2.1` 发布完成。
+Knife4x Go `v0.2.2` 发布完成。
 
 ## 补丁原则
 
