@@ -12,7 +12,15 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.2.2 <Badge type="tip" text="最新" />
+### 5.2.3 <Badge type="tip" text="最新" />
+
+`5.2.3` 是基于 `5.2.2` 的向后兼容补丁版本，修复独立聚合场景下下游文档拉取缺少路由头的问题。
+
+**聚合与路由（React UI）**
+
+- Nacos 等独立聚合模式加载下游 `api-docs` 时补齐 `knife4j-gateway-request` 路由头，避免下游文档 404；并限制该头仅在聚合路由请求中发送（PR #613，issue #612）。
+
+### 5.2.2
 
 `5.2.2` 是基于 `5.2.1` 的向后兼容补丁版本，修复调试页数组枚举与查询参数序列化、集合请求体分组校验，以及文档信息扩展字段与 JSON 示例类型展示问题。
 
@@ -453,7 +461,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.2</version>
+    <version>5.2.3</version>
 </dependency>
 ```
 

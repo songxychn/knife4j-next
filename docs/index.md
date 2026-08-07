@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.2.2</version>
+    <version>5.2.3</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.2</version>
+    <version>5.2.3</version>
 </dependency>
 ```
 
@@ -89,11 +89,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.2.2 版本亮点 <Badge type="tip" text="最新" />
+## 5.2.3 版本亮点 <Badge type="tip" text="最新" />
 
-- ☑️ 数组枚举支持多选，查询参数按 OAS3 规范序列化
-- 🧪 集合请求体分组校验与 JSON media example 原生类型序列化修复
-- 📄 首页文档信息只展示标准 `x-*` 扩展，不再识别非规范 `extensions` 包装
+- 🔗 独立聚合加载下游文档时补齐 `knife4j-gateway-request` 路由头
+- 🛡️ 限制该路由头仅在聚合路由请求中发送，避免误带出网
 
 完整更新列表见 [发布说明](/release-notes/)。
 
