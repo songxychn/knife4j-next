@@ -5,6 +5,18 @@ body {
   margin: 0;
 }
 
+.knife4j-app-layout {
+  min-height: 100vh;
+}
+
+.knife4j-main-content {
+  min-height: 610px;
+}
+
+#knife4j-api-debug-page {
+  min-height: calc(100vh - 120px);
+}
+
 .knife4j-sidebar-search.ant-input-affix-wrapper {
   color: rgba(255, 255, 255, 0.88);
   background: rgba(255, 255, 255, 0.08);
@@ -197,5 +209,132 @@ body {
 
   .knife4j-operation-content {
     padding: 0 12px 20px;
+  }
+}
+
+@media (min-width: 801px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .knife4j-app-layout.ant-layout {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .knife4j-app-sider.ant-layout-sider {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .knife4j-app-sider > .ant-layout-sider-children {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .knife4j-app-sider > .ant-layout-sider-children > .ant-menu {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .knife4j-main-layout.ant-layout {
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .knife4j-main-header.ant-layout-header {
+    min-width: 0;
+    flex: 0 0 auto;
+    overflow: hidden;
+  }
+
+  .knife4j-header-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .knife4j-header-actions {
+    flex: 0 0 auto;
+  }
+
+  .knife4j-main-content.ant-layout-content {
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .knife4j-main-content-inner {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .knife4j-workspace-tabs.ant-tabs {
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-nav {
+    flex: 0 0 auto;
+  }
+
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder > .ant-tabs-content,
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .knife4j-operation-tabs.ant-tabs {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-content-holder {
+    min-height: 0;
+  }
+
+  .knife4j-operation-tabs .ant-tabs-content,
+  .knife4j-operation-tabs .ant-tabs-tabpane {
+    height: 100%;
+    min-height: 0;
+  }
+
+  #knife4j-api-debug-page {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .knife4j-api-debug-main {
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .knife4j-main-footer.ant-layout-footer {
+    max-height: 30vh;
+    min-height: 0;
+    flex: 0 1 auto;
+    overflow: auto;
   }
 }

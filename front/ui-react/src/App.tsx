@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Alert, Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import enUSLocale from 'antd/locale/en_US';
@@ -86,6 +86,7 @@ const AppInner: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [siderWidth, setSiderWidth] = useState(320);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc, groupError } = useGroup();
@@ -138,6 +139,27 @@ const AppInner: React.FC = () => {
       // storage might be disabled or quota exceeded — not fatal
     }
   }, [items, activeKey]);
+
+  /** A newly selected page starts at the top of its bounded workspace. */
+  useLayoutEffect(() => {
+    [document.scrollingElement, document.documentElement, document.body].forEach((container) => {
+      if (!container) return;
+      container.scrollTop = 0;
+      container.scrollLeft = 0;
+    });
+
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    workspace
+      .querySelectorAll<HTMLElement>(
+        '.knife4j-workspace-tabs > .ant-tabs-content-holder, .knife4j-operation-tabs > .ant-tabs-content-holder, .knife4j-api-debug-main',
+      )
+      .forEach((container) => {
+        container.scrollTop = 0;
+        container.scrollLeft = 0;
+      });
+  }, [location.pathname]);
 
   /** Keep the outer API tab key aligned with the selected operation child page. */
   useEffect(() => {
@@ -421,7 +443,7 @@ const AppInner: React.FC = () => {
 
   return (
     <ConfigProvider locale={antdLocaleMap[currentLang]}>
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout className="knife4j-app-layout">
         <Resizable
           width={siderWidth}
           height={Infinity}
@@ -433,6 +455,7 @@ const AppInner: React.FC = () => {
           draggableOpts={{ enableUserSelectHack: false }}
         >
           <Sider
+            className="knife4j-app-sider"
             trigger={null}
             collapsible
             collapsed={collapsed}
@@ -477,8 +500,9 @@ const AppInner: React.FC = () => {
           </Sider>
         </Resizable>
 
-        <Layout>
+        <Layout className="knife4j-main-layout">
           <Header
+            className="knife4j-main-header"
             style={{
               padding: 0,
               background: colorBgContainer,
@@ -492,8 +516,11 @@ const AppInner: React.FC = () => {
               onClick={() => setCollapsed(!collapsed)}
               style={{ fontSize: 16, width: 64, height: 64 }}
             />
-            {headerTitle}
-            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+            <span className="knife4j-header-title">{headerTitle}</span>
+            <span
+              className="knife4j-header-actions"
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
+            >
               <Dropdown
                 menu={{
                   items: langMenuItems,
@@ -518,14 +545,18 @@ const AppInner: React.FC = () => {
           <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
           <Content
+            className="knife4j-main-content"
             style={{
               margin: '6px 4px',
-              minHeight: 610,
               padding: 6,
               background: colorBgContainer,
             }}
           >
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div
+              ref={workspaceRef}
+              className="knife4j-main-content-inner"
+              style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            >
               {groupError && (
                 <Alert
                   type="error"
@@ -538,6 +569,7 @@ const AppInner: React.FC = () => {
                 />
               )}
               <Tabs
+                className="knife4j-workspace-tabs"
                 hideAdd
                 onChange={onChange}
                 activeKey={activeKey}
@@ -551,7 +583,7 @@ const AppInner: React.FC = () => {
           </Content>
 
           {footerContent && (
-            <Footer style={footerStyle}>
+            <Footer className="knife4j-main-footer" style={footerStyle}>
               {footerContent.kind === 'custom' ? (
                 <div className="knife4j-footer-markdown">
                   <Markdown source={footerContent.content} />
