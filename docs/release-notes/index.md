@@ -12,7 +12,15 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.2.3 <Badge type="tip" text="最新" />
+### 5.2.4 <Badge type="tip" text="最新" />
+
+`5.2.4` 是基于 `5.2.3` 的向后兼容补丁版本，修复 React UI 宽屏布局下 Header / 接口标签 / Footer 随 document 滚动离开视口的问题。
+
+**布局与滚动（React UI）**
+
+- 宽屏（>800px）固定视口布局，侧栏菜单、接口详情、Debug 主区域与历史区域分别独立滚动；窄屏保留 document 滚动回退，切换接口时复位滚动位置，并限制超长自定义 Footer 高度（PR #621，issue #620）。
+
+### 5.2.3
 
 `5.2.3` 是基于 `5.2.2` 的向后兼容补丁版本，修复独立聚合场景下下游文档拉取缺少路由头的问题。
 
@@ -461,7 +469,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.3</version>
+    <version>5.2.4</version>
 </dependency>
 ```
 
