@@ -78,7 +78,7 @@ http://ip:port/doc.html
 |---|---|
 | `knife4j/` | Java 主工程（starter、UI webjar、聚合、Gateway、WebFlux、smoke 与 demo） |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3 workspace）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.2.2` 已发布，Rust 后置；与 `front/ui-react` 共用 UI |
+| `knife4x/` | 嵌入式控制台：Go `v0.2.3` 已发布，Rust 后置；与 `front/ui-react` 共用 UI |
 | `docs/` | VitePress 文档站 |
 | `tools/` | 验证与发布辅助脚本（原 `scripts/`） |
 | `legacy/` | 冻结参考：`vue2`、`insight`、`sandbox`（不参与主线构建） |
@@ -92,7 +92,7 @@ http://ip:port/doc.html
 | OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
 | OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
 | OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| Knife4x | `knife4x/` | Go / Rust 宿主壳 | Go `v0.2.2` 已发布；Rust 后置；UI 不另开工程 |
+| Knife4x | `knife4x/` | Go / Rust 宿主壳 | Go `v0.2.3` 已发布；Rust 后置；UI 不另开工程 |
 | 历史代码 | `legacy/` | 无发布目标 | 仅参考，勿接常规功能任务 |
 | 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 

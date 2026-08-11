@@ -16,7 +16,7 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Go 当前公开版本为 `v0.2.2`，对应仓库 tag `knife4x/go/v0.2.2`；首个公开版本为
+Go 当前公开版本为 `v0.2.3`，对应仓库 tag `knife4x/go/v0.2.3`；首个公开版本为
 `v0.1.0`。tag 发布前可从仓库 checkout 直接运行 [Gin example](examples/gin/README.md)；
 发布状态与完整验收步骤见 [Go 发布清单](go/RELEASE.md)。
 
