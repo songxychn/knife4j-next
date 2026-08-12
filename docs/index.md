@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.2.3</version>
+    <version>5.2.4</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.3</version>
+    <version>5.2.4</version>
 </dependency>
 ```
 
@@ -89,10 +89,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.2.3 版本亮点 <Badge type="tip" text="最新" />
+## 5.2.4 版本亮点 <Badge type="tip" text="最新" />
 
-- 🔗 独立聚合加载下游文档时补齐 `knife4j-gateway-request` 路由头
-- 🛡️ 限制该路由头仅在聚合路由请求中发送，避免误带出网
+- 🖥️ 宽屏固定 Header / 接口标签 / Footer，侧栏、接口详情与 Debug 区域独立滚动
+- 📱 窄屏保留 document 滚动回退，并限制超长自定义 Footer 高度
 
 完整更新列表见 [发布说明](/release-notes/)。
 
