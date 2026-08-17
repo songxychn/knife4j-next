@@ -5,7 +5,9 @@ import {
   ControlOutlined,
   DatabaseOutlined,
   FileMarkdownOutlined,
+  LoginOutlined,
   SearchOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
@@ -55,7 +57,7 @@ interface SidebarSearchMenuProps {
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
   const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
-  const { params: globalParams } = useGlobalParam();
+  const { effectiveParams } = useGlobalParam();
   const { settings } = useSettings();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
@@ -127,8 +129,26 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
                 fontSize: 12,
               }}
             >
-              {globalParams.filter((param) => param.enabled).length}
+              {effectiveParams.length}
             </span>
+          </span>
+        ),
+      });
+      items.push({
+        key: `/${activeGroup.value}/cookieSession`,
+        label: (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LoginOutlined />
+            <span>{t('cookieSession.pageTitle')}</span>
+          </span>
+        ),
+      });
+      items.push({
+        key: `/${activeGroup.value}/authorize`,
+        label: (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SafetyCertificateOutlined />
+            <span>{t('auth.pageTitle')}</span>
           </span>
         ),
       });
@@ -234,7 +254,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   }, [
     activeGroup.value,
     filteredByTag,
-    globalParams,
+    effectiveParams,
     markdownDocs,
     menuTags,
     schemas,

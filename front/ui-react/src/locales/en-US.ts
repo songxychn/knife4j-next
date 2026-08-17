@@ -297,12 +297,16 @@ const enUS = {
   'apiDebug.preview.copyFailed': 'Copy failed, please select text manually',
   'apiDebug.preview.autoContentType': '(Content-Type is auto-injected based on body type)',
   'apiDebug.preview.source.interface': 'Interface',
-  'apiDebug.preview.source.global': 'Global',
-  'apiDebug.globalParams.readOnly': 'Read-only; edit from Global Parameters in the sidebar',
+  'apiDebug.preview.source.application': 'All groups',
+  'apiDebug.preview.source.global': 'Current group',
+  'apiDebug.globalParams.readOnly': 'Read-only; edit from Request Parameters in the sidebar',
   'apiDebug.preview.source.auth': 'Auth',
 
   // Authorize
-  'auth.title': 'Authorization',
+  'auth.title': 'OpenAPI Authentication',
+  'auth.pageTitle': 'OpenAPI Authentication',
+  'auth.scopeTip':
+    'Authentication credentials belong only to the current group: {{group}}. Switching groups uses that group’s configuration.',
   'auth.tab.bearer': 'Bearer Token',
   'auth.tab.basic': 'Basic Auth',
   'auth.label.token': 'Token',
@@ -368,12 +372,22 @@ const enUS = {
   'apiDebug.auth.modal.title': '401 Unauthorized — please configure authentication',
 
   // GlobalParam
-  'globalParam.title': 'Global Parameters',
-  'globalParam.scope': 'Applies to the current OpenAPI group: {{group}}',
+  'globalParam.title': 'Request Parameters',
   'globalParam.currentGroup': 'Current group',
-  'globalParam.scopeTip':
-    'Global parameters are applied to every debug request in this group. Parameters entered on an operation take priority.',
-  'globalParam.empty': 'No global parameters in this group',
+  'globalParam.scope.application': 'All groups',
+  'globalParam.scope.group': 'Current group',
+  'globalParam.scope.applicationDescription': 'Sent to every OpenAPI group in the current document.',
+  'globalParam.scope.groupDescription': 'Sent only to the current OpenAPI group: {{group}}',
+  'globalParam.scope.applicationTip':
+    'A same-named current-group parameter overrides an all-groups parameter. Parameters entered on an operation still have the highest priority.',
+  'globalParam.scope.applicationStorage':
+    'These values are stored as plaintext in browser localStorage. “Mask value” only changes the display and does not encrypt storage.',
+  'globalParam.scope.groupTip':
+    'Current-group parameters take priority over all-groups parameters. A disabled or empty same-named group parameter blocks inheritance; deleting it restores inheritance. Parameters entered on an operation still have the highest priority.',
+  'globalParam.scope.currentGroupOnly':
+    'This setting belongs only to the current group: {{group}}. Switching groups uses that group’s configuration.',
+  'globalParam.empty.application': 'No parameters apply to all groups yet',
+  'globalParam.empty.group': 'No parameters in the current group',
   'globalParam.col.name': 'Name',
   'globalParam.col.value': 'Value',
   'globalParam.col.in': 'In',
@@ -389,14 +403,17 @@ const enUS = {
   'globalParam.btn.edit': 'Edit',
   'globalParam.btn.delete': 'Delete',
   'globalParam.btn.fetch': 'Fetch and update',
-  'globalParam.btn.clear': 'Clear current group',
+  'globalParam.btn.clearApplication': 'Clear all-groups parameters',
+  'globalParam.btn.clearGroup': 'Clear current-group parameters',
   'globalParam.source.manual': 'Manual',
   'globalParam.source.request': 'Request',
-  'globalParam.modal.add': 'Add global parameter',
-  'globalParam.modal.edit': 'Edit global parameter',
-  'globalParam.confirm.delete': 'Delete this global parameter?',
-  'globalParam.confirm.clear': 'Clear every global parameter and Cookie session setting in this group?',
-  'globalParam.msg.saved': 'Global parameter saved',
+  'globalParam.modal.add': 'Add request parameter',
+  'globalParam.modal.edit': 'Edit request parameter',
+  'globalParam.confirm.delete': 'Delete this request parameter?',
+  'globalParam.confirm.clearApplication': 'Clear every all-groups parameter in the current document?',
+  'globalParam.confirm.clearGroup':
+    'Clear every request parameter in the current group? Cookie session and authentication settings will not be affected.',
+  'globalParam.msg.saved': 'Request parameter saved',
   'globalParam.msg.updated': 'Parameter value updated',
   'globalParam.msg.duplicate': 'A parameter with the same name and location already exists',
   'globalParam.msg.requestFailed': 'Request failed',
@@ -409,6 +426,11 @@ const enUS = {
   'globalParam.request.prefix': 'Result prefix (optional)',
   'globalParam.request.prefixTip':
     'Prepended to the JSONPath result. For example, “Bearer ” produces “Bearer <token>”.',
+  'cookieSession.pageTitle': 'Cookie Session',
+  'cookieSession.btn.reset': 'Reset Cookie session settings',
+  'cookieSession.confirm.reset':
+    'Reset Cookie session settings for the current group? Request parameters and authentication settings will not be affected.',
+  'cookieSession.msg.reset': 'Cookie session settings reset',
   'globalParam.cookie.title': 'Cookie Session',
   'globalParam.cookie.tip':
     'The browser stores Set-Cookie responses. Knife4j does not read or manually set Cookie values.',
@@ -451,7 +473,7 @@ const enUS = {
   // SettingsDrawer
   'settings.title': 'Settings',
   'settings.tab.authorize': 'Authorize',
-  'settings.tab.globalParam': 'Global Parameters',
+  'settings.tab.globalParam': 'Request Parameters',
   'settings.tab.offlineDoc': 'Offline Docs',
   'settings.tab.settings': 'Preferences',
 

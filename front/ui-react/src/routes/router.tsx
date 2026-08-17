@@ -4,6 +4,7 @@ import App from '../App.tsx';
 import Home from '../pages/Home.tsx';
 import Schema from '../pages/Schema.tsx';
 import Authorize from '../pages/Authorize.tsx';
+import CookieSession from '../pages/document/CookieSession.tsx';
 import GlobalParam from '../pages/document/GlobalParam.tsx';
 import OfficeDoc from '../pages/document/OfficeDoc.tsx';
 import Settings from '../pages/document/Settings.tsx';
@@ -43,6 +44,10 @@ const router = createHashRouter([
       {
         path: ':group/globalParam',
         element: <GlobalParam />,
+      },
+      {
+        path: ':group/cookieSession',
+        element: <CookieSession />,
       },
       {
         path: ':group/Officdoc',

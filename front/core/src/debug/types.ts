@@ -132,7 +132,7 @@ export interface GlobalParamValues {
 }
 
 /** 参数来源标签（用于请求预览中标记优先级） */
-export type ParamSource = 'interface' | 'global' | 'auth';
+export type ParamSource = 'interface' | 'global' | 'auth' | 'application';
 
 /** 请求参数来源映射 */
 export interface BuiltRequestSourceMap {
@@ -210,7 +210,7 @@ export interface BuiltRequest {
   body?: string;
   /** Content-Type */
   contentType: string;
-  /** 参数来源映射（仅在存在 auth / globalParams 时生成） */
+  /** 参数来源映射（仅在存在 auth / globalParams / applicationParams 时生成） */
   sourceMap?: BuiltRequestSourceMap;
   /**
    * multipart 场景中 encoding.contentType=application/json 的字段名列表。

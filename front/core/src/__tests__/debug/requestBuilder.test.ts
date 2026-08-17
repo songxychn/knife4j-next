@@ -115,6 +115,11 @@ describe('mergeHeaders', () => {
     expect(result['X-Token']).toBe('new');
   });
 
+  test('later sources override case-insensitively and preserve only the winning key casing', () => {
+    const result = mergeHeaders({ 'X-Token': 'old' }, { 'x-token': 'new' });
+    expect(result).toEqual({ 'x-token': 'new' });
+  });
+
   test('skips undefined and empty string values', () => {
     const result = mergeHeaders({ A: 'a', B: '', C: 'c' }, undefined);
     expect(result).toEqual({ A: 'a', C: 'c' });
@@ -650,6 +655,93 @@ describe('buildRequest', () => {
 
     expect(result.headers['Content-Type']).toBe('text/csv');
   });
+
+  test('lowercase content-type header overrides auto-detected JSON body type without a duplicate key', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/data',
+      method: 'POST',
+      debugModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        body: '{"message":"test"}',
+        selectedContentType: 'application/json',
+      },
+      applicationParams: {
+        headers: { 'content-type': 'application/problem+json' },
+        queries: {},
+      },
+    });
+
+    expect(result.headers).toEqual({ 'content-type': 'application/problem+json' });
+    expect(result.headers['Content-Type']).toBeUndefined();
+    expect(result.sourceMap!.headers).toEqual({ 'content-type': 'application' });
+    expect(result.body).toBe('{"message":"test"}');
+  });
+
+  test('mixed-case content-type header overrides urlencoded form auto-detection', () => {
+    const urlencodedModel: OperationDebugModel = {
+      ...debugModel,
+      bodyContents: [
+        {
+          mediaType: 'application/x-www-form-urlencoded',
+          category: 'urlencoded',
+          schema: {},
+        },
+      ],
+    };
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/form',
+      method: 'POST',
+      debugModel: urlencodedModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        formFields: { name: 'alice' },
+        selectedContentType: 'application/x-www-form-urlencoded',
+      },
+      globalParams: {
+        headers: { 'CoNtEnT-TyPe': 'application/custom-form' },
+        queries: {},
+      },
+    });
+
+    expect(result.headers).toEqual({ 'CoNtEnT-TyPe': 'application/custom-form' });
+    expect(result.headers['Content-Type']).toBeUndefined();
+    expect(result.sourceMap!.headers).toEqual({ 'CoNtEnT-TyPe': 'global' });
+    expect(result.body).toBe('name=alice');
+  });
+
+  test('multipart form keeps one explicit mixed-case content-type key', () => {
+    const multipartModel: OperationDebugModel = {
+      ...debugModel,
+      bodyContents: [{ mediaType: 'multipart/form-data', category: 'multipart', schema: {} }],
+    };
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/upload',
+      method: 'POST',
+      debugModel: multipartModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: { 'content-TYPE': 'multipart/form-data; boundary=explicit' },
+        cookieParams: {},
+        formFields: { description: 'sample' },
+        selectedContentType: 'multipart/form-data',
+      },
+    });
+
+    expect(result.headers).toEqual({ 'content-TYPE': 'multipart/form-data; boundary=explicit' });
+    expect(result.headers['Content-Type']).toBeUndefined();
+    expect(result.body).toBe('{"description":"sample"}');
+  });
 });
 
 // ─── buildCurl ────────────────────────────────────────
@@ -792,7 +884,50 @@ describe('buildRequest sourceMap', () => {
     expect(result.sourceMap!.query['gq']).toBe('global');
   });
 
-  test('interface overrides global and auth in sourceMap', () => {
+  test('application params are used as the lowest-priority fallback', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      applicationParams: { headers: { 'X-Shared': 'application' }, queries: { shared: 'application' } },
+    });
+
+    expect(result.headers).toEqual({ 'X-Shared': 'application' });
+    expect(result.query).toEqual({ shared: 'application' });
+    expect(result.sourceMap).toEqual({
+      headers: { 'X-Shared': 'application' },
+      query: { shared: 'application' },
+    });
+  });
+
+  test('auth overrides application params', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      applicationParams: {
+        headers: { authorization: 'ApplicationAuth' },
+        queries: { api_key: 'application' },
+      },
+      auth: {
+        bearerToken: 'auth-token',
+        bySecurityKey: {
+          queryKey: { type: 'apiKey', in: 'query', name: 'api_key', value: 'auth' },
+        },
+      },
+    });
+
+    expect(result.headers).toEqual({ Authorization: 'Bearer auth-token' });
+    expect(result.query.api_key).toBe('auth');
+    expect(result.sourceMap!.headers).toEqual({ Authorization: 'auth' });
+    expect(result.sourceMap!.query.api_key).toBe('auth');
+  });
+
+  test('four layers use application < auth < global < interface priority', () => {
     const result = buildRequest({
       baseUrl: 'http://localhost',
       path: '/api/test',
@@ -800,32 +935,81 @@ describe('buildRequest sourceMap', () => {
       debugModel: baseModel,
       formValues: {
         ...baseForm,
-        headerParams: { Authorization: 'Custom Token' },
-        queryParams: { gq: '2' },
+        headerParams: { 'x-priority': 'interface' },
+        queryParams: { priority: 'interface' },
       },
-      auth: { bearerToken: 'mytoken' },
-      globalParams: { headers: { 'X-Global': 'val' }, queries: { gq: '1' } },
+      applicationParams: { headers: { 'X-PRIORITY': 'application' }, queries: { priority: 'application' } },
+      auth: {
+        apiKeys: { 'X-Priority': 'auth' },
+        bySecurityKey: {
+          queryKey: { type: 'apiKey', in: 'query', name: 'priority', value: 'auth' },
+        },
+      },
+      globalParams: { headers: { 'x-Priority': 'global' }, queries: { priority: 'global' } },
     });
-    // Auth sets Authorization=auth, but interface overrides it
-    expect(result.sourceMap!.headers['Authorization']).toBe('interface');
-    expect(result.sourceMap!.query['gq']).toBe('interface');
-    // Global header should still be 'global'
-    expect(result.sourceMap!.headers['X-Global']).toBe('global');
+
+    expect(result.headers).toEqual({ 'x-priority': 'interface' });
+    expect(result.query).toEqual({ priority: 'interface' });
+    expect(result.sourceMap!.headers).toEqual({ 'x-priority': 'interface' });
+    expect(result.sourceMap!.query).toEqual({ priority: 'interface' });
   });
 
-  test('global overrides auth in sourceMap', () => {
+  test('global group params override auth in headers and query', () => {
     const result = buildRequest({
       baseUrl: 'http://localhost',
       path: '/api/test',
       method: 'GET',
       debugModel: baseModel,
       formValues: baseForm,
-      auth: { bearerToken: 'mytoken' },
-      globalParams: { headers: { Authorization: 'GlobalAuth' }, queries: {} },
+      auth: {
+        bearerToken: 'mytoken',
+        bySecurityKey: {
+          queryKey: { type: 'apiKey', in: 'query', name: 'api_key', value: 'auth' },
+        },
+      },
+      globalParams: { headers: { Authorization: 'GlobalAuth' }, queries: { api_key: 'global' } },
     });
-    // Global overrides auth for Authorization header
+
     expect(result.sourceMap!.headers['Authorization']).toBe('global');
     expect(result.headers['Authorization']).toBe('GlobalAuth');
+    expect(result.sourceMap!.query.api_key).toBe('global');
+    expect(result.query.api_key).toBe('global');
+  });
+
+  test('header overrides remove stale differently-cased sourceMap keys', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: baseForm,
+      applicationParams: { headers: { 'X-Token': 'application' }, queries: {} },
+      auth: { apiKeys: { 'x-token': 'auth' } },
+      globalParams: { headers: { 'X-TOKEN': 'global' }, queries: {} },
+    });
+
+    expect(result.headers).toEqual({ 'X-TOKEN': 'global' });
+    expect(result.sourceMap!.headers).toEqual({ 'X-TOKEN': 'global' });
+  });
+
+  test('query names remain case-sensitive across all sources', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost',
+      path: '/api/test',
+      method: 'GET',
+      debugModel: baseModel,
+      formValues: { ...baseForm, queryParams: { token: 'interface' } },
+      applicationParams: { headers: {}, queries: { token: 'application' } },
+      auth: {
+        bySecurityKey: {
+          queryKey: { type: 'apiKey', in: 'query', name: 'Token', value: 'auth' },
+        },
+      },
+      globalParams: { headers: {}, queries: { TOKEN: 'global' } },
+    });
+
+    expect(result.query).toEqual({ token: 'interface', Token: 'auth', TOKEN: 'global' });
+    expect(result.sourceMap!.query).toEqual({ token: 'interface', Token: 'auth', TOKEN: 'global' });
   });
 
   test('basic auth generates sourceMap with auth source', () => {

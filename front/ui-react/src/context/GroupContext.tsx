@@ -13,7 +13,12 @@ import { fetchSwaggerDocForMode, loadInitialGroups } from '../config/knife4xStar
 import type { MenuTag, SchemaObject, SwaggerDoc, SwaggerGroup, SwaggerUiConfig } from '../types/swagger';
 import type { LocalizedMessage } from '../types/i18n';
 import { extractKnife4jSettings, extractMarkdownFiles } from '../utils/knife4jSettings';
-import { groupNameFromPathname, selectInitialGroupName } from '../utils/groupRoute';
+import {
+  groupNameFromPathname,
+  isRouteGroupReady,
+  resolveActiveRouteGroup,
+  selectInitialGroupName,
+} from '../utils/groupRoute';
 import { useSettings } from './SettingsContext';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
@@ -60,6 +65,8 @@ interface GroupContextValue {
   markdownDocs: MarkdownDocItem[];
   schemas: Record<string, SchemaObject>;
   loading: boolean;
+  /** 路由中的 group 已与当前激活 group 对齐，避免切组首帧读取上一组数据。 */
+  routeGroupReady: boolean;
   usingMock: boolean;
   /** 当前激活 group 的加载错误信息，null 表示无错误 */
   groupError: LocalizedMessage | null;
@@ -116,10 +123,12 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (!routeGroupName || !rawGroups.some((group) => group.name === routeGroupName)) return;
+    if (activeGroupValue === routeGroupName) return;
 
     setGroupError(null);
-    setActiveGroupValue((current) => (current === routeGroupName ? current : routeGroupName));
-  }, [rawGroups, routeGroupName]);
+    setLoading(true);
+    setActiveGroupValue(routeGroupName);
+  }, [activeGroupValue, rawGroups, routeGroupName]);
 
   // 切换 group 时拉取对应 api-docs
   useEffect(() => {
@@ -224,15 +233,24 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     : [];
 
-  // loading 期间 groups 为空，提供一个空占位对象，避免下游 .apis 报错
-  const EMPTY_GROUP: ApiGroup = { value: '', label: '', apis: [] };
-  const activeGroup = groups.find((g) => g.value === activeGroupValue) ?? groups[0] ?? EMPTY_GROUP;
+  // spec 尚未加载或加载失败时，仍保留 rawGroups 中的当前分组身份。
+  const activeGroup = resolveActiveRouteGroup(
+    groups,
+    rawGroups.map((group) => group.name),
+    activeGroupValue,
+  );
   const activeSwaggerGroup = rawGroups.find((g) => g.name === activeGroupValue) ?? null;
 
-  const handleSetActiveGroup = useCallback((value: string) => {
-    setGroupError(null);
-    setActiveGroupValue(value);
-  }, []);
+  const handleSetActiveGroup = useCallback(
+    (value: string) => {
+      setGroupError(null);
+      if (value === activeGroupValue) return;
+      setLoading(true);
+      setActiveGroupValue(value);
+    },
+    [activeGroupValue],
+  );
+  const routeGroupReady = isRouteGroupReady(routeGroupName, activeGroupValue);
 
   return (
     <GroupContext.Provider
@@ -247,6 +265,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         markdownDocs,
         schemas,
         loading,
+        routeGroupReady,
         usingMock,
         groupError,
       }}
