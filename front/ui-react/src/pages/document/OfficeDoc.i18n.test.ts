@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
+import JSZip from 'jszip';
 import type { MenuTag, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { buildDocx, buildHtmlDoc, buildMarkdownDoc, buildWordDoc, type OfficeDocLabels } from './OfficeDoc';
 
@@ -119,13 +120,26 @@ describe('offline document localization', () => {
   });
 
   test('DOCX export uses translated labels', async () => {
-    const output = await (await buildDocx(doc, tags, labels)).text();
+    const zip = await JSZip.loadAsync(await (await buildDocx(doc, tags, labels)).arrayBuffer());
+    const documentPart = zip.file('word/document.xml');
+
+    expect(documentPart).not.toBeNull();
+    const output = await documentPart!.async('text');
 
     expect(output).toContain('バージョン');
     expect(output).toContain('必須');
     expect(output).toContain('はい');
     expect(output).toContain('レスポンス構造');
     expect(output).toContain('非推奨');
+  });
+
+  test('Word export uses numbered tag and operation headings', () => {
+    const output = buildWordDoc(doc, tags, labels);
+
+    expect(output).toContain('<p class="document-title">Demo API</p>');
+    expect(output).not.toContain('<h1>Demo API</h1>');
+    expect(output).toMatch(/<h1[^>]*>1 Users<\/h1>/);
+    expect(output).toMatch(/<h2[^>]*>1\.1 List users<\/h2>/);
   });
 
   test('Markdown export uses translated labels and fallback title', () => {
