@@ -9,7 +9,6 @@ export default defineConfig({
   resolve: {
     alias: {
       // Mock heavy runtime deps that are not needed for pure-logic tests
-      docx: path.resolve(__dirname, 'src/__mocks__/docx.ts'),
       antd: path.resolve(__dirname, 'src/__mocks__/antd.ts'),
       '@ant-design/icons': path.resolve(__dirname, 'src/__mocks__/@ant-design/icons.ts'),
       'react-i18next': path.resolve(__dirname, 'src/__mocks__/react-i18next.ts'),

@@ -14,6 +14,8 @@ import {
   AlignmentType,
   BorderStyle,
   HeadingLevel,
+  LevelFormat,
+  LevelSuffix,
   ShadingType,
 } from 'docx';
 import { useGroup } from '../../context/GroupContext';
@@ -27,6 +29,7 @@ import type {
   ResponseObject,
   SchemaObject,
 } from '../../types/swagger';
+import { buildOfficeDocOutline, formatOfficeDocOutlineNumber } from './officeDocOutline';
 
 const { Title, Paragraph } = Typography;
 
@@ -451,10 +454,11 @@ export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
 // eslint-disable-next-line react-refresh/only-export-components
 export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
   const border = 'border:1px solid #000;padding:4px 6px;';
-  const sections = tags
-    .map((t) => {
-      const ops = t.operations
-        .map((op) => {
+  const sections = buildOfficeDocOutline(tags)
+    .map((outlineTag) => {
+      const ops = outlineTag.operations
+        .map((outlineOperation) => {
+          const op = outlineOperation.operation;
           const params = op.operation.parameters ?? [];
           const paramRows = params
             .map(
@@ -484,17 +488,15 @@ export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
           const bodyHtml = renderRequestBodySection(op.operation, doc, border, labels);
           const responseHtml = renderResponseSection(op.operation, doc, border, labels);
           return `
+        <h2 style="margin:14px 0 6px;">${formatOfficeDocOutlineNumber(
+          outlineOperation.numberPath,
+        )} ${escapeHtml(outlineOperation.title)}</h2>
         <div style="margin:10px 0;padding:8px;border:1px solid #ccc;">
           <p style="margin:0 0 4px;"><strong style="color:${methodColor(op.method)};">[${escapeHtml(
             op.method.toUpperCase(),
           )}]</strong> <code>${escapeHtml(op.path)}</code>${
             op.operation.deprecated ? ` <em style="color:red;">[${labels.deprecated}]</em>` : ''
           }</p>
-          ${
-            op.operation.summary
-              ? `<p style="margin:2px 0;font-size:13px;">${escapeHtml(op.operation.summary)}</p>`
-              : ''
-          }
           ${paramTable}
           ${bodyHtml}
           ${responseHtml}
@@ -502,7 +504,9 @@ export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
         })
         .join('');
       return `
-      <h2 style="border-left:4px solid #00ab6d;padding-left:8px;margin:20px 0 8px;">${escapeHtml(t.tag)}</h2>
+      <h1 style="border-left:4px solid #00ab6d;padding-left:8px;margin:20px 0 8px;">${formatOfficeDocOutlineNumber(
+        outlineTag.numberPath,
+      )} ${escapeHtml(outlineTag.tag.tag)}</h1>
       ${ops}`;
     })
     .join('');
@@ -514,12 +518,12 @@ export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
   <title>${escapeHtml(doc.info.title)}</title>
   <style>
     body{font-family:Arial,"Yu Gothic","Microsoft YaHei",sans-serif;font-size:14px;margin:20px;}
-    h1{text-align:center;}
+    .document-title{text-align:center;font-size:28px;font-weight:bold;margin:0.67em 0;}
     code{font-family:monospace;}
   </style>
 </head>
 <body>
-  <h1>${escapeHtml(doc.info.title)}</h1>
+  <p class="document-title">${escapeHtml(doc.info.title)}</p>
   <p><strong>${labels.version}:</strong> ${escapeHtml(doc.info.version)}</p>
   ${doc.info.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(doc.info.description)}</p>` : ''}
   <hr/>
@@ -675,6 +679,7 @@ function docxResponseSection(
 // eslint-disable-next-line react-refresh/only-export-components
 export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): Promise<Blob> {
   const children: (DocxParagraph | DocxTable)[] = [];
+  const outline = buildOfficeDocOutline(tags);
 
   children.push(
     new DocxParagraph({
@@ -698,26 +703,34 @@ export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: Office
   }
   children.push(new DocxParagraph({ text: '' }));
 
-  for (const t of tags) {
+  for (const outlineTag of outline) {
     children.push(
       new DocxParagraph({
-        text: t.tag,
-        heading: HeadingLevel.HEADING_2,
+        text: outlineTag.tag.tag,
+        heading: HeadingLevel.HEADING_1,
+        numbering: { reference: 'api-outline', level: 0 },
         spacing: { before: 300, after: 100 },
       }),
     );
-    if (t.description) {
+    if (outlineTag.tag.description) {
       children.push(
         new DocxParagraph({
-          children: [new TextRun({ text: t.description, italics: true, color: '666666', size: 22 })],
+          children: [new TextRun({ text: outlineTag.tag.description, italics: true, color: '666666', size: 22 })],
           spacing: { after: 80 },
         }),
       );
     }
 
-    for (const op of t.operations) {
+    for (const outlineOperation of outlineTag.operations) {
+      const op = outlineOperation.operation;
       const method = op.method.toUpperCase();
       children.push(
+        new DocxParagraph({
+          text: outlineOperation.title,
+          heading: HeadingLevel.HEADING_2,
+          numbering: { reference: 'api-outline', level: 1 },
+          spacing: { before: 200, after: 60 },
+        }),
         new DocxParagraph({
           children: [
             new TextRun({ text: `[${method}] `, bold: true, color: methodColor(op.method).replace('#', ''), size: 24 }),
@@ -726,12 +739,9 @@ export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: Office
               ? [new TextRun({ text: ` [${labels.deprecated}]`, color: 'f93e3e', size: 22 })]
               : []),
           ],
-          spacing: { before: 200, after: 60 },
+          spacing: { after: 60 },
         }),
       );
-      if (op.operation.summary) {
-        children.push(new DocxParagraph({ children: [new TextRun({ text: op.operation.summary, size: 22 })] }));
-      }
 
       const params = op.operation.parameters ?? [];
       if (params.length) {
@@ -761,7 +771,34 @@ export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: Office
     }
   }
 
-  const document = new Document({ sections: [{ children }] });
+  const document = new Document({
+    numbering: {
+      config: [
+        {
+          reference: 'api-outline',
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.DECIMAL,
+              text: '%1',
+              alignment: AlignmentType.START,
+              suffix: LevelSuffix.SPACE,
+              style: { style: HeadingLevel.HEADING_1 },
+            },
+            {
+              level: 1,
+              format: LevelFormat.DECIMAL,
+              text: '%1.%2',
+              alignment: AlignmentType.START,
+              suffix: LevelSuffix.SPACE,
+              style: { style: HeadingLevel.HEADING_2 },
+            },
+          ],
+        },
+      ],
+    },
+    sections: [{ children }],
+  });
   return Packer.toBlob(document);
 }
 
