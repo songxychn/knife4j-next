@@ -304,12 +304,16 @@ const jaJP = {
   'apiDebug.preview.copyFailed': 'コピーに失敗しました。手動でテキストを選択してください',
   'apiDebug.preview.autoContentType': '（Content-Type は Body の種類に応じて自動付与されます）',
   'apiDebug.preview.source.interface': 'API',
-  'apiDebug.preview.source.global': 'グローバル',
-  'apiDebug.globalParams.readOnly': '読み取り専用。左側のグローバルパラメータから編集してください',
+  'apiDebug.preview.source.application': 'すべてのグループ',
+  'apiDebug.preview.source.global': '現在のグループ',
+  'apiDebug.globalParams.readOnly': '読み取り専用です。左側の「リクエストパラメータ」ページから編集してください',
   'apiDebug.preview.source.auth': '認証',
 
   // Authorize
-  'auth.title': 'Authorization',
+  'auth.title': 'OpenAPI 認証',
+  'auth.pageTitle': 'OpenAPI 認証',
+  'auth.scopeTip':
+    '認証情報は現在のグループ「{{group}}」専用です。グループを切り替えると、そのグループの設定を使用します。',
   'auth.tab.bearer': 'Bearer Token',
   'auth.tab.basic': 'Basic 認証',
   'auth.label.token': 'Token',
@@ -375,12 +379,22 @@ const jaJP = {
   'apiDebug.auth.modal.title': 'リクエストが 401 を返しました — 先に認証を行ってください',
 
   // GlobalParam
-  'globalParam.title': 'グローバルパラメータ',
-  'globalParam.scope': '現在の OpenAPI グループに適用：{{group}}',
+  'globalParam.title': 'リクエストパラメータ',
   'globalParam.currentGroup': '現在のグループ',
-  'globalParam.scopeTip':
-    'グローバルパラメータは、このグループのすべてのデバッグリクエストに適用されます。API 画面の同名パラメータが優先されます。',
-  'globalParam.empty': 'このグループにはグローバルパラメータがありません',
+  'globalParam.scope.application': 'すべてのグループ',
+  'globalParam.scope.group': '現在のグループ',
+  'globalParam.scope.applicationDescription': '現在のドキュメントにあるすべての OpenAPI グループへ送信します。',
+  'globalParam.scope.groupDescription': '現在の OpenAPI グループにのみ送信します：{{group}}',
+  'globalParam.scope.applicationTip':
+    '同名の現在のグループパラメータは、すべてのグループ用パラメータより優先されます。API 画面で明示したパラメータが常に最優先です。',
+  'globalParam.scope.applicationStorage':
+    'これらの値はブラウザーの localStorage に平文で保存されます。「値を隠す」は表示だけを変更し、保存データを暗号化しません。',
+  'globalParam.scope.groupTip':
+    '現在のグループパラメータは、すべてのグループ用パラメータより優先されます。同名のグループ項目を無効または空にすると継承を止め、削除すると継承が戻ります。API 画面で明示したパラメータが常に最優先です。',
+  'globalParam.scope.currentGroupOnly':
+    'この設定は現在のグループ「{{group}}」専用です。グループを切り替えると、そのグループの設定を使用します。',
+  'globalParam.empty.application': 'すべてのグループに適用するパラメータはまだありません',
+  'globalParam.empty.group': '現在のグループにはパラメータがありません',
   'globalParam.col.name': '名前',
   'globalParam.col.value': '値',
   'globalParam.col.in': '位置',
@@ -396,14 +410,17 @@ const jaJP = {
   'globalParam.btn.edit': '編集',
   'globalParam.btn.delete': '削除',
   'globalParam.btn.fetch': '取得して更新',
-  'globalParam.btn.clear': '現在のグループをクリア',
+  'globalParam.btn.clearApplication': 'すべてのグループ用パラメータをクリア',
+  'globalParam.btn.clearGroup': '現在のグループのパラメータをクリア',
   'globalParam.source.manual': '手動入力',
   'globalParam.source.request': 'リクエストから取得',
-  'globalParam.modal.add': 'グローバルパラメータを追加',
-  'globalParam.modal.edit': 'グローバルパラメータを編集',
-  'globalParam.confirm.delete': 'このグローバルパラメータを削除しますか？',
-  'globalParam.confirm.clear': 'このグループのグローバルパラメータと Cookie セッション設定をすべてクリアしますか？',
-  'globalParam.msg.saved': 'グローバルパラメータを保存しました',
+  'globalParam.modal.add': 'リクエストパラメータを追加',
+  'globalParam.modal.edit': 'リクエストパラメータを編集',
+  'globalParam.confirm.delete': 'このリクエストパラメータを削除しますか？',
+  'globalParam.confirm.clearApplication': '現在のドキュメントのすべてのグループ用パラメータをクリアしますか？',
+  'globalParam.confirm.clearGroup':
+    '現在のグループのリクエストパラメータをすべてクリアしますか？Cookie セッションと認証設定には影響しません。',
+  'globalParam.msg.saved': 'リクエストパラメータを保存しました',
   'globalParam.msg.updated': 'パラメータ値を更新しました',
   'globalParam.msg.duplicate': '同じ位置に同名のパラメータは追加できません',
   'globalParam.msg.requestFailed': 'リクエストに失敗しました',
@@ -416,6 +433,11 @@ const jaJP = {
   'globalParam.request.prefix': '結果の接頭辞（任意）',
   'globalParam.request.prefixTip':
     'JSONPath の抽出結果の前に追加します。たとえば「Bearer 」を指定すると「Bearer <token>」になります。',
+  'cookieSession.pageTitle': 'Cookie セッション',
+  'cookieSession.btn.reset': 'Cookie セッション設定をリセット',
+  'cookieSession.confirm.reset':
+    '現在のグループの Cookie セッション設定をリセットしますか？リクエストパラメータと認証設定には影響しません。',
+  'cookieSession.msg.reset': 'Cookie セッション設定をリセットしました',
   'globalParam.cookie.title': 'Cookie セッション',
   'globalParam.cookie.tip':
     'Set-Cookie レスポンスはブラウザーが保存します。Knife4j は Cookie 値を読み取り、または手動設定しません。',
@@ -459,7 +481,7 @@ const jaJP = {
   // SettingsDrawer
   'settings.title': '設定',
   'settings.tab.authorize': 'Authorize',
-  'settings.tab.globalParam': 'グローバルパラメータ',
+  'settings.tab.globalParam': 'リクエストパラメータ',
   'settings.tab.offlineDoc': 'オフラインドキュメント',
   'settings.tab.settings': '個人設定',
 

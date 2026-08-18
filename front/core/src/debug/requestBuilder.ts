@@ -84,30 +84,55 @@ export function buildQueryString(
 
 // ─── Header 合并 ──────────────────────────────────────
 
-/** 多来源 headers 合并，后者覆盖前者 */
-export function mergeHeaders(...sources: Array<Record<string, string> | undefined>): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const src of sources) {
-    if (!src) continue;
-    for (const [key, value] of Object.entries(src)) {
-      if (value !== undefined && value !== '') {
-        result[key] = value;
-      }
-    }
-  }
-  return result;
+interface HeaderLayer {
+  values: Record<string, string> | undefined;
+  source?: ParamSource;
 }
 
 /**
- * 在 headers 中查找已有的 Cookie 头（大小写不敏感）。
+ * 多来源 headers 合并，后者覆盖前者。
  *
- * HTTP header 名按 RFC 7230 是大小写不敏感的，调用方可能传入 `cookie` /
- * `Cookie` / `COOKIE` 任一形式。返回命中的原 key（保持调用方的大小写），
- * 找不到时返回 undefined。
+ * HTTP header 名大小写不敏感；被更高优先级的来源覆盖时，同时使用
+ * 高优先级来源提供的 key 大小写，避免最终请求出现语义重复的 header。
  */
-function findCookieHeaderKey(headers: Record<string, string>): string | undefined {
+function mergeHeaderLayers(layers: HeaderLayer[]): {
+  headers: Record<string, string>;
+  sources: Record<string, ParamSource>;
+} {
+  const result: Record<string, string> = {};
+  const resultSources: Record<string, ParamSource> = {};
+  const keysByLowercase = new Map<string, string>();
+
+  for (const layer of layers) {
+    if (!layer.values) continue;
+    for (const [key, value] of Object.entries(layer.values)) {
+      if (value !== undefined && value !== '') {
+        const normalizedKey = key.toLowerCase();
+        const previousKey = keysByLowercase.get(normalizedKey);
+        if (previousKey !== undefined && previousKey !== key) {
+          delete result[previousKey];
+          delete resultSources[previousKey];
+        }
+        result[key] = value;
+        keysByLowercase.set(normalizedKey, key);
+        if (layer.source !== undefined) {
+          resultSources[key] = layer.source;
+        }
+      }
+    }
+  }
+  return { headers: result, sources: resultSources };
+}
+
+export function mergeHeaders(...sources: Array<Record<string, string> | undefined>): Record<string, string> {
+  return mergeHeaderLayers(sources.map((values) => ({ values }))).headers;
+}
+
+/** 大小写不敏感地查找 header，返回命中的原 key。 */
+function findHeaderKey(headers: Record<string, string>, name: string): string | undefined {
+  const normalizedName = name.toLowerCase();
   for (const key of Object.keys(headers)) {
-    if (key.toLowerCase() === 'cookie') return key;
+    if (key.toLowerCase() === normalizedName) return key;
   }
   return undefined;
 }
@@ -121,7 +146,7 @@ function appendCookieParams(
     .filter(([name, value]) => name !== '' && value !== '')
     .map(([name, value]) => `${name}=${value}`);
   if (pairs.length === 0) return headers;
-  const existingKey = findCookieHeaderKey(headers);
+  const existingKey = findHeaderKey(headers, 'Cookie');
   if (existingKey) {
     return {
       ...headers,
@@ -182,7 +207,7 @@ export function authToHeaders(
           queries[scheme.name] = scheme.value;
         } else if (scheme.in === 'cookie') {
           const pair = `${scheme.name}=${scheme.value}`;
-          const existingKey = findCookieHeaderKey(headers);
+          const existingKey = findHeaderKey(headers, 'Cookie');
           if (existingKey) {
             headers[existingKey] = `${headers[existingKey]}; ${pair}`;
           } else {
@@ -317,8 +342,10 @@ export interface BuildRequestOptions {
   debugModel: OperationDebugModel;
   /** 用户填写的表单值 */
   formValues: DebugFormValues;
-  /** 全局参数 */
+  /** 当前分组的全局参数 */
   globalParams?: GlobalParamValues;
+  /** 当前文档应用下，所有分组共享的参数 */
+  applicationParams?: GlobalParamValues;
   /** 鉴权信息 */
   auth?: AuthValues;
   /**
@@ -334,55 +361,50 @@ export interface BuildRequestOptions {
  * 构建最终请求对象
  */
 export function buildRequest(options: BuildRequestOptions): BuiltRequest {
-  const { baseUrl, path, method, debugModel, formValues, globalParams, auth, securityKeys } = options;
+  const { baseUrl, path, method, debugModel, formValues, globalParams, applicationParams, auth, securityKeys } =
+    options;
 
   // 1. path 替换
   const resolvedPath = replacePathParams(path, formValues.pathParams);
 
-  // 2. query 合并（用户填写 + 全局参数，全局参数不覆盖用户填写）
+  // 2. 参数拆分：application 为所有分组共享，global 为当前分组
+  const application = splitGlobalParams(applicationParams);
   const gp = splitGlobalParams(globalParams);
 
-  // 3. headers 合并（接口级 > 全局 > 鉴权）
+  // 3. headers 合并（接口级 > 当前分组 > 鉴权 > 所有分组共享）
   const authResult = authToHeaders(auth, securityKeys);
-  const mergedHeaders = mergeHeaders(
-    authResult.headers, // 优先级最低
-    gp.headers, // 全局参数
-    formValues.headerParams, // 接口级最高
-  );
+  const headerMerge = mergeHeaderLayers([
+    { values: application.headers, source: 'application' },
+    { values: authResult.headers, source: 'auth' },
+    { values: gp.headers, source: 'global' },
+    { values: formValues.headerParams, source: 'interface' },
+  ]);
+  const mergedHeaders = headerMerge.headers;
   const headersWithCookies = appendCookieParams(mergedHeaders, formValues.cookieParams);
-  // 鉴权 query 参数合并（鉴权 < 全局 < 接口级）
+  // query 参数合并（所有分组共享 < 鉴权 < 当前分组 < 接口级）。query 名大小写敏感。
   const mergedQuery: Record<string, QueryParamValue> = {
+    ...application.queries,
     ...authResult.queries,
     ...gp.queries,
     ...formValues.queryParams,
   };
 
-  // 3.5 sourceMap 追踪（仅当存在 auth 或 globalParams 时生成）
-  const hasMultiSource = auth !== undefined || globalParams !== undefined;
+  // 3.5 sourceMap 追踪（仅当存在 applicationParams、auth 或 globalParams 时生成）
+  const hasMultiSource = applicationParams !== undefined || auth !== undefined || globalParams !== undefined;
   let sourceMap: BuiltRequestSourceMap | undefined;
   if (hasMultiSource) {
-    const headerSource: Record<string, ParamSource> = {};
+    const headerSource = headerMerge.sources;
     const querySource: Record<string, ParamSource> = {};
 
-    // 先标记 auth 来源（最低优先级）
-    for (const key of Object.keys(authResult.headers)) {
-      headerSource[key] = 'auth';
+    // query 保持大小写敏感的精确 key，按合并优先级同步覆盖来源。
+    for (const key of Object.keys(application.queries)) {
+      querySource[key] = 'application';
     }
     for (const key of Object.keys(authResult.queries)) {
       querySource[key] = 'auth';
     }
-    // 全局参数覆盖 auth
-    for (const key of Object.keys(gp.headers)) {
-      headerSource[key] = 'global';
-    }
     for (const key of Object.keys(gp.queries)) {
       querySource[key] = 'global';
-    }
-    // 接口级覆盖全局/auth
-    for (const key of Object.keys(formValues.headerParams)) {
-      if (formValues.headerParams[key] !== undefined && formValues.headerParams[key] !== '') {
-        headerSource[key] = 'interface';
-      }
     }
     for (const key of Object.keys(formValues.queryParams)) {
       const value = formValues.queryParams[key];
@@ -407,7 +429,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     if (category === 'urlencoded' && formValues.formFields) {
       // application/x-www-form-urlencoded: 从 formFields 序列化
       body = buildUrlencodedBody(formValues.formFields);
-      if (!headersWithCookies['Content-Type']) {
+      if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
         headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
       }
     } else if (category === 'multipart') {
@@ -419,7 +441,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     } else {
       // json / raw: 直接用 body 文本
       body = formValues.body;
-      if (selectedContentType && !headersWithCookies['Content-Type']) {
+      if (selectedContentType && findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
         headersWithCookies['Content-Type'] = selectedContentType;
       }
     }

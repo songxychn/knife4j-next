@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { get, set, del } from 'idb-keyval';
 import type { SchemeValue } from 'knife4j-core';
 
@@ -15,6 +15,8 @@ interface LegacyAuthConfig {
 interface AuthContextValue {
   /** 当前 groupId 下的 scheme 值映射 */
   schemes: Record<string, SchemeValue>;
+  /** 当前 initialGroupId 的 scheme 已从 IndexedDB 加载完成 */
+  ready: boolean;
   /** 更新当前 groupId 下某个 securityKey 的值 */
   setScheme: (securityKey: string, value: SchemeValue) => void;
   /** 删除当前 groupId 下某个 securityKey */
@@ -26,6 +28,26 @@ interface AuthContextValue {
   setActiveGroupId: (groupId: string) => void;
 }
 
+export interface GroupAuthSchemes {
+  groupId: string;
+  schemes: Record<string, SchemeValue>;
+}
+
+/**
+ * 只允许针对当前已选分组、且确实属于该分组的内存快照做更新。
+ * 旧闭包不会拿另一个分组的 schemes 作为合并基底。
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function updateAuthSchemesForGroup(
+  state: GroupAuthSchemes,
+  targetGroupId: string,
+  currentGroupId: string,
+  update: (schemes: Record<string, SchemeValue>) => Record<string, SchemeValue>,
+): GroupAuthSchemes {
+  if (targetGroupId !== currentGroupId || state.groupId !== targetGroupId) return state;
+  return { groupId: targetGroupId, schemes: update(state.schemes) };
+}
+
 // ─── IndexedDB helpers ─────────────────────────────────
 
 const IDB_PREFIX = 'knife4j:auth:';
@@ -33,6 +55,12 @@ const LEGACY_LS_KEY = 'knife4j_auth';
 
 function idbKey(groupId: string): string {
   return `${IDB_PREFIX}${groupId}`;
+}
+
+/** 仅当当前 initialGroupId 对应的分组加载完成后才允许消费鉴权值。 */
+// eslint-disable-next-line react-refresh/only-export-components
+export function isAuthReadyForGroup(initialGroupId: string, activeGroupId: string, loaded: boolean): boolean {
+  return loaded && activeGroupId === initialGroupId;
 }
 
 /** 从 IndexedDB 加载单个 group */
@@ -111,8 +139,10 @@ export const AuthProvider: React.FC<{
   initialGroupId?: string;
 }> = ({ children, initialGroupId = 'default' }) => {
   const [activeGroupId, setActiveGroupIdState] = useState(initialGroupId);
-  const [schemes, setSchemes] = useState<Record<string, SchemeValue>>({});
+  const [groupSchemes, setGroupSchemes] = useState<GroupAuthSchemes>({ groupId: initialGroupId, schemes: {} });
   const [loaded, setLoaded] = useState(false);
+  const currentGroupIdRef = useRef(initialGroupId);
+  currentGroupIdRef.current = initialGroupId;
 
   useEffect(() => {
     setLoaded(false);
@@ -126,7 +156,7 @@ export const AuthProvider: React.FC<{
       await migrateLegacyOnce(activeGroupId);
       const data = await loadGroup(activeGroupId);
       if (!cancelled) {
-        setSchemes(data);
+        setGroupSchemes({ groupId: activeGroupId, schemes: data });
         setLoaded(true);
       }
     })();
@@ -137,10 +167,16 @@ export const AuthProvider: React.FC<{
 
   const setScheme = useCallback(
     (securityKey: string, value: SchemeValue) => {
-      setSchemes((prev) => {
-        const next = { ...prev, [securityKey]: value };
-        // 异步持久化
-        saveGroup(activeGroupId, next).catch(() => {});
+      const targetGroupId = activeGroupId;
+      setGroupSchemes((prev) => {
+        const next = updateAuthSchemesForGroup(prev, targetGroupId, currentGroupIdRef.current, (schemes) => ({
+          ...schemes,
+          [securityKey]: value,
+        }));
+        if (next !== prev) {
+          // 异步持久化
+          saveGroup(targetGroupId, next.schemes).catch(() => {});
+        }
         return next;
       });
     },
@@ -149,10 +185,16 @@ export const AuthProvider: React.FC<{
 
   const removeScheme = useCallback(
     (securityKey: string) => {
-      setSchemes((prev) => {
-        const next = { ...prev };
-        delete next[securityKey];
-        saveGroup(activeGroupId, next).catch(() => {});
+      const targetGroupId = activeGroupId;
+      setGroupSchemes((prev) => {
+        const next = updateAuthSchemesForGroup(prev, targetGroupId, currentGroupIdRef.current, (schemes) => {
+          const updated = { ...schemes };
+          delete updated[securityKey];
+          return updated;
+        });
+        if (next !== prev) {
+          saveGroup(targetGroupId, next.schemes).catch(() => {});
+        }
         return next;
       });
     },
@@ -160,19 +202,26 @@ export const AuthProvider: React.FC<{
   );
 
   const clearGroup = useCallback(() => {
-    setSchemes({});
-    deleteGroup(activeGroupId).catch(() => {});
+    const targetGroupId = activeGroupId;
+    setGroupSchemes((prev) => {
+      const next = updateAuthSchemesForGroup(prev, targetGroupId, currentGroupIdRef.current, () => ({}));
+      if (next !== prev) {
+        deleteGroup(targetGroupId).catch(() => {});
+      }
+      return next;
+    });
   }, [activeGroupId]);
 
   const setActiveGroupId = useCallback((groupId: string) => {
     setActiveGroupIdState(groupId);
   }, []);
 
-  const activeSchemes = loaded && activeGroupId === initialGroupId ? schemes : {};
+  const ready = isAuthReadyForGroup(initialGroupId, activeGroupId, loaded) && groupSchemes.groupId === activeGroupId;
+  const activeSchemes = ready ? groupSchemes.schemes : {};
 
   return (
     <AuthContext.Provider
-      value={{ schemes: activeSchemes, setScheme, removeScheme, clearGroup, activeGroupId, setActiveGroupId }}
+      value={{ schemes: activeSchemes, ready, setScheme, removeScheme, clearGroup, activeGroupId, setActiveGroupId }}
     >
       {children}
     </AuthContext.Provider>

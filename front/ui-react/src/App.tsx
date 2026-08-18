@@ -24,6 +24,7 @@ import {
   upsertOperationRoutePane,
 } from './utils/operationTabs';
 import { resolveFooterContent } from './utils/footer';
+import { buildDocumentToolRoute, matchDocumentToolRoute, type DocumentTool } from './utils/documentToolRoutes';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -50,7 +51,16 @@ const schemaRouteInfo = (key: string): { menuKey: string; labelSchema?: string }
   };
 };
 
-const isGlobalParamRoute = (key: string): boolean => /^\/[^/]+\/globalParam$/.test(key);
+const documentToolTitleKey = (tool: DocumentTool): string => {
+  switch (tool) {
+    case 'globalParam':
+      return 'globalParam.title';
+    case 'cookieSession':
+      return 'cookieSession.pageTitle';
+    case 'authorize':
+      return 'auth.pageTitle';
+  }
+};
 
 interface PersistedTab {
   key: string;
@@ -210,12 +220,16 @@ const AppInner: React.FC = () => {
     } catch {
       pathname = location.pathname;
     }
-    if (!isGlobalParamRoute(pathname)) return;
+    const documentToolRoute = matchDocumentToolRoute(pathname);
+    if (!documentToolRoute) return;
 
-    const title = `${t('globalParam.title')} - ${activeGroup.label || activeGroup.value}`;
-    setItems((prev) =>
-      prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
-    );
+    const title = `${t(documentToolTitleKey(documentToolRoute.tool))} - ${activeGroup.label || activeGroup.value}`;
+    setItems((prev) => {
+      const existingPane = prev.find((pane) => pane.key === pathname);
+      if (!existingPane) return [...prev, { label: title, children: '', key: pathname }];
+      if (existingPane.label === title) return prev;
+      return prev.map((pane) => (pane.key === pathname ? { ...pane, label: title } : pane));
+    });
     setActiveKey(pathname);
     setSelectedKey(pathname);
   }, [activeGroup.label, activeGroup.value, location.pathname, t]);
@@ -258,19 +272,19 @@ const AppInner: React.FC = () => {
   const menuClick: MenuProps['onClick'] = (info) => {
     const rawKey = String(info.key);
     const schemaInfo = schemaRouteInfo(rawKey);
-    const globalParamRoute = isGlobalParamRoute(rawKey);
+    const documentToolRoute = matchDocumentToolRoute(rawKey);
     const markdownDoc: MarkdownDocItem | undefined = markdownDocs.find((doc) => doc.key === rawKey);
     const existingOperationKey =
-      schemaInfo || globalParamRoute || markdownDoc ? null : findOperationRouteKey(items, rawKey);
+      schemaInfo || documentToolRoute || markdownDoc ? null : findOperationRouteKey(items, rawKey);
     const newActiveKey =
-      schemaInfo || globalParamRoute || markdownDoc ? rawKey : (existingOperationKey ?? `${rawKey}/doc`);
+      schemaInfo || documentToolRoute || markdownDoc ? rawKey : (existingOperationKey ?? `${rawKey}/doc`);
     const tabExists = items.some((pane) => pane.key === newActiveKey);
     if (!tabExists) {
       const api: ApiItem | undefined = activeGroup.apis.find((a) => a.key === rawKey);
       const title = schemaInfo
         ? settings.swaggerModelName || t('schema.title')
-        : globalParamRoute
-          ? `${t('globalParam.title')} - ${activeGroup.label || activeGroup.value}`
+        : documentToolRoute
+          ? `${t(documentToolTitleKey(documentToolRoute.tool))} - ${activeGroup.label || activeGroup.value}`
           : markdownDoc
             ? markdownDoc.title
             : api
@@ -409,14 +423,17 @@ const AppInner: React.FC = () => {
   const handleGroupChange = (value: string) => {
     setActiveGroupValue(value);
 
-    if (isGlobalParamRoute(location.pathname)) {
-      const key = `/${value}/globalParam`;
+    const documentToolRoute = matchDocumentToolRoute(location.pathname);
+    if (documentToolRoute) {
+      const key = buildDocumentToolRoute(value, documentToolRoute.tool);
       const groupLabel = groups.find((group) => group.value === value)?.label || value;
-      setItems((prev) =>
-        prev.some((pane) => pane.key === key)
-          ? prev
-          : [...prev, { label: `${t('globalParam.title')} - ${groupLabel}`, children: '', key }],
-      );
+      const title = `${t(documentToolTitleKey(documentToolRoute.tool))} - ${groupLabel}`;
+      setItems((prev) => {
+        const existingPane = prev.find((pane) => pane.key === key);
+        if (!existingPane) return [...prev, { label: title, children: '', key }];
+        if (existingPane.label === title) return prev;
+        return prev.map((pane) => (pane.key === key ? { ...pane, label: title } : pane));
+      });
       setSelectedKey(key);
       setActiveKey(key);
       navigate(key);

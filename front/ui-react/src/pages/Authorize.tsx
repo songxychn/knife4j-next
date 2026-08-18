@@ -1,5 +1,5 @@
-import { Alert, Button, Card, Collapse, Input, message, Space, Tag, Typography } from 'antd';
-import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, Collapse, Input, message, Space, Spin, Tag, Typography } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
@@ -82,6 +82,64 @@ interface OAuth2PopupConfig {
   redirectUri: string;
 }
 
+interface AuthAsyncCommitToken {
+  lifecycle: number;
+  operation: number;
+}
+
+interface AuthAsyncCommitGuard {
+  activate: () => () => void;
+  begin: () => AuthAsyncCommitToken;
+  isCurrent: (token: AuthAsyncCommitToken) => boolean;
+}
+
+/**
+ * 把异步鉴权结果绑定到发起它的组件生命周期和最近一次操作。
+ * 分组切换会卸载旧组件，此后旧 Promise 即使完成也不能再提交凭据。
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function createAuthAsyncCommitGuard(): AuthAsyncCommitGuard {
+  let active = false;
+  let lifecycle = 0;
+  let operation = 0;
+
+  return {
+    activate: () => {
+      const currentLifecycle = ++lifecycle;
+      active = true;
+      return () => {
+        if (lifecycle === currentLifecycle) {
+          active = false;
+          lifecycle += 1;
+          operation += 1;
+        }
+      };
+    },
+    begin: () => ({ lifecycle, operation: ++operation }),
+    isCurrent: (token) => active && token.lifecycle === lifecycle && token.operation === operation,
+  };
+}
+
+interface AuthFormDraft {
+  apiKey: string;
+  bearerToken: string;
+  basicUsername: string;
+  basicPassword: string;
+  oauth2AccessToken: string;
+}
+
+/** 将已持久化的鉴权值投影为各表单草稿；undefined 明确投影为空值。 */
+// eslint-disable-next-line react-refresh/only-export-components
+export function getAuthFormDraft(existingValue: SchemeValue | undefined): AuthFormDraft {
+  return {
+    apiKey: existingValue?.type === 'apiKey' ? existingValue.value : '',
+    bearerToken: existingValue?.type === 'http' && existingValue.scheme === 'bearer' ? existingValue.token : '',
+    basicUsername: existingValue?.type === 'http' && existingValue.scheme === 'basic' ? existingValue.username : '',
+    basicPassword: existingValue?.type === 'http' && existingValue.scheme === 'basic' ? existingValue.password : '',
+    oauth2AccessToken: existingValue?.type === 'oauth2' ? existingValue.accessToken : '',
+  };
+}
+
 /**
  * Open an OAuth2 authorization popup and wait for the postMessage result.
  * Returns the access token string (e.g. "Bearer xxx") or throws on error/timeout.
@@ -120,6 +178,7 @@ function openOAuth2Popup(
     const onMessage = (evt: MessageEvent) => {
       // Only accept messages from same origin
       if (evt.origin !== window.location.origin) return;
+      if (evt.source !== popup) return;
       const data = evt.data as {
         type?: string;
         accessToken?: string;
@@ -219,9 +278,14 @@ function ApiKeySchemeForm({
   onRemove: (key: string) => void;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState(existingValue?.type === 'apiKey' ? existingValue.value : '');
+  const storedValue = getAuthFormDraft(existingValue).apiKey;
+  const [value, setValue] = useState(storedValue);
   const isIn = scheme.in ?? 'header';
   const name = scheme.name ?? securityKey;
+
+  useEffect(() => {
+    setValue(storedValue);
+  }, [storedValue]);
 
   const handleSave = () => {
     if (!value) return;
@@ -280,9 +344,12 @@ function HttpBearerSchemeForm({
   onRemove: (key: string) => void;
 }) {
   const { t } = useTranslation();
-  const [token, setToken] = useState(
-    existingValue?.type === 'http' && existingValue.scheme === 'bearer' ? existingValue.token : '',
-  );
+  const storedToken = getAuthFormDraft(existingValue).bearerToken;
+  const [token, setToken] = useState(storedToken);
+
+  useEffect(() => {
+    setToken(storedToken);
+  }, [storedToken]);
 
   const handleSave = () => {
     if (!token) return;
@@ -332,12 +399,14 @@ function HttpBasicSchemeForm({
   onRemove: (key: string) => void;
 }) {
   const { t } = useTranslation();
-  const [username, setUsername] = useState(
-    existingValue?.type === 'http' && existingValue.scheme === 'basic' ? existingValue.username : '',
-  );
-  const [password, setPassword] = useState(
-    existingValue?.type === 'http' && existingValue.scheme === 'basic' ? existingValue.password : '',
-  );
+  const storedDraft = getAuthFormDraft(existingValue);
+  const [username, setUsername] = useState(storedDraft.basicUsername);
+  const [password, setPassword] = useState(storedDraft.basicPassword);
+
+  useEffect(() => {
+    setUsername(storedDraft.basicUsername);
+    setPassword(storedDraft.basicPassword);
+  }, [storedDraft.basicPassword, storedDraft.basicUsername]);
 
   const handleSave = () => {
     if (!username && !password) return;
@@ -443,15 +512,21 @@ function OAuth2FlowForm({
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [scope, setScope] = useState('');
-  const [accessToken, setAccessToken] = useState(existingValue?.type === 'oauth2' ? existingValue.accessToken : '');
+  const storedAccessToken = getAuthFormDraft(existingValue).oauth2AccessToken;
+  const [accessToken, setAccessToken] = useState(storedAccessToken);
   const [obtaining, setObtaining] = useState(false);
+  const asyncCommitGuardRef = useRef<AuthAsyncCommitGuard | null>(null);
+  if (!asyncCommitGuardRef.current) {
+    asyncCommitGuardRef.current = createAuthAsyncCommitGuard();
+  }
+  const asyncCommitGuard = asyncCommitGuardRef.current;
+
+  useEffect(() => asyncCommitGuard.activate(), [asyncCommitGuard]);
 
   // Sync accessToken when existingValue changes externally
   useEffect(() => {
-    if (existingValue?.type === 'oauth2') {
-      setAccessToken(existingValue.accessToken);
-    }
-  }, [existingValue]);
+    setAccessToken(storedAccessToken);
+  }, [storedAccessToken]);
 
   const flowLabel =
     {
@@ -473,6 +548,7 @@ function OAuth2FlowForm({
       return;
     }
 
+    const commitToken = asyncCommitGuard.begin();
     setObtaining(true);
     try {
       const state = Math.random().toString(36).slice(2);
@@ -496,21 +572,26 @@ function OAuth2FlowForm({
       };
 
       const result = await openOAuth2Popup(fullAuthUrl, state, config);
+      if (!asyncCommitGuard.isCurrent(commitToken)) return;
       setAccessToken(result.accessToken);
       // Auto-save after successful popup auth
       onSave(securityKey, { type: 'oauth2', accessToken: result.accessToken, tokenType: result.tokenType });
       message.success(t('auth.msg.tokenObtained'));
     } catch (err) {
+      if (!asyncCommitGuard.isCurrent(commitToken)) return;
       const msg = err instanceof Error ? err.message : String(err);
       message.error(msg || t('auth.msg.tokenFailed'));
     } finally {
-      setObtaining(false);
+      if (asyncCommitGuard.isCurrent(commitToken)) {
+        setObtaining(false);
+      }
     }
   };
 
   // ── Direct token fetch (password / clientCredentials) ────────────────────
   const handleObtainToken = async () => {
     if (!tokenUrl) return;
+    const commitToken = asyncCommitGuard.begin();
     setObtaining(true);
     try {
       const result = await fetchOAuth2Token({
@@ -522,12 +603,17 @@ function OAuth2FlowForm({
         clientSecret: clientSecret || undefined,
         scope: scope || undefined,
       });
+      if (!asyncCommitGuard.isCurrent(commitToken)) return;
       setAccessToken(result.access_token);
       message.success(t('auth.msg.tokenObtained'));
     } catch {
-      message.error(t('auth.msg.tokenFailed'));
+      if (asyncCommitGuard.isCurrent(commitToken)) {
+        message.error(t('auth.msg.tokenFailed'));
+      }
     } finally {
-      setObtaining(false);
+      if (asyncCommitGuard.isCurrent(commitToken)) {
+        setObtaining(false);
+      }
     }
   };
 
@@ -628,10 +714,10 @@ function OAuth2FlowForm({
 
 // ─── Main Component ────────────────────────────────────
 
-export default function Authorize({ embedded = false }: { embedded?: boolean }) {
+function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
-  const { schemes, setScheme, removeScheme, clearGroup } = useAuth();
-  const { swaggerDoc } = useGroup();
+  const { schemes, ready, setScheme, removeScheme, clearGroup } = useAuth();
+  const { swaggerDoc, activeGroup, loading: groupLoading, routeGroupReady } = useGroup();
 
   const securitySchemes = extractSecuritySchemes(swaggerDoc as unknown as Record<string, unknown> | null);
   const schemeEntries = Object.entries(securitySchemes);
@@ -655,11 +741,28 @@ export default function Authorize({ embedded = false }: { embedded?: boolean }) 
     message.success(t('auth.msg.cleared'));
   }, [clearGroup, t]);
 
+  if (!ready || groupLoading || !routeGroupReady) {
+    return (
+      <div
+        id="knife4j-authorize"
+        style={{ maxWidth: embedded ? undefined : 1180, padding: embedded ? 0 : 20, margin: '0 auto' }}
+      >
+        <Spin style={{ display: 'block', margin: '80px auto' }} />
+      </div>
+    );
+  }
+
   if (schemeEntries.length === 0) {
     if (embedded) return null;
     return (
-      <div id="knife4j-authorize" style={{ maxWidth: 600, padding: 24 }}>
-        <h2>{t('auth.title')}</h2>
+      <div id="knife4j-authorize" style={{ maxWidth: 1180, padding: 20, margin: '0 auto' }}>
+        <h2>{t('auth.pageTitle')}</h2>
+        <Alert
+          type="info"
+          showIcon
+          message={t('auth.scopeTip', { group: activeGroup.label || activeGroup.value })}
+          style={{ marginBottom: 16 }}
+        />
         <Alert type="info" message={t('auth.schemes.empty')} />
       </div>
     );
@@ -737,8 +840,25 @@ export default function Authorize({ embedded = false }: { embedded?: boolean }) 
   });
 
   return (
-    <div id="knife4j-authorize" style={{ maxWidth: embedded ? undefined : 600, padding: embedded ? 0 : 24 }}>
-      {!embedded && <h2>{t('auth.title')}</h2>}
+    <div
+      id="knife4j-authorize"
+      style={{
+        maxWidth: embedded ? undefined : 1180,
+        padding: embedded ? 0 : 20,
+        margin: embedded ? undefined : '0 auto',
+      }}
+    >
+      {!embedded && (
+        <>
+          <h2>{t('auth.pageTitle')}</h2>
+          <Alert
+            type="info"
+            showIcon
+            message={t('auth.scopeTip', { group: activeGroup.label || activeGroup.value })}
+            style={{ marginBottom: 16 }}
+          />
+        </>
+      )}
       <Collapse items={collapseItems} defaultActiveKey={schemeEntries.map(([key]) => key)} />
       {Object.keys(schemes).length > 0 && (
         <Button danger onClick={handleClearAll} style={{ marginTop: 16 }}>
@@ -747,4 +867,9 @@ export default function Authorize({ embedded = false }: { embedded?: boolean }) 
       )}
     </div>
   );
+}
+
+export default function Authorize(props: { embedded?: boolean }) {
+  const { activeGroup } = useGroup();
+  return <AuthorizeForGroup key={activeGroup.value || 'default'} {...props} />;
 }

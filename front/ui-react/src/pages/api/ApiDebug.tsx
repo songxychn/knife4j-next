@@ -58,7 +58,7 @@ import DescriptionText from '../../components/DescriptionText';
 import RevealableValue from '../../components/RevealableValue';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
-import { useGlobalParam } from '../../context/GlobalParamContext';
+import { useGlobalParam, type GlobalParamScope, type ScopedGlobalParamItem } from '../../context/GlobalParamContext';
 import { useSettings } from '../../context/SettingsContext';
 import { applyRouteProxyHeader } from '../../api/routeProxyHeader';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
@@ -1275,6 +1275,22 @@ interface InjectedGlobalParamRow {
   name: string;
   value: string;
   masked: boolean;
+  source: 'application' | 'global';
+}
+
+function globalParamValuesForScope(
+  params: ScopedGlobalParamItem[],
+  scope: GlobalParamScope,
+): GlobalParamValues | undefined {
+  const headers: Record<string, string> = {};
+  const queries: Record<string, string> = {};
+  for (const param of params) {
+    if (param.scope !== scope || !param.enabled || param.value === undefined || param.value === '') continue;
+    if (param.in === 'header') headers[param.name] = param.value;
+    else if (param.in === 'query') queries[param.name] = param.value;
+  }
+  if (Object.keys(headers).length === 0 && Object.keys(queries).length === 0) return undefined;
+  return { headers, queries };
 }
 
 function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] }) {
@@ -1298,10 +1314,12 @@ function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] 
             dataIndex: 'name',
             key: 'name',
             width: 240,
-            render: (name: string) => (
+            render: (name: string, record: InjectedGlobalParamRow) => (
               <Space size={4}>
                 <Text code>{name}</Text>
-                <Tag color="green">{t('apiDebug.preview.source.global')}</Tag>
+                <Tag color={record.source === 'application' ? 'purple' : 'green'}>
+                  {t(`apiDebug.preview.source.${record.source}`)}
+                </Tag>
               </Space>
             ),
           },
@@ -1350,6 +1368,7 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
     if (!source) return null;
     const colorMap: Record<ParamSource, string> = {
       interface: 'blue',
+      application: 'purple',
       global: 'green',
       auth: 'orange',
     };
@@ -1671,7 +1690,7 @@ export default function ApiDebug() {
   const { t } = useTranslation();
   const { group, tag, operaterId } = useParams();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
-  const { activeSwaggerGroup } = useGroup();
+  const { activeSwaggerGroup, routeGroupReady } = useGroup();
   const { settings } = useSettings();
   const groupContextPath = activeSwaggerGroup?.contextPath;
   const operationMethod = operation?.method;
@@ -1931,7 +1950,7 @@ export default function ApiDebug() {
   // ── 所有 hooks 必须在 early return 之前 ──
 
   // ── 从 AuthContext 获取鉴权数据 ──
-  const { schemes: authSchemes } = useAuth();
+  const { schemes: authSchemes, ready: authReady } = useAuth();
   const authValues = useMemo(() => {
     const bySecurityKey: Record<string, SchemeValue> = {};
     let hasAny = false;
@@ -1958,20 +1977,28 @@ export default function ApiDebug() {
     return keys.length > 0 ? keys : undefined;
   }, [operation]);
 
-  // ── 从 GlobalParamContext 转换为 GlobalParamValues ──
-  const { params: globalParamItems, cookieSession } = useGlobalParam();
-  const globalParamValues: GlobalParamValues | undefined = useMemo(() => {
-    if (!globalParamItems || globalParamItems.length === 0) return undefined;
-    const headers: Record<string, string> = {};
-    const queries: Record<string, string> = {};
-    for (const p of globalParamItems) {
-      if (p.enabled && p.value !== undefined && p.value !== '') {
-        if (p.in === 'header') headers[p.name] = p.value;
-        else if (p.in === 'query') queries[p.name] = p.value;
-      }
-    }
-    return { headers, queries };
-  }, [globalParamItems]);
+  // ── 从 GlobalParamContext 转换为应用级与当前分组参数 ──
+  const { effectiveParams, cookieSession } = useGlobalParam();
+  const applicationParamValues = useMemo(
+    () => globalParamValuesForScope(effectiveParams, 'application'),
+    [effectiveParams],
+  );
+  const globalParamValues = useMemo(() => globalParamValuesForScope(effectiveParams, 'group'), [effectiveParams]);
+
+  const findEffectiveParam = (
+    location: ScopedGlobalParamItem['in'],
+    name: string,
+    source: ParamSource | undefined,
+  ): ScopedGlobalParamItem | undefined => {
+    const scope = source === 'application' ? 'application' : source === 'global' ? 'group' : undefined;
+    if (!scope) return undefined;
+    return effectiveParams.find(
+      (param) =>
+        param.scope === scope &&
+        param.in === location &&
+        (location === 'header' ? param.name.toLowerCase() === name.toLowerCase() : param.name === name),
+    );
+  };
 
   const paramColumns = useMemo<ColumnsType<DebugParam>>(
     () => [
@@ -2070,7 +2097,7 @@ export default function ApiDebug() {
     [paramValues, paramEnabled, t, errorKeys],
   );
 
-  if (docLoading) {
+  if (docLoading || !authReady || !routeGroupReady) {
     return (
       <OperationModeLayout activeKey="debug">
         <Spin style={{ display: 'block', margin: '80px auto' }} />
@@ -2168,6 +2195,7 @@ export default function ApiDebug() {
         debugModel,
         formValues,
         auth: authValues,
+        applicationParams: applicationParamValues,
         globalParams: globalParamValues,
         securityKeys,
       }),
@@ -2348,16 +2376,10 @@ export default function ApiDebug() {
           Object.entries(built.query).map(([name, value]) => [name, displayQueryParamValue(value)]),
         ),
         maskedHeaders: Object.keys(built.headers).filter(
-          (name) =>
-            built.sourceMap?.headers[name] === 'global' &&
-            globalParamItems.some(
-              (param) => param.masked && param.in === 'header' && param.name.toLowerCase() === name.toLowerCase(),
-            ),
+          (name) => findEffectiveParam('header', name, built.sourceMap?.headers[name])?.masked === true,
         ),
         maskedQuery: Object.keys(built.query).filter(
-          (name) =>
-            built.sourceMap?.query[name] === 'global' &&
-            globalParamItems.some((param) => param.masked && param.in === 'query' && param.name === name),
+          (name) => findEffectiveParam('query', name, built.sourceMap?.query[name])?.masked === true,
         ),
         body: historyBody,
         contentType: built.contentType || getEffectiveContentType(),
@@ -2722,24 +2744,30 @@ export default function ApiDebug() {
   const previewBuilt = previewResult.ok ? previewResult.value.built : undefined;
   const injectedGlobalHeaders: InjectedGlobalParamRow[] = previewBuilt
     ? Object.entries(previewBuilt.headers)
-        .filter(([name]) => previewBuilt.sourceMap?.headers[name] === 'global')
+        .filter(([name]) => {
+          const source = previewBuilt.sourceMap?.headers[name];
+          return source === 'application' || source === 'global';
+        })
         .map(([name, value]) => ({
           key: `header:${name}`,
           name,
           value,
-          masked: globalParamItems.some(
-            (param) => param.in === 'header' && param.name.toLowerCase() === name.toLowerCase() && param.masked,
-          ),
+          source: previewBuilt.sourceMap!.headers[name] as 'application' | 'global',
+          masked: findEffectiveParam('header', name, previewBuilt.sourceMap?.headers[name])?.masked === true,
         }))
     : [];
   const injectedGlobalQueries: InjectedGlobalParamRow[] = previewBuilt
     ? Object.entries(previewBuilt.query)
-        .filter(([name]) => previewBuilt.sourceMap?.query[name] === 'global')
+        .filter(([name]) => {
+          const source = previewBuilt.sourceMap?.query[name];
+          return source === 'application' || source === 'global';
+        })
         .map(([name, value]) => ({
           key: `query:${name}`,
           name,
           value: displayQueryParamValue(value),
-          masked: globalParamItems.some((param) => param.in === 'query' && param.name === name && param.masked),
+          source: previewBuilt.sourceMap!.query[name] as 'application' | 'global',
+          masked: findEffectiveParam('query', name, previewBuilt.sourceMap?.query[name])?.masked === true,
         }))
     : [];
 
