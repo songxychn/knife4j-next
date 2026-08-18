@@ -12,7 +12,17 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.2.4 <Badge type="tip" text="最新" />
+### 5.3.0 <Badge type="tip" text="最新" />
+
+`5.3.0` 是基于 `5.2.4` 的向后兼容次版本，恢复跨 OpenAPI 分组复用请求参数的能力，并将不同作用域的配置入口拆分得更清晰。
+
+**请求参数与鉴权（React UI）**
+
+- 请求参数支持“全部分组”和“当前分组”两级作用域，请求构建优先级为“应用级参数 < OpenAPI 鉴权 < 当前分组参数 < 接口参数”（PR #627，issue #626）。
+- 请求参数、Cookie 会话与 OpenAPI 鉴权拆分为三个独立页面；Cookie 与鉴权凭据仍严格限定在当前分组，切组、直达旧标签、文档加载失败和 OAuth2 异步完成时均保持隔离（PR #627）。
+- 旧版共享参数仅在新的应用级存储不存在时迁移，减少升级后的重复配置，同时避免覆盖已保存的新配置（PR #627）。
+
+### 5.2.4
 
 `5.2.4` 是基于 `5.2.3` 的向后兼容补丁版本，修复 React UI 宽屏布局下 Header / 接口标签 / Footer 随 document 滚动离开视口的问题。
 
@@ -469,7 +479,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.2.4</version>
+    <version>5.3.0</version>
 </dependency>
 ```
 
