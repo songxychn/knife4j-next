@@ -38,7 +38,7 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.3.0
+::: tip Knife4x Go v0.4.0
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
