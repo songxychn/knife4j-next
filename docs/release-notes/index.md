@@ -12,7 +12,20 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.3.0 <Badge type="tip" text="最新" />
+### 5.3.1 <Badge type="tip" text="最新" />
+
+`5.3.1` 是基于 `5.3.0` 的向后兼容补丁版本，修复 Word 导出大纲与编号，并统一离线文档的跨格式内容契约，同时提升请求参数较多时的批量操作效率。
+
+**离线文档导出（React UI）**
+
+- Word `.doc` / `.docx` 导出使用一致的 `tag -> API` 两级标题结构与编号；DOCX 写入原生多级编号，API 摘要缺失时回退到 `METHOD path`（PR #633，issue #632）。
+- HTML、DOC、DOCX 与整篇 Markdown 统一消费格式无关的导出模型，补齐 tag / operation 描述、版本、requestBody 元数据、嵌套请求字段与响应字段，并保留既有导出范围和单接口 Markdown 契约（PR #637，issue #634）。
+
+**接口调试（React UI）**
+
+- Path、Query、Header 与 Cookie 参数表支持对当前可见参数全选、取消全选和半选态；批量切换只改变启用状态并保留已填写值，不影响 Body、自定义参数和注入参数（PR #636，issue #635）。
+
+### 5.3.0
 
 `5.3.0` 是基于 `5.2.4` 的向后兼容次版本，恢复跨 OpenAPI 分组复用请求参数的能力，并将不同作用域的配置入口拆分得更清晰。
 
@@ -479,7 +492,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.0</version>
+    <version>5.3.1</version>
 </dependency>
 ```
 
