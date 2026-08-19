@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.3.0</version>
+    <version>5.3.1</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.0</version>
+    <version>5.3.1</version>
 </dependency>
 ```
 
@@ -89,10 +89,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.3.0 版本亮点 <Badge type="tip" text="最新" />
+## 5.3.1 版本亮点 <Badge type="tip" text="最新" />
 
-- 🌐 请求参数支持“全部分组”和“当前分组”两级作用域，分组配置可覆盖应用级同名参数
-- 🔐 请求参数、Cookie 会话与 OpenAPI 鉴权拆分为独立页面，Cookie 与鉴权继续按分组隔离
+- 📄 Word 导出提供 `tag -> API` 两级大纲与原生编号，跨格式离线文档共用一致的内容模型
+- ☑️ 请求参数表支持对当前可见 Path、Query、Header 与 Cookie 参数批量全选和取消全选
 
 完整更新列表见 [发布说明](/release-notes/)。
 
