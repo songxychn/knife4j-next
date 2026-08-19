@@ -125,6 +125,7 @@ import {
   type SchemaFieldRow,
 } from './debugDefaultValues';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
+import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 
 const { TextArea } = Input;
@@ -2000,10 +2001,26 @@ export default function ApiDebug() {
     );
   };
 
-  const paramColumns = useMemo<ColumnsType<DebugParam>>(
-    () => [
+  const paramColumnsFor = (params: DebugParam[]): ColumnsType<DebugParam> => {
+    const paramKeys = params.map(paramKey);
+    const selection = resolveApiDebugParamSelection(paramKeys, paramEnabled);
+    const selectAllLabel = t(selection.checked ? 'apiDebug.params.deselectAll' : 'apiDebug.params.selectAll');
+
+    return [
       {
-        title: t('apiDebug.col.enabled'),
+        title: (
+          <Tooltip title={selectAllLabel}>
+            <Checkbox
+              aria-label={selectAllLabel}
+              checked={selection.checked}
+              indeterminate={selection.indeterminate}
+              disabled={paramKeys.length === 0}
+              onChange={(event) =>
+                setParamEnabled((current) => setApiDebugParamsEnabled(current, paramKeys, event.target.checked))
+              }
+            />
+          </Tooltip>
+        ),
         key: 'enabled',
         width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.enabled,
         render: (_value: unknown, record: DebugParam) => (
@@ -2093,9 +2110,8 @@ export default function ApiDebug() {
           </Space>
         ),
       },
-    ],
-    [paramValues, paramEnabled, t, errorKeys],
-  );
+    ];
+  };
 
   if (docLoading || !authReady || !routeGroupReady) {
     return (
@@ -2777,6 +2793,11 @@ export default function ApiDebug() {
       ? `${t('apiDebug.tab.body')} (${getEffectiveContentType()})`
       : t('apiDebug.tab.body');
 
+  const pathParams = debugModel.pathParams.filter((param) => !param.readOnly);
+  const queryParams = debugModel.queryParams.filter((param) => !param.readOnly);
+  const headerParams = debugModel.headerParams.filter((param) => !param.readOnly);
+  const cookieParams = debugModel.cookieParams.filter((param) => !param.readOnly);
+
   const tabItems = [
     {
       key: 'path',
@@ -2785,8 +2806,8 @@ export default function ApiDebug() {
       children: (
         <Table
           size="small"
-          dataSource={debugModel.pathParams.filter((p) => !p.readOnly)}
-          columns={paramColumns}
+          dataSource={pathParams}
+          columns={paramColumnsFor(pathParams)}
           pagination={false}
           rowKey={paramKey}
           tableLayout="fixed"
@@ -2805,11 +2826,11 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
-          {(debugModel.queryParams.some((param) => !param.readOnly) || injectedGlobalQueries.length === 0) && (
+          {(queryParams.length > 0 || injectedGlobalQueries.length === 0) && (
             <Table
               size="small"
-              dataSource={debugModel.queryParams.filter((p) => !p.readOnly)}
-              columns={paramColumns}
+              dataSource={queryParams}
+              columns={paramColumnsFor(queryParams)}
               pagination={false}
               rowKey={paramKey}
               tableLayout="fixed"
@@ -2839,11 +2860,11 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
-          {(debugModel.headerParams.some((param) => !param.readOnly) || injectedGlobalHeaders.length === 0) && (
+          {(headerParams.length > 0 || injectedGlobalHeaders.length === 0) && (
             <Table
               size="small"
-              dataSource={debugModel.headerParams.filter((p) => !p.readOnly)}
-              columns={paramColumns}
+              dataSource={headerParams}
+              columns={paramColumnsFor(headerParams)}
               pagination={false}
               rowKey={paramKey}
               tableLayout="fixed"
@@ -2877,8 +2898,8 @@ export default function ApiDebug() {
         <>
           <Table
             size="small"
-            dataSource={debugModel.cookieParams.filter((p) => !p.readOnly)}
-            columns={paramColumns}
+            dataSource={cookieParams}
+            columns={paramColumnsFor(cookieParams)}
             pagination={false}
             rowKey={paramKey}
             tableLayout="fixed"

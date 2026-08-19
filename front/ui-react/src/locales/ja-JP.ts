@@ -168,6 +168,8 @@ const jaJP = {
     '現在のルートに一致する OpenAPI operation はありません。左側の API 一覧から開き直してください。',
   'apiDebug.col.paramName': '名前',
   'apiDebug.col.enabled': '有効',
+  'apiDebug.params.selectAll': '現在のパラメータをすべて選択',
+  'apiDebug.params.deselectAll': '現在のパラメータの選択をすべて解除',
   'apiDebug.col.type': '型',
   'apiDebug.col.value': '値',
   'apiDebug.col.action': '操作',
