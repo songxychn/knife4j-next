@@ -1,8 +1,8 @@
 import JSZip from 'jszip';
 import { describe, expect, test, vi } from 'vitest';
+import { buildExportDocument } from 'knife4j-core';
 import type { MenuOperation, MenuTag, SwaggerDoc } from '../../types/swagger';
 import { buildDocx, buildWordDoc, type OfficeDocLabels } from './OfficeDoc';
-import { buildOfficeDocOutline, formatOfficeDocOutlineNumber } from './officeDocOutline';
 
 vi.mock('../../context/GroupContext', () => ({
   useGroup: () => ({}),
@@ -20,6 +20,7 @@ const labels: OfficeDocLabels = {
   yes: 'Yes',
   no: 'No',
   requestBody: 'Request body',
+  mediaType: 'Content-Type',
   responses: 'Responses',
   response: 'Response',
   statusCode: 'Status code',
@@ -28,7 +29,7 @@ const labels: OfficeDocLabels = {
   parameters: 'Parameters',
   circularReference: 'Circular reference',
   fallbackTitle: 'API documentation',
-  markdown: {} as OfficeDocLabels['markdown'],
+  markdown: { version: 'Version' } as OfficeDocLabels['markdown'],
 };
 
 const doc: SwaggerDoc = {
@@ -86,14 +87,14 @@ async function readDocxParts(blob: Blob): Promise<{ documentXml: string; numberi
 
 describe('office document outline', () => {
   test('keeps tag order and builds two-level numbers with a method/path fallback', () => {
-    const outline = buildOfficeDocOutline(tags);
+    const model = buildExportDocument(doc, tags);
 
     expect(
-      outline.map((tag) => ({
-        number: formatOfficeDocOutlineNumber(tag.numberPath),
-        title: tag.tag.tag,
+      model.tags.map((tag) => ({
+        number: tag.numberPath.join('.'),
+        title: tag.name,
         operations: tag.operations.map((item) => ({
-          number: formatOfficeDocOutlineNumber(item.numberPath),
+          number: item.numberPath.join('.'),
           title: item.title,
         })),
       })),
@@ -115,14 +116,14 @@ describe('office document outline', () => {
   });
 
   test('keeps empty tags in the outline and handles an empty document', () => {
-    const outline = buildOfficeDocOutline([
+    const model = buildExportDocument(doc, [
       { tag: 'Empty', operations: [] },
       { tag: 'Users', operations: [operation('/users', 'get', 'List users')] },
     ]);
 
-    expect(formatOfficeDocOutlineNumber(outline[0].numberPath)).toBe('1');
-    expect(formatOfficeDocOutlineNumber(outline[1].operations[0].numberPath)).toBe('2.1');
-    expect(buildOfficeDocOutline([])).toEqual([]);
+    expect(model.tags[0].numberPath.join('.')).toBe('1');
+    expect(model.tags[1].operations[0].numberPath.join('.')).toBe('2.1');
+    expect(buildExportDocument(doc, []).tags).toEqual([]);
   });
 
   test('HTML-based Word export uses escaped numbered headings without putting the title in Heading 1', () => {

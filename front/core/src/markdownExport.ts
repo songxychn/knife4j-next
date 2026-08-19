@@ -6,107 +6,28 @@
  * OfficeDoc export (TASK-043).
  */
 
-// ── Minimal local type aliases (mirrors knife4j-ui-react swagger types) ──────
+import { buildExportOperation } from './exportDocument';
+import type {
+  ExportDocument,
+  ExportOperation,
+  ExportSchemaField,
+  MdDocContext,
+  MdOperationObject,
+  MdRequestBodyObject,
+  MdResponseObject,
+  MdSchemaObject,
+} from './exportDocument';
 
-export interface MdSchemaObject {
-  type?: string;
-  format?: string;
-  description?: string;
-  properties?: Record<string, MdSchemaObject>;
-  items?: MdSchemaObject;
-  $ref?: string;
-  required?: string[];
-  enum?: unknown[];
-}
-
-export interface MdParameterObject {
-  name: string;
-  in: string;
-  required?: boolean;
-  description?: string;
-  schema?: MdSchemaObject;
-  type?: string;
-  format?: string;
-}
-
-export interface MdRequestBodyObject {
-  description?: string;
-  required?: boolean;
-  content?: Record<string, { schema?: MdSchemaObject }>;
-}
-
-export interface MdResponseObject {
-  description?: string;
-  content?: Record<string, { schema?: MdSchemaObject }>;
-  schema?: MdSchemaObject; // OAS2
-}
-
-export interface MdOperationObject {
-  operationId?: string;
-  summary?: string;
-  description?: string;
-  tags?: string[];
-  parameters?: MdParameterObject[];
-  requestBody?: MdRequestBodyObject;
-  responses?: Record<string, MdResponseObject>;
-  deprecated?: boolean;
-}
-
-export interface MdDocContext {
-  components?: { schemas?: Record<string, MdSchemaObject> };
-  definitions?: Record<string, MdSchemaObject>;
-}
+export type {
+  MdSchemaObject,
+  MdParameterObject,
+  MdRequestBodyObject,
+  MdResponseObject,
+  MdOperationObject,
+  MdDocContext,
+} from './exportDocument';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function resolveRef(ref: string, ctx: MdDocContext): MdSchemaObject | undefined {
-  const m = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
-  if (!m) return undefined;
-  return (ctx.components?.schemas ?? ctx.definitions ?? {})[m[1]];
-}
-
-function schemaName(schema?: MdSchemaObject): string {
-  if (!schema) return '';
-  if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
-  if (schema.type === 'array') return `${schemaName(schema.items) || 'object'}[]`;
-  // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
-  if (schema.type === 'string' && schema.format === 'byte') return 'byte';
-  return [schema.type, schema.format].filter(Boolean).join('/') || 'object';
-}
-
-function paramType(p: MdParameterObject): string {
-  return schemaName(p.schema) || [p.type, p.format].filter(Boolean).join('/') || '-';
-}
-
-function firstRequestSchema(rb: MdRequestBodyObject | undefined): MdSchemaObject | undefined {
-  if (!rb?.content) return undefined;
-  return rb.content['application/json']?.schema ?? Object.values(rb.content)[0]?.schema;
-}
-
-function responseSchemaName(r: MdResponseObject): string {
-  const s = r.content?.['application/json']?.schema ?? r.schema ?? Object.values(r.content ?? {})[0]?.schema;
-  return schemaName(s);
-}
-
-function bodyRows(
-  schema: MdSchemaObject,
-  ctx: MdDocContext,
-): Array<{
-  name: string;
-  type: string;
-  required: boolean;
-  description: string;
-}> {
-  const resolved = schema.$ref ? resolveRef(schema.$ref, ctx) : schema;
-  if (!resolved?.properties) return [];
-  const req = new Set(resolved.required ?? []);
-  return Object.entries(resolved.properties).map(([name, prop]) => ({
-    name,
-    type: schemaName(prop),
-    required: req.has(name),
-    description: prop.description ?? '',
-  }));
-}
 
 function mdTable(headers: string[], rows: string[][]): string {
   const sep = headers.map(() => '---');
@@ -118,6 +39,44 @@ function escape(s: string): string {
   return s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 
+function legacyContentSchema(
+  content: Record<string, { schema?: MdSchemaObject }> | undefined,
+): MdSchemaObject | undefined {
+  return content?.['application/json']?.schema ?? Object.values(content ?? {})[0]?.schema;
+}
+
+function legacyRequestBody(requestBody: MdRequestBodyObject | undefined): MdRequestBodyObject | undefined {
+  if (!requestBody) return undefined;
+  const schema = legacyContentSchema(requestBody.content);
+  return {
+    ...requestBody,
+    content: schema ? { 'application/json': { schema } } : undefined,
+  };
+}
+
+function legacyResponse(response: MdResponseObject): MdResponseObject {
+  const schema =
+    response.content?.['application/json']?.schema ??
+    response.schema ??
+    Object.values(response.content ?? {})[0]?.schema;
+  return {
+    description: response.description,
+    content: schema ? { 'application/json': { schema } } : undefined,
+  };
+}
+
+function legacyOperationSource(operation: MdOperationObject): MdOperationObject {
+  return {
+    ...operation,
+    requestBody: legacyRequestBody(operation.requestBody),
+    responses: operation.responses
+      ? Object.fromEntries(
+          Object.entries(operation.responses).map(([statusCode, response]) => [statusCode, legacyResponse(response)]),
+        )
+      : undefined,
+  };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export interface GenerateApiMarkdownOptions {
@@ -126,15 +85,20 @@ export interface GenerateApiMarkdownOptions {
   operation: MdOperationObject;
   docContext: MdDocContext;
   labels?: Partial<ApiMarkdownLabels>;
+  headingLevel?: MarkdownOperationHeadingLevel;
 }
 
 export interface ApiMarkdownLabels {
+  /** Full-document version label. Optional for backwards compatibility. */
+  version?: string;
   deprecated: string;
   requestParameters: string;
   noRequestParameters: string;
   requestBody: string;
   noRequestBody: string;
   requestBodyNotExpandable: string;
+  /** Full-document request/response media type label. */
+  mediaType?: string;
   responseStructure: string;
   noResponse: string;
   name: string;
@@ -147,15 +111,21 @@ export interface ApiMarkdownLabels {
   no: string;
   status: string;
   schema: string;
+  /** Marker appended to a field whose recursive expansion was truncated. */
+  truncated?: string;
 }
 
-const DEFAULT_LABELS: ApiMarkdownLabels = {
+type ResolvedApiMarkdownLabels = Required<ApiMarkdownLabels>;
+
+const DEFAULT_LABELS: ResolvedApiMarkdownLabels = {
+  version: 'Version',
   deprecated: 'This API is deprecated.',
   requestParameters: 'Request Parameters',
   noRequestParameters: 'No request parameters.',
   requestBody: 'Request Body',
   noRequestBody: 'No request body.',
   requestBodyNotExpandable: 'Request body schema cannot be expanded.',
+  mediaType: 'Content-Type',
   responseStructure: 'Response Structure',
   noResponse: 'No response defined.',
   name: 'Name',
@@ -168,7 +138,59 @@ const DEFAULT_LABELS: ApiMarkdownLabels = {
   no: 'No',
   status: 'Status',
   schema: 'Schema',
+  truncated: 'Truncated',
 };
+
+export type MarkdownOperationHeadingLevel = 1 | 2 | 3 | 4;
+
+export interface RenderExportOperationMarkdownOptions {
+  labels?: Partial<ApiMarkdownLabels>;
+  headingLevel?: MarkdownOperationHeadingLevel;
+}
+
+export interface RenderExportDocumentMarkdownOptions {
+  labels?: Partial<ApiMarkdownLabels>;
+}
+
+interface InternalRenderExportOperationMarkdownOptions extends RenderExportOperationMarkdownOptions {
+  legacySingleOperation?: boolean;
+}
+
+function resolveLabels(labels: Partial<ApiMarkdownLabels> | undefined): ResolvedApiMarkdownLabels {
+  return { ...DEFAULT_LABELS, ...labels };
+}
+
+function heading(level: number, title: string): string {
+  return `${'#'.repeat(Math.max(1, Math.min(6, level)))} ${title}`;
+}
+
+function markdownTypeDisplay(typeDisplay: string): string {
+  const byteArray = typeDisplay.match(/^string \/ byte((?:\[\])*)$/);
+  if (byteArray) return `byte${byteArray[1]}`;
+  return typeDisplay.replace(/ \/ /g, '/');
+}
+
+function fieldType(field: ExportSchemaField, labels: ResolvedApiMarkdownLabels): string {
+  const typeDisplay = markdownTypeDisplay(field.typeDisplay);
+  if (!field.truncated) return typeDisplay;
+  return `${typeDisplay || 'object'} (${labels.truncated})`;
+}
+
+function fieldTable(
+  fields: ExportSchemaField[],
+  labels: ResolvedApiMarkdownLabels,
+  showTruncatedMarker = true,
+): string {
+  return mdTable(
+    [labels.field, labels.type, labels.required, labels.description],
+    fields.map((field) => [
+      escape(`\`${field.fieldPath}\``),
+      escape(showTruncatedMarker ? fieldType(field, labels) : markdownTypeDisplay(field.typeDisplay)),
+      field.required ? labels.yes : labels.no,
+      escape(field.description),
+    ]),
+  );
+}
 
 /**
  * Generates a Markdown string for a single API operation.
@@ -181,34 +203,36 @@ const DEFAULT_LABELS: ApiMarkdownLabels = {
  *  - Request Body table
  *  - Response Structure table
  */
-export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
-  const { method, path, operation, docContext } = opts;
-  const labels = { ...DEFAULT_LABELS, ...opts.labels };
-  const m = method.toUpperCase();
-  const op = operation;
-
+function renderExportOperationMarkdownInternal(
+  operation: ExportOperation,
+  options: InternalRenderExportOperationMarkdownOptions = {},
+): string {
+  const labels = resolveLabels(options.labels);
+  const operationHeadingLevel = options.headingLevel ?? 1;
+  const sectionHeadingLevel = operationHeadingLevel + 1;
+  const legacySingleOperation = Boolean(options.legacySingleOperation);
   const lines: string[] = [];
 
   // Title
-  lines.push(`# ${op.summary ?? path}`);
+  lines.push(heading(operationHeadingLevel, operation.title));
   lines.push('');
 
   // Method + path
-  lines.push(`**${m}** \`${path}\``);
-  if (op.deprecated) lines.push('');
-  if (op.deprecated) lines.push(`> ⚠️ ${labels.deprecated}`);
+  lines.push(`**${operation.method}** \`${operation.path}\``);
+  if (operation.deprecated) lines.push('');
+  if (operation.deprecated) lines.push(`> ⚠️ ${labels.deprecated}`);
   lines.push('');
 
   // Description
-  if (op.description) {
-    lines.push(op.description);
+  if (operation.description) {
+    lines.push(operation.description);
     lines.push('');
   }
 
   // Request Parameters
-  lines.push(`## ${labels.requestParameters}`);
+  lines.push(heading(sectionHeadingLevel, labels.requestParameters));
   lines.push('');
-  const params = op.parameters ?? [];
+  const params = operation.parameters;
   if (params.length === 0) {
     lines.push(`_${labels.noRequestParameters}_`);
   } else {
@@ -217,10 +241,10 @@ export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
         [labels.name, labels.location, labels.type, labels.required, labels.description],
         params.map((p) => [
           escape(`\`${p.name}\``),
-          escape(p.in),
-          escape(paramType(p)),
+          escape(p.location),
+          escape(p.compactTypeDisplay),
           p.required ? labels.yes : labels.no,
-          escape(p.description ?? ''),
+          escape(p.description),
         ]),
       ),
     );
@@ -228,46 +252,137 @@ export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
   lines.push('');
 
   // Request Body
-  lines.push(`## ${labels.requestBody}`);
+  lines.push(heading(sectionHeadingLevel, labels.requestBody));
   lines.push('');
-  const bodySchema = firstRequestSchema(op.requestBody);
-  if (!bodySchema) {
+  const requestBody = operation.requestBody;
+  if (!requestBody?.schema) {
     lines.push(`_${labels.noRequestBody}_`);
   } else {
-    const rows = bodyRows(bodySchema, docContext);
-    if (rows.length === 0) {
+    if (!legacySingleOperation) {
+      lines.push(
+        `**${labels.mediaType}:** \`${escape(requestBody.schema.mediaType)}\` · **${labels.type}:** \`${escape(
+          markdownTypeDisplay(requestBody.schema.typeDisplay),
+        )}\` · **${labels.required}:** ${requestBody.required ? labels.yes : labels.no}`,
+      );
+      lines.push('');
+    }
+    if (!legacySingleOperation && requestBody.description) {
+      lines.push(requestBody.description);
+      lines.push('');
+    }
+    const requestFields = legacySingleOperation ? requestBody.schema.shallowFields : requestBody.schema.fields;
+    if (requestFields.length === 0) {
       lines.push(`_${labels.requestBodyNotExpandable}_`);
     } else {
-      lines.push(
-        mdTable(
-          [labels.field, labels.type, labels.required, labels.description],
-          rows.map((r) => [
-            escape(`\`${r.name}\``),
-            escape(r.type),
-            r.required ? labels.yes : labels.no,
-            escape(r.description),
-          ]),
-        ),
-      );
+      lines.push(fieldTable(requestFields, labels, !legacySingleOperation));
     }
   }
   lines.push('');
 
   // Response Structure
-  lines.push(`## ${labels.responseStructure}`);
+  lines.push(heading(sectionHeadingLevel, labels.responseStructure));
   lines.push('');
-  const responses = Object.entries(op.responses ?? {});
+  const responses = operation.responses;
   if (responses.length === 0) {
     lines.push(`_${labels.noResponse}_`);
   } else {
     lines.push(
       mdTable(
         [labels.status, labels.description, labels.schema],
-        responses.map(([code, r]) => [escape(code), escape(r.description ?? ''), escape(responseSchemaName(r))]),
+        responses.map((response) => [
+          escape(response.statusCode),
+          escape(response.description),
+          escape(markdownTypeDisplay(response.schema?.typeDisplay ?? '')),
+        ]),
       ),
     );
+
+    if (!legacySingleOperation) {
+      for (const response of responses) {
+        const schema = response.schema;
+        const fields = schema?.fields ?? [];
+        if (!schema || fields.length === 0) continue;
+        lines.push('');
+        lines.push(heading(sectionHeadingLevel + 1, `${labels.status} \`${escape(response.statusCode)}\``));
+        lines.push('');
+        lines.push(
+          `**${labels.mediaType}:** \`${escape(schema.mediaType)}\` · **${labels.type}:** \`${escape(
+            markdownTypeDisplay(schema.typeDisplay),
+          )}\``,
+        );
+        lines.push('');
+        lines.push(fieldTable(fields, labels));
+      }
+    }
   }
   lines.push('');
 
   return lines.join('\n');
+}
+
+export function renderExportOperationMarkdown(
+  operation: ExportOperation,
+  options: RenderExportOperationMarkdownOptions = {},
+): string {
+  return renderExportOperationMarkdownInternal(operation, options);
+}
+
+/** Render a complete offline Markdown document from the shared export model. */
+export function renderExportDocumentMarkdown(
+  document: ExportDocument,
+  options: RenderExportDocumentMarkdownOptions = {},
+): string {
+  const labels = resolveLabels(options.labels);
+  const sections: string[] = [`# ${document.title}`, ''];
+
+  if (document.version) {
+    sections.push(`**${labels.version}:** ${document.version}`);
+    sections.push('');
+  }
+  if (document.description) {
+    sections.push(document.description);
+    sections.push('');
+  }
+
+  for (const tag of document.tags) {
+    sections.push(`# ${tag.name}`);
+    if (tag.description) sections.push(tag.description);
+    sections.push('');
+
+    for (const operation of tag.operations) {
+      sections.push(
+        renderExportOperationMarkdown(operation, {
+          labels,
+          headingLevel: 2,
+        }),
+      );
+      sections.push('---');
+      sections.push('');
+    }
+  }
+
+  return sections.join('\n');
+}
+
+/**
+ * Compatibility entry point for the single-operation copy action.
+ *
+ * The raw OpenAPI operation is normalized by the same builder used by the
+ * complete document, while the default heading level intentionally remains H1.
+ */
+export function generateApiMarkdown(opts: GenerateApiMarkdownOptions): string {
+  const model = buildExportOperation(
+    {
+      method: opts.method,
+      path: opts.path,
+      operation: legacyOperationSource(opts.operation),
+      title: opts.operation.summary ?? opts.path,
+    },
+    opts.docContext,
+  );
+  return renderExportOperationMarkdownInternal(model, {
+    labels: opts.labels,
+    headingLevel: opts.headingLevel ?? 1,
+    legacySingleOperation: true,
+  });
 }
