@@ -12,7 +12,15 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.3.1 <Badge type="tip" text="最新" />
+### 5.3.2 <Badge type="tip" text="最新" />
+
+`5.3.2` 是基于 `5.3.1` 的向后兼容补丁版本，恢复 OAS3 离线文档中的请求示例与响应示例。
+
+**离线文档导出（React UI）**
+
+- HTML、DOC、DOCX 与整篇 Markdown 导出重新包含请求与响应示例；支持 media type `example`、首个 named example、本地 `components.examples` 引用与 schema 生成回退，并保留仅 example 无 schema、binary 响应和 Markdown 安全 fence 等边界行为（PR #644，issue #643）。
+
+### 5.3.1
 
 `5.3.1` 是基于 `5.3.0` 的向后兼容补丁版本，修复 Word 导出大纲与编号，并统一离线文档的跨格式内容契约，同时提升请求参数较多时的批量操作效率。
 
@@ -492,7 +500,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.1</version>
+    <version>5.3.2</version>
 </dependency>
 ```
 

@@ -8,7 +8,8 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
-| `5.3.1` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，离线导出契约与请求参数批量选择补丁 |
+| `5.3.2` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，离线文档请求与响应示例补丁 |
+| `5.3.1` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 离线导出契约与请求参数批量选择补丁 |
 | `5.3.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | React UI 两级请求参数与配置入口拆分 |
 | `5.2.4` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | React UI 固定布局与区域滚动补丁 |
 | `5.2.3` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 聚合路由请求头补丁 |
@@ -37,11 +38,11 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.3.1` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.3.1`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.3.1`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.3.1` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.3.1`。
+> `5.3.2` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.3.2`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.3.2`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.3.2` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.3.2`。
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.3.1` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.3.2` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -92,7 +93,8 @@ title: 版本对照
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.3.1` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5/4.0 兼容 + React UI 离线导出与请求参数批量选择补丁 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.3.2` | 当前版本：包含全部 fork 安全修复 + Boot 3.4/3.5/4.0 兼容 + React UI 离线文档请求与响应示例补丁 |
+| `4.5.0` | `5.3.1` | React UI 离线导出契约与请求参数批量选择补丁 |
 | `4.5.0` | `5.3.0` | React UI 两级请求参数与配置入口拆分 |
 | `4.5.0` | `5.2.4` | React UI 固定布局与区域滚动补丁 |
 | `4.5.0` | `5.2.3` | 聚合路由请求头补丁 |

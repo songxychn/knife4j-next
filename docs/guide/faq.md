@@ -22,13 +22,14 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容本 fork 完全兼容。两个例外：
 
-1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.3.1`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.3.2`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
 2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript、版本小蓝点等）在本 fork 的新 React 前端中尚未全部覆盖；OAuth2、离线导出、自定义 Markdown 文档、自定义 Footer 等能力则已在 React UI 中补齐或重做。这些历史功能在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.3.2` | 补丁修复：恢复 OAS3 离线 HTML、DOC、DOCX 与整篇 Markdown 中的请求示例和响应示例 | — |
 | `5.3.1` | 补丁修复：Word 导出两级大纲与原生编号、跨格式离线文档内容契约，以及请求参数批量选择 | — |
 | `5.3.0` | 次版本：支持应用级与分组级两级请求参数，并将请求参数、Cookie 会话、OpenAPI 鉴权拆分为独立页面 | — |
 | `5.2.4` | 补丁修复：宽屏固定页面布局与区域滚动，窄屏保留 document 滚动回退 | — |
