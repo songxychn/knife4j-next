@@ -32,7 +32,7 @@ Knife4j 的 `doc.html` 默认嵌入在 Spring Boot 应用中。在某些场景�
 # 在 Maven 仓库中找到 knife4j-openapi3-ui 的 jar
 # 解压 META-INF/resources/ 目录
 mkdir -p /opt/knife4j-static
-unzip -j ~/.m2/repository/com/baizhukui/knife4j-openapi3-ui/5.3.1/knife4j-openapi3-ui-5.3.1.jar \
+unzip -j ~/.m2/repository/com/baizhukui/knife4j-openapi3-ui/5.3.2/knife4j-openapi3-ui-5.3.2.jar \
   "META-INF/resources/*" -d /opt/knife4j-static/
 ```
 
