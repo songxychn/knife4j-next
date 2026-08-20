@@ -318,3 +318,129 @@ describe('export schema recursion guards', () => {
     expect(fields[fields.length - 1].fieldPath.split('.')).toHaveLength(31);
   });
 });
+
+describe('export operation examples', () => {
+  const doc: ExportDocumentSource = {
+    info: { title: 'Examples', version: '1' },
+    components: {
+      schemas: {
+        Request: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+          },
+        },
+        Response: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+          },
+        },
+      },
+      examples: {
+        Created: {
+          value: { ok: true, message: '' },
+        },
+      },
+    },
+  };
+
+  test('adds request and response examples to the shared export model', () => {
+    const operation = buildExportOperation(
+      {
+        method: 'post',
+        path: '/examples',
+        operation: {
+          requestBody: {
+            content: {
+              'text/plain': { example: 'plain' },
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Request' },
+                example: { name: '' },
+              },
+            },
+          },
+          responses: {
+            '201': {
+              description: 'Created',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Response' },
+                  examples: {
+                    created: { $ref: '#/components/examples/Created' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      doc,
+    );
+
+    expect(operation.requestBody?.example).toEqual({
+      mediaType: 'application/json',
+      value: JSON.stringify({ name: '' }, null, 2),
+    });
+    expect(operation.responses[0].example).toEqual({
+      mediaType: 'application/json',
+      value: JSON.stringify({ ok: true, message: '' }, null, 2),
+    });
+  });
+
+  test('keeps schema fallbacks and example-only media without inventing binary content', () => {
+    const operation = buildExportOperation(
+      {
+        method: 'post',
+        path: '/fallbacks',
+        operation: {
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Request' },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Generated',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Response' },
+                },
+              },
+            },
+            '202': {
+              description: 'Example only',
+              content: {
+                'text/plain': { example: '' },
+              },
+            },
+            '206': {
+              description: 'Binary',
+              content: {
+                'application/octet-stream': {
+                  schema: { type: 'string', format: 'binary' },
+                },
+              },
+            },
+          },
+        },
+      },
+      doc,
+    );
+
+    expect(operation.requestBody?.example).toEqual({
+      mediaType: 'application/json',
+      value: JSON.stringify({ name: 'string' }, null, 2),
+    });
+    expect(operation.responses.map((response) => response.example)).toEqual([
+      {
+        mediaType: 'application/json',
+        value: JSON.stringify({ ok: true }, null, 2),
+      },
+      { mediaType: 'text/plain', value: '' },
+      undefined,
+    ]);
+  });
+});

@@ -53,9 +53,11 @@ const japaneseLabels: ApiMarkdownLabels = {
   requestParameters: 'リクエストパラメータ',
   noRequestParameters: 'リクエストパラメータはありません。',
   requestBody: 'リクエストボディ',
+  requestExample: 'リクエスト例',
   noRequestBody: 'リクエストボディはありません。',
   requestBodyNotExpandable: 'リクエストボディのスキーマを展開できません。',
   responseStructure: 'レスポンス構造',
+  responseExample: 'レスポンス例',
   noResponse: 'レスポンスは定義されていません。',
   name: '名前',
   location: '位置',
@@ -179,14 +181,28 @@ describe('shared export model Markdown rendering', () => {
             ],
             requestBody: {
               content: {
-                'application/json': { schema: { $ref: '#/components/schemas/CreateUser' } },
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/CreateUser' },
+                  example: {
+                    profile: { email: 'MARKDOWN_REQUEST_EXAMPLE_643' },
+                  },
+                },
               },
             },
             responses: {
               201: {
                 description: 'Created',
                 content: {
-                  'application/json': { schema: { $ref: '#/components/schemas/UserEnvelope' } },
+                  'application/json': {
+                    schema: { $ref: '#/components/schemas/UserEnvelope' },
+                    examples: {
+                      created: {
+                        value: {
+                          data: { profile: { email: 'MARKDOWN_RESPONSE_EXAMPLE_643' } },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -208,8 +224,49 @@ describe('shared export model Markdown rendering', () => {
     expect(lines).toContain('### Request Body');
     expect(lines).toContain('### Response Structure');
     expect(lines).toContain('#### Status `201`');
+    expect(lines).toContain('#### Request Example');
+    expect(lines).toContain('#### Response Example `201`');
     expect(markdown).toContain('| `profile.email` | string | Yes | Contact email |');
     expect(markdown).toContain('| `data.profile.email` | string | Yes | Contact email |');
+    expect(markdown).toContain('MARKDOWN_REQUEST_EXAMPLE_643');
+    expect(markdown).toContain('MARKDOWN_RESPONSE_EXAMPLE_643');
+  });
+
+  test('renders example-only and empty values with localized labels and a safe Markdown fence', () => {
+    const markdown = renderExportDocumentMarkdown(
+      buildExportDocument({ info: { title: 'Examples', version: '1' } }, [
+        {
+          tag: 'Examples',
+          operations: [
+            {
+              method: 'post',
+              path: '/examples',
+              operation: {
+                requestBody: {
+                  content: {
+                    'text/plain': { example: '' },
+                  },
+                },
+                responses: {
+                  202: {
+                    description: 'accepted',
+                    content: {
+                      'text/plain': { example: 'MARKDOWN_FENCE_EXAMPLE_643\n```' },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ]),
+      { labels: japaneseLabels },
+    );
+
+    expect(markdown).toContain('#### リクエスト例');
+    expect(markdown).toContain('#### レスポンス例 `202`');
+    expect(markdown).not.toContain('_リクエストボディはありません。_');
+    expect(markdown).toContain('````\nMARKDOWN_FENCE_EXAMPLE_643\n```\n````');
   });
 
   test('keeps the single-operation compatibility wrapper at H1 while allowing an explicit shift', () => {
@@ -265,6 +322,7 @@ describe('shared export model Markdown rendering', () => {
           description: 'Upload payload description',
           content: {
             'application/json': {
+              example: { ignored: 'LEGACY_REQUEST_EXAMPLE_643' },
               schema: {
                 type: 'object',
                 required: ['payload'],
@@ -285,6 +343,7 @@ describe('shared export model Markdown rendering', () => {
             description: 'ok',
             content: {
               'application/json': {
+                example: { ignored: 'LEGACY_RESPONSE_EXAMPLE_643' },
                 schema: { type: 'array', items: { type: 'string', format: 'byte' } },
               },
             },

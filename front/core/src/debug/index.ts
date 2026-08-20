@@ -56,3 +56,19 @@ export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';
 
 // mediaTypeExample
 export { buildMediaTypeExampleValue } from './mediaTypeExample';
+
+// operationExamples
+export {
+  buildSchemaExampleValue,
+  selectFirstMediaType,
+  selectRequestBodyExample,
+  selectResponseExamples,
+} from './operationExamples';
+export type {
+  OperationMediaTypeObject,
+  RequestBodyExampleSource,
+  ResponseExampleSource,
+  SelectedMediaType,
+  SelectedOperationExample,
+  SelectedResponseExample,
+} from './operationExamples';

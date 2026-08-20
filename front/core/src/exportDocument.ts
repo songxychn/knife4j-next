@@ -7,15 +7,33 @@
  * composition keywords remain outside this module's contract.
  */
 
+import { selectRequestBodyExample, selectResponseExamples } from './debug/operationExamples';
+
 export interface MdSchemaObject {
   type?: string;
   format?: string;
   description?: string;
+  example?: unknown;
+  default?: unknown;
   properties?: Record<string, MdSchemaObject>;
   items?: MdSchemaObject;
   $ref?: string;
   required?: string[];
   enum?: unknown[];
+}
+
+export interface MdExampleObject {
+  summary?: string;
+  description?: string;
+  value?: unknown;
+  externalValue?: string;
+  $ref?: string;
+}
+
+export interface MdMediaTypeObject {
+  schema?: MdSchemaObject;
+  example?: unknown;
+  examples?: Record<string, MdExampleObject>;
 }
 
 export interface MdParameterObject {
@@ -31,12 +49,12 @@ export interface MdParameterObject {
 export interface MdRequestBodyObject {
   description?: string;
   required?: boolean;
-  content?: Record<string, { schema?: MdSchemaObject }>;
+  content?: Record<string, MdMediaTypeObject>;
 }
 
 export interface MdResponseObject {
   description?: string;
-  content?: Record<string, { schema?: MdSchemaObject }>;
+  content?: Record<string, MdMediaTypeObject>;
   schema?: MdSchemaObject;
 }
 
@@ -52,7 +70,10 @@ export interface MdOperationObject {
 }
 
 export interface MdDocContext {
-  components?: { schemas?: Record<string, MdSchemaObject> };
+  components?: {
+    schemas?: Record<string, MdSchemaObject>;
+    examples?: Record<string, MdExampleObject>;
+  };
   definitions?: Record<string, MdSchemaObject>;
 }
 
@@ -85,16 +106,23 @@ export interface ExportParameter {
   description: string;
 }
 
+export interface ExportExample {
+  mediaType: string;
+  value: string;
+}
+
 export interface ExportRequestBody {
   description: string;
   required: boolean;
   schema?: ExportSchema;
+  example?: ExportExample;
 }
 
 export interface ExportResponse {
   statusCode: string;
   description: string;
   schema?: ExportSchema;
+  example?: ExportExample;
 }
 
 export interface ExportOperation {
@@ -194,7 +222,7 @@ function schemaKind(schema: MdSchemaObject, doc: MdDocContext, seenRefs: Set<str
 }
 
 function pickContentSchema(
-  content: Record<string, { schema?: MdSchemaObject }> | undefined,
+  content: Record<string, MdMediaTypeObject> | undefined,
   fallback?: MdSchemaObject,
 ): { mediaType: string; schema: MdSchemaObject } | undefined {
   if (content) {
@@ -362,6 +390,11 @@ function compactParameterType(parameter: MdParameterObject): string {
 export function buildExportOperation(source: ExportOperationSource, docContext: MdDocContext): ExportOperation {
   const operation = source.operation;
   const method = source.method.toUpperCase();
+  const exampleContext = { doc: docContext as unknown as Record<string, unknown> };
+  const selectedRequestExample = selectRequestBodyExample(operation.requestBody, undefined, exampleContext);
+  const selectedResponseExamples = new Map(
+    selectResponseExamples(operation.responses, exampleContext).map((example) => [example.statusCode, example]),
+  );
   const requestBody = operation.requestBody
     ? (() => {
         const picked = pickContentSchema(operation.requestBody?.content);
@@ -369,6 +402,7 @@ export function buildExportOperation(source: ExportOperationSource, docContext: 
           description: operation.requestBody?.description ?? '',
           required: Boolean(operation.requestBody?.required),
           schema: picked ? buildExportSchema(picked, docContext) : undefined,
+          example: selectedRequestExample,
         };
       })()
     : undefined;
@@ -392,10 +426,12 @@ export function buildExportOperation(source: ExportOperationSource, docContext: 
     requestBody,
     responses: Object.entries(operation.responses ?? {}).map(([statusCode, response]) => {
       const picked = pickContentSchema(response.content, response.schema);
+      const selectedExample = selectedResponseExamples.get(statusCode);
       return {
         statusCode,
         description: response.description ?? '',
         schema: picked ? buildExportSchema(picked, docContext) : undefined,
+        example: selectedExample ? { mediaType: selectedExample.mediaType, value: selectedExample.value } : undefined,
       };
     }),
   };
