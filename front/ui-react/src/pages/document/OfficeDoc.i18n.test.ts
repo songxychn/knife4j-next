@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import JSZip from 'jszip';
-import type { MenuTag, SchemaObject, SwaggerDoc } from '../../types/swagger';
+import type { MenuTag, OperationObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
 import { buildDocx, buildHtmlDoc, buildMarkdownDoc, buildWordDoc, type OfficeDocLabels } from './OfficeDoc';
 
 vi.mock('../../context/GroupContext', () => ({
@@ -19,9 +19,11 @@ const labels: OfficeDocLabels = {
   yes: 'はい',
   no: 'いいえ',
   requestBody: 'リクエストボディ',
+  requestExample: 'リクエスト例',
   mediaType: 'Content-Type',
   responses: 'レスポンス構造',
   response: 'レスポンス',
+  responseExample: 'レスポンス例',
   statusCode: 'ステータスコード',
   schema: 'Schema',
   deprecated: '非推奨',
@@ -35,10 +37,12 @@ const labels: OfficeDocLabels = {
     requestParameters: 'リクエストパラメータ',
     noRequestParameters: 'リクエストパラメータはありません。',
     requestBody: 'リクエストボディ',
+    requestExample: 'リクエスト例',
     noRequestBody: 'リクエストボディはありません。',
     requestBodyNotExpandable: 'リクエストボディのスキーマを展開できません。',
     mediaType: 'Content-Type',
     responseStructure: 'レスポンス構造',
+    responseExample: 'レスポンス例',
     noResponse: 'レスポンスは定義されていません。',
     name: '名前',
     location: '位置',
@@ -53,6 +57,18 @@ const labels: OfficeDocLabels = {
   },
 };
 
+const searchUsers: OperationObject = {
+  summary: 'Search users',
+  requestBody: {
+    content: {
+      'text/plain': {
+        example: '',
+      },
+    },
+  },
+  responses: {},
+};
+
 const doc: SwaggerDoc = {
   openapi: '3.0.1',
   info: {
@@ -60,7 +76,7 @@ const doc: SwaggerDoc = {
     version: '1.0.0',
     description: 'デモ',
   },
-  paths: {},
+  paths: { '/users/search': { post: searchUsers } },
 };
 
 const tags: MenuTag[] = [
@@ -102,6 +118,13 @@ const tags: MenuTag[] = [
           },
         },
       },
+      {
+        key: 'users/search',
+        path: '/users/search',
+        method: 'post',
+        summary: 'Search users',
+        operation: searchUsers,
+      },
     ],
   },
 ];
@@ -120,6 +143,8 @@ describe('offline document localization', () => {
     expect(output).toContain('>はい<');
     expect(output).toContain('レスポンス構造');
     expect(output).toContain('レスポンス <code>200</code>');
+    expect(output).toContain('リクエスト例 (text/plain)');
+    expect(output).toContain('レスポンス例 <code>200</code> (application/json)');
     expect(output).toContain('[非推奨]');
   });
 
@@ -134,6 +159,8 @@ describe('offline document localization', () => {
     expect(output).toContain('必須');
     expect(output).toContain('はい');
     expect(output).toContain('レスポンス構造');
+    expect(output).toContain('リクエスト例 (text/plain)');
+    expect(output).toContain('レスポンス例 200 (application/json)');
     expect(output).toContain('非推奨');
   });
 
@@ -163,6 +190,8 @@ describe('offline document localization', () => {
     expect(markdown).toContain('| `limit` | query | integer | はい |  |');
     expect(markdown).toContain('_リクエストボディはありません。_');
     expect(markdown).toContain('## レスポンス構造');
+    expect(markdown).toContain('#### リクエスト例');
+    expect(markdown).toContain('#### レスポンス例 `200`');
   });
 
   test.each([

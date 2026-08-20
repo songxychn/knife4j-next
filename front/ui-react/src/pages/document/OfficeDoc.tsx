@@ -47,9 +47,11 @@ export interface OfficeDocLabels {
   yes: string;
   no: string;
   requestBody: string;
+  requestExample: string;
   mediaType: string;
   responses: string;
   response: string;
+  responseExample: string;
   statusCode: string;
   schema: string;
   deprecated: string;
@@ -74,8 +76,13 @@ function downloadBlob(content: string, filename: string, mime: string) {
 }
 
 function escapeHtml(s: string | undefined | null): string {
-  if (!s) return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (s === undefined || s === null) return '';
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function methodColor(method: string): string {
@@ -161,25 +168,38 @@ function renderFieldTable(rows: readonly ExportSchemaField[], borderStyle: strin
     </table>`;
 }
 
+function renderHtmlExample(label: string, mediaType: string, value: string, statusCode?: string): string {
+  return `
+    <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${label}${
+      statusCode !== undefined ? ` <code>${escapeHtml(statusCode)}</code>` : ''
+    } (${escapeHtml(mediaType)})</p>
+    <pre style="margin:4px 0;padding:8px;background:#f5f5f5;white-space:pre-wrap;overflow-wrap:anywhere;font-family:monospace;font-size:12px;">${escapeHtml(
+      value,
+    )}</pre>`;
+}
+
 function renderRequestBodySection(
   requestBody: ExportRequestBody | undefined,
   borderStyle: string,
   labels: OfficeDocLabels,
 ): string {
   const schema = requestBody?.schema;
-  if (!schema) return '';
+  const example = requestBody?.example;
+  if (!schema && example?.value === undefined) return '';
+  const mediaType = schema?.mediaType ?? example?.mediaType ?? '';
   return `
     <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">${labels.requestBody} (${escapeHtml(
-      schema.mediaType,
-    )}) &nbsp;<span style="font-weight:400;color:#555;">${labels.type}: <code>${escapeHtml(
-      schema.typeDisplay,
-    )}</code> &nbsp;${labels.required}: ${requestBody?.required ? labels.yes : labels.no}</span></p>
+      mediaType,
+    )}) &nbsp;<span style="font-weight:400;color:#555;">${
+      schema ? `${labels.type}: <code>${escapeHtml(schema.typeDisplay)}</code> &nbsp;` : ''
+    }${labels.required}: ${requestBody?.required ? labels.yes : labels.no}</span></p>
     ${
       requestBody?.description
         ? `<p style="margin:2px 0 4px;font-size:13px;color:#666;">${escapeHtml(requestBody.description)}</p>`
         : ''
     }
-    ${schema.fields.length ? renderFieldTable(schema.fields, borderStyle, labels) : ''}`;
+    ${schema?.fields.length ? renderFieldTable(schema.fields, borderStyle, labels) : ''}
+    ${example?.value !== undefined ? renderHtmlExample(labels.requestExample, example.mediaType, example.value) : ''}`;
 }
 
 function renderResponseSection(
@@ -212,14 +232,25 @@ function renderResponseSection(
 
   for (const response of responses) {
     const schema = response.schema;
-    if (!schema?.fields.length) continue;
-    parts.push(`
-      <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${labels.response} <code>${escapeHtml(
-        response.statusCode,
-      )}</code> (${escapeHtml(schema.mediaType)}) &nbsp;<span style="font-weight:400;color:#555;">${
-        labels.type
-      }: <code>${escapeHtml(schema.typeDisplay)}</code></span></p>
-      ${renderFieldTable(schema.fields, borderStyle, labels)}`);
+    if (schema?.fields.length) {
+      parts.push(`
+        <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${labels.response} <code>${escapeHtml(
+          response.statusCode,
+        )}</code> (${escapeHtml(schema.mediaType)}) &nbsp;<span style="font-weight:400;color:#555;">${
+          labels.type
+        }: <code>${escapeHtml(schema.typeDisplay)}</code></span></p>
+        ${renderFieldTable(schema.fields, borderStyle, labels)}`);
+    }
+    if (response.example?.value !== undefined) {
+      parts.push(
+        renderHtmlExample(
+          labels.responseExample,
+          response.example.mediaType,
+          response.example.value,
+          response.statusCode,
+        ),
+      );
+    }
   }
 
   return parts.join('');
@@ -440,18 +471,50 @@ function docxParamRows(params: readonly ExportParameter[], labels: OfficeDocLabe
   );
 }
 
+function docxExampleSection(label: string, mediaType: string, value: string, statusCode?: string): DocxParagraph[] {
+  const lines = value.split(/\r\n|\n|\r/);
+  return [
+    new DocxParagraph({
+      children: [
+        new TextRun({
+          text: `${label}${statusCode !== undefined ? ` ${statusCode}` : ''} (${mediaType})`,
+          bold: true,
+          size: 22,
+        }),
+      ],
+      spacing: { before: 120, after: 40 },
+    }),
+    new DocxParagraph({
+      children: lines.map(
+        (line, index) =>
+          new TextRun({
+            text: line,
+            break: index === 0 ? undefined : 1,
+            font: 'Courier New',
+            size: 20,
+          }),
+      ),
+      spacing: { after: 80 },
+    }),
+  ];
+}
+
 function docxRequestBodySection(
   requestBody: ExportRequestBody | undefined,
   labels: OfficeDocLabels,
 ): (DocxParagraph | DocxTable)[] {
   const schema = requestBody?.schema;
-  if (!schema) return [];
+  const example = requestBody?.example;
+  if (!schema && example?.value === undefined) return [];
+  const mediaType = schema?.mediaType ?? example?.mediaType ?? '';
   const children: (DocxParagraph | DocxTable)[] = [
     new DocxParagraph({
       children: [
-        new TextRun({ text: `${labels.requestBody} (${schema.mediaType})  `, bold: true, size: 22 }),
+        new TextRun({ text: `${labels.requestBody} (${mediaType})  `, bold: true, size: 22 }),
         new TextRun({
-          text: `${labels.type}: ${schema.typeDisplay}  ${labels.required}: ${requestBody?.required ? labels.yes : labels.no}`,
+          text: `${schema ? `${labels.type}: ${schema.typeDisplay}  ` : ''}${labels.required}: ${
+            requestBody?.required ? labels.yes : labels.no
+          }`,
           size: 22,
         }),
       ],
@@ -466,7 +529,10 @@ function docxRequestBodySection(
       }),
     );
   }
-  if (schema.fields.length) children.push(docxFieldTable(schema.fields, labels));
+  if (schema?.fields.length) children.push(docxFieldTable(schema.fields, labels));
+  if (example?.value !== undefined) {
+    children.push(...docxExampleSection(labels.requestExample, example.mediaType, example.value));
+  }
   return children;
 }
 
@@ -509,21 +575,32 @@ function docxResponseSection(
 
   for (const response of responses) {
     const schema = response.schema;
-    if (!schema?.fields.length) continue;
-    children.push(
-      new DocxParagraph({
-        children: [
-          new TextRun({
-            text: `${labels.response} ${response.statusCode} (${schema.mediaType})  `,
-            bold: true,
-            size: 22,
-          }),
-          new TextRun({ text: `${labels.type}: ${schema.typeDisplay}`, size: 22 }),
-        ],
-        spacing: { before: 120, after: 40 },
-      }),
-      docxFieldTable(schema.fields, labels),
-    );
+    if (schema?.fields.length) {
+      children.push(
+        new DocxParagraph({
+          children: [
+            new TextRun({
+              text: `${labels.response} ${response.statusCode} (${schema.mediaType})  `,
+              bold: true,
+              size: 22,
+            }),
+            new TextRun({ text: `${labels.type}: ${schema.typeDisplay}`, size: 22 }),
+          ],
+          spacing: { before: 120, after: 40 },
+        }),
+        docxFieldTable(schema.fields, labels),
+      );
+    }
+    if (response.example?.value !== undefined) {
+      children.push(
+        ...docxExampleSection(
+          labels.responseExample,
+          response.example.mediaType,
+          response.example.value,
+          response.statusCode,
+        ),
+      );
+    }
   }
 
   return children;
@@ -686,9 +763,11 @@ export default function OfficeDoc() {
     yes: t('schema.required.yes'),
     no: t('schema.required.no'),
     requestBody: t('apiDoc.requestBody'),
+    requestExample: t('apiDoc.tab.requestExample'),
     mediaType: t('apiDebug.body.contentType'),
     responses: t('apiDoc.responseStructure'),
     response: t('officeDoc.response'),
+    responseExample: t('apiDoc.tab.responseExample'),
     statusCode: t('apiDoc.col.statusCode'),
     schema: t('apiDoc.col.schema'),
     deprecated: t('apiDoc.deprecated'),
@@ -702,10 +781,12 @@ export default function OfficeDoc() {
       requestParameters: t('apiDoc.requestParams'),
       noRequestParameters: t('apiDoc.noParams'),
       requestBody: t('apiDoc.requestBody'),
+      requestExample: t('apiDoc.tab.requestExample'),
       noRequestBody: t('apiDoc.noBody'),
       requestBodyNotExpandable: t('apiDoc.body.notExpandable'),
       mediaType: t('apiDebug.body.contentType'),
       responseStructure: t('apiDoc.responseStructure'),
+      responseExample: t('apiDoc.tab.responseExample'),
       noResponse: t('apiDoc.noResponse'),
       name: t('apiDoc.col.paramName'),
       location: t('apiDoc.col.location'),

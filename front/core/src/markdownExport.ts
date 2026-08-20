@@ -95,11 +95,15 @@ export interface ApiMarkdownLabels {
   requestParameters: string;
   noRequestParameters: string;
   requestBody: string;
+  /** Full-document request example label. Optional for backwards compatibility. */
+  requestExample?: string;
   noRequestBody: string;
   requestBodyNotExpandable: string;
   /** Full-document request/response media type label. */
   mediaType?: string;
   responseStructure: string;
+  /** Full-document response example label. Optional for backwards compatibility. */
+  responseExample?: string;
   noResponse: string;
   name: string;
   location: string;
@@ -123,10 +127,12 @@ const DEFAULT_LABELS: ResolvedApiMarkdownLabels = {
   requestParameters: 'Request Parameters',
   noRequestParameters: 'No request parameters.',
   requestBody: 'Request Body',
+  requestExample: 'Request Example',
   noRequestBody: 'No request body.',
   requestBodyNotExpandable: 'Request body schema cannot be expanded.',
   mediaType: 'Content-Type',
   responseStructure: 'Response Structure',
+  responseExample: 'Response Example',
   noResponse: 'No response defined.',
   name: 'Name',
   location: 'In',
@@ -162,6 +168,16 @@ function resolveLabels(labels: Partial<ApiMarkdownLabels> | undefined): Resolved
 
 function heading(level: number, title: string): string {
   return `${'#'.repeat(Math.max(1, Math.min(6, level)))} ${title}`;
+}
+
+function markdownCodeFence(value: string): string {
+  const longestBacktickRun = Math.max(0, ...(value.match(/`+/g) ?? []).map((run) => run.length));
+  return '`'.repeat(Math.max(3, longestBacktickRun + 1));
+}
+
+function appendExampleCodeBlock(lines: string[], value: string): void {
+  const fence = markdownCodeFence(value);
+  lines.push(fence, value, fence);
 }
 
 function markdownTypeDisplay(typeDisplay: string): string {
@@ -255,26 +271,40 @@ function renderExportOperationMarkdownInternal(
   lines.push(heading(sectionHeadingLevel, labels.requestBody));
   lines.push('');
   const requestBody = operation.requestBody;
-  if (!requestBody?.schema) {
+  const requestExample = legacySingleOperation ? undefined : requestBody?.example;
+  if (!requestBody?.schema && requestExample?.value === undefined) {
     lines.push(`_${labels.noRequestBody}_`);
   } else {
+    const schema = requestBody?.schema;
     if (!legacySingleOperation) {
-      lines.push(
-        `**${labels.mediaType}:** \`${escape(requestBody.schema.mediaType)}\` · **${labels.type}:** \`${escape(
-          markdownTypeDisplay(requestBody.schema.typeDisplay),
-        )}\` · **${labels.required}:** ${requestBody.required ? labels.yes : labels.no}`,
-      );
+      const mediaType = schema?.mediaType ?? requestExample?.mediaType;
+      const metadata = [
+        ...(mediaType ? [`**${labels.mediaType}:** \`${escape(mediaType)}\``] : []),
+        ...(schema ? [`**${labels.type}:** \`${escape(markdownTypeDisplay(schema.typeDisplay))}\``] : []),
+        `**${labels.required}:** ${requestBody?.required ? labels.yes : labels.no}`,
+      ];
+      lines.push(metadata.join(' · '));
       lines.push('');
     }
-    if (!legacySingleOperation && requestBody.description) {
+    if (!legacySingleOperation && requestBody?.description) {
       lines.push(requestBody.description);
       lines.push('');
     }
-    const requestFields = legacySingleOperation ? requestBody.schema.shallowFields : requestBody.schema.fields;
-    if (requestFields.length === 0) {
-      lines.push(`_${labels.requestBodyNotExpandable}_`);
-    } else {
-      lines.push(fieldTable(requestFields, labels, !legacySingleOperation));
+    if (schema) {
+      const requestFields = legacySingleOperation ? schema.shallowFields : schema.fields;
+      if (requestFields.length === 0) {
+        lines.push(`_${labels.requestBodyNotExpandable}_`);
+      } else {
+        lines.push(fieldTable(requestFields, labels, !legacySingleOperation));
+      }
+    }
+    if (requestExample?.value !== undefined) {
+      if (lines[lines.length - 1] !== '') lines.push('');
+      lines.push(heading(sectionHeadingLevel + 1, labels.requestExample));
+      lines.push('');
+      lines.push(`**${labels.mediaType}:** \`${escape(requestExample.mediaType)}\``);
+      lines.push('');
+      appendExampleCodeBlock(lines, requestExample.value);
     }
   }
   lines.push('');
@@ -301,17 +331,26 @@ function renderExportOperationMarkdownInternal(
       for (const response of responses) {
         const schema = response.schema;
         const fields = schema?.fields ?? [];
-        if (!schema || fields.length === 0) continue;
-        lines.push('');
-        lines.push(heading(sectionHeadingLevel + 1, `${labels.status} \`${escape(response.statusCode)}\``));
-        lines.push('');
-        lines.push(
-          `**${labels.mediaType}:** \`${escape(schema.mediaType)}\` · **${labels.type}:** \`${escape(
-            markdownTypeDisplay(schema.typeDisplay),
-          )}\``,
-        );
-        lines.push('');
-        lines.push(fieldTable(fields, labels));
+        if (schema && fields.length > 0) {
+          lines.push('');
+          lines.push(heading(sectionHeadingLevel + 1, `${labels.status} \`${escape(response.statusCode)}\``));
+          lines.push('');
+          lines.push(
+            `**${labels.mediaType}:** \`${escape(schema.mediaType)}\` · **${labels.type}:** \`${escape(
+              markdownTypeDisplay(schema.typeDisplay),
+            )}\``,
+          );
+          lines.push('');
+          lines.push(fieldTable(fields, labels));
+        }
+        if (response.example?.value !== undefined) {
+          lines.push('');
+          lines.push(heading(sectionHeadingLevel + 1, `${labels.responseExample} \`${escape(response.statusCode)}\``));
+          lines.push('');
+          lines.push(`**${labels.mediaType}:** \`${escape(response.example.mediaType)}\``);
+          lines.push('');
+          appendExampleCodeBlock(lines, response.example.value);
+        }
       }
     }
   }

@@ -20,9 +20,11 @@ const labels: OfficeDocLabels = {
   yes: 'Yes',
   no: 'No',
   requestBody: 'Request body',
+  requestExample: 'Request Example',
   mediaType: 'Content-Type',
   responses: 'Responses',
   response: 'Response',
+  responseExample: 'Response Example',
   statusCode: 'Status code',
   schema: 'Schema',
   deprecated: 'Deprecated',
@@ -36,10 +38,12 @@ const labels: OfficeDocLabels = {
     requestParameters: 'Request parameters',
     noRequestParameters: 'No request parameters.',
     requestBody: 'Request body',
+    requestExample: 'Request Example',
     noRequestBody: 'No request body.',
     requestBodyNotExpandable: 'Request body schema cannot be expanded.',
     mediaType: 'Content-Type',
     responseStructure: 'Responses',
+    responseExample: 'Response Example',
     noResponse: 'No response defined.',
     name: 'Name',
     location: 'Location',
@@ -53,6 +57,11 @@ const labels: OfficeDocLabels = {
     schema: 'Schema',
   },
 };
+
+const REQUEST_SCHEMA_EXAMPLE_TOKEN = 'REQUEST_SCHEMA_EXAMPLE_643';
+const RESPONSE_SCHEMA_EXAMPLE_TOKEN = 'RESPONSE_SCHEMA_EXAMPLE_643';
+const REQUEST_ONLY_EXAMPLE_TOKEN = 'REQUEST_ONLY_EXAMPLE_643';
+const RESPONSE_ONLY_EXAMPLE_TOKEN = 'RESPONSE_ONLY_EXAMPLE_643';
 
 const listPeople: OperationObject = {
   summary: 'Find a person',
@@ -91,12 +100,34 @@ const createPerson: OperationObject = {
   requestBody: {
     required: true,
     description: 'Person creation payload.',
-    content: { 'application/json': { schema: { $ref: '#/components/schemas/CreatePerson' } } },
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/CreatePerson' },
+        example: {
+          name: REQUEST_SCHEMA_EXAMPLE_TOKEN,
+          profile: { email: 'create@example.test', address: { city: 'Hangzhou' } },
+        },
+      },
+    },
   },
   responses: {
     201: {
       description: 'Person created',
-      content: { 'application/json': { schema: { $ref: '#/components/schemas/PersonEnvelope' } } },
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/PersonEnvelope' },
+          examples: {
+            created: {
+              value: {
+                data: {
+                  name: RESPONSE_SCHEMA_EXAMPLE_TOKEN,
+                  profile: { email: 'created@example.test', address: { city: 'Shanghai' } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     422: {
       description: 'Validation failed',
@@ -137,7 +168,26 @@ const deleteAuditEntry: OperationObject = {
       schema: { type: 'integer', format: 'int64' },
     },
   ],
+  requestBody: {
+    description: 'Example-only deletion request.',
+    content: {
+      'application/json': {
+        example: {
+          token: REQUEST_ONLY_EXAMPLE_TOKEN,
+          unsafe: `<request-tag>&"'`,
+        },
+      },
+    },
+  },
   responses: {
+    202: {
+      description: 'Deletion queued',
+      content: {
+        'text/plain': {
+          example: `${RESPONSE_ONLY_EXAMPLE_TOKEN}\n<response-tag>&"'`,
+        },
+      },
+    },
     204: { description: 'Audit entry deleted' },
     409: {
       description: 'Retention active',
@@ -284,6 +334,12 @@ const sharedTokens = [
   'Audit entry found',
   'Audit entry deleted',
   'Retention active',
+  'Request Example',
+  'Response Example',
+  REQUEST_SCHEMA_EXAMPLE_TOKEN,
+  RESPONSE_SCHEMA_EXAMPLE_TOKEN,
+  REQUEST_ONLY_EXAMPLE_TOKEN,
+  RESPONSE_ONLY_EXAMPLE_TOKEN,
 ];
 
 async function readDocumentXml(blob: Blob): Promise<string> {
@@ -298,6 +354,7 @@ describe('offline document cross-format contract', () => {
     const model = buildExportDocument(doc, tags);
     const findOperation = model.tags[0].operations[0];
     const createOperation = model.tags[0].operations[1];
+    const deleteOperation = model.tags[1].operations[1];
 
     expect(model).toMatchObject({
       title: 'Unified Export API',
@@ -343,6 +400,18 @@ describe('offline document cross-format contract', () => {
     expect(findOperation.responses.map((response) => response.statusCode)).toEqual(['200', '404']);
     expect(findOperation.responses[0].schema?.fields.map((field) => field.fieldPath)).toContain('data.profile.email');
     expect(findOperation.responses[1].schema?.fields.map((field) => field.fieldPath)).toContain('errors[].code');
+    expect(deleteOperation.requestBody?.schema).toBeUndefined();
+    expect(deleteOperation.requestBody?.example).toMatchObject({
+      mediaType: 'application/json',
+      value: expect.stringContaining(REQUEST_ONLY_EXAMPLE_TOKEN),
+    });
+    expect(deleteOperation.responses.find((response) => response.statusCode === '202')).toMatchObject({
+      schema: undefined,
+      example: {
+        mediaType: 'text/plain',
+        value: `${RESPONSE_ONLY_EXAMPLE_TOKEN}\n<response-tag>&"'`,
+      },
+    });
   });
 
   test('all reading formats include the same shared document semantics', async () => {
@@ -370,11 +439,21 @@ describe('offline document cross-format contract', () => {
     for (const format of ['HTML', 'DOC'] as const) {
       expect(outputs[format]).toContain('Request body (application/json)');
       expect(outputs[format]).toContain('Type: <code>CreatePerson</code> &nbsp;Required: Yes');
+      expect(outputs[format]).not.toContain('<request-tag>');
+      expect(outputs[format]).not.toContain('<response-tag>');
+      expect(outputs[format]).toContain('&lt;request-tag&gt;&amp;\\&quot;&#39;');
+      expect(outputs[format]).toContain('&lt;response-tag&gt;&amp;&quot;&#39;');
     }
     expect(outputs.DOCX).toContain('Request body (application/json)');
     expect(outputs.DOCX).toContain('Type: CreatePerson  Required: Yes');
+    expect(outputs.DOCX).toContain(
+      '<w:rFonts w:ascii="Courier New" w:cs="Courier New" w:eastAsia="Courier New" w:hAnsi="Courier New"/>',
+    );
+    expect(outputs.DOCX).toContain('<w:br/>');
     expect(outputs.Markdown).toContain(
       '**Content-Type:** `application/json` · **Type:** `CreatePerson` · **Required:** Yes',
     );
+    expect(outputs.Markdown).toContain('#### Request Example');
+    expect(outputs.Markdown).toContain('#### Response Example `202`');
   });
 });
