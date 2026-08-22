@@ -1,3 +1,4 @@
+import { buildOperationDebugModel } from 'knife4j-core';
 import { describe, expect, it } from 'vitest';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 
@@ -115,6 +116,71 @@ describe('mergeCustomBodyParams', () => {
           { id: '3', name: 'file', value: 'not-a-file' },
           { id: '4', name: 'metadata', value: '{"injected":true}' },
           { id: '5', name: 'dynamic', value: '' },
+        ],
+        true,
+        reserved,
+      ),
+    ).toEqual({
+      formFields: { dynamic: '' },
+      formFieldNamesToIncludeWhenEmpty: ['dynamic'],
+    });
+  });
+
+  it('reserves declared fields inherited through allOf refs', () => {
+    const doc = {
+      openapi: '3.0.3',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/upload': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: { $ref: '#/components/schemas/UploadRequest' },
+                  encoding: { metadata: { contentType: 'application/json' } },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          UploadBase: {
+            type: 'object',
+            properties: {
+              regularField: { type: 'string' },
+              readOnlyField: { type: 'string', readOnly: true },
+              file: { type: 'string', format: 'binary' },
+              metadata: { type: 'object' },
+            },
+          },
+          UploadRequest: {
+            allOf: [
+              { $ref: '#/components/schemas/UploadBase' },
+              { type: 'object', properties: { ownField: { type: 'string' } } },
+            ],
+          },
+        },
+      },
+    };
+    const bodyContent = buildOperationDebugModel({ doc, path: '/upload', method: 'post' }).bodyContents[0];
+    const reserved = reservedBodyFieldNames(bodyContent);
+
+    expect([...reserved]).toEqual(
+      expect.arrayContaining(['regularField', 'readOnlyField', 'file', 'metadata', 'ownField']),
+    );
+    expect(
+      mergeCustomBodyParams(
+        {},
+        [
+          { id: '1', name: 'regularField', value: 'injected' },
+          { id: '2', name: 'readOnlyField', value: 'injected' },
+          { id: '3', name: 'file', value: 'not-a-file' },
+          { id: '4', name: 'metadata', value: '{"injected":true}' },
+          { id: '5', name: 'ownField', value: 'injected' },
+          { id: '6', name: 'dynamic', value: '' },
         ],
         true,
         reserved,

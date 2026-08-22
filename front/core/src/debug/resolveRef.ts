@@ -66,3 +66,91 @@ export function dereference(
   }
   return current;
 }
+
+function mergeAllOfSchemas(parts: Record<string, unknown>[]): Record<string, unknown> {
+  const merged = new Map<string, unknown>();
+  const properties = new Map<string, unknown>();
+  const required = new Set<string>();
+  let hasProperties = false;
+  let hasRequired = false;
+
+  for (const part of parts) {
+    for (const [key, value] of Object.entries(part)) {
+      if (key === 'allOf') continue;
+      if (key === 'properties') {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          hasProperties = true;
+          for (const [name, propertySchema] of Object.entries(value)) {
+            properties.set(name, propertySchema);
+          }
+        }
+        continue;
+      }
+      if (key === 'required') {
+        if (Array.isArray(value)) {
+          hasRequired = true;
+          for (const name of value) {
+            if (typeof name === 'string') required.add(name);
+          }
+        }
+        continue;
+      }
+      if (!merged.has(key)) merged.set(key, value);
+    }
+  }
+
+  if (hasProperties) merged.set('properties', Object.fromEntries(properties));
+  if (hasRequired) merged.set('required', Array.from(required));
+  if (!merged.has('type') && hasProperties) merged.set('type', 'object');
+  return Object.fromEntries(merged);
+}
+
+function normalizeAllOfSchemaInternal(
+  schema: Record<string, unknown>,
+  doc: Record<string, unknown>,
+  maxResolveDepth: number,
+  depth: number,
+  refChain: readonly string[],
+): Record<string, unknown> | undefined {
+  if (depth > maxResolveDepth) return undefined;
+
+  if (typeof schema.$ref === 'string') {
+    if (refChain.includes(schema.$ref)) return undefined;
+    const resolved = resolveRef(schema.$ref, doc);
+    if (!resolved) return undefined;
+    return normalizeAllOfSchemaInternal(resolved, doc, maxResolveDepth, depth + 1, [...refChain, schema.$ref]);
+  }
+
+  if (!Array.isArray(schema.allOf) || schema.allOf.length === 0) return schema;
+
+  const normalizedParts: Record<string, unknown>[] = [];
+  for (const part of schema.allOf) {
+    if (!part || typeof part !== 'object' || Array.isArray(part)) continue;
+    const normalized = normalizeAllOfSchemaInternal(
+      part as Record<string, unknown>,
+      doc,
+      maxResolveDepth,
+      depth + 1,
+      refChain,
+    );
+    if (normalized) normalizedParts.push(normalized);
+  }
+
+  const outer = Object.fromEntries(Object.entries(schema).filter(([key]) => key !== 'allOf'));
+  normalizedParts.push(outer);
+  return mergeAllOfSchemas(normalizedParts);
+}
+
+/**
+ * Canonicalize a structured request-body schema by resolving top-level `$ref`
+ * chains and flattening nested `allOf` branches into one object schema. This
+ * keeps form consumers on a single properties / required view while preserving
+ * property schemas verbatim; oneOf / anyOf branches are not selected here.
+ */
+export function normalizeAllOfSchema(
+  schema: Record<string, unknown>,
+  doc: Record<string, unknown>,
+  maxResolveDepth = 10,
+): Record<string, unknown> {
+  return normalizeAllOfSchemaInternal(schema, doc, maxResolveDepth, 0, []) ?? schema;
+}

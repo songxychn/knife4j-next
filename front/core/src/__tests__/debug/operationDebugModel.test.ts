@@ -910,6 +910,126 @@ describe('buildOperationDebugModel — OAS3', () => {
     // $ref resolves to schema with boolean enum values → must be 'boolean', NOT 'string'
     expect(byName['active'].type).toBe('boolean');
   });
+
+  test('normalizes nested allOf refs for structured form fields and multipart metadata', () => {
+    const doc = {
+      openapi: '3.0.3',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/composed-form': {
+          post: {
+            requestBody: {
+              required: true,
+              content: {
+                'multipart/form-data': {
+                  schema: { $ref: '#/components/schemas/ComposedForm' },
+                  encoding: {
+                    metadata: { contentType: 'application/json' },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          BaseForm: {
+            type: 'object',
+            required: ['baseText'],
+            properties: {
+              baseText: { type: 'string' },
+              readOnlyField: { type: 'string', readOnly: true },
+            },
+          },
+          UploadFields: {
+            type: 'object',
+            required: ['avatar'],
+            properties: {
+              avatar: { type: 'string', format: 'binary' },
+              attachments: { type: 'array', items: { type: 'string', format: 'binary' } },
+              metadata: { type: 'object', properties: { enabled: { type: 'boolean' } } },
+            },
+          },
+          ComposedForm: {
+            allOf: [
+              { $ref: '#/components/schemas/BaseForm' },
+              {
+                allOf: [
+                  { $ref: '#/components/schemas/UploadFields' },
+                  {
+                    type: 'object',
+                    required: ['inlineField'],
+                    properties: { inlineField: { type: 'string' } },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc: doc as any, path: '/composed-form', method: 'post' });
+    const bodyContent = model.bodyContents[0];
+    const schema = bodyContent.schema as Record<string, any>;
+
+    expect(schema.type).toBe('object');
+    expect(Object.keys(schema.properties)).toEqual(
+      expect.arrayContaining(['baseText', 'readOnlyField', 'avatar', 'attachments', 'metadata', 'inlineField']),
+    );
+    expect(schema.required).toEqual(expect.arrayContaining(['baseText', 'avatar', 'inlineField']));
+    expect(bodyContent.fileFields).toEqual(expect.arrayContaining(['avatar', 'attachments']));
+    expect(bodyContent.fileFieldsMultiple).toEqual(['attachments']);
+    expect(bodyContent.jsonFields).toEqual(['metadata']);
+  });
+
+  test('detects an allOf binary field when normalizing JSON upload fallback', () => {
+    const doc = {
+      openapi: '3.0.3',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/composed-upload': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/ComposedUpload' },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          UploadBase: {
+            type: 'object',
+            properties: { file: { type: 'string', format: 'binary' } },
+          },
+          ComposedUpload: {
+            allOf: [
+              { $ref: '#/components/schemas/UploadBase' },
+              { type: 'object', properties: { description: { type: 'string' } } },
+            ],
+          },
+        },
+      },
+    };
+
+    const bodyContent = buildOperationDebugModel({
+      doc: doc as any,
+      path: '/composed-upload',
+      method: 'post',
+    }).bodyContents[0];
+
+    expect(bodyContent.mediaType).toBe('multipart/form-data');
+    expect(bodyContent.category).toBe('multipart');
+    expect(bodyContent.fileFields).toEqual(['file']);
+    expect(bodyContent.schema?.properties).toHaveProperty('description');
+  });
 });
 
 describe('buildOperationDebugModel — OAS2', () => {
