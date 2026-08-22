@@ -127,7 +127,7 @@ import {
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
-import { customRowsToRecord, mergeCustomBodyParams } from './customParamRows';
+import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -2202,10 +2202,16 @@ export default function ApiDebug() {
     const extraQueryParams = customRowsToRecord(customQueryParams);
     const extraHeaders = customRowsToRecord(customHeaders);
     const extraCookieParams = customRowsToRecord(customCookies);
-    const structuredFormFields =
+    const structuredForm =
       category === 'urlencoded' || category === 'multipart'
-        ? mergeCustomBodyParams(formFields, customBodyParams, settings.enableDynamicParameter)
+        ? mergeCustomBodyParams(
+            formFields,
+            customBodyParams,
+            settings.enableDynamicParameter,
+            reservedBodyFieldNames(currentBody),
+          )
         : undefined;
+    const formFieldNamesToIncludeWhenEmpty = structuredForm?.formFieldNamesToIncludeWhenEmpty ?? [];
 
     return {
       pathParams: collectForIn(debugModel.pathParams),
@@ -2214,7 +2220,8 @@ export default function ApiDebug() {
       cookieParams: { ...extraCookieParams, ...specCookieParams },
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
-      formFields: structuredFormFields,
+      formFields: structuredForm?.formFields,
+      ...(formFieldNamesToIncludeWhenEmpty.length > 0 ? { formFieldNamesToIncludeWhenEmpty } : {}),
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
       jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
     };
@@ -2382,6 +2389,9 @@ export default function ApiDebug() {
     // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
     const category = getCurrentCategory();
     const isMultipart = category === 'multipart';
+    // core 的 multipart built.body 是已经按发送规则过滤后的文本 part 映射，
+    // 历史、cURL 和真实 FormData 共用它，避免在 UI 层维护第二套过滤逻辑。
+    const multipartTextFields = isMultipart ? (JSON.parse(built.body ?? '{}') as Record<string, string>) : {};
     const requestDebugCacheKey = debugCacheKey;
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
@@ -2391,11 +2401,11 @@ export default function ApiDebug() {
     const historyEnabled = settings.enableRequestHistory && requestDebugCacheKey !== null;
     let pendingHistoryId: string | null = null;
     if (historyEnabled && requestDebugCacheKey) {
-      // multipart: never use built.body (JSON of text formFields only — file keys become "").
-      // Persist text parts + filename/size placeholders (binary content is never stored).
+      // multipart: built.body only represents text fields and cannot carry filenames.
+      // Persist the sent text parts + filename/size placeholders (binary content is never stored).
       const historyBody = isMultipart
         ? buildMultipartHistoryBody(
-            formValues.formFields ?? {},
+            multipartTextFields,
             Object.fromEntries(
               Object.entries(fileFieldsRef.current).map(([name, fileList]) => [
                 name,
@@ -2465,14 +2475,12 @@ export default function ApiDebug() {
         const fd = new FormData();
         const jsonFieldSet = new Set(formValues.jsonFields ?? []);
         // 添加普通字段（非 JSON part）
-        for (const [name, value] of Object.entries(formValues.formFields ?? {})) {
-          if (value !== undefined && value !== '') {
-            if (jsonFieldSet.has(name)) {
-              // JSON-encoded part: append as Blob with application/json content type
-              fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
-            } else {
-              fd.append(name, value);
-            }
+        for (const [name, value] of Object.entries(multipartTextFields)) {
+          if (jsonFieldSet.has(name)) {
+            // JSON-encoded part: append as Blob with application/json content type
+            fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
+          } else {
+            fd.append(name, value);
           }
         }
         // 添加文件字段

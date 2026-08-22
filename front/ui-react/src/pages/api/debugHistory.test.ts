@@ -118,6 +118,7 @@ describe('debugHistory', () => {
       {
         file: '',
         meta: '{\n  "description": "用户头像"\n}',
+        clear: '',
       },
       {
         file: [{ name: 'avatar.png', size: 2048 }],
@@ -127,6 +128,7 @@ describe('debugHistory', () => {
     expect(parsed.file).toContain('[file] avatar.png');
     expect(parsed.file).toContain('2.0 KB');
     expect(parsed.meta).toContain('用户头像');
+    expect(parsed.clear).toBe('');
     expect(parsed.file).not.toBe('');
   });
 
@@ -230,7 +232,10 @@ describe('debugHistory', () => {
         formFields: {},
         rawMode: 'json',
         customQueryParams: [],
-        customBodyParams: [{ id: 'b1', name: 'folderId', value: '42' }],
+        customBodyParams: [
+          { id: 'b1', name: 'note', value: '  keep me  ' },
+          { id: 'b2', name: 'clear', value: '' },
+        ],
         customHeaders: [{ id: 'h1', name: 'Authorization', value: 'Bearer leak' }],
         customCookies: [{ id: 'c1', name: 'session', value: 'abc' }],
         hasFileFields: false,
@@ -246,7 +251,10 @@ describe('debugHistory', () => {
     const loaded = listHistory(cacheKey, storage)[0];
     expect(loaded.headers.Authorization).toBe('Bearer still-secret');
     expect(loaded.maskedHeaders).toContain('Authorization');
-    expect(loaded.formSnapshot?.customBodyParams).toEqual([{ id: 'b1', name: 'folderId', value: '42' }]);
+    expect(loaded.formSnapshot?.customBodyParams).toEqual([
+      { id: 'b1', name: 'note', value: '  keep me  ' },
+      { id: 'b2', name: 'clear', value: '' },
+    ]);
     expect(loaded.formSnapshot?.customHeaders[0].value).toBe(DEBUG_HISTORY_MASK);
   });
 

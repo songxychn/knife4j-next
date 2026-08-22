@@ -116,6 +116,8 @@ export interface DebugFormValues {
   body?: string;
   /** urlencoded / multipart 字段表单值 { fieldName: value }（纯字符串值） */
   formFields?: Record<string, string>;
+  /** 即使值为 `''` 也需要序列化的显式字段名；普通未填写字段仍保持省略。 */
+  formFieldNamesToIncludeWhenEmpty?: readonly string[];
   /** multipart 文件字段 { fieldName: File[] } — 由 UI 层处理，不序列化进纯函数 */
   fileFields?: Record<string, unknown>;
   /**

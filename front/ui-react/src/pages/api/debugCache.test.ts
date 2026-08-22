@@ -46,7 +46,10 @@ function makeState(): DebugCacheState {
     },
     rawMode: 'json',
     customQueryParams: [{ id: 'custom-query', name: 'debug', value: '1' }],
-    customBodyParams: [{ id: 'custom-body', name: 'folderId', value: '42' }],
+    customBodyParams: [
+      { id: 'custom-body-padded', name: 'note', value: '  keep me  ' },
+      { id: 'custom-body-empty', name: 'clear', value: '' },
+    ],
     customHeaders: [{ id: 'custom-header', name: 'X-Trace', value: 'trace-1' }],
     customCookies: [{ id: 'custom-cookie', name: 'sid', value: 'abc' }],
   };
