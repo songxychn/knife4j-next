@@ -28,6 +28,23 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 - 支持团队评审、归档和交付所需的离线文档能力。
 - 方便将接口说明带出运行环境单独分发。
 
+## 界面预览
+
+以下截图来自 OpenAPI 3 主线的 React UI。你也可以打开
+[在线 Demo](https://openapi3.demo.knife4jnext.com/doc.html) 直接体验。
+
+### OpenAPI 文档概览
+
+![OpenAPI 文档概览](../../static/home.png)
+
+### 接口文档详情
+
+![接口文档详情](../../static/api-info.png)
+
+### 在线调试
+
+![在线调试](../../static/debug-ui.png)
+
 ## 主要能力
 
 - **接口分组与搜索**：让大型项目中的接口更容易查找、定位和理解。
