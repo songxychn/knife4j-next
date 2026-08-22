@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.3.2</version>
+    <version>5.3.3</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.2</version>
+    <version>5.3.3</version>
 </dependency>
 ```
 
@@ -89,10 +89,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.3.2 版本亮点 <Badge type="tip" text="最新" />
+## 5.3.3 版本亮点 <Badge type="tip" text="最新" />
 
-- 📄 HTML、DOC、DOCX 与整篇 Markdown 导出恢复请求示例和响应示例
-- 🧩 支持 media type example、named example、本地引用与 schema 生成回退
+- 🧩 urlencoded 与 multipart Body 支持动态添加文档未声明的文本字段
+- 🔄 请求预览、真实发送、缓存、历史与重置保持一致
 
 完整更新列表见 [发布说明](/release-notes/)。
 
