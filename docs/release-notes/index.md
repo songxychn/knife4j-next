@@ -12,7 +12,15 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.3.2 <Badge type="tip" text="最新" />
+### 5.3.3 <Badge type="tip" text="最新" />
+
+`5.3.3` 是基于 `5.3.2` 的向后兼容补丁版本，修复动态参数开关未接入表单请求体的问题。
+
+**接口调试（React UI）**
+
+- 开启动态参数后，`application/x-www-form-urlencoded` 与 `multipart/form-data` Body 支持增删 OpenAPI 未声明的文本字段；预览、真实请求、缓存、历史、重置和媒体类型切换共用一致行为，且本地显式设置继续优先于服务端默认值（PR #650，issue #649）。
+
+### 5.3.2
 
 `5.3.2` 是基于 `5.3.1` 的向后兼容补丁版本，恢复 OAS3 离线文档中的请求示例与响应示例。
 
@@ -500,7 +508,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.2</version>
+    <version>5.3.3</version>
 </dependency>
 ```
 
