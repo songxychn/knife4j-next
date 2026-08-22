@@ -33,6 +33,7 @@ describe('knife4j setting extraction', () => {
           enableHost: true,
           enableHostText: 'http://localhost:9000',
           enableRequestCache: false,
+          enableDynamicParameter: true,
           enableFilterMultipartApis: true,
           enableFilterMultipartApiMethodType: 'put',
           enableAfterScript: true,
@@ -57,6 +58,7 @@ describe('knife4j setting extraction', () => {
       enableHost: true,
       enableHostText: 'http://localhost:9000',
       enableRequestCache: false,
+      enableDynamicParameter: true,
       enableFilterMultipartApis: true,
       enableFilterMultipartApiMethodType: 'PUT',
     });
@@ -67,6 +69,7 @@ describe('knife4j setting extraction', () => {
       'x-openapi': {
         'x-setting': {
           enableRequestCache: 'false',
+          enableDynamicParameter: 'true',
           enableHomeCustom: 'true',
           homeCustomLocation: 123,
           enableFilterMultipartApis: 'true',

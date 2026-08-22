@@ -127,6 +127,7 @@ import {
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
+import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -610,16 +611,6 @@ function CustomParamsSection({
   );
 }
 
-function customRowsToRecord(rows: CustomParamRow[]): Record<string, string> {
-  const values: Record<string, string> = {};
-  for (const row of rows) {
-    if (row.name.trim() && row.value.trim()) {
-      values[row.name.trim()] = row.value.trim();
-    }
-  }
-  return values;
-}
-
 // ─── Param input dispatcher ───────────────────────────
 
 interface ParamInputProps {
@@ -857,6 +848,9 @@ interface BodyTabProps {
   setSelectedContentType: (v: string) => void;
   formFields: Record<string, string>;
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  enableDynamicParameter: boolean;
+  customBodyParams: CustomParamRow[];
+  setCustomBodyParams: (rows: CustomParamRow[]) => void;
   fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
   rawMode: RawMode;
   setRawMode: (v: RawMode) => void;
@@ -871,6 +865,9 @@ function BodyTab({
   setSelectedContentType,
   formFields,
   setFormFields,
+  enableDynamicParameter,
+  customBodyParams,
+  setCustomBodyParams,
   fileFieldsRef,
   rawMode,
   setRawMode,
@@ -892,6 +889,7 @@ function BodyTab({
     const target = bodyContents.find((b) => b.mediaType === mediaType);
     if (target) {
       setFormFields(initialFormFieldsForContent(target, bodyDefaults));
+      setCustomBodyParams([]);
       // 重置 fileFields
       fileFieldsRef.current = {};
 
@@ -961,6 +959,17 @@ function BodyTab({
           formFields={formFields}
           setFormFields={setFormFields}
           fileFieldsRef={fileFieldsRef}
+        />
+      )}
+
+      {enableDynamicParameter && (category === 'urlencoded' || category === 'multipart') && (
+        <CustomParamsSection
+          title={t('apiDebug.customBody.title')}
+          addLabel={t('apiDebug.customParams.add')}
+          namePlaceholder={t('apiDebug.customBody.namePlaceholder')}
+          valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
+          rows={customBodyParams}
+          onChange={setCustomBodyParams}
         />
       )}
 
@@ -1565,6 +1574,7 @@ interface InitialDebugState {
   formFields: Record<string, string>;
   rawMode: RawMode;
   customQueryParams: CustomParamRow[];
+  customBodyParams: CustomParamRow[];
   customHeaders: CustomParamRow[];
   customCookies: CustomParamRow[];
 }
@@ -1611,6 +1621,7 @@ function buildInitialDebugState(
     formFields: initialFormFieldsForContent(firstBody, bodyDefaults),
     rawMode: inferRawMode(firstBody),
     customQueryParams: [],
+    customBodyParams: [],
     customHeaders: [],
     customCookies: [],
   };
@@ -1680,6 +1691,7 @@ function restoreInitialDebugStateFromCache(
       : initialFormFieldsForContent(selectedBody, bodyDefaults),
     rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
     customQueryParams: cached.customQueryParams,
+    customBodyParams: restoreCachedBody ? cached.customBodyParams : [],
     customHeaders: cached.customHeaders,
     customCookies: cached.customCookies,
   };
@@ -1737,6 +1749,7 @@ export default function ApiDebug() {
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
   const [body, setBody] = useState('');
   const [customQueryParams, setCustomQueryParams] = useState<CustomParamRow[]>([]);
+  const [customBodyParams, setCustomBodyParams] = useState<CustomParamRow[]>([]);
   const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
   const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
@@ -1815,6 +1828,7 @@ export default function ApiDebug() {
     fileFieldsRef.current = {};
     setRawMode(initial.rawMode);
     setCustomQueryParams(initial.customQueryParams);
+    setCustomBodyParams(initial.customBodyParams);
     setCustomHeaders(initial.customHeaders);
     setCustomCookies(initial.customCookies);
     setBuiltRequest(null);
@@ -1882,12 +1896,14 @@ export default function ApiDebug() {
       formFields,
       rawMode,
       customQueryParams,
+      customBodyParams,
       customHeaders,
       customCookies,
     });
   }, [
     baseUrl,
     body,
+    customBodyParams,
     customCookies,
     customHeaders,
     customQueryParams,
@@ -2186,6 +2202,16 @@ export default function ApiDebug() {
     const extraQueryParams = customRowsToRecord(customQueryParams);
     const extraHeaders = customRowsToRecord(customHeaders);
     const extraCookieParams = customRowsToRecord(customCookies);
+    const structuredForm =
+      category === 'urlencoded' || category === 'multipart'
+        ? mergeCustomBodyParams(
+            formFields,
+            customBodyParams,
+            settings.enableDynamicParameter,
+            reservedBodyFieldNames(currentBody),
+          )
+        : undefined;
+    const formFieldNamesToIncludeWhenEmpty = structuredForm?.formFieldNamesToIncludeWhenEmpty ?? [];
 
     return {
       pathParams: collectForIn(debugModel.pathParams),
@@ -2194,7 +2220,8 @@ export default function ApiDebug() {
       cookieParams: { ...extraCookieParams, ...specCookieParams },
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
-      formFields: category === 'urlencoded' || category === 'multipart' ? formFields : undefined,
+      formFields: structuredForm?.formFields,
+      ...(formFieldNamesToIncludeWhenEmpty.length > 0 ? { formFieldNamesToIncludeWhenEmpty } : {}),
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
       jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
     };
@@ -2244,6 +2271,7 @@ export default function ApiDebug() {
       formFields: { ...formFields },
       rawMode,
       customQueryParams: customQueryParams.map((row) => ({ ...row })),
+      customBodyParams: customBodyParams.map((row) => ({ ...row })),
       customHeaders: customHeaders.map((row) => ({ ...row })),
       customCookies: customCookies.map((row) => ({ ...row })),
       fileFieldNames: hasFileFields ? fileFieldNames : undefined,
@@ -2290,6 +2318,7 @@ export default function ApiDebug() {
       setFormFields(snap.formFields);
       setRawMode(snap.rawMode);
       setCustomQueryParams(snap.customQueryParams);
+      setCustomBodyParams(snap.customBodyParams);
       const restoredHeaders = snap.customHeaders.filter(
         (row) => row.value !== DEBUG_HISTORY_MASK && !isSensitiveHeaderName(row.name),
       );
@@ -2360,6 +2389,9 @@ export default function ApiDebug() {
     // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
     const category = getCurrentCategory();
     const isMultipart = category === 'multipart';
+    // core 的 multipart built.body 是已经按发送规则过滤后的文本 part 映射，
+    // 历史、cURL 和真实 FormData 共用它，避免在 UI 层维护第二套过滤逻辑。
+    const multipartTextFields = isMultipart ? (JSON.parse(built.body ?? '{}') as Record<string, string>) : {};
     const requestDebugCacheKey = debugCacheKey;
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
@@ -2369,11 +2401,11 @@ export default function ApiDebug() {
     const historyEnabled = settings.enableRequestHistory && requestDebugCacheKey !== null;
     let pendingHistoryId: string | null = null;
     if (historyEnabled && requestDebugCacheKey) {
-      // multipart: never use built.body (JSON of text formFields only — file keys become "").
-      // Persist text parts + filename/size placeholders (binary content is never stored).
+      // multipart: built.body only represents text fields and cannot carry filenames.
+      // Persist the sent text parts + filename/size placeholders (binary content is never stored).
       const historyBody = isMultipart
         ? buildMultipartHistoryBody(
-            formFields,
+            multipartTextFields,
             Object.fromEntries(
               Object.entries(fileFieldsRef.current).map(([name, fileList]) => [
                 name,
@@ -2443,14 +2475,12 @@ export default function ApiDebug() {
         const fd = new FormData();
         const jsonFieldSet = new Set(formValues.jsonFields ?? []);
         // 添加普通字段（非 JSON part）
-        for (const [name, value] of Object.entries(formFields)) {
-          if (value !== undefined && value !== '') {
-            if (jsonFieldSet.has(name)) {
-              // JSON-encoded part: append as Blob with application/json content type
-              fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
-            } else {
-              fd.append(name, value);
-            }
+        for (const [name, value] of Object.entries(multipartTextFields)) {
+          if (jsonFieldSet.has(name)) {
+            // JSON-encoded part: append as Blob with application/json content type
+            fd.append(name, new Blob([value], { type: 'application/json' }), `${name}.json`);
+          } else {
+            fd.append(name, value);
           }
         }
         // 添加文件字段
@@ -2932,6 +2962,9 @@ export default function ApiDebug() {
           setSelectedContentType={setSelectedContentType}
           formFields={formFields}
           setFormFields={setFormFields}
+          enableDynamicParameter={settings.enableDynamicParameter}
+          customBodyParams={customBodyParams}
+          setCustomBodyParams={setCustomBodyParams}
           fileFieldsRef={fileFieldsRef}
           rawMode={rawMode}
           setRawMode={setRawMode}

@@ -188,17 +188,19 @@ connect-src 'self';
 - `knife4j.setting.enable-footer`
 - `knife4j.setting.enable-footer-custom` / `footer-custom-content`
 - `knife4j.setting.enable-request-cache`
+- `knife4j.setting.enable-dynamic-parameter`
 - `knife4j.setting.enable-home-custom` / `home-custom-location`
 - `knife4j.setting.enable-filter-multipart-apis` / `enable-filter-multipart-api-method-type`
 
 用户在 React 设置面板里的本地选择会覆盖后端默认值。自定义首页只消费后端注入到 `homeCustomLocation` 的 Markdown 内容；React 不会读取 `homeCustomPath` 文件路径。注意：`enable-debug=false` 只是隐藏调试入口，不是安全控制；线上屏蔽请使用 `knife4j.production`、`knife4j.basic` 或外层安全框架。
+
+`enable-dynamic-parameter=true` 在 React UI 中允许为 `application/x-www-form-urlencoded` 和 `multipart/form-data` Body 添加 OpenAPI 文档未声明的文本字段。它不控制现有的自定义 Query、Header、Cookie 参数能力；这些能力始终可用。Path 参数必须与 URL 模板一致，JSON/raw Body 可直接编辑，动态 file part 暂不在这个开关的支持范围内。
 
 以下 UI 配置暂不生效：
 
 - `knife4j.setting.enable-version=true`
 - `knife4j.setting.enable-after-script`
 - `knife4j.setting.enable-reload-cache-parameter`
-- `knife4j.setting.enable-dynamic-parameter`
 - `knife4j.setting.enable-response-code`
 
 原因：这些字段对应的 Vue 版能力尚未在 React 新前端里实现，或还没有接到实际行为上。后端 `ProductionSecurityFilter`、`knife4j.basic`、`knife4j.documents` 等服务端侧能力不受影响。

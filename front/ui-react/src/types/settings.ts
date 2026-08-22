@@ -44,7 +44,7 @@ export interface AppSettings {
    * Independent of enableRequestCache.
    */
   enableRequestHistory: boolean;
-  /** Whether dynamic parameters are enabled. Reserved until dynamic parameter behavior is wired. */
+  /** Whether undeclared text fields can be added to urlencoded and multipart form request bodies. */
   enableDynamicParameter: boolean;
   /** Whether same-path multi-method RequestMapping APIs are collapsed to one configured method. */
   enableFilterMultipartApis: boolean;

@@ -79,7 +79,7 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.enableFilterMultipartApiMethodType` | `String` | `"POST"` | 过滤方法类型 | ✅ |
 | `knife4j.setting.enableHost` | `boolean` | `false` | 启用 Host | ✅ |
 | `knife4j.setting.enableHostText` | `String` | `""` | Host 地址 | ✅ |
-| `knife4j.setting.enableDynamicParameter` | `boolean` | `false` | 启用动态请求参数 | ⚠️ |
+| `knife4j.setting.enableDynamicParameter` | `boolean` | `false` | 允许在 urlencoded / multipart Body 中添加文档未声明的文本字段 | ✅ |
 | `knife4j.setting.enableDebug` | `boolean` | `true` | 启用调试功能 | ✅ |
 | `knife4j.setting.enableFooter` | `boolean` | `true` | 显示默认 Footer | ✅ |
 | `knife4j.setting.enableFooterCustom` | `boolean` | `false` | 自定义 Footer | ✅ |
@@ -93,6 +93,8 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义 HTTP 状态码 | ✅ |
 
 > React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的配置仍会由后端写入 extension，但 React 暂不消费。详见 [FAQ](../guide/faq#react-setting-not-effective)。
+
+> `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
 
 > 各配置项的功能说明和示例见 [功能详解](../guide/features#功能详解)。
 

@@ -118,6 +118,7 @@ describe('debugHistory', () => {
       {
         file: '',
         meta: '{\n  "description": "用户头像"\n}',
+        clear: '',
       },
       {
         file: [{ name: 'avatar.png', size: 2048 }],
@@ -127,6 +128,7 @@ describe('debugHistory', () => {
     expect(parsed.file).toContain('[file] avatar.png');
     expect(parsed.file).toContain('2.0 KB');
     expect(parsed.meta).toContain('用户头像');
+    expect(parsed.clear).toBe('');
     expect(parsed.file).not.toBe('');
   });
 
@@ -230,6 +232,10 @@ describe('debugHistory', () => {
         formFields: {},
         rawMode: 'json',
         customQueryParams: [],
+        customBodyParams: [
+          { id: 'b1', name: 'note', value: '  keep me  ' },
+          { id: 'b2', name: 'clear', value: '' },
+        ],
         customHeaders: [{ id: 'h1', name: 'Authorization', value: 'Bearer leak' }],
         customCookies: [{ id: 'c1', name: 'session', value: 'abc' }],
         hasFileFields: false,
@@ -245,7 +251,41 @@ describe('debugHistory', () => {
     const loaded = listHistory(cacheKey, storage)[0];
     expect(loaded.headers.Authorization).toBe('Bearer still-secret');
     expect(loaded.maskedHeaders).toContain('Authorization');
+    expect(loaded.formSnapshot?.customBodyParams).toEqual([
+      { id: 'b1', name: 'note', value: '  keep me  ' },
+      { id: 'b2', name: 'clear', value: '' },
+    ]);
     expect(loaded.formSnapshot?.customHeaders[0].value).toBe(DEBUG_HISTORY_MASK);
+  });
+
+  it('restores version 1 history snapshots without custom body parameters', () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'legacy-form-snapshot';
+    const entry = makePending({
+      id: 'legacy-1',
+      formSnapshot: {
+        baseUrl: 'http://localhost',
+        method: 'POST',
+        path: '/upload',
+        paramValues: {},
+        paramEnabled: {},
+        selectedContentType: 'multipart/form-data',
+        body: '',
+        formFields: {},
+        rawMode: 'text',
+        customQueryParams: [],
+        customBodyParams: [],
+        customHeaders: [],
+        customCookies: [],
+      },
+    });
+    const raw = JSON.parse(JSON.stringify(entry)) as DebugHistoryEntry & {
+      formSnapshot: Partial<NonNullable<DebugHistoryEntry['formSnapshot']>>;
+    };
+    delete raw.formSnapshot.customBodyParams;
+    storage.setItem(debugHistoryStorageKey(cacheKey), JSON.stringify([raw]));
+
+    expect(listHistory(cacheKey, storage)[0].formSnapshot?.customBodyParams).toEqual([]);
   });
 
   it('truncates response body on complete', () => {
@@ -283,6 +323,7 @@ describe('debugHistory', () => {
         formFields: { note: largeField },
         rawMode: 'json',
         customQueryParams: [],
+        customBodyParams: [{ id: 'b1', name: 'note', value: largeField }],
         customHeaders: [],
         customCookies: [{ id: 'c1', name: 'JSESSIONID', value: 'secret-session' }],
         hasFileFields: false,
@@ -293,6 +334,7 @@ describe('debugHistory', () => {
     expect(entry.formSnapshot?.body.length).toBeLessThan(largeBody.length);
     expect(new TextEncoder().encode(entry.formSnapshot!.body).length).toBeLessThanOrEqual(DEBUG_HISTORY_BODY_MAX_BYTES);
     expect(entry.formSnapshot?.formFields.note.length).toBeLessThan(largeField.length);
+    expect(entry.formSnapshot?.customBodyParams[0].value.length).toBeLessThan(largeField.length);
     expect(entry.formSnapshot?.customCookies[0].value).toBe(DEBUG_HISTORY_MASK);
 
     appendPending(cacheKey, entry, storage);
@@ -302,6 +344,7 @@ describe('debugHistory', () => {
       DEBUG_HISTORY_BODY_MAX_BYTES,
     );
     expect(loaded.formSnapshot?.formFields.note.length).toBeLessThan(largeField.length);
+    expect(loaded.formSnapshot?.customBodyParams[0].value.length).toBeLessThan(largeField.length);
     expect(loaded.formSnapshot?.customCookies[0].value).toBe(DEBUG_HISTORY_MASK);
   });
 

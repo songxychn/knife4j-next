@@ -196,6 +196,8 @@ const enUS = {
   'apiDebug.customHeaders.valuePlaceholder': 'Value',
   'apiDebug.customCookie.title': 'Custom Cookies',
   'apiDebug.customCookie.namePlaceholder': 'Cookie name',
+  'apiDebug.customBody.title': 'Custom Body Fields',
+  'apiDebug.customBody.namePlaceholder': 'Body field name',
   'apiDebug.noBody': 'This API has no request body',
   'apiDebug.baseUrl.source.gateway': 'gateway context',
   'apiDebug.baseUrl.source.operation': 'operation server',
@@ -484,7 +486,8 @@ const enUS = {
   'settings.enableRequestCache': 'Enable request parameter cache (Debug panel auto-caches last filled values)',
   'settings.enableRequestHistory':
     'Enable request history (Debug panel keeps recent requests per operation; apply to form)',
-  'settings.enableDynamicParameter': 'Enable dynamic parameters (Support dynamic injection in debug mode)',
+  'settings.enableDynamicParameter':
+    'Enable dynamic form parameters (add undeclared text fields to urlencoded / multipart bodies)',
   'settings.enableFilterMultipartApis':
     'Filter API types (For RequestMapping without specified type, show only selected type)',
   'settings.filterMethodType': 'Filter method type',

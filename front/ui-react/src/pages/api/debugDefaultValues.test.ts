@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { BodyContent, OperationDebugModel } from 'knife4j-core';
+import { buildOperationDebugModel, type BodyContent, type OperationDebugModel } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import {
   buildBodyContentDefaults,
   buildInitialParamValues,
+  extractSchemaFields,
   initialBodyValueForContent,
   initialFormFieldsForContent,
   mergeCachedFormFields,
@@ -295,5 +296,60 @@ describe('debugDefaultValues', () => {
     expect(merged.meta).toBe('{"manual":true}');
     expect(merged.ids).toBe('[9]');
     expect(merged.enabled).toBe('false');
+  });
+
+  it('renders normalized allOf fields with readOnly, file, and JSON semantics', () => {
+    const doc = {
+      openapi: '3.0.3',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/upload': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: { $ref: '#/components/schemas/UploadRequest' },
+                  encoding: { metadata: { contentType: 'application/json' } },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          UploadBase: {
+            type: 'object',
+            required: ['regularField'],
+            properties: {
+              regularField: { type: 'string' },
+              readOnlyField: { type: 'string', readOnly: true },
+              avatar: { type: 'string', format: 'binary' },
+              attachments: { type: 'array', items: { type: 'string', format: 'binary' } },
+              metadata: { type: 'object' },
+            },
+          },
+          UploadRequest: {
+            allOf: [
+              { $ref: '#/components/schemas/UploadBase' },
+              { type: 'object', properties: { ownField: { type: 'string' } } },
+            ],
+          },
+        },
+      },
+    };
+    const bodyContent = buildOperationDebugModel({ doc, path: '/upload', method: 'post' }).bodyContents[0];
+    const fields = extractSchemaFields(bodyContent);
+    const byName = Object.fromEntries(fields.map((field) => [field.name, field]));
+
+    expect(fields.map((field) => field.name)).toEqual(
+      expect.arrayContaining(['regularField', 'avatar', 'attachments', 'metadata', 'ownField']),
+    );
+    expect(fields.map((field) => field.name)).not.toContain('readOnlyField');
+    expect(byName.regularField.required).toBe(true);
+    expect(byName.avatar).toMatchObject({ isFile: true, isMultipleFile: false });
+    expect(byName.attachments).toMatchObject({ isFile: true, isMultipleFile: true });
+    expect(byName.metadata.isJson).toBe(true);
   });
 });

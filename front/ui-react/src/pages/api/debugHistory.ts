@@ -28,6 +28,7 @@ export interface DebugHistoryFormSnapshot {
   formFields: Record<string, string>;
   rawMode: DebugHistoryRawMode;
   customQueryParams: DebugHistoryCustomParamRow[];
+  customBodyParams: DebugHistoryCustomParamRow[];
   customHeaders: DebugHistoryCustomParamRow[];
   customCookies: DebugHistoryCustomParamRow[];
   /** File field name → staged file names (File contents are never persisted). */
@@ -338,6 +339,10 @@ function truncateStringRecord(fields: Record<string, string>): Record<string, st
   return result;
 }
 
+function truncateCustomRows(rows: DebugHistoryCustomParamRow[]): DebugHistoryCustomParamRow[] {
+  return rows.map((row) => ({ ...row, value: truncateBody(row.value).text }));
+}
+
 /** Sanitize + truncate form snapshot fields before persist / after read. */
 export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHistoryFormSnapshot {
   return {
@@ -345,6 +350,7 @@ export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHi
     body: truncateBody(snapshot.body).text,
     formFields: truncateStringRecord(snapshot.formFields),
     paramValues: truncateStringRecord(snapshot.paramValues),
+    customBodyParams: truncateCustomRows(snapshot.customBodyParams),
     customHeaders: sanitizeCustomRows(snapshot.customHeaders),
     customCookies: sanitizeCustomCookieRows(snapshot.customCookies),
   };
@@ -382,6 +388,7 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     formFields: readStringRecord(value.formFields),
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
+    customBodyParams: readCustomRows(value.customBodyParams),
     customHeaders: readCustomRows(value.customHeaders),
     customCookies: readCustomRows(value.customCookies),
     fileFieldNames,

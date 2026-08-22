@@ -46,6 +46,10 @@ function makeState(): DebugCacheState {
     },
     rawMode: 'json',
     customQueryParams: [{ id: 'custom-query', name: 'debug', value: '1' }],
+    customBodyParams: [
+      { id: 'custom-body-padded', name: 'note', value: '  keep me  ' },
+      { id: 'custom-body-empty', name: 'clear', value: '' },
+    ],
     customHeaders: [{ id: 'custom-header', name: 'X-Trace', value: 'trace-1' }],
     customCookies: [{ id: 'custom-cookie', name: 'sid', value: 'abc' }],
   };
@@ -83,6 +87,10 @@ describe('debugCache', () => {
           { id: 'q1', name: 'debug', value: '1' },
           { id: 'bad', name: 2, value: 'x' },
         ],
+        customBodyParams: [
+          { id: 'b1', name: 'folderId', value: '42' },
+          { id: 'bad', name: 'ignored', value: false },
+        ],
         customHeaders: [{ id: 'h1', name: 'X-Trace', value: 'trace-1' }],
         customCookies: 'not-array',
       }),
@@ -100,9 +108,20 @@ describe('debugCache', () => {
       formFields: { name: 'alice' },
       rawMode: 'text',
       customQueryParams: [{ id: 'q1', name: 'debug', value: '1' }],
+      customBodyParams: [{ id: 'b1', name: 'folderId', value: '42' }],
       customHeaders: [{ id: 'h1', name: 'X-Trace', value: 'trace-1' }],
       customCookies: [],
     });
+  });
+
+  it('restores version 1 cache payloads without custom body parameters', () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'default|legacy';
+    const legacyState = { ...makeState() } as Partial<DebugCacheState>;
+    delete legacyState.customBodyParams;
+    storage.setItem(debugCacheStorageKey(cacheKey), JSON.stringify(legacyState));
+
+    expect(readDebugCache(cacheKey, storage)?.customBodyParams).toEqual([]);
   });
 
   it('ignores unsupported versions and removes cache entries', () => {

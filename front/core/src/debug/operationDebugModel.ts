@@ -17,7 +17,7 @@ import type {
   OperationDebugModel,
   SchemaResolveContext,
 } from './types';
-import { resolveRef, dereference } from './resolveRef';
+import { resolveRef, dereference, normalizeAllOfSchema } from './resolveRef';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 
@@ -563,7 +563,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       );
 
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
-        const schema = mediaObj.schema ? dereference(mediaObj.schema, doc as Record<string, unknown>) : undefined;
+        const schema = mediaObj.schema ? normalizeAllOfSchema(mediaObj.schema, ctx.doc, ctx.maxDepth ?? 8) : undefined;
         const declaredCategory = classifyContentType(mediaType);
         const isMultipartFallback =
           !hasDeclaredMultipart && declaredCategory !== 'multipart' && hasBinaryUploadField(schema);

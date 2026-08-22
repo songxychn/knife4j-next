@@ -3,6 +3,7 @@ import {
   buildCurl,
   buildQueryString,
   buildRequest,
+  buildUrlencodedBody,
   mergeHeaders,
   replacePathParams,
   splitGlobalParams,
@@ -96,6 +97,12 @@ describe('buildQueryString', () => {
     expect(() =>
       buildQueryString({ status: ['OPEN', 'CLOSED'] }, { status: { style: 'deepObject', explode: false } }),
     ).toThrow('Unsupported OAS3 query array serialization');
+  });
+});
+
+describe('buildUrlencodedBody', () => {
+  test('preserves non-empty values and keeps the legacy behavior of omitting empty fields', () => {
+    expect(buildUrlencodedBody({ padded: '  value  ', empty: '' })).toBe('padded=%20%20value%20%20');
   });
 });
 
@@ -412,6 +419,50 @@ describe('validateRequired', () => {
     };
     const errors = validateRequired(urlencodedModel, form);
     expect(errors.map((e) => e.key)).toContain('body:requestBody');
+  });
+
+  test('urlencoded body: an explicitly empty dynamic field still supplies the request body', () => {
+    const urlencodedModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [{ mediaType: 'application/x-www-form-urlencoded', category: 'urlencoded', schema: {} }],
+      bodyRequired: true,
+    };
+    const form: DebugFormValues = {
+      pathParams: {},
+      queryParams: {},
+      headerParams: {},
+      cookieParams: {},
+      selectedContentType: 'application/x-www-form-urlencoded',
+      formFields: { clear: '' },
+      formFieldNamesToIncludeWhenEmpty: ['clear'],
+    };
+
+    expect(validateRequired(urlencodedModel, form)).toHaveLength(0);
+  });
+
+  test('urlencoded body: an allowlisted name missing from formFields does not satisfy the request body', () => {
+    const urlencodedModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [{ mediaType: 'application/x-www-form-urlencoded', category: 'urlencoded', schema: {} }],
+      bodyRequired: true,
+    };
+    const form: DebugFormValues = {
+      pathParams: {},
+      queryParams: {},
+      headerParams: {},
+      cookieParams: {},
+      selectedContentType: 'application/x-www-form-urlencoded',
+      formFields: { optional: '' },
+      formFieldNamesToIncludeWhenEmpty: ['missing'],
+    };
+
+    expect(validateRequired(urlencodedModel, form).map((error) => error.key)).toContain('body:requestBody');
   });
 
   test('multipart body: validates a required file field', () => {
@@ -742,6 +793,64 @@ describe('buildRequest', () => {
     expect(result.headers['Content-Type']).toBeUndefined();
     expect(result.body).toBe('{"description":"sample"}');
   });
+
+  test('urlencoded form preserves whitespace and includes only explicitly empty fields', () => {
+    const urlencodedModel: OperationDebugModel = {
+      ...debugModel,
+      bodyContents: [{ mediaType: 'application/x-www-form-urlencoded', category: 'urlencoded', schema: {} }],
+    };
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/form',
+      method: 'POST',
+      debugModel: urlencodedModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        formFields: Object.fromEntries([
+          ['padded', '  value  '],
+          ['clear', ''],
+          ['optional', ''],
+          ['__proto__', ''],
+        ]),
+        formFieldNamesToIncludeWhenEmpty: ['clear', '__proto__'],
+        selectedContentType: 'application/x-www-form-urlencoded',
+      },
+    });
+
+    expect(result.body).toBe('padded=%20%20value%20%20&clear=&__proto__=');
+  });
+
+  test('multipart preview includes explicitly empty fields but omits untouched empty schema fields', () => {
+    const multipartModel: OperationDebugModel = {
+      ...debugModel,
+      bodyContents: [{ mediaType: 'multipart/form-data', category: 'multipart', schema: {} }],
+    };
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/upload',
+      method: 'POST',
+      debugModel: multipartModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        formFields: Object.fromEntries([
+          ['padded', '  value  '],
+          ['clear', ''],
+          ['optional', ''],
+          ['__proto__', ''],
+        ]),
+        formFieldNamesToIncludeWhenEmpty: ['clear', '__proto__'],
+        selectedContentType: 'multipart/form-data',
+      },
+    });
+
+    expect(result.body).toBe('{"padded":"  value  ","clear":"","__proto__":""}');
+  });
 });
 
 // ─── buildCurl ────────────────────────────────────────
@@ -824,6 +933,32 @@ describe('buildCurl', () => {
     expect(curl).toContain('TODO append file fields');
     // 其他 header 仍保留
     expect(curl).toContain('X-Trace: 1');
+  });
+
+  test('multipart body emits an explicitly empty field from the final request body', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: {},
+      query: {},
+      body: JSON.stringify({ clear: '' }),
+      contentType: 'multipart/form-data',
+    });
+
+    expect(curl).toMatch(/-F[\s\\]+'clear='/);
+  });
+
+  test('multipart body emits an explicitly empty __proto__ field', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: {},
+      query: {},
+      body: JSON.stringify(Object.fromEntries([['__proto__', '']])),
+      contentType: 'multipart/form-data',
+    });
+
+    expect(curl).toMatch(/-F[\s\\]+'__proto__='/);
   });
 });
 // ─── sourceMap 追踪测试 (TASK-031) ─────────────────────

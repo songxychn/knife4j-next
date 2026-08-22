@@ -308,7 +308,7 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
       bodyMissing = !form.body || form.body.trim() === '';
     } else if (category === 'urlencoded' || category === 'multipart') {
       const hasFormField = form.formFields
-        ? Object.values(form.formFields).some((v) => v !== undefined && v !== '')
+        ? Object.keys(formFieldsForRequest(form.formFields, form.formFieldNamesToIncludeWhenEmpty)).length > 0
         : false;
       const hasFile = form.fileFields
         ? Object.values(form.fileFields).some((v) => Array.isArray(v) && v.length > 0)
@@ -428,7 +428,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
     if (category === 'urlencoded' && formValues.formFields) {
       // application/x-www-form-urlencoded: 从 formFields 序列化
-      body = buildUrlencodedBody(formValues.formFields);
+      body = buildUrlencodedBodyForRequest(formValues.formFields, formValues.formFieldNamesToIncludeWhenEmpty);
       if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
         headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
       }
@@ -436,7 +436,9 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
       // multipart/form-data: 纯函数只拼文本字段；
       // UI 层需要用 fileFields 构建 FormData 后替换 body
       // 这里输出 JSON 占位（文本字段序列化），UI 层自行组装 FormData
-      body = JSON.stringify(formValues.formFields ?? {});
+      body = JSON.stringify(
+        formFieldsForRequest(formValues.formFields ?? {}, formValues.formFieldNamesToIncludeWhenEmpty),
+      );
       // multipart 不设 Content-Type（浏览器自动设 boundary）
     } else {
       // json / raw: 直接用 body 文本
@@ -505,7 +507,7 @@ export function buildCurl(req: BuiltRequest): string {
     const jsonFieldSet = new Set(req.jsonFields ?? []);
     if (fieldObj && Object.keys(fieldObj).length > 0) {
       for (const [name, value] of Object.entries(fieldObj)) {
-        if (value === undefined || value === '') continue;
+        if (value === undefined) continue;
         const escaped = String(value).replace(/'/g, "'\\''");
         if (jsonFieldSet.has(name)) {
           // JSON-encoded part: append ;type=application/json
@@ -536,9 +538,27 @@ export function buildCurl(req: BuiltRequest): string {
  * 将 formFields 序列化为 application/x-www-form-urlencoded 格式
  */
 export function buildUrlencodedBody(fields: Record<string, string>): string {
+  return buildUrlencodedBodyForRequest(fields);
+}
+
+function formFieldsForRequest(
+  fields: Record<string, string>,
+  formFieldNamesToIncludeWhenEmpty: readonly string[] = [],
+): Record<string, string> {
+  const includeWhenEmpty = new Set(formFieldNamesToIncludeWhenEmpty);
+  return Object.fromEntries(
+    Object.entries(fields).filter(
+      ([name, value]) => value !== undefined && (value !== '' || includeWhenEmpty.has(name)),
+    ),
+  );
+}
+
+function buildUrlencodedBodyForRequest(
+  fields: Record<string, string>,
+  formFieldNamesToIncludeWhenEmpty: readonly string[] = [],
+): string {
   const pairs: string[] = [];
-  for (const [name, value] of Object.entries(fields)) {
-    if (value === undefined || value === '') continue;
+  for (const [name, value] of Object.entries(formFieldsForRequest(fields, formFieldNamesToIncludeWhenEmpty))) {
     pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
   }
   return pairs.join('&');
