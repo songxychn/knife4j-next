@@ -194,6 +194,8 @@ const zhCN = {
   'apiDebug.customHeaders.valuePlaceholder': '值',
   'apiDebug.customCookie.title': '自定义 Cookie',
   'apiDebug.customCookie.namePlaceholder': 'Cookie 名称',
+  'apiDebug.customBody.title': '自定义 Body 字段',
+  'apiDebug.customBody.namePlaceholder': 'Body 字段名称',
   'apiDebug.noBody': '该接口无请求体',
   'apiDebug.baseUrl.source.gateway': '网关上下文',
   'apiDebug.baseUrl.source.operation': '接口服务地址',
@@ -471,7 +473,8 @@ const zhCN = {
   'settings.tip': '启用个性化配置后，接口 Tab 标签需关闭后重新打开或者刷新当前页面',
   'settings.enableRequestCache': '开启请求参数缓存（Debug 调试栏自动缓存上次填写的参数值）',
   'settings.enableRequestHistory': '开启请求历史（Debug 调试栏按接口记录最近请求，可应用到表单）',
-  'settings.enableDynamicParameter': '开启动态参数（调试时请求参数支持动态注入）',
+  'settings.enableDynamicParameter':
+    '开启动态表单参数（允许在 urlencoded / multipart Body 中添加文档未声明的文本字段）',
   'settings.enableFilterMultipartApis': '过滤接口类型（针对 RequestMapping 未指定类型的接口，只展示指定类型）',
   'settings.filterMethodType': '过滤保留的方法类型',
   'settings.enableHost': '覆盖 Host（调试时使用指定 Host 替换接口 BaseURL）',

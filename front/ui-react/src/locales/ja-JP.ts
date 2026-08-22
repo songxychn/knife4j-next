@@ -204,6 +204,8 @@ const jaJP = {
   'apiDebug.customHeaders.valuePlaceholder': '値',
   'apiDebug.customCookie.title': 'カスタム Cookie',
   'apiDebug.customCookie.namePlaceholder': 'Cookie 名',
+  'apiDebug.customBody.title': 'カスタム Body フィールド',
+  'apiDebug.customBody.namePlaceholder': 'Body フィールド名',
   'apiDebug.noBody': 'この API にリクエストボディはありません',
   'apiDebug.baseUrl.source.gateway': 'ゲートウェイコンテキスト',
   'apiDebug.baseUrl.source.operation': 'オペレーションのサーバー',
@@ -493,7 +495,8 @@ const jaJP = {
     'リクエストパラメータのキャッシュを有効化（デバッグ画面で前回入力したパラメータ値を自動保存）',
   'settings.enableRequestHistory':
     'リクエスト履歴を有効化（デバッグ画面で API ごとに直近のリクエストを記録し、フォームへ適用可能）',
-  'settings.enableDynamicParameter': '動的パラメータを有効化（デバッグ時にリクエストパラメータへ動的に値を注入）',
+  'settings.enableDynamicParameter':
+    '動的フォームパラメータを有効化（urlencoded / multipart Body にドキュメント未定義のテキストフィールドを追加）',
   'settings.enableFilterMultipartApis':
     'API タイプをフィルタ（タイプ未指定の RequestMapping について、指定したタイプのみ表示）',
   'settings.filterMethodType': '保持するメソッドタイプ',
