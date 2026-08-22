@@ -58,6 +58,14 @@ describe('mergeCustomBodyParams', () => {
     });
   });
 
+  it('keeps a dynamic Body field named __proto__ as an own property', () => {
+    const merged = mergeCustomBodyParams({}, [{ id: '1', name: '__proto__', value: '' }], true);
+
+    expect(Object.prototype.hasOwnProperty.call(merged.formFields, '__proto__')).toBe(true);
+    expect(merged.formFields.__proto__).toBe('');
+    expect(merged.formFieldNamesToIncludeWhenEmpty).toEqual(['__proto__']);
+  });
+
   it('does not mark an empty dynamic field that loses to a declared field', () => {
     expect(mergeCustomBodyParams({ declared: '' }, [{ id: '1', name: ' declared ', value: '' }], true)).toEqual({
       formFields: { declared: '' },

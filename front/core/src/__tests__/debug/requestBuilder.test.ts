@@ -809,13 +809,18 @@ describe('buildRequest', () => {
         queryParams: {},
         headerParams: {},
         cookieParams: {},
-        formFields: { padded: '  value  ', clear: '', optional: '' },
-        formFieldNamesToIncludeWhenEmpty: ['clear'],
+        formFields: Object.fromEntries([
+          ['padded', '  value  '],
+          ['clear', ''],
+          ['optional', ''],
+          ['__proto__', ''],
+        ]),
+        formFieldNamesToIncludeWhenEmpty: ['clear', '__proto__'],
         selectedContentType: 'application/x-www-form-urlencoded',
       },
     });
 
-    expect(result.body).toBe('padded=%20%20value%20%20&clear=');
+    expect(result.body).toBe('padded=%20%20value%20%20&clear=&__proto__=');
   });
 
   test('multipart preview includes explicitly empty fields but omits untouched empty schema fields', () => {
@@ -833,13 +838,18 @@ describe('buildRequest', () => {
         queryParams: {},
         headerParams: {},
         cookieParams: {},
-        formFields: { padded: '  value  ', clear: '', optional: '' },
-        formFieldNamesToIncludeWhenEmpty: ['clear'],
+        formFields: Object.fromEntries([
+          ['padded', '  value  '],
+          ['clear', ''],
+          ['optional', ''],
+          ['__proto__', ''],
+        ]),
+        formFieldNamesToIncludeWhenEmpty: ['clear', '__proto__'],
         selectedContentType: 'multipart/form-data',
       },
     });
 
-    expect(result.body).toBe('{"padded":"  value  ","clear":""}');
+    expect(result.body).toBe('{"padded":"  value  ","clear":"","__proto__":""}');
   });
 });
 
@@ -936,6 +946,19 @@ describe('buildCurl', () => {
     });
 
     expect(curl).toMatch(/-F[\s\\]+'clear='/);
+  });
+
+  test('multipart body emits an explicitly empty __proto__ field', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: {},
+      query: {},
+      body: JSON.stringify(Object.fromEntries([['__proto__', '']])),
+      contentType: 'multipart/form-data',
+    });
+
+    expect(curl).toMatch(/-F[\s\\]+'__proto__='/);
   });
 });
 // ─── sourceMap 追踪测试 (TASK-031) ─────────────────────

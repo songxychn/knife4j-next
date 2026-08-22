@@ -19,14 +19,14 @@ export interface MergedCustomBodyParams {
 }
 
 function customBodyRowsToRecord(rows: DebugCacheCustomParamRow[]): Record<string, string> {
-  const values: Record<string, string> = {};
+  const values = new Map<string, string>();
   for (const row of rows) {
     const name = row.name.trim();
     if (name) {
-      values[name] = row.value;
+      values.set(name, row.value);
     }
   }
-  return values;
+  return Object.fromEntries(values);
 }
 
 /**
