@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.4.1` |
-| 当前 tag | `knife4x/go/v0.4.1` |
+| 当前版本 | `v0.4.2` |
+| 当前 tag | `knife4x/go/v0.4.2` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -51,8 +51,8 @@ test -f knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-grep -Fq 'knife4x/go/v0.4.1' knife4x/README.md knife4x/go/README.md
-grep -Fq 'go@v0.4.1' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
+grep -Fq 'knife4x/go/v0.4.2' knife4x/README.md knife4x/go/README.md
+grep -Fq 'go@v0.4.2' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 grep -Fq 'OAS2 不能直接迁移' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 test -z "$(git status --porcelain)"
 ```
@@ -62,11 +62,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.4.1 -m "Knife4x Go v0.4.1"
-git push origin knife4x/go/v0.4.1
+git tag -a knife4x/go/v0.4.2 -m "Knife4x Go v0.4.2"
+git push origin knife4x/go/v0.4.2
 ```
 
-不要同时创建根级 `v0.4.1` tag，不要运行 Java Maven Release，不要为本次发布新增
+不要同时创建根级 `v0.4.2` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -76,7 +76,7 @@ proxy 记录的 origin hash 与 annotated tag 指向的 commit 一致，且 ref 
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.4.1
+version=v0.4.2
 tag="knife4x/go/${version}"
 tag_commit="$(git rev-list -n 1 "$tag")"
 proxy_info="$(curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info")"
@@ -92,7 +92,7 @@ test "$proxy_ref" = "refs/tags/$tag"
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.4.1
+version=v0.4.2
 sum_response="$(curl -fsS "https://sum.golang.org/lookup/${module}@${version}")"
 printf '%s\n' "$sum_response"
 printf '%s\n' "$sum_response" | grep -F "${module} ${version} h1:"
@@ -107,7 +107,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.4.1
+version=v0.4.2
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -153,7 +153,7 @@ test -f "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer
-编译和下载内容检查都通过后，才可宣布 Knife4x Go `v0.4.1` 发布完成。
+编译和下载内容检查都通过后，才可宣布 Knife4x Go `v0.4.2` 发布完成。
 
 ## 补丁原则
 
