@@ -413,6 +413,54 @@ describe('Knife4j storage cleanup registry', () => {
     expect(unchangedStorage.getItem(ownerKey)).toBeNull();
   });
 
+  it('retains an in-flight Web Storage owner while full cleanup removes its target', async () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
+    const localStorage = new MemoryWebStorage({
+      [targetKey]: 'stale-value',
+      [ownerKey]: 'in-flight-write',
+    });
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage: new MemoryWebStorage({}), indexedDB: new MemoryIndexedDb([]) },
+      null,
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(localStorage.getItem(targetKey)).toBeNull();
+    expect(localStorage.getItem(ownerKey)).toBe('in-flight-write');
+  });
+
+  it('removes a stale value written after cleanup while its owner survives', () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
+    let generation = 'before-reset';
+    let ownerSurvivedReset = false;
+    const leaseStorage = new MemoryWebStorage({});
+    const targetStorage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (key === targetKey) {
+          this.values.delete(targetKey);
+          generation = 'after-reset';
+          ownerSurvivedReset = this.values.has(ownerKey);
+        }
+        super.setItem(key, value);
+      }
+    })({ [targetKey]: 'old-value' });
+    const generationStorage = new (class extends MemoryWebStorage {
+      override getItem(key: string): string | null {
+        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) return generation;
+        return leaseStorage.getItem(key);
+      }
+    })({});
+
+    expect(setKnife4jStorageItem(targetStorage, targetKey, 'stale-value', generationStorage)).toBe(false);
+    expect(ownerSurvivedReset).toBe(true);
+    expect(targetStorage.getItem(targetKey)).toBeNull();
+    expect(targetStorage.getItem(ownerKey)).toBeNull();
+  });
+
   it('replaces an existing value when an ownership marker would exceed quota', () => {
     const targetKey = KNIFE4J_STORAGE_KEYS.settings;
     const storage = new (class extends MemoryWebStorage {

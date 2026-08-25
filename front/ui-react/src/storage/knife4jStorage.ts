@@ -30,7 +30,7 @@ export const KNIFE4J_STORAGE_PREFIXES = {
   authIndexedDb: 'knife4j:auth:',
   /** Per-reset fallback contenders; retained only while acquiring the lease. */
   resetClaim: 'knife4j-next:storage-reset-claim:',
-  /** Ephemeral ownership markers used to distinguish concurrent Web Storage writes. */
+  /** In-flight ownership markers retained across cleanup until their writer completes its final fence. */
   webStorageWriteOwner: 'knife4j-next:storage-write-owner:',
 } as const;
 
@@ -74,13 +74,23 @@ export const KNIFE4J_STORAGE_REGISTRY = {
       scope: 'all-local-data',
       preserveDuringCleanup: true,
     },
-    { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner, scope: 'all-local-data' },
+    {
+      match: 'prefix',
+      value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner,
+      scope: 'all-local-data',
+      preserveDuringCleanup: true,
+    },
   ],
   sessionStorage: [
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.tabItems, scope: 'request-cache' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.tabActive, scope: 'request-cache' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.oauth2Pending, scope: 'all-local-data' },
-    { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner, scope: 'all-local-data' },
+    {
+      match: 'prefix',
+      value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner,
+      scope: 'all-local-data',
+      preserveDuringCleanup: true,
+    },
   ],
   indexedDB: [{ match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.authIndexedDb, scope: 'all-local-data' }],
 } as const satisfies Record<Knife4jStorageArea, readonly RegisteredEntry[]>;
