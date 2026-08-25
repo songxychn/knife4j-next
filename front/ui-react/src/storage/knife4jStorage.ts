@@ -636,6 +636,7 @@ function renewResetLease(
     const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
     if (current) observeResetSnapshot(current.generation, current.expiresAt > Date.now());
     if (current?.generation !== lease.generation) throw new Error('reset lease ownership was lost');
+    if (current.expiresAt <= Date.now()) throw new Error('reset lease expired');
     lease.expiresAt = Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS;
     storage.setItem(KNIFE4J_STORAGE_KEYS.resetLease, JSON.stringify(lease));
     const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));

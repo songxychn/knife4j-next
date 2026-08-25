@@ -697,6 +697,56 @@ describe('Knife4j storage cleanup registry', () => {
     getKnife4jStorageResetSnapshot(localStorage);
   });
 
+  it('stops deleting when its fallback lease expires without a takeover', async () => {
+    const localStorage = new MemoryWebStorage({});
+    const sessionStorage = new MemoryWebStorage({});
+    const firstAuthKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const secondAuthKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-b`;
+    let deleteCount = 0;
+    let signalDeleteStarted: (() => void) | undefined;
+    const deleteStarted = new Promise<void>((resolve) => {
+      signalDeleteStarted = resolve;
+    });
+    let releaseDelete: (() => void) | undefined;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const indexedDB = new (class extends MemoryIndexedDb {
+      override async delete(key: IDBValidKey): Promise<void> {
+        deleteCount += 1;
+        signalDeleteStarted?.();
+        await deleteGate;
+        await super.delete(key);
+      }
+    })([
+      [firstAuthKey, { token: 'secret-a' }],
+      [secondAuthKey, { token: 'secret-b' }],
+    ]);
+
+    const cleanup = clearRegisteredKnife4jStorage('all-local-data', { localStorage, sessionStorage, indexedDB }, null);
+    await deleteStarted;
+    const lease = JSON.parse(localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetLease) ?? 'null') as {
+      expiresAt: number;
+    };
+    lease.expiresAt = Date.now() - 1;
+    localStorage.setItem(KNIFE4J_STORAGE_KEYS.resetLease, JSON.stringify(lease));
+    releaseDelete?.();
+    const result = await cleanup;
+
+    expect(deleteCount).toBe(1);
+    expect(indexedDB.values.has(firstAuthKey)).toBe(false);
+    expect(indexedDB.values.has(secondAuthKey)).toBe(true);
+    expect(result.failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          area: 'localStorage',
+          key: KNIFE4J_STORAGE_KEYS.resetLease,
+          reason: expect.stringContaining('reset lease expired'),
+        }),
+      ]),
+    );
+  });
+
   it('stops deleting when fallback lease ownership is lost', async () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});
