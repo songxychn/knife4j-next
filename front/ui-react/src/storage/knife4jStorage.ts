@@ -30,6 +30,8 @@ export const KNIFE4J_STORAGE_PREFIXES = {
   authIndexedDb: 'knife4j:auth:',
   /** Per-reset fallback contenders; retained only while acquiring the lease. */
   resetClaim: 'knife4j-next:storage-reset-claim:',
+  /** Ephemeral ownership markers used to distinguish concurrent Web Storage writes. */
+  webStorageWriteOwner: 'knife4j-next:storage-write-owner:',
 } as const;
 
 export type Knife4jStorageCleanupScope = 'request-cache' | 'all-local-data';
@@ -72,11 +74,13 @@ export const KNIFE4J_STORAGE_REGISTRY = {
       scope: 'all-local-data',
       preserveDuringCleanup: true,
     },
+    { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner, scope: 'all-local-data' },
   ],
   sessionStorage: [
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.tabItems, scope: 'request-cache' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.tabActive, scope: 'request-cache' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.oauth2Pending, scope: 'all-local-data' },
+    { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner, scope: 'all-local-data' },
   ],
   indexedDB: [{ match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.authIndexedDb, scope: 'all-local-data' }],
 } as const satisfies Record<Knife4jStorageArea, readonly RegisteredEntry[]>;
@@ -323,6 +327,22 @@ function createKnife4jStorageWriteFence(
 }
 
 /** Write one registered Web Storage value only when no full reset invalidated it. */
+function webStorageWriteOwnerKey(key: string): string {
+  return `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(key)}`;
+}
+
+function removeWebStorageWriteOwner(
+  storage: Pick<Storage, 'getItem' | 'removeItem'>,
+  ownerKey: string,
+  writeId: string,
+): void {
+  try {
+    if (storage.getItem(ownerKey) === writeId) storage.removeItem(ownerKey);
+  } catch {
+    // A crashed marker contains no user payload and remains registered for the next full cleanup.
+  }
+}
+
 export function setKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string,
@@ -331,11 +351,31 @@ export function setKnife4jStorageItem(
 ): boolean {
   const canWrite = createKnife4jStorageWriteFence(leaseStorage);
   if (!canWrite()) return false;
-  storage.setItem(key, value);
+  const writeId = createResetGeneration();
+  const ownerKey = webStorageWriteOwnerKey(key);
+  storage.setItem(ownerKey, writeId);
   if (!canWrite()) {
-    if (storage.getItem(key) === value) storage.removeItem(key);
+    removeWebStorageWriteOwner(storage, ownerKey, writeId);
     return false;
   }
+  try {
+    storage.setItem(key, value);
+  } catch (error) {
+    removeWebStorageWriteOwner(storage, ownerKey, writeId);
+    throw error;
+  }
+  if (!canWrite()) {
+    if (
+      storage.getItem(ownerKey) === writeId &&
+      storage.getItem(key) === value &&
+      storage.getItem(ownerKey) === writeId
+    ) {
+      storage.removeItem(key);
+    }
+    removeWebStorageWriteOwner(storage, ownerKey, writeId);
+    return false;
+  }
+  removeWebStorageWriteOwner(storage, ownerKey, writeId);
   return true;
 }
 
@@ -644,6 +684,7 @@ function clearWebStorage(
   storage: Knife4jWebStorage | null,
   registry: readonly RegisteredEntry[],
   result: Knife4jStorageCleanupResult,
+  retainsResetLease: () => boolean = () => true,
 ): void {
   if (!storage) {
     recordUnavailable(result, area);
@@ -664,6 +705,7 @@ function clearWebStorage(
 
   for (const key of keys) {
     if (!matchesRegisteredEntry(key, entries)) continue;
+    if (!retainsResetLease()) return;
     try {
       storage.removeItem(key);
       result.removed[area] += 1;
@@ -731,16 +773,40 @@ export async function clearRegisteredKnife4jStorage(
     if (guardsAsyncWrites) await waitForPendingKnife4jStorageWrites();
     if (!retainsResetLease()) return;
 
-    clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
-    clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
+    clearWebStorage(
+      'localStorage',
+      adapters.localStorage,
+      KNIFE4J_STORAGE_REGISTRY.localStorage,
+      result,
+      retainsResetLease,
+    );
+    clearWebStorage(
+      'sessionStorage',
+      adapters.sessionStorage,
+      KNIFE4J_STORAGE_REGISTRY.sessionStorage,
+      result,
+      retainsResetLease,
+    );
     await clearIndexedDbStorage(adapters.indexedDB, result, retainsResetLease);
     if (guardsAsyncWrites) {
       await waitForPendingKnife4jStorageWrites();
       if (!retainsResetLease()) return;
       await clearIndexedDbStorage(adapters.indexedDB, result, retainsResetLease);
       if (!retainsResetLease()) return;
-      clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
-      clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
+      clearWebStorage(
+        'localStorage',
+        adapters.localStorage,
+        KNIFE4J_STORAGE_REGISTRY.localStorage,
+        result,
+        retainsResetLease,
+      );
+      clearWebStorage(
+        'sessionStorage',
+        adapters.sessionStorage,
+        KNIFE4J_STORAGE_REGISTRY.sessionStorage,
+        result,
+        retainsResetLease,
+      );
     }
   };
 

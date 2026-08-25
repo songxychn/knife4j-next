@@ -344,16 +344,20 @@ describe('Knife4j storage cleanup registry', () => {
     expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
   });
 
-  it('does not remove a newer Web Storage value while rolling back a stale write', () => {
+  it('does not remove an identical newer Web Storage value while rolling back a stale write', () => {
     const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
     const targetStorage = new MemoryWebStorage({});
     let generationReads = 0;
     const leaseStorage = new (class extends MemoryWebStorage {
       override getItem(key: string): string | null {
         if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) {
           generationReads += 1;
-          if (generationReads === 3) {
-            targetStorage.setItem(targetKey, 'newer-value');
+          if (generationReads === 4) {
+            // Simulate a newer successful write with the exact same payload:
+            // it replaces the value and consumes its own ownership marker.
+            targetStorage.setItem(targetKey, 'same-value');
+            targetStorage.removeItem(ownerKey);
             return 'newer-generation';
           }
           return 'stale-generation';
@@ -362,8 +366,9 @@ describe('Knife4j storage cleanup registry', () => {
       }
     })({});
 
-    expect(setKnife4jStorageItem(targetStorage, targetKey, 'stale-value', leaseStorage)).toBe(false);
-    expect(targetStorage.getItem(targetKey)).toBe('newer-value');
+    expect(setKnife4jStorageItem(targetStorage, targetKey, 'same-value', leaseStorage)).toBe(false);
+    expect(targetStorage.getItem(targetKey)).toBe('same-value');
+    expect(targetStorage.getItem(ownerKey)).toBeNull();
 
     const unchangedStorage = new MemoryWebStorage({});
     let unchangedGenerationReads = 0;
@@ -371,7 +376,7 @@ describe('Knife4j storage cleanup registry', () => {
       override getItem(key: string): string | null {
         if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) {
           unchangedGenerationReads += 1;
-          return unchangedGenerationReads < 3 ? 'second-stale-generation' : 'second-newer-generation';
+          return unchangedGenerationReads < 4 ? 'second-stale-generation' : 'second-newer-generation';
         }
         return super.getItem(key);
       }
@@ -379,6 +384,7 @@ describe('Knife4j storage cleanup registry', () => {
 
     expect(setKnife4jStorageItem(unchangedStorage, targetKey, 'own-stale-value', changedGenerationStorage)).toBe(false);
     expect(unchangedStorage.getItem(targetKey)).toBeNull();
+    expect(unchangedStorage.getItem(ownerKey)).toBeNull();
   });
 
   it('waits for existing writes and suppresses late writes across browsing contexts', async () => {
@@ -622,6 +628,52 @@ describe('Knife4j storage cleanup registry', () => {
     expect(
       Array.from(localStorage.values.keys()).some((key) => key.startsWith(KNIFE4J_STORAGE_PREFIXES.resetClaim)),
     ).toBe(false);
+  });
+
+  it('stops Web Storage deletion after losing fallback lease ownership', async () => {
+    const localStorage = new (class extends MemoryWebStorage {
+      override removeItem(key: string): void {
+        super.removeItem(key);
+        if (key === KNIFE4J_STORAGE_KEYS.settings) {
+          super.setItem(
+            KNIFE4J_STORAGE_KEYS.resetLease,
+            JSON.stringify({ version: 1, generation: 'newer-web-storage-reset', expiresAt: Date.now() + 60_000 }),
+          );
+        }
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      [KNIFE4J_STORAGE_KEYS.language]: 'zh-CN',
+    });
+    const sessionStorage = new MemoryWebStorage({
+      [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth',
+    });
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const indexedDB = new MemoryIndexedDb([[authKey, { token: 'secret' }]]);
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+
+    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 0 });
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings)).toBeNull();
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.language)).toBe('zh-CN');
+    expect(sessionStorage.getItem(`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`)).toBe('oauth');
+    expect(indexedDB.values.has(authKey)).toBe(true);
+    expect(result.failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          area: 'localStorage',
+          key: KNIFE4J_STORAGE_KEYS.resetLease,
+          reason: expect.stringContaining('reset lease ownership was lost'),
+        }),
+      ]),
+    );
+
+    localStorage.removeItem(KNIFE4J_STORAGE_KEYS.resetLease);
+    getKnife4jStorageResetSnapshot(localStorage);
   });
 
   it('stops deleting when fallback lease ownership is lost', async () => {
