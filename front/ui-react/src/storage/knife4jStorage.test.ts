@@ -373,6 +373,32 @@ describe('Knife4j storage cleanup registry', () => {
     expect(getKnife4jStorageResetSnapshot(localStorage).active).toBe(false);
   });
 
+  it('publishes reset activity immediately without relying on an in-flight write', async () => {
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(): void {
+        throw new Error('storage is read-only');
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+    });
+    const resetSnapshots: Array<{ generation: string; active: boolean }> = [];
+    const unsubscribe = subscribeKnife4jStorageReset((snapshot) => resetSnapshots.push({ ...snapshot }));
+
+    const cleanup = clearRegisteredKnife4jStorage(
+      'all-local-data',
+      {
+        localStorage,
+        sessionStorage: new MemoryWebStorage({}),
+        indexedDB: new MemoryIndexedDb([]),
+      },
+      new MemoryLockManager(),
+    );
+
+    expect(resetSnapshots.at(-1)?.active).toBe(true);
+    await cleanup.finally(unsubscribe);
+    expect(resetSnapshots.map((snapshot) => snapshot.active)).toEqual([true, false]);
+  });
+
   it('exposes a queued Web Storage value before its fallback mutation lease persists it', async () => {
     const targetKey = KNIFE4J_STORAGE_KEYS.settings;
     const storage = new MemoryWebStorage({ [targetKey]: 'old-value' });

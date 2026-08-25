@@ -1054,7 +1054,10 @@ export async function clearRegisteredKnife4jStorage(
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
 ): Promise<Knife4jStorageCleanupResult> {
   const guardsAsyncWrites = scope === 'all-local-data';
-  if (guardsAsyncWrites) allLocalDataCleanupCount += 1;
+  if (guardsAsyncWrites) {
+    allLocalDataCleanupCount += 1;
+    getKnife4jStorageResetSnapshot(adapters.localStorage);
+  }
 
   const result: Knife4jStorageCleanupResult = {
     scope,
