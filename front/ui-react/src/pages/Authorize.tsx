@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 import type { SecuritySchemeObject, OAuth2Flow } from '../types/swagger';
 import type { SchemeValue } from 'knife4j-core';
+import { KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
 
 const { Text } = Typography;
 
@@ -72,8 +73,6 @@ async function fetchOAuth2Token(params: {
 }
 
 // ─── OAuth2 Popup (implicit / authorizationCode) ──────
-
-const OAUTH2_PENDING_PREFIX = 'knife4j:oauth2:pending:';
 
 interface OAuth2PopupConfig {
   tokenUrl?: string;
@@ -153,8 +152,8 @@ function openOAuth2Popup(
   return new Promise((resolve, reject) => {
     // Store exchange config for authorization_code flow
     try {
-      sessionStorage.setItem(OAUTH2_PENDING_PREFIX + state, JSON.stringify(config));
-      sessionStorage.setItem(OAUTH2_PENDING_PREFIX + 'default', JSON.stringify(config));
+      sessionStorage.setItem(KNIFE4J_STORAGE_PREFIXES.oauth2Pending + state, JSON.stringify(config));
+      sessionStorage.setItem(KNIFE4J_STORAGE_PREFIXES.oauth2Pending + 'default', JSON.stringify(config));
     } catch {
       // sessionStorage unavailable — code exchange will fail gracefully
     }
@@ -202,12 +201,12 @@ function openOAuth2Popup(
         cleanup();
         // Clean up sessionStorage — popup was closed before redirect page ran
         try {
-          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + state);
+          sessionStorage.removeItem(KNIFE4J_STORAGE_PREFIXES.oauth2Pending + state);
         } catch {
           /* ignore */
         }
         try {
-          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + 'default');
+          sessionStorage.removeItem(KNIFE4J_STORAGE_PREFIXES.oauth2Pending + 'default');
         } catch {
           /* ignore */
         }
@@ -220,12 +219,12 @@ function openOAuth2Popup(
         cleanup();
         // Clean up sessionStorage on timeout — popup never ran the redirect page
         try {
-          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + state);
+          sessionStorage.removeItem(KNIFE4J_STORAGE_PREFIXES.oauth2Pending + state);
         } catch {
           /* ignore */
         }
         try {
-          sessionStorage.removeItem(OAUTH2_PENDING_PREFIX + 'default');
+          sessionStorage.removeItem(KNIFE4J_STORAGE_PREFIXES.oauth2Pending + 'default');
         } catch {
           /* ignore */
         }

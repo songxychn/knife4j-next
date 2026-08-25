@@ -1,6 +1,12 @@
-import { Alert, Checkbox, Divider, Input, message, Select, Space, Typography } from 'antd';
+import { Alert, Button, Checkbox, Divider, Input, message, Modal, Select, Space, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../context/SettingsContext';
+import {
+  clearKnife4jStorage,
+  removedKnife4jStorageEntryCount,
+  type Knife4jStorageArea,
+  type Knife4jStorageCleanupScope,
+} from '../../storage/knife4jStorage';
 
 const { Text } = Typography;
 
@@ -8,6 +14,28 @@ const METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEA
   value: m,
   label: m,
 }));
+
+const REQUEST_CACHE_CATEGORY_KEYS = [
+  'settings.localData.category.requestParameters',
+  'settings.localData.category.requestHistory',
+  'settings.localData.category.tabs',
+  'settings.localData.category.versionBaseline',
+] as const;
+
+const ALL_LOCAL_DATA_CATEGORY_KEYS = [
+  ...REQUEST_CACHE_CATEGORY_KEYS,
+  'settings.localData.category.settings',
+  'settings.localData.category.globalParams',
+  'settings.localData.category.cookieSession',
+  'settings.localData.category.oauth',
+  'settings.localData.category.auth',
+] as const;
+
+const STORAGE_AREA_LABEL_KEYS: Record<Knife4jStorageArea, string> = {
+  localStorage: 'settings.localData.area.localStorage',
+  sessionStorage: 'settings.localData.area.sessionStorage',
+  indexedDB: 'settings.localData.area.indexedDB',
+};
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -19,6 +47,74 @@ export default function Settings() {
       return;
     }
     setSetting('enableHost', checked);
+  };
+
+  const showCleanupFailure = (
+    scope: Knife4jStorageCleanupScope,
+    result: Awaited<ReturnType<typeof clearKnife4jStorage>>,
+  ) => {
+    const failedAreas = Array.from(new Set(result.failures.map((failure) => failure.area)));
+    Modal.error({
+      title: t('settings.localData.result.incompleteTitle'),
+      content: (
+        <Space direction="vertical" size={8}>
+          <Text>
+            {t('settings.localData.result.incomplete', {
+              removed: removedKnife4jStorageEntryCount(result),
+              failed: result.failures.length,
+            })}
+          </Text>
+          <ul style={{ margin: 0, paddingInlineStart: 24 }}>
+            {failedAreas.map((area) => (
+              <li key={area}>{t(STORAGE_AREA_LABEL_KEYS[area])}</li>
+            ))}
+          </ul>
+          <Text type="secondary">{t('settings.localData.result.reloadTip')}</Text>
+        </Space>
+      ),
+      closable: true,
+      okText: t('settings.localData.result.reload'),
+      onOk: async () => {
+        const retryResult = await clearKnife4jStorage(scope);
+        if (retryResult.failures.length === 0) {
+          window.location.reload();
+          return;
+        }
+        showCleanupFailure(scope, retryResult);
+      },
+    });
+  };
+
+  const confirmLocalDataCleanup = (scope: Knife4jStorageCleanupScope) => {
+    const categoryKeys = scope === 'request-cache' ? REQUEST_CACHE_CATEGORY_KEYS : ALL_LOCAL_DATA_CATEGORY_KEYS;
+    Modal.confirm({
+      title: t(
+        scope === 'request-cache' ? 'settings.localData.confirm.requestTitle' : 'settings.localData.confirm.allTitle',
+      ),
+      content: (
+        <Space direction="vertical" size={8}>
+          <Text>{t('settings.localData.confirm.affected')}</Text>
+          <ul style={{ margin: 0, paddingInlineStart: 24 }}>
+            {categoryKeys.map((key) => (
+              <li key={key}>{t(key)}</li>
+            ))}
+          </ul>
+          <Alert type="warning" showIcon message={t('settings.localData.confirm.cookieWarning')} />
+        </Space>
+      ),
+      okText: t('settings.localData.confirm.ok'),
+      cancelText: t('settings.localData.confirm.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        const result = await clearKnife4jStorage(scope);
+        if (result.failures.length === 0) {
+          window.location.reload();
+          return;
+        }
+
+        showCleanupFailure(scope, result);
+      },
+    });
   };
 
   return (
@@ -163,6 +259,21 @@ export default function Settings() {
         </div>
       </div>
       <Divider style={{ margin: '4px 0' }} />
+
+      <div style={{ padding: '16px 0' }}>
+        <Space direction="vertical" size={10}>
+          <Text strong>{t('settings.localData.title')}</Text>
+          <Text type="secondary">{t('settings.localData.description')}</Text>
+          <Space wrap>
+            <Button onClick={() => confirmLocalDataCleanup('request-cache')}>
+              {t('settings.localData.clearRequest')}
+            </Button>
+            <Button danger onClick={() => confirmLocalDataCleanup('all-local-data')}>
+              {t('settings.localData.resetAll')}
+            </Button>
+          </Space>
+        </Space>
+      </div>
     </div>
   );
 }

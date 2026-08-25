@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { get, set, del } from 'idb-keyval';
 import type { SchemeValue } from 'knife4j-core';
+import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
 
 // ─── Types ─────────────────────────────────────────────
 
@@ -50,11 +51,8 @@ export function updateAuthSchemesForGroup(
 
 // ─── IndexedDB helpers ─────────────────────────────────
 
-const IDB_PREFIX = 'knife4j:auth:';
-const LEGACY_LS_KEY = 'knife4j_auth';
-
 function idbKey(groupId: string): string {
-  return `${IDB_PREFIX}${groupId}`;
+  return `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}${groupId}`;
 }
 
 /** 仅当当前 initialGroupId 对应的分组加载完成后才允许消费鉴权值。 */
@@ -89,10 +87,10 @@ async function deleteGroup(groupId: string): Promise<void> {
  */
 async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
   try {
-    const raw = localStorage.getItem(LEGACY_LS_KEY);
+    const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
     if (!raw) return;
     // 检查是否已迁移过（标记 key）
-    const migrated = localStorage.getItem('knife4j_auth_migrated');
+    const migrated = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
     if (migrated) return;
 
     const legacy: LegacyAuthConfig | null = JSON.parse(raw) as LegacyAuthConfig | null;
@@ -117,8 +115,8 @@ async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
     }
 
     // 标记已迁移
-    localStorage.setItem('knife4j_auth_migrated', '1');
-    localStorage.removeItem(LEGACY_LS_KEY);
+    localStorage.setItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1');
+    localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
   } catch {
     // 迁移失败静默忽略
   }
