@@ -2,7 +2,6 @@
   "name": "knife4j-vue3",
   "private": true,
   "version": "0.0.0",
-  "packageManager": "bun@1.3.13",
   "scripts": {
     "dev": "vite",
     "check:i18n": "bun scripts/check-i18n.mjs",

@@ -8,7 +8,7 @@ OAS2 兼容维护 UI（Vue 3 + Vite）。本目录产物被 `knife4j/knife4j-ope
 
 ## 包管理器
 
-本目录使用 [Bun](https://bun.com/) 作为包管理器（见 `package.json` 里的 `packageManager: "bun@1.3.13"` 与根目录
+本目录使用 [Bun](https://bun.com/) 作为包管理器（基准版本见仓库根目录 `.bun-version`，依赖锁定见本目录
 `bun.lock`）。Maven 构建也通过 bun 调用 vite，参见
 `knife4j/knife4j-openapi2-ui/pom.xml` 中的 `exec-maven-plugin` 执行块。
 

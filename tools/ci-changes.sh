@@ -34,7 +34,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     knife4x/go/*|knife4x/examples/gin/*|tools/sync-knife4x-ui.sh|tools/test-knife4x-go.sh)
       knife4x_go=true
       ;;
-    .github/workflows/*|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)
+    .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)
       full=true
       ;;
     README.md|CONTRIBUTING.md|AGENTS.md|.agent/*|.gitignore|tools/README.md|tools/agent-status.sh|tools/claude/*|tools/test-all.sh|tools/extract-release-note.sh|tools/verify-github-release.sh)

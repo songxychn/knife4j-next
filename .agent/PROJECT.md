@@ -67,4 +67,6 @@
 ## 工具链
 
 活跃前端统一 **bun**（`front/`、`front/vue3/`、`docs/`）。  
+CI / Demo / Release 的基准版本统一读取仓库根目录 `.bun-version`。本地与 agent 优先使用当前已安装的 Bun；版本字符串不同本身不构成下载安装或降级理由，先运行受影响区域的标准验证。只有安装、测试、构建或生成资产出现可归因于版本的差异，或需要复现 CI / 发布环境时，才切换到基准版本。
+
 用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
