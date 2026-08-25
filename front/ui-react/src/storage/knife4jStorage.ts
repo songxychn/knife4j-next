@@ -476,6 +476,7 @@ function listActiveResetClaims(
 async function acquireResetLease(
   storage: Knife4jWebStorage | null,
   result: Knife4jStorageCleanupResult,
+  recordCoordinationFailure = true,
 ): Promise<Knife4jStorageResetLease | null> {
   if (!storage) return null;
 
@@ -565,11 +566,13 @@ async function acquireResetLease(
           // The coordination failure below already makes the reset incomplete.
         }
       }
-      recordFailure(result, {
-        area: 'localStorage',
-        key: KNIFE4J_STORAGE_KEYS.resetLease,
-        reason: `reset coordination failed: ${errorMessage(error)}`,
-      });
+      if (recordCoordinationFailure) {
+        recordFailure(result, {
+          area: 'localStorage',
+          key: KNIFE4J_STORAGE_KEYS.resetLease,
+          reason: `reset coordination failed: ${errorMessage(error)}`,
+        });
+      }
       return null;
     }
   }
@@ -740,13 +743,24 @@ export async function clearRegisteredKnife4jStorage(
     }
   };
 
-  try {
+  const performCoordinatedCleanup = async (): Promise<void> => {
     if (guardsAsyncWrites) {
-      lease = await acquireResetLease(adapters.localStorage, result);
+      lease = await acquireResetLease(adapters.localStorage, result, false);
+      if (!lease && adapters.localStorage) {
+        // A full localStorage quota can prevent even the coordination claim.
+        // Free only registered Knife4j values, then publish the lease before
+        // touching IndexedDB or running the final deletion passes.
+        clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
+        lease = await acquireResetLease(adapters.localStorage, result);
+      }
       stopResetLeaseHeartbeat = startResetLeaseHeartbeat(adapters.localStorage, lease, result);
     }
-    if (!guardsAsyncWrites || !lockManager) await performCleanup();
-    else await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, performCleanup);
+    await performCleanup();
+  };
+
+  try {
+    if (!guardsAsyncWrites || !lockManager) await performCoordinatedCleanup();
+    else await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, performCoordinatedCleanup);
   } finally {
     stopResetLeaseHeartbeat();
     if (guardsAsyncWrites) allLocalDataCleanupCount -= 1;

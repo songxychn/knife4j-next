@@ -13,7 +13,12 @@ vi.mock('react', () => ({
   useState: vi.fn(),
 }));
 
-import { invalidateAuthSchemesForReset, isAuthReadyForGroup, updateAuthSchemesForGroup } from './AuthContext';
+import {
+  authRecordBelongsToWrite,
+  invalidateAuthSchemesForReset,
+  isAuthReadyForGroup,
+  updateAuthSchemesForGroup,
+} from './AuthContext';
 
 describe('AuthContext readiness', () => {
   it('stays pending until the initial group finishes loading', () => {
@@ -33,6 +38,23 @@ describe('AuthContext readiness', () => {
 });
 
 describe('AuthContext group-scoped mutations', () => {
+  it('rolls back only the auth record created by the stale write', () => {
+    const staleRecord = {
+      __knife4jAuthRecord: 1,
+      writeId: 'stale-write',
+      schemes: { bearer: { type: 'http', scheme: 'bearer', token: 'stale-token' } },
+    };
+    const newerRecord = {
+      __knife4jAuthRecord: 1,
+      writeId: 'newer-write',
+      schemes: { bearer: { type: 'http', scheme: 'bearer', token: 'newer-token' } },
+    };
+
+    expect(authRecordBelongsToWrite(staleRecord, 'stale-write')).toBe(true);
+    expect(authRecordBelongsToWrite(newerRecord, 'stale-write')).toBe(false);
+    expect(authRecordBelongsToWrite(newerRecord.schemes, 'stale-write')).toBe(false);
+  });
+
   it('rejects a stale group A closure instead of merging group B memory into A', () => {
     const lingeringGroupAState = {
       groupId: 'group-a',

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { get, set, del } from 'idb-keyval';
+import { createStore, del, get, promisifyRequest, set } from 'idb-keyval';
 import type { SchemeValue } from 'knife4j-core';
 import {
   KNIFE4J_STORAGE_KEYS,
@@ -77,6 +77,70 @@ export function invalidateAuthSchemesForReset(
 
 // ─── IndexedDB helpers ─────────────────────────────────
 
+const AUTH_RECORD_VERSION = 1;
+// idb-keyval's documented default store, declared explicitly so rollback can compare and delete atomically.
+const authIndexedDbStore = createStore('keyval-store', 'keyval');
+
+interface PersistedAuthRecord {
+  __knife4jAuthRecord: typeof AUTH_RECORD_VERSION;
+  writeId: string;
+  schemes: Record<string, SchemeValue>;
+}
+
+function createAuthWriteId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch {
+    // Fall back to a non-security-sensitive unique value.
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isPersistedAuthRecord(value: unknown): value is PersistedAuthRecord {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<PersistedAuthRecord>;
+  return (
+    candidate.__knife4jAuthRecord === AUTH_RECORD_VERSION &&
+    typeof candidate.writeId === 'string' &&
+    candidate.writeId.length > 0 &&
+    typeof candidate.schemes === 'object' &&
+    candidate.schemes !== null
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function authRecordBelongsToWrite(value: unknown, writeId: string): boolean {
+  return isPersistedAuthRecord(value) && value.writeId === writeId;
+}
+
+function createPersistedAuthRecord(schemes: Record<string, SchemeValue>): PersistedAuthRecord {
+  return {
+    __knife4jAuthRecord: AUTH_RECORD_VERSION,
+    writeId: createAuthWriteId(),
+    schemes,
+  };
+}
+
+/** Delete only the value written by this operation, in the same transaction as the ownership check. */
+async function rollbackAuthWrite(key: string, writeId: string): Promise<void> {
+  await authIndexedDbStore(
+    'readwrite',
+    (store) =>
+      new Promise<void>((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => {
+          try {
+            if (authRecordBelongsToWrite(request.result, writeId)) store.delete(key);
+            resolve(promisifyRequest(store.transaction));
+          } catch (error) {
+            reject(error);
+          }
+        };
+        request.onerror = () => reject(request.error);
+      }),
+  );
+}
+
 function idbKey(groupId: string): string {
   return `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}${groupId}`;
 }
@@ -90,7 +154,8 @@ export function isAuthReadyForGroup(initialGroupId: string, activeGroupId: strin
 /** 从 IndexedDB 加载单个 group */
 async function loadGroup(groupId: string): Promise<Record<string, SchemeValue>> {
   try {
-    const data = await get<Record<string, SchemeValue>>(idbKey(groupId));
+    const data = await get<Record<string, SchemeValue> | PersistedAuthRecord>(idbKey(groupId), authIndexedDbStore);
+    if (isPersistedAuthRecord(data)) return data.schemes;
     return data ?? {};
   } catch {
     return {};
@@ -102,15 +167,16 @@ async function saveGroup(groupId: string, schemes: Record<string, SchemeValue>):
   const key = idbKey(groupId);
   await trackKnife4jStorageWrite(async (canWrite) => {
     if (!canWrite()) return;
-    await set(key, schemes);
-    if (!canWrite()) await del(key);
+    const record = createPersistedAuthRecord(schemes);
+    await set(key, record, authIndexedDbStore);
+    if (!canWrite()) await rollbackAuthWrite(key, record.writeId);
   });
 }
 
 /** 删除单个 group */
 async function deleteGroup(groupId: string): Promise<void> {
   await trackKnife4jStorageWrite(async (canWrite) => {
-    if (canWrite()) await del(idbKey(groupId));
+    if (canWrite()) await del(idbKey(groupId), authIndexedDbStore);
   });
 }
 
@@ -144,26 +210,28 @@ async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
       }
 
       const key = idbKey(defaultGroupId);
+      let migratedRecord: PersistedAuthRecord | null = null;
       if (schemeValue) {
         const existing = await loadGroup(defaultGroupId);
         if (!canWrite()) return;
         existing['legacy'] = schemeValue;
-        await set(key, existing);
+        migratedRecord = createPersistedAuthRecord(existing);
+        await set(key, migratedRecord, authIndexedDbStore);
         if (!canWrite()) {
-          await del(key);
+          await rollbackAuthWrite(key, migratedRecord.writeId);
           return;
         }
       }
 
       // 标记已迁移
       if (!canWrite()) {
-        if (schemeValue) await del(key);
+        if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
         return;
       }
       const marked = setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1');
       if (!marked || !canWrite()) {
         localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
-        if (schemeValue) await del(key);
+        if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
         return;
       }
       localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuth);

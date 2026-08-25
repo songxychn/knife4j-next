@@ -270,6 +270,42 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.language)).toBe(false);
   });
 
+  it('frees registered local data and retries coordination when quota blocks the first lease write', async () => {
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (this.values.has(KNIFE4J_STORAGE_KEYS.settings)) throw new Error('quota exceeded');
+        super.setItem(key, value);
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      [KNIFE4J_STORAGE_KEYS.language]: 'zh-CN',
+      'host-application:key': 'keep',
+    });
+    const sessionStorage = new MemoryWebStorage({
+      [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth',
+      'host-application:session': 'keep',
+    });
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const indexedDB = new MemoryIndexedDb([
+      [authKey, { token: 'secret' }],
+      ['host-application:idb', { keep: true }],
+    ]);
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(result.removed).toEqual({ localStorage: 2, sessionStorage: 1, indexedDB: 1 });
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration)).toEqual(expect.any(String));
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetLease)).toBeNull();
+    expect(localStorage.getItem('host-application:key')).toBe('keep');
+    expect(sessionStorage.values).toEqual(new Map([['host-application:session', 'keep']]));
+    expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
+  });
+
   it('waits for existing writes and suppresses late writes across browsing contexts', async () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});
