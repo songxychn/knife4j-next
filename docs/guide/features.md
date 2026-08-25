@@ -337,7 +337,11 @@ Knife4j 的缓存存储在浏览器的 IndexedDB 中，**强制刷新页面无�
 
 ### Spring Security 注解展示
 
-Knife4j 会将 Spring Security 的 `@PreAuthorize`、`@PostAuthorize`、`@PreFilter`、`@PostFilter` 注解信息追加到接口描述中，方便开发者了解接口的权限要求：
+::: warning 仅适用于 OAS2 / Springfox
+此增强由 `knife4j-openapi2-spring-boot-starter` 中的 `SecurityAnnotationPlugin` 提供。OAS3 / springdoc 系列 starter 不会自动将 Spring Security 方法注解追加到接口描述。
+:::
+
+在 OAS2 / Springfox 场景中，开启 `knife4j.enable=true` 后，Knife4j 会将 Spring Security 的 `@PreAuthorize`、`@PostAuthorize`、`@PreFilter`、`@PostFilter` 注解信息追加到接口描述中，方便开发者了解接口声明的权限条件：
 
 ```java
 @RestController
@@ -347,12 +351,14 @@ public class AdminController {
 
     @GetMapping("/users")
     @PreAuthorize("hasAuthority('user:list')")
-    @Operation(summary = "管理员查看用户列表")
+    @ApiOperation(value = "管理员查看用户列表")
     public List<UserVO> listUsers() { ... }
 }
 ```
 
-需要 `knife4j.enable=true` 开启增强模式。
+该功能只在接口说明中附加注解文本，不会改变实际鉴权行为，也不会生成 OpenAPI `security` 要求。
+
+OAS3 / springdoc 用户如需公开接口的鉴权契约，应显式使用 `@Operation`、`@SecurityRequirement` 等 OpenAPI 注解，并定义对应的安全方案。Knife4j 不会将任意 Spring Security SpEL 表达式推断为标准 OpenAPI 安全定义。
 
 ### JSR303 校验注解透传
 
