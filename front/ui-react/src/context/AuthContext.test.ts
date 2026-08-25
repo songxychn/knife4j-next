@@ -13,7 +13,7 @@ vi.mock('react', () => ({
   useState: vi.fn(),
 }));
 
-import { isAuthReadyForGroup, updateAuthSchemesForGroup } from './AuthContext';
+import { invalidateAuthSchemesForReset, isAuthReadyForGroup, updateAuthSchemesForGroup } from './AuthContext';
 
 describe('AuthContext readiness', () => {
   it('stays pending until the initial group finishes loading', () => {
@@ -36,12 +36,14 @@ describe('AuthContext group-scoped mutations', () => {
   it('rejects a stale group A closure instead of merging group B memory into A', () => {
     const lingeringGroupAState = {
       groupId: 'group-a',
+      resetGeneration: 'reset-before-switch',
       schemes: {
         groupAExisting: { type: 'http', scheme: 'bearer', token: 'old-group-a-token' } as const,
       },
     };
     const groupBState = {
       groupId: 'group-b',
+      resetGeneration: 'reset-before-switch',
       schemes: {
         groupBAuth: { type: 'http', scheme: 'bearer', token: 'group-b-token' } as const,
       },
@@ -51,8 +53,20 @@ describe('AuthContext group-scoped mutations', () => {
       groupAAuth: { type: 'oauth2' as const, accessToken: 'late-group-a-token', tokenType: 'Bearer' },
     });
 
-    const afterRouteSwitch = updateAuthSchemesForGroup(lingeringGroupAState, 'group-a', 'group-b', lateUpdate);
-    const afterGroupBLoad = updateAuthSchemesForGroup(groupBState, 'group-a', 'group-a', lateUpdate);
+    const afterRouteSwitch = updateAuthSchemesForGroup(
+      lingeringGroupAState,
+      'group-a',
+      'group-b',
+      'reset-before-switch',
+      lateUpdate,
+    );
+    const afterGroupBLoad = updateAuthSchemesForGroup(
+      groupBState,
+      'group-a',
+      'group-a',
+      'reset-before-switch',
+      lateUpdate,
+    );
 
     expect(afterRouteSwitch).toBe(lingeringGroupAState);
     expect(afterGroupBLoad).toBe(groupBState);
@@ -60,9 +74,9 @@ describe('AuthContext group-scoped mutations', () => {
   });
 
   it('updates only a snapshot owned by the current target group', () => {
-    const groupAState = { groupId: 'group-a', schemes: {} };
+    const groupAState = { groupId: 'group-a', resetGeneration: 'current-reset', schemes: {} };
 
-    const result = updateAuthSchemesForGroup(groupAState, 'group-a', 'group-a', (schemes) => ({
+    const result = updateAuthSchemesForGroup(groupAState, 'group-a', 'group-a', 'current-reset', (schemes) => ({
       ...schemes,
       groupAAuth: { type: 'oauth2', accessToken: 'group-a-token', tokenType: 'Bearer' },
     }));
@@ -70,9 +84,53 @@ describe('AuthContext group-scoped mutations', () => {
     expect(result).not.toBe(groupAState);
     expect(result).toEqual({
       groupId: 'group-a',
+      resetGeneration: 'current-reset',
       schemes: {
         groupAAuth: { type: 'oauth2', accessToken: 'group-a-token', tokenType: 'Bearer' },
       },
+    });
+  });
+
+  it('invalidates credentials loaded before a cross-tab reset and rejects the stale edit', () => {
+    const staleState = {
+      groupId: 'group-a',
+      resetGeneration: 'reset-before',
+      schemes: {
+        bearer: { type: 'http', scheme: 'bearer', token: 'cleared-token' } as const,
+        basic: { type: 'http', scheme: 'basic', username: 'old-user', password: 'old-password' } as const,
+      },
+    };
+    const resetSnapshot = { generation: 'reset-after', active: false };
+
+    const staleEdit = updateAuthSchemesForGroup(
+      staleState,
+      'group-a',
+      'group-a',
+      resetSnapshot.generation,
+      (schemes) => ({
+        ...schemes,
+        bearer: { type: 'http', scheme: 'bearer', token: 'new-token' },
+      }),
+    );
+    const invalidated = invalidateAuthSchemesForReset(staleState, resetSnapshot);
+
+    expect(staleEdit).toBe(staleState);
+    expect(invalidated).toEqual({ groupId: 'group-a', resetGeneration: 'reset-after', schemes: {} });
+  });
+
+  it('keeps auth memory empty while a full reset is active', () => {
+    const currentState = {
+      groupId: 'group-a',
+      resetGeneration: 'reset-active',
+      schemes: {
+        bearer: { type: 'http', scheme: 'bearer', token: 'stale-token' } as const,
+      },
+    };
+
+    expect(invalidateAuthSchemesForReset(currentState, { generation: 'reset-active', active: true })).toEqual({
+      groupId: 'group-a',
+      resetGeneration: 'reset-active',
+      schemes: {},
     });
   });
 });

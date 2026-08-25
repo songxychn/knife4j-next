@@ -4,8 +4,10 @@ import {
   KNIFE4J_STORAGE_PREFIXES,
   KNIFE4J_STORAGE_REGISTRY,
   clearRegisteredKnife4jStorage,
+  getKnife4jStorageResetSnapshot,
   removedKnife4jStorageEntryCount,
   setKnife4jStorageItem,
+  subscribeKnife4jStorageReset,
   withKnife4jStorageWriteLock,
   type Knife4jIndexedDbStorage,
   type Knife4jStorageLockManager,
@@ -192,15 +194,29 @@ describe('Knife4j storage cleanup registry', () => {
       [42, { keep: true }],
     ]);
 
+    const resetSnapshots: Array<{ generation: string; active: boolean }> = [];
+    const unsubscribe = subscribeKnife4jStorageReset((snapshot) => resetSnapshots.push({ ...snapshot }));
     const result = await clearRegisteredKnife4jStorage('all-local-data', {
       localStorage,
       sessionStorage,
       indexedDB,
-    });
+    }).finally(unsubscribe);
 
     expect(result.failures).toEqual([]);
     expect(removedKnife4jStorageEntryCount(result)).toBe(13);
-    expect(localStorage.values).toEqual(
+    const resetGeneration = localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration);
+    expect(resetGeneration).toEqual(expect.any(String));
+    expect(resetGeneration).not.toBe('');
+    expect(resetSnapshots).toEqual(
+      expect.arrayContaining([
+        { generation: resetGeneration, active: true },
+        { generation: resetGeneration, active: false },
+      ]),
+    );
+    expect(getKnife4jStorageResetSnapshot(localStorage)).toEqual({ generation: resetGeneration, active: false });
+    const remainingLocalStorage = new Map(localStorage.values);
+    remainingLocalStorage.delete(KNIFE4J_STORAGE_KEYS.resetGeneration);
+    expect(remainingLocalStorage).toEqual(
       new Map([
         ['Knife4jGlobalSettings:host-copy', 'keep-near-miss'],
         ['host-application:key', 'keep'],
@@ -362,7 +378,10 @@ describe('Knife4j storage cleanup registry', () => {
 
     expect(result.failures).toEqual([]);
     expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 1 });
-    expect(localStorage.values).toEqual(new Map([['host-application:key', 'keep']]));
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration)).toEqual(expect.any(String));
+    const remainingLocalStorage = new Map(localStorage.values);
+    remainingLocalStorage.delete(KNIFE4J_STORAGE_KEYS.resetGeneration);
+    expect(remainingLocalStorage).toEqual(new Map([['host-application:key', 'keep']]));
     expect(indexedDB.values.has(authKey)).toBe(false);
   });
 
