@@ -22,7 +22,7 @@ i18n
     },
     detection: {
       order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
+      caches: [],
       lookupLocalStorage: KNIFE4J_STORAGE_KEYS.language,
       convertDetectedLanguage: (language) => normalizeSupportedLanguage(language) ?? language,
     },

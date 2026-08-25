@@ -28,7 +28,7 @@ import {
 } from './utils/operationTabs';
 import { resolveFooterContent } from './utils/footer';
 import { buildDocumentToolRoute, matchDocumentToolRoute, type DocumentTool } from './utils/documentToolRoutes';
-import { KNIFE4J_STORAGE_KEYS } from './storage/knife4jStorage';
+import { KNIFE4J_STORAGE_KEYS, setKnife4jStorageItem } from './storage/knife4jStorage';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -142,8 +142,8 @@ const AppInner: React.FC = () => {
   useEffect(() => {
     try {
       const payload: PersistedTab[] = items.map((p) => ({ key: p.key, label: p.label }));
-      sessionStorage.setItem(KNIFE4J_STORAGE_KEYS.tabItems, JSON.stringify(payload));
-      sessionStorage.setItem(KNIFE4J_STORAGE_KEYS.tabActive, activeKey);
+      setKnife4jStorageItem(sessionStorage, KNIFE4J_STORAGE_KEYS.tabItems, JSON.stringify(payload));
+      setKnife4jStorageItem(sessionStorage, KNIFE4J_STORAGE_KEYS.tabActive, activeKey);
     } catch {
       // storage might be disabled or quota exceeded — not fatal
     }
@@ -432,6 +432,11 @@ const AppInner: React.FC = () => {
   const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
     const next = normalizeSupportedLanguage(key);
     if (next) {
+      try {
+        setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.language, next);
+      } catch {
+        // The setting below still updates the in-memory language when storage is unavailable.
+      }
       setSetting('language', next);
     }
   };

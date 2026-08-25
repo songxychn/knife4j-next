@@ -5,6 +5,7 @@ import {
   KNIFE4J_STORAGE_REGISTRY,
   clearRegisteredKnife4jStorage,
   removedKnife4jStorageEntryCount,
+  setKnife4jStorageItem,
   withKnife4jStorageWriteLock,
   type Knife4jIndexedDbStorage,
   type Knife4jStorageLockManager,
@@ -25,6 +26,14 @@ class MemoryWebStorage implements Knife4jWebStorage {
 
   key(index: number): string | null {
     return Array.from(this.values.keys())[index] ?? null;
+  }
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
   }
 
   removeItem(key: string): void {
@@ -281,6 +290,79 @@ describe('Knife4j storage cleanup registry', () => {
     expect(result.failures).toEqual([]);
     expect(result.removed.indexedDB).toBe(1);
     expect(lateWriteRan).toBe(false);
+    expect(indexedDB.values.has(authKey)).toBe(false);
+  });
+
+  it('invalidates an in-flight cross-context write without Web Locks', async () => {
+    const localStorage = new MemoryWebStorage({});
+    const sessionStorage = new MemoryWebStorage({});
+    const indexedDB = new MemoryIndexedDb([]);
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}legacy-group`;
+    let signalWriteStarted: (() => void) | undefined;
+    const writeStarted = new Promise<void>((resolve) => {
+      signalWriteStarted = resolve;
+    });
+    let releaseWrite: (() => void) | undefined;
+    const writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+
+    const staleWrite = withKnife4jStorageWriteLock(
+      async (canWrite) => {
+        signalWriteStarted?.();
+        await writeGate;
+        if (canWrite()) indexedDB.values.set(authKey, { token: 'stale' });
+      },
+      null,
+      localStorage,
+    );
+    await writeStarted;
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+    releaseWrite?.();
+    await staleWrite;
+
+    expect(result.failures).toEqual([]);
+    expect(indexedDB.values.has(authKey)).toBe(false);
+    expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
+  });
+
+  it('blocks guarded writes and removes bypass writes in the final pass without Web Locks', async () => {
+    const localStorage = new MemoryWebStorage({ 'host-application:key': 'keep' });
+    const sessionStorage = new MemoryWebStorage({});
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    let signalDeleteStarted: (() => void) | undefined;
+    const deleteStarted = new Promise<void>((resolve) => {
+      signalDeleteStarted = resolve;
+    });
+    let releaseDelete: (() => void) | undefined;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const indexedDB = new (class extends MemoryIndexedDb {
+      override async delete(key: IDBValidKey): Promise<void> {
+        signalDeleteStarted?.();
+        await deleteGate;
+        await super.delete(key);
+      }
+    })([[authKey, { token: 'secret' }]]);
+    const guardedKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}guarded`;
+    const bypassKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}bypass`;
+
+    const cleanup = clearRegisteredKnife4jStorage('all-local-data', { localStorage, sessionStorage, indexedDB }, null);
+    await deleteStarted;
+    expect(setKnife4jStorageItem(localStorage, guardedKey, 'guarded', localStorage)).toBe(false);
+    localStorage.setItem(bypassKey, 'bypass');
+    releaseDelete?.();
+    const result = await cleanup;
+
+    expect(result.failures).toEqual([]);
+    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 1 });
+    expect(localStorage.values).toEqual(new Map([['host-application:key', 'keep']]));
     expect(indexedDB.values.has(authKey)).toBe(false);
   });
 });
