@@ -488,6 +488,7 @@ const enUS = {
   'settings.enableRequestCache': 'Enable request parameter cache (Debug panel auto-caches last filled values)',
   'settings.enableRequestHistory':
     'Enable request history (Debug panel keeps recent requests per operation; apply to form)',
+  'settings.enableResponseCode': 'Show the response status overview (status code, description, Schema, and Media Type)',
   'settings.enableDynamicParameter':
     'Enable dynamic form parameters (add undeclared text fields to urlencoded / multipart bodies)',
   'settings.enableFilterMultipartApis':

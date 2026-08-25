@@ -497,6 +497,7 @@ const jaJP = {
     'リクエストパラメータのキャッシュを有効化（デバッグ画面で前回入力したパラメータ値を自動保存）',
   'settings.enableRequestHistory':
     'リクエスト履歴を有効化（デバッグ画面で API ごとに直近のリクエストを記録し、フォームへ適用可能）',
+  'settings.enableResponseCode': 'レスポンスステータス概要（ステータスコード、説明、Schema、Media Type）を表示',
   'settings.enableDynamicParameter':
     '動的フォームパラメータを有効化（urlencoded / multipart Body にドキュメント未定義のテキストフィールドを追加）',
   'settings.enableFilterMultipartApis':

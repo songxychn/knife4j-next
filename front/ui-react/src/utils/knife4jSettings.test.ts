@@ -21,6 +21,7 @@ describe('knife4j setting extraction', () => {
           enableSearch: false,
           enableDebug: false,
           enableOpenApi: false,
+          enableResponseCode: false,
           enableHomeCustom: true,
           homeCustomLocation: '# Custom Home\n\nWelcome to Knife4j.',
           enableSwaggerModels: false,
@@ -46,6 +47,7 @@ describe('knife4j setting extraction', () => {
       enableSearch: false,
       enableDebug: false,
       enableOpenApi: false,
+      enableResponseCode: false,
       enableHomeCustom: true,
       homeCustomLocation: '# Custom Home\n\nWelcome to Knife4j.',
       enableSwaggerModels: false,
@@ -69,6 +71,7 @@ describe('knife4j setting extraction', () => {
       'x-openapi': {
         'x-setting': {
           enableRequestCache: 'false',
+          enableResponseCode: 'false',
           enableDynamicParameter: 'true',
           enableHomeCustom: 'true',
           homeCustomLocation: 123,
@@ -79,6 +82,16 @@ describe('knife4j setting extraction', () => {
     });
 
     expect(extractKnife4jSettings(doc)).toEqual({});
+  });
+
+  it.each([true, false])('reads boolean response overview setting %s', (enableResponseCode) => {
+    const doc = baseDoc({
+      'x-openapi': {
+        'x-setting': { enableResponseCode },
+      },
+    });
+
+    expect(extractKnife4jSettings(doc)).toEqual({ enableResponseCode });
   });
 
   it.each([

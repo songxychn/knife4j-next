@@ -27,6 +27,8 @@ import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
 import { applyValidationGroupRequiredFields } from './validationGroups';
 import { firstRequestMedia, requestBodyExample, responseExamples } from './apiDocExamples';
+import { useSettings } from '../../context/SettingsContext';
+import { resolveResponseOverviewVisibility } from './responseOverview';
 
 const { Title, Text } = Typography;
 
@@ -195,6 +197,7 @@ const METHOD_COLOR: Record<string, string> = {
 
 export default function ApiDoc() {
   const { t } = useTranslation();
+  const { settings } = useSettings();
   const { loading, swaggerDoc, operation } = useCurrentOperation();
 
   if (loading) {
@@ -391,6 +394,7 @@ export default function ApiDoc() {
 
   const requestExample = requestBodyExample(op.requestBody, bodySchema, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
+  const responseOverviewVisibility = resolveResponseOverviewVisibility(settings.enableResponseCode, responses.length);
   const authors = operationAuthors(op);
 
   return (
@@ -549,16 +553,22 @@ export default function ApiDoc() {
                       : [];
                     return (
                       <div key={row.key} style={{ marginBottom: 16 }}>
-                        <Space size={8} wrap style={{ marginBottom: 6 }}>
-                          <Tag color={color}>{row.statusCode}</Tag>
-                          {row.description && (
-                            <DescriptionText type="secondary" style={{ fontSize: 13 }}>
-                              {row.description}
-                            </DescriptionText>
-                          )}
-                          {row.schema && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
-                          {row.mediaType && <Tag>{row.mediaType}</Tag>}
-                        </Space>
+                        {(responseOverviewVisibility.showStatusCode || responseOverviewVisibility.showDetails) && (
+                          <Space size={8} wrap style={{ marginBottom: 6 }}>
+                            {responseOverviewVisibility.showStatusCode && <Tag color={color}>{row.statusCode}</Tag>}
+                            {responseOverviewVisibility.showDetails && (
+                              <>
+                                {row.description && (
+                                  <DescriptionText type="secondary" style={{ fontSize: 13 }}>
+                                    {row.description}
+                                  </DescriptionText>
+                                )}
+                                {row.schema && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
+                                {row.mediaType && <Tag>{row.mediaType}</Tag>}
+                              </>
+                            )}
+                          </Space>
+                        )}
                         <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
                         {row.headers.length > 0 && (
                           <div style={{ marginTop: 12 }}>

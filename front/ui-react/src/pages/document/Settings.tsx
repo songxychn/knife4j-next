@@ -47,6 +47,17 @@ export default function Settings() {
       </div>
       <Divider style={{ margin: '4px 0' }} />
 
+      {/* 响应状态概要 */}
+      <div style={{ height: 50, lineHeight: '50px' }}>
+        <Checkbox
+          checked={settings.enableResponseCode}
+          onChange={(e) => setSetting('enableResponseCode', e.target.checked)}
+        >
+          {t('settings.enableResponseCode')}
+        </Checkbox>
+      </div>
+      <Divider style={{ margin: '4px 0' }} />
+
       {/* 动态参数 */}
       <div style={{ height: 50, lineHeight: '50px' }}>
         <Checkbox

@@ -5,6 +5,10 @@ export const SETTINGS_STORAGE_VERSION = 2;
 
 export type SettingsOverrides = Partial<AppSettings>;
 
+export function resolveAppSettings(serverSettings: SettingsOverrides, userOverrides: SettingsOverrides): AppSettings {
+  return { ...DEFAULT_SETTINGS, ...serverSettings, ...userOverrides };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

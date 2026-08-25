@@ -15,6 +15,8 @@ export interface AppSettings {
   enableDebug: boolean;
   /** Whether the OpenAPI raw-structure tab is shown. */
   enableOpenApi: boolean;
+  /** Whether response status code, description, schema, and media type summaries are shown. */
+  enableResponseCode: boolean;
   /** Whether the home page should use backend-provided custom Markdown. */
   enableHomeCustom: boolean;
   /** Backend-provided custom home Markdown content. */
@@ -65,6 +67,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableSearch: true,
   enableDebug: true,
   enableOpenApi: true,
+  enableResponseCode: true,
   enableHomeCustom: false,
   homeCustomLocation: '',
   enableSwaggerModels: true,

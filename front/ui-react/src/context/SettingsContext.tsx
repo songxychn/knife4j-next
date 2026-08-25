@@ -1,6 +1,11 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { DEFAULT_SETTINGS, type AppSettings } from '../types/settings';
-import { readSettingsOverrides, SETTINGS_STORAGE_VERSION, type SettingsOverrides } from './settingsStorage';
+import type { AppSettings } from '../types/settings';
+import {
+  readSettingsOverrides,
+  resolveAppSettings,
+  SETTINGS_STORAGE_VERSION,
+  type SettingsOverrides,
+} from './settingsStorage';
 
 const STORAGE_KEY = 'Knife4jGlobalSettings';
 
@@ -52,10 +57,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [serverSettings, setServerSettingsState] = useState<SettingsOverrides>({});
   const [userOverrides, setUserOverrides] = useState<SettingsOverrides>(loadOverrides);
 
-  const settings = useMemo(
-    () => ({ ...DEFAULT_SETTINGS, ...serverSettings, ...userOverrides }),
-    [serverSettings, userOverrides],
-  );
+  const settings = useMemo(() => resolveAppSettings(serverSettings, userOverrides), [serverSettings, userOverrides]);
 
   const setSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setUserOverrides((prev) => {
