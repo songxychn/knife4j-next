@@ -335,21 +335,53 @@ function renewRequestCacheCleanup(storage: Knife4jWebStorage, epoch: Knife4jStor
 function startRequestCacheCleanupHeartbeat(
   storage: Knife4jWebStorage | null,
   epoch: Knife4jStorageResetLease | null,
+  lockManager: Knife4jStorageLockManager | null,
 ): () => void {
   if (!storage || !epoch) return () => {};
+  let stopped = false;
+  let renewal: Promise<unknown> | null = null;
+  const stop = () => {
+    stopped = true;
+    clearInterval(timer);
+  };
   const timer = setInterval(() => {
-    if (!renewRequestCacheCleanup(storage, epoch)) clearInterval(timer);
+    if (stopped || renewal) return;
+    renewal = withKnife4jStorageWriteLock(
+      async (canWrite) => canWrite() && renewRequestCacheCleanup(storage, epoch),
+      lockManager,
+      storage,
+    )
+      .then((retained) => {
+        if (retained !== true) stop();
+      })
+      .catch(stop)
+      .finally(() => {
+        renewal = null;
+      });
   }, KNIFE4J_STORAGE_RESET_LEASE_TTL_MS / 4);
-  return () => clearInterval(timer);
+  return stop;
 }
 
-function completeRequestCacheCleanup(storage: Knife4jWebStorage | null, epoch: Knife4jStorageResetLease | null): void {
+async function completeRequestCacheCleanup(
+  storage: Knife4jWebStorage | null,
+  epoch: Knife4jStorageResetLease | null,
+  lockManager: Knife4jStorageLockManager | null,
+): Promise<void> {
   if (!storage || !epoch) return;
   try {
-    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
-    if (current?.generation !== epoch.generation) return;
-    epoch.expiresAt = 0;
-    storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, JSON.stringify(epoch));
+    await withKnife4jStorageWriteLock(
+      async (canWrite) => {
+        if (!canWrite()) return false;
+        const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+        if (current?.generation !== epoch.generation || current.expiresAt <= Date.now()) return true;
+        const completed = { ...epoch, expiresAt: 0 };
+        storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, JSON.stringify(completed));
+        const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+        return persisted?.generation === completed.generation && persisted.expiresAt === 0;
+      },
+      lockManager,
+      storage,
+    );
   } catch {
     // The active epoch expires and fails closed if completion cannot be persisted.
   }
@@ -1500,7 +1532,11 @@ export async function clearRegisteredKnife4jStorage(
     let requestCacheEpoch = beginRequestCacheCleanup(adapters.localStorage, (error) => {
       requestCacheEpochError = error;
     });
-    let stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(adapters.localStorage, requestCacheEpoch);
+    let stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(
+      adapters.localStorage,
+      requestCacheEpoch,
+      lockManager,
+    );
     const requestCacheGeneration = getRequestCacheSnapshot(adapters.localStorage).generation;
     const releasePendingRemovals = publishPendingWebStorageRemovals(
       adapters.localStorage,
@@ -1569,7 +1605,11 @@ export async function clearRegisteredKnife4jStorage(
             requestCacheEpoch = beginRequestCacheCleanup(adapters.localStorage, (error) => {
               requestCacheEpochError = error;
             });
-            stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(adapters.localStorage, requestCacheEpoch);
+            stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(
+              adapters.localStorage,
+              requestCacheEpoch,
+              lockManager,
+            );
           }
           return retainsRecoveryFence() && hasCrossTabCacheInvalidation();
         });
@@ -1599,7 +1639,7 @@ export async function clearRegisteredKnife4jStorage(
       });
     } finally {
       stopRequestCacheHeartbeat();
-      completeRequestCacheCleanup(adapters.localStorage, requestCacheEpoch);
+      await completeRequestCacheCleanup(adapters.localStorage, requestCacheEpoch, lockManager);
       releasePendingRemovals();
     }
     return result;

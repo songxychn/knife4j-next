@@ -78,6 +78,17 @@ export function invalidateSettingsMemoryForReset(
   return { ...state, resetActive: false };
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function reconcileSettingsMemoryForReset(
+  state: SettingsMemoryState,
+  snapshot: Knife4jStorageResetSnapshot,
+  loadDurableOverrides: () => SettingsOverrides,
+): SettingsMemoryState {
+  const invalidated = invalidateSettingsMemoryForReset(state, snapshot);
+  if (snapshot.active || invalidated === state) return invalidated;
+  return { ...invalidated, overrides: loadDurableOverrides() };
+}
+
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const initialResetSnapshotRef = useRef<Knife4jStorageResetSnapshot | null>(null);
   if (initialResetSnapshotRef.current === null) {
@@ -102,7 +113,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
-      setUserMemory((current) => invalidateSettingsMemoryForReset(current, snapshot));
+      setUserMemory((current) => reconcileSettingsMemoryForReset(current, snapshot, loadOverrides));
     };
     const unsubscribe = subscribeKnife4jStorageReset(handleResetSnapshot);
     handleResetSnapshot(getKnife4jStorageResetSnapshot());

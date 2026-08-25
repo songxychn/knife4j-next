@@ -775,6 +775,75 @@ describe('Knife4j storage cleanup registry', () => {
     expect(JSON.parse(writerStorage.getItem(targetKey) ?? '[]')).toEqual(['new-history']);
   });
 
+  it('serializes cache epoch heartbeats behind a superseding reset mutation', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
+    const localStorage = new MemoryWebStorage({
+      [targetKey]: 'cache',
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+    });
+    const lockManager = new MemoryLockManager();
+    const intervalCallbacks: Array<() => void> = [];
+    const intervalSpy = vi.spyOn(globalThis, 'setInterval').mockImplementation(((callback: () => void) => {
+      intervalCallbacks.push(callback);
+      return 1 as unknown as ReturnType<typeof setInterval>;
+    }) as typeof setInterval);
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval').mockImplementation(() => {});
+    let releaseBlocker: (() => void) | undefined;
+    const blockerGate = new Promise<void>((resolve) => {
+      releaseBlocker = resolve;
+    });
+    let signalBlockerStarted: (() => void) | undefined;
+    const blockerStarted = new Promise<void>((resolve) => {
+      signalBlockerStarted = resolve;
+    });
+    const blocker = lockManager.request('knife4j-next:storage-reset', { mode: 'exclusive' }, async () => {
+      signalBlockerStarted?.();
+      await blockerGate;
+    });
+
+    try {
+      await blockerStarted;
+      const cleanup = clearRegisteredKnife4jStorage(
+        'request-cache',
+        {
+          localStorage,
+          sessionStorage: new MemoryWebStorage({}),
+          indexedDB: new MemoryIndexedDb([]),
+        },
+        lockManager,
+      );
+      const activeEpoch = JSON.parse(localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) ?? 'null') as {
+        generation: string;
+        expiresAt: number;
+      };
+      expect(activeEpoch.expiresAt).toBeGreaterThan(Date.now());
+
+      const takeover = lockManager.request('knife4j-next:storage-reset', { mode: 'exclusive' }, () => {
+        localStorage.setItem(
+          KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+          JSON.stringify({ version: 1, generation: 'superseding-reset', expiresAt: 0 }),
+        );
+      });
+      expect(intervalCallbacks).toHaveLength(1);
+      intervalCallbacks[0]();
+      releaseBlocker?.();
+
+      const [result] = await Promise.all([cleanup, takeover, blocker]);
+      const finalEpoch = JSON.parse(localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) ?? 'null') as {
+        generation: string;
+        expiresAt: number;
+      };
+
+      expect(result.failures).toEqual([]);
+      expect(finalEpoch).toMatchObject({ generation: 'superseding-reset', expiresAt: 0 });
+      expect(finalEpoch.generation).not.toBe(activeEpoch.generation);
+    } finally {
+      releaseBlocker?.();
+      intervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
+    }
+  });
+
   it('rejects a history write whose read snapshot predates cross-tab cache cleanup', async () => {
     const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
     const sharedValues = new Map<string, string>();
