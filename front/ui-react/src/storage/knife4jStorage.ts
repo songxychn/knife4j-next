@@ -445,6 +445,10 @@ export async function removeKnife4jStorageItem(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
 ): Promise<boolean> {
   try {
+    if (!leaseStorage) {
+      storage.removeItem(key);
+      return true;
+    }
     const removed = await trackKnife4jStorageWrite(
       async (canWrite) => {
         if (!canWrite()) return false;
