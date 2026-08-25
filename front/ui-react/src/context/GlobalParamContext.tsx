@@ -284,7 +284,9 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
   }
 
   try {
-    const persisted = setKnife4jStorageItem(target, key, JSON.stringify(migrated));
+    const persisted = setKnife4jStorageItem(target, key, JSON.stringify(migrated), undefined, {
+      deferOnContention: false,
+    });
     if (!persisted) return migrated;
   } catch {
     // Keep the legacy value when the new value could not be persisted.

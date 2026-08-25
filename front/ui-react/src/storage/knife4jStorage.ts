@@ -141,6 +141,8 @@ const KNIFE4J_STORAGE_RESET_LEASE_VERSION = 1;
 const KNIFE4J_STORAGE_RESET_LEASE_TTL_MS = 2 * 60 * 1000;
 const KNIFE4J_STORAGE_RESET_LEASE_POLL_MS = 50;
 const KNIFE4J_STORAGE_RESET_CLAIM_TTL_MS = 10 * 1000;
+const KNIFE4J_STORAGE_WRITE_OWNER_VERSION = 1;
+const KNIFE4J_STORAGE_WRITE_OWNER_TTL_MS = 2 * 60 * 1000;
 
 export interface Knife4jStorageResetSnapshot {
   readonly generation: string;
@@ -165,6 +167,21 @@ interface Knife4jStorageResetLease {
 interface Knife4jStorageResetClaim extends Knife4jStorageResetLease {
   createdAt: number;
 }
+
+interface Knife4jWebStorageWriteOwner {
+  version: typeof KNIFE4J_STORAGE_WRITE_OWNER_VERSION;
+  writeId: string;
+  expiresAt: number;
+}
+
+interface DeferredKnife4jWebStorageWrite {
+  value: string;
+  leaseStorage: Knife4jWebStorage | null;
+  generation: string;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
+const deferredWebStorageWrites = new WeakMap<object, Map<string, DeferredKnife4jWebStorageWrite>>();
 
 function cancelResetLeaseExpiry(storage?: Knife4jWebStorage | null, generation?: string): void {
   if (
@@ -326,14 +343,17 @@ function browserStorageLockManager(): Knife4jStorageLockManager | null {
   return navigator.locks as unknown as Knife4jStorageLockManager;
 }
 
+type Knife4jStorageWriteFence = (() => boolean) & { readonly generation: string };
+
 function createKnife4jStorageWriteFence(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
-): () => boolean {
+): Knife4jStorageWriteFence {
   const generation = getKnife4jStorageResetSnapshot(leaseStorage).generation;
-  return () => {
+  const canWrite = () => {
     const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
     return allLocalDataCleanupCount === 0 && !snapshot.active && generation === snapshot.generation;
   };
+  return Object.assign(canWrite, { generation });
 }
 
 /** Write one registered Web Storage value only when no full reset invalidated it. */
@@ -341,16 +361,95 @@ function webStorageWriteOwnerKey(key: string): string {
   return `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(key)}`;
 }
 
+function parseWebStorageWriteOwner(value: string | null): Knife4jWebStorageWriteOwner | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<Knife4jWebStorageWriteOwner>;
+    if (
+      parsed.version !== KNIFE4J_STORAGE_WRITE_OWNER_VERSION ||
+      typeof parsed.writeId !== 'string' ||
+      !parsed.writeId ||
+      typeof parsed.expiresAt !== 'number'
+    ) {
+      return null;
+    }
+    return parsed as Knife4jWebStorageWriteOwner;
+  } catch {
+    return null;
+  }
+}
+
+function readActiveWebStorageWriteOwner(
+  storage: Pick<Storage, 'getItem' | 'removeItem'>,
+  ownerKey: string,
+  now = Date.now(),
+): Knife4jWebStorageWriteOwner | null {
+  const value = storage.getItem(ownerKey);
+  if (!value) return null;
+  const owner = parseWebStorageWriteOwner(value);
+  if (owner && owner.expiresAt > now) return owner;
+  storage.removeItem(ownerKey);
+  return null;
+}
+
 function removeWebStorageWriteOwner(
   storage: Pick<Storage, 'getItem' | 'removeItem'>,
   ownerKey: string,
-  writeId: string,
+  ownerValue: string,
 ): void {
   try {
-    if (storage.getItem(ownerKey) === writeId) storage.removeItem(ownerKey);
+    if (storage.getItem(ownerKey) === ownerValue) storage.removeItem(ownerKey);
   } catch {
-    // A crashed marker contains no user payload and remains registered for the next full cleanup.
+    // A crashed marker contains no user payload and expires before another writer reuses the key.
   }
+}
+
+function deferKnife4jWebStorageWrite(
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
+  key: string,
+  value: string,
+  leaseStorage: Knife4jWebStorage | null,
+  generation: string,
+): void {
+  let writes = deferredWebStorageWrites.get(storage);
+  if (!writes) {
+    writes = new Map();
+    deferredWebStorageWrites.set(storage, writes);
+  }
+
+  const existing = writes.get(key);
+  if (existing) {
+    existing.value = value;
+    existing.leaseStorage = leaseStorage;
+    existing.generation = generation;
+    return;
+  }
+
+  const deferred: DeferredKnife4jWebStorageWrite = { value, leaseStorage, generation, timer: null };
+  writes.set(key, deferred);
+  const retry = () => {
+    deferred.timer = null;
+    if (writes?.get(key) !== deferred) return;
+    try {
+      const snapshot = getKnife4jStorageResetSnapshot(deferred.leaseStorage);
+      if (snapshot.generation !== deferred.generation) {
+        writes.delete(key);
+        return;
+      }
+      const ownerKey = webStorageWriteOwnerKey(key);
+      if (snapshot.active || readActiveWebStorageWriteOwner(storage, ownerKey)) {
+        deferred.timer = setTimeout(retry, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS);
+        (deferred.timer as unknown as { unref?: () => void }).unref?.();
+        return;
+      }
+      writes.delete(key);
+      setKnife4jStorageItem(storage, key, deferred.value, deferred.leaseStorage);
+    } catch {
+      writes.delete(key);
+    }
+  };
+  deferred.timer = setTimeout(retry, 0);
+  (deferred.timer as unknown as { unref?: () => void }).unref?.();
 }
 
 export function setKnife4jStorageItem(
@@ -358,13 +457,28 @@ export function setKnife4jStorageItem(
   key: string,
   value: string,
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  options: { deferOnContention?: boolean } = {},
 ): boolean {
   const canWrite = createKnife4jStorageWriteFence(leaseStorage);
   if (!canWrite()) return false;
-  const writeId = createResetGeneration();
   const ownerKey = webStorageWriteOwnerKey(key);
   try {
-    storage.setItem(ownerKey, writeId);
+    if (readActiveWebStorageWriteOwner(storage, ownerKey)) {
+      if (options.deferOnContention === false) return false;
+      deferKnife4jWebStorageWrite(storage, key, value, leaseStorage, canWrite.generation);
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  const owner: Knife4jWebStorageWriteOwner = {
+    version: KNIFE4J_STORAGE_WRITE_OWNER_VERSION,
+    writeId: createResetGeneration(),
+    expiresAt: Date.now() + KNIFE4J_STORAGE_WRITE_OWNER_TTL_MS,
+  };
+  const ownerValue = JSON.stringify(owner);
+  try {
+    storage.setItem(ownerKey, ownerValue);
   } catch {
     // Replacing an existing value may still fit when adding a marker would
     // exceed quota. Preserve that capability; without an owner marker, a
@@ -374,27 +488,28 @@ export function setKnife4jStorageItem(
     return canWrite();
   }
   if (!canWrite()) {
-    removeWebStorageWriteOwner(storage, ownerKey, writeId);
+    removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
     return false;
   }
+  if (storage.getItem(ownerKey) !== ownerValue) return false;
   try {
     storage.setItem(key, value);
   } catch (error) {
-    removeWebStorageWriteOwner(storage, ownerKey, writeId);
+    removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
     throw error;
   }
   if (!canWrite()) {
     if (
-      storage.getItem(ownerKey) === writeId &&
+      storage.getItem(ownerKey) === ownerValue &&
       storage.getItem(key) === value &&
-      storage.getItem(ownerKey) === writeId
+      storage.getItem(ownerKey) === ownerValue
     ) {
       storage.removeItem(key);
     }
-    removeWebStorageWriteOwner(storage, ownerKey, writeId);
+    removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
     return false;
   }
-  removeWebStorageWriteOwner(storage, ownerKey, writeId);
+  removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
   return true;
 }
 

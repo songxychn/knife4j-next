@@ -245,7 +245,9 @@ async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
         if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
         return;
       }
-      const marked = setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1');
+      const marked = setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1', undefined, {
+        deferOnContention: false,
+      });
       if (!marked || !canWrite()) {
         localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
         if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
