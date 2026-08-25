@@ -479,6 +479,8 @@ const jaJP = {
 
   // Tab context menu
   'tab.context.closeCurrent': '現在のタブを閉じる',
+  'tab.context.closeLeft': '左側のタブを閉じる',
+  'tab.context.closeRight': '右側のタブを閉じる',
   'tab.context.closeOther': 'その他のタブを閉じる',
   'tab.context.closeAll': 'すべてのタブを閉じる',
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { findOperationRouteKey, routeKeyToMenuKey, upsertOperationRoutePane } from './operationTabs';
+import {
+  closeTabsOnSide,
+  findOperationRouteKey,
+  hasClosableTabsOnSide,
+  routeKeyToMenuKey,
+  upsertOperationRoutePane,
+} from './operationTabs';
 
 interface Pane {
   key: string;
@@ -8,6 +14,8 @@ interface Pane {
 }
 
 const createPane = (key: string, label: string): Pane => ({ key, label, children: '' });
+const HOME_KEY = '/group/home';
+const isClosable = (pane: Pane) => pane.key !== HOME_KEY;
 
 describe('operationTabs', () => {
   it('maps operation child routes back to their sidebar menu key', () => {
@@ -45,5 +53,61 @@ describe('operationTabs', () => {
       createPane('/default/Pet/list/debug', 'GET list'),
       createPane('/default/Store/list/doc', 'GET stores'),
     ]);
+  });
+
+  it('closes every closable tab to the left while keeping Home and the anchor', () => {
+    const home = createPane(HOME_KEY, 'Home');
+    const first = createPane('/first/doc', 'First');
+    const second = createPane('/second/doc', 'Second');
+    const anchor = createPane('/anchor/doc', 'Anchor');
+
+    expect(
+      closeTabsOnSide({ items: [home, first, second, anchor], activeKey: second.key }, anchor.key, 'left', isClosable),
+    ).toEqual({ items: [home, anchor], activeKey: anchor.key });
+  });
+
+  it('activates a non-active anchor after closing tabs to the right', () => {
+    const home = createPane(HOME_KEY, 'Home');
+    const first = createPane('/first/doc', 'First');
+    const anchor = createPane('/anchor/doc', 'Anchor');
+    const active = createPane('/active/doc', 'Active');
+
+    expect(
+      closeTabsOnSide({ items: [home, first, anchor, active], activeKey: active.key }, anchor.key, 'right', isClosable),
+    ).toEqual({ items: [home, first, anchor], activeKey: anchor.key });
+  });
+
+  it('keeps Home as the active anchor when closing every tab to its right', () => {
+    const home = createPane(HOME_KEY, 'Home');
+    const first = createPane('/first/doc', 'First');
+    const second = createPane('/second/doc', 'Second');
+
+    expect(
+      closeTabsOnSide({ items: [home, first, second], activeKey: second.key }, home.key, 'right', isClosable),
+    ).toEqual({ items: [home], activeKey: home.key });
+  });
+
+  it('reports whether the requested side contains a closable tab', () => {
+    const home = createPane(HOME_KEY, 'Home');
+    const first = createPane('/first/doc', 'First');
+    const middle = createPane('/middle/doc', 'Middle');
+    const last = createPane('/last/doc', 'Last');
+    const items = [home, first, middle, last];
+
+    expect(hasClosableTabsOnSide(items, first.key, 'left', isClosable)).toBe(false);
+    expect(hasClosableTabsOnSide(items, first.key, 'right', isClosable)).toBe(true);
+    expect(hasClosableTabsOnSide(items, middle.key, 'left', isClosable)).toBe(true);
+    expect(hasClosableTabsOnSide(items, middle.key, 'right', isClosable)).toBe(true);
+    expect(hasClosableTabsOnSide(items, last.key, 'left', isClosable)).toBe(true);
+    expect(hasClosableTabsOnSide(items, last.key, 'right', isClosable)).toBe(false);
+  });
+
+  it('leaves the current state unchanged when the anchor does not exist', () => {
+    const state = {
+      items: [createPane(HOME_KEY, 'Home'), createPane('/first/doc', 'First')],
+      activeKey: '/first/doc',
+    };
+
+    expect(closeTabsOnSide(state, '/missing/doc', 'left', isClosable)).toBe(state);
   });
 });

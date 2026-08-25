@@ -1,5 +1,15 @@
 const OPERATION_MODE_SUFFIXES = ['/doc', '/debug', '/openapi', '/script'] as const;
 
+export type TabCloseSide = 'left' | 'right';
+
+export interface OperationTabsState<T extends { key: string }> {
+  items: T[];
+  activeKey: string;
+}
+
+const isIndexOnSide = (index: number, anchorIndex: number, side: TabCloseSide) =>
+  side === 'left' ? index < anchorIndex : index > anchorIndex;
+
 /**
  * Strip the trailing operation mode segment from a route key to obtain the
  * corresponding sidebar menu key.
@@ -19,6 +29,35 @@ export const routeKeyToMenuKey = (key: string) =>
 
 export function isOperationRouteKey(key: string): boolean {
   return OPERATION_MODE_SUFFIXES.some((suffix) => key.endsWith(suffix));
+}
+
+export function hasClosableTabsOnSide<T extends { key: string }>(
+  items: readonly T[],
+  anchorKey: string,
+  side: TabCloseSide,
+  isClosable: (item: T) => boolean,
+): boolean {
+  const anchorIndex = items.findIndex((item) => item.key === anchorKey);
+  if (anchorIndex < 0) return false;
+
+  return items.some((item, index) => isIndexOnSide(index, anchorIndex, side) && isClosable(item));
+}
+
+export function closeTabsOnSide<T extends { key: string }>(
+  state: OperationTabsState<T>,
+  anchorKey: string,
+  side: TabCloseSide,
+  isClosable: (item: T) => boolean,
+): OperationTabsState<T> {
+  const anchorIndex = state.items.findIndex((item) => item.key === anchorKey);
+  if (anchorIndex < 0) return state;
+
+  const items = state.items.filter((item, index) => !isIndexOnSide(index, anchorIndex, side) || !isClosable(item));
+
+  return {
+    items: items.length === state.items.length ? state.items : items,
+    activeKey: anchorKey,
+  };
 }
 
 export function findOperationRouteKey(items: Array<{ key: string }>, menuKey: string): string | null {
