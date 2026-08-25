@@ -324,12 +324,35 @@ describe('Knife4j storage cleanup registry', () => {
       [authKey, { token: 'secret' }],
       ['host-application:idb', { keep: true }],
     ]);
+    const lockManager = new MemoryLockManager();
+    const resetSnapshots: Array<{ generation: string; active: boolean }> = [];
+    const unsubscribe = subscribeKnife4jStorageReset((snapshot) => resetSnapshots.push({ ...snapshot }));
+    let signalWriteStarted: (() => void) | undefined;
+    const writeStarted = new Promise<void>((resolve) => {
+      signalWriteStarted = resolve;
+    });
+    let releaseWrite: (() => void) | undefined;
+    const writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const inFlightWrite = withKnife4jStorageWriteLock(
+      async (canWrite) => {
+        signalWriteStarted?.();
+        await writeGate;
+        expect(canWrite()).toBe(false);
+      },
+      lockManager,
+      localStorage,
+    );
+    await writeStarted;
 
-    const result = await clearRegisteredKnife4jStorage(
+    const cleanup = clearRegisteredKnife4jStorage(
       'all-local-data',
       { localStorage, sessionStorage, indexedDB },
-      new MemoryLockManager(),
+      lockManager,
     );
+    releaseWrite?.();
+    const [result] = await Promise.all([cleanup, inFlightWrite]).finally(unsubscribe);
 
     expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 1, indexedDB: 1 });
     expect(result.failures).toEqual([
@@ -342,6 +365,9 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.values).toEqual(new Map([['host-application:key', 'keep']]));
     expect(sessionStorage.values).toEqual(new Map([['host-application:session', 'keep']]));
     expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
+    expect(resetSnapshots.map((snapshot) => snapshot.active)).toEqual(expect.arrayContaining([true, false]));
+    expect(resetSnapshots.at(-1)?.active).toBe(false);
+    expect(getKnife4jStorageResetSnapshot(localStorage).active).toBe(false);
   });
 
   it('does not remove an identical newer Web Storage value while rolling back a stale write', () => {

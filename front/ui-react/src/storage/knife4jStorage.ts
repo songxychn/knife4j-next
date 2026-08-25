@@ -844,7 +844,10 @@ export async function clearRegisteredKnife4jStorage(
     else await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, performCoordinatedCleanup);
   } finally {
     stopResetLeaseHeartbeat();
-    if (guardsAsyncWrites) allLocalDataCleanupCount -= 1;
+    if (guardsAsyncWrites) {
+      allLocalDataCleanupCount -= 1;
+      getKnife4jStorageResetSnapshot(adapters.localStorage);
+    }
     releaseResetLease(adapters.localStorage, lease, result);
   }
   return result;
