@@ -151,6 +151,10 @@ const KNIFE4J_STORAGE_RESET_LEASE_VERSION = 1;
 const KNIFE4J_STORAGE_RESET_LEASE_TTL_MS = 2 * 60 * 1000;
 const KNIFE4J_STORAGE_RESET_LEASE_POLL_MS = 50;
 const KNIFE4J_STORAGE_RESET_CLAIM_TTL_MS = 10 * 1000;
+const KNIFE4J_STORAGE_COORDINATION_DB = 'knife4j-next-storage-coordination';
+const KNIFE4J_STORAGE_COORDINATION_STORE = 'locks';
+const KNIFE4J_STORAGE_COORDINATION_KEY = 'storage-mutation';
+let storageCoordinationDatabase: Promise<IDBDatabase> | null = null;
 
 export interface Knife4jStorageResetSnapshot {
   readonly generation: string;
@@ -446,6 +450,150 @@ if (typeof window !== 'undefined') {
 function browserStorageLockManager(): Knife4jStorageLockManager | null {
   if (typeof navigator === 'undefined' || !navigator.locks) return null;
   return navigator.locks as unknown as Knife4jStorageLockManager;
+}
+
+function openStorageCoordinationDatabase(): Promise<IDBDatabase> {
+  if (storageCoordinationDatabase) return storageCoordinationDatabase;
+  storageCoordinationDatabase = new Promise<IDBDatabase>((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB coordination unavailable'));
+      return;
+    }
+    let openFailed = false;
+    const rejectOpen = (error: Error) => {
+      openFailed = true;
+      reject(error);
+    };
+    const request = indexedDB.open(KNIFE4J_STORAGE_COORDINATION_DB, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(KNIFE4J_STORAGE_COORDINATION_STORE)) {
+        request.result.createObjectStore(KNIFE4J_STORAGE_COORDINATION_STORE);
+      }
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      if (openFailed) {
+        database.close();
+        return;
+      }
+      database.onversionchange = () => {
+        database.close();
+        storageCoordinationDatabase = null;
+      };
+      resolve(database);
+    };
+    request.onerror = () => rejectOpen(request.error ?? new Error('IndexedDB coordination open failed'));
+    request.onblocked = () => rejectOpen(new Error('IndexedDB coordination open blocked'));
+  }).catch((error) => {
+    storageCoordinationDatabase = null;
+    throw error;
+  });
+  return storageCoordinationDatabase;
+}
+
+/**
+ * Hold a browser-managed IndexedDB transaction across a fallback mutation.
+ * Unlike the expiring localStorage lease, a suspended renderer cannot let a
+ * competing tab enter this critical section; a discarded renderer releases
+ * the transaction without resuming its target write.
+ */
+async function runWithFallbackCriticalSection<T>(
+  mutation: (retainsCriticalSection: () => boolean) => Promise<T> | T,
+): Promise<T | undefined> {
+  // Unit adapters and SSR have no competing browser context. Production
+  // browsers must fail closed when IndexedDB coordination is unavailable.
+  if (typeof window === 'undefined' || window !== globalThis) return mutation(() => true);
+
+  let database: IDBDatabase;
+  try {
+    database = await openStorageCoordinationDatabase();
+  } catch {
+    return undefined;
+  }
+
+  return new Promise<T | undefined>((resolve) => {
+    let transaction: IDBTransaction;
+    try {
+      transaction = database.transaction(KNIFE4J_STORAGE_COORDINATION_STORE, 'readwrite');
+    } catch {
+      resolve(undefined);
+      return;
+    }
+
+    const store = transaction.objectStore(KNIFE4J_STORAGE_COORDINATION_STORE);
+    let active = true;
+    let started = false;
+    let settled = false;
+    let failed = false;
+    let result: T | undefined;
+    let finished = false;
+    const finish = (value: T | undefined) => {
+      if (finished) return;
+      finished = true;
+      resolve(value);
+    };
+
+    const fail = () => {
+      if (failed) return;
+      active = false;
+      failed = true;
+      try {
+        transaction.abort();
+      } catch {
+        finish(undefined);
+      }
+    };
+
+    transaction.oncomplete = () => {
+      active = false;
+      finish(failed ? undefined : result);
+    };
+    transaction.onabort = () => {
+      active = false;
+      finish(undefined);
+    };
+    transaction.onerror = fail;
+
+    const keepAlive = () => {
+      let request: IDBRequest;
+      try {
+        request = store.get(KNIFE4J_STORAGE_COORDINATION_KEY);
+      } catch {
+        fail();
+        return;
+      }
+      request.onsuccess = () => {
+        if (!started) {
+          started = true;
+          void Promise.resolve()
+            .then(() => mutation(() => active))
+            .then(
+              (value) => {
+                result = value;
+                settled = true;
+              },
+              () => {
+                settled = true;
+                fail();
+              },
+            );
+        }
+        if (!settled) {
+          keepAlive();
+          return;
+        }
+        if (failed) return;
+        try {
+          store.put(Date.now(), KNIFE4J_STORAGE_COORDINATION_KEY);
+        } catch {
+          fail();
+        }
+      };
+      request.onerror = fail;
+    };
+
+    keepAlive();
+  });
 }
 
 type Knife4jStorageWriteFence = (() => boolean) & { readonly generation: string };
@@ -768,8 +916,11 @@ async function runWithFallbackMutationLease<T>(
   const stopHeartbeat = startMutationLeaseHeartbeat(storage, lease);
   const retainsMutationLease = () => renewMutationLease(storage, lease) && canWrite();
   try {
-    if (!retainsMutationLease()) return undefined;
-    return await write(retainsMutationLease);
+    return await runWithFallbackCriticalSection((retainsCriticalSection) => {
+      const retainsFallbackCoordination = () => retainsCriticalSection() && retainsMutationLease();
+      if (!retainsFallbackCoordination()) return Promise.resolve(undefined);
+      return write(retainsFallbackCoordination);
+    });
   } finally {
     stopHeartbeat();
     releaseMutationLease(storage, lease);
@@ -840,6 +991,17 @@ function recordFailure(result: Knife4jStorageCleanupResult, failure: Knife4jStor
 
 function recordUnavailable(result: Knife4jStorageCleanupResult, area: Knife4jStorageArea): void {
   recordFailure(result, { area, reason: `${area} unavailable` });
+}
+
+function recordFallbackCriticalSectionUnavailable(
+  result: Knife4jStorageCleanupResult,
+  operation: 'request cache' | 'storage reset',
+): void {
+  recordFailure(result, {
+    area: 'indexedDB',
+    key: KNIFE4J_STORAGE_COORDINATION_DB,
+    reason: `${operation} coordination unavailable`,
+  });
 }
 
 function waitForResetLeaseTurn(lease: Knife4jStorageResetLease): Promise<void> {
@@ -1338,6 +1500,7 @@ export async function clearRegisteredKnife4jStorage(
       );
 
     try {
+      let fallbackCriticalSectionUnavailable = false;
       let completed = await performRequestCacheCleanup();
       if (
         completed !== true &&
@@ -1349,33 +1512,44 @@ export async function clearRegisteredKnife4jStorage(
         // A full localStorage quota can prevent publishing the fallback claim.
         // Remove only the requested registered entries, then retry coordination
         // before clearing session state or running the final deletion scan.
-        clearWebStorage(
-          'localStorage',
-          adapters.localStorage,
-          KNIFE4J_STORAGE_REGISTRY.localStorage,
-          result,
-          retainsResetGeneration,
-        );
-        if (!getRequestCacheSnapshot(adapters.localStorage).active) {
-          stopRequestCacheHeartbeat();
-          requestCacheEpochError = undefined;
-          requestCacheEpoch = beginRequestCacheCleanup(adapters.localStorage, (error) => {
-            requestCacheEpochError = error;
-          });
-          stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(adapters.localStorage, requestCacheEpoch);
-        }
-        if (retainsResetGeneration() && hasCrossTabCacheInvalidation()) {
+        const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
+          const retainsRecoveryFence = () => retainsCriticalSection() && retainsResetGeneration();
+          if (!retainsRecoveryFence()) return false;
+          clearWebStorage(
+            'localStorage',
+            adapters.localStorage,
+            KNIFE4J_STORAGE_REGISTRY.localStorage,
+            result,
+            retainsRecoveryFence,
+          );
+          if (!retainsRecoveryFence()) return false;
+          if (!getRequestCacheSnapshot(adapters.localStorage).active) {
+            stopRequestCacheHeartbeat();
+            requestCacheEpochError = undefined;
+            requestCacheEpoch = beginRequestCacheCleanup(adapters.localStorage, (error) => {
+              requestCacheEpochError = error;
+            });
+            stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(adapters.localStorage, requestCacheEpoch);
+          }
+          return retainsRecoveryFence() && hasCrossTabCacheInvalidation();
+        });
+        fallbackCriticalSectionUnavailable = recovered === undefined;
+        if (recovered === true) {
           completed = await performRequestCacheCleanup();
         }
       }
       if (completed !== true) {
-        recordFailure(result, {
-          area: 'localStorage',
-          key: KNIFE4J_STORAGE_KEYS.mutationLease,
-          reason: requestCacheEpochError
-            ? `request cache coordination failed: ${errorMessage(requestCacheEpochError)}`
-            : 'request cache coordination unavailable',
-        });
+        if (fallbackCriticalSectionUnavailable) {
+          recordFallbackCriticalSectionUnavailable(result, 'request cache');
+        } else {
+          recordFailure(result, {
+            area: 'localStorage',
+            key: KNIFE4J_STORAGE_KEYS.mutationLease,
+            reason: requestCacheEpochError
+              ? `request cache coordination failed: ${errorMessage(requestCacheEpochError)}`
+              : 'request cache coordination unavailable',
+          });
+        }
       }
     } catch (error) {
       recordFailure(result, {
@@ -1415,43 +1589,44 @@ export async function clearRegisteredKnife4jStorage(
     return adapters.localStorage !== null && lease !== null && renewResetLease(adapters.localStorage, lease, result);
   };
 
-  const performCleanup = async (): Promise<void> => {
+  const performCleanup = async (retainsCriticalSection: () => boolean = () => true): Promise<void> => {
+    const retainsCleanupLease = () => retainsCriticalSection() && retainsResetLease();
     if (guardsAsyncWrites) await waitForPendingKnife4jStorageWrites();
-    if (!retainsResetLease()) return;
+    if (!retainsCleanupLease()) return;
 
     clearWebStorage(
       'localStorage',
       adapters.localStorage,
       KNIFE4J_STORAGE_REGISTRY.localStorage,
       result,
-      retainsResetLease,
+      retainsCleanupLease,
     );
     clearWebStorage(
       'sessionStorage',
       adapters.sessionStorage,
       KNIFE4J_STORAGE_REGISTRY.sessionStorage,
       result,
-      retainsResetLease,
+      retainsCleanupLease,
     );
-    await clearIndexedDbStorage(adapters.indexedDB, result, retainsResetLease);
+    await clearIndexedDbStorage(adapters.indexedDB, result, retainsCleanupLease);
     if (guardsAsyncWrites) {
       await waitForPendingKnife4jStorageWrites();
-      if (!retainsResetLease()) return;
-      await clearIndexedDbStorage(adapters.indexedDB, result, retainsResetLease);
-      if (!retainsResetLease()) return;
+      if (!retainsCleanupLease()) return;
+      await clearIndexedDbStorage(adapters.indexedDB, result, retainsCleanupLease);
+      if (!retainsCleanupLease()) return;
       clearWebStorage(
         'localStorage',
         adapters.localStorage,
         KNIFE4J_STORAGE_REGISTRY.localStorage,
         result,
-        retainsResetLease,
+        retainsCleanupLease,
       );
       clearWebStorage(
         'sessionStorage',
         adapters.sessionStorage,
         KNIFE4J_STORAGE_REGISTRY.sessionStorage,
         result,
-        retainsResetLease,
+        retainsCleanupLease,
       );
     }
   };
@@ -1466,7 +1641,21 @@ export async function clearRegisteredKnife4jStorage(
         if (!mutationLease && isQuotaExceededError(mutationLeaseError)) {
           // Recover enough quota to publish the fallback mutex before any
           // non-localStorage deletion can race a cross-tab mutation.
-          clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
+          const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
+            if (!retainsCriticalSection()) return false;
+            clearWebStorage(
+              'localStorage',
+              adapters.localStorage,
+              KNIFE4J_STORAGE_REGISTRY.localStorage,
+              result,
+              retainsCriticalSection,
+            );
+            return retainsCriticalSection();
+          });
+          if (recovered !== true) {
+            if (recovered === undefined) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
+            return;
+          }
           mutationLease = await acquireMutationLease(adapters.localStorage, (error) => {
             mutationLeaseError = error;
           });
@@ -1491,7 +1680,22 @@ export async function clearRegisteredKnife4jStorage(
         // A full localStorage quota can prevent even the coordination claim.
         // Free only registered Knife4j values, then publish the lease before
         // touching IndexedDB or running the final deletion passes.
-        clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
+        const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
+          const retainsRecoveryFence = () => retainsCriticalSection() && retainsMutationLease();
+          if (!retainsRecoveryFence()) return false;
+          clearWebStorage(
+            'localStorage',
+            adapters.localStorage,
+            KNIFE4J_STORAGE_REGISTRY.localStorage,
+            result,
+            retainsRecoveryFence,
+          );
+          return retainsRecoveryFence();
+        });
+        if (recovered !== true) {
+          if (recovered === undefined) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
+          return;
+        }
         lease = await acquireResetLease(adapters.localStorage, result);
       }
       if (!lease) {
@@ -1507,6 +1711,14 @@ export async function clearRegisteredKnife4jStorage(
         return;
       }
       stopResetLeaseHeartbeat = startResetLeaseHeartbeat(adapters.localStorage, lease, result);
+    }
+    if (!lockManager && adapters.localStorage) {
+      const completed = await runWithFallbackCriticalSection(async (retainsCriticalSection) => {
+        await performCleanup(retainsCriticalSection);
+        return retainsCriticalSection();
+      });
+      if (completed !== true) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
+      return;
     }
     await performCleanup();
   };

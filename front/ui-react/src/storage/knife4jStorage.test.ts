@@ -107,6 +107,146 @@ class MemoryLockManager implements Knife4jStorageLockManager {
   }
 }
 
+class SerializedTestIdbTransaction {
+  oncomplete: ((event: Event) => unknown) | null = null;
+  onabort: ((event: Event) => unknown) | null = null;
+  onerror: ((event: Event) => unknown) | null = null;
+
+  private readonly operations: Array<() => void> = [];
+  private active = false;
+  private processing = false;
+  private completed = false;
+  private processedRequest = false;
+  private completionScheduled = false;
+
+  constructor(private readonly release: (transaction: SerializedTestIdbTransaction) => void) {}
+
+  objectStore(): IDBObjectStore {
+    return {
+      get: () => this.enqueueRequest(),
+      put: () => this.enqueueRequest(),
+    } as unknown as IDBObjectStore;
+  }
+
+  start(): void {
+    this.active = true;
+    this.drain();
+  }
+
+  abort(): void {
+    if (this.completed) throw new Error('transaction already completed');
+    this.completed = true;
+    this.active = false;
+    setTimeout(() => {
+      this.onabort?.(new Event('abort'));
+      this.release(this);
+    }, 0);
+  }
+
+  private enqueueRequest(): IDBRequest {
+    const request = {
+      onsuccess: null,
+      onerror: null,
+    } as unknown as IDBRequest;
+    this.operations.push(() => request.onsuccess?.(new Event('success')));
+    this.drain();
+    return request;
+  }
+
+  private drain(): void {
+    if (!this.active || this.completed || this.processing) return;
+    const operation = this.operations.shift();
+    if (!operation) {
+      if (!this.processedRequest || this.completionScheduled) return;
+      this.completionScheduled = true;
+      setTimeout(() => {
+        this.completionScheduled = false;
+        if (!this.active || this.completed || this.processing || this.operations.length > 0) {
+          this.drain();
+          return;
+        }
+        this.completed = true;
+        this.active = false;
+        this.oncomplete?.(new Event('complete'));
+        this.release(this);
+      }, 0);
+      return;
+    }
+
+    this.processing = true;
+    setTimeout(() => {
+      if (this.completed) return;
+      operation();
+      this.processedRequest = true;
+      this.processing = false;
+      this.drain();
+    }, 0);
+  }
+}
+
+class SerializedTestIndexedDb {
+  transactionCount = 0;
+
+  private readonly stores = new Set<string>();
+  private readonly transactions: SerializedTestIdbTransaction[] = [];
+  private activeTransaction: SerializedTestIdbTransaction | null = null;
+
+  readonly database = {
+    objectStoreNames: {
+      contains: (name: string) => this.stores.has(name),
+    },
+    createObjectStore: (name: string) => {
+      this.stores.add(name);
+      return {} as IDBObjectStore;
+    },
+    transaction: () => {
+      const transaction = new SerializedTestIdbTransaction((completed) => this.release(completed));
+      this.transactionCount += 1;
+      this.transactions.push(transaction);
+      this.drain();
+      return transaction as unknown as IDBTransaction;
+    },
+    close: () => {},
+    onversionchange: null as ((event: IDBVersionChangeEvent) => unknown) | null,
+  } as unknown as IDBDatabase;
+
+  readonly factory = {
+    open: () => {
+      const request = {
+        result: this.database,
+        error: null,
+        onupgradeneeded: null,
+        onsuccess: null,
+        onerror: null,
+        onblocked: null,
+      } as unknown as IDBOpenDBRequest;
+      setTimeout(() => {
+        request.onupgradeneeded?.(new Event('upgradeneeded') as IDBVersionChangeEvent);
+        request.onsuccess?.(new Event('success'));
+      }, 0);
+      return request;
+    },
+  } as unknown as IDBFactory;
+
+  closeConnection(): void {
+    this.database.onversionchange?.(new Event('versionchange') as IDBVersionChangeEvent);
+  }
+
+  private drain(): void {
+    if (this.activeTransaction) return;
+    const next = this.transactions.shift();
+    if (!next) return;
+    this.activeTransaction = next;
+    next.start();
+  }
+
+  private release(transaction: SerializedTestIdbTransaction): void {
+    if (this.activeTransaction !== transaction) return;
+    this.activeTransaction = null;
+    this.drain();
+  }
+}
+
 describe('Knife4j storage cleanup registry', () => {
   it('registers every declared key and prefix for cleanup', () => {
     const declaredValues = new Set([
@@ -916,6 +1056,98 @@ describe('Knife4j storage cleanup registry', () => {
     expect(indexedDB.values.has(authKey)).toBe(false);
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.mutationLease)).toBe(false);
+  });
+
+  it('refuses browser fallback writes when the IndexedDB critical section is unavailable', async () => {
+    const localStorage = new MemoryWebStorage({});
+    let writeRan = false;
+    vi.stubGlobal('window', globalThis);
+    vi.stubGlobal('indexedDB', undefined);
+
+    try {
+      const result = await withKnife4jStorageWriteLock(
+        async () => {
+          writeRan = true;
+          return true;
+        },
+        null,
+        localStorage,
+      );
+
+      expect(result).toBeUndefined();
+      expect(writeRan).toBe(false);
+      expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease)).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('holds the browser fallback critical section after its localStorage lease expires', async () => {
+    const sharedValues = new Map<string, string>([['target', 'initial']]);
+    const firstTabStorage = new MemoryWebStorage({}, sharedValues);
+    const secondTabStorage = new MemoryWebStorage({}, sharedValues);
+    const indexedDb = new SerializedTestIndexedDb();
+    let signalFirstChecked: (() => void) | undefined;
+    const firstChecked = new Promise<void>((resolve) => {
+      signalFirstChecked = resolve;
+    });
+    let resumeFirst: (() => void) | undefined;
+    const suspension = new Promise<void>((resolve) => {
+      resumeFirst = resolve;
+    });
+    let secondWriteRan = false;
+    vi.stubGlobal('window', globalThis);
+    vi.stubGlobal('indexedDB', indexedDb.factory);
+
+    try {
+      const firstWrite = withKnife4jStorageWriteLock(
+        async (canWrite) => {
+          expect(canWrite()).toBe(true);
+          signalFirstChecked?.();
+          await suspension;
+          // Model a renderer resuming after the final pre-write lease check.
+          firstTabStorage.setItem('target', 'stale');
+        },
+        null,
+        firstTabStorage,
+      );
+      await firstChecked;
+
+      const expiredLease = JSON.parse(firstTabStorage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease) ?? 'null') as {
+        expiresAt: number;
+      };
+      expiredLease.expiresAt = Date.now() - 1;
+      firstTabStorage.setItem(KNIFE4J_STORAGE_KEYS.mutationLease, JSON.stringify(expiredLease));
+
+      const secondWrite = withKnife4jStorageWriteLock(
+        async (canWrite) => {
+          expect(canWrite()).toBe(true);
+          secondWriteRan = true;
+          secondTabStorage.setItem('target', 'newer');
+        },
+        null,
+        secondTabStorage,
+      );
+
+      const transactionDeadline = Date.now() + 2_000;
+      while (indexedDb.transactionCount < 2 && Date.now() < transactionDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(indexedDb.transactionCount).toBe(2);
+      expect(secondWriteRan).toBe(false);
+      expect(firstTabStorage.getItem('target')).toBe('initial');
+
+      resumeFirst?.();
+      await Promise.all([firstWrite, secondWrite]);
+
+      expect(secondWriteRan).toBe(true);
+      expect(firstTabStorage.getItem('target')).toBe('newer');
+      expect(firstTabStorage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease)).toBeNull();
+    } finally {
+      resumeFirst?.();
+      indexedDb.closeConnection();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('notifies subscribers when a fallback lease expires without a removal event', async () => {
