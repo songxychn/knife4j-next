@@ -5,6 +5,7 @@ import {
   KNIFE4J_STORAGE_REGISTRY,
   clearRegisteredKnife4jStorage,
   removedKnife4jStorageEntryCount,
+  trackKnife4jStorageWrite,
   type Knife4jIndexedDbStorage,
   type Knife4jWebStorage,
 } from './knife4jStorage';
@@ -201,5 +202,39 @@ describe('Knife4j storage cleanup registry', () => {
     ]);
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.settings)).toBe(true);
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.language)).toBe(false);
+  });
+
+  it('waits for existing writes and suppresses late writes during a full reset', async () => {
+    const localStorage = new MemoryWebStorage({});
+    const sessionStorage = new MemoryWebStorage({});
+    const indexedDB = new MemoryIndexedDb([]);
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}legacy-group`;
+    let releaseExistingWrite: (() => void) | undefined;
+    const existingWriteGate = new Promise<void>((resolve) => {
+      releaseExistingWrite = resolve;
+    });
+
+    const existingWrite = trackKnife4jStorageWrite(async () => {
+      await existingWriteGate;
+      indexedDB.values.set(authKey, { token: 'legacy' });
+    });
+    const cleanup = clearRegisteredKnife4jStorage('all-local-data', {
+      localStorage,
+      sessionStorage,
+      indexedDB,
+    });
+    let lateWriteRan = false;
+    const lateWrite = trackKnife4jStorageWrite(async () => {
+      lateWriteRan = true;
+      indexedDB.values.set(authKey, { token: 'late' });
+    });
+
+    releaseExistingWrite?.();
+    const [result] = await Promise.all([cleanup, existingWrite, lateWrite]);
+
+    expect(result.failures).toEqual([]);
+    expect(result.removed.indexedDB).toBe(1);
+    expect(lateWriteRan).toBe(false);
+    expect(indexedDB.values.has(authKey)).toBe(false);
   });
 });

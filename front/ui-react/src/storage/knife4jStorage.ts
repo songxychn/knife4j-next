@@ -85,6 +85,32 @@ export interface Knife4jStorageCleanupResult {
   failures: Knife4jStorageCleanupFailure[];
 }
 
+const pendingKnife4jStorageWrites = new Set<Promise<unknown>>();
+let allLocalDataCleanupCount = 0;
+
+/**
+ * Register an asynchronous Knife4j persistence operation. A full reset waits
+ * for writes that already started and suppresses new writes until its final
+ * deletion pass has completed.
+ */
+export function trackKnife4jStorageWrite<T>(write: () => Promise<T>): Promise<T | undefined> {
+  if (allLocalDataCleanupCount > 0) return Promise.resolve(undefined);
+
+  const pending = Promise.resolve().then(write);
+  pendingKnife4jStorageWrites.add(pending);
+  void pending.then(
+    () => pendingKnife4jStorageWrites.delete(pending),
+    () => pendingKnife4jStorageWrites.delete(pending),
+  );
+  return pending;
+}
+
+async function waitForPendingKnife4jStorageWrites(): Promise<void> {
+  while (pendingKnife4jStorageWrites.size > 0) {
+    await Promise.allSettled(Array.from(pendingKnife4jStorageWrites));
+  }
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -172,16 +198,25 @@ export async function clearRegisteredKnife4jStorage(
   scope: Knife4jStorageCleanupScope,
   adapters: Knife4jStorageAdapters,
 ): Promise<Knife4jStorageCleanupResult> {
-  const result: Knife4jStorageCleanupResult = {
-    scope,
-    removed: { localStorage: 0, sessionStorage: 0, indexedDB: 0 },
-    failures: [],
-  };
+  const guardsAsyncWrites = scope === 'all-local-data';
+  if (guardsAsyncWrites) allLocalDataCleanupCount += 1;
 
-  clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
-  clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
-  await clearIndexedDbStorage(adapters.indexedDB, result);
-  return result;
+  try {
+    if (guardsAsyncWrites) await waitForPendingKnife4jStorageWrites();
+
+    const result: Knife4jStorageCleanupResult = {
+      scope,
+      removed: { localStorage: 0, sessionStorage: 0, indexedDB: 0 },
+      failures: [],
+    };
+
+    clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
+    clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
+    await clearIndexedDbStorage(adapters.indexedDB, result);
+    return result;
+  } finally {
+    if (guardsAsyncWrites) allLocalDataCleanupCount -= 1;
+  }
 }
 
 function browserStorage(area: 'localStorage' | 'sessionStorage'): Knife4jWebStorage | null {
