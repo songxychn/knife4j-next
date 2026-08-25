@@ -17,6 +17,8 @@ export const KNIFE4J_STORAGE_KEYS = {
   resetLease: 'knife4j-next:storage-reset-lease',
   /** Fallback mutex shared by writes, removals, and full resets when Web Locks are unavailable. */
   mutationLease: 'knife4j-next:storage-mutation-lease',
+  /** Durable cross-tab request-cache cleanup epoch; an expired record retains the latest generation. */
+  requestCacheEpoch: 'knife4j-next:request-cache-cleanup-epoch',
   /** Last completed or active reset generation, retained to invalidate stale in-memory state. */
   resetGeneration: 'knife4j-next:storage-reset-generation',
 } as const;
@@ -80,6 +82,12 @@ export const KNIFE4J_STORAGE_REGISTRY = {
       match: 'exact',
       value: KNIFE4J_STORAGE_KEYS.mutationLease,
       scope: 'all-local-data',
+      preserveDuringCleanup: true,
+    },
+    {
+      match: 'exact',
+      value: KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+      scope: 'request-cache',
       preserveDuringCleanup: true,
     },
     {
@@ -172,6 +180,7 @@ interface PendingKnife4jWebStorageValue {
   writeId: string;
   value: string | null;
   generation: string;
+  requestCacheGeneration?: string;
 }
 
 const pendingWebStorageValues = new WeakMap<object, Map<string, PendingKnife4jWebStorageValue>>();
@@ -258,6 +267,100 @@ function parseResetLease(value: string | null): Knife4jStorageResetLease | null 
   }
 }
 
+interface Knife4jRequestCacheSnapshot {
+  generation: string;
+  active: boolean;
+  expiresAt: number;
+}
+
+function getRequestCacheSnapshot(storage: Knife4jWebStorage | null): Knife4jRequestCacheSnapshot {
+  if (!storage) return { generation: '', active: false, expiresAt: 0 };
+  try {
+    const epoch = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    if (!epoch) return { generation: '', active: false, expiresAt: 0 };
+    return {
+      generation: epoch.generation,
+      active: epoch.expiresAt > Date.now(),
+      expiresAt: epoch.expiresAt,
+    };
+  } catch {
+    return { generation: '', active: false, expiresAt: 0 };
+  }
+}
+
+function beginRequestCacheCleanup(
+  storage: Knife4jWebStorage | null,
+  onCoordinationError?: (error: unknown) => void,
+): Knife4jStorageResetLease | null {
+  if (!storage) return null;
+  const epoch: Knife4jStorageResetLease = {
+    version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+    generation: createResetGeneration(),
+    expiresAt: Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS,
+  };
+  try {
+    storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, JSON.stringify(epoch));
+    const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    return persisted?.generation === epoch.generation ? epoch : null;
+  } catch (error) {
+    onCoordinationError?.(error);
+    return null;
+  }
+}
+
+function renewRequestCacheCleanup(storage: Knife4jWebStorage, epoch: Knife4jStorageResetLease): boolean {
+  try {
+    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    if (current?.generation !== epoch.generation || current.expiresAt <= Date.now()) return false;
+    epoch.expiresAt = Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS;
+    storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, JSON.stringify(epoch));
+    return parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch))?.generation === epoch.generation;
+  } catch {
+    return false;
+  }
+}
+
+function startRequestCacheCleanupHeartbeat(
+  storage: Knife4jWebStorage | null,
+  epoch: Knife4jStorageResetLease | null,
+): () => void {
+  if (!storage || !epoch) return () => {};
+  const timer = setInterval(() => {
+    if (!renewRequestCacheCleanup(storage, epoch)) clearInterval(timer);
+  }, KNIFE4J_STORAGE_RESET_LEASE_TTL_MS / 4);
+  return () => clearInterval(timer);
+}
+
+function completeRequestCacheCleanup(storage: Knife4jWebStorage | null, epoch: Knife4jStorageResetLease | null): void {
+  if (!storage || !epoch) return;
+  try {
+    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    if (current?.generation !== epoch.generation) return;
+    epoch.expiresAt = 0;
+    storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, JSON.stringify(epoch));
+  } catch {
+    // The active epoch expires and fails closed if completion cannot be persisted.
+  }
+}
+
+function isRequestCacheStorageKey(key: string): boolean {
+  return matchesRegisteredEntry(key, entriesForScope(KNIFE4J_STORAGE_REGISTRY.localStorage, 'request-cache'));
+}
+
+async function waitForRequestCacheWriteTurn(
+  storage: Knife4jWebStorage | null,
+  generation: string | undefined,
+): Promise<boolean> {
+  if (generation === undefined) return true;
+  for (;;) {
+    const snapshot = getRequestCacheSnapshot(storage);
+    if (snapshot.generation !== generation) return false;
+    if (!snapshot.active) return true;
+    const remaining = Math.max(0, snapshot.expiresAt - Date.now());
+    await new Promise((resolve) => setTimeout(resolve, Math.min(KNIFE4J_STORAGE_RESET_LEASE_POLL_MS, remaining)));
+  }
+}
+
 function readResetLease(storage: Knife4jWebStorage | null, now = Date.now()): Knife4jStorageResetLease | null {
   if (!storage) return null;
   let lease: Knife4jStorageResetLease | null;
@@ -338,6 +441,7 @@ function browserStorageLockManager(): Knife4jStorageLockManager | null {
 }
 
 type Knife4jStorageWriteFence = (() => boolean) & { readonly generation: string };
+type Knife4jRequestCacheWriteFence = (() => boolean) & { readonly generation?: string };
 
 function createKnife4jStorageWriteFence(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
@@ -346,6 +450,20 @@ function createKnife4jStorageWriteFence(
   const canWrite = () => {
     const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
     return allLocalDataCleanupCount === 0 && !snapshot.active && generation === snapshot.generation;
+  };
+  return Object.assign(canWrite, { generation });
+}
+
+function createRequestCacheWriteFence(
+  key: string,
+  storage: Knife4jWebStorage | null,
+  expectedGeneration?: string,
+): Knife4jRequestCacheWriteFence {
+  if (!isRequestCacheStorageKey(key)) return Object.assign(() => true, { generation: undefined });
+  const generation = expectedGeneration ?? getRequestCacheSnapshot(storage).generation;
+  const canWrite = () => {
+    const snapshot = getRequestCacheSnapshot(storage);
+    return !snapshot.active && snapshot.generation === generation;
   };
   return Object.assign(canWrite, { generation });
 }
@@ -363,6 +481,7 @@ function publishPendingWebStorageRemovals(
   storage: Knife4jWebStorage | null,
   scope: Knife4jStorageCleanupScope,
   generation: string,
+  requestCacheGeneration?: string,
 ): () => void {
   if (!storage) return () => {};
 
@@ -382,7 +501,7 @@ function publishPendingWebStorageRemovals(
 
   const writeId = createResetGeneration();
   const pending = pendingWebStorageMap(storage);
-  matchedKeys.forEach((key) => pending.set(key, { writeId, value: null, generation }));
+  matchedKeys.forEach((key) => pending.set(key, { writeId, value: null, generation, requestCacheGeneration }));
   return () => {
     matchedKeys.forEach((key) => {
       if (pending.get(key)?.writeId === writeId) pending.delete(key);
@@ -397,10 +516,19 @@ export function getKnife4jStorageItem(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
 ): string | null {
   const pending = pendingWebStorageValues.get(storage)?.get(key);
+  const requestCacheKey = isRequestCacheStorageKey(key);
+  const requestCacheSnapshot = requestCacheKey ? getRequestCacheSnapshot(leaseStorage) : null;
   if (pending) {
     const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
-    if (!snapshot.active && snapshot.generation === pending.generation) return pending.value;
+    if (
+      !snapshot.active &&
+      snapshot.generation === pending.generation &&
+      (!requestCacheKey || pending.requestCacheGeneration === requestCacheSnapshot?.generation)
+    ) {
+      return pending.value;
+    }
   }
+  if (requestCacheSnapshot?.active) return null;
   return storage.getItem(key);
 }
 
@@ -411,13 +539,19 @@ export async function persistKnife4jStorageItem(
   value: string,
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  expectedRequestCacheGeneration?: string,
 ): Promise<boolean> {
   try {
+    const resetCanWrite = createKnife4jStorageWriteFence(leaseStorage);
+    const requestCacheCanWrite = createRequestCacheWriteFence(key, leaseStorage, expectedRequestCacheGeneration);
+    if (!(await waitForRequestCacheWriteTurn(leaseStorage, requestCacheCanWrite.generation))) return false;
+    if (!resetCanWrite()) return false;
     const persisted = await trackKnife4jStorageWrite(
       async (canWrite) => {
-        if (!canWrite()) return false;
+        const retainsWriteFence = () => canWrite() && resetCanWrite() && requestCacheCanWrite();
+        if (!retainsWriteFence()) return false;
         storage.setItem(key, value);
-        if (canWrite()) return true;
+        if (retainsWriteFence()) return true;
         if (storage.getItem(key) === value) storage.removeItem(key);
         return false;
       },
@@ -451,11 +585,24 @@ export function setKnife4jStorageItem(
   }
   const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
   if (snapshot.active) return Promise.resolve(false);
+  const requestCacheCanWrite = createRequestCacheWriteFence(key, leaseStorage);
 
   const writeId = createResetGeneration();
   const pending = pendingWebStorageMap(storage);
-  pending.set(key, { writeId, value, generation: snapshot.generation });
-  return persistKnife4jStorageItem(storage, key, value, lockManager, leaseStorage).finally(() => {
+  pending.set(key, {
+    writeId,
+    value,
+    generation: snapshot.generation,
+    requestCacheGeneration: requestCacheCanWrite.generation,
+  });
+  return persistKnife4jStorageItem(
+    storage,
+    key,
+    value,
+    lockManager,
+    leaseStorage,
+    requestCacheCanWrite.generation,
+  ).finally(() => {
     if (pending.get(key)?.writeId === writeId) pending.delete(key);
   });
 }
@@ -489,16 +636,26 @@ export async function removeKnife4jStorageItem(
     }
     const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
     if (snapshot.active) return false;
+    const resetCanWrite = createKnife4jStorageWriteFence(leaseStorage);
+    const requestCacheCanWrite = createRequestCacheWriteFence(key, leaseStorage);
 
     const writeId = createResetGeneration();
     const pending = pendingWebStorageMap(storage);
-    pending.set(key, { writeId, value: null, generation: snapshot.generation });
+    pending.set(key, {
+      writeId,
+      value: null,
+      generation: snapshot.generation,
+      requestCacheGeneration: requestCacheCanWrite.generation,
+    });
     try {
+      if (!(await waitForRequestCacheWriteTurn(leaseStorage, requestCacheCanWrite.generation))) return false;
+      if (!resetCanWrite()) return false;
       const removed = await trackKnife4jStorageWrite(
         async (canWrite) => {
-          if (!canWrite()) return false;
+          const retainsWriteFence = () => canWrite() && resetCanWrite() && requestCacheCanWrite();
+          if (!retainsWriteFence()) return false;
           storage.removeItem(key);
-          return canWrite();
+          return retainsWriteFence();
         },
         lockManager,
         leaseStorage,
@@ -595,6 +752,17 @@ async function waitForPendingKnife4jStorageWrites(): Promise<void> {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isQuotaExceededError(error: unknown): boolean {
+  if (
+    typeof DOMException !== 'undefined' &&
+    error instanceof DOMException &&
+    ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(error.name)
+  ) {
+    return true;
+  }
+  return /quota/i.test(errorMessage(error));
 }
 
 function entriesForScope(
@@ -711,7 +879,10 @@ function listActiveMutationClaims(
   );
 }
 
-async function acquireMutationLease(storage: Knife4jWebStorage): Promise<Knife4jStorageResetLease | null> {
+async function acquireMutationLease(
+  storage: Knife4jWebStorage,
+  onCoordinationError?: (error: unknown) => void,
+): Promise<Knife4jStorageResetLease | null> {
   for (;;) {
     let publishedClaimKey: string | null = null;
     let candidateLease: Knife4jStorageResetLease | null = null;
@@ -768,7 +939,8 @@ async function acquireMutationLease(storage: Knife4jWebStorage): Promise<Knife4j
         }
         await new Promise((resolve) => setTimeout(resolve, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS));
       }
-    } catch {
+    } catch (error) {
+      onCoordinationError?.(error);
       if (publishedClaimKey) removeResetClaim(storage, publishedClaimKey);
       if (candidateLease) {
         try {
@@ -817,6 +989,7 @@ async function acquireResetLease(
   storage: Knife4jWebStorage | null,
   result: Knife4jStorageCleanupResult,
   recordCoordinationFailure = true,
+  onCoordinationError?: (error: unknown) => void,
 ): Promise<Knife4jStorageResetLease | null> {
   if (!storage) return null;
 
@@ -895,6 +1068,7 @@ async function acquireResetLease(
         await new Promise((resolve) => setTimeout(resolve, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS));
       }
     } catch (error) {
+      onCoordinationError?.(error);
       if (publishedClaimKey) removeResetClaim(storage, publishedClaimKey);
       if (candidateLease) {
         try {
@@ -1066,35 +1240,45 @@ export async function clearRegisteredKnife4jStorage(
   };
 
   if (!guardsAsyncWrites) {
-    const requestCacheSnapshot = getKnife4jStorageResetSnapshot(adapters.localStorage);
+    const resetSnapshot = getKnife4jStorageResetSnapshot(adapters.localStorage);
+    let requestCacheEpochError: unknown;
+    let requestCacheEpoch = beginRequestCacheCleanup(adapters.localStorage, (error) => {
+      requestCacheEpochError = error;
+    });
+    let stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(adapters.localStorage, requestCacheEpoch);
+    const requestCacheGeneration = getRequestCacheSnapshot(adapters.localStorage).generation;
     const releasePendingRemovals = publishPendingWebStorageRemovals(
       adapters.localStorage,
       scope,
-      requestCacheSnapshot.generation,
+      resetSnapshot.generation,
+      requestCacheGeneration,
     );
-    const retainsRequestCacheGeneration = () => {
+    const retainsResetGeneration = () => {
       const snapshot = getKnife4jStorageResetSnapshot(adapters.localStorage);
-      return !snapshot.active && snapshot.generation === requestCacheSnapshot.generation;
+      return !snapshot.active && snapshot.generation === resetSnapshot.generation;
     };
+    const hasCrossTabCacheInvalidation = () =>
+      adapters.localStorage === null || getRequestCacheSnapshot(adapters.localStorage).active;
     const performRequestCacheCleanup = () =>
       trackKnife4jStorageWrite(
         async (canWrite) => {
-          if (!canWrite()) return false;
+          const retainsCleanupFence = () => canWrite() && hasCrossTabCacheInvalidation();
+          if (!retainsCleanupFence()) return false;
           clearWebStorage(
             'localStorage',
             adapters.localStorage,
             KNIFE4J_STORAGE_REGISTRY.localStorage,
             result,
-            canWrite,
+            retainsCleanupFence,
           );
           clearWebStorage(
             'sessionStorage',
             adapters.sessionStorage,
             KNIFE4J_STORAGE_REGISTRY.sessionStorage,
             result,
-            canWrite,
+            retainsCleanupFence,
           );
-          return canWrite();
+          return retainsCleanupFence();
         },
         lockManager,
         adapters.localStorage,
@@ -1102,7 +1286,13 @@ export async function clearRegisteredKnife4jStorage(
 
     try {
       let completed = await performRequestCacheCleanup();
-      if (completed !== true && !lockManager && adapters.localStorage && retainsRequestCacheGeneration()) {
+      if (
+        completed !== true &&
+        !lockManager &&
+        adapters.localStorage &&
+        retainsResetGeneration() &&
+        (requestCacheEpoch !== null || isQuotaExceededError(requestCacheEpochError))
+      ) {
         // A full localStorage quota can prevent publishing the fallback claim.
         // Remove only the requested registered entries, then retry coordination
         // before clearing session state or running the final deletion scan.
@@ -1111,15 +1301,27 @@ export async function clearRegisteredKnife4jStorage(
           adapters.localStorage,
           KNIFE4J_STORAGE_REGISTRY.localStorage,
           result,
-          retainsRequestCacheGeneration,
+          retainsResetGeneration,
         );
-        if (retainsRequestCacheGeneration()) completed = await performRequestCacheCleanup();
+        if (!getRequestCacheSnapshot(adapters.localStorage).active) {
+          stopRequestCacheHeartbeat();
+          requestCacheEpochError = undefined;
+          requestCacheEpoch = beginRequestCacheCleanup(adapters.localStorage, (error) => {
+            requestCacheEpochError = error;
+          });
+          stopRequestCacheHeartbeat = startRequestCacheCleanupHeartbeat(adapters.localStorage, requestCacheEpoch);
+        }
+        if (retainsResetGeneration() && hasCrossTabCacheInvalidation()) {
+          completed = await performRequestCacheCleanup();
+        }
       }
       if (completed !== true) {
         recordFailure(result, {
           area: 'localStorage',
           key: KNIFE4J_STORAGE_KEYS.mutationLease,
-          reason: 'request cache coordination unavailable',
+          reason: requestCacheEpochError
+            ? `request cache coordination failed: ${errorMessage(requestCacheEpochError)}`
+            : 'request cache coordination unavailable',
         });
       }
     } catch (error) {
@@ -1129,6 +1331,8 @@ export async function clearRegisteredKnife4jStorage(
         reason: `request cache coordination failed: ${errorMessage(error)}`,
       });
     } finally {
+      stopRequestCacheHeartbeat();
+      completeRequestCacheCleanup(adapters.localStorage, requestCacheEpoch);
       releasePendingRemovals();
     }
     return result;
@@ -1136,7 +1340,6 @@ export async function clearRegisteredKnife4jStorage(
 
   let lease: Knife4jStorageResetLease | null = null;
   let mutationLease: Knife4jStorageResetLease | null = null;
-  let usesExclusiveLockFallback = false;
   let stopResetLeaseHeartbeat = () => {};
   let stopMutationLeaseHeartbeat = () => {};
 
@@ -1155,8 +1358,8 @@ export async function clearRegisteredKnife4jStorage(
 
   const retainsResetLease = (): boolean => {
     if (!retainsMutationLease()) return false;
-    if (!guardsAsyncWrites || !adapters.localStorage || usesExclusiveLockFallback) return true;
-    return lease !== null && renewResetLease(adapters.localStorage, lease, result);
+    if (!guardsAsyncWrites) return true;
+    return adapters.localStorage !== null && lease !== null && renewResetLease(adapters.localStorage, lease, result);
   };
 
   const performCleanup = async (): Promise<void> => {
@@ -1203,34 +1406,52 @@ export async function clearRegisteredKnife4jStorage(
   const performCoordinatedCleanup = async (): Promise<void> => {
     if (guardsAsyncWrites) {
       if (!lockManager && adapters.localStorage) {
-        mutationLease = await acquireMutationLease(adapters.localStorage);
-        if (!mutationLease) {
+        let mutationLeaseError: unknown;
+        mutationLease = await acquireMutationLease(adapters.localStorage, (error) => {
+          mutationLeaseError = error;
+        });
+        if (!mutationLease && isQuotaExceededError(mutationLeaseError)) {
           // Recover enough quota to publish the fallback mutex before any
           // non-localStorage deletion can race a cross-tab mutation.
           clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
-          mutationLease = await acquireMutationLease(adapters.localStorage);
+          mutationLease = await acquireMutationLease(adapters.localStorage, (error) => {
+            mutationLeaseError = error;
+          });
         }
         if (!mutationLease) {
           recordFailure(result, {
             area: 'localStorage',
             key: KNIFE4J_STORAGE_KEYS.mutationLease,
-            reason: 'mutation coordination unavailable',
+            reason: mutationLeaseError
+              ? `mutation coordination failed: ${errorMessage(mutationLeaseError)}`
+              : 'mutation coordination unavailable',
           });
           return;
         }
         stopMutationLeaseHeartbeat = startMutationLeaseHeartbeat(adapters.localStorage, mutationLease);
       }
-      lease = await acquireResetLease(adapters.localStorage, result, false);
-      if (!lease && adapters.localStorage) {
+      let resetLeaseError: unknown;
+      lease = await acquireResetLease(adapters.localStorage, result, false, (error) => {
+        resetLeaseError = error;
+      });
+      if (!lease && adapters.localStorage && isQuotaExceededError(resetLeaseError)) {
         // A full localStorage quota can prevent even the coordination claim.
         // Free only registered Knife4j values, then publish the lease before
         // touching IndexedDB or running the final deletion passes.
         clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
         lease = await acquireResetLease(adapters.localStorage, result);
-        // The exclusive Web Lock still serializes compliant writers when the
-        // lease store remains unwritable. Keep the coordination failure in the
-        // result, but continue clearing the other registered storage areas.
-        usesExclusiveLockFallback = lease === null && lockManager !== null;
+      }
+      if (!lease) {
+        if (!adapters.localStorage) {
+          recordUnavailable(result, 'localStorage');
+        } else if (!isQuotaExceededError(resetLeaseError)) {
+          recordFailure(result, {
+            area: 'localStorage',
+            key: KNIFE4J_STORAGE_KEYS.resetLease,
+            reason: `reset coordination failed: ${errorMessage(resetLeaseError ?? 'unavailable')}`,
+          });
+        }
+        return;
       }
       stopResetLeaseHeartbeat = startResetLeaseHeartbeat(adapters.localStorage, lease, result);
     }

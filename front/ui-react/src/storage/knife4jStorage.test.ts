@@ -18,10 +18,11 @@ import {
 } from './knife4jStorage';
 
 class MemoryWebStorage implements Knife4jWebStorage {
-  readonly values = new Map<string, string>();
+  readonly values: Map<string, string>;
   readonly failures = new Set<string>();
 
-  constructor(initial: Record<string, string>) {
+  constructor(initial: Record<string, string>, values: Map<string, string> = new Map()) {
+    this.values = values;
     Object.entries(initial).forEach(([key, value]) => this.values.set(key, value));
   }
 
@@ -154,6 +155,7 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.values).toEqual(
       new Map([
         [KNIFE4J_STORAGE_KEYS.settings, 'settings'],
+        [KNIFE4J_STORAGE_KEYS.requestCacheEpoch, expect.any(String)],
         [`${KNIFE4J_STORAGE_PREFIXES.groupGlobalParams}group-a`, 'params'],
         ['knife4j-next:debug-cache', 'near-miss'],
         ['knife4j-next:debug-cache-other:operation-a', 'near-miss-prefix'],
@@ -167,6 +169,41 @@ describe('Knife4j storage cleanup registry', () => {
       ]),
     );
     expect(indexedDB.values.has(`${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`)).toBe(true);
+  });
+
+  it('refuses request-cache cleanup when its cross-tab epoch cannot be published', async () => {
+    const cacheKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(): void {
+        throw new Error('storage is read-only');
+      }
+    })({
+      [cacheKey]: 'cache',
+      'host-application:key': 'keep',
+    });
+    const sessionStorage = new MemoryWebStorage({
+      [KNIFE4J_STORAGE_KEYS.tabItems]: 'tabs',
+      'host-application:session': 'keep',
+    });
+
+    const result = await clearRegisteredKnife4jStorage(
+      'request-cache',
+      { localStorage, sessionStorage, indexedDB: new MemoryIndexedDb([]) },
+      null,
+    );
+
+    expect(result.removed).toEqual({ localStorage: 0, sessionStorage: 0, indexedDB: 0 });
+    expect(result.failures).toEqual([
+      {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.mutationLease,
+        reason: 'request cache coordination failed: storage is read-only',
+      },
+    ]);
+    expect(localStorage.getItem(cacheKey)).toBe('cache');
+    expect(localStorage.getItem('host-application:key')).toBe('keep');
+    expect(sessionStorage.getItem(KNIFE4J_STORAGE_KEYS.tabItems)).toBe('tabs');
+    expect(sessionStorage.getItem('host-application:session')).toBe('keep');
   });
 
   it('resets every registered Knife4j entry while preserving unrelated same-origin data', async () => {
@@ -309,7 +346,48 @@ describe('Knife4j storage cleanup registry', () => {
     expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
   });
 
-  it('continues under an exclusive Web Lock when lease storage remains unwritable', async () => {
+  it('refuses fallback destructive cleanup when mutation coordination is permanently read-only', async () => {
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(): void {
+        throw new Error('storage is read-only');
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      'host-application:key': 'keep',
+    });
+    const sessionStorage = new MemoryWebStorage({
+      [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth',
+      'host-application:session': 'keep',
+    });
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const indexedDB = new MemoryIndexedDb([
+      [authKey, { token: 'secret' }],
+      ['host-application:idb', { keep: true }],
+    ]);
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+
+    expect(result.removed).toEqual({ localStorage: 0, sessionStorage: 0, indexedDB: 0 });
+    expect(result.failures).toEqual([
+      {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.mutationLease,
+        reason: 'mutation coordination failed: storage is read-only',
+      },
+    ]);
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings)).toBe('settings');
+    expect(localStorage.getItem('host-application:key')).toBe('keep');
+    expect(sessionStorage.getItem(`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`)).toBe('oauth');
+    expect(sessionStorage.getItem('host-application:session')).toBe('keep');
+    expect(indexedDB.values.get(authKey)).toEqual({ token: 'secret' });
+    expect(indexedDB.values.get('host-application:idb')).toEqual({ keep: true });
+  });
+
+  it('refuses destructive cleanup under a Web Lock when no reset epoch can be published', async () => {
     const localStorage = new (class extends MemoryWebStorage {
       override setItem(): void {
         throw new Error('storage is read-only');
@@ -357,7 +435,7 @@ describe('Knife4j storage cleanup registry', () => {
     releaseWrite?.();
     const [result] = await Promise.all([cleanup, inFlightWrite]).finally(unsubscribe);
 
-    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 1, indexedDB: 1 });
+    expect(result.removed).toEqual({ localStorage: 0, sessionStorage: 0, indexedDB: 0 });
     expect(result.failures).toEqual([
       {
         area: 'localStorage',
@@ -365,12 +443,46 @@ describe('Knife4j storage cleanup registry', () => {
         reason: 'reset coordination failed: storage is read-only',
       },
     ]);
-    expect(localStorage.values).toEqual(new Map([['host-application:key', 'keep']]));
-    expect(sessionStorage.values).toEqual(new Map([['host-application:session', 'keep']]));
-    expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
+    expect(localStorage.values).toEqual(
+      new Map([
+        [KNIFE4J_STORAGE_KEYS.settings, 'settings'],
+        ['host-application:key', 'keep'],
+      ]),
+    );
+    expect(sessionStorage.values).toEqual(
+      new Map([
+        [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`, 'oauth'],
+        ['host-application:session', 'keep'],
+      ]),
+    );
+    expect(indexedDB.values).toEqual(
+      new Map([
+        [authKey, { token: 'secret' }],
+        ['host-application:idb', { keep: true }],
+      ]),
+    );
     expect(resetSnapshots.map((snapshot) => snapshot.active)).toEqual(expect.arrayContaining([true, false]));
     expect(resetSnapshots.at(-1)?.active).toBe(false);
     expect(getKnife4jStorageResetSnapshot(localStorage).active).toBe(false);
+  });
+
+  it('refuses shared-data cleanup when localStorage is unavailable', async () => {
+    const sessionStorage = new MemoryWebStorage({
+      [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth',
+    });
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const indexedDB = new MemoryIndexedDb([[authKey, { token: 'secret' }]]);
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage: null, sessionStorage, indexedDB },
+      new MemoryLockManager(),
+    );
+
+    expect(result.removed).toEqual({ localStorage: 0, sessionStorage: 0, indexedDB: 0 });
+    expect(result.failures).toEqual([{ area: 'localStorage', reason: 'localStorage unavailable' }]);
+    expect(sessionStorage.getItem(`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`)).toBe('oauth');
+    expect(indexedDB.values.get(authKey)).toEqual({ token: 'secret' });
   });
 
   it('publishes reset activity immediately without relying on an in-flight write', async () => {
@@ -434,7 +546,7 @@ describe('Knife4j storage cleanup registry', () => {
     expect(storage.getItem(targetKey)).toBeNull();
   });
 
-  it('clears request cache after an earlier fallback write has persisted', async () => {
+  it('invalidates an earlier fallback cache write before cleanup', async () => {
     const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
     const localStorage = new MemoryWebStorage({
       [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
@@ -448,56 +560,102 @@ describe('Knife4j storage cleanup registry', () => {
     const cleanup = clearRegisteredKnife4jStorage('request-cache', { localStorage, sessionStorage, indexedDB }, null);
     const [persisted, result] = await Promise.all([persistence, cleanup]);
 
-    expect(persisted).toBe(true);
+    expect(persisted).toBe(false);
     expect(result.failures).toEqual([]);
-    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 1, indexedDB: 0 });
+    expect(result.removed).toEqual({ localStorage: 0, sessionStorage: 1, indexedDB: 0 });
     expect(localStorage.getItem(targetKey)).toBeNull();
     expect(sessionStorage.getItem(KNIFE4J_STORAGE_KEYS.tabItems)).toBeNull();
   });
 
-  it('publishes request-cache tombstones while fallback cleanup is waiting', async () => {
+  it('publishes a cross-tab request-cache epoch while fallback cleanup is waiting', async () => {
     const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
-    const localStorage = new MemoryWebStorage({
-      [targetKey]: JSON.stringify(['old-history']),
-      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
-      [KNIFE4J_STORAGE_KEYS.mutationLease]: JSON.stringify({
-        version: 1,
-        generation: 'blocking-mutation',
-        expiresAt: Date.now() + 1_000,
-      }),
-    });
+    const sharedValues = new Map<string, string>();
+    const cleanupStorage = new MemoryWebStorage(
+      {
+        [targetKey]: JSON.stringify(['old-history']),
+        [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+        [KNIFE4J_STORAGE_KEYS.mutationLease]: JSON.stringify({
+          version: 1,
+          generation: 'blocking-mutation',
+          expiresAt: Date.now() + 1_000,
+        }),
+      },
+      sharedValues,
+    );
+    const writerStorage = new MemoryWebStorage({}, sharedValues);
     const sessionStorage = new MemoryWebStorage({});
     const indexedDB = new MemoryIndexedDb([]);
 
-    const cleanup = clearRegisteredKnife4jStorage('request-cache', { localStorage, sessionStorage, indexedDB }, null);
-    const visibleHistory = getKnife4jStorageItem(localStorage, targetKey, localStorage);
+    const cleanup = clearRegisteredKnife4jStorage(
+      'request-cache',
+      { localStorage: cleanupStorage, sessionStorage, indexedDB },
+      null,
+    );
+    const visibleHistory = getKnife4jStorageItem(writerStorage, targetKey, writerStorage);
     expect(visibleHistory).toBeNull();
-    expect(localStorage.getItem(targetKey)).toBe(JSON.stringify(['old-history']));
+    expect(writerStorage.getItem(targetKey)).toBe(JSON.stringify(['old-history']));
 
     const nextHistory = JSON.stringify(['new-history', ...(visibleHistory ? JSON.parse(visibleHistory) : [])]);
-    const laterWrite = setKnife4jStorageItem(localStorage, targetKey, nextHistory, localStorage, null);
-    localStorage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+    const laterWrite = setKnife4jStorageItem(writerStorage, targetKey, nextHistory, writerStorage, null);
+    cleanupStorage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
     const [result, persisted] = await Promise.all([cleanup, laterWrite]);
 
     expect(result.failures).toEqual([]);
     expect(persisted).toBe(true);
-    expect(JSON.parse(localStorage.getItem(targetKey) ?? '[]')).toEqual(['new-history']);
+    expect(JSON.parse(writerStorage.getItem(targetKey) ?? '[]')).toEqual(['new-history']);
+  });
+
+  it('rejects a cache write that waited across a full reset generation change', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
+    const requestCacheGeneration = 'active-cache-cleanup';
+    const localStorage = new MemoryWebStorage({
+      [targetKey]: 'old-history',
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+      [KNIFE4J_STORAGE_KEYS.requestCacheEpoch]: JSON.stringify({
+        version: 1,
+        generation: requestCacheGeneration,
+        expiresAt: Date.now() + 1_000,
+      }),
+    });
+    const lockManager = new MemoryLockManager();
+
+    const persistence = setKnife4jStorageItem(localStorage, targetKey, 'stale-history', localStorage, lockManager);
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      {
+        localStorage,
+        sessionStorage: new MemoryWebStorage({}),
+        indexedDB: new MemoryIndexedDb([]),
+      },
+      lockManager,
+    );
+    localStorage.setItem(
+      KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+      JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: 0 }),
+    );
+
+    await expect(persistence).resolves.toBe(false);
+    expect(result.failures).toEqual([]);
+    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 0 });
+    expect(localStorage.getItem(targetKey)).toBeNull();
   });
 
   it('recovers request-cache coordination after registered entries free quota', async () => {
     const firstKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
     const secondKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
+    const thirdKey = `${KNIFE4J_STORAGE_PREFIXES.apiVersionBaseline}operation-a`;
     const localStorage = new (class extends MemoryWebStorage {
       constructor() {
         super({
           [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
           [firstKey]: 'cache',
           [secondKey]: 'history',
+          [thirdKey]: 'baseline',
         });
       }
 
       override setItem(key: string, value: string): void {
-        if (!this.values.has(key) && this.values.size >= 3) throw new Error('quota exceeded');
+        if (!this.values.has(key) && this.values.size >= 4) throw new Error('quota exceeded');
         super.setItem(key, value);
       }
     })();
@@ -512,9 +670,10 @@ describe('Knife4j storage cleanup registry', () => {
     );
 
     expect(result.failures).toEqual([]);
-    expect(result.removed).toEqual({ localStorage: 2, sessionStorage: 1, indexedDB: 0 });
+    expect(result.removed).toEqual({ localStorage: 3, sessionStorage: 1, indexedDB: 0 });
     expect(localStorage.getItem(firstKey)).toBeNull();
     expect(localStorage.getItem(secondKey)).toBeNull();
+    expect(localStorage.getItem(thirdKey)).toBeNull();
     expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease)).toBeNull();
   });
 
