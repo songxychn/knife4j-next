@@ -306,6 +306,81 @@ describe('Knife4j storage cleanup registry', () => {
     expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
   });
 
+  it('continues under an exclusive Web Lock when lease storage remains unwritable', async () => {
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(): void {
+        throw new Error('storage is read-only');
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      'host-application:key': 'keep',
+    });
+    const sessionStorage = new MemoryWebStorage({
+      [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth',
+      'host-application:session': 'keep',
+    });
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const indexedDB = new MemoryIndexedDb([
+      [authKey, { token: 'secret' }],
+      ['host-application:idb', { keep: true }],
+    ]);
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      new MemoryLockManager(),
+    );
+
+    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 1, indexedDB: 1 });
+    expect(result.failures).toEqual([
+      {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.resetLease,
+        reason: 'reset coordination failed: storage is read-only',
+      },
+    ]);
+    expect(localStorage.values).toEqual(new Map([['host-application:key', 'keep']]));
+    expect(sessionStorage.values).toEqual(new Map([['host-application:session', 'keep']]));
+    expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
+  });
+
+  it('does not remove a newer Web Storage value while rolling back a stale write', () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const targetStorage = new MemoryWebStorage({});
+    let generationReads = 0;
+    const leaseStorage = new (class extends MemoryWebStorage {
+      override getItem(key: string): string | null {
+        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) {
+          generationReads += 1;
+          if (generationReads === 3) {
+            targetStorage.setItem(targetKey, 'newer-value');
+            return 'newer-generation';
+          }
+          return 'stale-generation';
+        }
+        return super.getItem(key);
+      }
+    })({});
+
+    expect(setKnife4jStorageItem(targetStorage, targetKey, 'stale-value', leaseStorage)).toBe(false);
+    expect(targetStorage.getItem(targetKey)).toBe('newer-value');
+
+    const unchangedStorage = new MemoryWebStorage({});
+    let unchangedGenerationReads = 0;
+    const changedGenerationStorage = new (class extends MemoryWebStorage {
+      override getItem(key: string): string | null {
+        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) {
+          unchangedGenerationReads += 1;
+          return unchangedGenerationReads < 3 ? 'second-stale-generation' : 'second-newer-generation';
+        }
+        return super.getItem(key);
+      }
+    })({});
+
+    expect(setKnife4jStorageItem(unchangedStorage, targetKey, 'own-stale-value', changedGenerationStorage)).toBe(false);
+    expect(unchangedStorage.getItem(targetKey)).toBeNull();
+  });
+
   it('waits for existing writes and suppresses late writes across browsing contexts', async () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});

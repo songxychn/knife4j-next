@@ -324,7 +324,7 @@ function createKnife4jStorageWriteFence(
 
 /** Write one registered Web Storage value only when no full reset invalidated it. */
 export function setKnife4jStorageItem(
-  storage: Pick<Storage, 'setItem' | 'removeItem'>,
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string,
   value: string,
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
@@ -333,7 +333,7 @@ export function setKnife4jStorageItem(
   if (!canWrite()) return false;
   storage.setItem(key, value);
   if (!canWrite()) {
-    storage.removeItem(key);
+    if (storage.getItem(key) === value) storage.removeItem(key);
     return false;
   }
   return true;
@@ -719,10 +719,11 @@ export async function clearRegisteredKnife4jStorage(
     failures: [],
   };
   let lease: Knife4jStorageResetLease | null = null;
+  let usesExclusiveLockFallback = false;
   let stopResetLeaseHeartbeat = () => {};
 
   const retainsResetLease = (): boolean => {
-    if (!guardsAsyncWrites || !adapters.localStorage) return true;
+    if (!guardsAsyncWrites || !adapters.localStorage || usesExclusiveLockFallback) return true;
     return lease !== null && renewResetLease(adapters.localStorage, lease, result);
   };
 
@@ -752,6 +753,10 @@ export async function clearRegisteredKnife4jStorage(
         // touching IndexedDB or running the final deletion passes.
         clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
         lease = await acquireResetLease(adapters.localStorage, result);
+        // The exclusive Web Lock still serializes compliant writers when the
+        // lease store remains unwritable. Keep the coordination failure in the
+        // result, but continue clearing the other registered storage areas.
+        usesExclusiveLockFallback = lease === null && lockManager !== null;
       }
       stopResetLeaseHeartbeat = startResetLeaseHeartbeat(adapters.localStorage, lease, result);
     }
