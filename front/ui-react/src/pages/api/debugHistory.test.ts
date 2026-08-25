@@ -264,6 +264,48 @@ describe('debugHistory', () => {
     }
   });
 
+  it('completes a history entry queued during an active cache cleanup epoch', async () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'pending-during-cache-cleanup';
+    const storageKey = debugHistoryStorageKey(cacheKey);
+    const requestCacheGeneration = 'active-cache-cleanup';
+    storage.setItem(
+      KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+      JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: Date.now() + 1_000 }),
+    );
+    vi.stubGlobal('window', { localStorage: storage });
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: (name: string, _options: unknown, callback: (lock: { name: string }) => unknown) =>
+          Promise.resolve(callback({ name })),
+      },
+    });
+
+    try {
+      const pending = makePending({ id: 'in-flight' });
+      expect(appendPending(cacheKey, pending, storage).map((entry) => entry.status)).toEqual(['pending']);
+      const completed = updateEntry(
+        cacheKey,
+        pending.id,
+        (entry) => completeEntry(entry, { httpStatus: 200 }),
+        storage,
+      );
+
+      expect(completed.map((entry) => entry.status)).toEqual(['completed']);
+      expect(listHistory(cacheKey, storage).map((entry) => entry.status)).toEqual(['completed']);
+
+      storage.setItem(
+        KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+        JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: 0 }),
+      );
+      await vi.waitFor(() => {
+        expect((JSON.parse(storage.getItem(storageKey) ?? '[]') as DebugHistoryEntry[])[0]?.status).toBe('completed');
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('round-trips actual request headers while keeping form snapshots sanitized', () => {
     const storage = new MemoryStorage();
     const cacheKey = 'roundtrip';

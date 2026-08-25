@@ -700,19 +700,29 @@ export function getKnife4jStorageItemSnapshot(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
 ): Knife4jStorageItemSnapshot {
   const requestCacheKey = isRequestCacheStorageKey(key);
+  const pendingBefore = pendingWebStorageValues.get(storage)?.get(key);
   const resetBefore = getKnife4jStorageResetSnapshot(leaseStorage);
   const requestCacheBefore = requestCacheKey ? getRequestCacheSnapshot(leaseStorage) : null;
   const value = getKnife4jStorageItem(storage, key, leaseStorage);
+  const pendingAfter = pendingWebStorageValues.get(storage)?.get(key);
   const resetAfter = getKnife4jStorageResetSnapshot(leaseStorage);
   const requestCacheAfter = requestCacheKey ? getRequestCacheSnapshot(leaseStorage) : null;
   const stableReset = !resetBefore.active && !resetAfter.active && resetBefore.generation === resetAfter.generation;
+  // An active cache epoch hides durable pre-cleanup data, but a matching local
+  // pending overlay represents post-cleanup intent and must remain available to
+  // this document's follow-up read-modify-write operations.
+  const stablePendingValue =
+    pendingBefore !== undefined &&
+    pendingAfter?.writeId === pendingBefore.writeId &&
+    pendingBefore.value === value &&
+    pendingBefore.generation === resetBefore.generation &&
+    (!requestCacheKey || pendingBefore.requestCacheGeneration === requestCacheBefore?.generation);
   const stableRequestCache =
     !requestCacheKey ||
     (requestCacheBefore !== null &&
       requestCacheAfter !== null &&
-      !requestCacheBefore.active &&
-      !requestCacheAfter.active &&
-      requestCacheBefore.generation === requestCacheAfter.generation);
+      requestCacheBefore.generation === requestCacheAfter.generation &&
+      ((!requestCacheBefore.active && !requestCacheAfter.active) || stablePendingValue));
 
   return {
     value: stableReset && stableRequestCache ? value : null,
@@ -1002,6 +1012,36 @@ function recordFallbackCriticalSectionUnavailable(
     key: KNIFE4J_STORAGE_COORDINATION_DB,
     reason: `${operation} coordination unavailable`,
   });
+}
+
+function supersedeRequestCacheCleanupEpoch(
+  storage: Knife4jWebStorage | null,
+  result: Knife4jStorageCleanupResult,
+  retainsResetLease: () => boolean,
+): boolean {
+  if (!storage || !retainsResetLease()) return false;
+  try {
+    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    if (!current || current.expiresAt <= Date.now()) return retainsResetLease();
+    const epoch: Knife4jStorageResetLease = {
+      version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+      generation: createResetGeneration(),
+      expiresAt: 0,
+    };
+    storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, JSON.stringify(epoch));
+    const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    if (persisted?.generation !== epoch.generation || persisted.expiresAt !== 0) {
+      throw new Error('request cache epoch replacement was lost');
+    }
+    return retainsResetLease();
+  } catch (error) {
+    recordFailure(result, {
+      area: 'localStorage',
+      key: KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+      reason: `request cache invalidation failed: ${errorMessage(error)}`,
+    });
+    return false;
+  }
 }
 
 function waitForResetLeaseTurn(lease: Knife4jStorageResetLease): Promise<void> {
@@ -1628,6 +1668,7 @@ export async function clearRegisteredKnife4jStorage(
         result,
         retainsCleanupLease,
       );
+      supersedeRequestCacheCleanupEpoch(adapters.localStorage, result, retainsCleanupLease);
     }
   };
 

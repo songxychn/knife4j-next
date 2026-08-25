@@ -666,6 +666,35 @@ describe('Knife4j storage cleanup registry', () => {
     expect(storage.getItem(targetKey)).toBe('new-value');
   });
 
+  it('keeps current-generation pending cache values readable during an active cleanup epoch', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
+    const requestCacheGeneration = 'active-cache-cleanup';
+    const storage = new MemoryWebStorage({
+      [targetKey]: 'old-history',
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+      [KNIFE4J_STORAGE_KEYS.requestCacheEpoch]: JSON.stringify({
+        version: 1,
+        generation: requestCacheGeneration,
+        expiresAt: Date.now() + 1_000,
+      }),
+    });
+
+    const append = setKnife4jStorageItem(storage, targetKey, 'pending-history', storage, null);
+    const pendingSnapshot = getKnife4jStorageItemSnapshot(storage, targetKey, storage);
+    expect(pendingSnapshot.value).toBe('pending-history');
+
+    const completion = setKnife4jStorageItem(storage, targetKey, 'completed-history', storage, null, pendingSnapshot);
+    expect(getKnife4jStorageItemSnapshot(storage, targetKey, storage).value).toBe('completed-history');
+
+    storage.setItem(
+      KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+      JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: 0 }),
+    );
+
+    await expect(Promise.all([append, completion])).resolves.toEqual([true, true]);
+    expect(storage.getItem(targetKey)).toBe('completed-history');
+  });
+
   it('exposes a queued Web Storage removal as a local tombstone', async () => {
     const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
     const storage = new MemoryWebStorage({ [targetKey]: 'old-value' });
@@ -814,15 +843,17 @@ describe('Knife4j storage cleanup registry', () => {
       },
       lockManager,
     );
-    localStorage.setItem(
-      KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
-      JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: 0 }),
-    );
+    const completedEpoch = JSON.parse(localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) ?? 'null') as {
+      generation: string;
+      expiresAt: number;
+    };
 
     await expect(persistence).resolves.toBe(false);
     expect(result.failures).toEqual([]);
     expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 0 });
     expect(localStorage.getItem(targetKey)).toBeNull();
+    expect(completedEpoch.generation).not.toBe(requestCacheGeneration);
+    expect(completedEpoch.expiresAt).toBe(0);
   });
 
   it('recovers request-cache coordination after registered entries free quota', async () => {
