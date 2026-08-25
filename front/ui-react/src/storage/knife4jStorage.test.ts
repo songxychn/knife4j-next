@@ -417,4 +417,102 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
     expect(indexedDB.values.has(authKey)).toBe(false);
   });
+
+  it('elects one fallback claimant when two resets start from an empty lease', async () => {
+    const localStorage = new MemoryWebStorage({});
+    const sessionStorage = new MemoryWebStorage({});
+    let activeKeyScans = 0;
+    let maxConcurrentKeyScans = 0;
+    let signalKeyScanStarted: (() => void) | undefined;
+    const keyScanStarted = new Promise<void>((resolve) => {
+      signalKeyScanStarted = resolve;
+    });
+    let releaseKeyScans: (() => void) | undefined;
+    const keyScanGate = new Promise<void>((resolve) => {
+      releaseKeyScans = resolve;
+    });
+    const indexedDB: Knife4jIndexedDbStorage = {
+      keys: async () => {
+        activeKeyScans += 1;
+        maxConcurrentKeyScans = Math.max(maxConcurrentKeyScans, activeKeyScans);
+        signalKeyScanStarted?.();
+        await keyScanGate;
+        activeKeyScans -= 1;
+        return [];
+      },
+      delete: async () => {},
+    };
+
+    const firstReset = clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+    const secondReset = clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+
+    await keyScanStarted;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(maxConcurrentKeyScans).toBe(1);
+
+    releaseKeyScans?.();
+    const [firstResult, secondResult] = await Promise.all([firstReset, secondReset]);
+
+    expect(firstResult.failures).toEqual([]);
+    expect(secondResult.failures).toEqual([]);
+    expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
+    expect(
+      Array.from(localStorage.values.keys()).some((key) => key.startsWith(KNIFE4J_STORAGE_PREFIXES.resetClaim)),
+    ).toBe(false);
+  });
+
+  it('stops deleting when fallback lease ownership is lost', async () => {
+    const localStorage = new MemoryWebStorage({});
+    const sessionStorage = new MemoryWebStorage({});
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const bypassKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}after-lease-loss`;
+    let deleteCount = 0;
+    let signalDeleteStarted: (() => void) | undefined;
+    const deleteStarted = new Promise<void>((resolve) => {
+      signalDeleteStarted = resolve;
+    });
+    let releaseDelete: (() => void) | undefined;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const indexedDB = new (class extends MemoryIndexedDb {
+      override async delete(key: IDBValidKey): Promise<void> {
+        deleteCount += 1;
+        signalDeleteStarted?.();
+        await deleteGate;
+        await super.delete(key);
+      }
+    })([[authKey, { token: 'secret' }]]);
+
+    const cleanup = clearRegisteredKnife4jStorage('all-local-data', { localStorage, sessionStorage, indexedDB }, null);
+    await deleteStarted;
+    localStorage.setItem(
+      KNIFE4J_STORAGE_KEYS.resetLease,
+      JSON.stringify({ version: 1, generation: 'newer-reset', expiresAt: Date.now() + 60_000 }),
+    );
+    localStorage.setItem(bypassKey, 'keep-after-loss');
+    localStorage.removeItem(KNIFE4J_STORAGE_KEYS.resetLease);
+    releaseDelete?.();
+    const result = await cleanup;
+
+    expect(deleteCount).toBe(1);
+    expect(localStorage.getItem(bypassKey)).toBe('keep-after-loss');
+    expect(result.failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          area: 'localStorage',
+          key: KNIFE4J_STORAGE_KEYS.resetLease,
+          reason: expect.stringContaining('reset lease ownership was lost'),
+        }),
+      ]),
+    );
+  });
 });
