@@ -353,7 +353,16 @@ export function setKnife4jStorageItem(
   if (!canWrite()) return false;
   const writeId = createResetGeneration();
   const ownerKey = webStorageWriteOwnerKey(key);
-  storage.setItem(ownerKey, writeId);
+  try {
+    storage.setItem(ownerKey, writeId);
+  } catch {
+    // Replacing an existing value may still fit when adding a marker would
+    // exceed quota. Preserve that capability; without an owner marker, a
+    // stale completion must never delete a potentially newer value.
+    if (!canWrite()) return false;
+    storage.setItem(key, value);
+    return canWrite();
+  }
   if (!canWrite()) {
     removeWebStorageWriteOwner(storage, ownerKey, writeId);
     return false;

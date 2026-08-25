@@ -387,6 +387,27 @@ describe('Knife4j storage cleanup registry', () => {
     expect(unchangedStorage.getItem(ownerKey)).toBeNull();
   });
 
+  it('replaces an existing value when an ownership marker would exceed quota', () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (key.startsWith(KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner)) {
+          throw new Error('quota exceeded for a new key');
+        }
+        super.setItem(key, value);
+      }
+    })({ [targetKey]: 'old-value' });
+    const leaseStorage = new MemoryWebStorage({
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+    });
+
+    expect(setKnife4jStorageItem(storage, targetKey, 'new-value', leaseStorage)).toBe(true);
+    expect(storage.getItem(targetKey)).toBe('new-value');
+    expect(
+      Array.from(storage.values.keys()).some((key) => key.startsWith(KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner)),
+    ).toBe(false);
+  });
+
   it('waits for existing writes and suppresses late writes across browsing contexts', async () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});
