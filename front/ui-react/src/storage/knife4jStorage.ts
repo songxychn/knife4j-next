@@ -85,18 +85,50 @@ export interface Knife4jStorageCleanupResult {
   failures: Knife4jStorageCleanupFailure[];
 }
 
+export interface Knife4jStorageLockManager {
+  request<T>(
+    name: string,
+    options: { mode: 'shared' | 'exclusive'; ifAvailable?: boolean },
+    callback: (lock: { name: string } | null) => T | PromiseLike<T>,
+  ): Promise<T>;
+}
+
 const pendingKnife4jStorageWrites = new Set<Promise<unknown>>();
 let allLocalDataCleanupCount = 0;
+const KNIFE4J_STORAGE_RESET_LOCK = 'knife4j-next:storage-reset';
+
+function browserStorageLockManager(): Knife4jStorageLockManager | null {
+  if (typeof navigator === 'undefined' || !navigator.locks) return null;
+  return navigator.locks as unknown as Knife4jStorageLockManager;
+}
+
+/**
+ * Coordinate a Knife4j persistence operation with full resets running in
+ * other same-origin browsing contexts. New shared locks are not queued behind
+ * a pending reset, so stale writes cannot resume after its deletion pass.
+ */
+export function withKnife4jStorageWriteLock<T>(
+  write: () => Promise<T>,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+): Promise<T | undefined> {
+  if (!lockManager) return Promise.resolve().then(write);
+  return lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'shared', ifAvailable: true }, (lock) =>
+    lock ? write() : undefined,
+  );
+}
 
 /**
  * Register an asynchronous Knife4j persistence operation. A full reset waits
  * for writes that already started and suppresses new writes until its final
  * deletion pass has completed.
  */
-export function trackKnife4jStorageWrite<T>(write: () => Promise<T>): Promise<T | undefined> {
+export function trackKnife4jStorageWrite<T>(
+  write: () => Promise<T>,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+): Promise<T | undefined> {
   if (allLocalDataCleanupCount > 0) return Promise.resolve(undefined);
 
-  const pending = Promise.resolve().then(write);
+  const pending = withKnife4jStorageWriteLock(write, lockManager);
   pendingKnife4jStorageWrites.add(pending);
   void pending.then(
     () => pendingKnife4jStorageWrites.delete(pending),
@@ -197,11 +229,12 @@ async function clearIndexedDbStorage(
 export async function clearRegisteredKnife4jStorage(
   scope: Knife4jStorageCleanupScope,
   adapters: Knife4jStorageAdapters,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
 ): Promise<Knife4jStorageCleanupResult> {
   const guardsAsyncWrites = scope === 'all-local-data';
   if (guardsAsyncWrites) allLocalDataCleanupCount += 1;
 
-  try {
+  const performCleanup = async (): Promise<Knife4jStorageCleanupResult> => {
     if (guardsAsyncWrites) await waitForPendingKnife4jStorageWrites();
 
     const result: Knife4jStorageCleanupResult = {
@@ -214,6 +247,11 @@ export async function clearRegisteredKnife4jStorage(
     clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
     await clearIndexedDbStorage(adapters.indexedDB, result);
     return result;
+  };
+
+  try {
+    if (!guardsAsyncWrites || !lockManager) return await performCleanup();
+    return await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, performCleanup);
   } finally {
     if (guardsAsyncWrites) allLocalDataCleanupCount -= 1;
   }

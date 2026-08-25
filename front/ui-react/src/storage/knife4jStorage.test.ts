@@ -5,8 +5,9 @@ import {
   KNIFE4J_STORAGE_REGISTRY,
   clearRegisteredKnife4jStorage,
   removedKnife4jStorageEntryCount,
-  trackKnife4jStorageWrite,
+  withKnife4jStorageWriteLock,
   type Knife4jIndexedDbStorage,
+  type Knife4jStorageLockManager,
   type Knife4jWebStorage,
 } from './knife4jStorage';
 
@@ -47,6 +48,46 @@ class MemoryIndexedDb implements Knife4jIndexedDbStorage {
   async delete(key: IDBValidKey): Promise<void> {
     if (this.failures.has(key)) throw new Error(`cannot remove ${String(key)}`);
     this.values.delete(key);
+  }
+}
+
+class MemoryLockManager implements Knife4jStorageLockManager {
+  private activeShared = 0;
+  private activeExclusive = false;
+  private readonly queue: Array<{ mode: 'shared' | 'exclusive'; start: () => void }> = [];
+
+  request<T>(
+    name: string,
+    options: { mode: 'shared' | 'exclusive'; ifAvailable?: boolean },
+    callback: (lock: { name: string } | null) => T | PromiseLike<T>,
+  ): Promise<T> {
+    const exclusivePending = this.queue.some((request) => request.mode === 'exclusive');
+    if (options.mode === 'shared' && options.ifAvailable && (this.activeExclusive || exclusivePending)) {
+      return Promise.resolve(callback(null));
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      const start = () => {
+        if (options.mode === 'shared') this.activeShared += 1;
+        else this.activeExclusive = true;
+        Promise.resolve(callback({ name }))
+          .then(resolve, reject)
+          .finally(() => {
+            if (options.mode === 'shared') this.activeShared -= 1;
+            else this.activeExclusive = false;
+            this.drain();
+          });
+      };
+      this.queue.push({ mode: options.mode, start });
+      this.drain();
+    });
+  }
+
+  private drain(): void {
+    if (this.activeExclusive || this.activeShared > 0) return;
+    const next = this.queue.shift();
+    if (!next) return;
+    next.start();
   }
 }
 
@@ -204,30 +245,35 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.language)).toBe(false);
   });
 
-  it('waits for existing writes and suppresses late writes during a full reset', async () => {
+  it('waits for existing writes and suppresses late writes across browsing contexts', async () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});
     const indexedDB = new MemoryIndexedDb([]);
+    const lockManager = new MemoryLockManager();
     const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}legacy-group`;
     let releaseExistingWrite: (() => void) | undefined;
     const existingWriteGate = new Promise<void>((resolve) => {
       releaseExistingWrite = resolve;
     });
 
-    const existingWrite = trackKnife4jStorageWrite(async () => {
+    const existingWrite = withKnife4jStorageWriteLock(async () => {
       await existingWriteGate;
       indexedDB.values.set(authKey, { token: 'legacy' });
-    });
-    const cleanup = clearRegisteredKnife4jStorage('all-local-data', {
-      localStorage,
-      sessionStorage,
-      indexedDB,
-    });
+    }, lockManager);
+    const cleanup = clearRegisteredKnife4jStorage(
+      'all-local-data',
+      {
+        localStorage,
+        sessionStorage,
+        indexedDB,
+      },
+      lockManager,
+    );
     let lateWriteRan = false;
-    const lateWrite = trackKnife4jStorageWrite(async () => {
+    const lateWrite = withKnife4jStorageWriteLock(async () => {
       lateWriteRan = true;
       indexedDB.values.set(authKey, { token: 'late' });
-    });
+    }, lockManager);
 
     releaseExistingWrite?.();
     const [result] = await Promise.all([cleanup, existingWrite, lateWrite]);
