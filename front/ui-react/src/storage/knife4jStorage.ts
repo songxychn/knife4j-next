@@ -157,6 +157,14 @@ export interface Knife4jStorageResetSnapshot {
   readonly active: boolean;
 }
 
+/** Value plus the reset/cache epochs observed by the read that produced it. */
+export interface Knife4jStorageItemSnapshot {
+  readonly value: string | null;
+  readonly resetGeneration: string;
+  readonly resetActive: boolean;
+  readonly requestCacheGeneration?: string;
+}
+
 type Knife4jStorageResetListener = (snapshot: Knife4jStorageResetSnapshot) => void;
 
 let observedResetSnapshot: Knife4jStorageResetSnapshot = { generation: '', active: false };
@@ -445,8 +453,9 @@ type Knife4jRequestCacheWriteFence = (() => boolean) & { readonly generation?: s
 
 function createKnife4jStorageWriteFence(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  expectedGeneration?: string,
 ): Knife4jStorageWriteFence {
-  const generation = getKnife4jStorageResetSnapshot(leaseStorage).generation;
+  const generation = expectedGeneration ?? getKnife4jStorageResetSnapshot(leaseStorage).generation;
   const canWrite = () => {
     const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
     return allLocalDataCleanupCount === 0 && !snapshot.active && generation === snapshot.generation;
@@ -532,6 +541,39 @@ export function getKnife4jStorageItem(
   return storage.getItem(key);
 }
 
+/**
+ * Read a value together with the epochs that made the read valid. If either
+ * epoch changes while reading, discard the value so a later write cannot
+ * carry pre-cleanup data into the new epoch.
+ */
+export function getKnife4jStorageItemSnapshot(
+  storage: Pick<Storage, 'getItem'>,
+  key: string,
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+): Knife4jStorageItemSnapshot {
+  const requestCacheKey = isRequestCacheStorageKey(key);
+  const resetBefore = getKnife4jStorageResetSnapshot(leaseStorage);
+  const requestCacheBefore = requestCacheKey ? getRequestCacheSnapshot(leaseStorage) : null;
+  const value = getKnife4jStorageItem(storage, key, leaseStorage);
+  const resetAfter = getKnife4jStorageResetSnapshot(leaseStorage);
+  const requestCacheAfter = requestCacheKey ? getRequestCacheSnapshot(leaseStorage) : null;
+  const stableReset = !resetBefore.active && !resetAfter.active && resetBefore.generation === resetAfter.generation;
+  const stableRequestCache =
+    !requestCacheKey ||
+    (requestCacheBefore !== null &&
+      requestCacheAfter !== null &&
+      !requestCacheBefore.active &&
+      !requestCacheAfter.active &&
+      requestCacheBefore.generation === requestCacheAfter.generation);
+
+  return {
+    value: stableReset && stableRequestCache ? value : null,
+    resetGeneration: resetAfter.generation,
+    resetActive: resetAfter.active,
+    requestCacheGeneration: requestCacheAfter?.generation,
+  };
+}
+
 /** Persist one registered value while sharing the same reset/mutation lock. */
 export async function persistKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
@@ -539,11 +581,16 @@ export async function persistKnife4jStorageItem(
   value: string,
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
-  expectedRequestCacheGeneration?: string,
+  expectedSnapshot?: Knife4jStorageItemSnapshot,
 ): Promise<boolean> {
   try {
-    const resetCanWrite = createKnife4jStorageWriteFence(leaseStorage);
-    const requestCacheCanWrite = createRequestCacheWriteFence(key, leaseStorage, expectedRequestCacheGeneration);
+    if (expectedSnapshot?.resetActive) return false;
+    const resetCanWrite = createKnife4jStorageWriteFence(leaseStorage, expectedSnapshot?.resetGeneration);
+    const requestCacheCanWrite = createRequestCacheWriteFence(
+      key,
+      leaseStorage,
+      expectedSnapshot?.requestCacheGeneration,
+    );
     if (!(await waitForRequestCacheWriteTurn(leaseStorage, requestCacheCanWrite.generation))) return false;
     if (!resetCanWrite()) return false;
     const persisted = await trackKnife4jStorageWrite(
@@ -574,6 +621,7 @@ export function setKnife4jStorageItem(
   value: string,
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+  expectedSnapshot?: Knife4jStorageItemSnapshot,
 ): Promise<boolean> {
   if (!leaseStorage) {
     try {
@@ -584,25 +632,30 @@ export function setKnife4jStorageItem(
     }
   }
   const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
-  if (snapshot.active) return Promise.resolve(false);
-  const requestCacheCanWrite = createRequestCacheWriteFence(key, leaseStorage);
+  if (snapshot.active || expectedSnapshot?.resetActive) return Promise.resolve(false);
+  const requestCacheCanWrite = createRequestCacheWriteFence(
+    key,
+    leaseStorage,
+    expectedSnapshot?.requestCacheGeneration,
+  );
+  const writeSnapshot: Knife4jStorageItemSnapshot =
+    expectedSnapshot ??
+    ({
+      value: null,
+      resetGeneration: snapshot.generation,
+      resetActive: snapshot.active,
+      requestCacheGeneration: requestCacheCanWrite.generation,
+    } satisfies Knife4jStorageItemSnapshot);
 
   const writeId = createResetGeneration();
   const pending = pendingWebStorageMap(storage);
   pending.set(key, {
     writeId,
     value,
-    generation: snapshot.generation,
-    requestCacheGeneration: requestCacheCanWrite.generation,
+    generation: writeSnapshot.resetGeneration,
+    requestCacheGeneration: writeSnapshot.requestCacheGeneration,
   });
-  return persistKnife4jStorageItem(
-    storage,
-    key,
-    value,
-    lockManager,
-    leaseStorage,
-    requestCacheCanWrite.generation,
-  ).finally(() => {
+  return persistKnife4jStorageItem(storage, key, value, lockManager, leaseStorage, writeSnapshot).finally(() => {
     if (pending.get(key)?.writeId === writeId) pending.delete(key);
   });
 }

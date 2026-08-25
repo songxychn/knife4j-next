@@ -5,6 +5,7 @@ import {
   KNIFE4J_STORAGE_REGISTRY,
   clearRegisteredKnife4jStorage,
   getKnife4jStorageItem,
+  getKnife4jStorageItemSnapshot,
   getKnife4jStorageResetSnapshot,
   persistKnife4jStorageItem,
   removeKnife4jStorageItem,
@@ -603,6 +604,50 @@ describe('Knife4j storage cleanup registry', () => {
     expect(result.failures).toEqual([]);
     expect(persisted).toBe(true);
     expect(JSON.parse(writerStorage.getItem(targetKey) ?? '[]')).toEqual(['new-history']);
+  });
+
+  it('rejects a history write whose read snapshot predates cross-tab cache cleanup', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
+    const sharedValues = new Map<string, string>();
+    const cleanupStorage = new MemoryWebStorage(
+      {
+        [targetKey]: JSON.stringify(['old-history']),
+        [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+        [KNIFE4J_STORAGE_KEYS.mutationLease]: JSON.stringify({
+          version: 1,
+          generation: 'blocking-mutation',
+          expiresAt: Date.now() + 1_000,
+        }),
+      },
+      sharedValues,
+    );
+    const writerStorage = new MemoryWebStorage({}, sharedValues);
+    const readSnapshot = getKnife4jStorageItemSnapshot(writerStorage, targetKey, writerStorage);
+    expect(JSON.parse(readSnapshot.value ?? '[]')).toEqual(['old-history']);
+
+    const cleanup = clearRegisteredKnife4jStorage(
+      'request-cache',
+      {
+        localStorage: cleanupStorage,
+        sessionStorage: new MemoryWebStorage({}),
+        indexedDB: new MemoryIndexedDb([]),
+      },
+      null,
+    );
+    const staleWrite = setKnife4jStorageItem(
+      writerStorage,
+      targetKey,
+      JSON.stringify(['new-history', 'old-history']),
+      writerStorage,
+      null,
+      readSnapshot,
+    );
+    cleanupStorage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+    const [result, persisted] = await Promise.all([cleanup, staleWrite]);
+
+    expect(result.failures).toEqual([]);
+    expect(persisted).toBe(false);
+    expect(writerStorage.getItem(targetKey)).toBeNull();
   });
 
   it('rejects a cache write that waited across a full reset generation change', async () => {

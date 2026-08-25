@@ -1,8 +1,9 @@
 import {
   KNIFE4J_STORAGE_PREFIXES,
-  getKnife4jStorageItem,
+  getKnife4jStorageItemSnapshot,
   removeKnife4jStorageItem,
   setKnife4jStorageItem,
+  type Knife4jStorageItemSnapshot,
 } from '../../storage/knife4jStorage';
 
 export const DEBUG_HISTORY_VERSION = 1 as const;
@@ -464,17 +465,31 @@ function normalizeEntry(value: unknown): DebugHistoryEntry | null {
   };
 }
 
-function readHistoryList(cacheKey: string, storage: DebugHistoryStorage | null): DebugHistoryEntry[] {
-  if (!storage) return [];
+interface DebugHistoryListSnapshot {
+  entries: DebugHistoryEntry[];
+  storageSnapshot?: Knife4jStorageItemSnapshot;
+}
+
+function readHistoryListSnapshot(cacheKey: string, storage: DebugHistoryStorage | null): DebugHistoryListSnapshot {
+  if (!storage) return { entries: [] };
+  let storageSnapshot: Knife4jStorageItemSnapshot | undefined;
   try {
-    const raw = getKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey));
-    if (!raw) return [];
+    storageSnapshot = getKnife4jStorageItemSnapshot(storage, debugHistoryStorageKey(cacheKey));
+    const raw = storageSnapshot.value;
+    if (!raw) return { entries: [], storageSnapshot };
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((item) => normalizeEntry(item)).filter((item): item is DebugHistoryEntry => item !== null);
+    if (!Array.isArray(parsed)) return { entries: [], storageSnapshot };
+    return {
+      entries: parsed.map((item) => normalizeEntry(item)).filter((item): item is DebugHistoryEntry => item !== null),
+      storageSnapshot,
+    };
   } catch {
-    return [];
+    return { entries: [], storageSnapshot };
   }
+}
+
+function readHistoryList(cacheKey: string, storage: DebugHistoryStorage | null): DebugHistoryEntry[] {
+  return readHistoryListSnapshot(cacheKey, storage).entries;
 }
 
 /**
@@ -503,11 +518,23 @@ export function limitHistoryEntries(entries: DebugHistoryEntry[]): DebugHistoryE
   return result;
 }
 
-function writeHistoryList(cacheKey: string, entries: DebugHistoryEntry[], storage: DebugHistoryStorage | null): void {
+function writeHistoryList(
+  cacheKey: string,
+  entries: DebugHistoryEntry[],
+  storage: DebugHistoryStorage | null,
+  storageSnapshot?: Knife4jStorageItemSnapshot,
+): void {
   if (!storage) return;
   try {
     const limited = limitHistoryEntries(entries);
-    void setKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey), JSON.stringify(limited));
+    void setKnife4jStorageItem(
+      storage,
+      debugHistoryStorageKey(cacheKey),
+      JSON.stringify(limited),
+      undefined,
+      undefined,
+      storageSnapshot,
+    );
   } catch {
     // localStorage can be disabled or full; history must never block the UI.
   }
@@ -600,9 +627,10 @@ export function appendPending(
   storage: DebugHistoryStorage | null = getDebugHistoryStorage(),
 ): DebugHistoryEntry[] {
   const pending = entry.status === 'pending' ? entry : { ...entry, status: 'pending' as const };
-  const next = [pending, ...readHistoryList(cacheKey, storage).filter((item) => item.id !== pending.id)];
+  const current = readHistoryListSnapshot(cacheKey, storage);
+  const next = [pending, ...current.entries.filter((item) => item.id !== pending.id)];
   const limited = limitHistoryEntries(next);
-  writeHistoryList(cacheKey, limited, storage);
+  writeHistoryList(cacheKey, limited, storage, current.storageSnapshot);
   return limited;
 }
 
@@ -612,15 +640,15 @@ export function updateEntry(
   updater: (entry: DebugHistoryEntry) => DebugHistoryEntry,
   storage: DebugHistoryStorage | null = getDebugHistoryStorage(),
 ): DebugHistoryEntry[] {
-  const current = readHistoryList(cacheKey, storage);
+  const current = readHistoryListSnapshot(cacheKey, storage);
   let found = false;
-  const next = current.map((item) => {
+  const next = current.entries.map((item) => {
     if (item.id !== id) return item;
     found = true;
     return updater(item);
   });
-  if (!found) return current;
-  writeHistoryList(cacheKey, next, storage);
+  if (!found) return current.entries;
+  writeHistoryList(cacheKey, next, storage, current.storageSnapshot);
   return next;
 }
 
@@ -629,8 +657,9 @@ export function removeEntry(
   id: string,
   storage: DebugHistoryStorage | null = getDebugHistoryStorage(),
 ): DebugHistoryEntry[] {
-  const next = readHistoryList(cacheKey, storage).filter((item) => item.id !== id);
-  writeHistoryList(cacheKey, next, storage);
+  const current = readHistoryListSnapshot(cacheKey, storage);
+  const next = current.entries.filter((item) => item.id !== id);
+  writeHistoryList(cacheKey, next, storage, current.storageSnapshot);
   return next;
 }
 
