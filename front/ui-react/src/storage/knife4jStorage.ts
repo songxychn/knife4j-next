@@ -170,7 +170,7 @@ interface Knife4jStorageResetClaim extends Knife4jStorageResetLease {
 
 interface PendingKnife4jWebStorageValue {
   writeId: string;
-  value: string;
+  value: string | null;
   generation: string;
 }
 
@@ -350,7 +350,7 @@ function createKnife4jStorageWriteFence(
   return Object.assign(canWrite, { generation });
 }
 
-function pendingWebStorageMap(storage: Pick<Storage, 'getItem'>): Map<string, PendingKnife4jWebStorageValue> {
+function pendingWebStorageMap(storage: object): Map<string, PendingKnife4jWebStorageValue> {
   let values = pendingWebStorageValues.get(storage);
   if (!values) {
     values = new Map();
@@ -446,7 +446,7 @@ export function setKnife4jSessionStorageItem(
 
 /** Remove one registered value under the same cross-context mutation lock as a full reset. */
 export async function removeKnife4jStorageItem(
-  storage: Pick<Storage, 'removeItem'>,
+  storage: Pick<Storage, 'getItem' | 'removeItem'>,
   key: string,
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
@@ -456,16 +456,26 @@ export async function removeKnife4jStorageItem(
       storage.removeItem(key);
       return true;
     }
-    const removed = await trackKnife4jStorageWrite(
-      async (canWrite) => {
-        if (!canWrite()) return false;
-        storage.removeItem(key);
-        return canWrite();
-      },
-      lockManager,
-      leaseStorage,
-    );
-    return removed === true;
+    const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
+    if (snapshot.active) return false;
+
+    const writeId = createResetGeneration();
+    const pending = pendingWebStorageMap(storage);
+    pending.set(key, { writeId, value: null, generation: snapshot.generation });
+    try {
+      const removed = await trackKnife4jStorageWrite(
+        async (canWrite) => {
+          if (!canWrite()) return false;
+          storage.removeItem(key);
+          return canWrite();
+        },
+        lockManager,
+        leaseStorage,
+      );
+      return removed === true;
+    } finally {
+      if (pending.get(key)?.writeId === writeId) pending.delete(key);
+    }
   } catch {
     return false;
   }
@@ -1020,6 +1030,48 @@ export async function clearRegisteredKnife4jStorage(
     removed: { localStorage: 0, sessionStorage: 0, indexedDB: 0 },
     failures: [],
   };
+
+  if (!guardsAsyncWrites) {
+    try {
+      const completed = await trackKnife4jStorageWrite(
+        async (canWrite) => {
+          if (!canWrite()) return false;
+          clearWebStorage(
+            'localStorage',
+            adapters.localStorage,
+            KNIFE4J_STORAGE_REGISTRY.localStorage,
+            result,
+            canWrite,
+          );
+          clearWebStorage(
+            'sessionStorage',
+            adapters.sessionStorage,
+            KNIFE4J_STORAGE_REGISTRY.sessionStorage,
+            result,
+            canWrite,
+          );
+          return canWrite();
+        },
+        lockManager,
+        adapters.localStorage,
+      );
+      if (completed !== true) {
+        recordFailure(result, {
+          area: 'localStorage',
+          key: KNIFE4J_STORAGE_KEYS.mutationLease,
+          reason: 'request cache coordination unavailable',
+        });
+      }
+    } catch (error) {
+      recordFailure(result, {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.mutationLease,
+        reason: `request cache coordination failed: ${errorMessage(error)}`,
+      });
+    }
+    return result;
+  }
+
   let lease: Knife4jStorageResetLease | null = null;
   let mutationLease: Knife4jStorageResetLease | null = null;
   let usesExclusiveLockFallback = false;
