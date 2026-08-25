@@ -190,6 +190,7 @@ connect-src 'self';
 - `knife4j.setting.enable-footer`
 - `knife4j.setting.enable-footer-custom` / `footer-custom-content`
 - `knife4j.setting.enable-request-cache`
+- `knife4j.setting.enable-response-code`
 - `knife4j.setting.enable-dynamic-parameter`
 - `knife4j.setting.enable-home-custom` / `home-custom-location`
 - `knife4j.setting.enable-filter-multipart-apis` / `enable-filter-multipart-api-method-type`
@@ -203,7 +204,6 @@ connect-src 'self';
 - `knife4j.setting.enable-version=true`
 - `knife4j.setting.enable-after-script`
 - `knife4j.setting.enable-reload-cache-parameter`
-- `knife4j.setting.enable-response-code`
 
 原因：这些字段对应的 Vue 版能力尚未在 React 新前端里实现，或还没有接到实际行为上。后端 `ProductionSecurityFilter`、`knife4j.basic`、`knife4j.documents` 等服务端侧能力不受影响。
 

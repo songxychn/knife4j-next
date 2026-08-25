@@ -475,6 +475,7 @@ const zhCN = {
   'settings.tip': '启用个性化配置后，接口 Tab 标签需关闭后重新打开或者刷新当前页面',
   'settings.enableRequestCache': '开启请求参数缓存（Debug 调试栏自动缓存上次填写的参数值）',
   'settings.enableRequestHistory': '开启请求历史（Debug 调试栏按接口记录最近请求，可应用到表单）',
+  'settings.enableResponseCode': '显示响应状态概要（状态码、说明、Schema 和 Media Type）',
   'settings.enableDynamicParameter':
     '开启动态表单参数（允许在 urlencoded / multipart Body 中添加文档未声明的文本字段）',
   'settings.enableFilterMultipartApis': '过滤接口类型（针对 RequestMapping 未指定类型的接口，只展示指定类型）',

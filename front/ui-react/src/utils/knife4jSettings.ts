@@ -64,6 +64,9 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableOpenApi = readBoolean(setting, 'enableOpenApi');
   if (enableOpenApi !== undefined) next.enableOpenApi = enableOpenApi;
 
+  const enableResponseCode = readBoolean(setting, 'enableResponseCode');
+  if (enableResponseCode !== undefined) next.enableResponseCode = enableResponseCode;
+
   const enableHomeCustom = readBoolean(setting, 'enableHomeCustom');
   if (enableHomeCustom !== undefined) next.enableHomeCustom = enableHomeCustom;
 
