@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   KNIFE4J_STORAGE_KEYS,
   KNIFE4J_STORAGE_PREFIXES,
@@ -345,6 +345,31 @@ describe('Knife4j storage cleanup registry', () => {
     expect(result.failures).toEqual([]);
     expect(indexedDB.values.has(authKey)).toBe(false);
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
+  });
+
+  it('notifies subscribers when a fallback lease expires without a removal event', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    const generation = 'crashed-reset';
+    const localStorage = new MemoryWebStorage({
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: generation,
+      [KNIFE4J_STORAGE_KEYS.resetLease]: JSON.stringify({
+        version: 1,
+        generation,
+        expiresAt: Date.now() + 100,
+      }),
+    });
+    const snapshots: Array<{ generation: string; active: boolean }> = [];
+    const unsubscribe = subscribeKnife4jStorageReset((snapshot) => snapshots.push({ ...snapshot }));
+
+    try {
+      expect(getKnife4jStorageResetSnapshot(localStorage)).toEqual({ generation, active: true });
+      await vi.advanceTimersByTimeAsync(101);
+      expect(snapshots.at(-1)).toEqual({ generation, active: false });
+    } finally {
+      unsubscribe();
+      vi.useRealTimers();
+    }
   });
 
   it('blocks guarded writes and removes bypass writes in the final pass without Web Locks', async () => {

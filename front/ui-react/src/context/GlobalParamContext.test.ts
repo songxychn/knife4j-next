@@ -8,15 +8,19 @@ vi.mock('react', () => ({
   createContext: () => ({}),
   useCallback: vi.fn(),
   useContext: vi.fn(),
+  useEffect: vi.fn(),
   useMemo: vi.fn(),
+  useRef: vi.fn(),
   useState: vi.fn(),
 }));
 import {
   applicationStorageKey,
+  type GlobalParamMemoryState,
   type GlobalParamItem,
   type GlobalParamStorage,
   globalParamIdentity,
   groupStorageKey,
+  invalidateGlobalParamMemoryForReset,
   loadApplicationParams,
   loadGroup,
   normalizeParam,
@@ -48,6 +52,47 @@ function memoryStorage(initial: Record<string, string> = {}) {
   };
   return { data, storage };
 }
+
+describe('global parameter reset generation', () => {
+  it('drops application, group, request-derived, and cookie-session memory after a cross-tab reset', () => {
+    const state: GlobalParamMemoryState = {
+      resetGeneration: 'before-reset',
+      resetActive: false,
+      applicationParams: [param({ id: 'application', name: 'Authorization', value: 'old-application-token' })],
+      configs: new Map([
+        [
+          'group-a',
+          {
+            params: [
+              param({
+                id: 'group-request',
+                name: 'X-Request-Token',
+                value: 'old-request-token',
+                valueSource: 'request',
+              }),
+            ],
+            cookieSession: {
+              credentials: 'include',
+              login: { method: 'POST', url: '/login', headers: '', body: '{"password":"old"}' },
+            },
+          },
+        ],
+      ]),
+    };
+
+    const invalidated = invalidateGlobalParamMemoryForReset(state, {
+      generation: 'after-reset',
+      active: false,
+    });
+
+    expect(invalidated).toEqual({
+      resetGeneration: 'after-reset',
+      resetActive: false,
+      applicationParams: [],
+      configs: new Map(),
+    });
+  });
+});
 
 describe('global parameter normalization', () => {
   it('keeps the existing request defaults for group parameters', () => {

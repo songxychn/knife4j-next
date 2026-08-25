@@ -137,6 +137,10 @@ type Knife4jStorageResetListener = (snapshot: Knife4jStorageResetSnapshot) => vo
 
 let observedResetSnapshot: Knife4jStorageResetSnapshot = { generation: '', active: false };
 const resetSnapshotListeners = new Set<Knife4jStorageResetListener>();
+let resetLeaseExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+let scheduledResetLeaseStorage: Knife4jWebStorage | null = null;
+let scheduledResetLeaseGeneration = '';
+let scheduledResetLeaseExpiresAt = 0;
 
 interface Knife4jStorageResetLease {
   version: typeof KNIFE4J_STORAGE_RESET_LEASE_VERSION;
@@ -146,6 +150,52 @@ interface Knife4jStorageResetLease {
 
 interface Knife4jStorageResetClaim extends Knife4jStorageResetLease {
   createdAt: number;
+}
+
+function cancelResetLeaseExpiry(storage?: Knife4jWebStorage | null, generation?: string): void {
+  if (
+    resetLeaseExpiryTimer === null ||
+    (storage !== undefined && scheduledResetLeaseStorage !== storage) ||
+    (generation !== undefined && scheduledResetLeaseGeneration !== generation)
+  ) {
+    return;
+  }
+  clearTimeout(resetLeaseExpiryTimer);
+  resetLeaseExpiryTimer = null;
+  scheduledResetLeaseStorage = null;
+  scheduledResetLeaseGeneration = '';
+  scheduledResetLeaseExpiresAt = 0;
+}
+
+function scheduleResetLeaseExpiry(storage: Knife4jWebStorage, lease: Knife4jStorageResetLease, now = Date.now()): void {
+  if (lease.expiresAt <= now) {
+    cancelResetLeaseExpiry(storage, lease.generation);
+    return;
+  }
+  if (
+    resetLeaseExpiryTimer !== null &&
+    scheduledResetLeaseStorage === storage &&
+    scheduledResetLeaseGeneration === lease.generation &&
+    scheduledResetLeaseExpiresAt === lease.expiresAt
+  ) {
+    return;
+  }
+
+  cancelResetLeaseExpiry();
+  scheduledResetLeaseStorage = storage;
+  scheduledResetLeaseGeneration = lease.generation;
+  scheduledResetLeaseExpiresAt = lease.expiresAt;
+  resetLeaseExpiryTimer = setTimeout(
+    () => {
+      resetLeaseExpiryTimer = null;
+      scheduledResetLeaseStorage = null;
+      scheduledResetLeaseGeneration = '';
+      scheduledResetLeaseExpiresAt = 0;
+      getKnife4jStorageResetSnapshot(storage);
+    },
+    Math.max(0, lease.expiresAt - now + 1),
+  );
+  (resetLeaseExpiryTimer as unknown as { unref?: () => void }).unref?.();
 }
 
 function observeResetSnapshot(generation: string, active: boolean): Knife4jStorageResetSnapshot {
@@ -191,9 +241,15 @@ function readResetLease(storage: Knife4jWebStorage | null, now = Date.now()): Kn
   } catch {
     return null;
   }
-  if (!lease) return null;
-  observeResetSnapshot(lease.generation, lease.expiresAt > now);
-  if (lease.expiresAt > now) return lease;
+  if (!lease) {
+    cancelResetLeaseExpiry(storage);
+    return null;
+  }
+  const active = lease.expiresAt > now;
+  if (active) scheduleResetLeaseExpiry(storage, lease, now);
+  else cancelResetLeaseExpiry(storage, lease.generation);
+  observeResetSnapshot(lease.generation, active);
+  if (active) return lease;
   return null;
 }
 
@@ -565,6 +621,7 @@ function releaseResetLease(
     const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
     if (current?.generation !== lease.generation) throw new Error('reset lease ownership was lost');
     storage.removeItem(KNIFE4J_STORAGE_KEYS.resetLease);
+    cancelResetLeaseExpiry(storage, lease.generation);
     observeResetSnapshot(
       storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration)?.trim() || lease.generation,
       allLocalDataCleanupCount > 0,
