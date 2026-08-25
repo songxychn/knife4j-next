@@ -507,7 +507,7 @@ function writeHistoryList(cacheKey: string, entries: DebugHistoryEntry[], storag
   if (!storage) return;
   try {
     const limited = limitHistoryEntries(entries);
-    setKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey), JSON.stringify(limited));
+    void setKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey), JSON.stringify(limited));
   } catch {
     // localStorage can be disabled or full; history must never block the UI.
   }

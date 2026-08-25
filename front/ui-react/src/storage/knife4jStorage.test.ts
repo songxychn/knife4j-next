@@ -380,9 +380,11 @@ describe('Knife4j storage cleanup registry', () => {
       [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
     });
 
-    expect(setKnife4jStorageItem(storage, targetKey, 'new-value', leaseStorage)).toBe(true);
+    const persistence = setKnife4jStorageItem(storage, targetKey, 'new-value', leaseStorage, null);
     expect(getKnife4jStorageItem(storage, targetKey, leaseStorage)).toBe('new-value');
-    await vi.waitFor(() => expect(storage.getItem(targetKey)).toBe('new-value'));
+    expect(storage.getItem(targetKey)).toBe('old-value');
+    await expect(persistence).resolves.toBe(true);
+    expect(storage.getItem(targetKey)).toBe('new-value');
   });
 
   it('replaces an existing value at quota through Web Locks without allocating an owner marker', async () => {
@@ -630,7 +632,7 @@ describe('Knife4j storage cleanup registry', () => {
 
     const cleanup = clearRegisteredKnife4jStorage('all-local-data', { localStorage, sessionStorage, indexedDB }, null);
     await deleteStarted;
-    expect(setKnife4jStorageItem(localStorage, guardedKey, 'guarded', localStorage)).toBe(false);
+    await expect(setKnife4jStorageItem(localStorage, guardedKey, 'guarded', localStorage)).resolves.toBe(false);
     localStorage.setItem(bypassKey, 'bypass');
     releaseDelete?.();
     const result = await cleanup;

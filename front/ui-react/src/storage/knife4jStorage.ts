@@ -399,27 +399,34 @@ export async function persistKnife4jStorageItem(
   }
 }
 
-/** Queue a registered Web Storage write and expose its latest value locally immediately. */
+/**
+ * Queue a registered Web Storage write, expose its latest value locally
+ * immediately, and resolve only after durable persistence succeeds or fails.
+ */
 export function setKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string,
   value: string,
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
-): boolean {
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+): Promise<boolean> {
   if (!leaseStorage) {
-    storage.setItem(key, value);
-    return true;
+    try {
+      storage.setItem(key, value);
+      return Promise.resolve(true);
+    } catch {
+      return Promise.resolve(false);
+    }
   }
   const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
-  if (snapshot.active) return false;
+  if (snapshot.active) return Promise.resolve(false);
 
   const writeId = createResetGeneration();
   const pending = pendingWebStorageMap(storage);
   pending.set(key, { writeId, value, generation: snapshot.generation });
-  void persistKnife4jStorageItem(storage, key, value, browserStorageLockManager(), leaseStorage).finally(() => {
+  return persistKnife4jStorageItem(storage, key, value, lockManager, leaseStorage).finally(() => {
     if (pending.get(key)?.writeId === writeId) pending.delete(key);
   });
-  return true;
 }
 
 /** Session Storage is tab-scoped, so a synchronous write only needs the local reset fence. */

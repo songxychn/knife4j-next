@@ -136,7 +136,7 @@ export function writeDebugCache(
 ): void {
   if (!storage) return;
   try {
-    setKnife4jStorageItem(
+    void setKnife4jStorageItem(
       storage,
       debugCacheStorageKey(cacheKey),
       JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }),

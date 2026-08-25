@@ -18,3 +18,27 @@ export function normalizeSupportedLanguage(value: unknown): SupportedLang | unde
   if (language === 'ja') return 'ja-JP';
   return undefined;
 }
+
+export interface I18nLanguageController {
+  readonly language: string;
+  changeLanguage(language?: string): unknown;
+}
+
+/** Keep the live i18next language aligned with settings and completed storage resets. */
+export function synchronizeI18nLanguage(
+  i18n: I18nLanguageController,
+  configuredLanguage: SupportedLang | undefined,
+  resetActive: boolean,
+): void {
+  if (resetActive) return;
+  if (configuredLanguage) {
+    if (normalizeSupportedLanguage(i18n.language) !== configuredLanguage) {
+      void i18n.changeLanguage(configuredLanguage);
+    }
+    return;
+  }
+
+  // Calling without a language reruns i18next-browser-languagedetector. This
+  // restores the navigator/default language after reset removed the override.
+  void i18n.changeLanguage();
+}

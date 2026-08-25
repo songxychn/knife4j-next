@@ -243,7 +243,7 @@ function saveGroup(groupId: string, config: StoredGroupConfig, storage?: GlobalP
   const target = storage ?? browserStorage();
   if (!target) return;
   try {
-    setKnife4jStorageItem(target, groupStorageKey(groupId), JSON.stringify(config));
+    void setKnife4jStorageItem(target, groupStorageKey(groupId), JSON.stringify(config));
   } catch {
     // Storage failures must not make the debugger unusable.
   }
@@ -296,7 +296,7 @@ function saveApplicationParams(pathname: string, params: GlobalParamItem[], stor
   const target = storage ?? browserStorage();
   if (!target) return;
   try {
-    setKnife4jStorageItem(target, applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
+    void setKnife4jStorageItem(target, applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
   } catch {
     // Storage failures must not make the debugger unusable.
   }

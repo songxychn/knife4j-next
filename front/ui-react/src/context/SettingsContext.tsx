@@ -34,7 +34,7 @@ function loadOverrides(): SettingsOverrides {
 function saveOverrides(overrides: SettingsOverrides): void {
   try {
     const payload: StoredSettings = { version: SETTINGS_STORAGE_VERSION, overrides };
-    setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.settings, JSON.stringify(payload));
+    void setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.settings, JSON.stringify(payload));
   } catch {
     // ignore quota errors
   }
@@ -52,6 +52,7 @@ function shallowEqualSettings(a: SettingsOverrides, b: SettingsOverrides): boole
 interface SettingsContextValue {
   settings: AppSettings;
   userSettings: Partial<AppSettings>;
+  storageResetSnapshot: Knife4jStorageResetSnapshot;
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   resetSettings: () => void;
   setServerSettings: (settings: SettingsOverrides) => void;
@@ -94,6 +95,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     () => resolveAppSettings(serverSettings, userMemory.overrides),
     [serverSettings, userMemory.overrides],
   );
+  const storageResetSnapshot = useMemo<Knife4jStorageResetSnapshot>(
+    () => ({ generation: userMemory.resetGeneration, active: userMemory.resetActive }),
+    [userMemory.resetActive, userMemory.resetGeneration],
+  );
 
   useEffect(() => {
     const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
@@ -130,8 +135,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const value = useMemo(
-    () => ({ settings, userSettings: userMemory.overrides, setSetting, resetSettings, setServerSettings }),
-    [settings, userMemory.overrides, setSetting, resetSettings, setServerSettings],
+    () => ({
+      settings,
+      userSettings: userMemory.overrides,
+      storageResetSnapshot,
+      setSetting,
+      resetSettings,
+      setServerSettings,
+    }),
+    [settings, userMemory.overrides, storageResetSnapshot, setSetting, resetSettings, setServerSettings],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
