@@ -15,6 +15,7 @@ vi.mock('react', () => ({
 
 import {
   authRecordBelongsToWrite,
+  deleteAuthGroupFromStoreIfCurrent,
   invalidateAuthSchemesForReset,
   isAuthReadyForGroup,
   updateAuthSchemesForGroup,
@@ -38,6 +39,18 @@ describe('AuthContext readiness', () => {
 });
 
 describe('AuthContext group-scoped mutations', () => {
+  it('revalidates the reset fence inside the serialized auth deletion', () => {
+    const deleteKey = vi.fn(() => ({}) as IDBRequest<undefined>);
+    const store = { delete: deleteKey };
+
+    expect(deleteAuthGroupFromStoreIfCurrent(store, 'knife4j:auth:group-a', () => false)).toBe(false);
+    expect(deleteKey).not.toHaveBeenCalled();
+
+    expect(deleteAuthGroupFromStoreIfCurrent(store, 'knife4j:auth:group-a', () => true)).toBe(true);
+    expect(deleteKey).toHaveBeenCalledOnce();
+    expect(deleteKey).toHaveBeenCalledWith('knife4j:auth:group-a');
+  });
+
   it('rolls back only the auth record created by the stale write', () => {
     const staleRecord = {
       __knife4jAuthRecord: 1,

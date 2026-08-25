@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { createStore, del, get, promisifyRequest, set } from 'idb-keyval';
+import { createStore, get, promisifyRequest, set } from 'idb-keyval';
 import type { SchemeValue } from 'knife4j-core';
 import {
   KNIFE4J_STORAGE_KEYS,
@@ -141,6 +141,25 @@ async function rollbackAuthWrite(key: string, writeId: string): Promise<void> {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function deleteAuthGroupFromStoreIfCurrent(
+  store: Pick<IDBObjectStore, 'delete'>,
+  key: string,
+  canWrite: () => boolean,
+): boolean {
+  if (!canWrite()) return false;
+  store.delete(key);
+  return true;
+}
+
+/** Recheck the reset generation while a serialized readwrite transaction owns the auth store. */
+async function deleteAuthGroupIfCurrent(key: string, canWrite: () => boolean): Promise<void> {
+  await authIndexedDbStore('readwrite', (store) => {
+    deleteAuthGroupFromStoreIfCurrent(store, key, canWrite);
+    return promisifyRequest(store.transaction);
+  });
+}
+
 function idbKey(groupId: string): string {
   return `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}${groupId}`;
 }
@@ -175,9 +194,7 @@ async function saveGroup(groupId: string, schemes: Record<string, SchemeValue>):
 
 /** 删除单个 group */
 async function deleteGroup(groupId: string): Promise<void> {
-  await trackKnife4jStorageWrite(async (canWrite) => {
-    if (canWrite()) await del(idbKey(groupId), authIndexedDbStore);
-  });
+  await trackKnife4jStorageWrite((canWrite) => deleteAuthGroupIfCurrent(idbKey(groupId), canWrite));
 }
 
 /**
