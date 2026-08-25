@@ -359,6 +359,16 @@ export function invalidateGlobalParamMemoryForReset(
   return { ...state, resetActive: false };
 }
 
+export function reconcileGlobalParamMemoryForReset(
+  state: GlobalParamMemoryState,
+  snapshot: Knife4jStorageResetSnapshot,
+  loadDurableApplicationParams: () => GlobalParamItem[],
+): GlobalParamMemoryState {
+  const invalidated = invalidateGlobalParamMemoryForReset(state, snapshot);
+  if (snapshot.active || invalidated === state) return invalidated;
+  return { ...invalidated, applicationParams: loadDurableApplicationParams() };
+}
+
 export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?: string }> = ({
   children,
   groupId = 'default',
@@ -381,12 +391,14 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
 
   useEffect(() => {
     const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
-      setMemory((current) => invalidateGlobalParamMemoryForReset(current, snapshot));
+      setMemory((current) =>
+        reconcileGlobalParamMemoryForReset(current, snapshot, () => loadApplicationParams(pathname)),
+      );
     };
     const unsubscribe = subscribeKnife4jStorageReset(handleResetSnapshot);
     handleResetSnapshot(getKnife4jStorageResetSnapshot());
     return unsubscribe;
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (memory.resetActive || memory.configs.has(groupId)) return;

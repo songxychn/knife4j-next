@@ -25,6 +25,7 @@ import {
   loadGroup,
   normalizeParam,
   normalizeStoredApplicationParams,
+  reconcileGlobalParamMemoryForReset,
   resolveEffectiveParams,
 } from './GlobalParamContext';
 
@@ -89,6 +90,25 @@ describe('global parameter reset generation', () => {
       resetGeneration: 'after-reset',
       resetActive: false,
       applicationParams: [],
+      configs: new Map(),
+    });
+  });
+
+  it('reloads surviving application parameters after a failed reset', () => {
+    const surviving = param({ id: 'application', name: 'Authorization', value: 'surviving-token' });
+    const state: GlobalParamMemoryState = {
+      resetGeneration: 'failed-reset',
+      resetActive: true,
+      applicationParams: [],
+      configs: new Map(),
+    };
+
+    expect(
+      reconcileGlobalParamMemoryForReset(state, { generation: 'failed-reset', active: false }, () => [surviving]),
+    ).toEqual({
+      resetGeneration: 'failed-reset',
+      resetActive: false,
+      applicationParams: [surviving],
       configs: new Map(),
     });
   });
