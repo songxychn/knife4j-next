@@ -429,6 +429,69 @@ describe('Knife4j storage cleanup registry', () => {
     expect(sessionStorage.getItem(KNIFE4J_STORAGE_KEYS.tabItems)).toBeNull();
   });
 
+  it('publishes request-cache tombstones while fallback cleanup is waiting', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
+    const localStorage = new MemoryWebStorage({
+      [targetKey]: JSON.stringify(['old-history']),
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+      [KNIFE4J_STORAGE_KEYS.mutationLease]: JSON.stringify({
+        version: 1,
+        generation: 'blocking-mutation',
+        expiresAt: Date.now() + 1_000,
+      }),
+    });
+    const sessionStorage = new MemoryWebStorage({});
+    const indexedDB = new MemoryIndexedDb([]);
+
+    const cleanup = clearRegisteredKnife4jStorage('request-cache', { localStorage, sessionStorage, indexedDB }, null);
+    const visibleHistory = getKnife4jStorageItem(localStorage, targetKey, localStorage);
+    expect(visibleHistory).toBeNull();
+    expect(localStorage.getItem(targetKey)).toBe(JSON.stringify(['old-history']));
+
+    const nextHistory = JSON.stringify(['new-history', ...(visibleHistory ? JSON.parse(visibleHistory) : [])]);
+    const laterWrite = setKnife4jStorageItem(localStorage, targetKey, nextHistory, localStorage, null);
+    localStorage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+    const [result, persisted] = await Promise.all([cleanup, laterWrite]);
+
+    expect(result.failures).toEqual([]);
+    expect(persisted).toBe(true);
+    expect(JSON.parse(localStorage.getItem(targetKey) ?? '[]')).toEqual(['new-history']);
+  });
+
+  it('recovers request-cache coordination after registered entries free quota', async () => {
+    const firstKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
+    const secondKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
+    const localStorage = new (class extends MemoryWebStorage {
+      constructor() {
+        super({
+          [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+          [firstKey]: 'cache',
+          [secondKey]: 'history',
+        });
+      }
+
+      override setItem(key: string, value: string): void {
+        if (!this.values.has(key) && this.values.size >= 3) throw new Error('quota exceeded');
+        super.setItem(key, value);
+      }
+    })();
+    const sessionStorage = new MemoryWebStorage({
+      [KNIFE4J_STORAGE_KEYS.tabItems]: 'tabs',
+    });
+
+    const result = await clearRegisteredKnife4jStorage(
+      'request-cache',
+      { localStorage, sessionStorage, indexedDB: new MemoryIndexedDb([]) },
+      null,
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(result.removed).toEqual({ localStorage: 2, sessionStorage: 1, indexedDB: 0 });
+    expect(localStorage.getItem(firstKey)).toBeNull();
+    expect(localStorage.getItem(secondKey)).toBeNull();
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease)).toBeNull();
+  });
+
   it('replaces an existing value at quota through Web Locks without allocating an owner marker', async () => {
     const targetKey = KNIFE4J_STORAGE_KEYS.settings;
     const storage = new (class extends MemoryWebStorage {

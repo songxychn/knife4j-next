@@ -359,7 +359,38 @@ function pendingWebStorageMap(storage: object): Map<string, PendingKnife4jWebSto
   return values;
 }
 
-/** Read through the local pending-write overlay before falling back to Web Storage. */
+function publishPendingWebStorageRemovals(
+  storage: Knife4jWebStorage | null,
+  scope: Knife4jStorageCleanupScope,
+  generation: string,
+): () => void {
+  if (!storage) return () => {};
+
+  const keys = new Set(pendingWebStorageValues.get(storage)?.keys() ?? []);
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key !== null) keys.add(key);
+    }
+  } catch {
+    // The coordinated cleanup records storage enumeration failures itself.
+  }
+
+  const entries = entriesForScope(KNIFE4J_STORAGE_REGISTRY.localStorage, scope);
+  const matchedKeys = Array.from(keys).filter((key) => matchesRegisteredEntry(key, entries));
+  if (matchedKeys.length === 0) return () => {};
+
+  const writeId = createResetGeneration();
+  const pending = pendingWebStorageMap(storage);
+  matchedKeys.forEach((key) => pending.set(key, { writeId, value: null, generation }));
+  return () => {
+    matchedKeys.forEach((key) => {
+      if (pending.get(key)?.writeId === writeId) pending.delete(key);
+    });
+  };
+}
+
+/** Read through the local pending write/removal overlay before falling back to Web Storage. */
 export function getKnife4jStorageItem(
   storage: Pick<Storage, 'getItem'>,
   key: string,
@@ -1032,8 +1063,18 @@ export async function clearRegisteredKnife4jStorage(
   };
 
   if (!guardsAsyncWrites) {
-    try {
-      const completed = await trackKnife4jStorageWrite(
+    const requestCacheSnapshot = getKnife4jStorageResetSnapshot(adapters.localStorage);
+    const releasePendingRemovals = publishPendingWebStorageRemovals(
+      adapters.localStorage,
+      scope,
+      requestCacheSnapshot.generation,
+    );
+    const retainsRequestCacheGeneration = () => {
+      const snapshot = getKnife4jStorageResetSnapshot(adapters.localStorage);
+      return !snapshot.active && snapshot.generation === requestCacheSnapshot.generation;
+    };
+    const performRequestCacheCleanup = () =>
+      trackKnife4jStorageWrite(
         async (canWrite) => {
           if (!canWrite()) return false;
           clearWebStorage(
@@ -1055,6 +1096,22 @@ export async function clearRegisteredKnife4jStorage(
         lockManager,
         adapters.localStorage,
       );
+
+    try {
+      let completed = await performRequestCacheCleanup();
+      if (completed !== true && !lockManager && adapters.localStorage && retainsRequestCacheGeneration()) {
+        // A full localStorage quota can prevent publishing the fallback claim.
+        // Remove only the requested registered entries, then retry coordination
+        // before clearing session state or running the final deletion scan.
+        clearWebStorage(
+          'localStorage',
+          adapters.localStorage,
+          KNIFE4J_STORAGE_REGISTRY.localStorage,
+          result,
+          retainsRequestCacheGeneration,
+        );
+        if (retainsRequestCacheGeneration()) completed = await performRequestCacheCleanup();
+      }
       if (completed !== true) {
         recordFailure(result, {
           area: 'localStorage',
@@ -1068,6 +1125,8 @@ export async function clearRegisteredKnife4jStorage(
         key: KNIFE4J_STORAGE_KEYS.mutationLease,
         reason: `request cache coordination failed: ${errorMessage(error)}`,
       });
+    } finally {
+      releasePendingRemovals();
     }
     return result;
   }
