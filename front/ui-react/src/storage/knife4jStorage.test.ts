@@ -473,6 +473,7 @@ describe('Knife4j storage cleanup registry', () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});
     const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const secondAuthKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-b`;
     const bypassKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}after-lease-loss`;
     let deleteCount = 0;
     let signalDeleteStarted: (() => void) | undefined;
@@ -490,7 +491,10 @@ describe('Knife4j storage cleanup registry', () => {
         await deleteGate;
         await super.delete(key);
       }
-    })([[authKey, { token: 'secret' }]]);
+    })([
+      [authKey, { token: 'secret-a' }],
+      [secondAuthKey, { token: 'secret-b' }],
+    ]);
 
     const cleanup = clearRegisteredKnife4jStorage('all-local-data', { localStorage, sessionStorage, indexedDB }, null);
     await deleteStarted;
@@ -504,6 +508,8 @@ describe('Knife4j storage cleanup registry', () => {
     const result = await cleanup;
 
     expect(deleteCount).toBe(1);
+    expect(indexedDB.values.has(authKey)).toBe(false);
+    expect(indexedDB.values.has(secondAuthKey)).toBe(true);
     expect(localStorage.getItem(bypassKey)).toBe('keep-after-loss');
     expect(result.failures).toEqual(
       expect.arrayContaining([

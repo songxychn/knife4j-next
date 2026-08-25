@@ -527,6 +527,7 @@ function clearWebStorage(
 async function clearIndexedDbStorage(
   storage: Knife4jIndexedDbStorage | null,
   result: Knife4jStorageCleanupResult,
+  retainsResetLease: () => boolean,
 ): Promise<void> {
   if (result.scope !== 'all-local-data') return;
   if (!storage) {
@@ -545,6 +546,7 @@ async function clearIndexedDbStorage(
   const entries = entriesForScope(KNIFE4J_STORAGE_REGISTRY.indexedDB, result.scope);
   for (const key of keys) {
     if (typeof key !== 'string' || !matchesRegisteredEntry(key, entries)) continue;
+    if (!retainsResetLease()) return;
     try {
       await storage.delete(key);
       result.removed.indexedDB += 1;
@@ -581,11 +583,11 @@ export async function clearRegisteredKnife4jStorage(
 
     clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
     clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
-    await clearIndexedDbStorage(adapters.indexedDB, result);
+    await clearIndexedDbStorage(adapters.indexedDB, result, retainsResetLease);
     if (guardsAsyncWrites) {
       await waitForPendingKnife4jStorageWrites();
       if (!retainsResetLease()) return;
-      await clearIndexedDbStorage(adapters.indexedDB, result);
+      await clearIndexedDbStorage(adapters.indexedDB, result, retainsResetLease);
       if (!retainsResetLease()) return;
       clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
       clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
