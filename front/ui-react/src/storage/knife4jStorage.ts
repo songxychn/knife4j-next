@@ -151,6 +151,7 @@ const KNIFE4J_STORAGE_RESET_LEASE_VERSION = 1;
 const KNIFE4J_STORAGE_RESET_LEASE_TTL_MS = 2 * 60 * 1000;
 const KNIFE4J_STORAGE_RESET_LEASE_POLL_MS = 50;
 const KNIFE4J_STORAGE_RESET_CLAIM_TTL_MS = 10 * 1000;
+const KNIFE4J_STORAGE_QUOTA_RECOVERY_PREFIX = '!';
 const KNIFE4J_STORAGE_COORDINATION_DB = 'knife4j-next-storage-coordination';
 const KNIFE4J_STORAGE_COORDINATION_STORE = 'locks';
 const KNIFE4J_STORAGE_COORDINATION_KEY = 'storage-mutation';
@@ -186,6 +187,12 @@ interface Knife4jStorageResetLease {
 
 interface Knife4jStorageResetClaim extends Knife4jStorageResetLease {
   createdAt: number;
+}
+
+interface Knife4jStorageQuotaRecoveryEpoch {
+  activeGeneration: string;
+  inactiveGeneration: string;
+  expiresAt: number;
 }
 
 interface PendingKnife4jWebStorageValue {
@@ -276,6 +283,85 @@ function parseResetLease(value: string | null): Knife4jStorageResetLease | null 
     return parsed as Knife4jStorageResetLease;
   } catch {
     return null;
+  }
+}
+
+/** Compact `!<expiry-seconds-base36>.<nonce>` marker kept small enough to replace an existing generation at quota. */
+function parseQuotaRecoveryResetEpoch(value: string): Knife4jStorageResetLease | null {
+  if (!value.startsWith(KNIFE4J_STORAGE_QUOTA_RECOVERY_PREFIX)) return null;
+  const separator = value.indexOf('.', KNIFE4J_STORAGE_QUOTA_RECOVERY_PREFIX.length);
+  if (separator < 0) return null;
+  const expiresAtSeconds = Number.parseInt(value.slice(KNIFE4J_STORAGE_QUOTA_RECOVERY_PREFIX.length, separator), 36);
+  if (!Number.isFinite(expiresAtSeconds) || expiresAtSeconds <= 0) return null;
+  return {
+    version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+    generation: value,
+    expiresAt: expiresAtSeconds * 1000,
+  };
+}
+
+function publishQuotaRecoveryResetEpoch(
+  storage: Knife4jWebStorage,
+  onCoordinationError?: (error: unknown) => void,
+): Knife4jStorageQuotaRecoveryEpoch | null {
+  const expiresAt = Math.ceil((Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS) / 1000) * 1000;
+  const suffix = `${Math.floor(expiresAt / 1000).toString(36)}.${Math.random().toString(36).slice(2, 8).padEnd(6, '0')}`;
+  const epoch: Knife4jStorageQuotaRecoveryEpoch = {
+    activeGeneration: `${KNIFE4J_STORAGE_QUOTA_RECOVERY_PREFIX}${suffix}`,
+    inactiveGeneration: `.${suffix}`,
+    expiresAt,
+  };
+  try {
+    storage.setItem(KNIFE4J_STORAGE_KEYS.resetGeneration, epoch.activeGeneration);
+    if (storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) !== epoch.activeGeneration) {
+      throw new Error('quota recovery reset epoch was not persisted');
+    }
+    scheduleResetLeaseExpiry(
+      storage,
+      {
+        version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+        generation: epoch.activeGeneration,
+        expiresAt,
+      },
+      Date.now(),
+    );
+    observeResetSnapshot(epoch.activeGeneration, true);
+    return epoch;
+  } catch (error) {
+    onCoordinationError?.(error);
+    return null;
+  }
+}
+
+function retainsQuotaRecoveryResetEpoch(storage: Knife4jWebStorage, epoch: Knife4jStorageQuotaRecoveryEpoch): boolean {
+  const snapshot = getKnife4jStorageResetSnapshot(storage);
+  return snapshot.active && snapshot.generation === epoch.activeGeneration;
+}
+
+function completeQuotaRecoveryResetEpoch(
+  storage: Knife4jWebStorage | null,
+  epoch: Knife4jStorageQuotaRecoveryEpoch | null,
+  result: Knife4jStorageCleanupResult,
+): void {
+  if (!storage || !epoch) return;
+  try {
+    if (storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) !== epoch.activeGeneration) {
+      getKnife4jStorageResetSnapshot(storage);
+      return;
+    }
+    storage.setItem(KNIFE4J_STORAGE_KEYS.resetGeneration, epoch.inactiveGeneration);
+    if (storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) !== epoch.inactiveGeneration) {
+      throw new Error('quota recovery reset epoch completion was not persisted');
+    }
+    cancelResetLeaseExpiry(storage, epoch.activeGeneration);
+    observeResetSnapshot(epoch.inactiveGeneration, allLocalDataCleanupCount > 0);
+  } catch (error) {
+    getKnife4jStorageResetSnapshot(storage);
+    recordFailure(result, {
+      area: 'localStorage',
+      key: KNIFE4J_STORAGE_KEYS.resetGeneration,
+      reason: `quota recovery reset epoch cleanup failed: ${errorMessage(error)}`,
+    });
   }
 }
 
@@ -438,9 +524,13 @@ export function getKnife4jStorageResetSnapshot(
     }
   }
 
-  const activeLease = readResetLease(storage);
+  const now = Date.now();
+  const recoveryEpoch = parseQuotaRecoveryResetEpoch(persistedGeneration);
+  const activeLease = readResetLease(storage, now);
+  const activeRecoveryEpoch = recoveryEpoch !== null && recoveryEpoch.expiresAt > now;
+  if (!activeLease && activeRecoveryEpoch && storage) scheduleResetLeaseExpiry(storage, recoveryEpoch, now);
   const generation = activeLease?.generation || persistedGeneration || observedResetSnapshot.generation;
-  return observeResetSnapshot(generation, allLocalDataCleanupCount > 0 || activeLease !== null);
+  return observeResetSnapshot(generation, allLocalDataCleanupCount > 0 || activeLease !== null || activeRecoveryEpoch);
 }
 
 /** Subscribe to reset generation or activity changes in this browsing context. */
@@ -471,7 +561,12 @@ function observeResetStorageEvent(event: StorageEvent): void {
     const lease = parseResetLease(event.newValue);
     observeResetSnapshot(lease?.generation ?? '', lease !== null && lease.expiresAt > Date.now());
   } else {
-    observeResetSnapshot(event.newValue?.trim() ?? '', observedResetSnapshot.active);
+    const generation = event.newValue?.trim() ?? '';
+    const recoveryEpoch = parseQuotaRecoveryResetEpoch(generation);
+    observeResetSnapshot(
+      generation,
+      recoveryEpoch ? recoveryEpoch.expiresAt > Date.now() : observedResetSnapshot.active,
+    );
   }
 }
 
@@ -1647,6 +1742,7 @@ export async function clearRegisteredKnife4jStorage(
 
   let lease: Knife4jStorageResetLease | null = null;
   let mutationLease: Knife4jStorageResetLease | null = null;
+  let quotaRecoveryEpoch: Knife4jStorageQuotaRecoveryEpoch | null = null;
   let stopResetLeaseHeartbeat = () => {};
   let stopMutationLeaseHeartbeat = () => {};
 
@@ -1720,26 +1816,43 @@ export async function clearRegisteredKnife4jStorage(
           mutationLeaseError = error;
         });
         if (!mutationLease && isQuotaExceededError(mutationLeaseError)) {
-          // Recover enough quota to publish the fallback mutex before any
-          // non-localStorage deletion can race a cross-tab mutation.
-          const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
-            if (!retainsCriticalSection()) return false;
-            clearWebStorage(
-              'localStorage',
-              adapters.localStorage,
-              KNIFE4J_STORAGE_REGISTRY.localStorage,
-              result,
-              retainsCriticalSection,
-            );
-            return retainsCriticalSection();
-          });
-          if (recovered !== true) {
-            if (recovered === undefined) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
-            return;
-          }
-          mutationLease = await acquireMutationLease(adapters.localStorage, (error) => {
+          // Publish a durable active generation before quota recovery removes
+          // shared data. If the reset-generation slot cannot be updated,
+          // fail closed without deleting anything.
+          quotaRecoveryEpoch = publishQuotaRecoveryResetEpoch(adapters.localStorage, (error) => {
             mutationLeaseError = error;
           });
+          if (quotaRecoveryEpoch) {
+            const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
+              const retainsRecoveryFence = () =>
+                retainsCriticalSection() &&
+                quotaRecoveryEpoch !== null &&
+                retainsQuotaRecoveryResetEpoch(adapters.localStorage!, quotaRecoveryEpoch);
+              if (!retainsRecoveryFence()) return false;
+              clearWebStorage(
+                'localStorage',
+                adapters.localStorage,
+                KNIFE4J_STORAGE_REGISTRY.localStorage,
+                result,
+                retainsRecoveryFence,
+              );
+              return retainsRecoveryFence();
+            });
+            if (recovered !== true) {
+              if (recovered === undefined) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
+              else {
+                recordFailure(result, {
+                  area: 'localStorage',
+                  key: KNIFE4J_STORAGE_KEYS.resetGeneration,
+                  reason: 'quota recovery reset epoch ownership was lost',
+                });
+              }
+              return;
+            }
+            mutationLease = await acquireMutationLease(adapters.localStorage, (error) => {
+              mutationLeaseError = error;
+            });
+          }
         }
         if (!mutationLease) {
           recordFailure(result, {
@@ -1758,31 +1871,46 @@ export async function clearRegisteredKnife4jStorage(
         resetLeaseError = error;
       });
       if (!lease && adapters.localStorage && isQuotaExceededError(resetLeaseError)) {
-        // A full localStorage quota can prevent even the coordination claim.
-        // Free only registered Knife4j values, then publish the lease before
-        // touching IndexedDB or running the final deletion passes.
-        const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
-          const retainsRecoveryFence = () => retainsCriticalSection() && retainsMutationLease();
-          if (!retainsRecoveryFence()) return false;
-          clearWebStorage(
-            'localStorage',
-            adapters.localStorage,
-            KNIFE4J_STORAGE_REGISTRY.localStorage,
-            result,
-            retainsRecoveryFence,
-          );
-          return retainsRecoveryFence();
+        quotaRecoveryEpoch ??= publishQuotaRecoveryResetEpoch(adapters.localStorage, (error) => {
+          resetLeaseError = error;
         });
-        if (recovered !== true) {
-          if (recovered === undefined) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
-          return;
+        if (quotaRecoveryEpoch) {
+          const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
+            const retainsRecoveryFence = () =>
+              retainsCriticalSection() &&
+              retainsMutationLease() &&
+              quotaRecoveryEpoch !== null &&
+              retainsQuotaRecoveryResetEpoch(adapters.localStorage!, quotaRecoveryEpoch);
+            if (!retainsRecoveryFence()) return false;
+            clearWebStorage(
+              'localStorage',
+              adapters.localStorage,
+              KNIFE4J_STORAGE_REGISTRY.localStorage,
+              result,
+              retainsRecoveryFence,
+            );
+            return retainsRecoveryFence();
+          });
+          if (recovered !== true) {
+            if (recovered === undefined) recordFallbackCriticalSectionUnavailable(result, 'storage reset');
+            else {
+              recordFailure(result, {
+                area: 'localStorage',
+                key: KNIFE4J_STORAGE_KEYS.resetGeneration,
+                reason: 'quota recovery reset epoch ownership was lost',
+              });
+            }
+            return;
+          }
+          lease = await acquireResetLease(adapters.localStorage, result, false, (error) => {
+            resetLeaseError = error;
+          });
         }
-        lease = await acquireResetLease(adapters.localStorage, result);
       }
       if (!lease) {
         if (!adapters.localStorage) {
           recordUnavailable(result, 'localStorage');
-        } else if (!isQuotaExceededError(resetLeaseError)) {
+        } else {
           recordFailure(result, {
             area: 'localStorage',
             key: KNIFE4J_STORAGE_KEYS.resetLease,
@@ -1817,6 +1945,7 @@ export async function clearRegisteredKnife4jStorage(
     }
     releaseResetLease(adapters.localStorage, lease, result);
     if (adapters.localStorage && mutationLease) releaseMutationLease(adapters.localStorage, mutationLease);
+    completeQuotaRecoveryResetEpoch(adapters.localStorage, quotaRecoveryEpoch, result);
   }
   return result;
 }

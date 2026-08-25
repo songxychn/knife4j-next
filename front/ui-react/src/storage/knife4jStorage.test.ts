@@ -454,10 +454,13 @@ describe('Knife4j storage cleanup registry', () => {
   it('frees registered local data and retries coordination when quota blocks the first lease write', async () => {
     const localStorage = new (class extends MemoryWebStorage {
       override setItem(key: string, value: string): void {
-        if (this.values.has(KNIFE4J_STORAGE_KEYS.settings)) throw new Error('quota exceeded');
+        if (!this.values.has(key) && this.values.has(KNIFE4J_STORAGE_KEYS.settings)) {
+          throw new Error('quota exceeded');
+        }
         super.setItem(key, value);
       }
     })({
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation-reservation',
       [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
       [KNIFE4J_STORAGE_KEYS.language]: 'zh-CN',
       'host-application:key': 'keep',
@@ -485,6 +488,111 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.getItem('host-application:key')).toBe('keep');
     expect(sessionStorage.values).toEqual(new Map([['host-application:session', 'keep']]));
     expect(indexedDB.values).toEqual(new Map([['host-application:idb', { keep: true }]]));
+  });
+
+  it('invalidates stale tabs before quota recovery when freed data is still insufficient for coordination', async () => {
+    const applicationKey = `${KNIFE4J_STORAGE_PREFIXES.applicationGlobalParams}%2Fdoc.html`;
+    const applicationParams = '[{"id":"stale-application"}]';
+    const initialGeneration = 'stable-generation-reservation';
+    let generationAtFirstDeletion: string | null = null;
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (!this.values.has(key)) throw new Error('quota exceeded after recovery');
+        super.setItem(key, value);
+      }
+
+      override removeItem(key: string): void {
+        if (generationAtFirstDeletion === null && key === KNIFE4J_STORAGE_KEYS.settings) {
+          generationAtFirstDeletion = this.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration);
+        }
+        super.removeItem(key);
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: initialGeneration,
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      [applicationKey]: applicationParams,
+      'host-application:key': 'keep',
+    });
+    const staleSnapshot = getKnife4jStorageItemSnapshot(localStorage, applicationKey, localStorage);
+    const snapshots: Array<{ generation: string; active: boolean }> = [];
+    const unsubscribe = subscribeKnife4jStorageReset((snapshot) => snapshots.push({ ...snapshot }));
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      {
+        localStorage,
+        sessionStorage: new MemoryWebStorage({ [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth' }),
+        indexedDB: new MemoryIndexedDb([[`${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`, { token: 'secret' }]]),
+      },
+      null,
+    ).finally(unsubscribe);
+
+    const completedGeneration = localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration);
+    expect(result.removed).toEqual({ localStorage: 2, sessionStorage: 0, indexedDB: 0 });
+    expect(result.failures).toEqual([
+      {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.mutationLease,
+        reason: 'mutation coordination failed: quota exceeded after recovery',
+      },
+    ]);
+    expect(generationAtFirstDeletion).not.toBe(initialGeneration);
+    expect(snapshots).toEqual(
+      expect.arrayContaining([
+        { generation: generationAtFirstDeletion, active: true },
+        { generation: completedGeneration, active: false },
+      ]),
+    );
+    expect(getKnife4jStorageResetSnapshot(localStorage)).toEqual({
+      generation: completedGeneration,
+      active: false,
+    });
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings)).toBeNull();
+    expect(localStorage.getItem(applicationKey)).toBeNull();
+    expect(localStorage.getItem('host-application:key')).toBe('keep');
+    await expect(
+      setKnife4jStorageItem(localStorage, applicationKey, applicationParams, localStorage, null, staleSnapshot),
+    ).resolves.toBe(false);
+    expect(localStorage.getItem(applicationKey)).toBeNull();
+  });
+
+  it('keeps registered data when a quota recovery reset epoch cannot be published', async () => {
+    const applicationKey = `${KNIFE4J_STORAGE_PREFIXES.applicationGlobalParams}%2Fdoc.html`;
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (!this.values.has(key)) throw new Error('quota exceeded without reset epoch');
+        super.setItem(key, value);
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      [applicationKey]: '[{"id":"preserved-application"}]',
+      'host-application:key': 'keep',
+    });
+    const sessionStorage = new MemoryWebStorage({
+      [`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`]: 'oauth',
+    });
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    const indexedDB = new MemoryIndexedDb([[authKey, { token: 'secret' }]]);
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+
+    expect(result.removed).toEqual({ localStorage: 0, sessionStorage: 0, indexedDB: 0 });
+    expect(result.failures).toEqual([
+      {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.mutationLease,
+        reason: 'mutation coordination failed: quota exceeded without reset epoch',
+      },
+    ]);
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings)).toBe('settings');
+    expect(localStorage.getItem(applicationKey)).toBe('[{"id":"preserved-application"}]');
+    expect(localStorage.getItem('host-application:key')).toBe('keep');
+    expect(sessionStorage.getItem(`${KNIFE4J_STORAGE_PREFIXES.oauth2Pending}state`)).toBe('oauth');
+    expect(indexedDB.values.get(authKey)).toEqual({ token: 'secret' });
   });
 
   it('refuses fallback destructive cleanup when mutation coordination is permanently read-only', async () => {
