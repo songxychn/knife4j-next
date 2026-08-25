@@ -47,6 +47,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - name: Install front workspace dependencies
         run: bun install --frozen-lockfile

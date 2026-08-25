@@ -49,6 +49,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - name: Install front/vue3 dependencies (bun)
         run: bun install --frozen-lockfile

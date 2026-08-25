@@ -2,6 +2,8 @@
 
 活跃前端源码根目录。
 
+Bun 的 CI / 发布基准版本见仓库根目录 `.bun-version`。本地可先使用现有 Bun 运行对应标准验证；无需仅因版本字符串不同而自动下载安装其他版本。
+
 | 子目录 | 说明 | 产物 |
 |---|---|---|
 | `core/` | TypeScript 解析 / 调试核心（package name: `knife4j-core`） | 供 `ui-react` 依赖 |

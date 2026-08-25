@@ -9,7 +9,7 @@ Thank you for your interest in contributing! This guide covers the development s
 git clone https://github.com/<your-username>/knife4j-next.git
 cd knife4j-next
 
-# 2. Install front-end dependencies (Node ≥ 22, see .nvmrc; Bun, see front/package.json)
+# 2. Install front-end dependencies (Node ≥ 22, see .nvmrc; Bun baseline, see .bun-version)
 cd front && bun install --frozen-lockfile && cd ..
 
 # 3. Enable the versioned pre-commit checks (optional)
@@ -27,8 +27,8 @@ There are two independent front-end product lines. Work in the one that matches 
 
 | Source | Package manager | Build output (webjar) | Downstream starter | OpenAPI |
 |---|---|---|---|---|
-| `front/ui-react` (React + Vite) | Bun (see `front/package.json` and `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
-| `front/vue3` (Vue 3 + Vite) | Bun (`packageManager: "bun@1.3.13"`, see `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
+| `front/ui-react` (React + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
+| `front/vue3` (Vue 3 + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
 
 The upstream Vue 2 source under `legacy/vue2/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `legacy/vue2/README.md`.
 

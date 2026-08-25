@@ -43,7 +43,7 @@ done
 assert_case "react test script" "$react_and_java" "tools/test-front-core.sh"
 assert_case "vue3" "$vue3_and_java" $'front/vue3/src/App.vue\ntools/test-vue3.sh'
 assert_case "knife4x go" "$knife4x_only" $'knife4x/go/README.md\nknife4x/examples/gin/main.go\ntools/sync-knife4x-ui.sh\ntools/test-knife4x-go.sh'
-assert_case "shared configuration" "$all" $'.github/workflows/build.yml\n.editorconfig\n.gitattributes\n.nvmrc\ntools/ci-changes.sh\ntools/test-ci-changes.sh'
+assert_case "shared configuration" "$all" $'.github/workflows/build.yml\n.bun-version\n.editorconfig\n.gitattributes\n.nvmrc\ntools/ci-changes.sh\ntools/test-ci-changes.sh'
 assert_case "unknown path" "$all" "new-area/example.txt"
 assert_case "maintenance files" "$none" $'README.md\nCONTRIBUTING.md\nAGENTS.md\n.agent/PROJECT.md\n.gitignore\ntools/README.md\ntools/agent-status.sh\ntools/claude/run.sh\ntools/test-all.sh\ntools/extract-release-note.sh\ntools/verify-github-release.sh'
 assert_case "empty input" "$all" "__EMPTY__"

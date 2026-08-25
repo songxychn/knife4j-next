@@ -70,6 +70,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - name: Verify Java modules
         run: tools/test-java.sh
@@ -133,6 +135,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - name: Test front core
         run: tools/test-front-core.sh
@@ -162,7 +166,7 @@ jobs:
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: front/package.json
+          bun-version-file: .bun-version
 
       - name: Test Knife4x Go
         run: ./tools/test-knife4x-go.sh
@@ -188,6 +192,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - name: Test Vue3 UI
         run: tools/test-vue3.sh
@@ -205,6 +211,8 @@ jobs:
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - name: Build docs site
         run: tools/test-docs.sh
