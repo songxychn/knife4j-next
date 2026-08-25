@@ -471,6 +471,8 @@ const enUS = {
 
   // Tab context menu
   'tab.context.closeCurrent': 'Close Current',
+  'tab.context.closeLeft': 'Close Left',
+  'tab.context.closeRight': 'Close Right',
   'tab.context.closeOther': 'Close Others',
   'tab.context.closeAll': 'Close All',
 

@@ -18,9 +18,12 @@ import SettingsDrawer from './compoents/SettingsDrawer';
 import Markdown from './components/Markdown';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
 import {
+  closeTabsOnSide,
   findOperationRouteKey,
+  hasClosableTabsOnSide,
   isOperationRouteKey,
   routeKeyToMenuKey,
+  type TabCloseSide,
   upsertOperationRoutePane,
 } from './utils/operationTabs';
 import { resolveFooterContent } from './utils/footer';
@@ -31,6 +34,7 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const HOME_KEY = '/group/home';
 const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
+const isClosablePane = (pane: { key: string }) => pane.key !== HOME_KEY;
 
 /** sessionStorage keys for persisting opened tabs across page refresh. */
 const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
@@ -129,8 +133,6 @@ const AppInner: React.FC = () => {
     }
     return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
   });
-  const [contextMenuKey, setContextMenuKey] = useState<string | null>(null);
-
   useEffect(() => {
     document.title = swaggerDoc?.info?.title || DEFAULT_DOCUMENT_TITLE;
   }, [swaggerDoc?.info?.title]);
@@ -344,23 +346,31 @@ const AppInner: React.FC = () => {
     if (action === 'remove') remove(targetKey);
   };
 
-  const closeCurrent = () => {
-    if (contextMenuKey && contextMenuKey !== HOME_KEY) {
-      remove(contextMenuKey);
+  const closeCurrent = (anchorKey: string) => {
+    if (anchorKey !== HOME_KEY) {
+      remove(anchorKey);
     }
   };
 
-  const closeOther = () => {
-    if (contextMenuKey) {
-      const newPanes = items.filter((pane) => pane.key === HOME_KEY || pane.key === contextMenuKey);
-      setItems(newPanes);
-      if (!newPanes.some((p) => p.key === activeKey)) {
-        const targetKey = contextMenuKey === HOME_KEY ? HOME_KEY : contextMenuKey;
-        setActiveKey(targetKey);
-        setSelectedKey(routeKeyToMenuKey(targetKey));
-        navigate(targetKey);
-      }
+  const closeOther = (anchorKey: string) => {
+    const newPanes = items.filter((pane) => pane.key === HOME_KEY || pane.key === anchorKey);
+    setItems(newPanes);
+    if (!newPanes.some((p) => p.key === activeKey)) {
+      const targetKey = anchorKey === HOME_KEY ? HOME_KEY : anchorKey;
+      setActiveKey(targetKey);
+      setSelectedKey(routeKeyToMenuKey(targetKey));
+      navigate(targetKey);
     }
+  };
+
+  const closeOnSide = (anchorKey: string, side: TabCloseSide) => {
+    if (!items.some((pane) => pane.key === anchorKey)) return;
+
+    const nextState = closeTabsOnSide({ items, activeKey }, anchorKey, side, isClosablePane);
+    setItems(nextState.items);
+    setActiveKey(nextState.activeKey);
+    setSelectedKey(routeKeyToMenuKey(nextState.activeKey));
+    navigate(nextState.activeKey);
   };
 
   const closeAll = () => {
@@ -371,9 +381,21 @@ const AppInner: React.FC = () => {
     navigate(HOME_KEY);
   };
 
-  const contextMenuItems: MenuProps['items'] = [
-    { key: 'closeCurrent', label: t('tab.context.closeCurrent'), onClick: closeCurrent },
-    { key: 'closeOther', label: t('tab.context.closeOther'), onClick: closeOther },
+  const buildContextMenuItems = (anchorKey: string): MenuProps['items'] => [
+    { key: 'closeCurrent', label: t('tab.context.closeCurrent'), onClick: () => closeCurrent(anchorKey) },
+    {
+      key: 'closeLeft',
+      label: t('tab.context.closeLeft'),
+      disabled: !hasClosableTabsOnSide(items, anchorKey, 'left', isClosablePane),
+      onClick: () => closeOnSide(anchorKey, 'left'),
+    },
+    {
+      key: 'closeRight',
+      label: t('tab.context.closeRight'),
+      disabled: !hasClosableTabsOnSide(items, anchorKey, 'right', isClosablePane),
+      onClick: () => closeOnSide(anchorKey, 'right'),
+    },
+    { key: 'closeOther', label: t('tab.context.closeOther'), onClick: () => closeOther(anchorKey) },
     { key: 'closeAll', label: t('tab.context.closeAll'), onClick: closeAll },
   ];
 
@@ -447,8 +469,8 @@ const AppInner: React.FC = () => {
   const tabItems = items.map((item) => ({
     ...item,
     label: (
-      <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
-        <span onContextMenu={() => setContextMenuKey(item.key)}>{item.label}</span>
+      <Dropdown menu={{ items: buildContextMenuItems(item.key) }} trigger={['contextMenu']}>
+        <span>{item.label}</span>
       </Dropdown>
     ),
     closable: item.key !== HOME_KEY,
@@ -594,7 +616,6 @@ const AppInner: React.FC = () => {
                 onEdit={onEdit}
                 items={tabItems}
                 style={{ flex: 1, margin: '2px 2px' }}
-                onTabClick={(key) => setContextMenuKey(key)}
               />
             </div>
           </Content>

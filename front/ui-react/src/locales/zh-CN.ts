@@ -459,6 +459,8 @@ const zhCN = {
 
   // Tab context menu
   'tab.context.closeCurrent': '关闭当前',
+  'tab.context.closeLeft': '关闭左侧',
+  'tab.context.closeRight': '关闭右侧',
   'tab.context.closeOther': '关闭其他',
   'tab.context.closeAll': '关闭全部',
 
