@@ -1,10 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- storage and merge helpers are exported for regression tests. */
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
 import { createClientId } from '../utils/id';
-
-const LEGACY_STORAGE_KEY = 'knife4j_global_params';
-const GROUP_STORAGE_PREFIX = 'knife4j:global-params:';
-const APPLICATION_STORAGE_PREFIX = 'knife4j:application-global-params:';
 
 export type GlobalParamLocation = 'header' | 'query';
 export type GlobalParamValueSource = 'manual' | 'request';
@@ -98,11 +95,11 @@ const DEFAULT_COOKIE_SESSION: CookieSessionConfig = { credentials: 'same-origin'
 const GlobalParamContext = createContext<GlobalParamContextValue | null>(null);
 
 export function groupStorageKey(groupId: string): string {
-  return `${GROUP_STORAGE_PREFIX}${encodeURIComponent(groupId)}`;
+  return `${KNIFE4J_STORAGE_PREFIXES.groupGlobalParams}${encodeURIComponent(groupId)}`;
 }
 
 export function applicationStorageKey(pathname: string): string {
-  return `${APPLICATION_STORAGE_PREFIX}${encodeURIComponent(pathname || '/')}`;
+  return `${KNIFE4J_STORAGE_PREFIXES.applicationGlobalParams}${encodeURIComponent(pathname || '/')}`;
 }
 
 function currentDocumentPathname(): string {
@@ -262,7 +259,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
 
   let legacy: string | null;
   try {
-    legacy = target.getItem(LEGACY_STORAGE_KEY);
+    legacy = target.getItem(KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
   } catch {
     return [];
   }
@@ -282,7 +279,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
     return migrated;
   }
   try {
-    target.removeItem(LEGACY_STORAGE_KEY);
+    target.removeItem(KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
   } catch {
     // The application key now wins, so a failed legacy cleanup is harmless.
   }

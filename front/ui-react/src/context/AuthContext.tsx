@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { get, set, del } from 'idb-keyval';
 import type { SchemeValue } from 'knife4j-core';
+import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES, trackKnife4jStorageWrite } from '../storage/knife4jStorage';
 
 // ─── Types ─────────────────────────────────────────────
 
@@ -50,11 +51,8 @@ export function updateAuthSchemesForGroup(
 
 // ─── IndexedDB helpers ─────────────────────────────────
 
-const IDB_PREFIX = 'knife4j:auth:';
-const LEGACY_LS_KEY = 'knife4j_auth';
-
 function idbKey(groupId: string): string {
-  return `${IDB_PREFIX}${groupId}`;
+  return `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}${groupId}`;
 }
 
 /** 仅当当前 initialGroupId 对应的分组加载完成后才允许消费鉴权值。 */
@@ -75,12 +73,12 @@ async function loadGroup(groupId: string): Promise<Record<string, SchemeValue>> 
 
 /** 写入单个 group */
 async function saveGroup(groupId: string, schemes: Record<string, SchemeValue>): Promise<void> {
-  await set(idbKey(groupId), schemes);
+  await trackKnife4jStorageWrite(() => set(idbKey(groupId), schemes));
 }
 
 /** 删除单个 group */
 async function deleteGroup(groupId: string): Promise<void> {
-  await del(idbKey(groupId));
+  await trackKnife4jStorageWrite(() => del(idbKey(groupId)));
 }
 
 /**
@@ -88,40 +86,42 @@ async function deleteGroup(groupId: string): Promise<void> {
  * 则把旧数据转为 bearer/basic SchemeValue 写入默认 group，然后清除 localStorage。
  */
 async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
-  try {
-    const raw = localStorage.getItem(LEGACY_LS_KEY);
-    if (!raw) return;
-    // 检查是否已迁移过（标记 key）
-    const migrated = localStorage.getItem('knife4j_auth_migrated');
-    if (migrated) return;
+  await trackKnife4jStorageWrite(async () => {
+    try {
+      const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
+      if (!raw) return;
+      // 检查是否已迁移过（标记 key）
+      const migrated = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
+      if (migrated) return;
 
-    const legacy: LegacyAuthConfig | null = JSON.parse(raw) as LegacyAuthConfig | null;
-    if (!legacy) return;
+      const legacy: LegacyAuthConfig | null = JSON.parse(raw) as LegacyAuthConfig | null;
+      if (!legacy) return;
 
-    let schemeValue: SchemeValue | undefined;
-    if (legacy.type === 'bearer' && legacy.token) {
-      schemeValue = { type: 'http', scheme: 'bearer', token: legacy.token };
-    } else if (legacy.type === 'basic' && (legacy.username || legacy.password)) {
-      schemeValue = {
-        type: 'http',
-        scheme: 'basic',
-        username: legacy.username ?? '',
-        password: legacy.password ?? '',
-      };
+      let schemeValue: SchemeValue | undefined;
+      if (legacy.type === 'bearer' && legacy.token) {
+        schemeValue = { type: 'http', scheme: 'bearer', token: legacy.token };
+      } else if (legacy.type === 'basic' && (legacy.username || legacy.password)) {
+        schemeValue = {
+          type: 'http',
+          scheme: 'basic',
+          username: legacy.username ?? '',
+          password: legacy.password ?? '',
+        };
+      }
+
+      if (schemeValue) {
+        const existing = await loadGroup(defaultGroupId);
+        existing['legacy'] = schemeValue;
+        await set(idbKey(defaultGroupId), existing);
+      }
+
+      // 标记已迁移
+      localStorage.setItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1');
+      localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
+    } catch {
+      // 迁移失败静默忽略
     }
-
-    if (schemeValue) {
-      const existing = await loadGroup(defaultGroupId);
-      existing['legacy'] = schemeValue;
-      await saveGroup(defaultGroupId, existing);
-    }
-
-    // 标记已迁移
-    localStorage.setItem('knife4j_auth_migrated', '1');
-    localStorage.removeItem(LEGACY_LS_KEY);
-  } catch {
-    // 迁移失败静默忽略
-  }
+  });
 }
 
 /**

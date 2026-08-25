@@ -5,6 +5,7 @@ import zhCN from './locales/zh-CN';
 import enUS from './locales/en-US';
 import jaJP from './locales/ja-JP';
 import { normalizeSupportedLanguage } from './locales/language';
+import { KNIFE4J_STORAGE_KEYS } from './storage/knife4jStorage';
 
 i18n
   .use(LanguageDetector)
@@ -22,7 +23,7 @@ i18n
     detection: {
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
-      lookupLocalStorage: 'knife4j-lang',
+      lookupLocalStorage: KNIFE4J_STORAGE_KEYS.language,
       convertDetectedLanguage: (language) => normalizeSupportedLanguage(language) ?? language,
     },
   });

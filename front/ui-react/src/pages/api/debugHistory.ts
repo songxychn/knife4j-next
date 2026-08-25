@@ -1,10 +1,10 @@
+import { KNIFE4J_STORAGE_PREFIXES } from '../../storage/knife4jStorage';
+
 export const DEBUG_HISTORY_VERSION = 1 as const;
 export const DEBUG_HISTORY_MAX_ENTRIES = 20;
 /** Body / response body truncation limit (~64KB). */
 export const DEBUG_HISTORY_BODY_MAX_BYTES = 64 * 1024;
 export const DEBUG_HISTORY_MASK = '***';
-
-const STORAGE_PREFIX = 'knife4j-next:debug-history:';
 
 export type DebugHistoryStatus = 'pending' | 'completed' | 'error' | 'aborted';
 
@@ -364,7 +364,7 @@ export function truncateBody(
 }
 
 export function debugHistoryStorageKey(cacheKey: string): string {
-  return `${STORAGE_PREFIX}${encodeURIComponent(cacheKey)}`;
+  return `${KNIFE4J_STORAGE_PREFIXES.debugHistory}${encodeURIComponent(cacheKey)}`;
 }
 
 export function createHistoryEntryId(): string {

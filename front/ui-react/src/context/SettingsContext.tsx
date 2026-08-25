@@ -1,13 +1,12 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { AppSettings } from '../types/settings';
+import { KNIFE4J_STORAGE_KEYS } from '../storage/knife4jStorage';
 import {
   readSettingsOverrides,
   resolveAppSettings,
   SETTINGS_STORAGE_VERSION,
   type SettingsOverrides,
 } from './settingsStorage';
-
-const STORAGE_KEY = 'Knife4jGlobalSettings';
 
 interface StoredSettings {
   version: typeof SETTINGS_STORAGE_VERSION;
@@ -16,7 +15,7 @@ interface StoredSettings {
 
 function loadOverrides(): SettingsOverrides {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     return readSettingsOverrides(parsed);
@@ -28,7 +27,7 @@ function loadOverrides(): SettingsOverrides {
 function saveOverrides(overrides: SettingsOverrides): void {
   try {
     const payload: StoredSettings = { version: SETTINGS_STORAGE_VERSION, overrides };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(KNIFE4J_STORAGE_KEYS.settings, JSON.stringify(payload));
   } catch {
     // ignore quota errors
   }

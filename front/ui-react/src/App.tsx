@@ -28,6 +28,7 @@ import {
 } from './utils/operationTabs';
 import { resolveFooterContent } from './utils/footer';
 import { buildDocumentToolRoute, matchDocumentToolRoute, type DocumentTool } from './utils/documentToolRoutes';
+import { KNIFE4J_STORAGE_KEYS } from './storage/knife4jStorage';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -35,10 +36,6 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 const HOME_KEY = '/group/home';
 const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
 const isClosablePane = (pane: { key: string }) => pane.key !== HOME_KEY;
-
-/** sessionStorage keys for persisting opened tabs across page refresh. */
-const STORAGE_KEY_ITEMS = 'knife4j-next:tab-items';
-const STORAGE_KEY_ACTIVE = 'knife4j-next:tab-active';
 
 const antdLocaleMap: Record<SupportedLang, typeof enUSLocale> = {
   'zh-CN': zhCNLocale,
@@ -74,13 +71,13 @@ interface PersistedTab {
 /** Read persisted tabs from sessionStorage, filtering out anything invalid. */
 function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | null {
   try {
-    const rawItems = sessionStorage.getItem(STORAGE_KEY_ITEMS);
+    const rawItems = sessionStorage.getItem(KNIFE4J_STORAGE_KEYS.tabItems);
     if (!rawItems) return null;
     const parsed = JSON.parse(rawItems);
     if (!Array.isArray(parsed)) return null;
     const items: PersistedTab[] = parsed.filter((x) => x && typeof x.key === 'string' && typeof x.label === 'string');
     if (items.length === 0) return null;
-    const activeKey = sessionStorage.getItem(STORAGE_KEY_ACTIVE) ?? items[0].key;
+    const activeKey = sessionStorage.getItem(KNIFE4J_STORAGE_KEYS.tabActive) ?? items[0].key;
     return { items, activeKey };
   } catch {
     return null;
@@ -145,8 +142,8 @@ const AppInner: React.FC = () => {
   useEffect(() => {
     try {
       const payload: PersistedTab[] = items.map((p) => ({ key: p.key, label: p.label }));
-      sessionStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(payload));
-      sessionStorage.setItem(STORAGE_KEY_ACTIVE, activeKey);
+      sessionStorage.setItem(KNIFE4J_STORAGE_KEYS.tabItems, JSON.stringify(payload));
+      sessionStorage.setItem(KNIFE4J_STORAGE_KEYS.tabActive, activeKey);
     } catch {
       // storage might be disabled or quota exceeded — not fatal
     }

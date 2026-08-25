@@ -1,6 +1,6 @@
-export const DEBUG_CACHE_VERSION = 1;
+import { KNIFE4J_STORAGE_PREFIXES } from '../../storage/knife4jStorage';
 
-const STORAGE_PREFIX = 'knife4j-next:debug-cache:';
+export const DEBUG_CACHE_VERSION = 1;
 
 export type DebugCacheRawMode = 'text' | 'json' | 'javascript' | 'xml' | 'html';
 
@@ -107,7 +107,7 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
 }
 
 export function debugCacheStorageKey(cacheKey: string): string {
-  return `${STORAGE_PREFIX}${encodeURIComponent(cacheKey)}`;
+  return `${KNIFE4J_STORAGE_PREFIXES.debugCache}${encodeURIComponent(cacheKey)}`;
 }
 
 export function readDebugCache(
