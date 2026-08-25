@@ -15,6 +15,8 @@ export const KNIFE4J_STORAGE_KEYS = {
   tabActive: 'knife4j-next:tab-active',
   /** Internal cross-context coordination lease; never treated as user data. */
   resetLease: 'knife4j-next:storage-reset-lease',
+  /** Fallback mutex shared by writes, removals, and full resets when Web Locks are unavailable. */
+  mutationLease: 'knife4j-next:storage-mutation-lease',
   /** Last completed or active reset generation, retained to invalidate stale in-memory state. */
   resetGeneration: 'knife4j-next:storage-reset-generation',
 } as const;
@@ -30,8 +32,8 @@ export const KNIFE4J_STORAGE_PREFIXES = {
   authIndexedDb: 'knife4j:auth:',
   /** Per-reset fallback contenders; retained only while acquiring the lease. */
   resetClaim: 'knife4j-next:storage-reset-claim:',
-  /** In-flight ownership markers retained across cleanup until their writer completes its final fence. */
-  webStorageWriteOwner: 'knife4j-next:storage-write-owner:',
+  /** Per-mutation fallback contenders; retained only while acquiring the mutex. */
+  mutationClaim: 'knife4j-next:storage-mutation-claim:',
 } as const;
 
 export type Knife4jStorageCleanupScope = 'request-cache' | 'all-local-data';
@@ -75,8 +77,14 @@ export const KNIFE4J_STORAGE_REGISTRY = {
       preserveDuringCleanup: true,
     },
     {
+      match: 'exact',
+      value: KNIFE4J_STORAGE_KEYS.mutationLease,
+      scope: 'all-local-data',
+      preserveDuringCleanup: true,
+    },
+    {
       match: 'prefix',
-      value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner,
+      value: KNIFE4J_STORAGE_PREFIXES.mutationClaim,
       scope: 'all-local-data',
       preserveDuringCleanup: true,
     },
@@ -85,12 +93,6 @@ export const KNIFE4J_STORAGE_REGISTRY = {
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.tabItems, scope: 'request-cache' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.tabActive, scope: 'request-cache' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.oauth2Pending, scope: 'all-local-data' },
-    {
-      match: 'prefix',
-      value: KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner,
-      scope: 'all-local-data',
-      preserveDuringCleanup: true,
-    },
   ],
   indexedDB: [{ match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.authIndexedDb, scope: 'all-local-data' }],
 } as const satisfies Record<Knife4jStorageArea, readonly RegisteredEntry[]>;
@@ -141,8 +143,6 @@ const KNIFE4J_STORAGE_RESET_LEASE_VERSION = 1;
 const KNIFE4J_STORAGE_RESET_LEASE_TTL_MS = 2 * 60 * 1000;
 const KNIFE4J_STORAGE_RESET_LEASE_POLL_MS = 50;
 const KNIFE4J_STORAGE_RESET_CLAIM_TTL_MS = 10 * 1000;
-const KNIFE4J_STORAGE_WRITE_OWNER_VERSION = 1;
-const KNIFE4J_STORAGE_WRITE_OWNER_TTL_MS = 2 * 60 * 1000;
 
 export interface Knife4jStorageResetSnapshot {
   readonly generation: string;
@@ -168,20 +168,14 @@ interface Knife4jStorageResetClaim extends Knife4jStorageResetLease {
   createdAt: number;
 }
 
-interface Knife4jWebStorageWriteOwner {
-  version: typeof KNIFE4J_STORAGE_WRITE_OWNER_VERSION;
+interface PendingKnife4jWebStorageValue {
   writeId: string;
-  expiresAt: number;
-}
-
-interface DeferredKnife4jWebStorageWrite {
   value: string;
-  leaseStorage: Knife4jWebStorage | null;
   generation: string;
-  timer: ReturnType<typeof setTimeout> | null;
 }
 
-const deferredWebStorageWrites = new WeakMap<object, Map<string, DeferredKnife4jWebStorageWrite>>();
+const pendingWebStorageValues = new WeakMap<object, Map<string, PendingKnife4jWebStorageValue>>();
+const fallbackMutationTails = new WeakMap<object, Promise<void>>();
 
 function cancelResetLeaseExpiry(storage?: Knife4jWebStorage | null, generation?: string): void {
   if (
@@ -356,167 +350,120 @@ function createKnife4jStorageWriteFence(
   return Object.assign(canWrite, { generation });
 }
 
-/** Write one registered Web Storage value only when no full reset invalidated it. */
-function webStorageWriteOwnerKey(key: string): string {
-  return `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(key)}`;
-}
-
-function parseWebStorageWriteOwner(value: string | null): Knife4jWebStorageWriteOwner | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as Partial<Knife4jWebStorageWriteOwner>;
-    if (
-      parsed.version !== KNIFE4J_STORAGE_WRITE_OWNER_VERSION ||
-      typeof parsed.writeId !== 'string' ||
-      !parsed.writeId ||
-      typeof parsed.expiresAt !== 'number'
-    ) {
-      return null;
-    }
-    return parsed as Knife4jWebStorageWriteOwner;
-  } catch {
-    return null;
+function pendingWebStorageMap(storage: Pick<Storage, 'getItem'>): Map<string, PendingKnife4jWebStorageValue> {
+  let values = pendingWebStorageValues.get(storage);
+  if (!values) {
+    values = new Map();
+    pendingWebStorageValues.set(storage, values);
   }
+  return values;
 }
 
-function readActiveWebStorageWriteOwner(
-  storage: Pick<Storage, 'getItem' | 'removeItem'>,
-  ownerKey: string,
-  now = Date.now(),
-): Knife4jWebStorageWriteOwner | null {
-  const value = storage.getItem(ownerKey);
-  if (!value) return null;
-  const owner = parseWebStorageWriteOwner(value);
-  if (owner && owner.expiresAt > now) return owner;
-  storage.removeItem(ownerKey);
-  return null;
-}
-
-function removeWebStorageWriteOwner(
-  storage: Pick<Storage, 'getItem' | 'removeItem'>,
-  ownerKey: string,
-  ownerValue: string,
-): void {
-  try {
-    if (storage.getItem(ownerKey) === ownerValue) storage.removeItem(ownerKey);
-  } catch {
-    // A crashed marker contains no user payload and expires before another writer reuses the key.
+/** Read through the local pending-write overlay before falling back to Web Storage. */
+export function getKnife4jStorageItem(
+  storage: Pick<Storage, 'getItem'>,
+  key: string,
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+): string | null {
+  const pending = pendingWebStorageValues.get(storage)?.get(key);
+  if (pending) {
+    const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
+    if (!snapshot.active && snapshot.generation === pending.generation) return pending.value;
   }
+  return storage.getItem(key);
 }
 
-function deferKnife4jWebStorageWrite(
+/** Persist one registered value while sharing the same reset/mutation lock. */
+export async function persistKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string,
   value: string,
-  leaseStorage: Knife4jWebStorage | null,
-  generation: string,
-): void {
-  let writes = deferredWebStorageWrites.get(storage);
-  if (!writes) {
-    writes = new Map();
-    deferredWebStorageWrites.set(storage, writes);
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+): Promise<boolean> {
+  try {
+    const persisted = await trackKnife4jStorageWrite(
+      async (canWrite) => {
+        if (!canWrite()) return false;
+        storage.setItem(key, value);
+        if (canWrite()) return true;
+        if (storage.getItem(key) === value) storage.removeItem(key);
+        return false;
+      },
+      lockManager,
+      leaseStorage,
+    );
+    return persisted === true;
+  } catch {
+    return false;
   }
-
-  const existing = writes.get(key);
-  if (existing) {
-    existing.value = value;
-    existing.leaseStorage = leaseStorage;
-    existing.generation = generation;
-    return;
-  }
-
-  const deferred: DeferredKnife4jWebStorageWrite = { value, leaseStorage, generation, timer: null };
-  writes.set(key, deferred);
-  const retry = () => {
-    deferred.timer = null;
-    if (writes?.get(key) !== deferred) return;
-    try {
-      const snapshot = getKnife4jStorageResetSnapshot(deferred.leaseStorage);
-      if (snapshot.generation !== deferred.generation) {
-        writes.delete(key);
-        return;
-      }
-      const ownerKey = webStorageWriteOwnerKey(key);
-      if (snapshot.active || readActiveWebStorageWriteOwner(storage, ownerKey)) {
-        deferred.timer = setTimeout(retry, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS);
-        (deferred.timer as unknown as { unref?: () => void }).unref?.();
-        return;
-      }
-      writes.delete(key);
-      setKnife4jStorageItem(storage, key, deferred.value, deferred.leaseStorage);
-    } catch {
-      writes.delete(key);
-    }
-  };
-  deferred.timer = setTimeout(retry, 0);
-  (deferred.timer as unknown as { unref?: () => void }).unref?.();
 }
 
+/** Queue a registered Web Storage write and expose its latest value locally immediately. */
 export function setKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string,
   value: string,
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
-  options: { deferOnContention?: boolean } = {},
 ): boolean {
-  const canWrite = createKnife4jStorageWriteFence(leaseStorage);
-  if (!canWrite()) return false;
-  const ownerKey = webStorageWriteOwnerKey(key);
-  try {
-    if (readActiveWebStorageWriteOwner(storage, ownerKey)) {
-      if (options.deferOnContention === false) return false;
-      deferKnife4jWebStorageWrite(storage, key, value, leaseStorage, canWrite.generation);
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  const owner: Knife4jWebStorageWriteOwner = {
-    version: KNIFE4J_STORAGE_WRITE_OWNER_VERSION,
-    writeId: createResetGeneration(),
-    expiresAt: Date.now() + KNIFE4J_STORAGE_WRITE_OWNER_TTL_MS,
-  };
-  const ownerValue = JSON.stringify(owner);
-  try {
-    storage.setItem(ownerKey, ownerValue);
-  } catch {
-    // Replacing an existing value may still fit when adding a marker would
-    // exceed quota. Preserve that capability; without an owner marker, a
-    // stale completion must never delete a potentially newer value.
-    if (!canWrite()) return false;
+  if (!leaseStorage) {
     storage.setItem(key, value);
-    return canWrite();
+    return true;
   }
-  if (!canWrite()) {
-    removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
-    return false;
-  }
-  if (storage.getItem(ownerKey) !== ownerValue) return false;
-  try {
-    storage.setItem(key, value);
-  } catch (error) {
-    removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
-    throw error;
-  }
-  if (!canWrite()) {
-    if (
-      storage.getItem(ownerKey) === ownerValue &&
-      storage.getItem(key) === value &&
-      storage.getItem(ownerKey) === ownerValue
-    ) {
-      storage.removeItem(key);
-    }
-    removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
-    return false;
-  }
-  removeWebStorageWriteOwner(storage, ownerKey, ownerValue);
+  const snapshot = getKnife4jStorageResetSnapshot(leaseStorage);
+  if (snapshot.active) return false;
+
+  const writeId = createResetGeneration();
+  const pending = pendingWebStorageMap(storage);
+  pending.set(key, { writeId, value, generation: snapshot.generation });
+  void persistKnife4jStorageItem(storage, key, value, browserStorageLockManager(), leaseStorage).finally(() => {
+    if (pending.get(key)?.writeId === writeId) pending.delete(key);
+  });
   return true;
 }
 
+/** Session Storage is tab-scoped, so a synchronous write only needs the local reset fence. */
+export function setKnife4jSessionStorageItem(
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
+  key: string,
+  value: string,
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+): boolean {
+  const canWrite = createKnife4jStorageWriteFence(leaseStorage);
+  if (!canWrite()) return false;
+  storage.setItem(key, value);
+  if (canWrite()) return true;
+  if (storage.getItem(key) === value) storage.removeItem(key);
+  return false;
+}
+
+/** Remove one registered value under the same cross-context mutation lock as a full reset. */
+export async function removeKnife4jStorageItem(
+  storage: Pick<Storage, 'removeItem'>,
+  key: string,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+): Promise<boolean> {
+  try {
+    const removed = await trackKnife4jStorageWrite(
+      async (canWrite) => {
+        if (!canWrite()) return false;
+        storage.removeItem(key);
+        return canWrite();
+      },
+      lockManager,
+      leaseStorage,
+    );
+    return removed === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Coordinate a Knife4j persistence operation with full resets running in
- * other same-origin browsing contexts. New shared locks are not queued behind
- * a pending reset, so stale writes cannot resume after its deletion pass.
+ * Serialize every Knife4j persistence operation with full resets running in
+ * other same-origin browsing contexts. A mutation queued behind a reset keeps
+ * its original generation fence and is refused after the reset completes.
  */
 export function withKnife4jStorageWriteLock<T>(
   write: (canWrite: () => boolean) => Promise<T>,
@@ -525,10 +472,46 @@ export function withKnife4jStorageWriteLock<T>(
 ): Promise<T | undefined> {
   const canWrite = createKnife4jStorageWriteFence(leaseStorage);
   const guardedWrite = () => (canWrite() ? write(canWrite) : undefined);
-  if (!lockManager) return Promise.resolve().then(guardedWrite);
-  return lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'shared', ifAvailable: true }, (lock) =>
-    lock ? guardedWrite() : undefined,
+  if (!lockManager) {
+    if (!leaseStorage) return Promise.resolve().then(guardedWrite);
+    return enqueueFallbackMutation(leaseStorage, () => runWithFallbackMutationLease(write, canWrite, leaseStorage));
+  }
+  return lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, guardedWrite);
+}
+
+function enqueueFallbackMutation<T>(
+  storage: Knife4jWebStorage,
+  mutation: () => Promise<T | undefined>,
+): Promise<T | undefined> {
+  const previous = fallbackMutationTails.get(storage) ?? Promise.resolve();
+  const current = previous.then(mutation, mutation);
+  const tail = current.then(
+    () => undefined,
+    () => undefined,
   );
+  fallbackMutationTails.set(storage, tail);
+  void tail.finally(() => {
+    if (fallbackMutationTails.get(storage) === tail) fallbackMutationTails.delete(storage);
+  });
+  return current;
+}
+
+async function runWithFallbackMutationLease<T>(
+  write: (canWrite: () => boolean) => Promise<T>,
+  canWrite: () => boolean,
+  storage: Knife4jWebStorage,
+): Promise<T | undefined> {
+  const lease = await acquireMutationLease(storage);
+  if (!lease) return undefined;
+  const stopHeartbeat = startMutationLeaseHeartbeat(storage, lease);
+  const retainsMutationLease = () => renewMutationLease(storage, lease) && canWrite();
+  try {
+    if (!retainsMutationLease()) return undefined;
+    return await write(retainsMutationLease);
+  } finally {
+    stopHeartbeat();
+    releaseMutationLease(storage, lease);
+  }
 }
 
 /**
@@ -645,6 +628,137 @@ function listActiveResetClaims(
     (left, right) =>
       left.claim.createdAt - right.claim.createdAt || left.claim.generation.localeCompare(right.claim.generation),
   );
+}
+
+function mutationClaimStorageKey(generation: string): string {
+  return `${KNIFE4J_STORAGE_PREFIXES.mutationClaim}${generation}`;
+}
+
+function listActiveMutationClaims(
+  storage: Knife4jWebStorage,
+  now = Date.now(),
+): Array<{ key: string; claim: Knife4jStorageResetClaim }> {
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key?.startsWith(KNIFE4J_STORAGE_PREFIXES.mutationClaim)) keys.push(key);
+  }
+
+  const claims: Array<{ key: string; claim: Knife4jStorageResetClaim }> = [];
+  for (const key of keys) {
+    const claim = parseResetClaim(storage.getItem(key));
+    if (!claim || claim.expiresAt <= now) {
+      removeResetClaim(storage, key);
+      continue;
+    }
+    claims.push({ key, claim });
+  }
+  return claims.sort(
+    (left, right) =>
+      left.claim.createdAt - right.claim.createdAt || left.claim.generation.localeCompare(right.claim.generation),
+  );
+}
+
+async function acquireMutationLease(storage: Knife4jWebStorage): Promise<Knife4jStorageResetLease | null> {
+  for (;;) {
+    let publishedClaimKey: string | null = null;
+    let candidateLease: Knife4jStorageResetLease | null = null;
+    try {
+      const createdAt = Date.now();
+      const claim: Knife4jStorageResetClaim = {
+        version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+        generation: createResetGeneration(),
+        createdAt,
+        expiresAt: createdAt + KNIFE4J_STORAGE_RESET_CLAIM_TTL_MS,
+      };
+      const claimKey = mutationClaimStorageKey(claim.generation);
+      publishedClaimKey = claimKey;
+      storage.setItem(claimKey, JSON.stringify(claim));
+      await new Promise((resolve) => setTimeout(resolve, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS));
+
+      for (;;) {
+        claim.expiresAt = Date.now() + KNIFE4J_STORAGE_RESET_CLAIM_TTL_MS;
+        storage.setItem(claimKey, JSON.stringify(claim));
+        const activeLease = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease));
+        if (activeLease && activeLease.expiresAt > Date.now()) {
+          await waitForResetLeaseTurn(activeLease);
+          continue;
+        }
+
+        if (listActiveMutationClaims(storage)[0]?.claim.generation !== claim.generation) {
+          await new Promise((resolve) => setTimeout(resolve, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS));
+          continue;
+        }
+
+        const recheckedLease = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease));
+        if (recheckedLease && recheckedLease.expiresAt > Date.now()) continue;
+
+        const lease: Knife4jStorageResetLease = {
+          version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+          generation: claim.generation,
+          expiresAt: Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS,
+        };
+        storage.setItem(KNIFE4J_STORAGE_KEYS.mutationLease, JSON.stringify(lease));
+        candidateLease = lease;
+        await new Promise((resolve) => setTimeout(resolve, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS));
+
+        const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease));
+        const winner = listActiveMutationClaims(storage)[0]?.claim;
+        if (persisted?.generation === lease.generation && winner?.generation === claim.generation) {
+          removeResetClaim(storage, claimKey);
+          publishedClaimKey = null;
+          return lease;
+        }
+
+        if (persisted?.generation === lease.generation) {
+          storage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+          candidateLease = null;
+        }
+        await new Promise((resolve) => setTimeout(resolve, KNIFE4J_STORAGE_RESET_LEASE_POLL_MS));
+      }
+    } catch {
+      if (publishedClaimKey) removeResetClaim(storage, publishedClaimKey);
+      if (candidateLease) {
+        try {
+          const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease));
+          if (persisted?.generation === candidateLease.generation) {
+            storage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+          }
+        } catch {
+          // The caller treats an unavailable fallback mutex as a refused mutation.
+        }
+      }
+      return null;
+    }
+  }
+}
+
+function renewMutationLease(storage: Knife4jWebStorage, lease: Knife4jStorageResetLease): boolean {
+  try {
+    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease));
+    if (current?.generation !== lease.generation || current.expiresAt <= Date.now()) return false;
+    lease.expiresAt = Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS;
+    storage.setItem(KNIFE4J_STORAGE_KEYS.mutationLease, JSON.stringify(lease));
+    return parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease))?.generation === lease.generation;
+  } catch {
+    return false;
+  }
+}
+
+function startMutationLeaseHeartbeat(storage: Knife4jWebStorage, lease: Knife4jStorageResetLease): () => void {
+  const timer = setInterval(() => {
+    if (!renewMutationLease(storage, lease)) clearInterval(timer);
+  }, KNIFE4J_STORAGE_RESET_LEASE_TTL_MS / 4);
+  return () => clearInterval(timer);
+}
+
+function releaseMutationLease(storage: Knife4jWebStorage, lease: Knife4jStorageResetLease): void {
+  try {
+    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.mutationLease));
+    if (current?.generation === lease.generation) storage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+  } catch {
+    // Expiry still lets another mutation recover from an unavailable cleanup write.
+  }
 }
 
 async function acquireResetLease(
@@ -896,10 +1010,26 @@ export async function clearRegisteredKnife4jStorage(
     failures: [],
   };
   let lease: Knife4jStorageResetLease | null = null;
+  let mutationLease: Knife4jStorageResetLease | null = null;
   let usesExclusiveLockFallback = false;
   let stopResetLeaseHeartbeat = () => {};
+  let stopMutationLeaseHeartbeat = () => {};
+
+  const retainsMutationLease = (): boolean => {
+    if (!guardsAsyncWrites || lockManager || !adapters.localStorage) return true;
+    const retained = mutationLease !== null && renewMutationLease(adapters.localStorage, mutationLease);
+    if (!retained) {
+      recordFailure(result, {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.mutationLease,
+        reason: 'mutation coordination ownership was lost',
+      });
+    }
+    return retained;
+  };
 
   const retainsResetLease = (): boolean => {
+    if (!retainsMutationLease()) return false;
     if (!guardsAsyncWrites || !adapters.localStorage || usesExclusiveLockFallback) return true;
     return lease !== null && renewResetLease(adapters.localStorage, lease, result);
   };
@@ -947,6 +1077,24 @@ export async function clearRegisteredKnife4jStorage(
 
   const performCoordinatedCleanup = async (): Promise<void> => {
     if (guardsAsyncWrites) {
+      if (!lockManager && adapters.localStorage) {
+        mutationLease = await acquireMutationLease(adapters.localStorage);
+        if (!mutationLease) {
+          // Recover enough quota to publish the fallback mutex before any
+          // non-localStorage deletion can race a cross-tab mutation.
+          clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
+          mutationLease = await acquireMutationLease(adapters.localStorage);
+        }
+        if (!mutationLease) {
+          recordFailure(result, {
+            area: 'localStorage',
+            key: KNIFE4J_STORAGE_KEYS.mutationLease,
+            reason: 'mutation coordination unavailable',
+          });
+          return;
+        }
+        stopMutationLeaseHeartbeat = startMutationLeaseHeartbeat(adapters.localStorage, mutationLease);
+      }
       lease = await acquireResetLease(adapters.localStorage, result, false);
       if (!lease && adapters.localStorage) {
         // A full localStorage quota can prevent even the coordination claim.
@@ -965,15 +1113,18 @@ export async function clearRegisteredKnife4jStorage(
   };
 
   try {
+    if (guardsAsyncWrites && !lockManager) await waitForPendingKnife4jStorageWrites();
     if (!guardsAsyncWrites || !lockManager) await performCoordinatedCleanup();
     else await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, performCoordinatedCleanup);
   } finally {
     stopResetLeaseHeartbeat();
+    stopMutationLeaseHeartbeat();
     if (guardsAsyncWrites) {
       allLocalDataCleanupCount -= 1;
       getKnife4jStorageResetSnapshot(adapters.localStorage);
     }
     releaseResetLease(adapters.localStorage, lease, result);
+    if (adapters.localStorage && mutationLease) releaseMutationLease(adapters.localStorage, mutationLease);
   }
   return result;
 }

@@ -1,4 +1,9 @@
-import { KNIFE4J_STORAGE_PREFIXES, setKnife4jStorageItem } from '../../storage/knife4jStorage';
+import {
+  KNIFE4J_STORAGE_PREFIXES,
+  getKnife4jStorageItem,
+  removeKnife4jStorageItem,
+  setKnife4jStorageItem,
+} from '../../storage/knife4jStorage';
 
 export const DEBUG_HISTORY_VERSION = 1 as const;
 export const DEBUG_HISTORY_MAX_ENTRIES = 20;
@@ -462,7 +467,7 @@ function normalizeEntry(value: unknown): DebugHistoryEntry | null {
 function readHistoryList(cacheKey: string, storage: DebugHistoryStorage | null): DebugHistoryEntry[] {
   if (!storage) return [];
   try {
-    const raw = storage.getItem(debugHistoryStorageKey(cacheKey));
+    const raw = getKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -632,7 +637,7 @@ export function removeEntry(
 export function clearHistory(cacheKey: string, storage: DebugHistoryStorage | null = getDebugHistoryStorage()): void {
   if (!storage) return;
   try {
-    storage.removeItem(debugHistoryStorageKey(cacheKey));
+    void removeKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey));
   } catch {
     // ignore storage failures
   }

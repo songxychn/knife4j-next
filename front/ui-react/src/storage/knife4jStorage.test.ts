@@ -4,7 +4,10 @@ import {
   KNIFE4J_STORAGE_PREFIXES,
   KNIFE4J_STORAGE_REGISTRY,
   clearRegisteredKnife4jStorage,
+  getKnife4jStorageItem,
   getKnife4jStorageResetSnapshot,
+  persistKnife4jStorageItem,
+  removeKnife4jStorageItem,
   removedKnife4jStorageEntryCount,
   setKnife4jStorageItem,
   subscribeKnife4jStorageReset,
@@ -370,151 +373,138 @@ describe('Knife4j storage cleanup registry', () => {
     expect(getKnife4jStorageResetSnapshot(localStorage).active).toBe(false);
   });
 
-  it('does not remove an identical newer Web Storage value while rolling back a stale write', () => {
+  it('exposes a queued Web Storage value before its fallback mutation lease persists it', async () => {
     const targetKey = KNIFE4J_STORAGE_KEYS.settings;
-    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
-    const targetStorage = new MemoryWebStorage({});
-    let generationReads = 0;
-    const leaseStorage = new (class extends MemoryWebStorage {
-      override getItem(key: string): string | null {
-        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) {
-          generationReads += 1;
-          if (generationReads === 4) {
-            // Simulate a newer successful write with the exact same payload:
-            // it replaces the value and consumes its own ownership marker.
-            targetStorage.setItem(targetKey, 'same-value');
-            targetStorage.removeItem(ownerKey);
-            return 'newer-generation';
-          }
-          return 'stale-generation';
-        }
-        return super.getItem(key);
-      }
-    })({});
-
-    expect(setKnife4jStorageItem(targetStorage, targetKey, 'same-value', leaseStorage)).toBe(false);
-    expect(targetStorage.getItem(targetKey)).toBe('same-value');
-    expect(targetStorage.getItem(ownerKey)).toBeNull();
-
-    const unchangedStorage = new MemoryWebStorage({});
-    let unchangedGenerationReads = 0;
-    const changedGenerationStorage = new (class extends MemoryWebStorage {
-      override getItem(key: string): string | null {
-        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) {
-          unchangedGenerationReads += 1;
-          return unchangedGenerationReads < 4 ? 'second-stale-generation' : 'second-newer-generation';
-        }
-        return super.getItem(key);
-      }
-    })({});
-
-    expect(setKnife4jStorageItem(unchangedStorage, targetKey, 'own-stale-value', changedGenerationStorage)).toBe(false);
-    expect(unchangedStorage.getItem(targetKey)).toBeNull();
-    expect(unchangedStorage.getItem(ownerKey)).toBeNull();
-  });
-
-  it('retains an in-flight Web Storage owner while full cleanup removes its target', async () => {
-    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
-    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
-    const localStorage = new MemoryWebStorage({
-      [targetKey]: 'stale-value',
-      [ownerKey]: 'in-flight-write',
-    });
-
-    const result = await clearRegisteredKnife4jStorage(
-      'all-local-data',
-      { localStorage, sessionStorage: new MemoryWebStorage({}), indexedDB: new MemoryIndexedDb([]) },
-      null,
-    );
-
-    expect(result.failures).toEqual([]);
-    expect(localStorage.getItem(targetKey)).toBeNull();
-    expect(localStorage.getItem(ownerKey)).toBe('in-flight-write');
-  });
-
-  it('removes a stale value written after cleanup while its owner survives', () => {
-    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
-    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
-    let generation = 'before-reset';
-    let ownerSurvivedReset = false;
-    const leaseStorage = new MemoryWebStorage({});
-    const targetStorage = new (class extends MemoryWebStorage {
-      override setItem(key: string, value: string): void {
-        if (key === targetKey) {
-          this.values.delete(targetKey);
-          generation = 'after-reset';
-          ownerSurvivedReset = this.values.has(ownerKey);
-        }
-        super.setItem(key, value);
-      }
-    })({ [targetKey]: 'old-value' });
-    const generationStorage = new (class extends MemoryWebStorage {
-      override getItem(key: string): string | null {
-        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) return generation;
-        return leaseStorage.getItem(key);
-      }
-    })({});
-
-    expect(setKnife4jStorageItem(targetStorage, targetKey, 'stale-value', generationStorage)).toBe(false);
-    expect(ownerSurvivedReset).toBe(true);
-    expect(targetStorage.getItem(targetKey)).toBeNull();
-    expect(targetStorage.getItem(ownerKey)).toBeNull();
-  });
-
-  it('serializes a post-reset value behind the stale writer owner', async () => {
-    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
-    const ownerKey = `${KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner}${encodeURIComponent(targetKey)}`;
-    let generation = 'before-reset';
-    let writeNewerValue = () => {};
-    let newerWriteAccepted = false;
-    const targetStorage = new (class extends MemoryWebStorage {
-      private resetInjected = false;
-
-      override setItem(key: string, value: string): void {
-        if (key === targetKey && !this.resetInjected) {
-          this.resetInjected = true;
-          this.values.delete(targetKey);
-          generation = 'after-reset';
-          writeNewerValue();
-        }
-        super.setItem(key, value);
-      }
-    })({ [targetKey]: 'old-value' });
-    const generationStorage = new (class extends MemoryWebStorage {
-      override getItem(key: string): string | null {
-        if (key === KNIFE4J_STORAGE_KEYS.resetGeneration) return generation;
-        return super.getItem(key);
-      }
-    })({});
-    writeNewerValue = () => {
-      newerWriteAccepted = setKnife4jStorageItem(targetStorage, targetKey, 'newer-value', generationStorage);
-    };
-
-    expect(setKnife4jStorageItem(targetStorage, targetKey, 'stale-value', generationStorage)).toBe(false);
-    expect(newerWriteAccepted).toBe(true);
-    await vi.waitFor(() => expect(targetStorage.getItem(targetKey)).toBe('newer-value'));
-    expect(targetStorage.getItem(ownerKey)).toBeNull();
-  });
-
-  it('replaces an existing value when an ownership marker would exceed quota', () => {
-    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
-    const storage = new (class extends MemoryWebStorage {
-      override setItem(key: string, value: string): void {
-        if (key.startsWith(KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner)) {
-          throw new Error('quota exceeded for a new key');
-        }
-        super.setItem(key, value);
-      }
-    })({ [targetKey]: 'old-value' });
+    const storage = new MemoryWebStorage({ [targetKey]: 'old-value' });
     const leaseStorage = new MemoryWebStorage({
       [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
     });
 
     expect(setKnife4jStorageItem(storage, targetKey, 'new-value', leaseStorage)).toBe(true);
+    expect(getKnife4jStorageItem(storage, targetKey, leaseStorage)).toBe('new-value');
+    await vi.waitFor(() => expect(storage.getItem(targetKey)).toBe('new-value'));
+  });
+
+  it('replaces an existing value at quota through Web Locks without allocating an owner marker', async () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (!this.values.has(key)) throw new Error('quota exceeded for a new key');
+        super.setItem(key, value);
+      }
+    })({ [targetKey]: 'old-value' });
+    const persisted = await persistKnife4jStorageItem(storage, targetKey, 'new-value', new MemoryLockManager(), null);
+
+    expect(persisted).toBe(true);
     expect(storage.getItem(targetKey)).toBe('new-value');
-    expect(
-      Array.from(storage.values.keys()).some((key) => key.startsWith(KNIFE4J_STORAGE_PREFIXES.webStorageWriteOwner)),
-    ).toBe(false);
+  });
+
+  it('refuses a fallback write when quota prevents mutation coordination', async () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (!this.values.has(key)) throw new Error('quota exceeded for a new key');
+        super.setItem(key, value);
+      }
+    })({ [targetKey]: 'old-value' });
+
+    await expect(persistKnife4jStorageItem(storage, targetKey, 'stale-value', null, storage)).resolves.toBe(false);
+    expect(storage.getItem(targetKey)).toBe('old-value');
+  });
+
+  it('does not let a pre-reset removal delete a post-reset value', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.groupGlobalParams}group-a`;
+    const localStorage = new MemoryWebStorage({
+      [targetKey]: 'old-value',
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'before-reset',
+      [KNIFE4J_STORAGE_KEYS.mutationLease]: JSON.stringify({
+        version: 1,
+        generation: 'active-reset-mutation',
+        expiresAt: Date.now() + 1_000,
+      }),
+    });
+
+    const staleRemoval = removeKnife4jStorageItem(localStorage, targetKey, null, localStorage);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    localStorage.setItem(KNIFE4J_STORAGE_KEYS.resetGeneration, 'after-reset');
+    localStorage.setItem(targetKey, 'new-value');
+    localStorage.removeItem(KNIFE4J_STORAGE_KEYS.mutationLease);
+
+    await expect(staleRemoval).resolves.toBe(false);
+    expect(localStorage.getItem(targetKey)).toBe('new-value');
+  });
+
+  it('serializes persistent mutations through Web Locks', async () => {
+    const lockManager = new MemoryLockManager();
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let signalFirstStarted: (() => void) | undefined;
+    const firstStarted = new Promise<void>((resolve) => {
+      signalFirstStarted = resolve;
+    });
+    const order: string[] = [];
+
+    const first = withKnife4jStorageWriteLock(
+      async () => {
+        signalFirstStarted?.();
+        await firstGate;
+        order.push('first');
+      },
+      lockManager,
+      null,
+    );
+    await firstStarted;
+    const second = withKnife4jStorageWriteLock(
+      async () => {
+        order.push('second');
+      },
+      lockManager,
+      null,
+    );
+    await Promise.resolve();
+
+    expect(order).toEqual([]);
+    releaseFirst?.();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['first', 'second']);
+  });
+
+  it('serializes fallback mutations in call order within one context', async () => {
+    const localStorage = new MemoryWebStorage({});
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let signalFirstStarted: (() => void) | undefined;
+    const firstStarted = new Promise<void>((resolve) => {
+      signalFirstStarted = resolve;
+    });
+    const order: string[] = [];
+
+    const first = withKnife4jStorageWriteLock(
+      async () => {
+        signalFirstStarted?.();
+        await firstGate;
+        order.push('first');
+      },
+      null,
+      localStorage,
+    );
+    const second = withKnife4jStorageWriteLock(
+      async () => {
+        order.push('second');
+      },
+      null,
+      localStorage,
+    );
+
+    await firstStarted;
+    expect(order).toEqual([]);
+    releaseFirst?.();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['first', 'second']);
   });
 
   it('waits for existing writes and suppresses late writes across browsing contexts', async () => {
@@ -556,7 +546,7 @@ describe('Knife4j storage cleanup registry', () => {
     expect(indexedDB.values.has(authKey)).toBe(false);
   });
 
-  it('invalidates an in-flight cross-context write without Web Locks', async () => {
+  it('serializes an in-flight cross-context write before a fallback reset', async () => {
     const localStorage = new MemoryWebStorage({});
     const sessionStorage = new MemoryWebStorage({});
     const indexedDB = new MemoryIndexedDb([]);
@@ -581,17 +571,14 @@ describe('Knife4j storage cleanup registry', () => {
     );
     await writeStarted;
 
-    const result = await clearRegisteredKnife4jStorage(
-      'all-local-data',
-      { localStorage, sessionStorage, indexedDB },
-      null,
-    );
+    const cleanup = clearRegisteredKnife4jStorage('all-local-data', { localStorage, sessionStorage, indexedDB }, null);
     releaseWrite?.();
-    await staleWrite;
+    const [result] = await Promise.all([cleanup, staleWrite]);
 
     expect(result.failures).toEqual([]);
     expect(indexedDB.values.has(authKey)).toBe(false);
     expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
+    expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.mutationLease)).toBe(false);
   });
 
   it('notifies subscribers when a fallback lease expires without a removal event', async () => {

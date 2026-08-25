@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { AppSettings } from '../types/settings';
 import {
   KNIFE4J_STORAGE_KEYS,
+  getKnife4jStorageItem,
   getKnife4jStorageResetSnapshot,
   setKnife4jStorageItem,
   subscribeKnife4jStorageReset,
@@ -21,7 +22,7 @@ interface StoredSettings {
 
 function loadOverrides(): SettingsOverrides {
   try {
-    const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings);
+    const raw = getKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.settings);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     return readSettingsOverrides(parsed);

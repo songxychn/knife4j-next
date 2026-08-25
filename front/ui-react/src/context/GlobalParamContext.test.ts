@@ -160,7 +160,7 @@ describe('application parameter storage', () => {
     expect(applicationStorageKey('/doc.html')).not.toBe(groupStorageKey('application-global-params:%2Fdoc.html'));
   });
 
-  it('migrates the legacy value only to the application key', () => {
+  it('migrates the legacy value only to the application key', async () => {
     const pathname = '/service/doc.html';
     const existingGroup = {
       params: [param({ id: 'group', name: 'X-Group', value: 'kept' })],
@@ -186,8 +186,10 @@ describe('application parameter storage', () => {
     const loaded = loadApplicationParams(pathname, storage);
 
     expect(loaded).toEqual([{ ...legacyParam, valueSource: 'manual', request: undefined }]);
-    expect(JSON.parse(data.get(applicationStorageKey(pathname))!)).toEqual(loaded);
-    expect(data.has('knife4j_global_params')).toBe(false);
+    await vi.waitFor(() => {
+      expect(JSON.parse(data.get(applicationStorageKey(pathname))!)).toEqual(loaded);
+      expect(data.has('knife4j_global_params')).toBe(false);
+    });
     expect(loadGroup('group-a', storage)).toEqual(existingGroup);
   });
 

@@ -3,7 +3,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
   KNIFE4J_STORAGE_KEYS,
   KNIFE4J_STORAGE_PREFIXES,
+  getKnife4jStorageItem,
   getKnife4jStorageResetSnapshot,
+  persistKnife4jStorageItem,
+  removeKnife4jStorageItem,
   setKnife4jStorageItem,
   subscribeKnife4jStorageReset,
   type Knife4jStorageResetSnapshot,
@@ -228,7 +231,7 @@ export function loadGroup(groupId: string, storage?: GlobalParamStorage): Stored
   const target = storage ?? browserStorage();
   if (!target) return { params: [], cookieSession: DEFAULT_COOKIE_SESSION };
   try {
-    const stored = target.getItem(groupStorageKey(groupId));
+    const stored = getKnife4jStorageItem(target, groupStorageKey(groupId));
     if (stored !== null) return normalizeStoredConfig(JSON.parse(stored));
   } catch {
     // Invalid or unavailable localStorage is non-fatal.
@@ -253,7 +256,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
   const key = applicationStorageKey(pathname);
   let stored: string | null;
   try {
-    stored = target.getItem(key);
+    stored = getKnife4jStorageItem(target, key);
   } catch {
     return [];
   }
@@ -270,7 +273,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
 
   let legacy: string | null;
   try {
-    legacy = target.getItem(KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
+    legacy = getKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
   } catch {
     return [];
   }
@@ -283,20 +286,9 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
     return [];
   }
 
-  try {
-    const persisted = setKnife4jStorageItem(target, key, JSON.stringify(migrated), undefined, {
-      deferOnContention: false,
-    });
-    if (!persisted) return migrated;
-  } catch {
-    // Keep the legacy value when the new value could not be persisted.
-    return migrated;
-  }
-  try {
-    target.removeItem(KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
-  } catch {
-    // The application key now wins, so a failed legacy cleanup is harmless.
-  }
+  void persistKnife4jStorageItem(target, key, JSON.stringify(migrated)).then((persisted) => {
+    if (persisted) void removeKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
+  });
   return migrated;
 }
 
@@ -520,11 +512,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
     if (snapshot.active) return;
     const storage = browserStorage();
     if (!storage) return;
-    try {
-      storage.removeItem(groupStorageKey(groupId));
-    } catch {
-      // Ignore unavailable localStorage.
-    }
+    void removeKnife4jStorageItem(storage, groupStorageKey(groupId));
   }, [groupId]);
 
   const applicationParams = useMemo<ScopedGlobalParamItem[]>(

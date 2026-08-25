@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 import type { SecuritySchemeObject, OAuth2Flow } from '../types/swagger';
 import type { SchemeValue } from 'knife4j-core';
-import { KNIFE4J_STORAGE_PREFIXES, setKnife4jStorageItem } from '../storage/knife4jStorage';
+import { KNIFE4J_STORAGE_PREFIXES, setKnife4jSessionStorageItem } from '../storage/knife4jStorage';
 
 const { Text } = Typography;
 
@@ -152,8 +152,16 @@ function openOAuth2Popup(
   return new Promise((resolve, reject) => {
     // Store exchange config for authorization_code flow
     try {
-      setKnife4jStorageItem(sessionStorage, KNIFE4J_STORAGE_PREFIXES.oauth2Pending + state, JSON.stringify(config));
-      setKnife4jStorageItem(sessionStorage, KNIFE4J_STORAGE_PREFIXES.oauth2Pending + 'default', JSON.stringify(config));
+      setKnife4jSessionStorageItem(
+        sessionStorage,
+        KNIFE4J_STORAGE_PREFIXES.oauth2Pending + state,
+        JSON.stringify(config),
+      );
+      setKnife4jSessionStorageItem(
+        sessionStorage,
+        KNIFE4J_STORAGE_PREFIXES.oauth2Pending + 'default',
+        JSON.stringify(config),
+      );
     } catch {
       // sessionStorage unavailable — code exchange will fail gracefully
     }

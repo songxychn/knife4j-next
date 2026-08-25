@@ -4,8 +4,8 @@ import type { SchemeValue } from 'knife4j-core';
 import {
   KNIFE4J_STORAGE_KEYS,
   KNIFE4J_STORAGE_PREFIXES,
+  getKnife4jStorageItem,
   getKnife4jStorageResetSnapshot,
-  setKnife4jStorageItem,
   subscribeKnife4jStorageReset,
   trackKnife4jStorageWrite,
   type Knife4jStorageResetSnapshot,
@@ -205,10 +205,10 @@ async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
   await trackKnife4jStorageWrite(async (canWrite) => {
     try {
       if (!canWrite()) return;
-      const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
+      const raw = getKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuth);
       if (!raw) return;
       // 检查是否已迁移过（标记 key）
-      const migrated = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
+      const migrated = getKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
       if (migrated) return;
 
       const legacy: LegacyAuthConfig | null = JSON.parse(raw) as LegacyAuthConfig | null;
@@ -245,10 +245,8 @@ async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
         if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
         return;
       }
-      const marked = setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1', undefined, {
-        deferOnContention: false,
-      });
-      if (!marked || !canWrite()) {
+      localStorage.setItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1');
+      if (!canWrite()) {
         localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
         if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
         return;
