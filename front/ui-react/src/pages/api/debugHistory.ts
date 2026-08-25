@@ -1,4 +1,4 @@
-import { KNIFE4J_STORAGE_PREFIXES } from '../../storage/knife4jStorage';
+import { KNIFE4J_STORAGE_PREFIXES, setKnife4jStorageItem } from '../../storage/knife4jStorage';
 
 export const DEBUG_HISTORY_VERSION = 1 as const;
 export const DEBUG_HISTORY_MAX_ENTRIES = 20;
@@ -502,7 +502,7 @@ function writeHistoryList(cacheKey: string, entries: DebugHistoryEntry[], storag
   if (!storage) return;
   try {
     const limited = limitHistoryEntries(entries);
-    storage.setItem(debugHistoryStorageKey(cacheKey), JSON.stringify(limited));
+    setKnife4jStorageItem(storage, debugHistoryStorageKey(cacheKey), JSON.stringify(limited));
   } catch {
     // localStorage can be disabled or full; history must never block the UI.
   }

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- storage and merge helpers are exported for regression tests. */
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
+import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES, setKnife4jStorageItem } from '../storage/knife4jStorage';
 import { createClientId } from '../utils/id';
 
 export type GlobalParamLocation = 'header' | 'query';
@@ -229,7 +229,7 @@ function saveGroup(groupId: string, config: StoredGroupConfig, storage?: GlobalP
   const target = storage ?? browserStorage();
   if (!target) return;
   try {
-    target.setItem(groupStorageKey(groupId), JSON.stringify(config));
+    setKnife4jStorageItem(target, groupStorageKey(groupId), JSON.stringify(config));
   } catch {
     // Storage failures must not make the debugger unusable.
   }
@@ -273,7 +273,8 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
   }
 
   try {
-    target.setItem(key, JSON.stringify(migrated));
+    const persisted = setKnife4jStorageItem(target, key, JSON.stringify(migrated));
+    if (!persisted) return migrated;
   } catch {
     // Keep the legacy value when the new value could not be persisted.
     return migrated;
@@ -290,7 +291,7 @@ function saveApplicationParams(pathname: string, params: GlobalParamItem[], stor
   const target = storage ?? browserStorage();
   if (!target) return;
   try {
-    target.setItem(applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
+    setKnife4jStorageItem(target, applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
   } catch {
     // Storage failures must not make the debugger unusable.
   }

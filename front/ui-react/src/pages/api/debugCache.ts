@@ -1,4 +1,4 @@
-import { KNIFE4J_STORAGE_PREFIXES } from '../../storage/knife4jStorage';
+import { KNIFE4J_STORAGE_PREFIXES, setKnife4jStorageItem } from '../../storage/knife4jStorage';
 
 export const DEBUG_CACHE_VERSION = 1;
 
@@ -131,7 +131,11 @@ export function writeDebugCache(
 ): void {
   if (!storage) return;
   try {
-    storage.setItem(debugCacheStorageKey(cacheKey), JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }));
+    setKnife4jStorageItem(
+      storage,
+      debugCacheStorageKey(cacheKey),
+      JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }),
+    );
   } catch {
     // localStorage can be disabled or full; debug caching should never block the UI.
   }
