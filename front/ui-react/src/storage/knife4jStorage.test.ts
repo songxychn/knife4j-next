@@ -365,4 +365,56 @@ describe('Knife4j storage cleanup registry', () => {
     expect(localStorage.values).toEqual(new Map([['host-application:key', 'keep']]));
     expect(indexedDB.values.has(authKey)).toBe(false);
   });
+
+  it('waits for an active fallback lease before starting another full reset', async () => {
+    const localStorage = new MemoryWebStorage({});
+    const sessionStorage = new MemoryWebStorage({});
+    const authKey = `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}group-a`;
+    let signalDeleteStarted: (() => void) | undefined;
+    const deleteStarted = new Promise<void>((resolve) => {
+      signalDeleteStarted = resolve;
+    });
+    let releaseDelete: (() => void) | undefined;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const indexedDB = new (class extends MemoryIndexedDb {
+      override async delete(key: IDBValidKey): Promise<void> {
+        signalDeleteStarted?.();
+        await deleteGate;
+        await super.delete(key);
+      }
+    })([[authKey, { token: 'secret' }]]);
+
+    const firstReset = clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    );
+    await deleteStarted;
+    const firstLease = localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetLease);
+    expect(firstLease).not.toBeNull();
+
+    let secondResetFinished = false;
+    const secondReset = clearRegisteredKnife4jStorage(
+      'all-local-data',
+      { localStorage, sessionStorage, indexedDB },
+      null,
+    ).then((result) => {
+      secondResetFinished = true;
+      return result;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(firstLease);
+    expect(secondResetFinished).toBe(false);
+
+    releaseDelete?.();
+    const [firstResult, secondResult] = await Promise.all([firstReset, secondReset]);
+
+    expect(firstResult.failures).toEqual([]);
+    expect(secondResult.failures).toEqual([]);
+    expect(localStorage.values.has(KNIFE4J_STORAGE_KEYS.resetLease)).toBe(false);
+    expect(indexedDB.values.has(authKey)).toBe(false);
+  });
 });

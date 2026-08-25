@@ -109,6 +109,7 @@ let allLocalDataCleanupCount = 0;
 const KNIFE4J_STORAGE_RESET_LOCK = 'knife4j-next:storage-reset';
 const KNIFE4J_STORAGE_RESET_LEASE_VERSION = 1;
 const KNIFE4J_STORAGE_RESET_LEASE_TTL_MS = 2 * 60 * 1000;
+const KNIFE4J_STORAGE_RESET_LEASE_POLL_MS = 50;
 let observedResetGeneration = '';
 
 interface Knife4jStorageResetLease {
@@ -150,11 +151,6 @@ function readResetLease(storage: Knife4jWebStorage | null, now = Date.now()): Kn
   if (!lease) return null;
   observeResetGeneration(lease.generation);
   if (lease.expiresAt > now) return lease;
-  try {
-    storage.removeItem(KNIFE4J_STORAGE_KEYS.resetLease);
-  } catch {
-    // An expired lease is inactive even when its best-effort cleanup fails.
-  }
   return null;
 }
 
@@ -283,33 +279,95 @@ function recordUnavailable(result: Knife4jStorageCleanupResult, area: Knife4jSto
   recordFailure(result, { area, reason: `${area} unavailable` });
 }
 
-function beginResetLease(
+function waitForResetLeaseTurn(lease: Knife4jStorageResetLease): Promise<void> {
+  const remaining = Math.max(0, lease.expiresAt - Date.now());
+  return new Promise((resolve) => setTimeout(resolve, Math.min(KNIFE4J_STORAGE_RESET_LEASE_POLL_MS, remaining)));
+}
+
+async function acquireResetLease(
   storage: Knife4jWebStorage | null,
   result: Knife4jStorageCleanupResult,
-): Knife4jStorageResetLease | null {
+): Promise<Knife4jStorageResetLease | null> {
   if (!storage) return null;
 
-  const lease: Knife4jStorageResetLease = {
-    version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
-    generation: createResetGeneration(),
-    expiresAt: Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS,
-  };
+  for (;;) {
+    let current: Knife4jStorageResetLease | null;
+    try {
+      current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
+    } catch (error) {
+      recordFailure(result, {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.resetLease,
+        reason: `reset coordination failed: ${errorMessage(error)}`,
+      });
+      return null;
+    }
+
+    if (current) observeResetGeneration(current.generation);
+    if (current && current.expiresAt > Date.now()) {
+      await waitForResetLeaseTurn(current);
+      continue;
+    }
+
+    const lease: Knife4jStorageResetLease = {
+      version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
+      generation: createResetGeneration(),
+      expiresAt: Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS,
+    };
+    try {
+      storage.setItem(KNIFE4J_STORAGE_KEYS.resetLease, JSON.stringify(lease));
+      const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
+      if (persisted?.generation === lease.generation) {
+        observeResetGeneration(lease.generation);
+        return lease;
+      }
+      if (!persisted) throw new Error('reset lease could not be verified');
+      observeResetGeneration(persisted.generation);
+      if (persisted.expiresAt > Date.now()) await waitForResetLeaseTurn(persisted);
+    } catch (error) {
+      recordFailure(result, {
+        area: 'localStorage',
+        key: KNIFE4J_STORAGE_KEYS.resetLease,
+        reason: `reset coordination failed: ${errorMessage(error)}`,
+      });
+      return null;
+    }
+  }
+}
+
+function renewResetLease(
+  storage: Knife4jWebStorage,
+  lease: Knife4jStorageResetLease,
+  result: Knife4jStorageCleanupResult,
+): boolean {
   try {
+    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
+    if (current?.generation !== lease.generation) throw new Error('reset lease ownership was lost');
+    lease.expiresAt = Date.now() + KNIFE4J_STORAGE_RESET_LEASE_TTL_MS;
     storage.setItem(KNIFE4J_STORAGE_KEYS.resetLease, JSON.stringify(lease));
     const persisted = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
-    if (persisted?.generation !== lease.generation) {
-      throw new Error('reset lease ownership was lost');
-    }
-    observeResetGeneration(lease.generation);
-    return lease;
+    if (persisted?.generation !== lease.generation) throw new Error('reset lease renewal was lost');
+    return true;
   } catch (error) {
     recordFailure(result, {
       area: 'localStorage',
       key: KNIFE4J_STORAGE_KEYS.resetLease,
-      reason: `reset coordination failed: ${errorMessage(error)}`,
+      reason: `reset coordination renewal failed: ${errorMessage(error)}`,
     });
-    return null;
+    return false;
   }
+}
+
+function startResetLeaseHeartbeat(
+  storage: Knife4jWebStorage | null,
+  lease: Knife4jStorageResetLease | null,
+  result: Knife4jStorageCleanupResult,
+): () => void {
+  if (!storage || !lease) return () => {};
+  const timer = setInterval(() => {
+    if (!renewResetLease(storage, lease, result)) clearInterval(timer);
+  }, KNIFE4J_STORAGE_RESET_LEASE_TTL_MS / 4);
+  return () => clearInterval(timer);
 }
 
 function releaseResetLease(
@@ -320,7 +378,8 @@ function releaseResetLease(
   if (!storage || !lease) return;
   try {
     const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.resetLease));
-    if (current?.generation === lease.generation) storage.removeItem(KNIFE4J_STORAGE_KEYS.resetLease);
+    if (current?.generation !== lease.generation) throw new Error('reset lease ownership was lost');
+    storage.removeItem(KNIFE4J_STORAGE_KEYS.resetLease);
   } catch (error) {
     recordFailure(result, {
       area: 'localStorage',
@@ -407,16 +466,19 @@ export async function clearRegisteredKnife4jStorage(
     removed: { localStorage: 0, sessionStorage: 0, indexedDB: 0 },
     failures: [],
   };
-  const lease = guardsAsyncWrites ? beginResetLease(adapters.localStorage, result) : null;
+  let lease: Knife4jStorageResetLease | null = null;
+  let stopResetLeaseHeartbeat = () => {};
 
   const performCleanup = async (): Promise<void> => {
     if (guardsAsyncWrites) await waitForPendingKnife4jStorageWrites();
+    if (lease && adapters.localStorage) renewResetLease(adapters.localStorage, lease, result);
 
     clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
     clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
     await clearIndexedDbStorage(adapters.indexedDB, result);
     if (guardsAsyncWrites) {
       await waitForPendingKnife4jStorageWrites();
+      if (lease && adapters.localStorage) renewResetLease(adapters.localStorage, lease, result);
       await clearIndexedDbStorage(adapters.indexedDB, result);
       clearWebStorage('localStorage', adapters.localStorage, KNIFE4J_STORAGE_REGISTRY.localStorage, result);
       clearWebStorage('sessionStorage', adapters.sessionStorage, KNIFE4J_STORAGE_REGISTRY.sessionStorage, result);
@@ -424,9 +486,14 @@ export async function clearRegisteredKnife4jStorage(
   };
 
   try {
+    if (guardsAsyncWrites) {
+      lease = await acquireResetLease(adapters.localStorage, result);
+      stopResetLeaseHeartbeat = startResetLeaseHeartbeat(adapters.localStorage, lease, result);
+    }
     if (!guardsAsyncWrites || !lockManager) await performCleanup();
     else await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, performCleanup);
   } finally {
+    stopResetLeaseHeartbeat();
     releaseResetLease(adapters.localStorage, lease, result);
     if (guardsAsyncWrites) allLocalDataCleanupCount -= 1;
   }
