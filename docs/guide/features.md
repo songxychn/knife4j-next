@@ -311,11 +311,15 @@ knife4j:
 
 ### 接口版本控制
 
-Knife4j 使用浏览器 localStorage 识别接口变化：
-- 后端**新增**接口时，UI 上显示 `new` 标记。
-- 后端**修改**接口时（参数类型、说明等变化），UI 上显示变更标记。
+Knife4j 使用浏览器 localStorage 记录接口基线，接口稳定身份为 HTTP Method + Path，不依赖可能变化或缺失的 `operationId`。
 
-判断依据：接口地址 + 请求类型（POST / GET / PUT ...）。
+React UI 在 OpenAPI 3.0.x 中提供以下行为：
+
+- 第一次开启只建立当前基线，不会把已有接口全部标为新增。
+- 新增接口显示绿色 `NEW`；已有接口的请求参数、RequestBody、Responses、安全要求、扩展或可达 Schema 发生变化时显示橙色变化标记。
+- Tag 会汇总其下待确认的接口；打开接口的 Doc、Debug、OpenAPI 或 Script 子页会将该接口标记为已读，也可以在侧边栏将当前 Group 全部标记为已读。
+- 基线按当前 Origin、`doc.html` 应用路径、Group 和 api-docs 地址隔离，只保存在当前浏览器中，不会上传到服务端。
+- 设置页中的“清理请求缓存”或“重置全部本地数据”会重置接口版本提示基线。
 
 ```yaml
 knife4j:
@@ -324,8 +328,8 @@ knife4j:
     enable-version: true    # 启用版本控制，默认 false
 ```
 
-::: warning ⚠️ React UI 暂不支持
-版本控制仅在 Vue3 UI（OAS2 starter）中可用。React 新前端暂不支持。
+::: warning OpenAPI 版本范围
+React 当前复用 OpenAPI 3.0.x 的单接口闭合引用构造器生成语义指纹。OpenAPI 3.1/3.2 的 `$id`、anchor、`$dynamicRef` 与相对引用基址需要完整的 JSON Schema 语义支持，在该能力完成前不会生成弱化指纹。Vue3 UI 继续保留 OAS2 兼容实现。
 :::
 
 ### 清除缓存

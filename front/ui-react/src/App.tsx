@@ -11,6 +11,7 @@ import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/Gro
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { ApiChangeProvider } from './context/ApiChangeContext';
 import { DEFAULT_LANGUAGE, normalizeSupportedLanguage, synchronizeI18nLanguage } from './locales/language';
 import type { SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
@@ -641,7 +642,9 @@ const App: React.FC = () => (
   <ConfigProvider>
     <SettingsProvider>
       <GroupProvider>
-        <GroupScopedApp />
+        <ApiChangeProvider>
+          <GroupScopedApp />
+        </ApiChangeProvider>
       </GroupProvider>
     </SettingsProvider>
   </ConfigProvider>

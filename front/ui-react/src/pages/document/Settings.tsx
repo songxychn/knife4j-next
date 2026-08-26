@@ -154,6 +154,14 @@ export default function Settings() {
       </div>
       <Divider style={{ margin: '4px 0' }} />
 
+      {/* 接口新增/变化提示 */}
+      <div style={{ height: 50, lineHeight: '50px' }}>
+        <Checkbox checked={settings.enableVersion} onChange={(e) => setSetting('enableVersion', e.target.checked)}>
+          {t('settings.enableVersion')}
+        </Checkbox>
+      </div>
+      <Divider style={{ margin: '4px 0' }} />
+
       {/* 动态参数 */}
       <div style={{ height: 50, lineHeight: '50px' }}>
         <Checkbox

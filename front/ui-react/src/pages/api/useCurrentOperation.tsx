@@ -5,6 +5,7 @@ import { Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useApiChanges } from '../../context/ApiChangeContext';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 
 interface CurrentOperation {
@@ -18,6 +19,7 @@ interface CurrentOperation {
 export function useCurrentOperation(): CurrentOperation {
   const { tag, operaterId } = useParams();
   const { loading, swaggerDoc, menuTags } = useGroup();
+  const { ready: apiChangesReady, scopeKey: apiChangeScopeKey, acknowledgeOperation } = useApiChanges();
 
   const operation = useMemo(() => {
     if (!tag || !operaterId) return undefined;
@@ -32,6 +34,11 @@ export function useCurrentOperation(): CurrentOperation {
       );
     });
   }, [menuTags, operaterId, tag]);
+
+  useEffect(() => {
+    if (!apiChangesReady || !operation) return;
+    acknowledgeOperation(operation.method, operation.path);
+  }, [acknowledgeOperation, apiChangeScopeKey, apiChangesReady, operation]);
 
   return {
     loading,

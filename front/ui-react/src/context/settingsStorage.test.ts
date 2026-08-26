@@ -23,6 +23,10 @@ describe('stored settings language', () => {
 });
 
 describe('effective settings resolution', () => {
+  it('keeps API version prompts disabled by default', () => {
+    expect(resolveAppSettings({}, {}).enableVersion).toBe(false);
+  });
+
   it('defaults response status summaries to visible', () => {
     expect(resolveAppSettings({}, {}).enableResponseCode).toBe(true);
   });

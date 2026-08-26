@@ -26,7 +26,7 @@ export const KNIFE4J_STORAGE_KEYS = {
 export const KNIFE4J_STORAGE_PREFIXES = {
   debugCache: 'knife4j-next:debug-cache:',
   debugHistory: 'knife4j-next:debug-history:',
-  /** Reserved for the upcoming per-operation version prompt baseline. */
+  /** Per-document baseline used by per-operation API change prompts. */
   apiVersionBaseline: 'knife4j-next:api-version-baseline:',
   groupGlobalParams: 'knife4j:global-params:',
   applicationGlobalParams: 'knife4j:application-global-params:',

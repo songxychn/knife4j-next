@@ -34,6 +34,12 @@ const enUS = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'Search API name/path...',
+  'sidebar.apiChange.new': 'NEW',
+  'sidebar.apiChange.changed': 'CHANGED',
+  'sidebar.apiChange.tagAdded': '+{{count}}',
+  'sidebar.apiChange.tagChanged': '~{{count}}',
+  'sidebar.apiChange.unread': '{{count}} API(s) to review',
+  'sidebar.apiChange.markAllRead': 'Mark all read',
   'markdownDoc.menu.group': 'Markdown Docs',
   markdownDocLoading: 'Loading document…',
   markdownDocNotFound: 'Document not found',
@@ -497,6 +503,7 @@ const enUS = {
   'settings.enableRequestHistory':
     'Enable request history (Debug panel keeps recent requests per operation; apply to form)',
   'settings.enableResponseCode': 'Show the response status overview (status code, description, Schema, and Media Type)',
+  'settings.enableVersion': 'Highlight new and changed APIs (OpenAPI 3.0)',
   'settings.enableDynamicParameter':
     'Enable dynamic form parameters (add undeclared text fields to urlencoded / multipart bodies)',
   'settings.enableFilterMultipartApis':

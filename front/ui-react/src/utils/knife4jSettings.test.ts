@@ -21,6 +21,7 @@ describe('knife4j setting extraction', () => {
           enableSearch: false,
           enableDebug: false,
           enableOpenApi: false,
+          enableVersion: true,
           enableResponseCode: false,
           enableHomeCustom: true,
           homeCustomLocation: '# Custom Home\n\nWelcome to Knife4j.',
@@ -47,6 +48,7 @@ describe('knife4j setting extraction', () => {
       enableSearch: false,
       enableDebug: false,
       enableOpenApi: false,
+      enableVersion: true,
       enableResponseCode: false,
       enableHomeCustom: true,
       homeCustomLocation: '# Custom Home\n\nWelcome to Knife4j.',
@@ -72,6 +74,7 @@ describe('knife4j setting extraction', () => {
         'x-setting': {
           enableRequestCache: 'false',
           enableResponseCode: 'false',
+          enableVersion: 'true',
           enableDynamicParameter: 'true',
           enableHomeCustom: 'true',
           homeCustomLocation: 123,
@@ -92,6 +95,16 @@ describe('knife4j setting extraction', () => {
     });
 
     expect(extractKnife4jSettings(doc)).toEqual({ enableResponseCode });
+  });
+
+  it.each([true, false])('reads boolean API version prompt setting %s', (enableVersion) => {
+    const doc = baseDoc({
+      'x-openapi': {
+        'x-setting': { enableVersion },
+      },
+    });
+
+    expect(extractKnife4jSettings(doc)).toEqual({ enableVersion });
   });
 
   it.each([
