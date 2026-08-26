@@ -322,6 +322,71 @@ describe('buildOperationOpenApiDocument', () => {
     localRefs(result).forEach((ref) => expect(resolveLocalRef(result, ref), ref).toBeDefined());
   });
 
+  it('relocates discriminator mappings to inline schemas outside components', () => {
+    const document = {
+      openapi: '3.0.3',
+      info: { title: 'Inline Discriminator API', version: '1.0.0' },
+      paths: {
+        '/selected': {
+          get: {
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': { schema: { $ref: '#/components/schemas/Pet' } },
+                },
+              },
+            },
+          },
+        },
+        '/catalog': {
+          get: {
+            responses: {
+              200: {
+                description: 'catalog entry',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: { details: { $ref: '#/components/schemas/CatalogDetails' } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Pet: {
+            type: 'object',
+            discriminator: {
+              propertyName: 'kind',
+              mapping: {
+                catalog: '#/paths/~1catalog/get/responses/200/content/application~1json/schema',
+              },
+            },
+          },
+          CatalogDetails: { type: 'object' },
+        },
+      },
+    } as unknown as SwaggerDoc;
+
+    const result = buildOperationOpenApiDocument(document, '/selected', 'get');
+    const serialized = JSON.parse(serializeOperationOpenApiDocument(result!)) as {
+      paths: Record<string, unknown>;
+      components: { schemas: Record<string, { discriminator?: { mapping?: Record<string, string> } }> };
+    };
+    const mapping = serialized.components.schemas.Pet.discriminator?.mapping?.catalog;
+
+    expect(Object.keys(serialized.paths)).toEqual(['/selected']);
+    expect(mapping).toBe('#/x-knife4j-local-ref-targets/target-1');
+    expect(resolveLocalRef(result, mapping!)).toMatchObject({ type: 'object' });
+    expect(Object.keys(serialized.components.schemas).sort()).toEqual(['CatalogDetails', 'Pet']);
+    localRefs(result).forEach((ref) => expect(resolveLocalRef(result, ref), ref).toBeDefined());
+  });
+
   it('decodes URI fragments before splitting component JSON pointers', () => {
     const document = {
       openapi: '3.0.3',
@@ -420,6 +485,58 @@ describe('buildOperationOpenApiDocument', () => {
     const inputPaths = document.paths as Record<string, Record<string, Record<string, unknown>>>;
     const inputResponse = inputPaths['/selected'].get.responses as Record<string, { $ref: string }>;
     expect(inputResponse[200].$ref).toBe('#/paths/~1shared/get/responses/200');
+  });
+
+  it('relocates local Link operationRefs without exporting the target operation', () => {
+    const document = {
+      openapi: '3.0.3',
+      info: { title: 'Operation Link API', version: '1.0.0' },
+      paths: {
+        '/selected': {
+          get: {
+            responses: {
+              200: {
+                description: 'ok',
+                links: {
+                  deleteOrder: { operationRef: '#/paths/~1orders~1{id}/delete' },
+                },
+              },
+            },
+          },
+        },
+        '/orders/{id}': {
+          delete: {
+            operationId: 'deleteOrder',
+            responses: {
+              204: {
+                description: 'deleted',
+                headers: { 'X-Receipt': { $ref: '#/components/headers/Receipt' } },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        headers: {
+          Receipt: { schema: { type: 'string' } },
+        },
+      },
+    } as unknown as SwaggerDoc;
+
+    const result = buildOperationOpenApiDocument(document, '/selected', 'get');
+    const serialized = JSON.parse(serializeOperationOpenApiDocument(result!)) as {
+      paths: Record<
+        string,
+        { get: { responses: Record<string, { links: Record<string, { operationRef: string }> }> } }
+      >;
+    };
+    const operationRef = serialized.paths['/selected'].get.responses[200].links.deleteOrder.operationRef;
+
+    expect(Object.keys(serialized.paths)).toEqual(['/selected']);
+    expect(operationRef).toBe('#/x-knife4j-local-ref-targets/target-1');
+    expect(resolveLocalRef(result, operationRef)).toMatchObject({ operationId: 'deleteOrder' });
+    expect((result?.components as Record<string, Record<string, unknown>>).headers).toHaveProperty('Receipt');
+    localRefs(result).forEach((ref) => expect(resolveLocalRef(result, ref), ref).toBeDefined());
   });
 
   it('stores prototype-named component entries as own properties', () => {

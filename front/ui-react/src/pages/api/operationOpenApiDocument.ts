@@ -257,6 +257,24 @@ export function buildOperationOpenApiDocument(
     return `#/${LOCAL_REF_TARGETS_FIELD}/${name}`;
   };
 
+  function copyDiscriminator(value: unknown): unknown {
+    const discriminator = asRecord(value);
+    if (!discriminator) return copyReachableValue(value, 'opaque');
+
+    const result = copyReachableValue(value, 'opaque') as OpenApiRecord;
+    const mapping = asRecord(discriminator.mapping);
+    if (!mapping) return result;
+
+    const outputMapping = createOpenApiRecord();
+    Object.entries(mapping).forEach(([name, target]) => {
+      collectDiscriminatorMapping(target);
+      outputMapping[name] =
+        typeof target === 'string' ? rewriteLocalRef(target, 'schema') : copyReachableValue(target, 'opaque');
+    });
+    result.mapping = outputMapping;
+    return result;
+  }
+
   function referenceTargetKind(kind: CopyKind): CopyKind | null {
     switch (kind) {
       case 'pathItem':
@@ -373,6 +391,8 @@ export function buildOperationOpenApiDocument(
           result[key] = copyReachableValue(nestedValue, 'schema');
         } else if ((MAP_SCHEMA_FIELDS as readonly string[]).includes(key)) {
           result[key] = copyReachableValue(nestedValue, 'schemaMap');
+        } else if (key === 'discriminator') {
+          result[key] = copyDiscriminator(nestedValue);
         } else {
           result[key] = copyReachableValue(nestedValue, 'opaque');
         }
@@ -397,7 +417,8 @@ export function buildOperationOpenApiDocument(
     }
 
     Object.entries(record).forEach(([key, nestedValue]) => {
-      const targetKind = key === '$ref' ? referenceTargetKind(kind) : null;
+      const targetKind =
+        key === '$ref' ? referenceTargetKind(kind) : kind === 'link' && key === 'operationRef' ? 'operation' : null;
       if (targetKind && typeof nestedValue === 'string') {
         result[key] = rewriteLocalRef(nestedValue, targetKind);
       } else {
