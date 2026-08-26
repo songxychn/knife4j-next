@@ -11,7 +11,7 @@ import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/Gro
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
-import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from './locales/language';
+import { DEFAULT_LANGUAGE, normalizeSupportedLanguage, synchronizeI18nLanguage } from './locales/language';
 import type { SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
@@ -28,7 +28,7 @@ import {
 } from './utils/operationTabs';
 import { resolveFooterContent } from './utils/footer';
 import { buildDocumentToolRoute, matchDocumentToolRoute, type DocumentTool } from './utils/documentToolRoutes';
-import { KNIFE4J_STORAGE_KEYS } from './storage/knife4jStorage';
+import { KNIFE4J_STORAGE_KEYS, setKnife4jSessionStorageItem, setKnife4jStorageItem } from './storage/knife4jStorage';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -102,7 +102,7 @@ const AppInner: React.FC = () => {
   const location = useLocation();
   const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc, groupError } = useGroup();
   const { t, i18n } = useTranslation();
-  const { settings, setSetting } = useSettings();
+  const { settings, setSetting, storageResetSnapshot } = useSettings();
 
   const {
     token: { colorBgContainer },
@@ -142,8 +142,8 @@ const AppInner: React.FC = () => {
   useEffect(() => {
     try {
       const payload: PersistedTab[] = items.map((p) => ({ key: p.key, label: p.label }));
-      sessionStorage.setItem(KNIFE4J_STORAGE_KEYS.tabItems, JSON.stringify(payload));
-      sessionStorage.setItem(KNIFE4J_STORAGE_KEYS.tabActive, activeKey);
+      setKnife4jSessionStorageItem(sessionStorage, KNIFE4J_STORAGE_KEYS.tabItems, JSON.stringify(payload));
+      setKnife4jSessionStorageItem(sessionStorage, KNIFE4J_STORAGE_KEYS.tabActive, activeKey);
     } catch {
       // storage might be disabled or quota exceeded — not fatal
     }
@@ -397,10 +397,8 @@ const AppInner: React.FC = () => {
   ];
 
   useEffect(() => {
-    if (settings.language && normalizeSupportedLanguage(i18n.language) !== settings.language) {
-      i18n.changeLanguage(settings.language);
-    }
-  }, [i18n, settings.language]);
+    synchronizeI18nLanguage(i18n, settings.language, storageResetSnapshot.active);
+  }, [i18n, settings.language, storageResetSnapshot.active, storageResetSnapshot.generation]);
 
   const currentLang = normalizeSupportedLanguage(i18n.language) ?? DEFAULT_LANGUAGE;
 
@@ -432,6 +430,11 @@ const AppInner: React.FC = () => {
   const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
     const next = normalizeSupportedLanguage(key);
     if (next) {
+      try {
+        void setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.language, next);
+      } catch {
+        // The setting below still updates the in-memory language when storage is unavailable.
+      }
       setSetting('language', next);
     }
   };

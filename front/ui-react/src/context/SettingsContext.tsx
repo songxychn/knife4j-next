@@ -1,6 +1,13 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppSettings } from '../types/settings';
-import { KNIFE4J_STORAGE_KEYS } from '../storage/knife4jStorage';
+import {
+  KNIFE4J_STORAGE_KEYS,
+  getKnife4jStorageItem,
+  getKnife4jStorageResetSnapshot,
+  setKnife4jStorageItem,
+  subscribeKnife4jStorageReset,
+  type Knife4jStorageResetSnapshot,
+} from '../storage/knife4jStorage';
 import {
   readSettingsOverrides,
   resolveAppSettings,
@@ -15,7 +22,7 @@ interface StoredSettings {
 
 function loadOverrides(): SettingsOverrides {
   try {
-    const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.settings);
+    const raw = getKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.settings);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     return readSettingsOverrides(parsed);
@@ -27,7 +34,7 @@ function loadOverrides(): SettingsOverrides {
 function saveOverrides(overrides: SettingsOverrides): void {
   try {
     const payload: StoredSettings = { version: SETTINGS_STORAGE_VERSION, overrides };
-    localStorage.setItem(KNIFE4J_STORAGE_KEYS.settings, JSON.stringify(payload));
+    void setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.settings, JSON.stringify(payload));
   } catch {
     // ignore quota errors
   }
@@ -45,6 +52,7 @@ function shallowEqualSettings(a: SettingsOverrides, b: SettingsOverrides): boole
 interface SettingsContextValue {
   settings: AppSettings;
   userSettings: Partial<AppSettings>;
+  storageResetSnapshot: Knife4jStorageResetSnapshot;
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   resetSettings: () => void;
   setServerSettings: (settings: SettingsOverrides) => void;
@@ -52,23 +60,85 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [serverSettings, setServerSettingsState] = useState<SettingsOverrides>({});
-  const [userOverrides, setUserOverrides] = useState<SettingsOverrides>(loadOverrides);
+export interface SettingsMemoryState {
+  resetGeneration: string;
+  resetActive: boolean;
+  overrides: SettingsOverrides;
+}
 
-  const settings = useMemo(() => resolveAppSettings(serverSettings, userOverrides), [serverSettings, userOverrides]);
+// eslint-disable-next-line react-refresh/only-export-components
+export function invalidateSettingsMemoryForReset(
+  state: SettingsMemoryState,
+  snapshot: Knife4jStorageResetSnapshot,
+): SettingsMemoryState {
+  if (state.resetGeneration === snapshot.generation && state.resetActive === snapshot.active) return state;
+  if (state.resetGeneration !== snapshot.generation || snapshot.active) {
+    return { resetGeneration: snapshot.generation, resetActive: snapshot.active, overrides: {} };
+  }
+  return { ...state, resetActive: false };
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function reconcileSettingsMemoryForReset(
+  state: SettingsMemoryState,
+  snapshot: Knife4jStorageResetSnapshot,
+  loadDurableOverrides: () => SettingsOverrides,
+): SettingsMemoryState {
+  const invalidated = invalidateSettingsMemoryForReset(state, snapshot);
+  if (snapshot.active || invalidated === state) return invalidated;
+  return { ...invalidated, overrides: loadDurableOverrides() };
+}
+
+export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const initialResetSnapshotRef = useRef<Knife4jStorageResetSnapshot | null>(null);
+  if (initialResetSnapshotRef.current === null) {
+    initialResetSnapshotRef.current = getKnife4jStorageResetSnapshot();
+  }
+  const initialResetSnapshot = initialResetSnapshotRef.current;
+  const [serverSettings, setServerSettingsState] = useState<SettingsOverrides>({});
+  const [userMemory, setUserMemory] = useState<SettingsMemoryState>(() => ({
+    resetGeneration: initialResetSnapshot.generation,
+    resetActive: initialResetSnapshot.active,
+    overrides: initialResetSnapshot.active ? {} : loadOverrides(),
+  }));
+
+  const settings = useMemo(
+    () => resolveAppSettings(serverSettings, userMemory.overrides),
+    [serverSettings, userMemory.overrides],
+  );
+  const storageResetSnapshot = useMemo<Knife4jStorageResetSnapshot>(
+    () => ({ generation: userMemory.resetGeneration, active: userMemory.resetActive }),
+    [userMemory.resetActive, userMemory.resetGeneration],
+  );
+
+  useEffect(() => {
+    const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
+      setUserMemory((current) => reconcileSettingsMemoryForReset(current, snapshot, loadOverrides));
+    };
+    const unsubscribe = subscribeKnife4jStorageReset(handleResetSnapshot);
+    handleResetSnapshot(getKnife4jStorageResetSnapshot());
+    return unsubscribe;
+  }, []);
 
   const setSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setUserOverrides((prev) => {
-      const next = { ...prev, [key]: value };
+    const snapshot = getKnife4jStorageResetSnapshot();
+    setUserMemory((current) => {
+      const invalidated = invalidateSettingsMemoryForReset(current, snapshot);
+      if (snapshot.active || invalidated !== current) return invalidated;
+      const next = { ...current.overrides, [key]: value };
       saveOverrides(next);
-      return next;
+      return { ...current, overrides: next };
     });
   }, []);
 
   const resetSettings = useCallback(() => {
-    saveOverrides({});
-    setUserOverrides({});
+    const snapshot = getKnife4jStorageResetSnapshot();
+    setUserMemory((current) => {
+      const invalidated = invalidateSettingsMemoryForReset(current, snapshot);
+      if (snapshot.active || invalidated !== current) return invalidated;
+      saveOverrides({});
+      return { ...current, overrides: {} };
+    });
   }, []);
 
   const setServerSettings = useCallback((next: SettingsOverrides) => {
@@ -76,8 +146,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const value = useMemo(
-    () => ({ settings, userSettings: userOverrides, setSetting, resetSettings, setServerSettings }),
-    [settings, userOverrides, setSetting, resetSettings, setServerSettings],
+    () => ({
+      settings,
+      userSettings: userMemory.overrides,
+      storageResetSnapshot,
+      setSetting,
+      resetSettings,
+      setServerSettings,
+    }),
+    [settings, userMemory.overrides, storageResetSnapshot, setSetting, resetSettings, setServerSettings],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

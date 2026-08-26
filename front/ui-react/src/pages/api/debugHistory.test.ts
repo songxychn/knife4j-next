@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { KNIFE4J_STORAGE_KEYS } from '../../storage/knife4jStorage';
 import {
   DEBUG_HISTORY_BODY_MAX_BYTES,
   DEBUG_HISTORY_MASK,
@@ -24,6 +25,14 @@ import {
 
 class MemoryStorage implements DebugHistoryStorage {
   readonly values = new Map<string, string>();
+
+  get length(): number {
+    return this.values.size;
+  }
+
+  key(index: number): string | null {
+    return Array.from(this.values.keys())[index] ?? null;
+  }
 
   getItem(key: string): string | null {
     return this.values.get(key) ?? null;
@@ -214,6 +223,87 @@ describe('debugHistory', () => {
     clearHistory(cacheKey, storage);
     expect(listHistory(cacheKey, storage)).toEqual([]);
     expect(storage.values.has(debugHistoryStorageKey(cacheKey))).toBe(false);
+  });
+
+  it('carries the cleanup epoch observed by a history read into its write fence', async () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'cross-tab-cleanup-race';
+    const storageKey = debugHistoryStorageKey(cacheKey);
+    const oldEntry = makePending({ id: 'old-entry' });
+    const rawHistory = JSON.stringify([oldEntry]);
+    storage.setItem(storageKey, rawHistory);
+    vi.stubGlobal('window', { localStorage: storage });
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: (name: string, _options: unknown, callback: (lock: { name: string }) => unknown) =>
+          Promise.resolve(callback({ name })),
+      },
+    });
+    const originalParse = JSON.parse.bind(JSON);
+    const parseSpy = vi.spyOn(JSON, 'parse').mockImplementation((text, reviver) => {
+      const parsed = originalParse(text, reviver);
+      if (text === rawHistory) {
+        storage.setItem(
+          KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+          JSON.stringify({ version: 1, generation: 'completed-cleanup', expiresAt: 0 }),
+        );
+      }
+      return parsed;
+    });
+
+    try {
+      const optimistic = appendPending(cacheKey, makePending({ id: 'new-entry' }), storage);
+      expect(optimistic.map((entry) => entry.id)).toEqual(['new-entry', 'old-entry']);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(JSON.parse(storage.getItem(storageKey) ?? '[]').map((entry: DebugHistoryEntry) => entry.id)).toEqual([
+        'old-entry',
+      ]);
+    } finally {
+      parseSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('completes a history entry queued during an active cache cleanup epoch', async () => {
+    const storage = new MemoryStorage();
+    const cacheKey = 'pending-during-cache-cleanup';
+    const storageKey = debugHistoryStorageKey(cacheKey);
+    const requestCacheGeneration = 'active-cache-cleanup';
+    storage.setItem(
+      KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+      JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: Date.now() + 1_000 }),
+    );
+    vi.stubGlobal('window', { localStorage: storage });
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: (name: string, _options: unknown, callback: (lock: { name: string }) => unknown) =>
+          Promise.resolve(callback({ name })),
+      },
+    });
+
+    try {
+      const pending = makePending({ id: 'in-flight' });
+      expect(appendPending(cacheKey, pending, storage).map((entry) => entry.status)).toEqual(['pending']);
+      const completed = updateEntry(
+        cacheKey,
+        pending.id,
+        (entry) => completeEntry(entry, { httpStatus: 200 }),
+        storage,
+      );
+
+      expect(completed.map((entry) => entry.status)).toEqual(['completed']);
+      expect(listHistory(cacheKey, storage).map((entry) => entry.status)).toEqual(['completed']);
+
+      storage.setItem(
+        KNIFE4J_STORAGE_KEYS.requestCacheEpoch,
+        JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: 0 }),
+      );
+      await vi.waitFor(() => {
+        expect((JSON.parse(storage.getItem(storageKey) ?? '[]') as DebugHistoryEntry[])[0]?.status).toBe('completed');
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('round-trips actual request headers while keeping form snapshots sanitized', () => {

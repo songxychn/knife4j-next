@@ -8,19 +8,24 @@ vi.mock('react', () => ({
   createContext: () => ({}),
   useCallback: vi.fn(),
   useContext: vi.fn(),
+  useEffect: vi.fn(),
   useMemo: vi.fn(),
+  useRef: vi.fn(),
   useState: vi.fn(),
 }));
 import {
   applicationStorageKey,
+  type GlobalParamMemoryState,
   type GlobalParamItem,
   type GlobalParamStorage,
   globalParamIdentity,
   groupStorageKey,
+  invalidateGlobalParamMemoryForReset,
   loadApplicationParams,
   loadGroup,
   normalizeParam,
   normalizeStoredApplicationParams,
+  reconcileGlobalParamMemoryForReset,
   resolveEffectiveParams,
 } from './GlobalParamContext';
 
@@ -48,6 +53,66 @@ function memoryStorage(initial: Record<string, string> = {}) {
   };
   return { data, storage };
 }
+
+describe('global parameter reset generation', () => {
+  it('drops application, group, request-derived, and cookie-session memory after a cross-tab reset', () => {
+    const state: GlobalParamMemoryState = {
+      resetGeneration: 'before-reset',
+      resetActive: false,
+      applicationParams: [param({ id: 'application', name: 'Authorization', value: 'old-application-token' })],
+      configs: new Map([
+        [
+          'group-a',
+          {
+            params: [
+              param({
+                id: 'group-request',
+                name: 'X-Request-Token',
+                value: 'old-request-token',
+                valueSource: 'request',
+              }),
+            ],
+            cookieSession: {
+              credentials: 'include',
+              login: { method: 'POST', url: '/login', headers: '', body: '{"password":"old"}' },
+            },
+          },
+        ],
+      ]),
+    };
+
+    const invalidated = invalidateGlobalParamMemoryForReset(state, {
+      generation: 'after-reset',
+      active: false,
+    });
+
+    expect(invalidated).toEqual({
+      resetGeneration: 'after-reset',
+      resetActive: false,
+      applicationParams: [],
+      configs: new Map(),
+    });
+  });
+
+  it('reloads surviving application parameters after a failed reset', () => {
+    const surviving = param({ id: 'application', name: 'Authorization', value: 'surviving-token' });
+    const state: GlobalParamMemoryState = {
+      resetGeneration: 'failed-reset',
+      resetActive: true,
+      applicationParams: [],
+      configs: new Map(),
+    };
+
+    expect(
+      reconcileGlobalParamMemoryForReset(state, { generation: 'failed-reset', active: false }, () => [surviving]),
+    ).toEqual({
+      resetGeneration: 'failed-reset',
+      resetActive: false,
+      applicationParams: [surviving],
+      configs: new Map(),
+    });
+  });
+});
 
 describe('global parameter normalization', () => {
   it('keeps the existing request defaults for group parameters', () => {
@@ -115,7 +180,7 @@ describe('application parameter storage', () => {
     expect(applicationStorageKey('/doc.html')).not.toBe(groupStorageKey('application-global-params:%2Fdoc.html'));
   });
 
-  it('migrates the legacy value only to the application key', () => {
+  it('migrates the legacy value only to the application key', async () => {
     const pathname = '/service/doc.html';
     const existingGroup = {
       params: [param({ id: 'group', name: 'X-Group', value: 'kept' })],
@@ -141,8 +206,10 @@ describe('application parameter storage', () => {
     const loaded = loadApplicationParams(pathname, storage);
 
     expect(loaded).toEqual([{ ...legacyParam, valueSource: 'manual', request: undefined }]);
-    expect(JSON.parse(data.get(applicationStorageKey(pathname))!)).toEqual(loaded);
-    expect(data.has('knife4j_global_params')).toBe(false);
+    await vi.waitFor(() => {
+      expect(JSON.parse(data.get(applicationStorageKey(pathname))!)).toEqual(loaded);
+      expect(data.has('knife4j_global_params')).toBe(false);
+    });
     expect(loadGroup('group-a', storage)).toEqual(existingGroup);
   });
 

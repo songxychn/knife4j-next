@@ -1,7 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { get, set, del } from 'idb-keyval';
+import { createStore, get, promisifyRequest, set } from 'idb-keyval';
 import type { SchemeValue } from 'knife4j-core';
-import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES, trackKnife4jStorageWrite } from '../storage/knife4jStorage';
+import {
+  KNIFE4J_STORAGE_KEYS,
+  KNIFE4J_STORAGE_PREFIXES,
+  getKnife4jStorageItem,
+  getKnife4jStorageResetSnapshot,
+  subscribeKnife4jStorageReset,
+  trackKnife4jStorageWrite,
+  type Knife4jStorageResetSnapshot,
+} from '../storage/knife4jStorage';
 
 // ─── Types ─────────────────────────────────────────────
 
@@ -31,6 +39,7 @@ interface AuthContextValue {
 
 export interface GroupAuthSchemes {
   groupId: string;
+  resetGeneration: string;
   schemes: Record<string, SchemeValue>;
 }
 
@@ -43,13 +52,113 @@ export function updateAuthSchemesForGroup(
   state: GroupAuthSchemes,
   targetGroupId: string,
   currentGroupId: string,
+  resetGeneration: string,
   update: (schemes: Record<string, SchemeValue>) => Record<string, SchemeValue>,
 ): GroupAuthSchemes {
-  if (targetGroupId !== currentGroupId || state.groupId !== targetGroupId) return state;
-  return { groupId: targetGroupId, schemes: update(state.schemes) };
+  if (
+    targetGroupId !== currentGroupId ||
+    state.groupId !== targetGroupId ||
+    state.resetGeneration !== resetGeneration
+  ) {
+    return state;
+  }
+  return { groupId: targetGroupId, resetGeneration, schemes: update(state.schemes) };
+}
+
+/** A new or active full reset invalidates every credential held in memory. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function invalidateAuthSchemesForReset(
+  state: GroupAuthSchemes,
+  snapshot: Knife4jStorageResetSnapshot,
+): GroupAuthSchemes {
+  if (!snapshot.active && state.resetGeneration === snapshot.generation) return state;
+  return { groupId: state.groupId, resetGeneration: snapshot.generation, schemes: {} };
 }
 
 // ─── IndexedDB helpers ─────────────────────────────────
+
+const AUTH_RECORD_VERSION = 1;
+// idb-keyval's documented default store, declared explicitly so rollback can compare and delete atomically.
+const authIndexedDbStore = createStore('keyval-store', 'keyval');
+
+interface PersistedAuthRecord {
+  __knife4jAuthRecord: typeof AUTH_RECORD_VERSION;
+  writeId: string;
+  schemes: Record<string, SchemeValue>;
+}
+
+function createAuthWriteId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch {
+    // Fall back to a non-security-sensitive unique value.
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isPersistedAuthRecord(value: unknown): value is PersistedAuthRecord {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<PersistedAuthRecord>;
+  return (
+    candidate.__knife4jAuthRecord === AUTH_RECORD_VERSION &&
+    typeof candidate.writeId === 'string' &&
+    candidate.writeId.length > 0 &&
+    typeof candidate.schemes === 'object' &&
+    candidate.schemes !== null
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function authRecordBelongsToWrite(value: unknown, writeId: string): boolean {
+  return isPersistedAuthRecord(value) && value.writeId === writeId;
+}
+
+function createPersistedAuthRecord(schemes: Record<string, SchemeValue>): PersistedAuthRecord {
+  return {
+    __knife4jAuthRecord: AUTH_RECORD_VERSION,
+    writeId: createAuthWriteId(),
+    schemes,
+  };
+}
+
+/** Delete only the value written by this operation, in the same transaction as the ownership check. */
+async function rollbackAuthWrite(key: string, writeId: string): Promise<void> {
+  await authIndexedDbStore(
+    'readwrite',
+    (store) =>
+      new Promise<void>((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => {
+          try {
+            if (authRecordBelongsToWrite(request.result, writeId)) store.delete(key);
+            resolve(promisifyRequest(store.transaction));
+          } catch (error) {
+            reject(error);
+          }
+        };
+        request.onerror = () => reject(request.error);
+      }),
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function deleteAuthGroupFromStoreIfCurrent(
+  store: Pick<IDBObjectStore, 'delete'>,
+  key: string,
+  canWrite: () => boolean,
+): boolean {
+  if (!canWrite()) return false;
+  store.delete(key);
+  return true;
+}
+
+/** Recheck the reset generation while a serialized readwrite transaction owns the auth store. */
+async function deleteAuthGroupIfCurrent(key: string, canWrite: () => boolean): Promise<void> {
+  await authIndexedDbStore('readwrite', (store) => {
+    deleteAuthGroupFromStoreIfCurrent(store, key, canWrite);
+    return promisifyRequest(store.transaction);
+  });
+}
 
 function idbKey(groupId: string): string {
   return `${KNIFE4J_STORAGE_PREFIXES.authIndexedDb}${groupId}`;
@@ -64,7 +173,8 @@ export function isAuthReadyForGroup(initialGroupId: string, activeGroupId: strin
 /** 从 IndexedDB 加载单个 group */
 async function loadGroup(groupId: string): Promise<Record<string, SchemeValue>> {
   try {
-    const data = await get<Record<string, SchemeValue>>(idbKey(groupId));
+    const data = await get<Record<string, SchemeValue> | PersistedAuthRecord>(idbKey(groupId), authIndexedDbStore);
+    if (isPersistedAuthRecord(data)) return data.schemes;
     return data ?? {};
   } catch {
     return {};
@@ -73,12 +183,18 @@ async function loadGroup(groupId: string): Promise<Record<string, SchemeValue>> 
 
 /** 写入单个 group */
 async function saveGroup(groupId: string, schemes: Record<string, SchemeValue>): Promise<void> {
-  await trackKnife4jStorageWrite(() => set(idbKey(groupId), schemes));
+  const key = idbKey(groupId);
+  await trackKnife4jStorageWrite(async (canWrite) => {
+    if (!canWrite()) return;
+    const record = createPersistedAuthRecord(schemes);
+    await set(key, record, authIndexedDbStore);
+    if (!canWrite()) await rollbackAuthWrite(key, record.writeId);
+  });
 }
 
 /** 删除单个 group */
 async function deleteGroup(groupId: string): Promise<void> {
-  await trackKnife4jStorageWrite(() => del(idbKey(groupId)));
+  await trackKnife4jStorageWrite((canWrite) => deleteAuthGroupIfCurrent(idbKey(groupId), canWrite));
 }
 
 /**
@@ -86,12 +202,13 @@ async function deleteGroup(groupId: string): Promise<void> {
  * 则把旧数据转为 bearer/basic SchemeValue 写入默认 group，然后清除 localStorage。
  */
 async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
-  await trackKnife4jStorageWrite(async () => {
+  await trackKnife4jStorageWrite(async (canWrite) => {
     try {
-      const raw = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
+      if (!canWrite()) return;
+      const raw = getKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuth);
       if (!raw) return;
       // 检查是否已迁移过（标记 key）
-      const migrated = localStorage.getItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
+      const migrated = getKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
       if (migrated) return;
 
       const legacy: LegacyAuthConfig | null = JSON.parse(raw) as LegacyAuthConfig | null;
@@ -109,14 +226,31 @@ async function migrateLegacyOnce(defaultGroupId: string): Promise<void> {
         };
       }
 
+      const key = idbKey(defaultGroupId);
+      let migratedRecord: PersistedAuthRecord | null = null;
       if (schemeValue) {
         const existing = await loadGroup(defaultGroupId);
+        if (!canWrite()) return;
         existing['legacy'] = schemeValue;
-        await set(idbKey(defaultGroupId), existing);
+        migratedRecord = createPersistedAuthRecord(existing);
+        await set(key, migratedRecord, authIndexedDbStore);
+        if (!canWrite()) {
+          await rollbackAuthWrite(key, migratedRecord.writeId);
+          return;
+        }
       }
 
       // 标记已迁移
+      if (!canWrite()) {
+        if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
+        return;
+      }
       localStorage.setItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, '1');
+      if (!canWrite()) {
+        localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuthMigrated);
+        if (migratedRecord) await rollbackAuthWrite(key, migratedRecord.writeId);
+        return;
+      }
       localStorage.removeItem(KNIFE4J_STORAGE_KEYS.legacyAuth);
     } catch {
       // 迁移失败静默忽略
@@ -138,10 +272,21 @@ export const AuthProvider: React.FC<{
   /** 初始 groupId（默认 'default'） */
   initialGroupId?: string;
 }> = ({ children, initialGroupId = 'default' }) => {
+  const initialResetSnapshotRef = useRef<Knife4jStorageResetSnapshot | null>(null);
+  if (initialResetSnapshotRef.current === null) {
+    initialResetSnapshotRef.current = getKnife4jStorageResetSnapshot();
+  }
+  const initialResetSnapshot = initialResetSnapshotRef.current;
   const [activeGroupId, setActiveGroupIdState] = useState(initialGroupId);
-  const [groupSchemes, setGroupSchemes] = useState<GroupAuthSchemes>({ groupId: initialGroupId, schemes: {} });
+  const [resetSnapshot, setResetSnapshot] = useState(initialResetSnapshot);
+  const [groupSchemes, setGroupSchemes] = useState<GroupAuthSchemes>({
+    groupId: initialGroupId,
+    resetGeneration: initialResetSnapshot.generation,
+    schemes: {},
+  });
   const [loaded, setLoaded] = useState(false);
   const currentGroupIdRef = useRef(initialGroupId);
+  const resetSnapshotRef = useRef(initialResetSnapshot);
   currentGroupIdRef.current = initialGroupId;
 
   useEffect(() => {
@@ -149,30 +294,80 @@ export const AuthProvider: React.FC<{
     setActiveGroupIdState(initialGroupId);
   }, [initialGroupId]);
 
+  useEffect(() => {
+    const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
+      const previous = resetSnapshotRef.current;
+      if (previous.generation === snapshot.generation && previous.active === snapshot.active) return;
+      resetSnapshotRef.current = snapshot;
+      setResetSnapshot(snapshot);
+      setGroupSchemes((state) => invalidateAuthSchemesForReset(state, snapshot));
+      setLoaded(false);
+    };
+
+    const unsubscribe = subscribeKnife4jStorageReset(handleResetSnapshot);
+    handleResetSnapshot(getKnife4jStorageResetSnapshot());
+    return unsubscribe;
+  }, []);
+
   // 加载 + 迁移
   useEffect(() => {
     let cancelled = false;
+    if (resetSnapshot.active) {
+      setLoaded(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setLoaded(false);
     (async () => {
       await migrateLegacyOnce(activeGroupId);
       const data = await loadGroup(activeGroupId);
-      if (!cancelled) {
-        setGroupSchemes({ groupId: activeGroupId, schemes: data });
-        setLoaded(true);
+      if (cancelled) return;
+
+      const latestResetSnapshot = getKnife4jStorageResetSnapshot();
+      if (latestResetSnapshot.active || latestResetSnapshot.generation !== resetSnapshot.generation) {
+        resetSnapshotRef.current = latestResetSnapshot;
+        setResetSnapshot(latestResetSnapshot);
+        setGroupSchemes((state) => invalidateAuthSchemesForReset(state, latestResetSnapshot));
+        setLoaded(false);
+        return;
       }
+
+      setGroupSchemes({
+        groupId: activeGroupId,
+        resetGeneration: resetSnapshot.generation,
+        schemes: data,
+      });
+      setLoaded(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeGroupId]);
+  }, [activeGroupId, resetSnapshot]);
 
   const setScheme = useCallback(
     (securityKey: string, value: SchemeValue) => {
       const targetGroupId = activeGroupId;
+      const latestResetSnapshot = getKnife4jStorageResetSnapshot();
+      if (latestResetSnapshot !== resetSnapshotRef.current) {
+        resetSnapshotRef.current = latestResetSnapshot;
+        setResetSnapshot(latestResetSnapshot);
+        setLoaded(false);
+      }
       setGroupSchemes((prev) => {
-        const next = updateAuthSchemesForGroup(prev, targetGroupId, currentGroupIdRef.current, (schemes) => ({
-          ...schemes,
-          [securityKey]: value,
-        }));
+        const invalidated = invalidateAuthSchemesForReset(prev, latestResetSnapshot);
+        if (latestResetSnapshot.active || invalidated !== prev) return invalidated;
+        const next = updateAuthSchemesForGroup(
+          prev,
+          targetGroupId,
+          currentGroupIdRef.current,
+          latestResetSnapshot.generation,
+          (schemes) => ({
+            ...schemes,
+            [securityKey]: value,
+          }),
+        );
         if (next !== prev) {
           // 异步持久化
           saveGroup(targetGroupId, next.schemes).catch(() => {});
@@ -186,12 +381,26 @@ export const AuthProvider: React.FC<{
   const removeScheme = useCallback(
     (securityKey: string) => {
       const targetGroupId = activeGroupId;
+      const latestResetSnapshot = getKnife4jStorageResetSnapshot();
+      if (latestResetSnapshot !== resetSnapshotRef.current) {
+        resetSnapshotRef.current = latestResetSnapshot;
+        setResetSnapshot(latestResetSnapshot);
+        setLoaded(false);
+      }
       setGroupSchemes((prev) => {
-        const next = updateAuthSchemesForGroup(prev, targetGroupId, currentGroupIdRef.current, (schemes) => {
-          const updated = { ...schemes };
-          delete updated[securityKey];
-          return updated;
-        });
+        const invalidated = invalidateAuthSchemesForReset(prev, latestResetSnapshot);
+        if (latestResetSnapshot.active || invalidated !== prev) return invalidated;
+        const next = updateAuthSchemesForGroup(
+          prev,
+          targetGroupId,
+          currentGroupIdRef.current,
+          latestResetSnapshot.generation,
+          (schemes) => {
+            const updated = { ...schemes };
+            delete updated[securityKey];
+            return updated;
+          },
+        );
         if (next !== prev) {
           saveGroup(targetGroupId, next.schemes).catch(() => {});
         }
@@ -203,8 +412,22 @@ export const AuthProvider: React.FC<{
 
   const clearGroup = useCallback(() => {
     const targetGroupId = activeGroupId;
+    const latestResetSnapshot = getKnife4jStorageResetSnapshot();
+    if (latestResetSnapshot !== resetSnapshotRef.current) {
+      resetSnapshotRef.current = latestResetSnapshot;
+      setResetSnapshot(latestResetSnapshot);
+      setLoaded(false);
+    }
     setGroupSchemes((prev) => {
-      const next = updateAuthSchemesForGroup(prev, targetGroupId, currentGroupIdRef.current, () => ({}));
+      const invalidated = invalidateAuthSchemesForReset(prev, latestResetSnapshot);
+      if (latestResetSnapshot.active || invalidated !== prev) return invalidated;
+      const next = updateAuthSchemesForGroup(
+        prev,
+        targetGroupId,
+        currentGroupIdRef.current,
+        latestResetSnapshot.generation,
+        () => ({}),
+      );
       if (next !== prev) {
         deleteGroup(targetGroupId).catch(() => {});
       }
@@ -216,7 +439,11 @@ export const AuthProvider: React.FC<{
     setActiveGroupIdState(groupId);
   }, []);
 
-  const ready = isAuthReadyForGroup(initialGroupId, activeGroupId, loaded) && groupSchemes.groupId === activeGroupId;
+  const ready =
+    isAuthReadyForGroup(initialGroupId, activeGroupId, loaded) &&
+    !resetSnapshot.active &&
+    groupSchemes.groupId === activeGroupId &&
+    groupSchemes.resetGeneration === resetSnapshot.generation;
   const activeSchemes = ready ? groupSchemes.schemes : {};
 
   return (

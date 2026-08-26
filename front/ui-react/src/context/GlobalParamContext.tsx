@@ -1,6 +1,16 @@
 /* eslint-disable react-refresh/only-export-components -- storage and merge helpers are exported for regression tests. */
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { KNIFE4J_STORAGE_KEYS, KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  KNIFE4J_STORAGE_KEYS,
+  KNIFE4J_STORAGE_PREFIXES,
+  getKnife4jStorageItem,
+  getKnife4jStorageResetSnapshot,
+  persistKnife4jStorageItem,
+  removeKnife4jStorageItem,
+  setKnife4jStorageItem,
+  subscribeKnife4jStorageReset,
+  type Knife4jStorageResetSnapshot,
+} from '../storage/knife4jStorage';
 import { createClientId } from '../utils/id';
 
 export type GlobalParamLocation = 'header' | 'query';
@@ -42,7 +52,7 @@ export interface CookieSessionConfig {
   logout?: GlobalParamHttpRequest;
 }
 
-interface StoredGroupConfig {
+export interface StoredGroupConfig {
   params: GlobalParamItem[];
   cookieSession: CookieSessionConfig;
 }
@@ -91,6 +101,10 @@ interface GlobalParamContextValue {
 }
 
 const DEFAULT_COOKIE_SESSION: CookieSessionConfig = { credentials: 'same-origin' };
+
+function emptyStoredGroupConfig(): StoredGroupConfig {
+  return { params: [], cookieSession: DEFAULT_COOKIE_SESSION };
+}
 
 const GlobalParamContext = createContext<GlobalParamContextValue | null>(null);
 
@@ -217,7 +231,7 @@ export function loadGroup(groupId: string, storage?: GlobalParamStorage): Stored
   const target = storage ?? browserStorage();
   if (!target) return { params: [], cookieSession: DEFAULT_COOKIE_SESSION };
   try {
-    const stored = target.getItem(groupStorageKey(groupId));
+    const stored = getKnife4jStorageItem(target, groupStorageKey(groupId));
     if (stored !== null) return normalizeStoredConfig(JSON.parse(stored));
   } catch {
     // Invalid or unavailable localStorage is non-fatal.
@@ -229,7 +243,7 @@ function saveGroup(groupId: string, config: StoredGroupConfig, storage?: GlobalP
   const target = storage ?? browserStorage();
   if (!target) return;
   try {
-    target.setItem(groupStorageKey(groupId), JSON.stringify(config));
+    void setKnife4jStorageItem(target, groupStorageKey(groupId), JSON.stringify(config));
   } catch {
     // Storage failures must not make the debugger unusable.
   }
@@ -242,7 +256,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
   const key = applicationStorageKey(pathname);
   let stored: string | null;
   try {
-    stored = target.getItem(key);
+    stored = getKnife4jStorageItem(target, key);
   } catch {
     return [];
   }
@@ -259,7 +273,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
 
   let legacy: string | null;
   try {
-    legacy = target.getItem(KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
+    legacy = getKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
   } catch {
     return [];
   }
@@ -272,17 +286,9 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
     return [];
   }
 
-  try {
-    target.setItem(key, JSON.stringify(migrated));
-  } catch {
-    // Keep the legacy value when the new value could not be persisted.
-    return migrated;
-  }
-  try {
-    target.removeItem(KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
-  } catch {
-    // The application key now wins, so a failed legacy cleanup is harmless.
-  }
+  void persistKnife4jStorageItem(target, key, JSON.stringify(migrated)).then((persisted) => {
+    if (persisted) void removeKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
+  });
   return migrated;
 }
 
@@ -290,7 +296,7 @@ function saveApplicationParams(pathname: string, params: GlobalParamItem[], stor
   const target = storage ?? browserStorage();
   if (!target) return;
   try {
-    target.setItem(applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
+    void setKnife4jStorageItem(target, applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
   } catch {
     // Storage failures must not make the debugger unusable.
   }
@@ -329,21 +335,91 @@ export function resolveEffectiveParams(
   ].filter((param) => param.enabled && param.name.trim() !== '' && param.value !== '');
 }
 
+export interface GlobalParamMemoryState {
+  resetGeneration: string;
+  resetActive: boolean;
+  applicationParams: GlobalParamItem[];
+  configs: Map<string, StoredGroupConfig>;
+}
+
+/** Clear every reset-scoped in-memory collection before it can be persisted again. */
+export function invalidateGlobalParamMemoryForReset(
+  state: GlobalParamMemoryState,
+  snapshot: Knife4jStorageResetSnapshot,
+): GlobalParamMemoryState {
+  if (state.resetGeneration === snapshot.generation && state.resetActive === snapshot.active) return state;
+  if (state.resetGeneration !== snapshot.generation || snapshot.active) {
+    return {
+      resetGeneration: snapshot.generation,
+      resetActive: snapshot.active,
+      applicationParams: [],
+      configs: new Map(),
+    };
+  }
+  return { ...state, resetActive: false };
+}
+
+export function reconcileGlobalParamMemoryForReset(
+  state: GlobalParamMemoryState,
+  snapshot: Knife4jStorageResetSnapshot,
+  loadDurableApplicationParams: () => GlobalParamItem[],
+): GlobalParamMemoryState {
+  const invalidated = invalidateGlobalParamMemoryForReset(state, snapshot);
+  if (snapshot.active || invalidated === state) return invalidated;
+  return { ...invalidated, applicationParams: loadDurableApplicationParams() };
+}
+
 export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?: string }> = ({
   children,
   groupId = 'default',
 }) => {
   const [pathname] = useState(currentDocumentPathname);
-  const [storedApplicationParams, setStoredApplicationParams] = useState(() => loadApplicationParams(pathname));
-  const [configs, setConfigs] = useState(() => new Map([[groupId, loadGroup(groupId)]]));
-  const config = useMemo(() => configs.get(groupId) ?? loadGroup(groupId), [configs, groupId]);
+  const initialResetSnapshotRef = useRef<Knife4jStorageResetSnapshot | null>(null);
+  if (initialResetSnapshotRef.current === null) {
+    initialResetSnapshotRef.current = getKnife4jStorageResetSnapshot();
+  }
+  const initialResetSnapshot = initialResetSnapshotRef.current;
+  const [memory, setMemory] = useState<GlobalParamMemoryState>(() => ({
+    resetGeneration: initialResetSnapshot.generation,
+    resetActive: initialResetSnapshot.active,
+    applicationParams: initialResetSnapshot.active ? [] : loadApplicationParams(pathname),
+    configs: initialResetSnapshot.active
+      ? new Map()
+      : (new Map([[groupId, loadGroup(groupId)]]) as Map<string, StoredGroupConfig>),
+  }));
+  const config = useMemo(() => memory.configs.get(groupId) ?? emptyStoredGroupConfig(), [groupId, memory.configs]);
+
+  useEffect(() => {
+    const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
+      setMemory((current) =>
+        reconcileGlobalParamMemoryForReset(current, snapshot, () => loadApplicationParams(pathname)),
+      );
+    };
+    const unsubscribe = subscribeKnife4jStorageReset(handleResetSnapshot);
+    handleResetSnapshot(getKnife4jStorageResetSnapshot());
+    return unsubscribe;
+  }, [pathname]);
+
+  useEffect(() => {
+    if (memory.resetActive || memory.configs.has(groupId)) return;
+    const snapshot = getKnife4jStorageResetSnapshot();
+    const loaded = snapshot.active ? emptyStoredGroupConfig() : loadGroup(groupId);
+    setMemory((current) => {
+      const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
+      if (invalidated !== current || snapshot.active || current.configs.has(groupId)) return invalidated;
+      return { ...current, configs: new Map(current.configs).set(groupId, loaded) };
+    });
+  }, [groupId, memory.configs, memory.resetActive]);
 
   const updateGroupConfig = useCallback(
     (updater: (current: StoredGroupConfig) => StoredGroupConfig) => {
-      setConfigs((current) => {
-        const nextConfig = updater(current.get(groupId) ?? loadGroup(groupId));
+      const snapshot = getKnife4jStorageResetSnapshot();
+      setMemory((current) => {
+        const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
+        if (snapshot.active || invalidated !== current) return invalidated;
+        const nextConfig = updater(current.configs.get(groupId) ?? emptyStoredGroupConfig());
         saveGroup(groupId, nextConfig);
-        return new Map(current).set(groupId, nextConfig);
+        return { ...current, configs: new Map(current.configs).set(groupId, nextConfig) };
       });
     },
     [groupId],
@@ -351,10 +427,13 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
 
   const updateApplicationParams = useCallback(
     (updater: (current: GlobalParamItem[]) => GlobalParamItem[]) => {
-      setStoredApplicationParams((current) => {
-        const nextParams = updater(current).map(asManualParam);
+      const snapshot = getKnife4jStorageResetSnapshot();
+      setMemory((current) => {
+        const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
+        if (snapshot.active || invalidated !== current) return invalidated;
+        const nextParams = updater(current.applicationParams).map(asManualParam);
         saveApplicationParams(pathname, nextParams);
-        return nextParams;
+        return { ...current, applicationParams: nextParams };
       });
     },
     [pathname],
@@ -433,28 +512,32 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
   );
 
   const clearGroup = useCallback(() => {
-    const empty = { params: [], cookieSession: DEFAULT_COOKIE_SESSION };
-    setConfigs((current) => new Map(current).set(groupId, empty));
+    const snapshot = getKnife4jStorageResetSnapshot();
+    setMemory((current) => {
+      const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
+      if (snapshot.active || invalidated !== current) return invalidated;
+      return {
+        ...current,
+        configs: new Map(current.configs).set(groupId, emptyStoredGroupConfig()),
+      };
+    });
+    if (snapshot.active) return;
     const storage = browserStorage();
     if (!storage) return;
-    try {
-      storage.removeItem(groupStorageKey(groupId));
-    } catch {
-      // Ignore unavailable localStorage.
-    }
+    void removeKnife4jStorageItem(storage, groupStorageKey(groupId), undefined, undefined, snapshot);
   }, [groupId]);
 
   const applicationParams = useMemo<ScopedGlobalParamItem[]>(
-    () => storedApplicationParams.map((param) => ({ ...param, scope: 'application' })),
-    [storedApplicationParams],
+    () => memory.applicationParams.map((param) => ({ ...param, scope: 'application' })),
+    [memory.applicationParams],
   );
   const groupParams = useMemo<ScopedGlobalParamItem[]>(
     () => config.params.map((param) => ({ ...param, scope: 'group' })),
     [config.params],
   );
   const effectiveParams = useMemo(
-    () => resolveEffectiveParams(storedApplicationParams, config.params),
-    [config.params, storedApplicationParams],
+    () => resolveEffectiveParams(memory.applicationParams, config.params),
+    [config.params, memory.applicationParams],
   );
 
   const value = useMemo(

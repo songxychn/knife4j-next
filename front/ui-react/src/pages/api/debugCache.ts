@@ -1,4 +1,9 @@
-import { KNIFE4J_STORAGE_PREFIXES } from '../../storage/knife4jStorage';
+import {
+  KNIFE4J_STORAGE_PREFIXES,
+  getKnife4jStorageItem,
+  removeKnife4jStorageItem,
+  setKnife4jStorageItem,
+} from '../../storage/knife4jStorage';
 
 export const DEBUG_CACHE_VERSION = 1;
 
@@ -116,7 +121,7 @@ export function readDebugCache(
 ): DebugCacheState | null {
   if (!storage) return null;
   try {
-    const raw = storage.getItem(debugCacheStorageKey(cacheKey));
+    const raw = getKnife4jStorageItem(storage, debugCacheStorageKey(cacheKey));
     if (!raw) return null;
     return normalizeDebugCacheState(JSON.parse(raw));
   } catch {
@@ -131,7 +136,11 @@ export function writeDebugCache(
 ): void {
   if (!storage) return;
   try {
-    storage.setItem(debugCacheStorageKey(cacheKey), JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }));
+    void setKnife4jStorageItem(
+      storage,
+      debugCacheStorageKey(cacheKey),
+      JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }),
+    );
   } catch {
     // localStorage can be disabled or full; debug caching should never block the UI.
   }
@@ -140,7 +149,7 @@ export function writeDebugCache(
 export function removeDebugCache(cacheKey: string, storage: DebugCacheStorage | null = getDebugCacheStorage()): void {
   if (!storage) return;
   try {
-    storage.removeItem(debugCacheStorageKey(cacheKey));
+    void removeKnife4jStorageItem(storage, debugCacheStorageKey(cacheKey));
   } catch {
     // ignore storage failures
   }
