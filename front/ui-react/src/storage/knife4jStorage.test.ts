@@ -191,6 +191,8 @@ class SerializedTestIndexedDb {
   private readonly transactions: SerializedTestIdbTransaction[] = [];
   private activeTransaction: SerializedTestIdbTransaction | null = null;
 
+  constructor(private readonly onTransactionCreated?: (transactionCount: number) => void) {}
+
   readonly database = {
     objectStoreNames: {
       contains: (name: string) => this.stores.has(name),
@@ -202,6 +204,7 @@ class SerializedTestIndexedDb {
     transaction: () => {
       const transaction = new SerializedTestIdbTransaction((completed) => this.release(completed));
       this.transactionCount += 1;
+      this.onTransactionCreated?.(this.transactionCount);
       this.transactions.push(transaction);
       this.drain();
       return transaction as unknown as IDBTransaction;
@@ -592,6 +595,55 @@ describe('Knife4j storage cleanup registry', () => {
       setKnife4jStorageItem(localStorage, applicationKey, applicationParams, localStorage, null, staleSnapshot),
     ).resolves.toBe(false);
     expect(localStorage.getItem(applicationKey)).toBeNull();
+  });
+
+  it('serializes compact reset epoch completion without overwriting a newer reset', async () => {
+    const newerEpoch = `!${Math.floor((Date.now() + 120_000) / 1000).toString(36)}.newer`;
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (!this.values.has(key)) throw new Error('quota exceeded after recovery');
+        super.setItem(key, value);
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation-reservation',
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      'host-application:key': 'keep',
+    });
+    const indexedDb = new SerializedTestIndexedDb((transactionCount) => {
+      if (transactionCount === 3) {
+        localStorage.values.set(KNIFE4J_STORAGE_KEYS.resetGeneration, newerEpoch);
+      }
+    });
+    vi.stubGlobal('window', globalThis);
+    vi.stubGlobal('indexedDB', indexedDb.factory);
+
+    try {
+      const result = await clearRegisteredKnife4jStorage(
+        'all-local-data',
+        {
+          localStorage,
+          sessionStorage: new MemoryWebStorage({}),
+          indexedDB: new MemoryIndexedDb([]),
+        },
+        null,
+      );
+
+      expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 0 });
+      expect(result.failures).toEqual([
+        {
+          area: 'localStorage',
+          key: KNIFE4J_STORAGE_KEYS.mutationLease,
+          reason: 'mutation coordination failed: quota exceeded after recovery',
+        },
+      ]);
+      expect(indexedDb.transactionCount).toBe(3);
+      expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration)).toBe(newerEpoch);
+      expect(getKnife4jStorageResetSnapshot(localStorage)).toEqual({ generation: newerEpoch, active: true });
+      expect(localStorage.getItem('host-application:key')).toBe('keep');
+    } finally {
+      indexedDb.closeConnection();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps registered data when a quota recovery reset epoch cannot be published', async () => {

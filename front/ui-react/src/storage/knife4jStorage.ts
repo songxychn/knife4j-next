@@ -313,16 +313,19 @@ function createQuotaRecoveryEpoch(): Knife4jStorageQuotaRecoveryEpoch {
   };
 }
 
-function publishQuotaRecoveryResetEpoch(
+async function publishQuotaRecoveryResetEpoch(
   storage: Knife4jWebStorage,
+  webLockHeld: boolean,
   onCoordinationError?: (error: unknown) => void,
-): Knife4jStorageQuotaRecoveryEpoch | null {
+): Promise<Knife4jStorageQuotaRecoveryEpoch | null> {
   const epoch = createQuotaRecoveryEpoch();
-  try {
+  const publish = (canWrite: () => boolean): Knife4jStorageQuotaRecoveryEpoch | null => {
+    if (!canWrite()) return null;
     storage.setItem(KNIFE4J_STORAGE_KEYS.resetGeneration, epoch.activeGeneration);
     if (storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) !== epoch.activeGeneration) {
       throw new Error('quota recovery reset epoch was not persisted');
     }
+    if (!canWrite()) return null;
     scheduleResetLeaseExpiry(
       storage,
       {
@@ -334,6 +337,15 @@ function publishQuotaRecoveryResetEpoch(
     );
     observeResetSnapshot(epoch.activeGeneration, true);
     return epoch;
+  };
+  try {
+    // The Web Locks path calls this while holding the outer reset lock. The
+    // fallback path must publish through the same IndexedDB critical section
+    // used by destructive recovery and compact-epoch completion.
+    if (webLockHeld) return publish(() => true);
+    const published = await runWithFallbackCriticalSection(publish);
+    if (published === undefined) throw new Error('quota recovery reset coordination unavailable');
+    return published;
   } catch (error) {
     onCoordinationError?.(error);
     return null;
@@ -423,23 +435,35 @@ function retainsQuotaRecoveryResetEpoch(storage: Knife4jWebStorage, epoch: Knife
   return snapshot.active && snapshot.generation === epoch.activeGeneration;
 }
 
-function completeQuotaRecoveryResetEpoch(
+async function completeQuotaRecoveryResetEpoch(
   storage: Knife4jWebStorage | null,
   epoch: Knife4jStorageQuotaRecoveryEpoch | null,
   result: Knife4jStorageCleanupResult,
-): void {
+  lockManager: Knife4jStorageLockManager | null,
+): Promise<void> {
   if (!storage || !epoch) return;
-  try {
+  const complete = (canWrite: () => boolean): boolean => {
+    if (!canWrite()) return false;
     if (storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) !== epoch.activeGeneration) {
       getKnife4jStorageResetSnapshot(storage);
-      return;
+      return true;
     }
     storage.setItem(KNIFE4J_STORAGE_KEYS.resetGeneration, epoch.inactiveGeneration);
     if (storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) !== epoch.inactiveGeneration) {
       throw new Error('quota recovery reset epoch completion was not persisted');
     }
+    if (!canWrite()) return false;
     cancelResetLeaseExpiry(storage, epoch.activeGeneration);
     observeResetSnapshot(epoch.inactiveGeneration, allLocalDataCleanupCount > 0);
+    return true;
+  };
+  try {
+    const completed = lockManager
+      ? await lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, () => complete(() => true))
+      : await runWithFallbackCriticalSection(complete);
+    if (completed !== true && storage.getItem(KNIFE4J_STORAGE_KEYS.resetGeneration) === epoch.activeGeneration) {
+      throw new Error('quota recovery reset epoch completion coordination unavailable');
+    }
   } catch (error) {
     getKnife4jStorageResetSnapshot(storage);
     recordFailure(result, {
@@ -1955,7 +1979,7 @@ export async function clearRegisteredKnife4jStorage(
           // Publish a durable active generation before quota recovery removes
           // shared data. If the reset-generation slot cannot be updated,
           // fail closed without deleting anything.
-          quotaRecoveryEpoch = publishQuotaRecoveryResetEpoch(adapters.localStorage, (error) => {
+          quotaRecoveryEpoch = await publishQuotaRecoveryResetEpoch(adapters.localStorage, false, (error) => {
             mutationLeaseError = error;
           });
           if (quotaRecoveryEpoch) {
@@ -2007,9 +2031,13 @@ export async function clearRegisteredKnife4jStorage(
         resetLeaseError = error;
       });
       if (!lease && adapters.localStorage && isQuotaExceededError(resetLeaseError)) {
-        quotaRecoveryEpoch ??= publishQuotaRecoveryResetEpoch(adapters.localStorage, (error) => {
-          resetLeaseError = error;
-        });
+        quotaRecoveryEpoch ??= await publishQuotaRecoveryResetEpoch(
+          adapters.localStorage,
+          lockManager !== null,
+          (error) => {
+            resetLeaseError = error;
+          },
+        );
         if (quotaRecoveryEpoch) {
           const recovered = await runWithFallbackCriticalSection((retainsCriticalSection) => {
             const retainsRecoveryFence = () =>
@@ -2080,8 +2108,8 @@ export async function clearRegisteredKnife4jStorage(
       getKnife4jStorageResetSnapshot(adapters.localStorage);
     }
     releaseResetLease(adapters.localStorage, lease, result);
+    await completeQuotaRecoveryResetEpoch(adapters.localStorage, quotaRecoveryEpoch, result, lockManager);
     if (adapters.localStorage && mutationLease) releaseMutationLease(adapters.localStorage, mutationLease);
-    completeQuotaRecoveryResetEpoch(adapters.localStorage, quotaRecoveryEpoch, result);
   }
   return result;
 }
