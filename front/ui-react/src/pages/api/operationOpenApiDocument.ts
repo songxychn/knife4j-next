@@ -2,24 +2,11 @@ import type { SwaggerDoc } from '../../types/swagger';
 
 type OpenApiRecord = Record<string, unknown>;
 
-const PATH_ITEM_SUPPORT_FIELDS = ['summary', 'description', 'servers', 'parameters'] as const;
-const HTTP_METHOD_FIELDS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query'] as const;
-const SINGLE_SCHEMA_FIELDS = [
-  'not',
-  'items',
-  'additionalItems',
-  'contains',
-  'propertyNames',
-  'additionalProperties',
-  'unevaluatedProperties',
-  'unevaluatedItems',
-  'if',
-  'then',
-  'else',
-  'contentSchema',
-] as const;
-const ARRAY_SCHEMA_FIELDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const;
-const MAP_SCHEMA_FIELDS = ['properties', 'patternProperties', 'dependentSchemas', '$defs', 'definitions'] as const;
+const PATH_ITEM_FIELDS = ['$ref', 'summary', 'description', 'servers', 'parameters'] as const;
+const HTTP_METHOD_FIELDS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const SINGLE_SCHEMA_FIELDS = ['not', 'items', 'additionalProperties'] as const;
+const ARRAY_SCHEMA_FIELDS = ['allOf', 'anyOf', 'oneOf'] as const;
+const MAP_SCHEMA_FIELDS = ['properties'] as const;
 const STANDARD_COMPONENT_SECTIONS = new Set([
   'schemas',
   'responses',
@@ -30,7 +17,6 @@ const STANDARD_COMPONENT_SECTIONS = new Set([
   'securitySchemes',
   'links',
   'callbacks',
-  'pathItems',
 ]);
 // A specification extension keeps support objects addressable without exposing extra paths or operations.
 const LOCAL_REF_TARGETS_FIELD = 'x-knife4j-local-ref-targets';
@@ -57,10 +43,6 @@ function decodeJsonPointerToken(token: string): string {
   return token.replace(/~1/g, '/').replace(/~0/g, '~');
 }
 
-function encodeJsonPointerToken(token: string): string {
-  return encodeURIComponent(token.replace(/~/g, '~0').replace(/\//g, '~1')).replace(/%24/g, '$');
-}
-
 function localJsonPointer(ref: string): LocalJsonPointer | null {
   if (!ref.startsWith('#')) return null;
 
@@ -81,11 +63,11 @@ function componentTarget(ref: string): { section: string; name: string } | null 
   if (!pointer) return null;
 
   const { tokens } = pointer;
-  if (tokens.length < 3 || tokens[0] !== 'components') return null;
+  if (tokens.length < 3 || tokens[0] !== 'components' || !STANDARD_COMPONENT_SECTIONS.has(tokens[1])) return null;
 
   const section = tokens[1];
   const name = tokens[2];
-  return section && name && STANDARD_COMPONENT_SECTIONS.has(section) ? { section, name } : null;
+  return section && name ? { section, name } : null;
 }
 
 function resolveJsonPointer(source: unknown, tokens: string[]): { found: boolean; value?: unknown } {
@@ -99,61 +81,32 @@ function resolveJsonPointer(source: unknown, tokens: string[]): { found: boolean
   return { found: true, value: current };
 }
 
-function selectedPathItem(
-  document: OpenApiRecord,
-  source: OpenApiRecord,
-  method: string,
-  operation: unknown,
-): OpenApiRecord {
-  const result = createOpenApiRecord();
-  const visited = new WeakSet<object>();
+function selectedPathItem(source: OpenApiRecord, method: string, operation: unknown): OpenApiRecord {
+  const result: OpenApiRecord = {};
 
-  const collectSupport = (pathItem: OpenApiRecord): void => {
-    if (visited.has(pathItem)) return;
-    visited.add(pathItem);
-
-    let materializedReference = false;
-    if (typeof pathItem.$ref === 'string') {
-      const pointer = localJsonPointer(pathItem.$ref);
-      if (pointer) {
-        const resolved = resolveJsonPointer(document, pointer.tokens);
-        const referencedPathItem = resolved.found ? asRecord(resolved.value) : null;
-        if (referencedPathItem) {
-          collectSupport(referencedPathItem);
-          materializedReference = true;
-        }
-      }
-    }
-    if (!materializedReference && hasOwn(pathItem, '$ref')) result.$ref = pathItem.$ref;
-
-    PATH_ITEM_SUPPORT_FIELDS.forEach((field) => {
-      if (hasOwn(pathItem, field)) result[field] = pathItem[field];
-    });
-    Object.entries(pathItem).forEach(([key, value]) => {
-      if (key.startsWith('x-')) result[key] = value;
-    });
-  };
-
-  collectSupport(source);
+  PATH_ITEM_FIELDS.forEach((field) => {
+    if (hasOwn(source, field)) result[field] = source[field];
+  });
+  Object.entries(source).forEach(([key, value]) => {
+    if (key.startsWith('x-')) result[key] = value;
+  });
   result[method] = operation;
 
   return result;
 }
 
 /**
- * Build an OAS3 document containing only one path and HTTP operation.
- * Reachable OAS and JSON Schema references are copied recursively while
- * instance data stays opaque. Non-component local targets are relocated so
- * they remain addressable without exporting supporting operations as paths.
+ * Build an OAS 3.0.x document containing only one path and HTTP operation.
+ * Reachable standard components and fragment-only JSON Pointer targets are
+ * copied recursively. External references remain unchanged.
  */
 export function buildOperationOpenApiDocument(
   swaggerDoc: SwaggerDoc,
   path: string,
   method: string,
-  documentUri?: string,
 ): OpenApiRecord | null {
   const source = swaggerDoc as unknown as OpenApiRecord;
-  if (typeof source.openapi !== 'string' || !source.openapi.startsWith('3.')) return null;
+  if (typeof source.openapi !== 'string' || !source.openapi.startsWith('3.0.')) return null;
   if (!asRecord(source.info)) return null;
 
   const paths = asRecord(source.paths);
@@ -190,64 +143,10 @@ export function buildOperationOpenApiDocument(
   interface PendingLocalRefTarget {
     kind: CopyKind;
     name: string;
-    schemaBase: string;
     value: unknown;
   }
 
-  interface ComponentSchemaTarget {
-    type: 'component';
-    name: string;
-    section: string;
-  }
-
-  interface RelocatedSchemaTarget {
-    type: 'local';
-    key: string;
-    schemaBase: string;
-    value: OpenApiRecord;
-  }
-
-  type SchemaReferenceTarget = ComponentSchemaTarget | RelocatedSchemaTarget;
-
-  interface OperationIdTarget {
-    key: string;
-    value: OpenApiRecord;
-  }
-
-  const minorVersion = Number(source.openapi.split('.')[1]);
-  const supportsJsonSchema202012 = Number.isFinite(minorVersion) && minorVersion >= 1;
-  const fallbackDocumentSchemaBase = 'https://knife4j.invalid/openapi-document';
-  let documentSchemaBase = fallbackDocumentSchemaBase;
-  let hasConcreteDocumentSchemaBase = false;
-  if (documentUri) {
-    try {
-      const retrievalUri = new URL(documentUri);
-      retrievalUri.hash = '';
-      documentSchemaBase = retrievalUri.href;
-      hasConcreteDocumentSchemaBase = true;
-    } catch {
-      // Keep the stable fallback when the caller cannot provide an absolute retrieval URI.
-    }
-  }
-  if (minorVersion >= 2 && typeof source.$self === 'string') {
-    try {
-      const selfUri = new URL(source.$self, documentSchemaBase);
-      selfUri.hash = '';
-      documentSchemaBase = selfUri.href;
-      if (!hasConcreteDocumentSchemaBase) {
-        try {
-          new URL(source.$self);
-          hasConcreteDocumentSchemaBase = true;
-        } catch {
-          // A relative $self still needs a concrete retrieval URI.
-        }
-      }
-    } catch {
-      // An invalid $self cannot establish a base; retain the retrieval URI or fallback.
-    }
-  }
-  const DOCUMENT_SCHEMA_BASE = documentSchemaBase;
-  const selectedSourcePathItem = selectedPathItem(source, pathItem, normalizedMethod, operation);
+  const selectedSourcePathItem = selectedPathItem(pathItem, normalizedMethod, operation);
   const sourceComponents = asRecord(source.components);
   const sourceSchemas = sourceComponents ? asRecord(sourceComponents.schemas) : null;
   const outputComponents = createOpenApiRecord();
@@ -255,17 +154,10 @@ export function buildOperationOpenApiDocument(
   const pendingComponents: Array<{ section: string; name: string }> = [];
   const pendingLocalRefTargets: PendingLocalRefTarget[] = [];
   const pendingSecuritySchemes: string[] = [];
-  const localRefTargets = new Map<string, PendingLocalRefTarget>();
-  const schemaAnchors = new Map<string, SchemaReferenceTarget | null>();
-  const schemaResources = new Map<string, SchemaReferenceTarget | null>();
-  const operationIds = new Map<string, OperationIdTarget | null>();
+  const localRefTargetNames = new Map<string, string>();
   const visitedComponents = new Set<string>();
-  const copiedObjects = new WeakMap<object, Map<string, unknown>>();
-  const indexedSchemaObjects = new WeakMap<object, Set<string>>();
-  const indexedSemanticObjects = new WeakMap<object, Set<string>>();
-  const indexedOperations = new WeakSet<object>();
-  const indexedPathItems = new WeakSet<object>();
-  const indexedCallbacks = new WeakSet<object>();
+  const copiedObjects = new WeakMap<object, Map<CopyKind, unknown>>();
+  const visitedSchemaObjects = new WeakSet<object>();
   const visitedSecurityObjects = new WeakSet<object>();
   const hasRootSecurity = hasOwn(source, 'security');
   let rootSecurityRequired = hasRootSecurity && !hasOwn(operation, 'security');
@@ -278,6 +170,42 @@ export function buildOperationOpenApiDocument(
       if (requirementRecord) pendingSecuritySchemes.push(...Object.keys(requirementRecord));
     });
   };
+
+  const collectDiscriminatorMapping = (value: unknown): void => {
+    if (typeof value !== 'string') return;
+
+    const target = componentTarget(value);
+    if (target?.section === 'schemas') {
+      pendingComponents.push(target);
+      return;
+    }
+
+    if (sourceSchemas && hasOwn(sourceSchemas, value)) {
+      pendingComponents.push({ section: 'schemas', name: value });
+    }
+  };
+
+  function collectSchemaDiscriminatorMappings(value: unknown): void {
+    if (Array.isArray(value)) {
+      value.forEach(collectSchemaDiscriminatorMappings);
+      return;
+    }
+
+    const schema = asRecord(value);
+    if (!schema || visitedSchemaObjects.has(schema)) return;
+    visitedSchemaObjects.add(schema);
+
+    const discriminator = asRecord(schema.discriminator);
+    const mapping = discriminator ? asRecord(discriminator.mapping) : null;
+    if (mapping) Object.values(mapping).forEach(collectDiscriminatorMapping);
+
+    SINGLE_SCHEMA_FIELDS.forEach((field) => collectSchemaDiscriminatorMappings(schema[field]));
+    ARRAY_SCHEMA_FIELDS.forEach((field) => collectSchemaDiscriminatorMappings(schema[field]));
+    MAP_SCHEMA_FIELDS.forEach((field) => {
+      const schemas = asRecord(schema[field]);
+      if (schemas) Object.values(schemas).forEach(collectSchemaDiscriminatorMappings);
+    });
+  }
 
   function collectOperationSecurity(value: unknown, mayInheritRootSecurity = false): void {
     const operationRecord = asRecord(value);
@@ -307,387 +235,7 @@ export function buildOperationOpenApiDocument(
     Object.values(callbackRecord).forEach((pathItem) => collectPathItemSecurity(pathItem, true));
   }
 
-  function schemaResourceBase(parentBase: string, record: OpenApiRecord): string | null {
-    if (!supportsJsonSchema202012 || typeof record.$id !== 'string') return null;
-    try {
-      const resolved = new URL(record.$id, parentBase);
-      resolved.hash = '';
-      return resolved.href;
-    } catch {
-      return null;
-    }
-  }
-
-  function resolveSchemaPointer(tokens: string[]): {
-    resourceRoot?: {
-      key: string;
-      schemaBase: string;
-      suffixTokens: string[];
-      value: unknown;
-    };
-    value: unknown;
-  } | null {
-    const values: unknown[] = [source];
-    let current: unknown = source;
-    for (const token of tokens) {
-      if (current === null || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, token)) {
-        return null;
-      }
-      current = (current as OpenApiRecord)[token];
-      values.push(current);
-    }
-
-    const schemaDepths = new Set<number>([tokens.length]);
-    for (let depth = tokens.length; depth > 0; depth -= 1) {
-      if (!schemaDepths.has(depth)) continue;
-
-      const directField = tokens[depth - 1];
-      if ((SINGLE_SCHEMA_FIELDS as readonly string[]).includes(directField)) {
-        schemaDepths.add(depth - 1);
-      }
-
-      if (depth < 2) continue;
-      const containerField = tokens[depth - 2];
-      if (
-        (ARRAY_SCHEMA_FIELDS as readonly string[]).includes(containerField) ||
-        (MAP_SCHEMA_FIELDS as readonly string[]).includes(containerField) ||
-        (containerField === 'dependencies' && !Array.isArray(values[depth]))
-      ) {
-        schemaDepths.add(depth - 2);
-      }
-    }
-
-    let schemaBase = DOCUMENT_SCHEMA_BASE;
-    let resourceRoot:
-      | {
-          key: string;
-          schemaBase: string;
-          suffixTokens: string[];
-          value: unknown;
-        }
-      | undefined;
-
-    values.forEach((value, depth) => {
-      if (schemaDepths.has(depth)) {
-        const schema = asRecord(value);
-        if (!schema) return;
-        const resourceBase = schemaResourceBase(schemaBase, schema);
-        if (resourceBase) {
-          if (!resourceRoot) {
-            const resourceTokens = tokens.slice(0, depth);
-            resourceRoot = {
-              key: JSON.stringify(resourceTokens),
-              schemaBase,
-              suffixTokens: tokens.slice(depth),
-              value,
-            };
-          }
-          schemaBase = resourceBase;
-        }
-      }
-    });
-    return { resourceRoot, value: current };
-  }
-
-  function schemaReferenceTarget(ref: string, schemaBase: string): SchemaReferenceTarget | null {
-    try {
-      const resolved = new URL(ref, schemaBase);
-      const fragment = decodeURIComponent(resolved.hash.slice(1));
-      resolved.hash = '';
-      if (!fragment || fragment.startsWith('/')) return schemaResources.get(resolved.href) ?? null;
-      return schemaAnchors.get(`${resolved.href}#${fragment}`) ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  function registerSchemaTarget(
-    index: Map<string, SchemaReferenceTarget | null>,
-    key: string,
-    target: SchemaReferenceTarget,
-  ): void {
-    if (index.has(key)) {
-      index.set(key, null);
-    } else {
-      index.set(key, target);
-    }
-  }
-
-  function indexSchemaTargets(value: unknown, target: SchemaReferenceTarget, parentBase: string): void {
-    if (Array.isArray(value)) {
-      value.forEach((item) => indexSchemaTargets(item, target, parentBase));
-      return;
-    }
-
-    const schema = asRecord(value);
-    if (!schema) return;
-    const resourceBase = schemaResourceBase(parentBase, schema);
-    const base = resourceBase ?? parentBase;
-    const visitedBases = indexedSchemaObjects.get(schema) ?? new Set<string>();
-    if (visitedBases.has(base)) return;
-    visitedBases.add(base);
-    indexedSchemaObjects.set(schema, visitedBases);
-
-    if (resourceBase) registerSchemaTarget(schemaResources, resourceBase, target);
-    if (typeof schema.$anchor === 'string') registerSchemaTarget(schemaAnchors, `${base}#${schema.$anchor}`, target);
-    if (typeof schema.$dynamicAnchor === 'string') {
-      registerSchemaTarget(schemaAnchors, `${base}#${schema.$dynamicAnchor}`, target);
-    }
-
-    SINGLE_SCHEMA_FIELDS.forEach((field) => indexSchemaTargets(schema[field], target, base));
-    ARRAY_SCHEMA_FIELDS.forEach((field) => indexSchemaTargets(schema[field], target, base));
-    MAP_SCHEMA_FIELDS.forEach((field) => {
-      const schemas = asRecord(schema[field]);
-      if (schemas) Object.values(schemas).forEach((nestedSchema) => indexSchemaTargets(nestedSchema, target, base));
-    });
-    const dependencies = asRecord(schema.dependencies);
-    if (dependencies) {
-      Object.values(dependencies).forEach((dependency) => {
-        if (!Array.isArray(dependency)) indexSchemaTargets(dependency, target, base);
-      });
-    }
-  }
-
-  if (supportsJsonSchema202012 && sourceSchemas) {
-    Object.entries(sourceSchemas).forEach(([name, schema]) => {
-      indexSchemaTargets(schema, { type: 'component', section: 'schemas', name }, DOCUMENT_SCHEMA_BASE);
-    });
-  }
-
-  function indexSemanticSchemaTargets(
-    value: unknown,
-    kind: CopyKind,
-    tokens: string[],
-    enclosingTarget?: ComponentSchemaTarget,
-  ): void {
-    if (kind === 'opaque' || value === null || typeof value !== 'object') return;
-
-    if (kind === 'schema') {
-      const schema = asRecord(value);
-      if (!schema) return;
-      const target: SchemaReferenceTarget = enclosingTarget ?? {
-        type: 'local',
-        key: JSON.stringify(tokens),
-        schemaBase: DOCUMENT_SCHEMA_BASE,
-        value: schema,
-      };
-      indexSchemaTargets(schema, target, DOCUMENT_SCHEMA_BASE);
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      const itemKind: CopyKind = kind === 'parameters' ? 'parameter' : kind;
-      value.forEach((item, index) =>
-        indexSemanticSchemaTargets(item, itemKind, [...tokens, String(index)], enclosingTarget),
-      );
-      return;
-    }
-
-    const record = value as OpenApiRecord;
-    const targetKey = enclosingTarget
-      ? `component:${enclosingTarget.section}:${enclosingTarget.name}`
-      : JSON.stringify(tokens);
-    const visitKey = `${kind}:${targetKey}`;
-    const visitedKinds = indexedSemanticObjects.get(record) ?? new Set<string>();
-    if (visitedKinds.has(visitKey)) return;
-    visitedKinds.add(visitKey);
-    indexedSemanticObjects.set(record, visitedKinds);
-
-    indexSemanticLocalReference(record, kind);
-    const mappedKind = mapValueKind(kind);
-    if (mappedKind) {
-      Object.entries(record).forEach(([key, nestedValue]) => {
-        indexSemanticSchemaTargets(
-          nestedValue,
-          kind === 'responses' && key.startsWith('x-') ? 'opaque' : mappedKind,
-          [...tokens, key],
-          enclosingTarget,
-        );
-      });
-      return;
-    }
-
-    if (kind === 'callback' && !hasOwn(record, '$ref')) {
-      Object.entries(record).forEach(([key, nestedValue]) => {
-        indexSemanticSchemaTargets(
-          nestedValue,
-          key.startsWith('x-') ? 'opaque' : 'pathItem',
-          [...tokens, key],
-          enclosingTarget,
-        );
-      });
-      return;
-    }
-
-    Object.entries(record).forEach(([key, nestedValue]) => {
-      if (key === '$ref') return;
-      indexSemanticSchemaTargets(
-        nestedValue,
-        key.startsWith('x-') ? 'opaque' : childKind(kind, key),
-        [...tokens, key],
-        enclosingTarget,
-      );
-    });
-  }
-
-  function indexSemanticLocalReference(record: OpenApiRecord, kind: CopyKind): void {
-    const targetKind = referenceTargetKind(kind);
-    if (!targetKind || typeof record.$ref !== 'string') return;
-
-    const pointer = localJsonPointer(record.$ref);
-    if (!pointer) return;
-    const resolved = resolveJsonPointer(source, pointer.tokens);
-    if (!resolved.found) return;
-
-    const [root, section, name] = pointer.tokens;
-    const componentTargetForPointer: ComponentSchemaTarget | undefined =
-      pointer.tokens.length === 3 &&
-      root === 'components' &&
-      section &&
-      STANDARD_COMPONENT_SECTIONS.has(section) &&
-      name
-        ? { type: 'component', section, name }
-        : undefined;
-    indexSemanticSchemaTargets(resolved.value, targetKind, pointer.tokens, componentTargetForPointer);
-  }
-
-  if (supportsJsonSchema202012) {
-    const schemaBearingComponentKinds: Array<[string, CopyKind]> = [
-      ['parameters', 'parameter'],
-      ['responses', 'response'],
-      ['requestBodies', 'requestBody'],
-      ['headers', 'header'],
-      ['callbacks', 'callback'],
-      ['pathItems', 'pathItem'],
-    ];
-    schemaBearingComponentKinds.forEach(([section, kind]) => {
-      const components = sourceComponents ? asRecord(sourceComponents[section]) : null;
-      if (!components) return;
-      Object.entries(components).forEach(([name, value]) => {
-        indexSemanticSchemaTargets(value, kind, ['components', section, name], { type: 'component', section, name });
-      });
-    });
-
-    if (paths) {
-      Object.entries(paths).forEach(([sourcePath, sourcePathItem]) => {
-        if (sourcePath.startsWith('x-')) return;
-        if (sourcePath !== path) {
-          indexSemanticSchemaTargets(sourcePathItem, 'pathItem', ['paths', sourcePath]);
-          return;
-        }
-        const sourcePathItemRecord = asRecord(sourcePathItem);
-        if (!sourcePathItemRecord) return;
-        indexSemanticLocalReference(sourcePathItemRecord, 'pathItem');
-        HTTP_METHOD_FIELDS.forEach((sourceMethod) => {
-          if (sourceMethod !== normalizedMethod && hasOwn(sourcePathItemRecord, sourceMethod)) {
-            indexSemanticSchemaTargets(sourcePathItemRecord[sourceMethod], 'operation', [
-              'paths',
-              sourcePath,
-              sourceMethod,
-            ]);
-          }
-        });
-      });
-    }
-    const sourceWebhooks = asRecord(source.webhooks);
-    if (sourceWebhooks) {
-      Object.entries(sourceWebhooks).forEach(([name, sourcePathItem]) => {
-        indexSemanticSchemaTargets(sourcePathItem, 'pathItem', ['webhooks', name]);
-      });
-    }
-  }
-
-  function indexOperation(value: unknown): void {
-    const operationRecord = asRecord(value);
-    if (!operationRecord || indexedOperations.has(operationRecord)) return;
-    indexedOperations.add(operationRecord);
-
-    if (typeof operationRecord.operationId === 'string') {
-      const operationId = operationRecord.operationId;
-      if (operationIds.has(operationId)) {
-        operationIds.set(operationId, null);
-      } else {
-        operationIds.set(operationId, {
-          key: `operationId:${operationId}`,
-          value: operationRecord,
-        });
-      }
-    }
-
-    const callbacks = asRecord(operationRecord.callbacks);
-    if (callbacks) Object.values(callbacks).forEach(indexCallback);
-  }
-
-  function indexPathItem(value: unknown): void {
-    const pathItemRecord = asRecord(value);
-    if (!pathItemRecord || indexedPathItems.has(pathItemRecord)) return;
-    indexedPathItems.add(pathItemRecord);
-
-    if (typeof pathItemRecord.$ref === 'string') {
-      const pointer = localJsonPointer(pathItemRecord.$ref);
-      if (pointer) {
-        const resolved = resolveJsonPointer(source, pointer.tokens);
-        if (resolved.found) indexPathItem(resolved.value);
-      }
-    }
-    HTTP_METHOD_FIELDS.forEach((field) => indexOperation(pathItemRecord[field]));
-  }
-
-  function indexCallback(value: unknown): void {
-    const callbackRecord = asRecord(value);
-    if (!callbackRecord || indexedCallbacks.has(callbackRecord)) return;
-    indexedCallbacks.add(callbackRecord);
-    if (typeof callbackRecord.$ref === 'string') {
-      const pointer = localJsonPointer(callbackRecord.$ref);
-      if (pointer) {
-        const resolved = resolveJsonPointer(source, pointer.tokens);
-        if (resolved.found) indexCallback(resolved.value);
-      }
-      return;
-    }
-    Object.entries(callbackRecord).forEach(([key, pathItemValue]) => {
-      if (!key.startsWith('x-')) indexPathItem(pathItemValue);
-    });
-  }
-
-  if (paths) {
-    Object.entries(paths).forEach(([sourcePath, sourcePathItem]) => {
-      if (!sourcePath.startsWith('x-')) indexPathItem(sourcePathItem);
-    });
-  }
-  const webhooks = asRecord(source.webhooks);
-  if (webhooks) Object.values(webhooks).forEach(indexPathItem);
-  const reusableCallbacks = sourceComponents ? asRecord(sourceComponents.callbacks) : null;
-  if (reusableCallbacks) Object.values(reusableCallbacks).forEach(indexCallback);
-  const reusablePathItems = sourceComponents ? asRecord(sourceComponents.pathItems) : null;
-  if (reusablePathItems) Object.values(reusablePathItems).forEach(indexPathItem);
-
-  function relocateLocalTarget(
-    key: string,
-    value: unknown,
-    kind: CopyKind,
-    schemaBase: string,
-    suffixTokens: string[] = [],
-  ): string {
-    const relocationKey = `${kind}\u0000${key}`;
-    let target = localRefTargets.get(relocationKey);
-    if (!target) {
-      target = {
-        kind,
-        name: `target-${localRefTargets.size + 1}`,
-        schemaBase,
-        value,
-      };
-      localRefTargets.set(relocationKey, target);
-      pendingLocalRefTargets.push(target);
-    }
-    const suffix = suffixTokens.map((token) => `/${encodeJsonPointerToken(token)}`).join('');
-    return `#/${LOCAL_REF_TARGETS_FIELD}/${target.name}${suffix}`;
-  }
-
-  function rewriteLocalReference(ref: string, kind: CopyKind, schemaBase = DOCUMENT_SCHEMA_BASE): string {
-    if (kind === 'schema' && schemaBase !== DOCUMENT_SCHEMA_BASE) return ref;
-
+  const rewriteLocalRef = (ref: string, kind: CopyKind): string => {
     const component = componentTarget(ref);
     if (component) {
       pendingComponents.push(component);
@@ -696,80 +244,18 @@ export function buildOperationOpenApiDocument(
 
     const pointer = localJsonPointer(ref);
     if (!pointer) return ref;
-    if (
-      kind === 'operation' &&
-      pointer.tokens.length === 3 &&
-      pointer.tokens[0] === 'paths' &&
-      pointer.tokens[1] === path &&
-      pointer.tokens[2].toLowerCase() === normalizedMethod
-    ) {
-      return ref;
-    }
-
-    if (kind === 'schema') {
-      const resolved = resolveSchemaPointer(pointer.tokens);
-      if (!resolved) return ref;
-      if (resolved.resourceRoot) {
-        const { key, schemaBase: resourceParentBase, suffixTokens, value } = resolved.resourceRoot;
-        return relocateLocalTarget(key, value, kind, resourceParentBase, suffixTokens);
-      }
-      return relocateLocalTarget(pointer.key, resolved.value, kind, DOCUMENT_SCHEMA_BASE);
-    }
-
     const resolved = resolveJsonPointer(source, pointer.tokens);
     if (!resolved.found) return ref;
-    return relocateLocalTarget(pointer.key, resolved.value, kind, DOCUMENT_SCHEMA_BASE);
-  }
 
-  function rewriteSchemaReference(ref: string, schemaBase: string): string {
-    const pointer = localJsonPointer(ref);
-    if (pointer) return rewriteLocalReference(ref, 'schema', schemaBase);
-
-    const target = schemaReferenceTarget(ref, schemaBase);
-    if (target?.type === 'component') pendingComponents.push(target);
-    if (target?.type === 'local') {
-      relocateLocalTarget(target.key, target.value, 'schema', target.schemaBase);
+    const targetKey = `${kind}\u0000${pointer.key}`;
+    let name = localRefTargetNames.get(targetKey);
+    if (!name) {
+      name = `target-${localRefTargetNames.size + 1}`;
+      localRefTargetNames.set(targetKey, name);
+      pendingLocalRefTargets.push({ kind, name, value: resolved.value });
     }
-    return ref;
-  }
-
-  function rewriteLinkOperationId(operationId: string): string | null {
-    const target = operationIds.get(operationId);
-    if (!target || target.value === operation) return null;
-    return relocateLocalTarget(target.key, target.value, 'operation', DOCUMENT_SCHEMA_BASE);
-  }
-
-  function rewriteDiscriminatorMapping(value: string): string {
-    if (sourceSchemas && hasOwn(sourceSchemas, value)) {
-      pendingComponents.push({ section: 'schemas', name: value });
-      return value;
-    }
-    return rewriteSchemaReference(value, DOCUMENT_SCHEMA_BASE);
-  }
-
-  function copyDiscriminator(value: unknown, schemaBase: string): unknown {
-    const discriminator = asRecord(value);
-    if (!discriminator) return copyReachableValue(value, 'opaque', schemaBase);
-    const result = createOpenApiRecord();
-    Object.entries(discriminator).forEach(([key, nestedValue]) => {
-      if (key !== 'mapping') {
-        result[key] = copyReachableValue(nestedValue, 'opaque', schemaBase);
-        return;
-      }
-      const mapping = asRecord(nestedValue);
-      if (!mapping) {
-        result[key] = copyReachableValue(nestedValue, 'opaque', schemaBase);
-        return;
-      }
-      const outputMapping = createOpenApiRecord();
-      Object.entries(mapping).forEach(([mappingKey, mappingValue]) => {
-        outputMapping[mappingKey] =
-          typeof mappingValue === 'string' ? rewriteDiscriminatorMapping(mappingValue) : mappingValue;
-      });
-      result[key] = outputMapping;
-    });
-    return result;
-  }
+    return `#/${LOCAL_REF_TARGETS_FIELD}/${name}`;
+  };
 
   function referenceTargetKind(kind: CopyKind): CopyKind | null {
     switch (kind) {
@@ -814,16 +300,12 @@ export function buildOperationOpenApiDocument(
         if (key === 'links') return 'links';
         return 'opaque';
       case 'mediaType':
-        if (key === 'schema' || (minorVersion >= 2 && key === 'itemSchema')) return 'schema';
+        if (key === 'schema') return 'schema';
         if (key === 'examples') return 'examples';
         if (key === 'encoding') return 'encodingMap';
         return 'opaque';
       case 'encoding':
         return key === 'headers' ? 'headers' : 'opaque';
-      case 'example':
-        return 'opaque';
-      case 'link':
-        return 'opaque';
       default:
         return 'opaque';
     }
@@ -852,70 +334,47 @@ export function buildOperationOpenApiDocument(
     }
   }
 
-  function copyReachableValue(value: unknown, kind: CopyKind, schemaBase = DOCUMENT_SCHEMA_BASE): unknown {
+  function copyReachableValue(value: unknown, kind: CopyKind): unknown {
     if (value === null || typeof value !== 'object') return value;
-    const cacheKey = kind === 'schema' || kind === 'schemaMap' ? `${kind}:${schemaBase}` : kind;
     const cachedByKind = copiedObjects.get(value);
-    if (cachedByKind?.has(cacheKey)) return cachedByKind.get(cacheKey);
+    if (cachedByKind?.has(kind)) return cachedByKind.get(kind);
 
     if (Array.isArray(value)) {
       const result: unknown[] = [];
-      const outputCache = cachedByKind ?? new Map<string, unknown>();
-      outputCache.set(cacheKey, result);
+      const outputCache = cachedByKind ?? new Map<CopyKind, unknown>();
+      outputCache.set(kind, result);
       copiedObjects.set(value, outputCache);
       const itemKind: CopyKind = kind === 'parameters' ? 'parameter' : kind;
-      value.forEach((item) => result.push(copyReachableValue(item, itemKind, schemaBase)));
+      value.forEach((item) => result.push(copyReachableValue(item, itemKind)));
       return result;
     }
 
     const record = value as OpenApiRecord;
     const result = createOpenApiRecord();
-    const outputCache = cachedByKind ?? new Map<string, unknown>();
-    outputCache.set(cacheKey, result);
+    const outputCache = cachedByKind ?? new Map<CopyKind, unknown>();
+    outputCache.set(kind, result);
     copiedObjects.set(value, outputCache);
 
     if (kind === 'opaque') {
       Object.entries(record).forEach(([key, nestedValue]) => {
-        result[key] = copyReachableValue(nestedValue, 'opaque', schemaBase);
+        result[key] = copyReachableValue(nestedValue, 'opaque');
       });
       return result;
     }
 
     if (kind === 'schema') {
-      const resourceBase = schemaResourceBase(schemaBase, record);
-      const base = resourceBase ?? schemaBase;
+      collectSchemaDiscriminatorMappings(record);
       Object.entries(record).forEach(([key, nestedValue]) => {
-        if (key === '$id' && resourceBase && hasConcreteDocumentSchemaBase) {
-          result[key] = resourceBase;
-        } else if (key === '$ref' && typeof nestedValue === 'string') {
-          result[key] = rewriteSchemaReference(nestedValue, base);
-        } else if (key === '$dynamicRef' && supportsJsonSchema202012 && typeof nestedValue === 'string') {
-          result[key] = rewriteSchemaReference(nestedValue, base);
-        } else if (key === 'discriminator') {
-          result[key] = copyDiscriminator(nestedValue, base);
+        if (key === '$ref' && typeof nestedValue === 'string') {
+          result[key] = rewriteLocalRef(nestedValue, 'schema');
         } else if ((SINGLE_SCHEMA_FIELDS as readonly string[]).includes(key)) {
-          result[key] = copyReachableValue(nestedValue, 'schema', base);
+          result[key] = copyReachableValue(nestedValue, 'schema');
         } else if ((ARRAY_SCHEMA_FIELDS as readonly string[]).includes(key)) {
-          result[key] = copyReachableValue(nestedValue, 'schema', base);
+          result[key] = copyReachableValue(nestedValue, 'schema');
         } else if ((MAP_SCHEMA_FIELDS as readonly string[]).includes(key)) {
-          result[key] = copyReachableValue(nestedValue, 'schemaMap', base);
-        } else if (key === 'dependencies') {
-          const dependencies = asRecord(nestedValue);
-          if (!dependencies) {
-            result[key] = copyReachableValue(nestedValue, 'opaque', base);
-          } else {
-            const outputDependencies = createOpenApiRecord();
-            Object.entries(dependencies).forEach(([dependencyName, dependency]) => {
-              outputDependencies[dependencyName] = copyReachableValue(
-                dependency,
-                Array.isArray(dependency) ? 'opaque' : 'schema',
-                base,
-              );
-            });
-            result[key] = outputDependencies;
-          }
+          result[key] = copyReachableValue(nestedValue, 'schemaMap');
         } else {
-          result[key] = copyReachableValue(nestedValue, 'opaque', base);
+          result[key] = copyReachableValue(nestedValue, 'opaque');
         }
       });
       return result;
@@ -925,14 +384,14 @@ export function buildOperationOpenApiDocument(
     if (mappedKind) {
       Object.entries(record).forEach(([key, nestedValue]) => {
         const extensionValue = kind === 'responses' && key.startsWith('x-');
-        result[key] = copyReachableValue(nestedValue, extensionValue ? 'opaque' : mappedKind, schemaBase);
+        result[key] = copyReachableValue(nestedValue, extensionValue ? 'opaque' : mappedKind);
       });
       return result;
     }
 
     if (kind === 'callback' && !hasOwn(record, '$ref')) {
       Object.entries(record).forEach(([key, nestedValue]) => {
-        result[key] = copyReachableValue(nestedValue, key.startsWith('x-') ? 'opaque' : 'pathItem', schemaBase);
+        result[key] = copyReachableValue(nestedValue, key.startsWith('x-') ? 'opaque' : 'pathItem');
       });
       return result;
     }
@@ -940,24 +399,9 @@ export function buildOperationOpenApiDocument(
     Object.entries(record).forEach(([key, nestedValue]) => {
       const targetKind = key === '$ref' ? referenceTargetKind(kind) : null;
       if (targetKind && typeof nestedValue === 'string') {
-        result[key] = rewriteLocalReference(nestedValue, targetKind, schemaBase);
-      } else if (kind === 'link' && key === 'operationRef' && typeof nestedValue === 'string') {
-        result[key] = rewriteLocalReference(nestedValue, 'operation', schemaBase);
-      } else if (
-        kind === 'link' &&
-        key === 'operationId' &&
-        typeof nestedValue === 'string' &&
-        !hasOwn(record, 'operationRef')
-      ) {
-        const operationRef = rewriteLinkOperationId(nestedValue);
-        if (operationRef) result.operationRef = operationRef;
-        else result[key] = nestedValue;
+        result[key] = rewriteLocalRef(nestedValue, targetKind);
       } else {
-        result[key] = copyReachableValue(
-          nestedValue,
-          key.startsWith('x-') ? 'opaque' : childKind(kind, key),
-          schemaBase,
-        );
+        result[key] = copyReachableValue(nestedValue, key.startsWith('x-') ? 'opaque' : childKind(kind, key));
       }
     });
     return result;
@@ -973,7 +417,6 @@ export function buildOperationOpenApiDocument(
   };
 
   if (hasOwn(source, 'servers')) output.servers = copyReachableValue(source.servers, 'opaque');
-  if (hasOwn(source, 'jsonSchemaDialect')) output.jsonSchemaDialect = source.jsonSchemaDialect;
 
   const componentKind = (section: string): CopyKind => {
     switch (section) {
@@ -993,8 +436,6 @@ export function buildOperationOpenApiDocument(
         return 'link';
       case 'callbacks':
         return 'callback';
-      case 'pathItems':
-        return 'pathItem';
       case 'securitySchemes':
         return 'securityScheme';
       default:
@@ -1014,7 +455,6 @@ export function buildOperationOpenApiDocument(
     outputSection[name] = copyReachableValue(sourceSection[name], componentKind(section));
     outputComponents[section] = outputSection;
     if (section === 'callbacks') collectCallbackSecurity(sourceSection[name]);
-    if (section === 'pathItems') collectPathItemSecurity(sourceSection[name], true);
   };
 
   collectPathItemSecurity(outputPathItem);
@@ -1032,11 +472,12 @@ export function buildOperationOpenApiDocument(
     }
     while (pendingLocalRefTargets.length > 0) {
       const target = pendingLocalRefTargets.shift();
-      if (!target) continue;
-      outputLocalRefTargets[target.name] = copyReachableValue(target.value, target.kind, target.schemaBase);
-      if (target.kind === 'callback') collectCallbackSecurity(target.value);
-      if (target.kind === 'pathItem') collectPathItemSecurity(target.value, true);
-      if (target.kind === 'operation') collectOperationSecurity(target.value, true);
+      if (target) {
+        if (target.kind === 'operation') collectOperationSecurity(target.value, true);
+        if (target.kind === 'pathItem') collectPathItemSecurity(target.value, true);
+        if (target.kind === 'callback') collectCallbackSecurity(target.value);
+        outputLocalRefTargets[target.name] = copyReachableValue(target.value, target.kind);
+      }
     }
     while (pendingComponents.length > 0) {
       const target = pendingComponents.shift();
@@ -1050,6 +491,75 @@ export function buildOperationOpenApiDocument(
 
   if (Object.keys(outputComponents).length > 0) output.components = outputComponents;
   if (Object.keys(outputLocalRefTargets).length > 0) output[LOCAL_REF_TARGETS_FIELD] = outputLocalRefTargets;
+  return output;
+}
+
+export function supportsOperationOpenApiDownload(swaggerDoc: SwaggerDoc): boolean {
+  return typeof swaggerDoc.openapi === 'string' && swaggerDoc.openapi.startsWith('3.0.');
+}
+
+/**
+ * Preserve the pre-download preview behavior for newer OAS3 documents. The
+ * portable download contract is intentionally limited to OAS 3.0.x; preview
+ * and copy remain available for documents that require newer Schema dialects.
+ */
+export function buildOperationOpenApiPreviewDocument(
+  swaggerDoc: SwaggerDoc,
+  path: string,
+  method: string,
+): OpenApiRecord | null {
+  if (supportsOperationOpenApiDownload(swaggerDoc)) {
+    return buildOperationOpenApiDocument(swaggerDoc, path, method);
+  }
+
+  const source = swaggerDoc as unknown as OpenApiRecord;
+  const paths = asRecord(source.paths);
+  const pathItem = paths ? asRecord(paths[path]) : null;
+  const operation = pathItem ? asRecord(pathItem[method.toLowerCase()]) : null;
+  if (!operation || !asRecord(source.info)) return null;
+
+  const referencedSchemas = createOpenApiRecord();
+  const components = asRecord(source.components);
+  const componentSchemas = components ? asRecord(components.schemas) : null;
+  const definitions = asRecord(source.definitions);
+  const allSchemas = componentSchemas ?? definitions ?? createOpenApiRecord();
+  const seenSchemas = new Set<string>();
+
+  const collectSchemaRefs = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(collectSchemaRefs);
+      return;
+    }
+    const record = asRecord(value);
+    if (!record) return;
+
+    if (typeof record.$ref === 'string') {
+      const match = record.$ref.match(/^#\/components\/schemas\/(.+)$/) ?? record.$ref.match(/^#\/definitions\/(.+)$/);
+      const name = match?.[1];
+      if (name && !seenSchemas.has(name) && hasOwn(allSchemas, name)) {
+        seenSchemas.add(name);
+        referencedSchemas[name] = allSchemas[name];
+        collectSchemaRefs(allSchemas[name]);
+      }
+    }
+    Object.values(record).forEach(collectSchemaRefs);
+  };
+
+  collectSchemaRefs(operation);
+  const outputPathItem = createOpenApiRecord();
+  outputPathItem[method.toLowerCase()] = operation;
+  const outputPaths = createOpenApiRecord();
+  outputPaths[path] = outputPathItem;
+  const output: OpenApiRecord = {
+    openapi: source.openapi ?? '3.0.0',
+    info: source.info,
+    paths: outputPaths,
+  };
+
+  if (Object.keys(referencedSchemas).length > 0) {
+    if (componentSchemas) output.components = { schemas: referencedSchemas };
+    else output.definitions = referencedSchemas;
+  }
   return output;
 }
 

@@ -147,6 +147,8 @@ const enUS = {
   'apiOpenApi.download.started': 'OpenAPI JSON download started',
   'apiOpenApi.download.failed': 'Failed to download OpenAPI JSON. Please try again.',
   'apiOpenApi.download.unsupported': 'This browser cannot download files. Copy the JSON and save it manually.',
+  'apiOpenApi.download.versionUnsupported':
+    'Single-operation downloads currently support OpenAPI 3.0.x only. You can still view and copy this document.',
   'apiOpenApi.serialize.failed':
     'Unable to generate OpenAPI JSON for this operation. Check the API document and try again.',
 

@@ -60,7 +60,6 @@ interface GroupContextValue {
   // 真实数据
   activeSwaggerGroup: SwaggerGroup | null;
   swaggerDoc: SwaggerDoc | null;
-  swaggerDocUri: string | null;
   swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
   markdownDocs: MarkdownDocItem[];
@@ -84,7 +83,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [swaggerUiConfig, setSwaggerUiConfig] = useState<SwaggerUiConfig | null>(null);
   const [activeGroupValue, setActiveGroupValue] = useState<string>('');
   const [swaggerDoc, setSwaggerDoc] = useState<SwaggerDoc | null>(null);
-  const [swaggerDocUri, setSwaggerDocUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
   const [groupError, setGroupError] = useState<LocalizedMessage | null>(null);
@@ -142,17 +140,14 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let cancelled = false;
     setLoading(true);
     setGroupError(null);
-    setSwaggerDocUri(null);
     const mode = knife4xBootstrap.mode === 'embed' ? 'embed' : 'java';
     fetchSwaggerDocForMode(group.url, mode, { preferredLanguage, routeHeader: group.header }).then((result) => {
       if (cancelled) return;
       if (result.doc) {
         setSwaggerDoc(result.doc);
-        setSwaggerDocUri(result.retrievalUri ?? null);
       } else {
         // 单个 provider 加载失败：保留其他 group 可用，仅标记当前 group 错误
         setSwaggerDoc(null);
-        setSwaggerDocUri(null);
         setGroupError(result.error ?? { key: 'error.apiDocs.load' });
       }
       setLoading(false);
@@ -265,7 +260,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveGroupValue: handleSetActiveGroup,
         activeSwaggerGroup,
         swaggerDoc,
-        swaggerDocUri,
         swaggerUiConfig,
         menuTags,
         markdownDocs,

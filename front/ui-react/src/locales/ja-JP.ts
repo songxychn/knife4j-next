@@ -153,6 +153,8 @@ const jaJP = {
   'apiOpenApi.download.failed': 'OpenAPI JSON をダウンロードできませんでした。もう一度お試しください。',
   'apiOpenApi.download.unsupported':
     'このブラウザーはファイルのダウンロードに対応していません。JSON をコピーして手動で保存してください。',
+  'apiOpenApi.download.versionUnsupported':
+    '単一オペレーションのダウンロードは現在 OpenAPI 3.0.x のみ対応しています。このドキュメントは引き続き表示・コピーできます。',
   'apiOpenApi.serialize.failed':
     'この API の OpenAPI JSON を生成できませんでした。API ドキュメントを確認して、もう一度お試しください。',
 

@@ -145,6 +145,7 @@ const zhCN = {
   'apiOpenApi.download.started': 'OpenAPI JSON 下载已开始',
   'apiOpenApi.download.failed': 'OpenAPI JSON 下载失败，请稍后重试',
   'apiOpenApi.download.unsupported': '当前浏览器不支持文件下载，请复制 JSON 后手动保存',
+  'apiOpenApi.download.versionUnsupported': '单接口下载首版仅支持 OpenAPI 3.0.x，当前文档仍可查看和复制',
   'apiOpenApi.serialize.failed': '无法生成当前接口的 OpenAPI JSON，请检查接口文档后重试',
 
   // ApiScript (ISSUE-207)

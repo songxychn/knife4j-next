@@ -16,11 +16,10 @@ function jsonResponse(body: unknown, ok = true): Response {
   } as unknown as Response;
 }
 
-function textResponse(body: string, ok = true, status = 200, url = ''): Response {
+function textResponse(body: string, ok = true, status = 200): Response {
   return {
     ok,
     status,
-    url,
     text: vi.fn().mockResolvedValue(body),
   } as unknown as Response;
 }
@@ -96,24 +95,6 @@ describe('knife4jClient', () => {
       },
       error: null,
     });
-  });
-
-  it('returns the final api-docs response URL as the retrieval URI', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        textResponse(
-          JSON.stringify({ openapi: '3.1.0', info: { title: 'demo', version: '1.0.0' }, paths: {} }),
-          true,
-          200,
-          'https://api.example.com/v3/api-docs',
-        ),
-      );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const result = await fetchSwaggerDocResult('/v3/api-docs');
-
-    expect(result.retrievalUri).toBe('https://api.example.com/v3/api-docs');
   });
 
   it('sends the selected UI language when fetching api-docs', async () => {
@@ -229,32 +210,6 @@ describe('knife4jClient', () => {
 
     expect(menuTags.map((tag) => tag.tag)).toEqual(['pets', 'users']);
     expect(menuTags[0].operations.map((operation) => operation.operationId)).toEqual(['createPet', 'searchPets']);
-  });
-
-  it('parses OAS 3.2 QUERY operations into the menu', () => {
-    const doc = {
-      openapi: '3.2.0',
-      info: { title: 'QUERY API', version: '1.0.0' },
-      tags: [{ name: 'search' }],
-      paths: {
-        '/search': {
-          query: {
-            tags: ['search'],
-            summary: 'Run a safe query',
-            operationId: 'runQuery',
-          },
-        },
-      },
-    } as unknown as SwaggerDoc;
-
-    const menuTags = parseMenuTags(doc);
-
-    expect(menuTags[0].operations).toHaveLength(1);
-    expect(menuTags[0].operations[0]).toMatchObject({
-      method: 'query',
-      path: '/search',
-      operationId: 'runQuery',
-    });
   });
 
   it('keeps a stable fallback when Knife4j x-order values tie or are invalid', () => {

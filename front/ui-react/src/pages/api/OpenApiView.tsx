@@ -6,33 +6,34 @@ import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation'
 import CodeBlock from './CodeBlock';
 import { copyToClipboard } from '../../utils/clipboard';
 import {
-  buildOperationOpenApiDocument,
   buildOperationOpenApiFilename,
+  buildOperationOpenApiPreviewDocument,
   downloadOperationOpenApiJson,
   serializeOperationOpenApiDocument,
+  supportsOperationOpenApiDownload,
 } from './operationOpenApiDocument';
 
-type OpenApiState = { status: 'empty' } | { status: 'error' } | { status: 'ready'; json: string };
+type OpenApiState =
+  { status: 'empty' } | { status: 'error' } | { status: 'ready'; downloadable: boolean; json: string };
 
 export default function OpenApiView() {
   const { t } = useTranslation();
-  const { loading, swaggerDoc, swaggerDocUri, operation } = useCurrentOperation();
+  const { loading, swaggerDoc, operation } = useCurrentOperation();
 
   const openApiState = useMemo<OpenApiState>(() => {
     if (!swaggerDoc || !operation) return { status: 'empty' };
     try {
-      const document = buildOperationOpenApiDocument(
-        swaggerDoc,
-        operation.path,
-        operation.method,
-        swaggerDocUri ?? undefined,
-      );
+      const document = buildOperationOpenApiPreviewDocument(swaggerDoc, operation.path, operation.method);
       if (!document) return { status: 'empty' };
-      return { status: 'ready', json: serializeOperationOpenApiDocument(document) };
+      return {
+        status: 'ready',
+        downloadable: supportsOperationOpenApiDownload(swaggerDoc),
+        json: serializeOperationOpenApiDocument(document),
+      };
     } catch {
       return { status: 'error' };
     }
-  }, [swaggerDoc, swaggerDocUri, operation]);
+  }, [swaggerDoc, operation]);
 
   if (loading) {
     return (
@@ -65,7 +66,7 @@ export default function OpenApiView() {
   };
 
   const handleDownload = () => {
-    if (openApiState.status !== 'ready') return;
+    if (openApiState.status !== 'ready' || !openApiState.downloadable) return;
     const filename = buildOperationOpenApiFilename(operation.method, operation.path, operation.operation.operationId);
 
     try {
@@ -83,11 +84,20 @@ export default function OpenApiView() {
     <OperationModeLayout activeKey="openapi">
       {openApiState.status === 'ready' ? (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-            <Button size="small" icon={<DownloadOutlined />} onClick={handleDownload}>
-              {t('apiOpenApi.download')}
-            </Button>
-          </div>
+          {openApiState.downloadable ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <Button size="small" icon={<DownloadOutlined />} onClick={handleDownload}>
+                {t('apiOpenApi.download')}
+              </Button>
+            </div>
+          ) : (
+            <Alert
+              type="info"
+              showIcon
+              message={t('apiOpenApi.download.versionUnsupported')}
+              style={{ marginBottom: 8 }}
+            />
+          )}
           <CodeBlock code={openApiState.json} language="json" maxHeight={600} onCopy={handleCopy} />
         </div>
       ) : openApiState.status === 'error' ? (
