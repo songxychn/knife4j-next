@@ -5,5 +5,6 @@ export const FileTextOutlined = noop;
 export const FileWordOutlined = noop;
 export const FileMarkdownOutlined = noop;
 export const CodeOutlined = noop;
+export const DownloadOutlined = noop;
 
-export default { FileTextOutlined, FileWordOutlined, FileMarkdownOutlined, CodeOutlined };
+export default { FileTextOutlined, FileWordOutlined, FileMarkdownOutlined, CodeOutlined, DownloadOutlined };

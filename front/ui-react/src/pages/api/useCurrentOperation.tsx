@@ -10,6 +10,7 @@ import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 interface CurrentOperation {
   loading: boolean;
   swaggerDoc: SwaggerDoc | null;
+  swaggerDocUri: string | null;
   tag?: string;
   operation?: MenuOperation;
 }
@@ -17,7 +18,7 @@ interface CurrentOperation {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useCurrentOperation(): CurrentOperation {
   const { tag, operaterId } = useParams();
-  const { loading, swaggerDoc, menuTags } = useGroup();
+  const { loading, swaggerDoc, swaggerDocUri, menuTags } = useGroup();
 
   const operation = useMemo(() => {
     if (!tag || !operaterId) return undefined;
@@ -36,6 +37,7 @@ export function useCurrentOperation(): CurrentOperation {
   return {
     loading,
     swaggerDoc,
+    swaggerDocUri,
     tag: tag ? decodeURIComponent(tag) : undefined,
     operation,
   };

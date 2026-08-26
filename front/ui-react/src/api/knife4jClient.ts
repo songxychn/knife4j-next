@@ -17,7 +17,7 @@ import type { LocalizedMessage } from '../types/i18n';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
 import { buildRouteProxyHeaders } from './routeProxyHeader';
 
-const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
+const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace', 'query'] as const;
 type HttpMethod = (typeof HTTP_METHODS)[number];
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
 const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
@@ -25,6 +25,8 @@ const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
 export interface SwaggerDocFetchResult {
   doc: SwaggerDoc | null;
   error: LocalizedMessage | null;
+  /** Final response URI after browser resolution and redirects. */
+  retrievalUri?: string;
 }
 
 export interface LanguageAwareRequestOptions {
@@ -44,6 +46,8 @@ const METHOD_ORDER: Record<string, number> = {
   patch: 4,
   head: 5,
   options: 6,
+  trace: 7,
+  query: 8,
 };
 
 /** tag 排序策略 */
@@ -162,7 +166,10 @@ export async function fetchSwaggerDocResult(
       return { doc: null, error: { key: 'error.apiDocs.http', values: { status: res.status } } };
     }
     const text = await res.text();
-    return normalizeSwaggerDocResponse(text);
+    const result = normalizeSwaggerDocResponse(text);
+    return result.doc && typeof res.url === 'string' && res.url.length > 0
+      ? { ...result, retrievalUri: res.url }
+      : result;
   } catch (_) {
     return { doc: null, error: { key: 'error.apiDocs.load' } };
   }

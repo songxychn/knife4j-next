@@ -219,6 +219,8 @@ export interface PathItemObject {
   patch?: OperationObject;
   head?: OperationObject;
   options?: OperationObject;
+  trace?: OperationObject;
+  query?: OperationObject;
 }
 
 /** 自定义 Markdown 文档子项（对应 x-markdownFiles[].children[]） */
