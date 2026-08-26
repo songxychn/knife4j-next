@@ -1071,6 +1071,31 @@ describe('Knife4j storage cleanup registry', () => {
     expect(completedEpoch.expiresAt).toBe(0);
   });
 
+  it('supersedes an orphaned compact cache epoch during a full reset', async () => {
+    const activeCompactEpoch = `!${Math.floor((Date.now() + 120_000) / 1000).toString(36)}.orphan`;
+    const localStorage = new MemoryWebStorage({
+      [KNIFE4J_STORAGE_KEYS.settings]: 'settings',
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+      [KNIFE4J_STORAGE_KEYS.requestCacheEpoch]: activeCompactEpoch,
+    });
+
+    const result = await clearRegisteredKnife4jStorage(
+      'all-local-data',
+      {
+        localStorage,
+        sessionStorage: new MemoryWebStorage({}),
+        indexedDB: new MemoryIndexedDb([]),
+      },
+      new MemoryLockManager(),
+    );
+    const completedEpoch = localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch);
+
+    expect(result.failures).toEqual([]);
+    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 0, indexedDB: 0 });
+    expect(completedEpoch).toMatch(/^\.[0-9a-z]+\.[0-9a-z]+$/);
+    expect(completedEpoch).not.toBe(activeCompactEpoch);
+  });
+
   it('recovers request-cache coordination after registered entries free quota', async () => {
     const firstKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
     const secondKey = `${KNIFE4J_STORAGE_PREFIXES.debugHistory}operation-a`;
@@ -1152,7 +1177,7 @@ describe('Knife4j storage cleanup registry', () => {
     ]);
     expect(localStorage.getItem(cacheKey)).toBeNull();
     expect(localStorage.getItem(historyKey)).toBeNull();
-    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch)).toMatch(/^\.[0-9a-z]+\.[0-9a-z]+$/);
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch)).toMatch(/^![0-9a-z]+\.[0-9a-z]+$/);
     expect(localStorage.getItem('host-application:key')).toBe('keep');
     expect(sessionStorage.getItem(KNIFE4J_STORAGE_KEYS.tabItems)).toBe('tabs');
     expect(sessionStorage.getItem('host-application:session')).toBe('keep');
@@ -1162,6 +1187,53 @@ describe('Knife4j storage cleanup registry', () => {
       setKnife4jStorageItem(localStorage, historyKey, 'stale-history', localStorage, null, staleHistory),
     ).resolves.toBe(false);
     expect(localStorage.getItem(historyKey)).toBeNull();
+  });
+
+  it('serializes compact cache epoch completion behind a newer cleanup', async () => {
+    const cacheKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
+    const newerEpoch = `!${Math.floor((Date.now() + 120_000) / 1000).toString(36)}.newer`;
+    const localStorage = new (class extends MemoryWebStorage {
+      override setItem(key: string, value: string): void {
+        if (key === KNIFE4J_STORAGE_KEYS.requestCacheEpoch && value.startsWith('{')) {
+          throw new Error('quota exceeded for the full cache epoch');
+        }
+        super.setItem(key, value);
+      }
+    })({
+      [KNIFE4J_STORAGE_KEYS.resetGeneration]: 'stable-generation',
+      [KNIFE4J_STORAGE_KEYS.requestCacheEpoch]: 'reserved-epoch-slot',
+      [cacheKey]: 'cache',
+    });
+    const lockManager = new (class extends MemoryLockManager {
+      requestCount = 0;
+
+      override request<T>(
+        name: string,
+        options: { mode: 'shared' | 'exclusive'; ifAvailable?: boolean },
+        callback: (lock: { name: string } | null) => T | PromiseLike<T>,
+      ): Promise<T> {
+        this.requestCount += 1;
+        if (this.requestCount === 2) {
+          localStorage.values.set(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, newerEpoch);
+        }
+        return super.request(name, options, callback);
+      }
+    })();
+
+    const result = await clearRegisteredKnife4jStorage(
+      'request-cache',
+      {
+        localStorage,
+        sessionStorage: new MemoryWebStorage({ [KNIFE4J_STORAGE_KEYS.tabItems]: 'tabs' }),
+        indexedDB: new MemoryIndexedDb([]),
+      },
+      lockManager,
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(result.removed).toEqual({ localStorage: 1, sessionStorage: 1, indexedDB: 0 });
+    expect(lockManager.requestCount).toBe(2);
+    expect(localStorage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch)).toBe(newerEpoch);
   });
 
   it('replaces an existing value at quota through Web Locks without allocating an owner marker', async () => {

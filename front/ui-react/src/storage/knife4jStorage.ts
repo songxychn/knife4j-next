@@ -365,18 +365,27 @@ function retainsQuotaRecoveryRequestCacheEpoch(
   return snapshot.active && snapshot.generation === epoch.activeGeneration;
 }
 
-function completeQuotaRecoveryRequestCacheEpoch(
+async function completeQuotaRecoveryRequestCacheEpoch(
   storage: Knife4jWebStorage | null,
   epoch: Knife4jStorageQuotaRecoveryEpoch | null,
   result: Knife4jStorageCleanupResult,
-): void {
+  lockManager: Knife4jStorageLockManager | null,
+): Promise<void> {
   if (!storage || !epoch) return;
   try {
-    if (storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) !== epoch.activeGeneration) return;
-    storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, epoch.inactiveGeneration);
-    if (storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) !== epoch.inactiveGeneration) {
-      throw new Error('quota recovery request-cache epoch completion was not persisted');
-    }
+    await withKnife4jStorageWriteLock(
+      async (canWrite) => {
+        if (!canWrite()) return false;
+        if (storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) !== epoch.activeGeneration) return true;
+        storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, epoch.inactiveGeneration);
+        if (storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) !== epoch.inactiveGeneration) {
+          throw new Error('quota recovery request-cache epoch completion was not persisted');
+        }
+        return canWrite();
+      },
+      lockManager,
+      storage,
+    );
   } catch (error) {
     recordFailure(result, {
       area: 'localStorage',
@@ -1203,8 +1212,19 @@ function supersedeRequestCacheCleanupEpoch(
 ): boolean {
   if (!storage || !retainsResetLease()) return false;
   try {
-    const current = parseResetLease(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch));
+    const stored = storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch);
+    const compactEpoch = parseQuotaRecoveryEpoch(stored ?? '');
+    const current = parseResetLease(stored) ?? compactEpoch;
     if (!current || current.expiresAt <= Date.now()) return retainsResetLease();
+    if (compactEpoch) {
+      const completedGeneration = createQuotaRecoveryEpoch().inactiveGeneration;
+      storage.setItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch, completedGeneration);
+      const persisted = parseQuotaRecoveryEpoch(storage.getItem(KNIFE4J_STORAGE_KEYS.requestCacheEpoch) ?? '');
+      if (persisted?.generation !== completedGeneration || persisted.expiresAt !== 0) {
+        throw new Error('compact request cache epoch replacement was lost');
+      }
+      return retainsResetLease();
+    }
     const epoch: Knife4jStorageResetLease = {
       version: KNIFE4J_STORAGE_RESET_LEASE_VERSION,
       generation: createResetGeneration(),
@@ -1792,7 +1812,12 @@ export async function clearRegisteredKnife4jStorage(
     } finally {
       stopRequestCacheHeartbeat();
       await completeRequestCacheCleanup(adapters.localStorage, requestCacheEpoch, lockManager);
-      completeQuotaRecoveryRequestCacheEpoch(adapters.localStorage, quotaRecoveryRequestCacheEpoch, result);
+      await completeQuotaRecoveryRequestCacheEpoch(
+        adapters.localStorage,
+        quotaRecoveryRequestCacheEpoch,
+        result,
+        lockManager,
+      );
       releasePendingRemovals();
     }
     return result;
