@@ -20,6 +20,7 @@ import {
   KNIFE4J_STORAGE_KEYS,
   getKnife4jStorageItemSnapshot,
   setKnife4jStorageItem,
+  updateKnife4jStorageItem,
   type Knife4jStorageItemSnapshot,
 } from '../storage/knife4jStorage';
 import { useGroup } from './GroupContext';
@@ -188,22 +189,42 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
 
+      const identity = current.identity;
       const storage = browserLocalStorage();
-      const snapshot = readBaselineSnapshot(storage, current.storageKey);
-      const durableBaseline = parseApiChangeBaseline(snapshot?.value ?? null, current.identity);
-      const nextBaseline = acknowledgeApiOperation(
-        durableBaseline ?? current.baseline,
-        current.fingerprints,
-        method,
-        path,
-      );
+      const nextBaseline = acknowledgeApiOperation(current.baseline, current.fingerprints, method, path);
       const nextState = {
         ...current,
         baseline: nextBaseline,
         statuses: compareApiChangeBaseline(nextBaseline, current.fingerprints),
       };
       commitState(nextState);
-      persistBaseline(storage, current.storageKey, nextBaseline, snapshot);
+      if (!storage) return;
+
+      const acknowledgedScope = current.scopeKey;
+      void updateKnife4jStorageItem(
+        storage,
+        current.storageKey,
+        (rawBaseline) => {
+          const durableBaseline =
+            parseApiChangeBaseline(rawBaseline, identity) ??
+            acknowledgeAllApiOperations(identity, current.fingerprints);
+          const mergedBaseline = acknowledgeApiOperation(durableBaseline, current.fingerprints, method, path);
+          const serialized = serializeApiChangeBaseline(mergedBaseline);
+          if (!serialized) throw new Error('API change baseline exceeds the storage limit');
+          return serialized;
+        },
+        storage,
+      ).then((result) => {
+        const latest = stateRef.current;
+        if (!result.persisted || latest.scopeKey !== acknowledgedScope || !latest.identity) return;
+        const durableBaseline = parseApiChangeBaseline(result.value, latest.identity);
+        if (!durableBaseline) return;
+        commitState({
+          ...latest,
+          baseline: durableBaseline,
+          statuses: compareApiChangeBaseline(durableBaseline, latest.fingerprints),
+        });
+      });
     },
     [commitState],
   );

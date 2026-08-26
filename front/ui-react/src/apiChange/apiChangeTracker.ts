@@ -202,12 +202,13 @@ export function buildApiOperationFingerprints(swaggerDoc: SwaggerDoc): ApiOperat
         const operationDocument = buildOperationOpenApiDocument(canonicalDoc, path, method);
         if (!operationDocument) return;
 
-        // Document title/version/contact changes should not mark every API as
-        // changed. Request/response semantics, servers, inherited security,
-        // extensions, and the reachable component closure remain included.
+        // Document title/version/contact changes and OAS 3.0 patch-level
+        // declaration changes should not mark every API as changed.
+        // Request/response semantics, servers, inherited security, extensions,
+        // and the reachable component closure remain included.
         const semanticSnapshot = Object.create(null) as JsonRecord;
         Object.entries(operationDocument).forEach(([key, nestedValue]) => {
-          if (key !== 'info') semanticSnapshot[key] = nestedValue;
+          if (key !== 'info' && key !== 'openapi') semanticSnapshot[key] = nestedValue;
         });
         const serializedSnapshot = stableSerializeJson(semanticSnapshot);
         fingerprints[apiOperationIdentity(method, path)] = `sha256:${sha256Hex(serializedSnapshot)}`;

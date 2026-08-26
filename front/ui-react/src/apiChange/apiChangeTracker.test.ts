@@ -113,7 +113,7 @@ describe('API change fingerprints', () => {
     expect(fingerprints(reordered)).toEqual(fingerprints(original));
   });
 
-  it('tracks operation and reachable schema semantics but ignores global info metadata', () => {
+  it('tracks operation and reachable schema semantics but ignores global document metadata', () => {
     const initial = fingerprints();
     const operationChanged = apiDocument();
     operationChanged.paths['/pets'].get!.parameters![0].description = 'Maximum items';
@@ -131,6 +131,10 @@ describe('API change fingerprints', () => {
     infoChanged.info.version = '2.0.0';
     infoChanged.info.title = 'Renamed service';
     expect(fingerprints(infoChanged)).toEqual(initial);
+
+    const patchVersionChanged = apiDocument();
+    patchVersionChanged.openapi = '3.0.1';
+    expect(fingerprints(patchVersionChanged)).toEqual(initial);
   });
 
   it('limits the closed semantic snapshot contract to OAS 3.0.x', () => {

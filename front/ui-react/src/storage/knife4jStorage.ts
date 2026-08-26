@@ -1074,6 +1074,59 @@ export function setKnife4jStorageItem(
   });
 }
 
+export interface Knife4jStorageItemUpdateResult {
+  persisted: boolean;
+  value: string | null;
+}
+
+/**
+ * Read and replace one registered value while holding the shared mutation
+ * lock. Use this for cross-context read-modify-write operations where a value
+ * calculated before lock acquisition could overwrite another tab's update.
+ */
+export async function updateKnife4jStorageItem(
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
+  key: string,
+  update: (currentValue: string | null) => string,
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+): Promise<Knife4jStorageItemUpdateResult> {
+  const failed = (): Knife4jStorageItemUpdateResult => ({ persisted: false, value: null });
+  try {
+    if (!leaseStorage) {
+      const value = update(storage.getItem(key));
+      storage.setItem(key, value);
+      return { persisted: true, value };
+    }
+
+    const resetSnapshot = getKnife4jStorageResetSnapshot(leaseStorage);
+    if (resetSnapshot.active) return failed();
+    const resetCanWrite = createKnife4jStorageWriteFence(leaseStorage, resetSnapshot.generation);
+    const requestCacheCanWrite = createRequestCacheWriteFence(key, leaseStorage);
+    if (!(await waitForRequestCacheWriteTurn(leaseStorage, requestCacheCanWrite.generation))) return failed();
+    if (!resetCanWrite()) return failed();
+
+    const result = await trackKnife4jStorageWrite(
+      async (canWrite) => {
+        const retainsWriteFence = () => canWrite() && resetCanWrite() && requestCacheCanWrite();
+        if (!retainsWriteFence()) return failed();
+
+        const value = update(storage.getItem(key));
+        if (!retainsWriteFence()) return failed();
+        storage.setItem(key, value);
+        if (retainsWriteFence()) return { persisted: true, value };
+        if (storage.getItem(key) === value) storage.removeItem(key);
+        return failed();
+      },
+      lockManager,
+      leaseStorage,
+    );
+    return result ?? failed();
+  } catch {
+    return failed();
+  }
+}
+
 /** Session Storage is tab-scoped, so a synchronous write only needs the local reset fence. */
 export function setKnife4jSessionStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
