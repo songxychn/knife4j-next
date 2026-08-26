@@ -524,7 +524,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
     if (snapshot.active) return;
     const storage = browserStorage();
     if (!storage) return;
-    void removeKnife4jStorageItem(storage, groupStorageKey(groupId));
+    void removeKnife4jStorageItem(storage, groupStorageKey(groupId), undefined, undefined, snapshot);
   }, [groupId]);
 
   const applicationParams = useMemo<ScopedGlobalParamItem[]>(
