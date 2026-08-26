@@ -494,9 +494,13 @@ const zhCN = {
   'settings.sorter.method': '按方法（method）',
   'settings.sorter.preserve': '保持原序',
   'settings.localData.title': '清理 Knife4j 本地数据',
-  'settings.localData.description': '只清理下列 Knife4j 自有数据，不影响同源应用的其他存储项。',
+  'settings.localData.description': '仅清理 Knife4j 自有数据，不影响同源应用的其他存储项。',
   'settings.localData.clearRequest': '清理请求缓存',
+  'settings.localData.clearRequestDescription':
+    '清除请求参数、请求历史、工作区页签和接口版本提示记录；保留设置、全局参数及鉴权信息。',
   'settings.localData.resetAll': '重置全部本地数据',
+  'settings.localData.resetAllDescription':
+    '包含上述内容，并清除 Knife4j 的设置、语言、全局参数、Cookie 会话配置、OAuth 临时状态及鉴权信息；不会清除浏览器 Cookie。',
   'settings.localData.confirm.requestTitle': '清理 Knife4j 请求缓存？',
   'settings.localData.confirm.allTitle': '重置 Knife4j 全部本地数据？',
   'settings.localData.confirm.affected': '将清理以下数据：',
