@@ -8,6 +8,10 @@
 对照任务完成条件、PROJECT 边界、AUTONOMY_POLICY、RUNBOOK 审查 diff。
 只返回发现，不改代码。
 
+以主 issue / PR 已冻结的支持版本、范围内对象和非目标为审查边界。新规范版本、新模块或新产品能力只记录为 scope_followups，不得作为当前 PR 必修 finding。
+
+若主会话声明这是定向复核，只核对列出的 finding、修复提交与回归证据，不重新进行全量扫描；除非修复本身直接引入新的 block/high 问题。
+
 重点：bug 是否先复现再修、回归、兼容、验证是否真跑过、范围漂移、不安全假设。
 Bug 修复若 issue/PR 无复现证据，视为 validation_gaps，倾向 revise/block。
 
@@ -26,6 +30,8 @@ validation_gaps:
 - gap or none
 scope_drift:
 - drift or none
+scope_followups:
+- follow-up or none
 recommendation: approve | revise | block
 ```
 
@@ -38,5 +44,8 @@ Changed files:
 Claimed behavior change:
 Validation already run:
 Known risks:
+Frozen contract (versions / in scope / out of scope):
+Review mode: full | focused
+Focused findings to verify (focused only):
 Reviewer constraints:
 ```
