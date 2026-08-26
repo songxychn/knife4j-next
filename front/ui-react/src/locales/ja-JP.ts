@@ -148,6 +148,15 @@ const jaJP = {
     '現在のルートに一致する OpenAPI operation はありません。左側の API 一覧から開き直してください。',
   'apiOpenApi.copied': 'OpenAPI JSON をコピーしました',
   'apiOpenApi.noData': 'この API には OpenAPI データがありません',
+  'apiOpenApi.download': 'JSON をダウンロード',
+  'apiOpenApi.download.started': 'OpenAPI JSON のダウンロードを開始しました',
+  'apiOpenApi.download.failed': 'OpenAPI JSON をダウンロードできませんでした。もう一度お試しください。',
+  'apiOpenApi.download.unsupported':
+    'このブラウザーはファイルのダウンロードに対応していません。JSON をコピーして手動で保存してください。',
+  'apiOpenApi.download.versionUnsupported':
+    '単一オペレーションのダウンロードは現在 OpenAPI 3.0.x のみ対応しています。このドキュメントは引き続き表示・コピーできます。',
+  'apiOpenApi.serialize.failed':
+    'この API の OpenAPI JSON を生成できませんでした。API ドキュメントを確認して、もう一度お試しください。',
 
   // ApiScript (ISSUE-207)
   'apiScript.notFound.title': 'API ドキュメントが見つかりません',
