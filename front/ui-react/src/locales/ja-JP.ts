@@ -519,9 +519,13 @@ const jaJP = {
   'settings.sorter.preserve': '元の順序を維持',
   'settings.localData.title': 'Knife4j のローカルデータをクリア',
   'settings.localData.description':
-    '以下の Knife4j 固有データだけをクリアし、同一オリジンの他のアプリケーションデータには影響しません。',
+    'Knife4j が管理するデータだけをクリアし、同一オリジンの他のアプリケーションデータには影響しません。',
   'settings.localData.clearRequest': 'リクエストキャッシュをクリア',
+  'settings.localData.clearRequestDescription':
+    'リクエストパラメータ、リクエスト履歴、ワークスペースのタブ、API バージョン通知の記録をクリアします。設定、グローバルパラメータ、認証情報は保持されます。',
   'settings.localData.resetAll': 'すべてのローカルデータをリセット',
+  'settings.localData.resetAllDescription':
+    'リクエストキャッシュに加えて、Knife4j の設定、言語、グローバルパラメータ、Cookie セッション設定、OAuth の一時状態、認証情報をクリアして初期状態に戻します。ブラウザーの Cookie はクリアされません。',
   'settings.localData.confirm.requestTitle': 'Knife4j のリクエストキャッシュをクリアしますか？',
   'settings.localData.confirm.allTitle': 'Knife4j のすべてのローカルデータをリセットしますか？',
   'settings.localData.confirm.affected': '次のデータをクリアします：',

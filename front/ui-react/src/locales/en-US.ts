@@ -510,9 +510,13 @@ const enUS = {
   'settings.sorter.preserve': 'Preserve source order',
   'settings.localData.title': 'Clear Knife4j Local Data',
   'settings.localData.description':
-    'Only the Knife4j data listed below is cleared. Other same-origin application storage is left untouched.',
+    'Only Knife4j-owned data is cleared. Other same-origin application storage is left untouched.',
   'settings.localData.clearRequest': 'Clear Request Cache',
+  'settings.localData.clearRequestDescription':
+    'Clears request parameters, request history, workspace tabs, and API version prompt records. Settings, global parameters, and authentication remain.',
   'settings.localData.resetAll': 'Reset All Local Data',
+  'settings.localData.resetAllDescription':
+    'Includes the request cache and also clears Knife4j settings, language, global parameters, Cookie session configuration, temporary OAuth state, and authentication. Browser Cookies are not cleared.',
   'settings.localData.confirm.requestTitle': 'Clear Knife4j request cache?',
   'settings.localData.confirm.allTitle': 'Reset all Knife4j local data?',
   'settings.localData.confirm.affected': 'The following data will be cleared:',

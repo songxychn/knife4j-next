@@ -261,17 +261,33 @@ export default function Settings() {
       <Divider style={{ margin: '4px 0' }} />
 
       <div style={{ padding: '16px 0' }}>
-        <Space direction="vertical" size={10}>
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Text strong>{t('settings.localData.title')}</Text>
-          <Text type="secondary">{t('settings.localData.description')}</Text>
-          <Space wrap>
-            <Button onClick={() => confirmLocalDataCleanup('request-cache')}>
+          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Button
+              aria-describedby="knife4j-clear-request-cache-description"
+              onClick={() => confirmLocalDataCleanup('request-cache')}
+            >
               {t('settings.localData.clearRequest')}
             </Button>
-            <Button danger onClick={() => confirmLocalDataCleanup('all-local-data')}>
+            <Text id="knife4j-clear-request-cache-description" type="secondary">
+              {t('settings.localData.clearRequestDescription')}
+            </Text>
+          </Space>
+          <Divider style={{ margin: '0' }} />
+          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Button
+              danger
+              aria-describedby="knife4j-reset-all-local-data-description"
+              onClick={() => confirmLocalDataCleanup('all-local-data')}
+            >
               {t('settings.localData.resetAll')}
             </Button>
+            <Text id="knife4j-reset-all-local-data-description" type="secondary">
+              {t('settings.localData.resetAllDescription')}
+            </Text>
           </Space>
+          <Text type="secondary">{t('settings.localData.description')}</Text>
         </Space>
       </div>
     </div>
