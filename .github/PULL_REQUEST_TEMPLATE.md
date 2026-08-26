@@ -14,6 +14,23 @@
 
 <!-- 2–5 行说明本 PR 做了什么、不做什么。避免"顺手清理"。 -->
 
+## 契约与审查预算
+
+<!-- 首次 review 前冻结；review 评论不得隐式扩大这些边界。 -->
+
+- 支持版本 / 规范：
+- 范围内模块与对象：
+- 明确非目标：
+- 范围外后续 issue：
+- 当前 head SHA：
+- 审查轮次：全量 0/1；定向复核 0/1
+
+Finding 处置：
+
+- 当前契约缺陷（本 PR 修复）：
+- 无效 / 拒绝（回复但不解决线程）：
+- 范围外能力（后续 issue）：
+
 ## Upstream issue 处理自检
 
 > 如果本 PR **不涉及** upstream issue，请在每项后写 "N/A"。
@@ -50,13 +67,16 @@
 ## 流程自检
 
 - [ ] 分支名符合 `agent/<task-id>-<slug>` 或 `codex/<task-id>-<slug>` 约定（agent 产出）
-- [ ] 已按 `.agent/CODEX_PLAYBOOK.md` / `.agent/SERVER_PLAYBOOK.md` 判断风险等级和门禁要求
+- [ ] 已按 `.agent/PLAYBOOK.md` 判断风险等级、契约边界和审查预算
 - [ ] commit message 关联 issue ≤1 条；未在同一分支混入无关修复
 - [ ] 未把 Java 核心逻辑改动夹带在"标题是文档/UI"的 PR 中
 - [ ] 未绕过 PR 直推 master；未 force push 到 `master`
 - [ ] 已附 worker handoff 摘要；如跳过 worker，已写明例外原因和替代验证
 - [ ] 已附 reviewer handoff 摘要；如跳过 reviewer，已写明例外原因和剩余风险
 - [ ] reviewer 的 `block` / `high` / `medium` 发现已处理，或已在 PR 中写明暂缓理由
+- [ ] 未逐条触发全量 review；默认不超过一轮全量审查和一轮定向复核
+- [ ] 新版本 / 新模块 / 新产品承诺已分流到后续 issue，或有维护者明确改契约记录
+- [ ] 任意新 push 后已重新核对当前 head SHA；旧 CI / review 未被当作当前状态
 
 ## Agent 交接
 
@@ -71,7 +91,6 @@
 参考资料：
 - .agent/RUNBOOK.md —— upstream issue 复现工作流
 - .agent/KNOWN_PITFALLS.md —— 历史误读 / 违规案例
-- .agent/REVIEW_POLICY.md —— review 前必须核对真实 diff
+- .agent/PLAYBOOK.md —— 契约锁定、审查预算与状态门禁
 - .agent/COORDINATION.md —— coordinator / worker / reviewer 门禁
-- .agent/CODEX_PLAYBOOK.md —— 维护者在场时的 Codex 现场协作流
 -->

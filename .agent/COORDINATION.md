@@ -29,8 +29,17 @@
 **Reviewer**
 
 - 只审 diff，不继续写代码
+- 对照主 issue / PR 的冻结契约审查；新增版本、模块或产品能力只能列为 `scope_followup`，不能升级为当前 PR finding
 - 返回 findings + `approve | revise | block`（见 `.agent/prompts/reviewer.md`）
 - 接受结论前必须用真实 `git diff` / `git show` 核对
+
+## 审查轮次
+
+- 默认只安排一轮全量审查和一轮定向复核。
+- 主会话先汇总全量 finding，再按 `当前契约缺陷 / 无效或拒绝 / 范围外后续` 分类处置；不要每修一条就重新发起全量审查。
+- 定向复核提示词必须列出要关闭的 finding、修复提交和已跑验证；reviewer 只确认这些项目，不借复核重新扫描整个 PR。
+- 第三轮审查、新规范版本、新模块或外部行为变化，需要维护者明确决定后才能继续。
+- 任意新 push 后，只有当前 head SHA 的审查结论有效；旧 handoff 仅作历史记录。
 
 ## 提示词
 
@@ -55,3 +64,4 @@ gh issue comment <N> --body "..."
 - 多 worker 时文件所有权不重叠
 - worker 不回滚自己没做过的改动；发现意外改动就报告
 - 失败：记 blocker → 缩小范围或 `status:blocked`，不要加权限盲重试
+- finding 需要跨契约扩张：记后续 issue 或请维护者改契约，不在当前 review 循环中顺手实现
