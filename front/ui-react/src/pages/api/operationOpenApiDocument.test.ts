@@ -347,8 +347,13 @@ describe('buildOperationOpenApiDocument', () => {
                 content: {
                   'application/json': {
                     schema: {
-                      type: 'object',
-                      properties: { details: { $ref: '#/components/schemas/CatalogDetails' } },
+                      allOf: [
+                        { $ref: '#/components/schemas/Pet' },
+                        {
+                          type: 'object',
+                          properties: { details: { $ref: '#/components/schemas/CatalogDetails' } },
+                        },
+                      ],
                     },
                   },
                 },
@@ -382,7 +387,7 @@ describe('buildOperationOpenApiDocument', () => {
 
     expect(Object.keys(serialized.paths)).toEqual(['/selected']);
     expect(mapping).toBe('#/x-knife4j-local-ref-targets/target-1');
-    expect(resolveLocalRef(result, mapping!)).toMatchObject({ type: 'object' });
+    expect(resolveLocalRef(result, mapping!)).toHaveProperty('allOf');
     expect(Object.keys(serialized.components.schemas).sort()).toEqual(['CatalogDetails', 'Pet']);
     localRefs(result).forEach((ref) => expect(resolveLocalRef(result, ref), ref).toBeDefined());
   });
@@ -498,13 +503,13 @@ describe('buildOperationOpenApiDocument', () => {
               200: {
                 description: 'ok',
                 links: {
-                  deleteOrder: { operationRef: '#/paths/~1orders~1{id}/delete' },
+                  deleteOrder: { operationRef: '#/paths/~1orders/delete' },
                 },
               },
             },
           },
         },
-        '/orders/{id}': {
+        '/orders': {
           delete: {
             operationId: 'deleteOrder',
             responses: {
