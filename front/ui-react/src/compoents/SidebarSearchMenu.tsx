@@ -229,7 +229,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         if (status === 'changed') changedCount += 1;
       });
       const labelContent = (
-        <span style={{ display: 'flex', alignItems: 'center', minWidth: 0, width: '100%' }}>
+        <span style={{ display: 'flex', flex: '1 1 auto', alignItems: 'center', minWidth: 0 }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tagName}</span>
           {(addedCount > 0 || changedCount > 0) && (
             <span style={{ display: 'inline-flex', gap: 4, marginLeft: 'auto', paddingLeft: 6 }}>
