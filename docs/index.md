@@ -60,7 +60,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.3.3</version>
+    <version>5.4.0</version>
 </dependency>
 ```
 
@@ -70,7 +70,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.3</version>
+    <version>5.4.0</version>
 </dependency>
 ```
 
@@ -89,15 +89,16 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.3.3 版本亮点 <Badge type="tip" text="最新" />
+## 5.4.0 版本亮点 <Badge type="tip" text="最新" />
 
-- 🧩 urlencoded 与 multipart Body 支持动态添加文档未声明的文本字段
-- 🔄 请求预览、真实发送、缓存、历史与重置保持一致
+- 🧭 页签左右关闭、响应状态概要与接口新增/变化标记
+- 🧹 边界清晰、可跨页签协调的 Knife4j 本地数据清理
+- 📦 下载当前接口的闭合 OpenAPI 3.0.x 文档
 
 完整更新列表见 [发布说明](/release-notes/)。
 
 ::: warning 关于新前端覆盖范围
-新 React 前端当前**仅覆盖部分** upstream 增强特性。它会读取部分 `knife4j.setting.*` UI 默认值，包括自定义 Footer 与后端注入的自定义首页 Markdown；但如果你依赖的是 `enable-after-script`、`enable-version`、Postman 导出等 Vue 时代能力，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`home-custom-path` 仍由后端读取，不是前端读取文件的入口。`knife4j-openapi2-ui` 由本仓库 `front/vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
+新 React 前端当前**仅覆盖部分** upstream 增强特性。它会读取部分 `knife4j.setting.*` UI 默认值，包括自定义 Footer、接口变化提示与后端注入的自定义首页 Markdown；但如果你依赖的是 `enable-after-script`、Postman 导出等 Vue 时代能力，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`home-custom-path` 仍由后端读取，不是前端读取文件的入口。`knife4j-openapi2-ui` 由本仓库 `front/vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
 :::
 
 ## 文档导航

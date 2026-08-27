@@ -17,7 +17,7 @@ title: 产品介绍
 | 访问入口（doc.html / v2 / v3 api-docs） | 保留 | 完全一致 |
 | 仓库 | `xiaoymin/knife4j` | [`songxychn/knife4j-next`](https://github.com/songxychn/knife4j-next) |
 | 发布渠道 | Maven Central | Maven Central |
-| 当前版本 | `4.5.0`（最后一个 Maven Central 发布版本） | `5.3.3` |
+| 当前版本 | `4.5.0`（最后一个 Maven Central 发布版本） | `5.4.0` |
 | 文档站 | [doc.xiaominfo.com](https://doc.xiaominfo.com/) | 本站（`knife4jnext.com`） |
 
 **迁移的最小单位是改 `groupId`，业务代码、配置键、访问路径都不必动。** 详见 [迁移指引](./migration)。
@@ -58,7 +58,7 @@ upstream 文档里列出的增强特性在本 fork 的实际实现状态，前�
 | Springfox 专属增强在 OAS3 中不处理 | `@DynamicParameters`、`@DynamicResponseParameters`、`@ApiOperationSupport(ignoreParameters/includeParameters)` 等 | 迁到 OpenAPI3 时改用实体类或标准 OpenAPI 注解替代 |
 | 后端实现，新 React 前端已读取部分默认值 | `knife4j.setting.language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-footer-custom`、`footer-custom-content`、`enable-request-cache`、`enable-home-custom`、`home-custom-location`、`swagger-model-name` 等 | 这些是 UI 开关，不替代后端安全控制；本地设置面板选择优先 |
 | React UI 已补齐或重做 | OAuth2 四种 flow 基础鉴权、HTML/Word/Markdown/OpenAPI JSON 离线导出、`tags-sorter` / `operations-sorter`、`x-openapi.x-markdownFiles` 自定义文档、自定义 Footer、自定义首页、基础 JS/TS 代码片段 | 优先以本仓库文档和实际 demo 为准 |
-| 仍未覆盖 | Postman 导出、afterScript、版本小蓝点等 | 等待后续迭代；重度依赖这些能力时暂时使用 openapi2 starter + 本仓库 Vue 3 UI |
+| 仍未覆盖 | Postman 导出、afterScript 等 | 等待后续迭代；重度依赖这些能力时暂时使用 openapi2 starter + 本仓库 Vue 3 UI |
 
 完整对应关系见 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
 
@@ -81,7 +81,7 @@ upstream 文档里列出的增强特性在本 fork 的实际实现状态，前�
 knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关：
 
 - **Patch**（`5.0.1`、`5.0.2`、`5.0.3`、`5.0.4`、`5.0.5`、`5.0.6`、`5.0.7`、`5.0.8`、`5.0.9`、`5.0.10`、`5.0.11`、`5.0.12`、`5.0.13`、`5.0.14`、`5.0.15`、`5.0.17`、`5.0.18`、`5.2.1`、`5.2.3`、`5.2.4`、`5.3.1`、`5.3.2`、`5.3.3`）：安全修复、Bug 修复与兼容体验改进。
-- **Minor**（`5.1.0`、`5.2.0`、`5.3.0`）：前端体验改动、新功能（向后兼容）。
+- **Minor**（`5.1.0`、`5.2.0`、`5.3.0`、`5.4.0`）：前端体验改动、新功能（向后兼容）。
 - **Major**（`6.0.0`）：破坏性变更。
 
 ## 下一步推荐路径
