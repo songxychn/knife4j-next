@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Input, Menu, MenuProps, Tooltip } from 'antd';
+import { Button, Input, Menu, MenuProps, Tooltip } from 'antd';
 import {
   ApiOutlined,
+  CheckOutlined,
   ControlOutlined,
   DatabaseOutlined,
   FileMarkdownOutlined,
@@ -13,6 +14,8 @@ import { useTranslation } from 'react-i18next';
 import { ApiItem, useGroup } from '../context/GroupContext';
 import { useGlobalParam } from '../context/GlobalParamContext';
 import { useSettings } from '../context/SettingsContext';
+import { useApiChanges } from '../context/ApiChangeContext';
+import { apiOperationIdentity, type ApiChangeStatus } from '../apiChange/apiChangeTracker';
 import Markdown from '../components/Markdown';
 
 const METHOD_COLORS: Record<string, string> = {
@@ -49,6 +52,27 @@ function methodTag(method: string) {
   );
 }
 
+function changePill(status: ApiChangeStatus, label: string) {
+  const color = status === 'added' ? '#52c41a' : '#fa8c16';
+  return (
+    <span
+      style={{
+        flex: '0 0 auto',
+        marginLeft: 6,
+        padding: '0 5px',
+        border: `1px solid ${color}`,
+        borderRadius: 8,
+        color,
+        fontSize: 9,
+        fontWeight: 700,
+        lineHeight: '16px',
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 interface SidebarSearchMenuProps {
   selectedKey: string;
   onMenuClick: MenuProps['onClick'];
@@ -59,6 +83,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
   const { effectiveParams } = useGlobalParam();
   const { settings } = useSettings();
+  const apiChanges = useApiChanges();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
 
@@ -185,7 +210,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 
     filteredByTag.forEach((apis, tag) => {
       const tagDesc = tagDescMap.get(tag);
-      const labelContent = tagDesc ? (
+      const tagName = tagDesc ? (
         <Tooltip
           title={<Markdown source={tagDesc} preserveLineBreaks />}
           placement="right"
@@ -196,35 +221,59 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       ) : (
         tag
       );
+      let addedCount = 0;
+      let changedCount = 0;
+      apis.forEach((api) => {
+        const status = apiChanges.statuses[apiOperationIdentity(api.method, api.path)];
+        if (status === 'added') addedCount += 1;
+        if (status === 'changed') changedCount += 1;
+      });
+      const labelContent = (
+        <span style={{ display: 'flex', flex: '1 1 auto', alignItems: 'center', minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tagName}</span>
+          {(addedCount > 0 || changedCount > 0) && (
+            <span style={{ display: 'inline-flex', gap: 4, marginLeft: 'auto', paddingLeft: 6 }}>
+              {addedCount > 0 && changePill('added', t('sidebar.apiChange.tagAdded', { count: addedCount }))}
+              {changedCount > 0 && changePill('changed', t('sidebar.apiChange.tagChanged', { count: changedCount }))}
+            </span>
+          )}
+        </span>
+      );
 
       items.push({
         key: `tag-${tag}`,
         icon: <ApiOutlined />,
         label: labelContent,
-        children: apis.map((api) => ({
-          key: api.key,
-          title: `${api.method.toUpperCase()} ${api.summary}`,
-          label: (
-            <span
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                overflow: 'hidden',
-              }}
-            >
-              {methodTag(api.method)}
+        children: apis.map((api) => {
+          const status = apiChanges.statuses[apiOperationIdentity(api.method, api.path)];
+          return {
+            key: api.key,
+            title: `${api.method.toUpperCase()} ${api.summary}`,
+            label: (
               <span
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
                 }}
               >
-                {highlightText(api.summary, q)}
+                {methodTag(api.method)}
+                <span
+                  style={{
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {highlightText(api.summary, q)}
+                </span>
+                {status &&
+                  changePill(status, t(status === 'added' ? 'sidebar.apiChange.new' : 'sidebar.apiChange.changed'))}
               </span>
-            </span>
-          ),
-        })),
+            ),
+          };
+        }),
       });
     });
 
@@ -261,11 +310,36 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     searchText,
     settings.enableSwaggerModels,
     settings.swaggerModelName,
+    apiChanges.statuses,
     t,
   ]);
 
   return (
     <>
+      {!collapsed && apiChanges.enabled && apiChanges.summary.total > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            padding: '4px 8px 0',
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: 12,
+          }}
+        >
+          <span>{t('sidebar.apiChange.unread', { count: apiChanges.summary.total })}</span>
+          <Button
+            type="text"
+            size="small"
+            icon={<CheckOutlined />}
+            onClick={apiChanges.acknowledgeAll}
+            style={{ color: '#fff', paddingInline: 4, fontSize: 12 }}
+          >
+            {t('sidebar.apiChange.markAllRead')}
+          </Button>
+        </div>
+      )}
       {!collapsed && settings.enableSearch && (
         <div style={{ padding: '8px 8px 4px' }}>
           <Input

@@ -37,6 +37,12 @@ const jaJP = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': 'API 名またはパスで検索...',
+  'sidebar.apiChange.new': 'NEW',
+  'sidebar.apiChange.changed': '変更',
+  'sidebar.apiChange.tagAdded': '+{{count}}',
+  'sidebar.apiChange.tagChanged': '~{{count}}',
+  'sidebar.apiChange.unread': '未確認の API：{{count}} 件',
+  'sidebar.apiChange.markAllRead': 'すべて既読',
   'markdownDoc.menu.group': 'Markdown ドキュメント',
   markdownDocLoading: 'ドキュメントを読み込み中…',
   markdownDocNotFound: 'ドキュメントが見つかりません',
@@ -507,6 +513,7 @@ const jaJP = {
   'settings.enableRequestHistory':
     'リクエスト履歴を有効化（デバッグ画面で API ごとに直近のリクエストを記録し、フォームへ適用可能）',
   'settings.enableResponseCode': 'レスポンスステータス概要（ステータスコード、説明、Schema、Media Type）を表示',
+  'settings.enableVersion': '新規・変更された API を通知（OpenAPI 3.0）',
   'settings.enableDynamicParameter':
     '動的フォームパラメータを有効化（urlencoded / multipart Body にドキュメント未定義のテキストフィールドを追加）',
   'settings.enableFilterMultipartApis':

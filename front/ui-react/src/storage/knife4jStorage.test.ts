@@ -12,6 +12,7 @@ import {
   removedKnife4jStorageEntryCount,
   setKnife4jStorageItem,
   subscribeKnife4jStorageReset,
+  updateKnife4jStorageItem,
   withKnife4jStorageWriteLock,
   type Knife4jIndexedDbStorage,
   type Knife4jStorageLockManager,
@@ -1374,6 +1375,36 @@ describe('Knife4j storage cleanup registry', () => {
 
     expect(persisted).toBe(true);
     expect(storage.getItem(targetKey)).toBe('new-value');
+  });
+
+  it('merges concurrent read-modify-write updates inside the shared mutation lock', async () => {
+    const targetKey = `${KNIFE4J_STORAGE_PREFIXES.apiVersionBaseline}document-a`;
+    const sharedValues = new Map<string, string>();
+    const firstTabStorage = new MemoryWebStorage({ [targetKey]: JSON.stringify({ acknowledged: [] }) }, sharedValues);
+    const secondTabStorage = new MemoryWebStorage({}, sharedValues);
+    const lockManager = new MemoryLockManager();
+    const acknowledge = (storage: MemoryWebStorage, operation: string) =>
+      updateKnife4jStorageItem(
+        storage,
+        targetKey,
+        (rawValue) => {
+          const current = JSON.parse(rawValue ?? '{"acknowledged":[]}') as { acknowledged: string[] };
+          return JSON.stringify({ acknowledged: [...current.acknowledged, operation] });
+        },
+        storage,
+        lockManager,
+      );
+
+    const [first, second] = await Promise.all([
+      acknowledge(firstTabStorage, 'GET /pets'),
+      acknowledge(secondTabStorage, 'POST /owners'),
+    ]);
+
+    expect(first.persisted).toBe(true);
+    expect(second.persisted).toBe(true);
+    expect(JSON.parse(firstTabStorage.getItem(targetKey) ?? '{}')).toEqual({
+      acknowledged: ['GET /pets', 'POST /owners'],
+    });
   });
 
   it('refuses a fallback write when quota prevents mutation coordination', async () => {

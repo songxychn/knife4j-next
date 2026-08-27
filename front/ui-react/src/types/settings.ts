@@ -15,6 +15,8 @@ export interface AppSettings {
   enableDebug: boolean;
   /** Whether the OpenAPI raw-structure tab is shown. */
   enableOpenApi: boolean;
+  /** Whether per-operation API additions and semantic changes are tracked locally. */
+  enableVersion: boolean;
   /** Whether response status code, description, schema, and media type summaries are shown. */
   enableResponseCode: boolean;
   /** Whether the home page should use backend-provided custom Markdown. */
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableSearch: true,
   enableDebug: true,
   enableOpenApi: true,
+  enableVersion: false,
   enableResponseCode: true,
   enableHomeCustom: false,
   homeCustomLocation: '',

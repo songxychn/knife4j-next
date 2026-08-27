@@ -33,6 +33,12 @@ const zhCN = {
 
   // SidebarSearchMenu
   'sidebar.search.placeholder': '搜索接口名/路径...',
+  'sidebar.apiChange.new': 'NEW',
+  'sidebar.apiChange.changed': '变更',
+  'sidebar.apiChange.tagAdded': '+{{count}}',
+  'sidebar.apiChange.tagChanged': '~{{count}}',
+  'sidebar.apiChange.unread': '{{count}} 个接口待确认',
+  'sidebar.apiChange.markAllRead': '全部已读',
   'markdownDoc.menu.group': 'Markdown 文档',
   markdownDocLoading: '文档加载中…',
   markdownDocNotFound: '文档未找到',
@@ -482,6 +488,7 @@ const zhCN = {
   'settings.enableRequestCache': '开启请求参数缓存（Debug 调试栏自动缓存上次填写的参数值）',
   'settings.enableRequestHistory': '开启请求历史（Debug 调试栏按接口记录最近请求，可应用到表单）',
   'settings.enableResponseCode': '显示响应状态概要（状态码、说明、Schema 和 Media Type）',
+  'settings.enableVersion': '提示新增和已变化的接口（OpenAPI 3.0）',
   'settings.enableDynamicParameter':
     '开启动态表单参数（允许在 urlencoded / multipart Body 中添加文档未声明的文本字段）',
   'settings.enableFilterMultipartApis': '过滤接口类型（针对 RequestMapping 未指定类型的接口，只展示指定类型）',

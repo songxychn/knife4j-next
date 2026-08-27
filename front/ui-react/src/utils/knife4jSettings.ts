@@ -64,6 +64,9 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableOpenApi = readBoolean(setting, 'enableOpenApi');
   if (enableOpenApi !== undefined) next.enableOpenApi = enableOpenApi;
 
+  const enableVersion = readBoolean(setting, 'enableVersion');
+  if (enableVersion !== undefined) next.enableVersion = enableVersion;
+
   const enableResponseCode = readBoolean(setting, 'enableResponseCode');
   if (enableResponseCode !== undefined) next.enableResponseCode = enableResponseCode;
 

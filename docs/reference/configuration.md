@@ -73,7 +73,7 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ✅ |
 | `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | ⚠️ |
 | `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | ⚠️ |
-| `knife4j.setting.enableVersion` | `boolean` | `false` | 启用接口版本控制 | ⚠️ |
+| `knife4j.setting.enableVersion` | `boolean` | `false` | 提示新增和已变化的接口（OpenAPI 3.0.x） | ✅ |
 | `knife4j.setting.enableRequestCache` | `boolean` | `true` | 启用请求参数缓存 | ✅ |
 | `knife4j.setting.enableFilterMultipartApis` | `boolean` | `false` | 过滤 RequestMapping 多方法显示 | ✅ |
 | `knife4j.setting.enableFilterMultipartApiMethodType` | `String` | `"POST"` | 过滤方法类型 | ✅ |
@@ -95,6 +95,8 @@ public OpenAPI customOpenAPI() {
 > React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的配置仍会由后端写入 extension，但 React 暂不消费。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
 > `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
+
+> `enableVersion` 在 React UI 中使用浏览器本地基线比较当前 OpenAPI 3.0.x 文档。首次开启只建立基线；后续新增接口显示 `NEW`，Operation 或其可达组件语义变化时显示变化标记。OpenAPI 3.1/3.2 的引用基址语义尚未纳入此能力。
 
 > 各配置项的功能说明和示例见 [功能详解](../guide/features#功能详解)。
 
