@@ -274,7 +274,11 @@ public class RouteDispatcher {
         requestUrlBuilder.append(fromUri);
         // String requestUrl=uri+fromUri;
         String requestUrl = requestUrlBuilder.toString();
-        String host = URI.create(uri).getHost();
+        URI targetUri = URI.create(uri);
+        String host = targetUri.getHost();
+        if (targetUri.getPort() != -1) {
+            host += ":" + targetUri.getPort();
+        }
         if (logger.isDebugEnabled()) {
             logger.debug("目标请求Url:{},请求类型:{},Host:{}", requestUrl, request.getMethod(), host);
         }
