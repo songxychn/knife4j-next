@@ -167,12 +167,12 @@ export class Knife4jPathItemObject {
     const _required = lodash.defaultTo(body.required, false);
     //遍历
     for (const media in content) {
-      const _schema = content[media];
-      if (lodash.isEmpty(media) || lodash.isEmpty(_schema)) {
+      const mediaType = content[media];
+      if (lodash.isEmpty(media) || lodash.isEmpty(mediaType)) {
         continue;
       }
       const _requestBody = new Knife4jRequestBody(media);
-      _requestBody.resolveBody(_description, _required, _schema, instance);
+      _requestBody.resolveBody(_description, _required, mediaType.schema ?? {}, instance);
       this.requestBody.push(_requestBody);
     }
   }

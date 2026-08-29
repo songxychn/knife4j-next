@@ -35,6 +35,7 @@ const METHOD_COLORS: Record<HomeHttpMethod, string> = {
   patch: '#50e3c2',
   head: '#9012fe',
   options: '#0d5aa7',
+  trace: '#c41d7f',
 };
 
 export default function Home() {

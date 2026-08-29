@@ -7,6 +7,7 @@ import { useGroup } from '../../context/GroupContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useApiChanges } from '../../context/ApiChangeContext';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
+import { findMenuOperation, visibleOperationModeKeys, type OperationModeKey } from './operationRouting';
 
 interface CurrentOperation {
   loading: boolean;
@@ -22,22 +23,12 @@ export function useCurrentOperation(): CurrentOperation {
   const { ready: apiChangesReady, scopeKey: apiChangeScopeKey, acknowledgeOperation } = useApiChanges();
 
   const operation = useMemo(() => {
-    if (!tag || !operaterId) return undefined;
-    const routeTag = decodeURIComponent(tag);
-    const routeOperationId = decodeURIComponent(operaterId);
-    const menuTag = menuTags.find((item) => item.tag === routeTag);
-    return menuTag?.operations.find((item) => {
-      const fallbackId = item.operationId ?? item.path;
-      return (
-        fallbackId === routeOperationId ||
-        item.key === `${encodeURIComponent(routeTag)}/${encodeURIComponent(routeOperationId)}`
-      );
-    });
+    return findMenuOperation(menuTags, tag, operaterId);
   }, [menuTags, operaterId, tag]);
 
   useEffect(() => {
     if (!apiChangesReady || !operation) return;
-    acknowledgeOperation(operation.method, operation.path);
+    if (operation.source !== 'webhook') acknowledgeOperation(operation.method, operation.path);
   }, [acknowledgeOperation, apiChangeScopeKey, apiChangesReady, operation]);
 
   return {
@@ -47,8 +38,6 @@ export function useCurrentOperation(): CurrentOperation {
     operation,
   };
 }
-
-export type OperationModeKey = 'doc' | 'debug' | 'openapi' | 'script';
 
 interface OperationModeLayoutProps {
   activeKey: OperationModeKey;
@@ -67,16 +56,14 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
   const { group, tag, operaterId } = useParams();
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const { menuTags } = useGroup();
+  const operation = useMemo(() => findMenuOperation(menuTags, tag, operaterId), [menuTags, operaterId, tag]);
 
-  const visibleModes = useMemo(
-    () =>
-      OPERATION_MODES.filter((item) => {
-        if (item.key === 'debug') return settings.enableDebug;
-        if (item.key === 'openapi') return settings.enableOpenApi;
-        return true;
-      }),
-    [settings.enableDebug, settings.enableOpenApi],
+  const visibleModeKeys = useMemo(
+    () => visibleOperationModeKeys(operation?.source, settings.enableDebug, settings.enableOpenApi),
+    [operation?.source, settings.enableDebug, settings.enableOpenApi],
   );
+  const visibleModes = OPERATION_MODES.filter((item) => visibleModeKeys.includes(item.key));
 
   const activeModeVisible = visibleModes.some((item) => item.key === activeKey);
 

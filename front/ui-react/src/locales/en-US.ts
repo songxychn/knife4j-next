@@ -5,6 +5,9 @@ const enUS = {
   'app.tab.home': 'Home',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'Failed to load API docs',
+  'app.oas31Compatibility.title': 'This OAS 3.1 document requires degraded handling',
+  'app.oas31Compatibility.description':
+    'The raw document remains available, but {{count}} item(s) cannot be resolved safely in the browser. Related field trees, examples, or debug models may be incomplete.',
 
   // Runtime diagnostics
   'error.apiDocs.http': 'api-docs request failed: HTTP {{status}}',
@@ -107,6 +110,8 @@ const enUS = {
   'apiDoc.notFound.title': 'API doc not found',
   'apiDoc.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
   'apiDoc.deprecated': 'Deprecated',
+  'apiDoc.webhook.readOnly':
+    'This is an inbound OAS 3.1 webhook contract. Documentation and OpenAPI preview are available, but the browser will not send it as a request.',
   'apiDoc.author': 'Author:',
   'apiDoc.requestParams': 'Request Parameters',
   'apiDoc.col.paramName': 'Name',
@@ -292,6 +297,12 @@ const enUS = {
   'apiDebug.body.beautifyFailed': 'Beautify failed. Check that the body is valid {{contentType}}.',
   'apiDebug.body.file': 'File',
   'apiDebug.body.selectFile': 'Select File',
+  'apiDebug.body.binaryHint':
+    'This OAS 3.1 body sends the selected file unchanged as {{contentType}}; it is not converted to text or multipart.',
+  'apiDebug.body.browserMethodUnsupported':
+    'The browser Fetch API cannot send a request body with {{method}}. Use the generated cURL command or change the operation method.',
+  'apiDebug.method.browserUnsupported':
+    'The browser Fetch API forbids {{method}} requests. Use the generated cURL command or another non-browser client.',
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
@@ -385,6 +396,9 @@ const enUS = {
   'auth.schemes.oauth2.implicit': 'Implicit',
   'auth.schemes.oauth2.authorizationCode': 'Authorization Code',
   'auth.btn.authorize': 'Save credential',
+  'auth.schemes.mutualTLS.readOnly': 'mutualTLS security scheme recognized',
+  'auth.schemes.mutualTLS.description':
+    'This page does not store or inject client certificates. Configure mutual TLS in the browser, operating system, or an upstream proxy.',
   'auth.btn.unauthorize': 'Remove credential',
   'auth.btn.clearAll': 'Clear All',
   'apiDebug.auth.modal.title': '401 Unauthorized — please configure authentication',

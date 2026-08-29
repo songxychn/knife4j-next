@@ -591,6 +591,149 @@ describe('buildSchemaFieldTree', () => {
   });
 });
 
+describe('OpenAPI 3.1 JSON Schema baseline', () => {
+  const oas31Doc: Record<string, unknown> = {
+    ...doc,
+    openapi: '3.1.1',
+    components: {
+      schemas: {
+        ...((doc.components as { schemas: Record<string, unknown> }).schemas ?? {}),
+        BaseRecord: {
+          type: 'object',
+          description: 'base description',
+          properties: {
+            id: { type: 'integer', const: 7 },
+          },
+        },
+        ExtendedRecord: {
+          $ref: '#/components/schemas/BaseRecord',
+          description: 'extended description',
+          properties: {
+            label: { type: ['string', 'null'], examples: ['primary label'] },
+          },
+          required: ['label'],
+        },
+        WithDefs: {
+          $defs: {
+            State: { type: 'string', const: 'READY' },
+          },
+          type: 'object',
+          properties: {
+            state: { $ref: '#/components/schemas/WithDefs/$defs/State' },
+          },
+        },
+        AnyValue: true,
+        NoValue: false,
+        StringFromTrue: {
+          $ref: '#/components/schemas/AnyValue',
+          type: 'string',
+          const: 'allowed',
+        },
+      },
+    },
+  };
+
+  const oas31Ctx = (): SchemaResolveContext => ({ doc: oas31Doc });
+
+  test('applies Schema Object $ref siblings in 3.1', () => {
+    expect(buildSchemaExample({ $ref: '#/components/schemas/ExtendedRecord' }, oas31Ctx())).toEqual({
+      id: 7,
+      label: 'primary label',
+    });
+
+    const fields = buildSchemaFieldTree({ $ref: '#/components/schemas/ExtendedRecord' }, oas31Ctx());
+    expect(fields.map((field) => field.name)).toEqual(['id', 'label']);
+    expect(fields.find((field) => field.name === 'label')).toMatchObject({
+      required: true,
+      types: ['string', 'null'],
+      example: 'primary label',
+    });
+  });
+
+  test('preserves a __proto__ property introduced by a Schema $ref sibling', () => {
+    const siblingProperties = JSON.parse('{"__proto__":{"type":"string","const":"safe"}}') as Record<string, unknown>;
+    const schema = {
+      $ref: '#/components/schemas/BaseRecord',
+      properties: siblingProperties,
+    };
+
+    const example = buildSchemaExample(schema, oas31Ctx()) as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(example, '__proto__')).toBe(true);
+    expect(example.__proto__).toBe('safe');
+    expect(buildSchemaFieldTree(schema, oas31Ctx()).map((field) => field.name)).toEqual(['id', '__proto__']);
+  });
+
+  test('keeps Reference Object sibling behavior unchanged for OAS 3.0', () => {
+    const oas30Doc = { ...oas31Doc, openapi: '3.0.3' };
+    expect(
+      buildSchemaExample(
+        {
+          $ref: '#/components/schemas/BaseRecord',
+          properties: { ignoredIn30: { type: 'string' } },
+        },
+        { doc: oas30Doc },
+      ),
+    ).toEqual({ id: 7 });
+  });
+
+  test('uses const, examples, local $defs pointers and tuple prefixItems', () => {
+    expect(buildSchemaExample({ const: 'fixed' }, oas31Ctx())).toBe('fixed');
+    expect(buildSchemaExample({ type: 'string', examples: ['first', 'second'] }, oas31Ctx())).toBe('first');
+    expect(buildSchemaExample({ $ref: '#/components/schemas/WithDefs' }, oas31Ctx())).toEqual({ state: 'READY' });
+    expect(
+      buildSchemaExample(
+        {
+          type: 'array',
+          prefixItems: [
+            { type: 'string', const: 'name' },
+            { type: 'integer', const: 1 },
+          ],
+          items: false,
+        },
+        oas31Ctx(),
+      ),
+    ).toEqual(['name', 1]);
+  });
+
+  test('represents boolean schemas and numeric exclusive bounds without throwing', () => {
+    expect(buildSchemaExample(true, oas31Ctx())).toEqual({});
+    expect(buildSchemaExample(false, oas31Ctx())).toBeNull();
+    expect(buildSchemaFieldTree(true, oas31Ctx())).toEqual([
+      expect.objectContaining({ type: 'unknown', booleanSchema: true }),
+    ]);
+    expect(buildSchemaFieldTree(false, oas31Ctx())).toEqual([
+      expect.objectContaining({ type: 'never', booleanSchema: false }),
+    ]);
+    expect(buildSchemaExample({ $ref: '#/components/schemas/AnyValue' }, oas31Ctx())).toEqual({});
+    expect(buildSchemaExample({ $ref: '#/components/schemas/NoValue' }, oas31Ctx())).toBeNull();
+    expect(buildSchemaExample({ $ref: '#/components/schemas/StringFromTrue' }, oas31Ctx())).toBe('allowed');
+    expect(buildSchemaFieldTree({ $ref: '#/components/schemas/NoValue' }, oas31Ctx())).toEqual([
+      expect.objectContaining({ type: 'never', booleanSchema: false, refName: 'NoValue' }),
+    ]);
+    expect(
+      buildSchemaFieldTree(
+        { allOf: [{ $ref: '#/components/schemas/BaseRecord' }, { $ref: '#/components/schemas/NoValue' }] },
+        oas31Ctx(),
+      ),
+    ).toEqual([expect.objectContaining({ type: 'never', booleanSchema: false })]);
+
+    expect(
+      buildSchemaFieldTree(
+        {
+          type: 'number',
+          exclusiveMinimum: 0,
+          exclusiveMaximum: 10,
+        },
+        oas31Ctx(),
+      )[0],
+    ).toMatchObject({ exclusiveMinimum: 0, exclusiveMaximum: 10 });
+
+    expect(
+      buildSchemaFieldTree({ contentMediaType: 'image/png', contentEncoding: 'base64' }, oas31Ctx())[0],
+    ).toMatchObject({ contentMediaType: 'image/png', contentEncoding: 'base64' });
+  });
+});
+
 // ─── TASK-114 专项测试 ────────────────────────────────
 
 describe('TASK-114: allOf/oneOf/anyOf schema inheritance', () => {

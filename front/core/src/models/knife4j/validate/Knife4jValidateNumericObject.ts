@@ -18,7 +18,7 @@ export class Knife4jValidateNumericObject {
   /**
    * Whether the maximum value is exclusive.
    */
-  exclusiveMaximum?: boolean;
+  exclusiveMaximum?: boolean | number;
 
   /**
    * Minimum value allowed.
@@ -28,7 +28,7 @@ export class Knife4jValidateNumericObject {
   /**
    * Whether the minimum value is exclusive.
    */
-  exclusiveMinimum?: boolean;
+  exclusiveMinimum?: boolean | number;
   /**
    * 解析schema-validate部分参数
    * @param schema schema对象
@@ -41,6 +41,6 @@ export class Knife4jValidateNumericObject {
     this.maximum = schema.maximum;
     this.exclusiveMaximum = schema.exclusiveMaximum;
     this.minimum = schema.minimum;
-    this.exclusiveMaximum = schema.exclusiveMaximum;
+    this.exclusiveMinimum = schema.exclusiveMinimum;
   }
 }

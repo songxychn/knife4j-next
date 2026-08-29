@@ -61,6 +61,26 @@ describe('knife4jClient', () => {
     expect(isOpenApi3Document({ swagger: '2.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
   });
 
+  it('normalizes a webhook-only OAS 3.1 response to an empty internal paths map', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        textResponse(
+          JSON.stringify({
+            openapi: '3.1.1',
+            info: { title: 'Webhook API', version: '1' },
+            webhooks: { changed: { post: { summary: 'Changed' } } },
+          }),
+        ),
+      ),
+    );
+
+    const result = await fetchSwaggerDocResult('/openapi.json');
+    expect(result.error).toBeNull();
+    expect(result.doc?.paths).toEqual({});
+    expect(parseMenuTags(result.doc!)[0].operations[0].source).toBe('webhook');
+  });
+
   it('preserves aggregation route metadata from swagger-config urls', () => {
     expect(
       parseGroupsFromConfig({
@@ -397,5 +417,127 @@ describe('knife4jClient', () => {
 
     expect(menuTags.map((tag) => tag.tag)).toEqual(['pets', 'users']);
     expect(menuTags[1].operations.map((operation) => operation.operationId)).toEqual(['createUser', 'listUsers']);
+  });
+
+  it('parses TRACE paths and OAS 3.1 webhook operations while ignoring Path Item metadata', () => {
+    const doc = {
+      openapi: '3.1.1',
+      info: { title: 'Events', version: '1.0.0' },
+      paths: {
+        '/diagnostics': {
+          summary: 'metadata only',
+          parameters: [{ name: 'requestId', in: 'query' }],
+          trace: {
+            tags: ['diagnostics'],
+            operationId: 'traceDiagnostics',
+            summary: 'Trace diagnostics',
+          },
+        },
+      },
+      webhooks: {
+        petChanged: { $ref: '#/components/pathItems/Pet%20ChangedAlias' },
+      },
+      components: {
+        pathItems: {
+          'Pet ChangedAlias': { $ref: '#/components/pathItems/Pet%20Changed' },
+          'Pet Changed': {
+            post: {
+              tags: ['events'],
+              operationId: 'petChanged',
+              summary: 'Pet changed',
+            },
+          },
+        },
+      },
+    } as SwaggerDoc;
+
+    const menuTags = parseMenuTags(doc);
+    const trace = menuTags.find((tag) => tag.tag === 'diagnostics')?.operations[0];
+    const webhook = menuTags.find((tag) => tag.tag === 'events')?.operations[0];
+
+    expect(trace).toMatchObject({ method: 'trace', source: 'path', routeId: 'traceDiagnostics' });
+    expect(webhook).toMatchObject({
+      path: 'petChanged',
+      method: 'post',
+      source: 'webhook',
+      routeId: 'webhook:petChanged',
+    });
+    expect(menuTags.flatMap((tag) => tag.operations)).toHaveLength(2);
+  });
+
+  it('accepts a webhook-only OAS 3.1 document with no paths field', () => {
+    const doc = {
+      openapi: '3.1.1',
+      info: { title: 'Webhook only', version: '1.0.0' },
+      webhooks: {
+        invoicePaid: {
+          post: { summary: 'Invoice paid' },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(parseMenuTags(doc)[0].operations[0]).toMatchObject({ source: 'webhook', path: 'invoicePaid' });
+  });
+
+  it('uses distinct routes for webhook methods without operationId', () => {
+    const doc = {
+      openapi: '3.1.2',
+      info: { title: 'Webhook routes', version: '1.0.0' },
+      webhooks: {
+        changed: {
+          post: { summary: 'Changed by POST' },
+          put: { summary: 'Changed by PUT' },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(parseMenuTags(doc)[0].operations.map((operation) => operation.routeId)).toEqual([
+      'webhook:post:changed',
+      'webhook:put:changed',
+    ]);
+  });
+
+  it('qualifies fallback routes only when path methods collide in the same tag', () => {
+    const doc = {
+      openapi: '3.1.2',
+      info: { title: 'Path routes', version: '1.0.0' },
+      paths: {
+        '/diagnostics': {
+          get: { tags: ['diagnostics'], summary: 'Read diagnostics' },
+          trace: { tags: ['diagnostics'], summary: 'Trace diagnostics' },
+        },
+        '/health': {
+          get: { tags: ['diagnostics'], summary: 'Read health' },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(parseMenuTags(doc)[0].operations.map((operation) => operation.routeId)).toEqual([
+      'get:/diagnostics',
+      'trace:/diagnostics',
+      '/health',
+    ]);
+  });
+
+  it('disambiguates valid path and webhook identities that collide across sources', () => {
+    const doc = {
+      openapi: '3.1.2',
+      info: { title: 'Cross-source routes', version: '1.0.0' },
+      paths: {
+        '/changed': {
+          get: { tags: ['events'], operationId: 'webhook:changed' },
+        },
+      },
+      webhooks: {
+        changed: {
+          post: { tags: ['events'], operationId: 'changed' },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(parseMenuTags(doc)[0].operations.map((operation) => operation.routeId)).toEqual([
+      'path:get:/changed',
+      'webhook:post:changed',
+    ]);
   });
 });

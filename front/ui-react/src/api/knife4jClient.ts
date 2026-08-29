@@ -17,7 +17,7 @@ import type { LocalizedMessage } from '../types/i18n';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
 import { buildRouteProxyHeaders } from './routeProxyHeader';
 
-const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
+const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
 type HttpMethod = (typeof HTTP_METHODS)[number];
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
 const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
@@ -44,6 +44,7 @@ const METHOD_ORDER: Record<string, number> = {
   patch: 4,
   head: 5,
   options: 6,
+  trace: 7,
 };
 
 /** tag 排序策略 */
@@ -204,6 +205,7 @@ function normalizeSwaggerDoc(doc: Record<string, unknown>): SwaggerDoc {
   return {
     ...doc,
     info: normalizeSwaggerInfo(doc.info),
+    paths: isRecord(doc.paths) ? doc.paths : {},
   } as SwaggerDoc;
 }
 
@@ -272,6 +274,45 @@ interface ParsedOperation {
   method: HttpMethod;
   operation: OperationObject;
   tags: string[];
+  source: 'path' | 'webhook';
+}
+
+function resolveLocalPointer(document: SwaggerDoc, ref: string): unknown {
+  if (!ref.startsWith('#/')) return undefined;
+  let pointer: string;
+  try {
+    pointer = decodeURIComponent(ref.slice(2));
+  } catch {
+    return undefined;
+  }
+  let current: unknown = document;
+  for (const segment of pointer.split('/')) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined;
+    const key = segment.replace(/~1/g, '/').replace(/~0/g, '~');
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+function resolvePathItem(doc: SwaggerDoc, pathItem: unknown): import('../types/swagger').PathItemObject | null {
+  if (!pathItem || typeof pathItem !== 'object' || Array.isArray(pathItem)) return null;
+  let item = pathItem as import('../types/swagger').PathItemObject;
+  const seenRefs = new Set<string>();
+  for (let depth = 0; typeof item.$ref === 'string' && depth < 10; depth++) {
+    if (seenRefs.has(item.$ref)) return null;
+    seenRefs.add(item.$ref);
+    const resolved = resolveLocalPointer(doc, item.$ref);
+    if (!resolved || typeof resolved !== 'object' || Array.isArray(resolved)) return null;
+    item = resolved as import('../types/swagger').PathItemObject;
+  }
+  return typeof item.$ref === 'string' ? null : item;
+}
+
+function defaultOperationRouteId(operation: ParsedOperation): string {
+  const { path, method, source } = operation;
+  return source === 'webhook'
+    ? `webhook:${operation.operation.operationId ?? `${method}:${path}`}`
+    : (operation.operation.operationId ?? path);
 }
 
 function sortOperations(ops: MenuOperation[], sorter: OperationsSorter): MenuOperation[] {
@@ -365,33 +406,92 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
     tagMap.set(t.name, { tag: t.name, description: t.description, operations: [] });
   });
 
-  Object.entries(doc.paths ?? {}).forEach(([path, pathItem]) => {
+  Object.entries(doc.paths ?? {}).forEach(([path, rawPathItem]) => {
+    const pathItem = resolvePathItem(doc, rawPathItem);
+    if (!pathItem) return;
     HTTP_METHODS.forEach((method) => {
       const op = pathItem[method];
       if (!op) return;
 
       const tags = op.tags?.length ? op.tags : ['default'];
-      parsedOperations.push({ path, method, operation: op, tags });
+      parsedOperations.push({ path, method, operation: op, tags, source: 'path' });
+    });
+  });
+
+  Object.entries(doc.webhooks ?? {}).forEach(([name, rawPathItem]) => {
+    const pathItem = resolvePathItem(doc, rawPathItem);
+    if (!pathItem) return;
+    HTTP_METHODS.forEach((method) => {
+      const op = pathItem[method] as OperationObject | undefined;
+      if (!op) return;
+      const tags = op.tags?.length ? op.tags : ['webhooks'];
+      parsedOperations.push({ path: name, method, operation: op, tags, source: 'webhook' });
     });
   });
 
   const visibleOperations = filterMultipartApis
-    ? filterMultipartOperations(parsedOperations, options.filterMultipartApiMethodType)
+    ? [
+        ...filterMultipartOperations(
+          parsedOperations.filter((operation) => operation.source === 'path'),
+          options.filterMultipartApiMethodType,
+        ),
+        ...parsedOperations.filter((operation) => operation.source === 'webhook'),
+      ]
     : parsedOperations;
 
-  visibleOperations.forEach(({ path, method, operation, tags }) => {
+  const routeCandidateCounts = new Map<string, number>();
+  visibleOperations.forEach((parsedOperation) => {
+    const routeCandidate = defaultOperationRouteId(parsedOperation);
+    const { tags } = parsedOperation;
+    tags.forEach((tag) => {
+      const key = `${tag}\u0000${routeCandidate}`;
+      routeCandidateCounts.set(key, (routeCandidateCounts.get(key) ?? 0) + 1);
+    });
+  });
+
+  const reservedUniqueRouteIds = new Map<string, Set<string>>();
+  routeCandidateCounts.forEach((count, key) => {
+    if (count !== 1) return;
+    const separator = key.indexOf('\u0000');
+    const tag = key.slice(0, separator);
+    const routeId = key.slice(separator + 1);
+    const reserved = reservedUniqueRouteIds.get(tag) ?? new Set<string>();
+    reserved.add(routeId);
+    reservedUniqueRouteIds.set(tag, reserved);
+  });
+  const usedRouteIds = new Map<string, Set<string>>();
+
+  visibleOperations.forEach((parsedOperation) => {
+    const { path, method, operation, tags, source } = parsedOperation;
     tags.forEach((tag) => {
       if (!tagMap.has(tag)) {
         tagMap.set(tag, { tag, operations: [] });
       }
+      const routeCandidate = defaultOperationRouteId(parsedOperation);
+      const used = usedRouteIds.get(tag) ?? new Set<string>();
+      let routeId = routeCandidate;
+      if ((routeCandidateCounts.get(`${tag}\u0000${routeCandidate}`) ?? 0) > 1 || used.has(routeCandidate)) {
+        const fallback =
+          source === 'path' && !operation.operationId ? `${method}:${path}` : `${source}:${method}:${path}`;
+        const reserved = reservedUniqueRouteIds.get(tag);
+        routeId = fallback;
+        let suffix = 2;
+        while (used.has(routeId) || reserved?.has(routeId)) {
+          routeId = `${fallback}:${suffix++}`;
+        }
+      }
+      used.add(routeId);
+      usedRouteIds.set(tag, used);
       const menuOp: MenuOperation = {
-        key: `${encodeURIComponent(tag)}/${encodeURIComponent(operation.operationId ?? path)}`,
+        key: `${encodeURIComponent(tag)}/${encodeURIComponent(routeId)}`,
         path,
         method,
         summary: operation.summary ?? path,
         operationId: operation.operationId,
         deprecated: operation.deprecated,
         operation,
+        source,
+        routeId,
       };
       tagMap.get(tag)!.operations.push(menuOp);
     });

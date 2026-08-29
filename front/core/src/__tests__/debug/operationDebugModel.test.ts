@@ -1200,3 +1200,329 @@ describe('buildOperationDebugModel — OAS2', () => {
     expect(model.queryParams[0].type).toBe('integer');
   });
 });
+
+describe('buildOperationDebugModel — OAS 3.1 parameter semantics', () => {
+  test('resolves a local Path Item $ref before building the debug model', () => {
+    const doc = {
+      openapi: '3.1.1',
+      paths: {
+        '/pets': { $ref: '#/components/pathItems/Pets' },
+      },
+      components: {
+        pathItems: {
+          Pets: {
+            get: {
+              parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer' } }],
+            },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/pets', method: 'get' });
+    expect(model.queryParams[0]).toMatchObject({ name: 'limit', type: 'integer' });
+  });
+
+  test('normalizes nullable type arrays for debug controls', () => {
+    const doc = {
+      openapi: '3.1.1',
+      paths: {
+        '/search': {
+          get: {
+            parameters: [{ name: 'query', in: 'query', schema: { type: ['string', 'null'] } }],
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/search', method: 'get' });
+    expect(model.queryParams[0].type).toBe('string');
+  });
+
+  test('keeps Schema Object $ref siblings on operation parameters', () => {
+    const doc = {
+      openapi: '3.1.1',
+      paths: {
+        '/search': {
+          get: {
+            parameters: [
+              {
+                name: 'query',
+                in: 'query',
+                schema: { $ref: '#/components/schemas/BaseQuery', maxLength: 20 },
+              },
+            ],
+          },
+        },
+      },
+      components: {
+        schemas: {
+          BaseQuery: { type: 'string', minLength: 1 },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/search', method: 'get' });
+    expect(model.queryParams[0]).toMatchObject({
+      type: 'string',
+      schema: { type: 'string', minLength: 1, maxLength: 20 },
+    });
+  });
+
+  test('uses Reference Object summary and description siblings in 3.1', () => {
+    const doc = {
+      openapi: '3.1.1',
+      paths: {
+        '/search': {
+          get: {
+            parameters: [
+              {
+                $ref: '#/components/parameters/Query',
+                description: 'Use-site query description',
+              },
+            ],
+          },
+        },
+      },
+      components: {
+        parameters: {
+          Query: { name: 'query', in: 'query', description: 'Base query description', schema: { type: 'string' } },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/search', method: 'get' });
+    expect(model.queryParams[0]).toMatchObject({ name: 'query', description: 'Use-site query description' });
+  });
+
+  test('ignores Reference Object summary and description siblings in 3.0', () => {
+    const doc = {
+      openapi: '3.0.3',
+      paths: {
+        '/search': {
+          get: {
+            parameters: [
+              {
+                $ref: '#/components/parameters/Query',
+                description: 'Ignored use-site description',
+              },
+            ],
+          },
+        },
+      },
+      components: {
+        parameters: {
+          Query: { name: 'query', in: 'query', description: 'Base query description', schema: { type: 'string' } },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/search', method: 'get' });
+    expect(model.queryParams[0].description).toBe('Base query description');
+  });
+
+  test('keeps Schema Object $ref siblings in a structured request body', () => {
+    const doc = {
+      openapi: '3.1.1',
+      paths: {
+        '/records': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/BaseRecord',
+                    properties: { label: { type: 'string', const: 'new' } },
+                    required: ['label'],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          BaseRecord: {
+            type: 'object',
+            properties: { id: { type: 'integer', const: 1 } },
+            required: ['id'],
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/records', method: 'post' });
+    expect(Object.keys(model.bodyContents[0].schema?.properties as object)).toEqual(['id', 'label']);
+    expect(model.bodyContents[0].exampleValue).toBe('{\n  "id": 1,\n  "label": "new"\n}');
+  });
+
+  test('recognizes an unencoded OAS 3.1 binary request body', () => {
+    const doc = {
+      openapi: '3.1.2',
+      paths: {
+        '/avatar': {
+          put: {
+            requestBody: {
+              required: true,
+              content: {
+                'image/png': { schema: { contentMediaType: 'image/png' } },
+                'text/plain': { schema: { type: 'string', contentEncoding: 'base64' } },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/avatar', method: 'put' });
+    expect(model.bodyContents[0]).toMatchObject({ mediaType: 'image/png', category: 'raw', binary: true });
+    expect(model.bodyContents[0].exampleValue).toBeUndefined();
+    expect(model.bodyContents[1].binary).toBeUndefined();
+  });
+
+  test('lets the Media Type Object override conflicting contentMediaType annotations', () => {
+    const doc = {
+      openapi: '3.1.2',
+      paths: {
+        '/payload': {
+          post: {
+            requestBody: {
+              content: {
+                'text/plain': { schema: { contentMediaType: 'image/png' } },
+                'application/*': { schema: { contentMediaType: 'application/pdf' } },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/payload', method: 'post' });
+    expect(model.bodyContents[0].binary).toBeUndefined();
+    expect(model.bodyContents[1].binary).toBe(true);
+  });
+
+  test('keeps OAS 3.0 format binary request bodies as file uploads', () => {
+    const doc = {
+      openapi: '3.0.3',
+      paths: {
+        '/archive': {
+          put: {
+            requestBody: {
+              content: {
+                'application/octet-stream': { schema: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    expect(buildOperationDebugModel({ doc, path: '/archive', method: 'put' }).bodyContents[0].binary).toBe(true);
+  });
+
+  test('keeps encoded OAS 3.1 strings in their declared text body', () => {
+    const doc = {
+      openapi: '3.1.2',
+      paths: {
+        '/encoded': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': {
+                  schema: {
+                    properties: {
+                      payload: { type: 'string', format: 'binary', contentEncoding: 'base64' },
+                    },
+                  },
+                },
+                'text/plain': {
+                  schema: { type: 'string', format: 'binary', contentEncoding: 'base64' },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/encoded', method: 'post' });
+    expect(model.bodyContents[0]).toMatchObject({ mediaType: 'application/json', category: 'json' });
+    expect(model.bodyContents[0].fileFields).toBeUndefined();
+    expect(model.bodyContents[1].binary).toBeUndefined();
+  });
+
+  test('recognizes the official typeless-root multipart multiple-file shape', () => {
+    const doc = {
+      openapi: '3.1.1',
+      paths: {
+        '/files': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    properties: {
+                      files: { type: 'array', items: {} },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const body = buildOperationDebugModel({ doc, path: '/files', method: 'post' }).bodyContents[0];
+    expect(body.fileFields).toEqual(['files']);
+    expect(body.fileFieldsMultiple).toEqual(['files']);
+  });
+
+  test('recognizes OAS 3.1 raw binary multipart fields and arrays', () => {
+    const doc = {
+      openapi: '3.1.2',
+      paths: {
+        '/attachments': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      avatar: {},
+                      rawDefault: {},
+                      attachments: { type: 'array', items: { contentMediaType: 'application/pdf' } },
+                      encodedIcon: { type: 'string', contentEncoding: 'base64' },
+                      encodedLegacy: { type: 'string', format: 'base64', contentEncoding: 'base64' },
+                      metadata: { $ref: '#/components/schemas/Metadata' },
+                      referencedImage: { $ref: '#/components/schemas/BinaryImage' },
+                      declaredString: { type: 'string', contentMediaType: 'image/png' },
+                      encodingWins: { contentMediaType: 'image/png' },
+                    },
+                  },
+                  encoding: {
+                    avatar: { contentType: 'image/png' },
+                    encodingWins: { contentType: 'text/plain' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Metadata: { type: 'object', properties: { title: { type: 'string' } } },
+          BinaryImage: { contentMediaType: 'image/png' },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/attachments', method: 'post' });
+    expect(model.bodyContents[0].fileFields).toEqual(['avatar', 'rawDefault', 'attachments', 'referencedImage']);
+    expect(model.bodyContents[0].fileFieldsMultiple).toEqual(['attachments']);
+  });
+});

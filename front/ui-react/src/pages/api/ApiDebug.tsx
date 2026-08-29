@@ -128,6 +128,7 @@ import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from '
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
+import { browserRequestConstraint } from './browserRequestConstraints';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -141,6 +142,7 @@ const METHOD_COLORS: Record<string, string> = {
   PATCH: 'purple',
   HEAD: 'cyan',
   OPTIONS: 'default',
+  TRACE: 'magenta',
 };
 
 // ─── Response body classification ─────────────────────
@@ -852,6 +854,7 @@ interface BodyTabProps {
   customBodyParams: CustomParamRow[];
   setCustomBodyParams: (rows: CustomParamRow[]) => void;
   fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
+  binaryBodyFileRef: React.MutableRefObject<File | null>;
   rawMode: RawMode;
   setRawMode: (v: RawMode) => void;
 }
@@ -869,6 +872,7 @@ function BodyTab({
   customBodyParams,
   setCustomBodyParams,
   fileFieldsRef,
+  binaryBodyFileRef,
   rawMode,
   setRawMode,
 }: BodyTabProps) {
@@ -892,6 +896,7 @@ function BodyTab({
       setCustomBodyParams([]);
       // 重置 fileFields
       fileFieldsRef.current = {};
+      binaryBodyFileRef.current = null;
 
       // 更新 body 文本
       if (target.category === 'json') {
@@ -931,7 +936,9 @@ function BodyTab({
                     ? 'x-www-form-urlencoded'
                     : bc.category === 'multipart'
                       ? 'multipart/form-data'
-                      : 'raw'}
+                      : bc.binary
+                        ? 'binary'
+                        : 'raw'}
               </Radio.Button>
             ))}
           </Radio.Group>
@@ -973,7 +980,11 @@ function BodyTab({
         />
       )}
 
-      {category === 'raw' && (
+      {category === 'raw' && currentBody.binary && (
+        <BinaryBodyInput key={currentBody.mediaType} contentType={currentBody.mediaType} fileRef={binaryBodyFileRef} />
+      )}
+
+      {category === 'raw' && !currentBody.binary && (
         <RawEditor
           body={body}
           setBody={setBody}
@@ -983,6 +994,33 @@ function BodyTab({
         />
       )}
     </div>
+  );
+}
+
+interface BinaryBodyInputProps {
+  contentType: string;
+  fileRef: React.MutableRefObject<File | null>;
+}
+
+function BinaryBodyInput({ contentType, fileRef }: BinaryBodyInputProps) {
+  const { t } = useTranslation();
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+
+  const handleChange = (info: { fileList: UploadFile[] }) => {
+    const nextList = info.fileList.slice(-1);
+    setFileList(nextList);
+    fileRef.current = nextList[0]?.originFileObj ?? null;
+  };
+
+  return (
+    <Space direction="vertical" size={8}>
+      <Text type="secondary">{t('apiDebug.body.binaryHint', { contentType })}</Text>
+      <Upload beforeUpload={() => false} multiple={false} maxCount={1} fileList={fileList} onChange={handleChange}>
+        <Button size="small" icon={<UploadOutlined />}>
+          {t('apiDebug.body.selectFile')}
+        </Button>
+      </Upload>
+    </Space>
   );
 }
 
@@ -1627,7 +1665,7 @@ function buildInitialDebugState(
   };
 }
 
-const DEBUG_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']);
+const DEBUG_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE']);
 
 function requestServerSourceLabel(source: RequestServerSource, t: ReturnType<typeof useTranslation>['t']): string {
   if (source === 'gateway') return t('apiDebug.baseUrl.source.gateway');
@@ -1786,6 +1824,7 @@ export default function ApiDebug() {
   const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
+  const binaryBodyFileRef = useRef<File | null>(null);
   const [rawMode, setRawMode] = useState<RawMode>('text');
   const [resetNonce, setResetNonce] = useState(0);
   const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
@@ -1826,6 +1865,7 @@ export default function ApiDebug() {
     setBody(initial.body);
     setFormFields(initial.formFields);
     fileFieldsRef.current = {};
+    binaryBodyFileRef.current = null;
     setRawMode(initial.rawMode);
     setCustomQueryParams(initial.customQueryParams);
     setCustomBodyParams(initial.customBodyParams);
@@ -2185,6 +2225,7 @@ export default function ApiDebug() {
       return rawMode === 'json' ? selectedContentType || RAW_CONTENT_TYPES.json : RAW_CONTENT_TYPES[rawMode];
     }
     if (category === 'raw') {
+      if (currentBody?.binary) return selectedContentType || currentBody.mediaType;
       const inferredMode = inferRawMode(currentBody);
       if (rawMode === inferredMode && selectedContentType) return selectedContentType;
       return RAW_CONTENT_TYPES[rawMode];
@@ -2220,6 +2261,7 @@ export default function ApiDebug() {
       cookieParams: { ...extraCookieParams, ...specCookieParams },
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
+      binaryBodyFileName: currentBody?.binary ? binaryBodyFileRef.current?.name : undefined,
       formFields: structuredForm?.formFields,
       ...(formFieldNamesToIncludeWhenEmpty.length > 0 ? { formFieldNamesToIncludeWhenEmpty } : {}),
       fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
@@ -2259,6 +2301,7 @@ export default function ApiDebug() {
         fileFieldNames[name] = fileList.map((file) => file.name);
       }
     }
+    if (binaryBodyFileRef.current) fileFieldNames['$body'] = [binaryBodyFileRef.current.name];
     const hasFileFields = Object.keys(fileFieldNames).length > 0;
     return {
       baseUrl,
@@ -2328,6 +2371,7 @@ export default function ApiDebug() {
       setCustomHeaders(restoredHeaders);
       setCustomCookies(restoredCookies);
       fileFieldsRef.current = {};
+      binaryBodyFileRef.current = null;
       setResetNonce((value) => value + 1);
       void message.success(t('apiDebug.history.applied'));
       if (snap.hasFileFields) {
@@ -2389,9 +2433,28 @@ export default function ApiDebug() {
     // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
     const category = getCurrentCategory();
     const isMultipart = category === 'multipart';
+    const activeBodyContent = debugModel.bodyContents.find((item) => item.mediaType === selectedContentType);
+    const isBinaryBody = Boolean(activeBodyContent?.binary);
     // core 的 multipart built.body 是已经按发送规则过滤后的文本 part 映射，
     // 历史、cURL 和真实 FormData 共用它，避免在 UI 层维护第二套过滤逻辑。
     const multipartTextFields = isMultipart ? (JSON.parse(built.body ?? '{}') as Record<string, string>) : {};
+    const hasMultipartFile = Object.values(fileFieldsRef.current).some((files) => files.length > 0);
+    const hasBodyInput = isMultipart
+      ? Object.keys(multipartTextFields).length > 0 || hasMultipartFile
+      : isBinaryBody
+        ? binaryBodyFileRef.current !== null
+        : built.body !== undefined && built.body !== '';
+    const browserConstraint = browserRequestConstraint(built.method, hasBodyInput);
+    if (browserConstraint === 'unsupported-method') {
+      setActiveTab('preview');
+      setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
+      return;
+    }
+    if (browserConstraint === 'unsupported-body') {
+      setActiveTab('body');
+      setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
+      return;
+    }
     const requestDebugCacheKey = debugCacheKey;
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
@@ -2413,7 +2476,9 @@ export default function ApiDebug() {
               ]),
             ),
           )
-        : built.body;
+        : isBinaryBody && binaryBodyFileRef.current
+          ? JSON.stringify({ file: binaryBodyFileRef.current.name, size: binaryBodyFileRef.current.size })
+          : built.body;
       const pending = createPendingEntry({
         method: built.method,
         path,
@@ -2491,8 +2556,7 @@ export default function ApiDebug() {
         // silently drops the rest, which is an invisible data-loss bug. We use
         // `fileFieldsMultiple` from knife4j-core to decide, matching the UI control
         // rendered in MultipartForm.
-        const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
-        const multipleFileNames = new Set(currentBody?.fileFieldsMultiple ?? []);
+        const multipleFileNames = new Set(activeBodyContent?.fileFieldsMultiple ?? []);
         const files = fileFieldsRef.current;
         for (const [name, fileList] of Object.entries(files)) {
           if (fileList.length === 0) continue;
@@ -2509,6 +2573,8 @@ export default function ApiDebug() {
         init.body = fd;
         // 不设 Content-Type，让浏览器自动设 boundary
         delete (init.headers as Record<string, string>)['Content-Type'];
+      } else if (isBinaryBody && binaryBodyFileRef.current) {
+        init.body = binaryBodyFileRef.current;
       } else {
         if (built.body !== undefined && built.body !== '') {
           init.body = built.body;
@@ -2966,6 +3032,7 @@ export default function ApiDebug() {
           customBodyParams={customBodyParams}
           setCustomBodyParams={setCustomBodyParams}
           fileFieldsRef={fileFieldsRef}
+          binaryBodyFileRef={binaryBodyFileRef}
           rawMode={rawMode}
           setRawMode={setRawMode}
         />
@@ -3025,7 +3092,7 @@ export default function ApiDebug() {
               value={method}
               onChange={setMethod}
               style={{ width: 110, flex: '0 0 110px' }}
-              options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map((item) => ({
+              options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE'].map((item) => ({
                 value: item,
                 label: item,
               }))}

@@ -23,11 +23,16 @@ export default function OpenApiView() {
   const openApiState = useMemo<OpenApiState>(() => {
     if (!swaggerDoc || !operation) return { status: 'empty' };
     try {
-      const document = buildOperationOpenApiPreviewDocument(swaggerDoc, operation.path, operation.method);
+      const document = buildOperationOpenApiPreviewDocument(
+        swaggerDoc,
+        operation.path,
+        operation.method,
+        operation.source,
+      );
       if (!document) return { status: 'empty' };
       return {
         status: 'ready',
-        downloadable: supportsOperationOpenApiDownload(swaggerDoc),
+        downloadable: operation.source !== 'webhook' && supportsOperationOpenApiDownload(swaggerDoc),
         json: serializeOperationOpenApiDocument(document),
       };
     } catch {

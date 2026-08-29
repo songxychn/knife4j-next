@@ -22,15 +22,24 @@ export function schemaNodeRefName(node: SchemaFieldNode): string | undefined {
 }
 
 export function schemaNodeTypeLabel(node: SchemaFieldNode): string {
+  if (node.booleanSchema === true) return 'any';
+  if (node.booleanSchema === false) return 'never';
   const refName = schemaNodeRefName(node);
+  const nullable = node.types?.includes('null') ?? false;
+  let label: string;
   if (node.type === 'array') {
     const item = node.children?.[0];
-    if (refName) return `${refName}[]`;
-    if (item?.type) return `${schemaNodeTypeLabel(item)}[]`;
-    return 'array';
+    const tupleItems = node.children?.filter((child) => /^\[\d+\]$/.test(child.name));
+    if (tupleItems && tupleItems.length > 0) label = `[${tupleItems.map(schemaNodeTypeLabel).join(', ')}]`;
+    else if (refName) label = `${refName}[]`;
+    else if (item?.type) label = `${schemaNodeTypeLabel(item)}[]`;
+    else label = 'array';
+    return nullable ? `${label} | null` : label;
   }
-  if (refName) return refName;
+  if (refName) label = refName;
   // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
-  if (node.type === 'string' && node.format === 'byte') return 'byte';
-  return [node.type, node.format].filter(Boolean).join(' / ') || 'unknown';
+  else if (node.type === 'string' && node.format === 'byte') label = 'byte';
+  else if (node.types && node.types.length > 0) label = node.types.join(' | ');
+  else label = [node.type, node.format].filter(Boolean).join(' / ') || 'unknown';
+  return nullable && !label.split(' | ').includes('null') ? `${label} | null` : label;
 }

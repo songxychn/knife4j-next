@@ -56,4 +56,21 @@ describe('homeStats', () => {
       'OpenApi v3文档控制器',
     ]);
   });
+
+  it('counts TRACE operations and webhooks without treating webhooks as URL paths', () => {
+    const doc = {
+      openapi: '3.1.1',
+      info: { title: 'events', version: '1.0.0' },
+      paths: {
+        '/diagnostics': { trace: { tags: ['diagnostics'], summary: 'Trace' } },
+      },
+      webhooks: {
+        changed: { post: { tags: ['events'], summary: 'Changed' } },
+      },
+    } as SwaggerDoc;
+    const stats = buildHomeStats(doc, parseMenuTags(doc));
+
+    expect(stats).toMatchObject({ total: 2, pathCount: 1 });
+    expect(stats.counts).toMatchObject({ trace: 1, post: 1 });
+  });
 });

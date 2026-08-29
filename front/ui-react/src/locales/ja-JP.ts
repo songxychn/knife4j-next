@@ -5,6 +5,9 @@ const jaJP = {
   'app.tab.home': 'ホーム',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'API ドキュメントを読み込めません',
+  'app.oas31Compatibility.title': 'この OAS 3.1 ドキュメントには縮退処理が必要な機能があります',
+  'app.oas31Compatibility.description':
+    '元のドキュメントは閲覧できますが、{{count}} 件をブラウザー内で安全に解決できません。対応するフィールドツリー、例、またはデバッグモデルが不完全になる場合があります。',
 
   // Runtime diagnostics
   'error.apiDocs.http': 'api-docs リクエストに失敗しました：HTTP {{status}}',
@@ -111,6 +114,8 @@ const jaJP = {
   'apiDoc.notFound.desc':
     '現在のルートに一致する OpenAPI operation はありません。左側の API 一覧から開き直してください。',
   'apiDoc.deprecated': '非推奨',
+  'apiDoc.webhook.readOnly':
+    'これは OAS 3.1 の受信 Webhook 契約です。ドキュメントと OpenAPI プレビューのみを提供し、ブラウザーからリクエストは送信しません。',
   'apiDoc.author': '作成者：',
   'apiDoc.requestParams': 'リクエストパラメータ',
   'apiDoc.col.paramName': '名前',
@@ -300,6 +305,12 @@ const jaJP = {
   'apiDebug.body.beautifyFailed': '整形に失敗しました。{{contentType}} として有効な内容か確認してください。',
   'apiDebug.body.file': 'ファイル',
   'apiDebug.body.selectFile': 'ファイルを選択',
+  'apiDebug.body.binaryHint':
+    'この OAS 3.1 リクエストボディは、選択したファイルを {{contentType}} としてそのまま送信します。テキストや multipart には変換しません。',
+  'apiDebug.body.browserMethodUnsupported':
+    'ブラウザーの Fetch API は {{method}} リクエストにボディを送信できません。生成された cURL を使用するか、操作メソッドを変更してください。',
+  'apiDebug.method.browserUnsupported':
+    'ブラウザーの Fetch API は {{method}} リクエストを禁止しています。生成された cURL またはブラウザー以外のクライアントを使用してください。',
   'apiDebug.body.file.placeholder': 'ファイルパスを入力するか、空欄のままでファイル選択',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
@@ -393,6 +404,9 @@ const jaJP = {
   'auth.schemes.oauth2.implicit': 'インプリシット方式',
   'auth.schemes.oauth2.authorizationCode': '認可コード方式',
   'auth.btn.authorize': '認証情報を保存',
+  'auth.schemes.mutualTLS.readOnly': 'mutualTLS セキュリティスキームを認識しました',
+  'auth.schemes.mutualTLS.description':
+    'このページはクライアント証明書を保存または注入しません。ブラウザー、OS、または上流プロキシで相互 TLS を設定してください。',
   'auth.btn.unauthorize': '認証情報を削除',
   'auth.btn.clearAll': 'すべてクリア',
   'apiDebug.auth.modal.title': 'リクエストが 401 を返しました — 先に認証を行ってください',

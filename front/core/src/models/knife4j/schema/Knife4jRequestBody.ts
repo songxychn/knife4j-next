@@ -49,7 +49,7 @@ export class Knife4jRequestBody {
       //如果是属性级别，默认query类型
       const _schema = new Knife4jSchema(_propName, Knife4jParamType.query);
       const _openapiSchema = _properties[_propName];
-      _schema.asyncResolveProperties(_openapiSchema);
+      _schema.asyncResolveProperties(typeof _openapiSchema === 'boolean' ? {} : _openapiSchema);
       //作为参数添加进来
       this.parameters.push(_schema);
     }

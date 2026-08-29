@@ -59,6 +59,8 @@ export interface BodyContent {
   schema?: Record<string, unknown>;
   /** 初始示例值（JSON 字符串，由 schemaExample 生成） */
   exampleValue?: string;
+  /** OAS 3.1 未编码的整段二进制请求体，应由调用方以 File/Blob 发送。 */
+  binary?: boolean;
   /** multipart 场景中标记哪些字段是 file / binary */
   fileFields?: string[];
   /**
@@ -114,6 +116,8 @@ export interface DebugFormValues {
   selectedContentType?: string;
   /** body 文本（已序列化，用于 json/raw 模式） */
   body?: string;
+  /** 整段二进制请求体所选文件名；二进制内容本身不进入纯数据模型。 */
+  binaryBodyFileName?: string;
   /** urlencoded / multipart 字段表单值 { fieldName: value }（纯字符串值） */
   formFields?: Record<string, string>;
   /** 即使值为 `''` 也需要序列化的显式字段名；普通未填写字段仍保持省略。 */
@@ -210,6 +214,8 @@ export interface BuiltRequest {
   query: Record<string, QueryParamValue>;
   /** 请求体（原始字符串，或 FormData 引用 — 后者由 UI 层处理） */
   body?: string;
+  /** 整段二进制请求体所选文件名，用于校验、预览和 cURL 占位。 */
+  binaryBodyFileName?: string;
   /** Content-Type */
   contentType: string;
   /** 参数来源映射（仅在存在 auth / globalParams / applicationParams 时生成） */
@@ -246,12 +252,17 @@ export interface SchemaResolveContext {
   maxDepth?: number;
 }
 
+/** OAS 3.1 Schema Object，包含 JSON Schema 允许的 boolean schema。 */
+export type SchemaValue = Record<string, unknown> | boolean;
+
 /** 字段树节点（用于文档展示） */
 export interface SchemaFieldNode {
   /** 字段名；根节点或 array 元素可能为空字符串 */
   name: string;
   /** 归一化后的类型：string / integer / number / boolean / array / object / unknown */
   type: string;
+  /** OAS 3.1 type 数组的完整声明，例如 `['string', 'null']`。 */
+  types?: string[];
   /** 格式修饰（如 int64 / date-time / binary） */
   format?: string;
   /** 是否必填（由父 schema 的 required 列表决定） */
@@ -272,6 +283,14 @@ export interface SchemaFieldNode {
   minimum?: number;
   /** 数值最大值 */
   maximum?: number;
+  /** OAS 3.1 数值型排他下界。 */
+  exclusiveMinimum?: number;
+  /** OAS 3.1 数值型排他上界。 */
+  exclusiveMaximum?: number;
+  /** OAS 3.1 JSON Schema 媒体类型注解。 */
+  contentMediaType?: string;
+  /** OAS 3.1 JSON Schema 内容编码注解。 */
+  contentEncoding?: string;
   /** 字符串正则模式 */
   pattern?: string;
   /** 是否只读 */
@@ -280,6 +299,10 @@ export interface SchemaFieldNode {
   writeOnly?: boolean;
   /** 是否已废弃 */
   deprecated?: boolean;
+  /** const 约束值。 */
+  constValue?: unknown;
+  /** boolean schema 原值；false 表示没有实例可满足该 schema。 */
+  booleanSchema?: boolean;
   /** 当 type 为 $ref 指向的具名类型时，保留类型名便于 UI 提示 */
   refName?: string;
   /** $ref 目标 schema 的 description（不覆盖字段自身 description，用于二级展示） */
@@ -298,7 +321,7 @@ export interface SchemaFieldNode {
  * 支持：$ref / object / array / enum / example / default / allOf（浅合并） /
  * oneOf / anyOf（示例值取第一个可解析分支） / 循环引用截断 / maxDepth 保护。
  */
-export type BuildSchemaExampleFn = (schema: Record<string, unknown> | undefined, ctx: SchemaResolveContext) => unknown;
+export type BuildSchemaExampleFn = (schema: SchemaValue | undefined, ctx: SchemaResolveContext) => unknown;
 
 /**
  * 根据 schema 生成字段树（用于文档展示）。
@@ -307,7 +330,4 @@ export type BuildSchemaExampleFn = (schema: Record<string, unknown> | undefined,
  * oneOf / anyOf 以组合节点展示全部分支。
  * 循环引用以 `truncated=true` 截断，不会死循环。
  */
-export type BuildSchemaFieldTreeFn = (
-  schema: Record<string, unknown> | undefined,
-  ctx: SchemaResolveContext,
-) => SchemaFieldNode[];
+export type BuildSchemaFieldTreeFn = (schema: SchemaValue | undefined, ctx: SchemaResolveContext) => SchemaFieldNode[];

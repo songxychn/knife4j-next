@@ -17,7 +17,7 @@ import type {
   OperationDebugModel,
   SchemaResolveContext,
 } from './types';
-import { resolveRef, dereference, normalizeAllOfSchema } from './resolveRef';
+import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSchema } from './resolveRef';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 
@@ -120,7 +120,10 @@ function extractType(param: OAS2Param | OAS3Param, schema?: Record<string, unkno
     return directType;
   }
   if (schema) {
-    const t = schema.type as string | undefined;
+    const declaredType = schema.type;
+    const t = Array.isArray(declaredType)
+      ? declaredType.find((value): value is string => typeof value === 'string' && value !== 'null')
+      : (declaredType as string | undefined);
     if (t === 'string') {
       const f = schema.format as string | undefined;
       if (f === 'binary') return 'file';
@@ -173,6 +176,20 @@ function supportsSchemaRefSiblings(doc: DocLike): boolean {
   const major = Number(majorText);
   const minor = Number(minorText);
   return major > 3 || (major === 3 && minor >= 1);
+}
+
+function schemaDeclaresType(schema: Record<string, unknown>, expected: string): boolean {
+  return schema.type === expected || (Array.isArray(schema.type) && schema.type.includes(expected));
+}
+
+function isObjectSchemaShape(schema: Record<string, unknown>): boolean {
+  return (
+    schemaDeclaresType(schema, 'object') ||
+    (schema.type === undefined &&
+      schema.properties !== null &&
+      typeof schema.properties === 'object' &&
+      !Array.isArray(schema.properties))
+  );
 }
 
 function jsonValuesEqual(left: unknown, right: unknown): boolean {
@@ -241,6 +258,71 @@ function classifyContentType(mediaType: string): BodyContentType {
   return 'raw';
 }
 
+function isOas31(doc: DocLike): boolean {
+  return typeof doc.openapi === 'string' && /^3\.1(?:\.|$)/.test(doc.openapi);
+}
+
+function isBinaryMediaType(mediaType: string | undefined): boolean {
+  if (!mediaType) return false;
+  const normalized = mediaType.split(';', 1)[0].trim().toLowerCase();
+  if (/^(image|audio|video|font)\//.test(normalized)) return true;
+  return [
+    'application/octet-stream',
+    'application/pdf',
+    'application/zip',
+    'application/gzip',
+    'application/wasm',
+    'application/x-7z-compressed',
+    'application/x-rar-compressed',
+    'application/x-protobuf',
+  ].includes(normalized);
+}
+
+function effectiveContentMediaType(
+  transportMediaType: string | undefined,
+  schemaMediaType: unknown,
+): string | undefined {
+  const transport = transportMediaType?.split(';', 1)[0].trim().toLowerCase();
+  const schema = typeof schemaMediaType === 'string' ? schemaMediaType.trim().toLowerCase() : undefined;
+  if (!transport || transport === '*/*') return schema ?? transport;
+  if (transport.endsWith('/*')) {
+    return schema?.startsWith(`${transport.slice(0, -1)}`) ? schema : transport;
+  }
+  return transport;
+}
+
+function isOas31RawBinarySchema(
+  schema: Record<string, unknown> | undefined,
+  transportMediaType: string | undefined,
+): boolean {
+  if (typeof schema?.contentEncoding === 'string' && schema.contentEncoding.length > 0) return false;
+  if (schema?.format === 'binary') return true;
+  // OAS 3.1 raw binary is outside JSON Schema's type system. A declared type
+  // therefore describes a serialized value rather than a file payload.
+  if (schema?.type !== undefined) return false;
+  if (
+    schema &&
+    (typeof schema.$ref === 'string' ||
+      typeof schema.$dynamicRef === 'string' ||
+      schema.properties !== undefined ||
+      schema.items !== undefined ||
+      schema.prefixItems !== undefined ||
+      schema.allOf !== undefined ||
+      schema.oneOf !== undefined ||
+      schema.anyOf !== undefined)
+  ) {
+    return false;
+  }
+  return isBinaryMediaType(effectiveContentMediaType(transportMediaType, schema?.contentMediaType));
+}
+
+function encodingContentType(encoding: Record<string, unknown> | undefined, fieldName: string): string | undefined {
+  const fieldEncoding = encoding?.[fieldName];
+  if (!fieldEncoding || typeof fieldEncoding !== 'object' || Array.isArray(fieldEncoding)) return undefined;
+  const contentType = (fieldEncoding as Record<string, unknown>).contentType;
+  return typeof contentType === 'string' ? contentType.split(',', 1)[0].trim() : undefined;
+}
+
 /**
  * 判断某个 `items` schema 是否代表二进制文件。
  *
@@ -253,24 +335,68 @@ function classifyContentType(mediaType: string): BodyContentType {
  * 因此这里只看 `format` 是否为 `binary` / `base64`，不强求 `type === "string"`——
  * 否则 React UI 会把实际的文件数组字段渲染成普通文本输入框。
  */
-function isBinaryItems(items: Record<string, unknown>): boolean {
+function isBinaryItems(items: Record<string, unknown>, allowOas31Binary: boolean): boolean {
+  if (allowOas31Binary && typeof items.contentEncoding === 'string' && items.contentEncoding.length > 0) {
+    return false;
+  }
   if (items.format !== 'binary' && items.format !== 'base64') return false;
   // 如果 items.type 存在但显式不是 'string'，说明是其他数组（例如 number[]），不算文件。
   // 没有 type 字段 / type === 'string' 都接受。
-  return items.type === undefined || items.type === 'string';
+  return items.type === undefined || schemaDeclaresType(items, 'string');
 }
 
 /** 从 OAS3 requestBody 中提取 file 字段名 */
-function extractFileFields(schema: Record<string, unknown> | undefined): string[] {
-  if (!schema || schema.type !== 'object' || !schema.properties) return [];
+function extractFileFields(
+  schema: Record<string, unknown> | undefined,
+  encoding: Record<string, unknown> | undefined,
+  allowOas31Binary: boolean,
+  doc: DocLike,
+): string[] {
+  if (!schema || !isObjectSchemaShape(schema) || !schema.properties) return [];
   const props = schema.properties as Record<string, Record<string, unknown>>;
   const files: string[] = [];
   for (const [name, prop] of Object.entries(props)) {
-    if (prop.type === 'string' && (prop.format === 'binary' || prop.format === 'base64')) {
+    const normalizedProp =
+      prop && typeof prop === 'object' && !Array.isArray(prop)
+        ? normalizeAllOfSchema(prop, doc as Record<string, unknown>)
+        : undefined;
+    if (!normalizedProp) continue;
+    const fieldContentType = encodingContentType(encoding, name);
+    const legacyFile =
+      schemaDeclaresType(normalizedProp, 'string') &&
+      (normalizedProp.format === 'binary' || normalizedProp.format === 'base64') &&
+      !(
+        allowOas31Binary &&
+        typeof normalizedProp.contentEncoding === 'string' &&
+        normalizedProp.contentEncoding.length > 0
+      );
+    if (
+      legacyFile ||
+      (allowOas31Binary &&
+        isOas31RawBinarySchema(
+          normalizedProp,
+          fieldContentType ?? (normalizedProp.type === undefined ? 'application/octet-stream' : undefined),
+        ))
+    ) {
       files.push(name);
     }
-    if (prop.type === 'array' && prop.items && typeof prop.items === 'object') {
-      if (isBinaryItems(prop.items as Record<string, unknown>)) {
+    if (
+      schemaDeclaresType(normalizedProp, 'array') &&
+      normalizedProp.items &&
+      typeof normalizedProp.items === 'object'
+    ) {
+      const normalizedItems = normalizeAllOfSchema(
+        normalizedProp.items as Record<string, unknown>,
+        doc as Record<string, unknown>,
+      );
+      if (
+        isBinaryItems(normalizedItems, allowOas31Binary) ||
+        (allowOas31Binary &&
+          isOas31RawBinarySchema(
+            normalizedItems,
+            fieldContentType ?? (normalizedItems.type === undefined ? 'application/octet-stream' : undefined),
+          ))
+      ) {
         files.push(name);
       }
     }
@@ -292,13 +418,39 @@ function extractFileFields(schema: Record<string, unknown> | undefined): string[
  *
  * 上游参考：xiaoymin/knife4j#733；本仓 issue #227、#251。
  */
-function extractMultipleFileFields(schema: Record<string, unknown> | undefined): string[] {
-  if (!schema || schema.type !== 'object' || !schema.properties) return [];
+function extractMultipleFileFields(
+  schema: Record<string, unknown> | undefined,
+  encoding: Record<string, unknown> | undefined,
+  allowOas31Binary: boolean,
+  doc: DocLike,
+): string[] {
+  if (!schema || !isObjectSchemaShape(schema) || !schema.properties) return [];
   const props = schema.properties as Record<string, Record<string, unknown>>;
   const multiple: string[] = [];
   for (const [name, prop] of Object.entries(props)) {
-    if (prop.type === 'array' && prop.items && typeof prop.items === 'object') {
-      if (isBinaryItems(prop.items as Record<string, unknown>)) {
+    const normalizedProp =
+      prop && typeof prop === 'object' && !Array.isArray(prop)
+        ? normalizeAllOfSchema(prop, doc as Record<string, unknown>)
+        : undefined;
+    if (
+      normalizedProp &&
+      schemaDeclaresType(normalizedProp, 'array') &&
+      normalizedProp.items &&
+      typeof normalizedProp.items === 'object'
+    ) {
+      const normalizedItems = normalizeAllOfSchema(
+        normalizedProp.items as Record<string, unknown>,
+        doc as Record<string, unknown>,
+      );
+      if (
+        isBinaryItems(normalizedItems, allowOas31Binary) ||
+        (allowOas31Binary &&
+          isOas31RawBinarySchema(
+            normalizedItems,
+            encodingContentType(encoding, name) ??
+              (normalizedItems.type === undefined ? 'application/octet-stream' : undefined),
+          ))
+      ) {
         multiple.push(name);
       }
     }
@@ -317,16 +469,43 @@ function extractMultipleFileFields(schema: Record<string, unknown> | undefined):
  * 这里只接受 `format: "binary"`，不把 JSON 中的 base64/byte 字符串自动改成
  * 文件上传，以避免误伤真正的 JSON 文本字段。
  */
-function hasBinaryUploadField(schema: Record<string, unknown> | undefined): boolean {
-  if (!schema || schema.type !== 'object' || !schema.properties) return false;
+function hasBinaryUploadField(
+  schema: Record<string, unknown> | undefined,
+  allowOas31Binary: boolean,
+  doc: DocLike,
+): boolean {
+  if (!schema || !isObjectSchemaShape(schema) || !schema.properties) return false;
   const props = schema.properties as Record<string, Record<string, unknown>>;
   for (const prop of Object.values(props)) {
-    if (prop.type === 'file') return true;
-    if (prop.type === 'string' && prop.format === 'binary') return true;
-    if (prop.type === 'array' && prop.items && typeof prop.items === 'object') {
-      const items = prop.items as Record<string, unknown>;
-      const typeOk = items.type === undefined || items.type === 'string';
-      if (items.format === 'binary' && typeOk) return true;
+    const normalizedProp =
+      prop && typeof prop === 'object' && !Array.isArray(prop)
+        ? normalizeAllOfSchema(prop, doc as Record<string, unknown>)
+        : undefined;
+    if (!normalizedProp) continue;
+    if (normalizedProp.type === 'file') return true;
+    if (
+      schemaDeclaresType(normalizedProp, 'string') &&
+      normalizedProp.format === 'binary' &&
+      !(
+        allowOas31Binary &&
+        typeof normalizedProp.contentEncoding === 'string' &&
+        normalizedProp.contentEncoding.length > 0
+      )
+    ) {
+      return true;
+    }
+    if (
+      schemaDeclaresType(normalizedProp, 'array') &&
+      normalizedProp.items &&
+      typeof normalizedProp.items === 'object'
+    ) {
+      const items = normalizeAllOfSchema(
+        normalizedProp.items as Record<string, unknown>,
+        doc as Record<string, unknown>,
+      );
+      const typeOk = items.type === undefined || schemaDeclaresType(items, 'string');
+      const encoded = allowOas31Binary && typeof items.contentEncoding === 'string' && items.contentEncoding.length > 0;
+      if (items.format === 'binary' && typeOk && !encoded) return true;
     }
   }
   return false;
@@ -350,8 +529,8 @@ function extractJsonEncodingFields(encoding: Record<string, unknown> | undefined
 /** 解析 $ref 参数 */
 function resolveParameter(param: OAS3Param | OAS2Param, doc: DocLike): OAS3Param | OAS2Param {
   if (!param.$ref) return param;
-  const resolved = resolveRef(param.$ref, doc as Record<string, unknown>);
-  return resolved ? (resolved as OAS3Param | OAS2Param) : param;
+  return dereferenceReferenceObject(param as Record<string, unknown>, doc as Record<string, unknown>) as
+    OAS3Param | OAS2Param;
 }
 
 /** 将参数合并到结果列表（去重：同 name+in 不重复添加） */
@@ -382,7 +561,10 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   const { doc, path, method, isOAS2 = Boolean(doc.swagger), schemaCtx } = options;
 
   // 定位 PathItem 和 Operation
-  const pathItem = doc.paths?.[path];
+  const rawPathItem = doc.paths?.[path];
+  const pathItem = rawPathItem
+    ? (dereference(rawPathItem as unknown as Record<string, unknown>, doc as Record<string, unknown>) as PathItemLike)
+    : undefined;
   if (!pathItem) {
     return {
       pathParams: [],
@@ -511,7 +693,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     const paramIn = in_ as ParamIn;
     if (!['path', 'query', 'header', 'cookie'].includes(paramIn)) continue;
 
-    const schema = raw.schema ? dereference(raw.schema, doc as Record<string, unknown>) : undefined;
+    const schema = raw.schema
+      ? isOAS2
+        ? dereference(raw.schema, doc as Record<string, unknown>)
+        : normalizeAllOfSchema(raw.schema, doc as Record<string, unknown>, ctx.maxDepth ?? 8)
+      : undefined;
     const type = extractType(raw, schema);
     const debugParam: DebugParam = {
       name: raw.name ?? '',
@@ -549,7 +735,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   // OAS3: requestBody
   if (!isOAS2 && operation.requestBody) {
     const rb = operation.requestBody.$ref
-      ? (dereference(
+      ? (dereferenceReferenceObject(
           operation.requestBody as Record<string, unknown>,
           doc as Record<string, unknown>,
         ) as unknown as OAS3RequestBody)
@@ -565,24 +751,36 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
         const schema = mediaObj.schema ? normalizeAllOfSchema(mediaObj.schema, ctx.doc, ctx.maxDepth ?? 8) : undefined;
         const declaredCategory = classifyContentType(mediaType);
+        const allowOas31Binary = isOas31(doc);
         const isMultipartFallback =
-          !hasDeclaredMultipart && declaredCategory !== 'multipart' && hasBinaryUploadField(schema);
+          !hasDeclaredMultipart &&
+          declaredCategory !== 'multipart' &&
+          hasBinaryUploadField(schema, allowOas31Binary, doc);
         const effectiveMediaType = isMultipartFallback ? 'multipart/form-data' : mediaType;
         const effectiveCategory: BodyContentType = isMultipartFallback ? 'multipart' : declaredCategory;
         const isMultipart = effectiveCategory === 'multipart';
         const encoding = mediaObj.encoding;
+        const binary =
+          effectiveCategory === 'raw' &&
+          ((schema?.format === 'binary' &&
+            schemaDeclaresType(schema, 'string') &&
+            !(allowOas31Binary && typeof schema.contentEncoding === 'string' && schema.contentEncoding.length > 0)) ||
+            (allowOas31Binary && isOas31RawBinarySchema(schema, mediaType)));
 
         bodyContents.push({
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
-          exampleValue: buildMediaTypeExampleValue(mediaObj, schema, ctx, { mediaType }),
-          fileFields: isMultipart ? extractFileFields(schema) : undefined,
+          exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, ctx, { mediaType }),
+          binary: binary || undefined,
+          fileFields: isMultipart ? extractFileFields(schema, encoding, allowOas31Binary, doc) : undefined,
           // 区分「单文件」与「多文件」语义（issue #251）：
           // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录
           // 其中允许多选的子集。UI 层据此决定 `<Upload multiple>` 和 FormData
           // 组装时 append 几次。
-          fileFieldsMultiple: isMultipart ? extractMultipleFileFields(schema) : undefined,
+          fileFieldsMultiple: isMultipart
+            ? extractMultipleFileFields(schema, encoding, allowOas31Binary, doc)
+            : undefined,
           jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
         });
       }

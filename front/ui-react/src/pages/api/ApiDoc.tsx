@@ -3,7 +3,7 @@ import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   buildSchemaFieldTree,
-  dereference,
+  dereferenceReferenceObject,
   generateApiMarkdown,
   resolveRefMeta,
   type SchemaFieldNode,
@@ -68,10 +68,13 @@ function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitio
 function schemaName(schema?: SchemaObject): string {
   if (!schema) return '';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
-  if (schema.type === 'array') return `${schemaName(schema.items) || 'object'}[]`;
+  const declaredTypes = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
+  const type = declaredTypes.find((value) => value !== 'null') ?? declaredTypes[0];
+  if (type === 'array')
+    return `${schemaName(schema.items) || 'object'}[]${declaredTypes.includes('null') ? ' | null' : ''}`;
   // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
-  if (schema.type === 'string' && schema.format === 'byte') return 'byte';
-  return [schema.type, schema.format].filter(Boolean).join(' / ') || 'object';
+  if (type === 'string' && schema.format === 'byte') return 'byte';
+  return [declaredTypes.join(' | '), schema.format].filter(Boolean).join(' / ') || 'object';
 }
 
 function parameterType(parameter: ParameterObject): string {
@@ -134,17 +137,21 @@ function schemaToTypeNode(schema: SchemaObject | undefined): SchemaFieldNode {
       refName: schemaNameFromRef(schema.$ref),
     };
   }
-  if (schema.type === 'array') {
+  const declaredTypes = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
+  const type = declaredTypes.find((value) => value !== 'null') ?? declaredTypes[0];
+  if (type === 'array') {
     return {
       name: '',
       type: 'array',
+      types: declaredTypes.length > 1 ? declaredTypes : undefined,
       required: false,
       children: schema.items ? [schemaToTypeNode(schema.items)] : undefined,
     };
   }
   return {
     name: '',
-    type: schema.type ?? 'object',
+    type: type ?? 'object',
+    types: declaredTypes.length > 1 ? declaredTypes : undefined,
     format: schema.format,
     required: false,
   };
@@ -193,6 +200,7 @@ const METHOD_COLOR: Record<string, string> = {
   PATCH: 'cyan',
   HEAD: 'purple',
   OPTIONS: 'default',
+  TRACE: 'magenta',
 };
 
 export default function ApiDoc() {
@@ -217,7 +225,25 @@ export default function ApiDoc() {
   }
 
   const method = operation.method.toUpperCase();
-  const op = operation.operation;
+  const rawOperation = operation.operation;
+  const resolveReference = <T extends object>(value: T): T =>
+    '$ref' in value && typeof (value as { $ref?: unknown }).$ref === 'string'
+      ? (dereferenceReferenceObject(
+          value as Record<string, unknown>,
+          swaggerDoc as unknown as Record<string, unknown>,
+        ) as T)
+      : value;
+  const resolvedParameters = (rawOperation.parameters ?? []).map(resolveReference);
+  const resolvedRequestBody = rawOperation.requestBody ? resolveReference(rawOperation.requestBody) : undefined;
+  const resolvedResponses = Object.fromEntries(
+    Object.entries(rawOperation.responses ?? {}).map(([status, response]) => [status, resolveReference(response)]),
+  );
+  const op = {
+    ...rawOperation,
+    parameters: resolvedParameters,
+    requestBody: resolvedRequestBody,
+    responses: resolvedResponses,
+  };
 
   const handleCopyMarkdown = () => {
     const md = generateApiMarkdown({
@@ -357,7 +383,7 @@ export default function ApiDoc() {
   const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => {
     const headers = Object.entries(response.headers ?? {}).map(([name, header]) => {
       const resolvedHeader = header.$ref
-        ? (dereference(
+        ? (dereferenceReferenceObject(
             header as unknown as Record<string, unknown>,
             swaggerDoc as unknown as Record<string, unknown>,
           ) as ResponseHeaderObject)
@@ -420,6 +446,10 @@ export default function ApiDoc() {
         </Space>
       </div>
 
+      {operation.source === 'webhook' && (
+        <Alert type="info" showIcon message={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
+      )}
+
       <div
         style={{
           display: 'flex',
@@ -432,6 +462,7 @@ export default function ApiDoc() {
         <Tag color={METHOD_COLOR[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 10px' }}>
           {method}
         </Tag>
+        {operation.source === 'webhook' && <Tag color="purple">WEBHOOK</Tag>}
         <Text code style={{ fontSize: 15, wordBreak: 'break-all' }}>
           {operation.path}
         </Text>
@@ -493,6 +524,11 @@ export default function ApiDoc() {
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestBody')}
       </Title>
+      {op.requestBody?.description && (
+        <div style={{ marginBottom: 8 }}>
+          <Markdown source={op.requestBody.description} preserveLineBreaks />
+        </div>
+      )}
       {bodySchema || requestExample !== null ? (
         <Tabs
           size="small"

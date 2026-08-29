@@ -25,7 +25,7 @@ vi.mock('../context/GroupContext', () => ({
   useGroup: vi.fn(),
 }));
 
-import { createAuthAsyncCommitGuard, getAuthFormDraft } from './Authorize';
+import { createAuthAsyncCommitGuard, getAuthFormDraft, securitySchemeUiKind } from './Authorize';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -90,5 +90,11 @@ describe('Authorize persisted-value projection', () => {
       basicPassword: 'secret',
       oauth2AccessToken: '',
     });
+  });
+});
+
+describe('Authorize OAS 3.1 security schemes', () => {
+  it('recognizes mutualTLS as externally configured rather than a credential form', () => {
+    expect(securitySchemeUiKind({ type: 'mutualTLS' })).toBe('mutualTLS');
   });
 });

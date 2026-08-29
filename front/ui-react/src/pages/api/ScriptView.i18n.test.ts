@@ -51,4 +51,108 @@ describe('ScriptView generated comments', () => {
     expect(code).toContain('// レスポンス型');
     expect(code).toContain('export type CreateUserRes = string[];');
   });
+
+  test('renders OAS 3.1 nullable type arrays as TypeScript unions', () => {
+    const schema: SchemaObject = {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: ['string', 'null'] },
+      },
+    };
+    const code = generateCode(
+      'POST',
+      '/users',
+      'createUser',
+      undefined,
+      [],
+      schema,
+      schema,
+      { ...doc, openapi: '3.1.1' },
+      labels,
+    ).ts;
+
+    expect(code).toContain('name: string | null;');
+  });
+
+  test('parenthesizes nullable array item unions', () => {
+    const schema: SchemaObject = {
+      type: 'array',
+      items: { type: ['string', 'null'] },
+    };
+    const code = generateCode(
+      'POST',
+      '/aliases',
+      'createAliases',
+      undefined,
+      [],
+      schema,
+      schema,
+      { ...doc, openapi: '3.1.2' },
+      labels,
+    ).ts;
+
+    expect(code).toContain('export type CreateAliasesParams = (string | null)[];');
+    expect(code).toContain('export type CreateAliasesRes = (string | null)[];');
+  });
+
+  test('strips the legacy UsingTRACE suffix from generated function names', () => {
+    const code = generateCode(
+      'TRACE',
+      '/diagnostics',
+      'traceDiagnosticsUsingTRACE',
+      undefined,
+      [],
+      undefined,
+      undefined,
+      doc,
+      labels,
+    );
+
+    expect(code.ts).toContain('export function traceDiagnostics(');
+    expect(code.ts).not.toContain('traceDiagnosticsUsingTRACE');
+  });
+
+  test('resolves nested $defs and intersects same-property $ref siblings', () => {
+    const oas31Doc = {
+      ...doc,
+      openapi: '3.1.2',
+      components: {
+        schemas: {
+          Wrapper: {
+            $defs: {
+              Payload: {
+                type: 'object',
+                properties: { id: { type: 'string' } },
+              },
+            },
+          },
+          Base: {
+            type: 'object',
+            properties: { value: { type: 'string' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+
+    const requestSchema = { $ref: '#/components/schemas/Wrapper/$defs/Payload' } as SchemaObject;
+    const responseSchema = {
+      $ref: '#/components/schemas/Base',
+      properties: { value: { minLength: 2 } },
+    } as SchemaObject;
+    const code = generateCode(
+      'POST',
+      '/payloads',
+      'createPayload',
+      undefined,
+      [],
+      requestSchema,
+      responseSchema,
+      oas31Doc,
+      labels,
+    ).ts;
+
+    expect(code).toContain('id?: string;');
+    expect(code).toContain('value?: string;');
+  });
 });
