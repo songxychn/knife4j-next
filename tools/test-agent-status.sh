@@ -12,6 +12,7 @@ ln -s "$fixture" "$tmp_dir/bin/gh"
 export PATH="$tmp_dir/bin:$PATH"
 export FAKE_GH_LOG="$tmp_dir/gh.log"
 export GH_REPO="test/repo"
+export GITHUB_HEAD_REF="fixture-branch"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -103,6 +104,7 @@ assert_contains "$output" "Working task"
 assert_contains "$output" "Ready task"
 assert_calls "issue list" 1
 assert_calls "pr list" 1
+assert_log_contains "--head fixture-branch"
 assert_log_contains "headRefOid"
 assert_log_contains "$(git rev-parse HEAD)"
 

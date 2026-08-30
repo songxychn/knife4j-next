@@ -79,7 +79,7 @@ print_git_snapshot() {
 
 print_pr_snapshot() {
   local branch head current_pr pr_jq
-  branch="$(git branch --show-current)"
+  branch="${GITHUB_HEAD_REF:-$(git branch --show-current)}"
   head="$(git rev-parse HEAD)"
 
   echo
