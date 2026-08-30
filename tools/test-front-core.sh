@@ -3,6 +3,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../front"
 
+node_bin="$(command -v node || true)"
+if [ -z "$node_bin" ]; then
+  echo "Node.js 22 or newer is required for browser-semantics UI tests; use the version from .nvmrc" >&2
+  exit 1
+fi
+node_major="$("$node_bin" -p "process.versions.node.split('.')[0]")"
+if [ "$node_major" -lt 22 ]; then
+  echo "Node.js 22 or newer is required for browser-semantics UI tests; found $("$node_bin" --version)" >&2
+  exit 1
+fi
+
 bun install --frozen-lockfile
 
 # --- knife4j-schema-engine ---
