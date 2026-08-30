@@ -44,6 +44,12 @@ async function expectGeneratedValueIsValid(
   return selected.value;
 }
 
+function expectDirectionallyGeneratedValue(result: SchemaExampleResult): JsonValue {
+  const selected = expectValue(result);
+  expect(selected).toMatchObject({ source: 'generated', authored: false, validation: 'valid' });
+  return selected.value;
+}
+
 afterEach(() => {
   sessions.splice(0).forEach((session) => session.dispose());
   vi.restoreAllMocks();
@@ -105,6 +111,25 @@ describe('authored example priority', () => {
         validation: 'valid',
       });
     }
+  });
+
+  test('bounds authored candidate collection before cloning unused annotations', async () => {
+    const session = await sessionFor({
+      Value: {
+        type: 'integer',
+        examples: Array.from({ length: 1000 }, (_, index) => index),
+      },
+    });
+    const cloneSpy = vi.spyOn(globalThis, 'structuredClone');
+
+    await expect(
+      generateSchemaExample(session, reference('Value'), {
+        direction: 'request',
+        limits: { maxCandidates: 1 },
+      }),
+    ).resolves.toMatchObject({ status: 'value', source: 'schema-examples', value: 0 });
+
+    expect(cloneSpy.mock.calls.length).toBeLessThanOrEqual(3);
   });
 
   test('finds annotations through an id and anchor reference without local pointer guessing', async () => {
@@ -277,7 +302,7 @@ describe('bounded structural candidates', () => {
     const session = await sessionFor({
       Message: {
         type: 'object',
-        required: ['shared'],
+        required: ['shared', 'responseId', 'requestSecret'],
         properties: {
           shared: { type: 'string' },
           responseId: { type: 'integer', readOnly: true },
@@ -285,17 +310,41 @@ describe('bounded structural candidates', () => {
         },
         additionalProperties: false,
       },
+      StrictDirection: {
+        type: 'object',
+        required: ['responseId'],
+        minProperties: 2,
+        properties: {
+          responseId: { type: 'integer', readOnly: true },
+        },
+        additionalProperties: false,
+      },
     });
 
     const requestResult = await generateSchemaExample(session, reference('Message'), { direction: 'request' });
     const responseResult = await generateSchemaExample(session, reference('Message'), { direction: 'response' });
-    const requestValue = await expectGeneratedValueIsValid(session, reference('Message'), requestResult);
-    const responseValue = await expectGeneratedValueIsValid(session, reference('Message'), responseResult);
+    const requestValue = expectDirectionallyGeneratedValue(requestResult);
+    const responseValue = expectDirectionallyGeneratedValue(responseResult);
 
     expect(requestValue).toMatchObject({ shared: expect.any(String), requestSecret: expect.any(String) });
     expect(requestValue).not.toHaveProperty('responseId');
     expect(responseValue).toMatchObject({ shared: expect.any(String), responseId: expect.any(Number) });
     expect(responseValue).not.toHaveProperty('requestSecret');
+
+    // A pure JSON Schema evaluator still reports the directionally omitted
+    // required property. The generator accepts only this OpenAPI-specific
+    // required failure; all other JSON Schema assertions must remain valid.
+    await expect(session.evaluate(reference('Message'), requestValue)).resolves.toMatchObject({
+      valid: false,
+      errors: [expect.objectContaining({ keyword: 'https://json-schema.org/keyword/required' })],
+    });
+    await expect(session.evaluate(reference('Message'), responseValue)).resolves.toMatchObject({
+      valid: false,
+      errors: [expect.objectContaining({ keyword: 'https://json-schema.org/keyword/required' })],
+    });
+    await expect(
+      generateSchemaExample(session, reference('StrictDirection'), { direction: 'request' }),
+    ).resolves.toMatchObject({ status: 'none', reason: 'no-valid-candidate' });
   });
 
   test('combines const, pattern, tuple and directional fields in one valid object', async () => {

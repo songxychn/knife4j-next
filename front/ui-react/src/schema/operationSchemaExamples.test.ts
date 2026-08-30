@@ -127,6 +127,40 @@ describe('operation example targets', () => {
     ]);
   });
 
+  test('stops reading Example Objects after the first usable explicit value', () => {
+    const examples: Record<string, unknown> = {};
+    Object.defineProperty(examples, 'first', {
+      enumerable: true,
+      value: { value: { selected: true } },
+    });
+    Object.defineProperty(examples, 'unused', {
+      enumerable: true,
+      get: () => {
+        throw new Error('unused Example Object must not be read');
+      },
+    });
+    const operationObject: OperationObject = {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: { type: 'object' },
+            examples: examples as never,
+          },
+        },
+      },
+      responses: {},
+    };
+    const document: SwaggerDoc = {
+      openapi: '3.1.1',
+      info: { title: 'Bounded examples', version: '1.0.0' },
+      paths: { '/messages': { post: operationObject } },
+    };
+
+    expect(locateRequestSchemaExampleTargets(document, currentOperation(document))[0]?.explicit).toEqual([
+      { source: 'example-object', value: { selected: true } },
+    ]);
+  });
+
   test.each(['3.1.0', '3.1.2'])(
     'keeps ApiDoc and ApiDebug request generation consistent for OAS %s',
     async (version) => {

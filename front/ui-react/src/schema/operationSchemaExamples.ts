@@ -135,21 +135,22 @@ function locatedOperation(document: SwaggerDoc, operation: MenuOperation): Locat
 }
 
 function explicitExamples(mediaObject: OpenApiRecord, document: SwaggerDoc): ExplicitSchemaExample[] {
-  const values: ExplicitSchemaExample[] = [];
   if (Object.prototype.hasOwnProperty.call(mediaObject, 'example')) {
     const value = asJsonValue(mediaObject.example);
-    if (value !== undefined) values.push({ source: 'media-example', value });
+    if (value !== undefined) return [{ source: 'media-example', value }];
   }
   const examples = asRecord(mediaObject.examples);
-  if (!examples) return values;
-  for (const [name, rawExample] of Object.entries(examples)) {
+  if (!examples) return [];
+  for (const name in examples) {
+    if (!Object.prototype.hasOwnProperty.call(examples, name)) continue;
+    const rawExample = examples[name];
     const example =
       followLocalReference(document, rawExample, ['components', 'examples', name])?.value ?? asRecord(rawExample);
     if (!example || !Object.prototype.hasOwnProperty.call(example, 'value')) continue;
     const value = asJsonValue(example.value);
-    if (value !== undefined) values.push({ source: 'example-object', value });
+    if (value !== undefined) return [{ source: 'example-object', value }];
   }
-  return values;
+  return [];
 }
 
 function mediaTargets(

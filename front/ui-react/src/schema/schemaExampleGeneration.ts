@@ -168,6 +168,8 @@ const ASSERTION_KEYS = new Set([
   'unevaluatedProperties',
 ]);
 
+const REQUIRED_KEYWORD_ID = 'https://json-schema.org/keyword/required';
+
 function effectiveLimits(overrides: SchemaExampleSearchLimits | undefined): EffectiveLimits {
   const positiveInteger = (value: number | undefined, fallback: number): number =>
     value === undefined || !Number.isFinite(value) ? fallback : Math.max(1, Math.floor(value));
@@ -274,18 +276,32 @@ function appendCandidate(target: JsonValue[], value: unknown, limit: number): vo
   target.push(cloneValue(value));
 }
 
-function localAuthoredCandidates(schema: { [key: string]: JsonValue }, depth: number): AuthoredCandidate[] {
+function localAuthoredCandidates(
+  schema: { [key: string]: JsonValue },
+  depth: number,
+  limit: number,
+): AuthoredCandidate[] {
   const candidates: AuthoredCandidate[] = [];
   const append = (source: AuthoredCandidate['source'], value: unknown): void => {
-    if (!isJsonValue(value)) return;
+    if (candidates.length >= limit || !isJsonValue(value)) return;
     candidates.push({ source, value: cloneValue(value), rank: AUTHOR_SOURCE_RANK[source], depth });
   };
 
-  if (Array.isArray(schema.examples)) schema.examples.forEach((value) => append('schema-examples', value));
+  if (Array.isArray(schema.examples)) {
+    for (const value of schema.examples) {
+      append('schema-examples', value);
+      if (candidates.length >= limit) break;
+    }
+  }
   if (Object.prototype.hasOwnProperty.call(schema, 'example')) append('schema-example', schema.example);
   if (Object.prototype.hasOwnProperty.call(schema, 'const')) append('const', schema.const);
   if (Object.prototype.hasOwnProperty.call(schema, 'default')) append('default', schema.default);
-  if (Array.isArray(schema.enum)) schema.enum.forEach((value) => append('enum', value));
+  if (Array.isArray(schema.enum)) {
+    for (const value of schema.enum) {
+      append('enum', value);
+      if (candidates.length >= limit) break;
+    }
+  }
   return candidates;
 }
 
@@ -327,7 +343,7 @@ async function collectRootAuthoredCandidates(
   if (!isRecord(schema) || depth > ctx.limits.maxDepth) return [];
   const baseUri = effectiveBaseUri(schema, ctx.baseUri);
   const localCtx = { ...ctx, baseUri };
-  const candidates = localAuthoredCandidates(schema, depth);
+  const candidates = localAuthoredCandidates(schema, depth, ctx.limits.maxCandidates);
   const reference =
     typeof schema.$ref === 'string' ? schema.$ref : typeof schema.$dynamicRef === 'string' ? schema.$dynamicRef : null;
   if (reference) {
@@ -342,7 +358,9 @@ async function collectRootAuthoredCandidates(
       );
     }
   }
-  return candidates.sort((left, right) => left.rank - right.rank || left.depth - right.depth);
+  return candidates
+    .sort((left, right) => left.rank - right.rank || left.depth - right.depth)
+    .slice(0, ctx.limits.maxCandidates);
 }
 
 function normalizedTypes(schema: { [key: string]: JsonValue }): string[] {
@@ -460,6 +478,119 @@ function primitiveCandidates(schema: { [key: string]: JsonValue }, type: string,
 function shouldIgnoreProperty(schema: JsonValue, direction: SchemaExampleDirection): boolean {
   if (!isRecord(schema)) return false;
   return direction === 'request' ? schema.readOnly === true : schema.writeOnly === true;
+}
+
+function valueAtInstanceLocation(instance: JsonValue, location: string): JsonValue | undefined {
+  const pointer = location.startsWith('#') ? location.slice(1) : location;
+  if (pointer === '') return instance;
+  if (!pointer.startsWith('/')) return undefined;
+
+  let current: JsonValue = instance;
+  for (const rawToken of pointer.slice(1).split('/')) {
+    let token: string;
+    try {
+      token = decodeURIComponent(rawToken).replace(/~1/g, '/').replace(/~0/g, '~');
+    } catch {
+      return undefined;
+    }
+    if (Array.isArray(current)) {
+      if (!/^(0|[1-9]\d*)$/.test(token)) return undefined;
+      const next = current[Number(token)];
+      if (next === undefined) return undefined;
+      current = next;
+    } else if (isRecord(current) && Object.prototype.hasOwnProperty.call(current, token)) {
+      current = current[token];
+    } else {
+      return undefined;
+    }
+    if (current === undefined) return undefined;
+  }
+  return current;
+}
+
+function schemaReferenceForRequiredKeyword(location: string): string | null {
+  const hashIndex = location.indexOf('#');
+  if (hashIndex < 0) return null;
+  const fragment = location.slice(hashIndex + 1);
+  const tokens = fragment.split('/');
+  const rawKeyword = tokens[tokens.length - 1];
+  if (rawKeyword === undefined) return null;
+  try {
+    if (decodeURIComponent(rawKeyword).replace(/~1/g, '/').replace(/~0/g, '~') !== 'required') return null;
+  } catch {
+    return null;
+  }
+  return `${location.slice(0, hashIndex)}#${tokens.slice(0, -1).join('/')}`;
+}
+
+async function isDirectionalRequiredFailure(
+  session: SchemaDocumentSession,
+  issue: EvaluationIssue,
+  instance: JsonValue,
+  direction: SchemaExampleDirection,
+  signal: AbortSignal | undefined,
+  schemas: Map<string, Promise<SchemaNode>>,
+): Promise<boolean> {
+  if (issue.valid !== false || issue.keyword !== REQUIRED_KEYWORD_ID || issue.errors?.length) return false;
+  const reference = schemaReferenceForRequiredKeyword(issue.absoluteKeywordLocation);
+  const objectValue = valueAtInstanceLocation(instance, issue.instanceLocation);
+  if (!reference || objectValue === undefined || !isRecord(objectValue)) return false;
+
+  throwIfAborted(signal);
+  let pending = schemas.get(reference);
+  if (!pending) {
+    pending = session.resolve(reference);
+    schemas.set(reference, pending);
+    pending.catch(() => {
+      if (schemas.get(reference) === pending) schemas.delete(reference);
+    });
+  }
+
+  try {
+    const node = await pending;
+    throwIfAborted(signal);
+    const schema = node.schema;
+    if (!isRecord(schema) || !Array.isArray(schema.required) || !isRecord(schema.properties)) {
+      return false;
+    }
+    const properties = schema.properties;
+    const missing = schema.required.filter(
+      (name): name is string => typeof name === 'string' && !Object.prototype.hasOwnProperty.call(objectValue, name),
+    );
+    return (
+      missing.length > 0 &&
+      missing.every((name) => {
+        const propertySchema = properties[name];
+        return propertySchema !== undefined && shouldIgnoreProperty(propertySchema, direction);
+      })
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error;
+    return false;
+  }
+}
+
+async function isDirectionallyValidGeneratedCandidate(
+  session: SchemaDocumentSession,
+  evaluation: EvaluationResult,
+  instance: JsonValue,
+  direction: SchemaExampleDirection,
+  signal: AbortSignal | undefined,
+  schemas: Map<string, Promise<SchemaNode>>,
+): Promise<boolean> {
+  if (evaluation.valid) return true;
+  if (evaluation.errors.length === 0) return false;
+
+  // In OpenAPI, a required readOnly property applies only to responses and a
+  // required writeOnly property applies only to requests. SchemaEngine remains
+  // a pure JSON Schema evaluator, so accept only the exact `required` failures
+  // introduced by the direction projection; every other assertion must pass.
+  const verdicts = await Promise.all(
+    evaluation.errors.map((issue) =>
+      isDirectionalRequiredFailure(session, issue, instance, direction, signal, schemas),
+    ),
+  );
+  return verdicts.every(Boolean);
 }
 
 function mergeObjects(left: JsonValue, right: JsonValue): JsonValue | null {
@@ -689,7 +820,7 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
   const baseUri = effectiveBaseUri(schema, ctx.baseUri);
   const localCtx = { ...ctx, baseUri };
   const values: JsonValue[] = [];
-  for (const authored of localAuthoredCandidates(schema, ctx.depth)) {
+  for (const authored of localAuthoredCandidates(schema, ctx.depth, ctx.limits.maxCandidates)) {
     appendCandidate(values, authored.value, ctx.limits.maxCandidates);
   }
 
@@ -844,6 +975,7 @@ export async function generateSchemaExample(
   const limits = effectiveLimits(options.limits);
   const budget: SearchBudget = { nodes: 0, references: 0, exhausted: false };
   const resolvedNodes = new Map<string, Promise<SchemaNode>>();
+  const directionalRequiredSchemas = new Map<string, Promise<SchemaNode>>();
   let root: SchemaNode;
   try {
     root = await session.resolve(reference);
@@ -908,7 +1040,16 @@ export async function generateSchemaExample(
     evaluations += 1;
     try {
       const evaluation = await evaluateCandidate(session, evaluationReference, candidate, options.signal);
-      if (evaluation.valid) {
+      if (
+        await isDirectionallyValidGeneratedCandidate(
+          session,
+          evaluation,
+          candidate,
+          options.direction,
+          options.signal,
+          directionalRequiredSchemas,
+        )
+      ) {
         return {
           status: 'value',
           value: cloneValue(candidate),

@@ -161,14 +161,13 @@ import {
 } from '../../schema/responseBodySchemaValidation';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
 import {
-  canHydrateOas31DebugDefaults,
   emptyOas31BodyContentDefaults,
-  generateOas31DebugBodyExamples,
   sameOas31DebugExampleIdentity,
   unavailableOas31DebugBodyExamples,
   type Oas31DebugExampleIdentity,
   type Oas31DebugExampleState,
 } from './oas31DebugExamples';
+import { Oas31DebugDefaultHydrator, Oas31DebugExampleLoader } from './Oas31DebugExampleEffects';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -2056,74 +2055,6 @@ export default function ApiDebug() {
   }, [debugCacheKey, debugModel, initialBodyDefaults, initialDebugState, settings.enableRequestCache]);
 
   useEffect(() => {
-    if (
-      !isOas31 ||
-      !swaggerDoc ||
-      !operation ||
-      !debugModel ||
-      schemaEngine.status !== 'ready' ||
-      !oas31ExampleIdentity
-    ) {
-      setOas31ExampleState({ status: 'idle' });
-      return;
-    }
-
-    const controller = new AbortController();
-    setOas31ExampleState({ status: 'loading', identity: oas31ExampleIdentity });
-    generateOas31DebugBodyExamples(swaggerDoc, operation, debugModel, schemaEngine.session, {
-      signal: controller.signal,
-    })
-      .then((examples) => {
-        if (!controller.signal.aborted) {
-          setOas31ExampleState({ status: 'ready', identity: oas31ExampleIdentity, examples });
-        }
-      })
-      .catch((reason: unknown) => {
-        if (controller.signal.aborted || (reason instanceof Error && reason.name === 'AbortError')) return;
-        setOas31ExampleState({
-          status: 'error',
-          identity: oas31ExampleIdentity,
-          message: reason instanceof Error ? reason.message : 'Unable to generate OAS 3.1 debug examples.',
-        });
-      });
-    return () => controller.abort();
-  }, [debugModel, isOas31, oas31ExampleIdentity, operation, schemaEngine, swaggerDoc]);
-
-  useEffect(() => {
-    const hydrationState: Oas31DebugExampleState =
-      activeOas31Examples && oas31ExampleIdentity
-        ? { status: 'ready', identity: oas31ExampleIdentity, examples: activeOas31Examples }
-        : oas31ExampleState;
-    const alreadyApplied = sameOas31DebugExampleIdentity(appliedOas31ExampleIdentityRef.current, oas31ExampleIdentity);
-    if (
-      !canHydrateOas31DebugDefaults({
-        state: hydrationState,
-        currentIdentity: oas31ExampleIdentity,
-        editRevision: debugDefaultEditRevisionRef.current,
-        hydratedDebugCacheKey,
-        currentDebugCacheKey: debugCacheKey,
-        alreadyApplied,
-      })
-    ) {
-      return;
-    }
-    if (hydrationState.status !== 'ready') return;
-
-    const selectedBody = debugModel?.bodyContents.find((content) => content.mediaType === selectedContentType);
-    setBody(initialBodyValueForContent(selectedBody, hydrationState.examples.defaults));
-    setFormFields(initialFormFieldsForContent(selectedBody, hydrationState.examples.defaults));
-    appliedOas31ExampleIdentityRef.current = hydrationState.identity;
-  }, [
-    activeOas31Examples,
-    debugCacheKey,
-    debugModel,
-    hydratedDebugCacheKey,
-    oas31ExampleIdentity,
-    oas31ExampleState,
-    selectedContentType,
-  ]);
-
-  useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
     if (!response && !error && !builtRequest && sseEvents === null) {
       removeDebugSessionState(debugCacheKey);
@@ -3567,6 +3498,27 @@ export default function ApiDebug() {
 
   return (
     <OperationModeLayout activeKey="debug">
+      <Oas31DebugExampleLoader
+        enabled={isOas31}
+        document={swaggerDoc}
+        operation={operation}
+        debugModel={debugModel}
+        session={schemaEngine.status === 'ready' ? schemaEngine.session : null}
+        identity={oas31ExampleIdentity}
+        setState={setOas31ExampleState}
+      />
+      <Oas31DebugDefaultHydrator
+        activeExamples={activeOas31Examples}
+        state={oas31ExampleState}
+        identity={oas31ExampleIdentity}
+        editRevisionRef={debugDefaultEditRevisionRef}
+        appliedIdentityRef={appliedOas31ExampleIdentityRef}
+        hydratedDebugCacheKey={hydratedDebugCacheKey}
+        currentDebugCacheKey={debugCacheKey}
+        selectedBody={debugModel.bodyContents.find((content) => content.mediaType === selectedContentType)}
+        setBody={setBody}
+        setFormFields={setFormFields}
+      />
       <Modal
         open={pendingSchemaOverride !== null}
         title={t('apiDebug.schemaValidation.title')}
