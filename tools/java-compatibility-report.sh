@@ -64,6 +64,8 @@ if [ "$CURL_CONNECT_TIMEOUT_SECONDS" -eq 0 ] || [ "$CURL_REQUEST_TIMEOUT_SECONDS
   exit 1
 fi
 
+VERIFY_RELEASE_REPO_ROOT="$REPO_ROOT" "$REPO_ROOT/tools/verify-release-modules.sh"
+
 read_pom_value() {
   pom_file=$1
   element=$2
