@@ -5,6 +5,13 @@ cd "$(dirname "$0")/../front"
 
 bun install --frozen-lockfile
 
+# --- knife4j-schema-engine ---
+bun run --filter knife4j-schema-engine format:check
+bun run --filter knife4j-schema-engine test
+bun run --filter knife4j-schema-engine lint
+bun run --filter knife4j-schema-engine build
+bun run --filter knife4j-schema-engine check:browser
+
 # --- knife4j-core ---
 bun run --filter knife4j-core format:check
 bun run --filter knife4j-core test

@@ -1,0 +1,480 @@
+{
+  "source": "https://github.com/json-schema-org/JSON-Schema-Test-Suite",
+  "sourceCommit": "3c25e5f709192aadf67cf7f2eb19771a57131fec",
+  "dialect": "draft2020-12",
+  "note": "Cases copied unchanged except for grouping into this offline subset.",
+  "groups": [
+    {
+      "description": "integer type matches integers",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "integer"
+      },
+      "tests": [
+        {
+          "description": "an integer is an integer",
+          "data": 1,
+          "valid": true
+        },
+        {
+          "description": "a float with zero fractional part is an integer",
+          "data": 1,
+          "valid": true
+        },
+        {
+          "description": "a float is not an integer",
+          "data": 1.1,
+          "valid": false
+        },
+        {
+          "description": "a string is not an integer",
+          "data": "foo",
+          "valid": false
+        },
+        {
+          "description": "a string is still not an integer, even if it looks like one",
+          "data": "1",
+          "valid": false
+        },
+        {
+          "description": "an object is not an integer",
+          "data": {},
+          "valid": false
+        },
+        {
+          "description": "an array is not an integer",
+          "data": [],
+          "valid": false
+        },
+        {
+          "description": "a boolean is not an integer",
+          "data": true,
+          "valid": false
+        },
+        {
+          "description": "null is not an integer",
+          "data": null,
+          "valid": false
+        }
+      ]
+    },
+    {
+      "description": "string type matches strings",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "string"
+      },
+      "tests": [
+        {
+          "description": "1 is not a string",
+          "data": 1,
+          "valid": false
+        },
+        {
+          "description": "a float is not a string",
+          "data": 1.1,
+          "valid": false
+        },
+        {
+          "description": "a string is a string",
+          "data": "foo",
+          "valid": true
+        },
+        {
+          "description": "a string is still a string, even if it looks like a number",
+          "data": "1",
+          "valid": true
+        },
+        {
+          "description": "an empty string is still a string",
+          "data": "",
+          "valid": true
+        },
+        {
+          "description": "an object is not a string",
+          "data": {},
+          "valid": false
+        },
+        {
+          "description": "an array is not a string",
+          "data": [],
+          "valid": false
+        },
+        {
+          "description": "a boolean is not a string",
+          "data": true,
+          "valid": false
+        },
+        {
+          "description": "null is not a string",
+          "data": null,
+          "valid": false
+        }
+      ]
+    },
+    {
+      "description": "boolean schema 'true'",
+      "schema": true,
+      "tests": [
+        {
+          "description": "number is valid",
+          "data": 1,
+          "valid": true
+        },
+        {
+          "description": "string is valid",
+          "data": "foo",
+          "valid": true
+        },
+        {
+          "description": "boolean true is valid",
+          "data": true,
+          "valid": true
+        },
+        {
+          "description": "boolean false is valid",
+          "data": false,
+          "valid": true
+        },
+        {
+          "description": "null is valid",
+          "data": null,
+          "valid": true
+        },
+        {
+          "description": "object is valid",
+          "data": {
+            "foo": "bar"
+          },
+          "valid": true
+        },
+        {
+          "description": "empty object is valid",
+          "data": {},
+          "valid": true
+        },
+        {
+          "description": "array is valid",
+          "data": ["foo"],
+          "valid": true
+        },
+        {
+          "description": "empty array is valid",
+          "data": [],
+          "valid": true
+        }
+      ]
+    },
+    {
+      "description": "boolean schema 'false'",
+      "schema": false,
+      "tests": [
+        {
+          "description": "number is invalid",
+          "data": 1,
+          "valid": false
+        },
+        {
+          "description": "string is invalid",
+          "data": "foo",
+          "valid": false
+        },
+        {
+          "description": "boolean true is invalid",
+          "data": true,
+          "valid": false
+        },
+        {
+          "description": "boolean false is invalid",
+          "data": false,
+          "valid": false
+        },
+        {
+          "description": "null is invalid",
+          "data": null,
+          "valid": false
+        },
+        {
+          "description": "object is invalid",
+          "data": {
+            "foo": "bar"
+          },
+          "valid": false
+        },
+        {
+          "description": "empty object is invalid",
+          "data": {},
+          "valid": false
+        },
+        {
+          "description": "array is invalid",
+          "data": ["foo"],
+          "valid": false
+        },
+        {
+          "description": "empty array is invalid",
+          "data": [],
+          "valid": false
+        }
+      ]
+    },
+    {
+      "description": "a schema given for prefixItems",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "prefixItems": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "tests": [
+        {
+          "description": "correct types",
+          "data": [1, "foo"],
+          "valid": true
+        },
+        {
+          "description": "wrong types",
+          "data": ["foo", 1],
+          "valid": false
+        },
+        {
+          "description": "incomplete array of items",
+          "data": [1],
+          "valid": true
+        },
+        {
+          "description": "array with additional items",
+          "data": [1, "foo", true],
+          "valid": true
+        },
+        {
+          "description": "empty array",
+          "data": [],
+          "valid": true
+        },
+        {
+          "description": "JavaScript pseudo-array is valid",
+          "data": {
+            "0": "invalid",
+            "1": "valid",
+            "length": 2
+          },
+          "valid": true
+        }
+      ]
+    },
+    {
+      "description": "prefixItems with boolean schemas",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "prefixItems": [true, false]
+      },
+      "tests": [
+        {
+          "description": "array with one item is valid",
+          "data": [1],
+          "valid": true
+        },
+        {
+          "description": "array with two items is invalid",
+          "data": [1, "foo"],
+          "valid": false
+        },
+        {
+          "description": "empty array is valid",
+          "data": [],
+          "valid": true
+        }
+      ]
+    },
+    {
+      "description": "unevaluatedProperties with nested properties",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "foo": {
+            "type": "string"
+          }
+        },
+        "allOf": [
+          {
+            "properties": {
+              "bar": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "unevaluatedProperties": false
+      },
+      "tests": [
+        {
+          "description": "with no additional properties",
+          "data": {
+            "foo": "foo",
+            "bar": "bar"
+          },
+          "valid": true
+        },
+        {
+          "description": "with additional properties",
+          "data": {
+            "foo": "foo",
+            "bar": "bar",
+            "baz": "baz"
+          },
+          "valid": false
+        }
+      ]
+    },
+    {
+      "description": "unevaluatedProperties with anyOf",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "foo": {
+            "type": "string"
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "bar": {
+                "const": "bar"
+              }
+            },
+            "required": ["bar"]
+          },
+          {
+            "properties": {
+              "baz": {
+                "const": "baz"
+              }
+            },
+            "required": ["baz"]
+          },
+          {
+            "properties": {
+              "quux": {
+                "const": "quux"
+              }
+            },
+            "required": ["quux"]
+          }
+        ],
+        "unevaluatedProperties": false
+      },
+      "tests": [
+        {
+          "description": "when one matches and has no unevaluated properties",
+          "data": {
+            "foo": "foo",
+            "bar": "bar"
+          },
+          "valid": true
+        },
+        {
+          "description": "when one matches and has unevaluated properties",
+          "data": {
+            "foo": "foo",
+            "bar": "bar",
+            "baz": "not-baz"
+          },
+          "valid": false
+        },
+        {
+          "description": "when two match and has no unevaluated properties",
+          "data": {
+            "foo": "foo",
+            "bar": "bar",
+            "baz": "baz"
+          },
+          "valid": true
+        },
+        {
+          "description": "when two match and has unevaluated properties",
+          "data": {
+            "foo": "foo",
+            "bar": "bar",
+            "baz": "baz",
+            "quux": "not-quux"
+          },
+          "valid": false
+        }
+      ]
+    },
+    {
+      "description": "A $dynamicRef to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://test.json-schema.org/dynamicRef-dynamicAnchor-same-schema/root",
+        "type": "array",
+        "items": {
+          "$dynamicRef": "#items"
+        },
+        "$defs": {
+          "foo": {
+            "$dynamicAnchor": "items",
+            "type": "string"
+          }
+        }
+      },
+      "tests": [
+        {
+          "description": "An array of strings is valid",
+          "data": ["foo", "bar"],
+          "valid": true
+        },
+        {
+          "description": "An array containing non-strings is invalid",
+          "data": ["foo", 42],
+          "valid": false
+        }
+      ]
+    },
+    {
+      "description": "A $dynamicRef resolves to the first $dynamicAnchor still in scope that is encountered when the schema is evaluated",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://test.json-schema.org/typical-dynamic-resolution/root",
+        "$ref": "list",
+        "$defs": {
+          "foo": {
+            "$dynamicAnchor": "items",
+            "type": "string"
+          },
+          "list": {
+            "$id": "list",
+            "type": "array",
+            "items": {
+              "$dynamicRef": "#items"
+            },
+            "$defs": {
+              "items": {
+                "$comment": "This is only needed to satisfy the bookending requirement",
+                "$dynamicAnchor": "items"
+              }
+            }
+          }
+        }
+      },
+      "tests": [
+        {
+          "description": "An array of strings is valid",
+          "data": ["foo", "bar"],
+          "valid": true
+        },
+        {
+          "description": "An array containing non-strings is invalid",
+          "data": ["foo", 42],
+          "valid": false
+        }
+      ]
+    }
+  ]
+}

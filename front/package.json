@@ -5,6 +5,7 @@
   "description": "knife4j front-end workspace (OAS3 core + ui-react; vue3 is sibling)",
   "workspaces": [
     "core",
+    "schema-engine",
     "ui-react"
   ],
   "engines": {
