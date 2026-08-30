@@ -105,6 +105,16 @@ const enUS = {
   'schema.flag.writeOnly': 'WriteOnly',
   'schema.flag.truncated': 'Truncated',
   'schema.resizeColumn': 'Resize column',
+  'schema.projection.loading.title': 'Resolving OAS 3.1 data models',
+  'schema.projection.loading.description':
+    'The compatibility field tree is shown temporarily and will update when resolution completes.',
+  'schema.projection.degraded.title': 'Some OAS 3.1 data models use fallback display',
+  'schema.projection.engineFallback.description':
+    'SchemaEngine initialization failed, so the compatibility field tree is retained. The original Schema is unchanged.',
+  'schema.projection.projectionFallback.description':
+    'Data model projection failed, so the compatibility field tree is retained. The original Schema is unchanged.',
+  'schema.projection.degraded.description':
+    '{{modelCount}} model(s) contain {{count}} semantic item(s) that cannot be fully projected as a field tree (models: {{models}}; keywords: {{keywords}}). The original Schema is unchanged.',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API doc not found',
