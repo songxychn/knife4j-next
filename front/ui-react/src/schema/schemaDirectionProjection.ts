@@ -28,6 +28,12 @@ interface IndexedSchema {
   readonly schema: JsonSchema;
   /** Base URI before applying this schema's own `$id`. */
   readonly baseUri: string;
+  readonly location: Pick<SchemaLocation, 'originalResource' | 'originalPath' | 'projectedResource' | 'projectedPath'>;
+}
+
+interface ProjectionSpecialization {
+  readonly index: number;
+  readonly resources: Map<string, string>;
 }
 
 const OPENAPI_BASE_DIALECT = 'https://spec.openapis.org/oas/3.1/dialect/base';
@@ -89,17 +95,15 @@ function locationReference(resourceUri: string, path: readonly string[]): string
 function referenceLookupKey(reference: string): string {
   const url = new URL(reference);
   const resource = resourcePart(url.href);
-  const fragment = url.hash.slice(1);
-  if (!fragment) return JSON.stringify([resource, 'resource']);
+  const rawFragment = url.hash.slice(1);
+  if (!rawFragment) return JSON.stringify([resource, 'resource']);
   try {
-    if (!fragment.startsWith('/')) return JSON.stringify([resource, 'anchor', decodeURIComponent(fragment)]);
-    const tokens = fragment
-      .slice(1)
-      .split('/')
-      .map((token) => decodeURIComponent(token));
+    const fragment = decodeURIComponent(rawFragment);
+    if (!fragment.startsWith('/')) return JSON.stringify([resource, 'anchor', fragment]);
+    const tokens = fragment.slice(1).split('/');
     return JSON.stringify([resource, 'pointer', tokens]);
   } catch {
-    return JSON.stringify([resource, 'raw', fragment]);
+    return JSON.stringify([resource, 'raw', rawFragment]);
   }
 }
 
@@ -212,30 +216,45 @@ export function createDirectionalSchemaProjection(
 
   const locationMap = new Map<string, string>();
   const schemaIndex = new Map<string, IndexedSchema>();
+  const dynamicAnchorsByResource = new Map<string, Map<string, IndexedSchema>>();
   const rememberLocation = (original: string, projected: string): void => {
     const key = referenceLookupKey(original);
     if (!locationMap.has(key)) locationMap.set(key, projected);
   };
-  const rememberSchema = (reference: string, schema: JsonSchema, baseUri: string): void => {
+  const rememberSchema = (reference: string, schema: JsonSchema, location: SchemaLocation): IndexedSchema => {
     const key = referenceLookupKey(reference);
-    if (!schemaIndex.has(key)) schemaIndex.set(key, { schema, baseUri });
+    let indexed = schemaIndex.get(key);
+    if (!indexed) {
+      indexed = {
+        schema,
+        baseUri: location.originalResource,
+        location: {
+          originalResource: location.originalResource,
+          originalPath: location.originalPath,
+          projectedResource: location.projectedResource,
+          projectedPath: location.projectedPath,
+        },
+      };
+      schemaIndex.set(key, indexed);
+    }
+    return indexed;
   };
 
   const collectLocations = (schema: JsonSchema, location: SchemaLocation): void => {
     const originalAlias = locationReference(originalRetrieval, location.originalDocumentPath);
     const projectedAlias = locationReference(projectedRetrieval, location.projectedBundlePath);
     rememberLocation(originalAlias, projectedAlias);
-    rememberSchema(originalAlias, schema, location.originalResource);
+    rememberSchema(originalAlias, schema, location);
     const originalLocation = locationReference(location.originalResource, location.originalPath);
     rememberLocation(originalLocation, locationReference(location.projectedResource, location.projectedPath));
-    rememberSchema(originalLocation, schema, location.originalResource);
+    rememberSchema(originalLocation, schema, location);
 
     let scopedLocation = location;
     if (isRecord(schema) && typeof schema.$id === 'string') {
       const originalResource = resolveResource(schema.$id, location.originalResource);
       const projectedResource = mappedResource(originalResource);
       rememberLocation(originalResource, projectedResource);
-      rememberSchema(originalResource, schema, location.originalResource);
+      rememberSchema(originalResource, schema, location);
       scopedLocation = {
         ...location,
         originalResource,
@@ -248,11 +267,17 @@ export function createDirectionalSchemaProjection(
       for (const keyword of ['$anchor', '$dynamicAnchor'] as const) {
         const anchor = schema[keyword];
         if (typeof anchor !== 'string') continue;
-        rememberSchema(
+        const indexed = rememberSchema(
           absoluteReference(`#${anchor}`, scopedLocation.originalResource),
           schema,
-          location.originalResource,
+          location,
         );
+        if (keyword === '$dynamicAnchor') {
+          const resource = resourcePart(scopedLocation.originalResource);
+          const anchors = dynamicAnchorsByResource.get(resource) ?? new Map<string, IndexedSchema>();
+          if (!anchors.has(anchor)) anchors.set(anchor, indexed);
+          dynamicAnchorsByResource.set(resource, anchors);
+        }
       }
     }
 
@@ -292,14 +317,18 @@ export function createDirectionalSchemaProjection(
 
   const schemaObjectIds = new WeakMap<Record<string, unknown>, number>();
   let schemaObjectSequence = 0;
-  const schemaAnalysisKey = (schema: Record<string, unknown>, baseUri: string): string => {
+  const schemaAnalysisKey = (
+    schema: Record<string, unknown>,
+    baseUri: string,
+    dynamicScope: readonly string[],
+  ): string => {
     let objectId = schemaObjectIds.get(schema);
     if (objectId === undefined) {
       objectId = schemaObjectSequence;
       schemaObjectSequence += 1;
       schemaObjectIds.set(schema, objectId);
     }
-    return `${baseUri}\u0000${objectId}`;
+    return `${baseUri}\u0000${dynamicScope.join('\u0001')}\u0000${objectId}`;
   };
   const directionalAnnotationCache = new Map<string, boolean>();
   const directionalPropertiesCache = new Map<string, ReadonlySet<string>>();
@@ -312,14 +341,63 @@ export function createDirectionalSchemaProjection(
     }
   };
 
+  const indexedResource = (indexed: IndexedSchema): string =>
+    isRecord(indexed.schema) && typeof indexed.schema.$id === 'string'
+      ? resolveResource(indexed.schema.$id, indexed.baseUri)
+      : resourcePart(indexed.baseUri);
+
+  const dynamicScopeWithResource = (dynamicScope: readonly string[], resource: string): readonly string[] => {
+    const normalized = resourcePart(resource);
+    return dynamicScope.includes(normalized) ? dynamicScope : [...dynamicScope, normalized];
+  };
+
+  const dynamicScopeForSchema = (
+    dynamicScope: readonly string[],
+    schema: JsonSchema,
+    baseUri: string,
+  ): readonly string[] =>
+    dynamicScopeWithResource(
+      dynamicScope,
+      isRecord(schema) && typeof schema.$id === 'string' ? resolveResource(schema.$id, baseUri) : baseUri,
+    );
+
+  const dynamicAnchorName = (reference: string, baseUri: string): string | null => {
+    try {
+      const url = new URL(absoluteReference(reference, baseUri));
+      const fragment = decodeURIComponent(url.hash.slice(1));
+      return fragment && !fragment.startsWith('/') ? fragment : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const resolveIndexedReference = (
+    keyword: string,
+    reference: string,
+    baseUri: string,
+    dynamicScope: readonly string[],
+  ): IndexedSchema | null => {
+    const target = resolveIndexedSchema(reference, baseUri);
+    if (!target || keyword !== '$dynamicRef') return target;
+    const anchor = dynamicAnchorName(reference, baseUri);
+    if (!anchor || !dynamicAnchorsByResource.get(indexedResource(target))?.has(anchor)) return target;
+    for (const scopeResource of dynamicScope) {
+      const override = dynamicAnchorsByResource.get(resourcePart(scopeResource))?.get(anchor);
+      if (override) return override;
+    }
+    return target;
+  };
+
   const hasDirectionalAnnotation = (
     schema: JsonSchema,
     baseUri: string,
+    dynamicScope: readonly string[],
     active: ReadonlySet<string> = new Set(),
   ): boolean => {
     if (!isRecord(schema)) return false;
     const localBase = typeof schema.$id === 'string' ? resolveResource(schema.$id, baseUri) : baseUri;
-    const key = schemaAnalysisKey(schema, localBase);
+    const localDynamicScope = dynamicScopeForSchema(dynamicScope, schema, baseUri);
+    const key = schemaAnalysisKey(schema, localBase, localDynamicScope);
     const cached = directionalAnnotationCache.get(key);
     if (cached !== undefined) return cached;
     if (active.has(key)) return false;
@@ -329,12 +407,19 @@ export function createDirectionalSchemaProjection(
     let result = annotation === true;
     for (const keyword of REFERENCE_KEYS) {
       if (result || typeof schema[keyword] !== 'string') continue;
-      const target = resolveIndexedSchema(schema[keyword] as string, localBase);
-      if (target) result = hasDirectionalAnnotation(target.schema, target.baseUri, nextActive);
+      const target = resolveIndexedReference(keyword, schema[keyword] as string, localBase, localDynamicScope);
+      if (target) {
+        result = hasDirectionalAnnotation(
+          target.schema,
+          target.baseUri,
+          dynamicScopeWithResource(localDynamicScope, indexedResource(target)),
+          nextActive,
+        );
+      }
     }
     if (!result && Array.isArray(schema.allOf)) {
       result = schema.allOf.some(
-        (branch) => isSchemaValue(branch) && hasDirectionalAnnotation(branch, localBase, nextActive),
+        (branch) => isSchemaValue(branch) && hasDirectionalAnnotation(branch, localBase, localDynamicScope, nextActive),
       );
     }
     directionalAnnotationCache.set(key, result);
@@ -349,11 +434,13 @@ export function createDirectionalSchemaProjection(
   const directionalPropertyNames = (
     schema: JsonSchema,
     baseUri: string,
+    dynamicScope: readonly string[],
     active: ReadonlySet<string> = new Set(),
   ): ReadonlySet<string> => {
     if (!isRecord(schema)) return new Set();
     const localBase = typeof schema.$id === 'string' ? resolveResource(schema.$id, baseUri) : baseUri;
-    const key = schemaAnalysisKey(schema, localBase);
+    const localDynamicScope = dynamicScopeForSchema(dynamicScope, schema, baseUri);
+    const key = schemaAnalysisKey(schema, localBase, localDynamicScope);
     const cached = directionalPropertiesCache.get(key);
     if (cached) return cached;
     if (active.has(key)) return new Set();
@@ -362,20 +449,27 @@ export function createDirectionalSchemaProjection(
 
     if (isRecord(schema.properties)) {
       for (const [name, propertySchema] of Object.entries(schema.properties)) {
-        if (isSchemaValue(propertySchema) && hasDirectionalAnnotation(propertySchema, localBase)) names.add(name);
+        if (isSchemaValue(propertySchema) && hasDirectionalAnnotation(propertySchema, localBase, localDynamicScope)) {
+          names.add(name);
+        }
       }
     }
     for (const keyword of REFERENCE_KEYS) {
       if (typeof schema[keyword] !== 'string') continue;
-      const target = resolveIndexedSchema(schema[keyword] as string, localBase);
+      const target = resolveIndexedReference(keyword, schema[keyword] as string, localBase, localDynamicScope);
       if (target) {
-        directionalPropertyNames(target.schema, target.baseUri, nextActive).forEach((name) => names.add(name));
+        directionalPropertyNames(
+          target.schema,
+          target.baseUri,
+          dynamicScopeWithResource(localDynamicScope, indexedResource(target)),
+          nextActive,
+        ).forEach((name) => names.add(name));
       }
     }
     if (Array.isArray(schema.allOf)) {
       for (const branch of schema.allOf) {
         if (!isSchemaValue(branch)) continue;
-        directionalPropertyNames(branch, localBase, nextActive).forEach((name) => names.add(name));
+        directionalPropertyNames(branch, localBase, localDynamicScope, nextActive).forEach((name) => names.add(name));
       }
     }
     directionalPropertiesCache.set(key, names);
@@ -383,28 +477,102 @@ export function createDirectionalSchemaProjection(
   };
 
   const cloneData = (value: unknown): JsonValue => structuredClone(value) as JsonValue;
+  const definitions = cloneRecord();
+  const specializationReferences = new Map<string, string>();
+  let specializationSequence = 0;
 
-  const cloneSchema = (
+  const specializationResource = (specialization: ProjectionSpecialization, originalResource: string): string => {
+    const normalized = resourcePart(originalResource);
+    const existing = specialization.resources.get(normalized);
+    if (existing) return existing;
+    const resource = new URL(
+      `specializations/${specialization.index}/resources/${specialization.resources.size}`,
+      namespace,
+    ).href;
+    specialization.resources.set(normalized, resource);
+    return resource;
+  };
+
+  const specializedReference = (
+    keyword: string,
+    reference: string,
+    baseUri: string,
+    ignored: ReadonlySet<string>,
+    dynamicScope: readonly string[],
+  ): string | null => {
+    let absolute: string;
+    try {
+      absolute = absoluteReference(reference, baseUri);
+    } catch {
+      return null;
+    }
+    const target = resolveIndexedReference(keyword, reference, baseUri, dynamicScope);
+    if (!target) return null;
+    const specializationKey = JSON.stringify([
+      keyword,
+      referenceLookupKey(absolute),
+      [...ignored].sort(),
+      dynamicScope,
+    ]);
+    const existing = specializationReferences.get(specializationKey);
+    if (existing) return existing;
+
+    const index = specializationSequence;
+    specializationSequence += 1;
+    const definitionName = `directional${index}`;
+    const resource = new URL(`specializations/${index}`, namespace).href;
+    const definitionReference = locationReference(projectedRetrieval, ['$defs', definitionName]);
+    const specialization: ProjectionSpecialization = { index, resources: new Map() };
+    specializationReferences.set(specializationKey, definitionReference);
+    definitions[definitionName] = true;
+    definitions[definitionName] = cloneSchema(
+      target.schema,
+      target.location,
+      ignored,
+      dynamicScopeWithResource(dynamicScope, indexedResource(target)),
+      specialization,
+      resource,
+    );
+    return definitionReference;
+  };
+
+  function cloneSchema(
     schema: JsonValue,
     location: Pick<SchemaLocation, 'originalResource' | 'originalPath' | 'projectedResource' | 'projectedPath'>,
     inheritedIgnored: ReadonlySet<string>,
-  ): JsonValue => {
+    dynamicScope: readonly string[],
+    specialization?: ProjectionSpecialization,
+    forcedProjectedResource?: string,
+  ): JsonValue {
     if (!isRecord(schema)) return schema;
 
-    let scopedLocation = location;
+    let scopedLocation =
+      forcedProjectedResource === undefined
+        ? location
+        : { ...location, projectedResource: forcedProjectedResource, projectedPath: [] };
     if (typeof schema.$id === 'string') {
       const originalResource = resolveResource(schema.$id, location.originalResource);
+      const projectedResource =
+        forcedProjectedResource ??
+        (specialization ? specializationResource(specialization, originalResource) : mappedResource(originalResource));
+      if (specialization && forcedProjectedResource) {
+        specialization.resources.set(resourcePart(originalResource), forcedProjectedResource);
+      }
       scopedLocation = {
         originalResource,
         originalPath: [],
-        projectedResource: mappedResource(originalResource),
+        projectedResource,
         projectedPath: [],
       };
     }
 
+    const localDynamicScope = dynamicScopeForSchema(dynamicScope, schema, location.originalResource);
     const ignored = new Set(inheritedIgnored);
-    directionalPropertyNames(schema, location.originalResource).forEach((name) => ignored.add(name));
+    directionalPropertyNames(schema, location.originalResource, dynamicScope).forEach((name) => ignored.add(name));
     const result = cloneRecord();
+    if (forcedProjectedResource !== undefined && typeof schema.$id !== 'string') {
+      result.$id = forcedProjectedResource;
+    }
 
     for (const [key, child] of Object.entries(schema)) {
       // Candidate-source annotations are read from the unchanged document.
@@ -415,7 +583,10 @@ export function createDirectionalSchemaProjection(
         continue;
       }
       if (REFERENCE_KEYS.has(key) && typeof child === 'string') {
-        result[key] = rewriteReference(child, scopedLocation.originalResource);
+        result[key] =
+          (ignored.size > 0
+            ? specializedReference(key, child, scopedLocation.originalResource, ignored, localDynamicScope)
+            : null) ?? rewriteReference(child, scopedLocation.originalResource);
         continue;
       }
       if (key === 'required' && Array.isArray(child)) {
@@ -442,7 +613,13 @@ export function createDirectionalSchemaProjection(
             projectedPath: [...scopedLocation.projectedPath, key, name],
           };
           values[name] = isSchemaValue(nested)
-            ? cloneSchema(nested, childLocation, SAME_INSTANCE_MAP_KEYS.has(key) ? ignored : new Set())
+            ? cloneSchema(
+                nested,
+                childLocation,
+                SAME_INSTANCE_MAP_KEYS.has(key) ? ignored : new Set(),
+                localDynamicScope,
+                specialization,
+              )
             : cloneData(nested);
         }
         result[key] = values;
@@ -460,6 +637,8 @@ export function createDirectionalSchemaProjection(
               projectedPath: [...scopedLocation.projectedPath, key, String(index)],
             },
             SAME_INSTANCE_ARRAY_KEYS.has(key) ? ignored : new Set(),
+            localDynamicScope,
+            specialization,
           );
         });
         continue;
@@ -476,6 +655,8 @@ export function createDirectionalSchemaProjection(
                   projectedPath: [...scopedLocation.projectedPath, key, ...suffix],
                 },
                 SAME_INSTANCE_VALUE_KEYS.has(key) ? ignored : new Set(),
+                localDynamicScope,
+                specialization,
               )
             : cloneData(nested);
         result[key] =
@@ -487,9 +668,8 @@ export function createDirectionalSchemaProjection(
       result[key] = cloneData(child);
     }
     return result;
-  };
+  }
 
-  const definitions = cloneRecord();
   for (const root of roots) {
     definitions[root.key] = cloneSchema(
       root.schema,
@@ -500,6 +680,7 @@ export function createDirectionalSchemaProjection(
         projectedPath: ['$defs', root.key],
       },
       new Set(),
+      dynamicScopeForSchema([], root.schema, originalDocumentResource),
     );
   }
 

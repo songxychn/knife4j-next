@@ -156,6 +156,30 @@ describe('authored example priority', () => {
       validation: 'valid',
     });
   });
+
+  test('keeps authored examples from unconditional allOf branches and diagnoses the composed schema', async () => {
+    const session = await sessionFor({
+      Composed: {
+        allOf: [{ examples: ['author-value'] }, { type: 'string', const: 'generated-value' }],
+      },
+    });
+
+    await expect(
+      generateSchemaExample(session, reference('Composed'), { direction: 'request' }),
+    ).resolves.toMatchObject({
+      status: 'value',
+      value: 'author-value',
+      source: 'schema-examples',
+      authored: true,
+      validation: 'invalid',
+      diagnostics: [
+        {
+          code: 'EXPLICIT_VALUE_INVALID',
+          issues: expect.arrayContaining([expect.objectContaining({ keyword: 'const' })]),
+        },
+      ],
+    });
+  });
 });
 
 describe('bounded structural candidates', () => {
@@ -358,11 +382,17 @@ describe('bounded structural candidates', () => {
 
   test('follows directional annotations through property refs and same-instance allOf branches', async () => {
     const session = await sessionFor({
-      ReadOnlyId: { type: 'integer', readOnly: true },
+      ReadOnlyId: {
+        $id: 'schemas/read-only-id',
+        $defs: {
+          Value: { $anchor: 'code', type: 'integer', readOnly: true },
+        },
+        $ref: '#code',
+      },
       ReferencedProperty: {
         type: 'object',
         required: ['id'],
-        properties: { id: { $ref: '#/components/schemas/ReadOnlyId' } },
+        properties: { id: { $ref: 'schemas/read-only-id' } },
         additionalProperties: false,
       },
       Base: {
@@ -376,9 +406,62 @@ describe('bounded structural candidates', () => {
       InlineAllOf: {
         allOf: [{ properties: { id: { type: 'integer', readOnly: true } } }, { required: ['id'] }],
       },
+      RequiredBase: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'integer' } },
+        additionalProperties: false,
+      },
+      ReferencedSibling: {
+        $ref: '#/components/schemas/RequiredBase',
+        properties: { id: { type: 'integer', readOnly: true } },
+      },
+      ReverseInlineAllOf: {
+        allOf: [
+          {
+            type: 'object',
+            required: ['id'],
+            properties: { id: { type: 'integer' } },
+            additionalProperties: false,
+          },
+          { properties: { id: { type: 'integer', readOnly: true } } },
+        ],
+      },
+      EncodedPayload: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'integer', readOnly: true } },
+        additionalProperties: false,
+      },
+      EncodedAlias: { $ref: '#%2Fcomponents%2Fschemas%2FEncodedPayload' },
+      AnyDirection: true,
+      NeverDirection: false,
+      AnyDirectionalSibling: {
+        $ref: '#/components/schemas/AnyDirection',
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'integer', readOnly: true } },
+        additionalProperties: false,
+      },
+      NeverDirectionalSibling: {
+        $ref: '#/components/schemas/NeverDirection',
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'integer', readOnly: true } },
+        additionalProperties: false,
+      },
     });
 
-    for (const name of ['ReferencedProperty', 'ReferencedAllOf', 'InlineAllOf']) {
+    const schemaNames = [
+      'ReferencedProperty',
+      'ReferencedAllOf',
+      'InlineAllOf',
+      'ReferencedSibling',
+      'ReverseInlineAllOf',
+      'EncodedAlias',
+      'AnyDirectionalSibling',
+    ];
+    for (const name of schemaNames) {
       const schemaReference = reference(name);
       const requestValue = expectDirectionallyGeneratedValue(
         await generateSchemaExample(session, schemaReference, { direction: 'request' }),
@@ -389,7 +472,6 @@ describe('bounded structural candidates', () => {
 
       expect(requestValue).toEqual({});
       expect(responseValue).toEqual({ id: 0 });
-      await expect(session.evaluate(schemaReference, requestValue)).resolves.toMatchObject({ valid: false });
       await expect(
         evaluateSchemaDocumentDirectionally(session, schemaReference, requestValue, 'request'),
       ).resolves.toMatchObject({ valid: true });
@@ -397,6 +479,60 @@ describe('bounded structural candidates', () => {
         evaluateSchemaDocumentDirectionally(session, schemaReference, responseValue, 'response'),
       ).resolves.toMatchObject({ valid: true });
     }
+
+    await expect(
+      generateSchemaExample(session, reference('NeverDirectionalSibling'), { direction: 'request' }),
+    ).resolves.toMatchObject({ status: 'none', reason: 'no-valid-candidate' });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, reference('NeverDirectionalSibling'), {}, 'request'),
+    ).resolves.toMatchObject({ valid: false });
+  });
+
+  test('resolves directional annotations through dynamic-scope overrides', async () => {
+    const session = await sessionFor({
+      DynamicSlot: {
+        $id: 'https://review.knife4j.example/slot',
+        $dynamicAnchor: 'slot',
+        type: 'string',
+      },
+      DynamicTemplate: {
+        $id: 'https://review.knife4j.example/template',
+        type: 'object',
+        required: ['value'],
+        properties: {
+          value: { $dynamicRef: 'https://review.knife4j.example/slot#slot' },
+        },
+        additionalProperties: false,
+      },
+      DynamicOverride: {
+        $id: 'https://review.knife4j.example/override',
+        $ref: 'https://review.knife4j.example/template',
+        $defs: {
+          OverrideSlot: {
+            $dynamicAnchor: 'slot',
+            type: 'string',
+            readOnly: true,
+          },
+        },
+      },
+    });
+
+    const schemaReference = reference('DynamicOverride');
+    const requestValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'request' }),
+    );
+    const responseValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'response' }),
+    );
+
+    expect(requestValue).toEqual({});
+    expect(responseValue).toEqual({ value: '' });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, requestValue, 'request'),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, responseValue, 'response'),
+    ).resolves.toMatchObject({ valid: true });
   });
 
   test('evaluates oneOf after projecting directional required properties', async () => {

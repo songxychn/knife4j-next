@@ -104,11 +104,17 @@ interface SearchContext {
   readonly limits: EffectiveLimits;
   readonly budget: SearchBudget;
   readonly baseUri: string;
+  readonly baseAlreadyIncludesOwnId: boolean;
   readonly depth: number;
   readonly referenceChain: ReadonlySet<string>;
+  readonly dynamicScope: readonly string[];
   readonly signal?: AbortSignal;
   readonly resolvedNodes: Map<string, Promise<SchemaNode>>;
   readonly directionalAnnotations: Map<string, boolean>;
+  readonly directionalProperties: Map<string, ReadonlySet<string>>;
+  readonly schemaObjectIds: WeakMap<object, number>;
+  readonly schemaObjectSequence: { value: number };
+  readonly dynamicAnchorsByResource: Map<string, Readonly<Record<string, string>>>;
 }
 
 const DEFAULT_LIMITS: EffectiveLimits = Object.freeze({
@@ -216,24 +222,44 @@ function enterNode(ctx: SearchContext): boolean {
 }
 
 function childContext(ctx: SearchContext, baseUri = ctx.baseUri): SearchContext {
-  return { ...ctx, baseUri, depth: ctx.depth + 1 };
+  return { ...ctx, baseUri, baseAlreadyIncludesOwnId: false, depth: ctx.depth + 1 };
 }
 
 function resolvedContext(ctx: SearchContext, node: SchemaNode, referenceUri: string): SearchContext {
+  ctx.dynamicAnchorsByResource.set(node.resourceUri, node.dynamicAnchors);
   return {
     ...ctx,
     baseUri: node.resourceUri,
+    baseAlreadyIncludesOwnId: true,
     depth: ctx.depth + 1,
     referenceChain: new Set([...ctx.referenceChain, referenceUri, node.canonicalUri]),
+    dynamicScope: ctx.dynamicScope.includes(node.resourceUri)
+      ? ctx.dynamicScope
+      : [...ctx.dynamicScope, node.resourceUri],
   };
 }
 
-function effectiveBaseUri(schema: { [key: string]: JsonValue }, baseUri: string): string {
-  if (typeof schema.$id !== 'string') return baseUri;
+function resourceUri(uri: string): string {
   try {
-    return new URL(schema.$id, baseUri).href;
+    const url = new URL(uri);
+    url.hash = '';
+    return url.href;
   } catch {
-    return baseUri;
+    return uri;
+  }
+}
+
+function dynamicScopeWithBase(ctx: SearchContext, baseUri: string): readonly string[] {
+  const resource = resourceUri(baseUri);
+  return ctx.dynamicScope.includes(resource) ? ctx.dynamicScope : [...ctx.dynamicScope, resource];
+}
+
+function effectiveBaseUri(schema: { [key: string]: JsonValue }, ctx: SearchContext): string {
+  if (ctx.baseAlreadyIncludesOwnId || typeof schema.$id !== 'string') return ctx.baseUri;
+  try {
+    return new URL(schema.$id, ctx.baseUri).href;
+  } catch {
+    return ctx.baseUri;
   }
 }
 
@@ -326,11 +352,41 @@ async function resolveNode(reference: string, ctx: SearchContext): Promise<{ uri
     const node = await pending;
     throwIfAborted(ctx.signal);
     if (ctx.referenceChain.has(node.canonicalUri)) return null;
+    ctx.dynamicAnchorsByResource.set(node.resourceUri, node.dynamicAnchors);
     return { uri, node };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error;
     return null;
   }
+}
+
+function referenceAnchor(referenceUri: string): string | null {
+  try {
+    const url = new URL(referenceUri);
+    const fragment = decodeURIComponent(url.hash.slice(1));
+    return fragment && !fragment.startsWith('/') ? fragment : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSchemaReference(
+  reference: string,
+  ctx: SearchContext,
+  dynamic: boolean,
+): Promise<{ uri: string; node: SchemaNode } | null> {
+  const resolved = await resolveNode(reference, ctx);
+  if (!resolved || !dynamic) return resolved;
+  const anchor = referenceAnchor(resolved.uri);
+  if (!anchor || !Object.prototype.hasOwnProperty.call(resolved.node.dynamicAnchors, anchor)) return resolved;
+
+  for (const scopeResource of ctx.dynamicScope) {
+    const overrideUri = ctx.dynamicAnchorsByResource.get(scopeResource)?.[anchor];
+    if (!overrideUri || overrideUri === resolved.node.canonicalUri) continue;
+    const override = await resolveNode(overrideUri, ctx);
+    if (override) return override;
+  }
+  return resolved;
 }
 
 async function collectRootAuthoredCandidates(
@@ -340,13 +396,19 @@ async function collectRootAuthoredCandidates(
 ): Promise<AuthoredCandidate[]> {
   throwIfAborted(ctx.signal);
   if (!isRecord(schema) || depth > ctx.limits.maxDepth) return [];
-  const baseUri = effectiveBaseUri(schema, ctx.baseUri);
-  const localCtx = { ...ctx, baseUri };
+  const baseUri = effectiveBaseUri(schema, ctx);
+  const localCtx = {
+    ...ctx,
+    baseUri,
+    baseAlreadyIncludesOwnId: true,
+    dynamicScope: dynamicScopeWithBase(ctx, baseUri),
+  };
   const candidates = localAuthoredCandidates(schema, depth, ctx.limits.maxCandidates);
-  const reference =
-    typeof schema.$ref === 'string' ? schema.$ref : typeof schema.$dynamicRef === 'string' ? schema.$dynamicRef : null;
-  if (reference) {
-    const resolved = await resolveNode(reference, localCtx);
+  const referenceKeyword =
+    typeof schema.$ref === 'string' ? '$ref' : typeof schema.$dynamicRef === 'string' ? '$dynamicRef' : null;
+  if (referenceKeyword) {
+    const reference = schema[referenceKeyword] as string;
+    const resolved = await resolveSchemaReference(reference, localCtx, referenceKeyword === '$dynamicRef');
     if (resolved) {
       candidates.push(
         ...(await collectRootAuthoredCandidates(
@@ -355,6 +417,11 @@ async function collectRootAuthoredCandidates(
           depth + 1,
         )),
       );
+    }
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const branch of schema.allOf) {
+      candidates.push(...(await collectRootAuthoredCandidates(branch, childContext(localCtx), depth + 1)));
     }
   }
   return candidates
@@ -480,20 +547,31 @@ async function shouldIgnoreProperty(
   activeReferences: ReadonlySet<string> = new Set(),
 ): Promise<boolean> {
   if (!enterNode(ctx) || !isRecord(schema)) return false;
-  const baseUri = effectiveBaseUri(schema, ctx.baseUri);
-  const localCtx = { ...ctx, baseUri };
+  const baseUri = effectiveBaseUri(schema, ctx);
+  const localCtx = {
+    ...ctx,
+    baseUri,
+    baseAlreadyIncludesOwnId: true,
+    dynamicScope: dynamicScopeWithBase(ctx, baseUri),
+  };
   if (ctx.direction === 'request' ? schema.readOnly === true : schema.writeOnly === true) return true;
 
-  for (const reference of [schema.$ref, schema.$dynamicRef, schema.$recursiveRef]) {
+  for (const [keyword, reference] of [
+    ['$ref', schema.$ref],
+    ['$dynamicRef', schema.$dynamicRef],
+    ['$recursiveRef', schema.$recursiveRef],
+  ] as const) {
     if (typeof reference !== 'string') continue;
     const referenceUri = resolvedReferenceUri(reference, baseUri);
-    const cacheKey = referenceUri === null ? null : `${ctx.direction}\u0000${referenceUri}`;
+    const dynamicScopeKey = localCtx.dynamicScope.join('\u0001');
+    const cacheKey =
+      referenceUri === null ? null : `${ctx.direction}\u0000${keyword}\u0000${referenceUri}\u0000${dynamicScopeKey}`;
     if (cacheKey !== null) {
       const cached = ctx.directionalAnnotations.get(cacheKey);
       if (cached === true) return true;
     }
     if (referenceUri !== null && !activeReferences.has(referenceUri)) {
-      const resolved = await resolveNode(reference, localCtx);
+      const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef');
       if (resolved) {
         const ignored = await shouldIgnoreProperty(
           resolved.node.schema,
@@ -513,6 +591,77 @@ async function shouldIgnoreProperty(
     }
   }
   return false;
+}
+
+function directionalSchemaAnalysisKey(schema: object, ctx: SearchContext): string {
+  let objectId = ctx.schemaObjectIds.get(schema);
+  if (objectId === undefined) {
+    objectId = ctx.schemaObjectSequence.value;
+    ctx.schemaObjectSequence.value += 1;
+    ctx.schemaObjectIds.set(schema, objectId);
+  }
+  return `${ctx.baseUri}\u0000${ctx.dynamicScope.join('\u0001')}\u0000${objectId}`;
+}
+
+async function directionalPropertyNames(
+  schema: JsonValue,
+  ctx: SearchContext,
+  active: ReadonlySet<string> = new Set(),
+): Promise<ReadonlySet<string>> {
+  if (!isRecord(schema)) return new Set();
+  const baseUri = effectiveBaseUri(schema, ctx);
+  const localCtx = {
+    ...ctx,
+    baseUri,
+    baseAlreadyIncludesOwnId: true,
+    dynamicScope: dynamicScopeWithBase(ctx, baseUri),
+  };
+  const key = directionalSchemaAnalysisKey(schema, localCtx);
+  const cached = ctx.directionalProperties.get(key);
+  if (cached) return cached;
+  if (active.has(key)) return new Set();
+  if (!enterNode(ctx)) return new Set();
+  const nextActive = new Set(active).add(key);
+  const names = new Set<string>();
+
+  if (isRecord(schema.properties)) {
+    for (const [name, propertySchema] of Object.entries(schema.properties)) {
+      if (await shouldIgnoreProperty(propertySchema, childContext(localCtx))) names.add(name);
+      if (ctx.budget.exhausted) return new Set();
+    }
+  }
+  for (const [keyword, reference] of [
+    ['$ref', schema.$ref],
+    ['$dynamicRef', schema.$dynamicRef],
+    ['$recursiveRef', schema.$recursiveRef],
+  ] as const) {
+    if (typeof reference !== 'string') continue;
+    const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef');
+    if (!resolved) continue;
+    const resolvedNames = await directionalPropertyNames(
+      resolved.node.schema,
+      resolvedContext(localCtx, resolved.node, resolved.uri),
+      nextActive,
+    );
+    resolvedNames.forEach((name) => names.add(name));
+    if (ctx.budget.exhausted) return new Set();
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const branch of schema.allOf) {
+      const branchNames = await directionalPropertyNames(branch, childContext(localCtx), nextActive);
+      branchNames.forEach((name) => names.add(name));
+      if (ctx.budget.exhausted) return new Set();
+    }
+  }
+  ctx.directionalProperties.set(key, names);
+  return names;
+}
+
+function omitDirectionalProperties(value: JsonValue, names: ReadonlySet<string>): JsonValue {
+  if (!isRecord(value) || names.size === 0) return value;
+  const result = { ...value };
+  names.forEach((name) => delete result[name]);
+  return result;
 }
 
 function mergeObjects(left: JsonValue, right: JsonValue): JsonValue | null {
@@ -687,20 +836,27 @@ async function arrayCandidates(schema: { [key: string]: JsonValue }, ctx: Search
 }
 
 async function referenceCandidates(schema: { [key: string]: JsonValue }, ctx: SearchContext): Promise<JsonValue[]> {
-  const reference =
-    typeof schema.$ref === 'string' ? schema.$ref : typeof schema.$dynamicRef === 'string' ? schema.$dynamicRef : null;
-  if (!reference) return [];
-  const resolved = await resolveNode(reference, ctx);
+  const keyword =
+    typeof schema.$ref === 'string'
+      ? '$ref'
+      : typeof schema.$dynamicRef === 'string'
+        ? '$dynamicRef'
+        : typeof schema.$recursiveRef === 'string'
+          ? '$recursiveRef'
+          : null;
+  if (!keyword) return [];
+  const reference = schema[keyword] as string;
+  const resolved = await resolveSchemaReference(reference, ctx, keyword === '$dynamicRef');
   if (!resolved) return [];
   const targetCandidates = await buildCandidates(
     resolved.node.schema,
     resolvedContext(ctx, resolved.node, resolved.uri),
   );
   const siblingSchema = Object.fromEntries(
-    Object.entries(schema).filter(([key]) => key !== '$ref' && key !== '$dynamicRef'),
+    Object.entries(schema).filter(([key]) => key !== '$ref' && key !== '$dynamicRef' && key !== '$recursiveRef'),
   ) as { [key: string]: JsonValue };
   if (!Object.keys(siblingSchema).some((key) => ASSERTION_KEYS.has(key))) return targetCandidates;
-  const siblingCandidates = await buildCandidates(siblingSchema, childContext(ctx));
+  const siblingCandidates = await buildCandidates(siblingSchema, { ...ctx, depth: ctx.depth + 1 });
   return combineIntersection(targetCandidates, siblingCandidates, ctx.limits.maxCandidates);
 }
 
@@ -742,8 +898,13 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
   if (schema === true) return [{}, [], '', 0, false, null];
   if (!isRecord(schema)) return [];
 
-  const baseUri = effectiveBaseUri(schema, ctx.baseUri);
-  const localCtx = { ...ctx, baseUri };
+  const baseUri = effectiveBaseUri(schema, ctx);
+  const localCtx = {
+    ...ctx,
+    baseUri,
+    baseAlreadyIncludesOwnId: true,
+    dynamicScope: dynamicScopeWithBase(ctx, baseUri),
+  };
   const values: JsonValue[] = [];
   for (const authored of localAuthoredCandidates(schema, ctx.depth, ctx.limits.maxCandidates)) {
     appendCandidate(values, authored.value, ctx.limits.maxCandidates);
@@ -761,7 +922,13 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
   if (types.length === 0 && referenceValues.length === 0) {
     values.push({}, [], '', 0, false, null);
   }
-  return compositionCandidates(schema, uniqueCandidates(values, ctx.limits.maxCandidates), localCtx);
+  const composed = await compositionCandidates(schema, uniqueCandidates(values, ctx.limits.maxCandidates), localCtx);
+  const ignoredProperties = await directionalPropertyNames(schema, localCtx);
+  if (ctx.budget.exhausted) return [];
+  return uniqueCandidates(
+    composed.map((candidate) => omitDirectionalProperties(candidate, ignoredProperties)),
+    ctx.limits.maxCandidates,
+  );
 }
 
 function keywordName(issue: EvaluationIssue): string {
@@ -917,6 +1084,10 @@ export async function generateSchemaExample(
   const budget: SearchBudget = { nodes: 0, references: 0, exhausted: false };
   const resolvedNodes = new Map<string, Promise<SchemaNode>>();
   const directionalAnnotations = new Map<string, boolean>();
+  const directionalProperties = new Map<string, ReadonlySet<string>>();
+  const schemaObjectIds = new WeakMap<object, number>();
+  const schemaObjectSequence = { value: 0 };
+  const dynamicAnchorsByResource = new Map<string, Readonly<Record<string, string>>>();
   let root: SchemaNode;
   try {
     root = await session.resolve(reference);
@@ -947,12 +1118,19 @@ export async function generateSchemaExample(
     limits,
     budget,
     baseUri: root.resourceUri,
+    baseAlreadyIncludesOwnId: true,
     depth: 0,
     referenceChain: new Set([root.requestedUri, root.canonicalUri]),
+    dynamicScope: [root.resourceUri],
     signal: options.signal,
     resolvedNodes,
     directionalAnnotations,
+    directionalProperties,
+    schemaObjectIds,
+    schemaObjectSequence,
+    dynamicAnchorsByResource,
   };
+  dynamicAnchorsByResource.set(root.resourceUri, root.dynamicAnchors);
   const explicit = options.explicit?.[0];
   // Hyperjump canonicalizes a resource root with an empty fragment. Reusing
   // that empty-fragment browser after resolving an anchor can produce an
