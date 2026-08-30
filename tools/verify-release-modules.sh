@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="${VERIFY_RELEASE_REPO_ROOT:-$(cd "$script_dir/.." && pwd)}"
 modules_file="$repo_root/tools/release-modules.txt"
 parent_pom="$repo_root/knife4j/pom.xml"
 bom_pom="$repo_root/knife4j/knife4j-dependencies/pom.xml"

@@ -15,13 +15,22 @@ if [ ! -f "$notes_file" ]; then
 fi
 
 awk -v version="$version" '
+  function matches_version_heading(line, text, suffix) {
+    text = line
+    sub(/^###[ \t]+/, "", text)
+    if (substr(text, 1, length(version)) != version) {
+      return 0
+    }
+    suffix = substr(text, length(version) + 1, 1)
+    return suffix == "" || suffix == " " || suffix == "\t" || suffix == "<"
+  }
+
   BEGIN {
     found = 0
     emitted = 0
-    heading = "^###[ \t]+" version "([ \t]|$|<)"
   }
 
-  $0 ~ heading {
+  /^###[ \t]+/ && matches_version_heading($0) {
     found = 1
     emitted++
     print "## " version

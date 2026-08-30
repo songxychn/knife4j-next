@@ -15,7 +15,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     docs/*|tools/test-docs.sh)
       docs=true
       ;;
-    knife4j/*|tools/test-java.sh|tools/verify-configuration-metadata.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
+    knife4j/*|tools/test-java.sh|tools/test-release-tools.sh|tools/test-fixtures/mock-maven-central-curl.sh|tools/extract-release-note.sh|tools/verify-configuration-metadata.sh|tools/verify-release-context.sh|tools/verify-maven-central.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
       java=true
       ;;
     front/core/*|front/ui-react/*|front/package.json|front/bun.lock)
@@ -37,7 +37,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)
       full=true
       ;;
-    README.md|CONTRIBUTING.md|AGENTS.md|.agent/*|.gitignore|tools/README.md|tools/agent-status.sh|tools/claude/*|tools/test-all.sh|tools/extract-release-note.sh|tools/verify-github-release.sh)
+    README.md|CONTRIBUTING.md|AGENTS.md|.agent/*|.gitignore|tools/README.md|tools/agent-status.sh|tools/claude/*|tools/test-all.sh|tools/verify-github-release.sh)
       ;;
     *)
       full=true
