@@ -8,30 +8,70 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Recovery mode (never deploys Maven artifacts)"
+        required: true
+        type: choice
+        options:
+          - finalize-only
+      tag:
+        description: "Existing annotated vX.Y.Z tag to finalize"
+        required: true
+        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-rc') }}
+    timeout-minutes: 180
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-rc')) || (github.event_name == 'workflow_dispatch' && inputs.mode == 'finalize-only') }}
     permissions:
       contents: write
     env:
-      CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-      CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      RELEASE_ROOT: ${{ github.event_name == 'workflow_dispatch' && format('{0}/release-source', github.workspace) || github.workspace }}
     defaults:
       run:
         working-directory: knife4j
     steps:
-      - name: Checkout
+      - name: Checkout release tag for publishing
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Checkout recovery tooling
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: actions/checkout@v7
 
-      - name: Verify release module list
-        run: tools/verify-release-modules.sh
+      - name: Checkout release tag for finalize-only
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: release-source
+          fetch-depth: 0
+
+      - name: Verify release context and prepare notes
+        run: |
+          release_notes="$RUNNER_TEMP/github-release-notes.md"
+          VERIFY_RELEASE_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-release-context.sh "$RELEASE_TAG" "$release_notes"
+          echo "GITHUB_RELEASE_NOTES=$release_notes" >> "$GITHUB_ENV"
         working-directory: .
 
-      - name: Set up JDK 17
+      - name: Verify release module list
+        run: |
+          VERIFY_RELEASE_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-release-modules.sh
+        working-directory: .
+
+      - name: Set up JDK 17 for publishing
+        if: ${{ github.event_name == 'push' }}
         uses: actions/setup-java@v5
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         with:
           distribution: temurin
           java-version: "17"
@@ -42,51 +82,66 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
+      - name: Set up JDK 17 for finalize-only verification
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
       - name: Set up Node.js
+        if: ${{ github.event_name == 'push' }}
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
 
       - name: Set up bun
+        if: ${{ github.event_name == 'push' }}
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
 
       - name: Install front/vue3 dependencies (bun)
+        if: ${{ github.event_name == 'push' }}
         run: bun install --frozen-lockfile
         working-directory: front/vue3
 
       - name: Install front workspace dependencies
+        if: ${{ github.event_name == 'push' }}
         run: bun install --frozen-lockfile
         working-directory: front
 
-      - name: Prepare GitHub Release notes
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          release_notes="$RUNNER_TEMP/github-release-notes.md"
-          tools/extract-release-note.sh "$version" > "$release_notes"
-          echo "GITHUB_RELEASE_NOTES=$release_notes" >> "$GITHUB_ENV"
-        working-directory: .
-
       - name: Publish to Maven Central
+        if: ${{ github.event_name == 'push' }}
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           release_modules="$(sed -E 's/[[:space:]]*#.*$//' ../tools/release-modules.txt | sed '/^[[:space:]]*$/d' | paste -sd, -)"
           mvn -B -ntp -Prelease deploy \
             -pl "$release_modules" \
             -am
 
+      - name: Verify public Maven Central artifacts
+        run: |
+          VERIFY_MAVEN_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-maven-central.sh "${RELEASE_TAG#v}"
+        working-directory: .
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          title="knife4j-next ${GITHUB_REF_NAME#v}"
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" \
+          title="knife4j-next ${RELEASE_TAG#v}"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$title" \
               --notes-file "$GITHUB_RELEASE_NOTES"
           else
-            gh release create "$GITHUB_REF_NAME" \
+            gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$title" \
               --notes-file "$GITHUB_RELEASE_NOTES" \
@@ -97,5 +152,5 @@ jobs:
       - name: Verify GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: tools/verify-github-release.sh "$GITHUB_REF_NAME" "$GITHUB_RELEASE_NOTES"
+        run: tools/verify-github-release.sh "$RELEASE_TAG" "$GITHUB_RELEASE_NOTES"
         working-directory: .

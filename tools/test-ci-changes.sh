@@ -36,7 +36,7 @@ knife4x_only="$(outputs false false false false true)"
 all="$(outputs true true true true true)"
 
 assert_case "docs" "$docs_only" $'docs/guide/index.md\ntools/test-docs.sh'
-assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
+assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/test-release-tools.sh\ntools/test-fixtures/mock-maven-central-curl.sh\ntools/extract-release-note.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-context.sh\ntools/verify-maven-central.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
 for path in front/core/src/index.ts front/ui-react/src/App.tsx front/package.json front/bun.lock; do
   assert_case "react and knife4x: $path" "$react_java_and_knife4x" "$path"
 done
@@ -45,7 +45,7 @@ assert_case "vue3" "$vue3_and_java" $'front/vue3/src/App.vue\ntools/test-vue3.sh
 assert_case "knife4x go" "$knife4x_only" $'knife4x/go/README.md\nknife4x/examples/gin/main.go\ntools/sync-knife4x-ui.sh\ntools/test-knife4x-go.sh'
 assert_case "shared configuration" "$all" $'.github/workflows/build.yml\n.bun-version\n.editorconfig\n.gitattributes\n.nvmrc\ntools/ci-changes.sh\ntools/test-ci-changes.sh'
 assert_case "unknown path" "$all" "new-area/example.txt"
-assert_case "maintenance files" "$none" $'README.md\nCONTRIBUTING.md\nAGENTS.md\n.agent/PROJECT.md\n.gitignore\ntools/README.md\ntools/agent-status.sh\ntools/claude/run.sh\ntools/test-all.sh\ntools/extract-release-note.sh\ntools/verify-github-release.sh'
+assert_case "maintenance files" "$none" $'README.md\nCONTRIBUTING.md\nAGENTS.md\n.agent/PROJECT.md\n.gitignore\ntools/README.md\ntools/agent-status.sh\ntools/claude/run.sh\ntools/test-all.sh\ntools/verify-github-release.sh'
 assert_case "empty input" "$all" "__EMPTY__"
 
 printf 'ci change classification tests passed\n'

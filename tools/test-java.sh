@@ -7,6 +7,7 @@ if [ -z "${JAVA_HOME:-}" ]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+"$REPO_ROOT/tools/test-release-tools.sh"
 cd "$REPO_ROOT/knife4j"
 
 mvn -B -ntp spotless:check
