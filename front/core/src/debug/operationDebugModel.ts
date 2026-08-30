@@ -15,8 +15,12 @@ import type {
   BodyContent,
   BodyContentType,
   OperationDebugModel,
+  Oas31ParameterSerialization,
+  ParameterDocumentDiagnostic,
   SchemaResolveContext,
+  SchemaValue,
 } from './types';
+import { isSupportedParameterContentType } from './parameterSerialization';
 import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSchema } from './resolveRef';
 import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/document';
 import { buildSchemaExample } from './schemaExample';
@@ -30,11 +34,20 @@ interface OAS3Param {
   in?: string;
   required?: boolean;
   description?: string;
-  schema?: Record<string, unknown>;
+  schema?: SchemaValue;
+  content?: Record<
+    string,
+    {
+      schema?: SchemaValue;
+      example?: unknown;
+      examples?: Record<string, unknown>;
+    }
+  >;
   example?: unknown;
   deprecated?: boolean;
   style?: string;
   explode?: boolean;
+  allowReserved?: boolean;
   $ref?: string;
 }
 
@@ -112,7 +125,7 @@ interface DocLike {
 // ─── 辅助 ─────────────────────────────────────────────
 
 /** 从 schema 提取 type 信息 */
-function extractType(param: OAS2Param | OAS3Param, schema?: Record<string, unknown>): string {
+function extractType(param: OAS2Param | OAS3Param, schema?: SchemaValue): string {
   // OAS2 直接有 type 字段
   const directType = (param as OAS2Param).type;
   if (directType) {
@@ -120,7 +133,7 @@ function extractType(param: OAS2Param | OAS3Param, schema?: Record<string, unkno
     if (directType === 'file') return 'file';
     return directType;
   }
-  if (schema) {
+  if (schema && typeof schema === 'object') {
     const declaredType = schema.type;
     const t = Array.isArray(declaredType)
       ? declaredType.find((value): value is string => typeof value === 'string' && value !== 'null')
@@ -150,12 +163,13 @@ function extractType(param: OAS2Param | OAS3Param, schema?: Record<string, unkno
 
 function extractEnum(
   param: OAS2Param | OAS3Param,
-  schema: Record<string, unknown> | undefined,
+  schema: SchemaValue | undefined,
   type: string,
   doc: DocLike,
   isOAS2: boolean,
 ): unknown[] | undefined {
-  const schemaEnum = schema?.enum;
+  const schemaRecord = schema && typeof schema === 'object' ? schema : undefined;
+  const schemaEnum = schemaRecord?.enum;
   if (type === 'array') {
     // OAS3 的 schema.enum 约束整个数组实例；只有 items.enum 才表示元素候选值。
     // OAS2 保留本 PR 之前的顶层 enum 行为，不在 React/OAS3 任务中扩展 OAS2。
@@ -164,7 +178,7 @@ function extractEnum(
       return (param as OAS2Param).enum;
     }
 
-    const items = schema?.items;
+    const items = schemaRecord?.items;
     if (!items || typeof items !== 'object' || Array.isArray(items)) return undefined;
     return extractArrayItemEnum(items as Record<string, unknown>, doc);
   }
@@ -264,6 +278,161 @@ function classifyContentType(mediaType: string): BodyContentType {
 
 function isOas31(doc: DocLike): boolean {
   return isOpenApi31Version(doc.openapi);
+}
+
+const OAS31_IGNORED_HEADER_PARAMETER_NAMES = new Set(['accept', 'content-type', 'authorization']);
+
+function hasOwn(record: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+function schemaRecord(schema: SchemaValue | undefined): Record<string, unknown> | undefined {
+  return schema && typeof schema === 'object' ? schema : undefined;
+}
+
+function normalizeParameterSchema(
+  schema: SchemaValue | undefined,
+  doc: DocLike,
+  maxDepth: number,
+): SchemaValue | undefined {
+  if (typeof schema === 'boolean') return schema;
+  return schema ? normalizeAllOfSchema(schema, doc as Record<string, unknown>, maxDepth) : undefined;
+}
+
+function parameterDiagnostic(
+  param: OAS3Param,
+  paramIn: ParamIn,
+  code: ParameterDocumentDiagnostic['code'],
+  message: string,
+): ParameterDocumentDiagnostic {
+  const name = param.name ?? '';
+  return { key: `${paramIn}:${name}`, name, in: paramIn, code, message };
+}
+
+interface Oas31ParameterAnalysis {
+  readonly schema?: SchemaValue;
+  readonly example?: unknown;
+  readonly serialization?: Oas31ParameterSerialization;
+  readonly diagnostic?: ParameterDocumentDiagnostic;
+}
+
+function analyzeOas31Parameter(
+  param: OAS3Param,
+  paramIn: ParamIn,
+  doc: DocLike,
+  maxDepth: number,
+): Oas31ParameterAnalysis {
+  const hasSchema = hasOwn(param, 'schema');
+  const hasContent = hasOwn(param, 'content');
+
+  if (hasSchema && hasContent) {
+    return {
+      schema: normalizeParameterSchema(param.schema, doc, maxDepth),
+      diagnostic: parameterDiagnostic(
+        param,
+        paramIn,
+        'SCHEMA_CONTENT_CONFLICT',
+        `OAS 3.1 parameter ${paramIn}:${param.name ?? ''} must use either schema or content, not both.`,
+      ),
+    };
+  }
+  if (!hasSchema && !hasContent) {
+    return {
+      diagnostic: parameterDiagnostic(
+        param,
+        paramIn,
+        'PARAMETER_ENCODING_MISSING',
+        `OAS 3.1 parameter ${paramIn}:${param.name ?? ''} must define schema or content.`,
+      ),
+    };
+  }
+
+  if (hasContent) {
+    const entries = param.content && typeof param.content === 'object' ? Object.entries(param.content) : [];
+    if (entries.length !== 1) {
+      return {
+        diagnostic: parameterDiagnostic(
+          param,
+          paramIn,
+          'CONTENT_CARDINALITY',
+          `OAS 3.1 parameter ${paramIn}:${param.name ?? ''} content must contain exactly one media type.`,
+        ),
+      };
+    }
+    if (param.style !== undefined || param.explode !== undefined || param.allowReserved !== undefined) {
+      return {
+        diagnostic: parameterDiagnostic(
+          param,
+          paramIn,
+          'CONTENT_STYLE_CONFLICT',
+          `OAS 3.1 parameter ${paramIn}:${param.name ?? ''} cannot combine content with style, explode, or allowReserved.`,
+        ),
+      };
+    }
+    const [mediaType, mediaObject] = entries[0];
+    const schema = normalizeParameterSchema(mediaObject?.schema, doc, maxDepth);
+    if (!isSupportedParameterContentType(mediaType)) {
+      return {
+        schema,
+        example: mediaObject?.example,
+        diagnostic: parameterDiagnostic(
+          param,
+          paramIn,
+          'UNSUPPORTED_CONTENT_TYPE',
+          `Knife4j cannot safely serialize OAS parameter content media type ${mediaType}.`,
+        ),
+      };
+    }
+    return {
+      schema,
+      example: mediaObject?.example,
+      serialization: { kind: 'content', mediaType },
+    };
+  }
+
+  const defaultStyle: Record<ParamIn, string> = {
+    path: 'simple',
+    query: 'form',
+    header: 'simple',
+    cookie: 'form',
+  };
+  const allowedStyles: Record<ParamIn, readonly string[]> = {
+    path: ['simple', 'label', 'matrix'],
+    query: ['form', 'spaceDelimited', 'pipeDelimited', 'deepObject'],
+    header: ['simple'],
+    cookie: ['form'],
+  };
+  const style = param.style ?? defaultStyle[paramIn];
+  const explode = param.explode ?? style === 'form';
+  const allowReserved = paramIn === 'query' && param.allowReserved === true;
+
+  if (!allowedStyles[paramIn].includes(style)) {
+    return {
+      schema: normalizeParameterSchema(param.schema, doc, maxDepth),
+      diagnostic: parameterDiagnostic(
+        param,
+        paramIn,
+        'UNSUPPORTED_STYLE',
+        `OAS parameter style ${style} is not defined for ${paramIn}:${param.name ?? ''}.`,
+      ),
+    };
+  }
+  if (((style === 'spaceDelimited' || style === 'pipeDelimited') && explode) || (style === 'deepObject' && !explode)) {
+    return {
+      schema: normalizeParameterSchema(param.schema, doc, maxDepth),
+      diagnostic: parameterDiagnostic(
+        param,
+        paramIn,
+        'UNDEFINED_STYLE_COMBINATION',
+        `OAS parameter ${paramIn}:${param.name ?? ''} uses an undefined style/explode combination (${style}, explode=${String(explode)}).`,
+      ),
+    };
+  }
+
+  return {
+    schema: normalizeParameterSchema(param.schema, doc, maxDepth),
+    serialization: { kind: 'schema', style, explode, allowReserved },
+  };
 }
 
 function isBinaryMediaType(mediaType: string | undefined): boolean {
@@ -563,6 +732,7 @@ export interface BuildDebugModelOptions {
  */
 export function buildOperationDebugModel(options: BuildDebugModelOptions): OperationDebugModel {
   const { doc, path, method, isOAS2 = Boolean(doc.swagger), schemaCtx } = options;
+  const useOas31ParameterPath = !isOAS2 && isOas31(doc);
 
   // 定位 PathItem 和 Operation
   const rawPathItem = doc.paths?.[path];
@@ -630,6 +800,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   const headerParams: DebugParam[] = [];
   const cookieParams: DebugParam[] = [];
   const bodyContents: BodyContent[] = [];
+  const parameterDiagnostics: ParameterDocumentDiagnostic[] = [];
   let bodyRequired = false;
 
   for (const raw of uniqueParams) {
@@ -637,14 +808,17 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
     // OAS2: in=body → 走 requestBody 逻辑
     if (isOAS2 && in_ === 'body') {
-      const schema = raw.schema ? dereference(raw.schema, doc as Record<string, unknown>) : undefined;
+      const schema =
+        raw.schema && typeof raw.schema === 'object'
+          ? dereference(raw.schema, doc as Record<string, unknown>)
+          : undefined;
       const consumes = operation.consumes ?? doc.consumes ?? ['application/json'];
       const mediaType = consumes[0] ?? 'application/json';
 
       bodyContents.push({
         mediaType,
         category: classifyContentType(mediaType),
-        schema: schema ?? raw.schema,
+        schema,
         exampleValue: schema ? JSON.stringify(buildSchemaExample(schema, ctx), null, 2) : undefined,
       });
       bodyRequired = Boolean(raw.required);
@@ -710,28 +884,57 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     // 普通参数（path / query / header / cookie）
     const paramIn = in_ as ParamIn;
     if (!['path', 'query', 'header', 'cookie'].includes(paramIn)) continue;
+    if (
+      useOas31ParameterPath &&
+      paramIn === 'header' &&
+      OAS31_IGNORED_HEADER_PARAMETER_NAMES.has((raw.name ?? '').toLowerCase())
+    ) {
+      continue;
+    }
 
-    const schema = raw.schema
-      ? isOAS2
-        ? dereference(raw.schema, doc as Record<string, unknown>)
-        : normalizeAllOfSchema(raw.schema, doc as Record<string, unknown>, ctx.maxDepth ?? 8)
+    const oas31Analysis = useOas31ParameterPath
+      ? analyzeOas31Parameter(raw as OAS3Param, paramIn, doc, ctx.maxDepth ?? 8)
       : undefined;
+    if (oas31Analysis?.diagnostic) parameterDiagnostics.push(oas31Analysis.diagnostic);
+    const rawSchema = raw.schema;
+    const schema = oas31Analysis
+      ? oas31Analysis.schema
+      : rawSchema && typeof rawSchema === 'object'
+        ? isOAS2
+          ? dereference(rawSchema, doc as Record<string, unknown>)
+          : normalizeAllOfSchema(rawSchema, doc as Record<string, unknown>, ctx.maxDepth ?? 8)
+        : undefined;
+    const schemaObject = schemaRecord(schema);
     const type = extractType(raw, schema);
+    const parameterDefault = oas31Analysis
+      ? schemaObject?.default !== undefined
+        ? schemaObject.default
+        : (raw as OAS2Param).default
+      : (schemaObject?.default ?? (raw as OAS2Param).default);
+    const parameterExample = oas31Analysis
+      ? oas31Analysis.example !== undefined
+        ? oas31Analysis.example
+        : schemaObject?.example !== undefined
+          ? schemaObject.example
+          : raw.example
+      : (schemaObject?.example ?? raw.example);
     const debugParam: DebugParam = {
       name: raw.name ?? '',
       in: paramIn,
       required: paramIn === 'path' ? true : Boolean(raw.required), // path 参数始终 required
       description: raw.description,
       type,
-      format: (schema?.format as string | undefined) ?? (raw as OAS2Param).format,
-      default: schema?.default ?? (raw as OAS2Param).default,
-      example: schema?.example ?? raw.example,
+      format: (schemaObject?.format as string | undefined) ?? (raw as OAS2Param).format,
+      default: parameterDefault,
+      example: parameterExample,
       enum: extractEnum(raw, schema, type, doc, isOAS2),
       deprecated: raw.deprecated,
-      readOnly: schema?.readOnly as boolean | undefined,
-      schema: schema ?? (raw.schema ? { ...raw.schema } : undefined),
+      readOnly: schemaObject?.readOnly as boolean | undefined,
+      schema,
       style: isOAS2 ? undefined : (raw as OAS3Param).style,
       explode: isOAS2 ? undefined : (raw as OAS3Param).explode,
+      allowReserved: isOAS2 ? undefined : (raw as OAS3Param).allowReserved,
+      parameterSerialization: oas31Analysis?.serialization,
     };
 
     switch (paramIn) {
@@ -833,5 +1036,6 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     cookieParams,
     bodyContents,
     bodyRequired,
+    ...(parameterDiagnostics.length > 0 ? { parameterDiagnostics } : {}),
   };
 }

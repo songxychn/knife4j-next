@@ -41,6 +41,7 @@ import type {
   DebugParam,
   GlobalParamValues,
   OperationDebugModel,
+  ParameterInputDiagnostic,
   ParamSource,
   QueryParamValue,
   SchemeValue,
@@ -52,6 +53,8 @@ import {
   buildOperationDebugModel,
   buildRequest as coreBuildRequest,
   replacePathParams,
+  replaceSerializedPathParams,
+  serializeOas31Parameters,
   validateRequired,
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
@@ -101,6 +104,7 @@ import { formatSseHistoryResponseBody } from './sseEventTime';
 import {
   displayQueryParamValue,
   enumParamSelectMode,
+  enumParamSelectOptions,
   enumParamSelectValue,
   isEnumParamSelectSupported,
   queryParamRequestValue,
@@ -129,6 +133,7 @@ import {
 } from './debugDefaultValues';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
+import { buildInitialParamEnabled, collectOas31ParameterValues, isNullableOas31Parameter } from './oas31ParameterForm';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
@@ -138,24 +143,46 @@ import {
   evaluateRequestBodySchema,
   prepareRequestBodySchemaEvaluation,
   requestBodyInstanceLabel,
-  type RequestBodySchemaIssue,
 } from '../../schema/requestBodySchemaValidation';
+import {
+  evaluateParameterSchemas,
+  parameterInstanceLabel,
+  prepareParameterSchemaEvaluation,
+  type ParameterSchemaIssue,
+} from '../../schema/parameterSchemaValidation';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
 const PARAM_TABLE_SCROLL = { x: apiDebugParamTableScrollX() };
 
+type ParameterInputRequestSchemaDiagnosticIssue =
+  | (Omit<ParameterInputDiagnostic, 'kind'> & {
+      readonly kind: 'invalid-json';
+      readonly target: 'parameter';
+    })
+  | (Omit<ParameterInputDiagnostic, 'kind'> & {
+      readonly kind: 'unsafe-number';
+      readonly target: 'parameter';
+    });
+
+type RequestSchemaDiagnosticIssue =
+  | { readonly kind: 'invalid-json'; readonly target: 'body' }
+  | ParameterInputRequestSchemaDiagnosticIssue
+  | {
+      readonly kind: 'invalid-schema';
+      readonly target: 'body';
+      readonly instanceLocation: string;
+      readonly keyword: string;
+      readonly absoluteKeywordLocation: string;
+    }
+  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & ParameterSchemaIssue);
+
 type PendingSchemaOverride = {
   readonly preview: RequestPreviewBuild;
   readonly debugCacheKey: string | null;
   readonly revision: number;
-  readonly diagnostic:
-    | { readonly kind: 'invalid-json' }
-    | {
-        readonly kind: 'invalid-schema';
-        readonly issues: readonly RequestBodySchemaIssue[];
-        readonly totalIssues: number;
-      };
+  readonly issues: readonly RequestSchemaDiagnosticIssue[];
+  readonly totalIssues: number;
 };
 
 interface HandleSendOptions {
@@ -667,10 +694,26 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
         allowClear
         status={status}
         placeholder={t('apiDebug.enum.placeholder')}
-        options={param.enum.map((item) => ({
-          value: String(item),
-          label: String(item),
-        }))}
+        options={enumParamSelectOptions(param)}
+        style={{ width: '100%' }}
+      />
+    );
+  }
+
+  if (param.type === 'boolean' && isNullableOas31Parameter(param)) {
+    return (
+      <Select
+        size="small"
+        value={value || undefined}
+        onChange={(next) => onChange(next)}
+        allowClear
+        status={status}
+        placeholder={t('apiDebug.enum.placeholder')}
+        options={[
+          { value: 'true', label: 'true' },
+          { value: 'false', label: 'false' },
+          { value: 'null', label: 'null' },
+        ]}
         style={{ width: '100%' }}
       />
     );
@@ -1666,17 +1709,8 @@ function buildInitialDebugState(
   baseUrl: string,
   bodyDefaults: BodyContentDefaults,
 ): InitialDebugState {
-  const allParams = [
-    ...debugModel.pathParams,
-    ...debugModel.queryParams,
-    ...debugModel.headerParams,
-    ...debugModel.cookieParams,
-  ];
   const paramValues = buildInitialParamValues(debugModel, swaggerDoc, operation);
-  const paramEnabled: Record<string, boolean> = {};
-  for (const param of allParams) {
-    paramEnabled[paramKey(param)] = true;
-  }
+  const paramEnabled = buildInitialParamEnabled(debugModel, paramValues);
 
   const firstBody = debugModel.bodyContents[0];
   return {
@@ -1815,7 +1849,7 @@ export default function ApiDebug() {
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
-  // enabled state: keyed by paramKey; GET/DELETE query params default true, all others also true
+  // enabled state: keyed by paramKey; empty optional OAS 3.1 params start omitted.
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
   const [body, setBody] = useState('');
   const [customQueryParams, setCustomQueryParams] = useState<CustomParamRow[]>([]);
@@ -2021,14 +2055,25 @@ export default function ApiDebug() {
     if (!debugModel) return path;
     const pathParamValues: Record<string, string> = {};
     for (const p of debugModel.pathParams) {
+      if (p.parameterSerialization) continue;
       const v = paramValues[paramKey(p)];
       if (v !== undefined && v !== '') pathParamValues[p.name] = v;
     }
     // 如果 path 还包含 {xxx} 占位符，说明用户没有手动覆盖 URL，用 replacePathParams 实时替换
     // 如果 path 已不包含任何占位符，说明用户手动编辑了 URL，直接显示
     const hasPlaceholders = debugModel.pathParams.some((p) => path.includes(`{${p.name}}`));
-    return hasPlaceholders ? replacePathParams(path, pathParamValues) : path;
-  }, [path, debugModel, paramValues]);
+    if (!hasPlaceholders) return path;
+    const legacyPath = replacePathParams(path, pathParamValues);
+    try {
+      const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled);
+      const serializedPath = serializeOas31Parameters(debugModel, oas31Values).path;
+      return replaceSerializedPathParams(legacyPath, serializedPath);
+    } catch {
+      // The canonical preview reports the precise serialization diagnostic.
+      // Keep the editable URL field usable while the value is incomplete.
+      return legacyPath;
+    }
+  }, [path, debugModel, paramEnabled, paramValues]);
 
   /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
   const handlePathInputChange = (newPath: string) => {
@@ -2245,6 +2290,7 @@ export default function ApiDebug() {
   const collectForIn = (params: DebugParam[]): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const p of params) {
+      if (p.parameterSerialization) continue;
       if (paramEnabled[paramKey(p)] === false) continue;
       const v = paramValues[paramKey(p)];
       if (v !== undefined && v !== '') result[p.name] = v;
@@ -2255,6 +2301,7 @@ export default function ApiDebug() {
   const collectQueryParams = (): Record<string, QueryParamValue> => {
     const result: Record<string, QueryParamValue> = {};
     for (const param of debugModel.queryParams) {
+      if (param.parameterSerialization) continue;
       if (paramEnabled[paramKey(param)] === false) continue;
       const value = paramValues[paramKey(param)];
       if (value !== undefined && value !== '') result[param.name] = queryParamRequestValue(param, value);
@@ -2304,12 +2351,14 @@ export default function ApiDebug() {
           )
         : undefined;
     const formFieldNamesToIncludeWhenEmpty = structuredForm?.formFieldNamesToIncludeWhenEmpty ?? [];
+    const oas31ParameterValues = collectOas31ParameterValues(debugModel, paramValues, paramEnabled);
 
     return {
       pathParams: collectForIn(debugModel.pathParams),
       queryParams: { ...extraQueryParams, ...specQueryParams },
       headerParams: { ...extraHeaders, ...specHeaders },
       cookieParams: { ...extraCookieParams, ...specCookieParams },
+      ...(Object.keys(oas31ParameterValues).length > 0 ? { oas31ParameterValues } : {}),
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
       binaryBodyFileName: currentBody?.binary ? binaryBodyFileRef.current?.name : undefined,
@@ -2465,7 +2514,7 @@ export default function ApiDebug() {
       : buildRequestPreviewSafely(buildPreview);
     if (!previewResult.ok) {
       setValidationErrors([]);
-      setActiveTab('query');
+      setActiveTab(debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
       setError(previewResult.error);
       return;
     }
@@ -2497,7 +2546,11 @@ export default function ApiDebug() {
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
         : built.body !== undefined && built.body !== '';
-    const browserConstraint = browserRequestConstraint(built.method, hasBodyInput);
+    const browserConstraint = browserRequestConstraint(
+      built.method,
+      hasBodyInput,
+      built.hasExplicitCookieParameters === true,
+    );
     if (browserConstraint === 'unsupported-method') {
       setActiveTab('preview');
       setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
@@ -2506,6 +2559,11 @@ export default function ApiDebug() {
     if (browserConstraint === 'unsupported-body') {
       setActiveTab('body');
       setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
+      return;
+    }
+    if (browserConstraint === 'unsupported-cookie') {
+      setActiveTab('cookie');
+      setError(t('apiDebug.cookie.browserUnsupported'));
       return;
     }
 
@@ -2519,6 +2577,8 @@ export default function ApiDebug() {
       }
     } else {
       schemaValidationAbortRef.current?.abort();
+      schemaValidationAbortRef.current = null;
+      setSchemaValidating(false);
       const validationRevision = schemaValidationRevisionRef.current + 1;
       schemaValidationRevisionRef.current = validationRevision;
       const validationDebugCacheKey = debugCacheKey;
@@ -2527,28 +2587,45 @@ export default function ApiDebug() {
         activeDebugCacheKeyRef.current === validationDebugCacheKey;
       setPendingSchemaOverride(null);
 
-      const preparation = prepareRequestBodySchemaEvaluation({
+      const diagnosticIssues: RequestSchemaDiagnosticIssue[] =
+        built.parameterInputDiagnostics?.map((issue): ParameterInputRequestSchemaDiagnosticIssue =>
+          issue.kind === 'invalid-json'
+            ? { ...issue, kind: 'invalid-json', target: 'parameter' }
+            : { ...issue, kind: 'unsafe-number', target: 'parameter' },
+        ) ?? [];
+      let totalDiagnosticIssues = diagnosticIssues.length;
+      const bodyPreparation = prepareRequestBodySchemaEvaluation({
         document: swaggerDoc,
         operation,
         schemaMediaType: selectedContentType,
         effectiveContentType: effectiveRequestContentType(built.headers, built.contentType),
         body: built.body,
       });
+      const parameterPreparation = prepareParameterSchemaEvaluation({
+        document: swaggerDoc,
+        operation,
+        instances: built.parameterInstances,
+      });
 
-      if (preparation.status === 'invalid-json') {
-        setActiveTab('body');
-        setPendingSchemaOverride({
-          preview: previewResult.value,
-          debugCacheKey: validationDebugCacheKey,
-          revision: validationRevision,
-          diagnostic: { kind: 'invalid-json' },
-        });
-        return;
+      if (bodyPreparation.status === 'invalid-json') {
+        diagnosticIssues.push({ kind: 'invalid-json', target: 'body' });
+        totalDiagnosticIssues += 1;
+      }
+      if (bodyPreparation.status === 'unavailable') {
+        void message.warning(t('apiDebug.schemaValidation.unavailable'));
+      }
+      if (parameterPreparation.status === 'ready' && parameterPreparation.unavailable.length > 0) {
+        void message.warning(
+          t('apiDebug.schemaValidation.parameterUnavailable', {
+            count: parameterPreparation.unavailable.length,
+          }),
+        );
       }
 
-      if (preparation.status === 'unavailable') {
-        void message.warning(t('apiDebug.schemaValidation.unavailable'));
-      } else if (preparation.status === 'ready') {
+      const shouldEvaluateBody = bodyPreparation.status === 'ready';
+      const shouldEvaluateParameters =
+        parameterPreparation.status === 'ready' && parameterPreparation.evaluations.length > 0;
+      if (shouldEvaluateBody || shouldEvaluateParameters) {
         if (schemaEngine.status !== 'ready') {
           const detail =
             schemaEngine.status === 'error'
@@ -2560,23 +2637,37 @@ export default function ApiDebug() {
           schemaValidationAbortRef.current = controller;
           setSchemaValidating(true);
           try {
-            const evaluation = await evaluateRequestBodySchema(schemaEngine.session, preparation, {
-              signal: controller.signal,
-            });
-            if (!isCurrentValidation()) return;
-            if (evaluation.status === 'invalid') {
-              setActiveTab('body');
-              setPendingSchemaOverride({
-                preview: previewResult.value,
-                debugCacheKey: validationDebugCacheKey,
-                revision: validationRevision,
-                diagnostic: {
-                  kind: 'invalid-schema',
-                  issues: evaluation.issues,
-                  totalIssues: evaluation.totalIssues,
-                },
+            if (shouldEvaluateBody) {
+              const evaluation = await evaluateRequestBodySchema(schemaEngine.session, bodyPreparation, {
+                signal: controller.signal,
               });
-              return;
+              if (!isCurrentValidation()) return;
+              if (evaluation.status === 'invalid') {
+                totalDiagnosticIssues += evaluation.totalIssues;
+                diagnosticIssues.push(
+                  ...evaluation.issues.map((issue) => ({
+                    ...issue,
+                    kind: 'invalid-schema' as const,
+                    target: 'body' as const,
+                  })),
+                );
+              }
+            }
+            if (shouldEvaluateParameters) {
+              const evaluation = await evaluateParameterSchemas(schemaEngine.session, parameterPreparation, {
+                signal: controller.signal,
+              });
+              if (!isCurrentValidation()) return;
+              if (evaluation.status === 'invalid') {
+                totalDiagnosticIssues += evaluation.totalIssues;
+                diagnosticIssues.push(
+                  ...evaluation.issues.map((issue) => ({
+                    ...issue,
+                    kind: 'invalid-schema' as const,
+                    target: 'parameter' as const,
+                  })),
+                );
+              }
             }
           } catch (reason: unknown) {
             const code =
@@ -2594,6 +2685,19 @@ export default function ApiDebug() {
           }
           if (!isCurrentValidation()) return;
         }
+      }
+
+      if (diagnosticIssues.length > 0) {
+        const first = diagnosticIssues[0];
+        setActiveTab(first.target === 'body' ? 'body' : first.in);
+        setPendingSchemaOverride({
+          preview: previewResult.value,
+          debugCacheKey: validationDebugCacheKey,
+          revision: validationRevision,
+          issues: diagnosticIssues.slice(0, 8),
+          totalIssues: totalDiagnosticIssues,
+        });
+        return;
       }
     }
 
@@ -3221,8 +3325,9 @@ export default function ApiDebug() {
         okButtonProps={{ danger: true }}
         onCancel={() => {
           schemaValidationRevisionRef.current += 1;
+          const first = pendingSchemaOverride?.issues[0];
           setPendingSchemaOverride(null);
-          setActiveTab('body');
+          if (first) setActiveTab(first.target === 'body' ? 'body' : first.in);
         }}
         onOk={() => {
           const pending = pendingSchemaOverride;
@@ -3251,23 +3356,49 @@ export default function ApiDebug() {
       >
         <div id="knife4j-schema-validation-dialog">
           <Paragraph>{t('apiDebug.schemaValidation.description')}</Paragraph>
-          {pendingSchemaOverride?.diagnostic.kind === 'invalid-json' ? (
-            <Alert type="error" showIcon message={t('apiDebug.schemaValidation.invalidJson')} />
-          ) : pendingSchemaOverride?.diagnostic.kind === 'invalid-schema' ? (
+          {pendingSchemaOverride ? (
             <>
               <ul style={{ margin: 0, paddingInlineStart: 20 }}>
-                {pendingSchemaOverride.diagnostic.issues.map((issue) => (
-                  <li key={`${issue.instanceLocation}:${issue.absoluteKeywordLocation}`} style={{ marginBottom: 6 }}>
-                    <Text code>{requestBodyInstanceLabel(issue.instanceLocation)}</Text>{' '}
-                    <Text>{t('apiDebug.schemaValidation.issue', { keyword: issue.keyword })}</Text>
-                  </li>
-                ))}
+                {pendingSchemaOverride.issues.map((issue, index) => {
+                  const location = issue.target === 'body' ? 'requestBody' : `${issue.in}:${issue.name}`;
+                  if (issue.kind === 'invalid-json') {
+                    return (
+                      <li key={`${issue.target}:${location}:json:${index}`} style={{ marginBottom: 6 }}>
+                        <Text code>{location}</Text>{' '}
+                        <Text>
+                          {issue.target === 'body'
+                            ? t('apiDebug.schemaValidation.invalidJson')
+                            : t('apiDebug.schemaValidation.parameterInvalidJson')}
+                        </Text>
+                      </li>
+                    );
+                  }
+                  if (issue.kind === 'unsafe-number') {
+                    return (
+                      <li key={`${issue.target}:${location}:number:${index}`} style={{ marginBottom: 6 }}>
+                        <Text code>{location}</Text> <Text>{t('apiDebug.schemaValidation.parameterUnsafeNumber')}</Text>
+                      </li>
+                    );
+                  }
+                  const instanceLocation =
+                    issue.target === 'body'
+                      ? requestBodyInstanceLabel(issue.instanceLocation)
+                      : parameterInstanceLabel(issue.instanceLocation);
+                  return (
+                    <li
+                      key={`${issue.target}:${location}:${issue.instanceLocation}:${issue.absoluteKeywordLocation}:${index}`}
+                      style={{ marginBottom: 6 }}
+                    >
+                      <Text code>{location}</Text> <Text code>{instanceLocation}</Text>{' '}
+                      <Text>{t('apiDebug.schemaValidation.issue', { keyword: issue.keyword })}</Text>
+                    </li>
+                  );
+                })}
               </ul>
-              {pendingSchemaOverride.diagnostic.totalIssues > pendingSchemaOverride.diagnostic.issues.length && (
+              {pendingSchemaOverride.totalIssues > pendingSchemaOverride.issues.length && (
                 <Text type="secondary">
                   {t('apiDebug.schemaValidation.moreIssues', {
-                    count:
-                      pendingSchemaOverride.diagnostic.totalIssues - pendingSchemaOverride.diagnostic.issues.length,
+                    count: pendingSchemaOverride.totalIssues - pendingSchemaOverride.issues.length,
                   })}
                 </Text>
               )}

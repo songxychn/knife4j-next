@@ -245,16 +245,21 @@ const enUS = {
   'apiDebug.send': 'Send',
   'apiDebug.reset': 'Reset',
   'apiDebug.sending': 'Sending...',
-  'apiDebug.schemaValidation.title': 'Request body does not match the OAS 3.1 JSON Schema',
+  'apiDebug.schemaValidation.title': 'Request parameters or body do not match the OAS 3.1 JSON Schema',
   'apiDebug.schemaValidation.description':
     'The request has not been sent. Fix the issues below, or explicitly continue to test an invalid request.',
   'apiDebug.schemaValidation.invalidJson': 'The request body is not valid JSON.',
+  'apiDebug.schemaValidation.parameterInvalidJson': 'The parameter value is not valid JSON.',
+  'apiDebug.schemaValidation.parameterUnsafeNumber':
+    'The parameter contains a number that this browser cannot represent without changing its value.',
   'apiDebug.schemaValidation.issue': '{{keyword}} validation failed',
   'apiDebug.schemaValidation.moreIssues': '{{count}} more issues are not shown',
   'apiDebug.schemaValidation.stillSend': 'Send anyway',
   'apiDebug.schemaValidation.backToEdit': 'Back to editing',
   'apiDebug.schemaValidation.unavailable':
     'The current request body schema could not be located. This request will continue with the previous behavior.',
+  'apiDebug.schemaValidation.parameterUnavailable':
+    '{{count}} parameter schemas could not be located. Those parameters will continue with the previous behavior.',
   'apiDebug.schemaValidation.engineNotReady': 'The JSON Schema engine is not ready',
   'apiDebug.schemaValidation.engineFailed':
     'Pre-send schema diagnostics are unavailable. This request will continue with the previous behavior: {{message}}',
@@ -336,6 +341,8 @@ const enUS = {
     'The browser Fetch API cannot send a request body with {{method}}. Use the generated cURL command or change the operation method.',
   'apiDebug.method.browserUnsupported':
     'The browser Fetch API forbids {{method}} requests. Use the generated cURL command or another non-browser client.',
+  'apiDebug.cookie.browserUnsupported':
+    'The browser Fetch API forbids scripts from setting the Cookie request header. This request was not sent; use the browser Cookie session or copy the equivalent cURL command from Preview.',
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',

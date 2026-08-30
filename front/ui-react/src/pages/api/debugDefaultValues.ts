@@ -1,6 +1,8 @@
 import {
   buildSchemaExample,
+  isJsonMediaType,
   isOpenApi31Version,
+  parseOas31ParameterValue,
   resolveLocalJsonPointer,
   type BodyContent,
   type DebugParam,
@@ -123,6 +125,23 @@ export function stringifyDebugValue(value: unknown, type?: string): string {
   return String(value);
 }
 
+function stringifyParameterEditorValue(value: unknown, param: DebugParam): string {
+  if (param.parameterSerialization?.kind === 'content' && isJsonMediaType(param.parameterSerialization.mediaType)) {
+    return JSON.stringify(value, null, 2) ?? '';
+  }
+  if (value === null && param.parameterSerialization) return 'null';
+  if (
+    param.parameterSerialization &&
+    (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+  ) {
+    const raw = String(value);
+    const parsed = parseOas31ParameterValue(param, raw);
+    if (parsed.ok && JSON.stringify(parsed.instance) === JSON.stringify(value)) return raw;
+    return JSON.stringify(value) ?? raw;
+  }
+  return stringifyDebugValue(value, param.type);
+}
+
 function stringifyBodyValue(value: unknown, bodyContent: BodyContent): string {
   if (value === undefined || value === null) return '';
   if (bodyContent.category === 'json') {
@@ -177,14 +196,14 @@ export function initialValueForDebugParam(
 ): string {
   const rawExample =
     explicitExampleValue(options.rawParam, options.doc) ?? firstContentExample(options.rawParam?.content, options.doc);
-  if (rawExample !== undefined && rawExample !== null) {
-    return stringifyDebugValue(rawExample, param.type);
+  if (rawExample !== undefined) {
+    return stringifyParameterEditorValue(rawExample, param);
   }
-  if (param.example !== undefined && param.example !== null) {
-    return stringifyDebugValue(param.example, param.type);
+  if (param.example !== undefined) {
+    return stringifyParameterEditorValue(param.example, param);
   }
-  if (param.default !== undefined && param.default !== null) {
-    return stringifyDebugValue(param.default, param.type);
+  if (param.default !== undefined) {
+    return stringifyParameterEditorValue(param.default, param);
   }
   if (param.schema && (param.type === 'array' || param.type === 'object')) {
     const schemaExample = schemaExampleValue(param.schema, options.doc);

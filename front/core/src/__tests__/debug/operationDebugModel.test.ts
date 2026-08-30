@@ -1032,6 +1032,167 @@ describe('buildOperationDebugModel — OAS3', () => {
   });
 });
 
+describe('buildOperationDebugModel — OAS 3.1 parameter contract', () => {
+  function modelFor(parameters: any[], openapi = '3.1.1') {
+    return buildOperationDebugModel({
+      doc: {
+        openapi,
+        info: { title: 'Parameters', version: '1' },
+        paths: {
+          '/items/{id}': {
+            get: { parameters },
+          },
+        },
+      },
+      path: '/items/{id}',
+      method: 'get',
+    });
+  }
+
+  test.each(['3.1.0', '3.1.1', '3.1.2'])('uses the same default styles for OAS %s', (openapi) => {
+    const model = modelFor(
+      [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'filter', in: 'query', schema: { type: 'object' } },
+        { name: 'X-Trace', in: 'header', schema: { type: 'array' } },
+        { name: 'session', in: 'cookie', schema: { type: 'string' } },
+      ],
+      openapi,
+    );
+
+    expect(model.pathParams[0].parameterSerialization).toEqual({
+      kind: 'schema',
+      style: 'simple',
+      explode: false,
+      allowReserved: false,
+    });
+    expect(model.queryParams[0].parameterSerialization).toEqual({
+      kind: 'schema',
+      style: 'form',
+      explode: true,
+      allowReserved: false,
+    });
+    expect(model.headerParams[0].parameterSerialization).toEqual({
+      kind: 'schema',
+      style: 'simple',
+      explode: false,
+      allowReserved: false,
+    });
+    expect(model.cookieParams[0].parameterSerialization).toEqual({
+      kind: 'schema',
+      style: 'form',
+      explode: true,
+      allowReserved: false,
+    });
+  });
+
+  test('models one JSON content entry without mixing style metadata', () => {
+    const model = modelFor([
+      {
+        name: 'coordinates',
+        in: 'query',
+        content: {
+          'application/json': {
+            schema: false,
+            example: { lat: 1, long: 2 },
+          },
+        },
+      },
+    ]);
+
+    expect(model.queryParams[0]).toMatchObject({
+      name: 'coordinates',
+      schema: false,
+      example: { lat: 1, long: 2 },
+      parameterSerialization: { kind: 'content', mediaType: 'application/json' },
+    });
+    expect(model.parameterDiagnostics).toBeUndefined();
+  });
+
+  test('ignores the three reserved OAS 3.1 header Parameter names case-insensitively', () => {
+    const model = modelFor([
+      { name: 'Accept', in: 'header', schema: { type: 'string' } },
+      { name: 'content-TYPE', in: 'header', schema: { type: 'string' } },
+      { name: 'AUTHORIZATION', in: 'header', schema: { type: 'string' } },
+      { name: 'X-Trace', in: 'header', schema: { type: 'string' } },
+    ]);
+
+    expect(model.headerParams.map((parameter) => parameter.name)).toEqual(['X-Trace']);
+    expect(model.parameterDiagnostics).toBeUndefined();
+  });
+
+  test.each([
+    {
+      label: 'schema and content',
+      parameter: {
+        name: 'value',
+        in: 'query',
+        schema: { type: 'string' },
+        content: { 'text/plain': { schema: { type: 'string' } } },
+      },
+      code: 'SCHEMA_CONTENT_CONFLICT',
+    },
+    {
+      label: 'missing schema and content',
+      parameter: { name: 'value', in: 'query' },
+      code: 'PARAMETER_ENCODING_MISSING',
+    },
+    {
+      label: 'multiple content entries',
+      parameter: {
+        name: 'value',
+        in: 'query',
+        content: { 'application/json': {}, 'text/plain': {} },
+      },
+      code: 'CONTENT_CARDINALITY',
+    },
+    {
+      label: 'content mixed with style',
+      parameter: {
+        name: 'value',
+        in: 'query',
+        style: 'form',
+        content: { 'application/json': {} },
+      },
+      code: 'CONTENT_STYLE_CONFLICT',
+    },
+    {
+      label: 'undefined deepObject default explode',
+      parameter: { name: 'value', in: 'query', style: 'deepObject', schema: { type: 'object' } },
+      code: 'UNDEFINED_STYLE_COMBINATION',
+    },
+    {
+      label: 'style at the wrong location',
+      parameter: { name: 'value', in: 'header', style: 'form', schema: { type: 'string' } },
+      code: 'UNSUPPORTED_STYLE',
+    },
+    {
+      label: 'unsupported content media type',
+      parameter: { name: 'value', in: 'query', content: { 'application/cbor': {} } },
+      code: 'UNSUPPORTED_CONTENT_TYPE',
+    },
+  ])('reports $label as a document diagnostic', ({ parameter, code }) => {
+    const model = modelFor([parameter]);
+    expect(model.parameterDiagnostics).toEqual([expect.objectContaining({ key: `${parameter.in}:value`, code })]);
+    expect(
+      model.queryParams[0]?.parameterSerialization ?? model.headerParams[0]?.parameterSerialization,
+    ).toBeUndefined();
+  });
+
+  test('keeps OAS 3.0 parameters on the legacy path', () => {
+    const model = modelFor([{ name: 'filter', in: 'query', style: 'deepObject', schema: { type: 'object' } }], '3.0.4');
+    expect(model.queryParams[0].parameterSerialization).toBeUndefined();
+    expect(model.parameterDiagnostics).toBeUndefined();
+  });
+
+  test('does not change the legacy OAS 3.0 header model', () => {
+    const model = modelFor([{ name: 'Authorization', in: 'header', schema: { type: 'string' } }], '3.0.4');
+    expect(model.headerParams).toHaveLength(1);
+    expect(model.headerParams[0].name).toBe('Authorization');
+    expect(model.headerParams[0].parameterSerialization).toBeUndefined();
+  });
+});
+
 describe('buildOperationDebugModel — OAS2', () => {
   const oas2Doc = {
     swagger: '2.0',

@@ -19,6 +19,7 @@ import type {
   QueryParamValue,
   ValidationError,
 } from './types';
+import { replaceSerializedPathParams, serializeOas31Parameters } from './parameterSerialization';
 
 // ─── URL 构建 ─────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export function buildQueryString(
 interface HeaderLayer {
   values: Record<string, string> | undefined;
   source?: ParamSource;
+  includeEmpty?: boolean;
 }
 
 /**
@@ -106,7 +108,7 @@ function mergeHeaderLayers(layers: HeaderLayer[]): {
   for (const layer of layers) {
     if (!layer.values) continue;
     for (const [key, value] of Object.entries(layer.values)) {
-      if (value !== undefined && value !== '') {
+      if (value !== undefined && (value !== '' || layer.includeEmpty)) {
         const normalizedKey = key.toLowerCase();
         const previousKey = keysByLowercase.get(normalizedKey);
         if (previousKey !== undefined && previousKey !== key) {
@@ -137,6 +139,13 @@ function findHeaderKey(headers: Record<string, string>, name: string): string | 
   return undefined;
 }
 
+/** Remove names claimed by an explicitly supplied OAS 3.1 header parameter. */
+function omitHeaderNames(headers: Record<string, string>, names: readonly string[]): Record<string, string> {
+  if (names.length === 0) return headers;
+  const omitted = new Set(names.map((name) => name.toLowerCase()));
+  return Object.fromEntries(Object.entries(headers).filter(([name]) => !omitted.has(name.toLowerCase())));
+}
+
 /** 将 cookie params 追加到 headers 的 Cookie 头，大小写不敏感地合并。 */
 function appendCookieParams(
   headers: Record<string, string>,
@@ -157,6 +166,29 @@ function appendCookieParams(
     ...headers,
     Cookie: pairs.join('; '),
   };
+}
+
+function appendSerializedCookieParams(
+  headers: Record<string, string>,
+  cookieParams: readonly { readonly name: string; readonly value: string }[],
+): Record<string, string> {
+  const pairs = cookieParams.filter((item) => item.name !== '').map((item) => `${item.name}=${item.value}`);
+  if (pairs.length === 0) return headers;
+  const existingKey = findHeaderKey(headers, 'Cookie');
+  if (existingKey) {
+    return {
+      ...headers,
+      [existingKey]: `${headers[existingKey]}; ${pairs.join('; ')}`,
+    };
+  }
+  return { ...headers, Cookie: pairs.join('; ') };
+}
+
+function appendQueryPreviewValue(query: Record<string, QueryParamValue>, name: string, value: string): void {
+  const current = query[name];
+  if (current === undefined) query[name] = value;
+  else if (Array.isArray(current)) current.push(value);
+  else query[name] = [current, value];
 }
 
 // ─── 鉴权 → headers + query ──────────────────────────
@@ -258,6 +290,9 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
   const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
       if (!param.required) continue;
+      if (param.parameterSerialization && form.oas31ParameterValues) {
+        if (Object.prototype.hasOwnProperty.call(form.oas31ParameterValues, `${param.in}:${param.name}`)) continue;
+      }
       const value = values[param.name];
       if (value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
         errors.push({
@@ -366,8 +401,15 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   const { baseUrl, path, method, debugModel, formValues, globalParams, applicationParams, auth, securityKeys } =
     options;
 
+  const parameterDiagnostic = debugModel.parameterDiagnostics?.[0];
+  if (parameterDiagnostic) throw new Error(parameterDiagnostic.message);
+  const serializedParameters = serializeOas31Parameters(debugModel, formValues.oas31ParameterValues);
+
   // 1. path 替换
-  const resolvedPath = replacePathParams(path, formValues.pathParams);
+  const resolvedPath = replacePathParams(
+    replaceSerializedPathParams(path, serializedParameters.path),
+    formValues.pathParams,
+  );
 
   // 2. 参数拆分：application 为所有分组共享，global 为当前分组
   const application = splitGlobalParams(applicationParams);
@@ -375,14 +417,23 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   // 3. headers 合并（接口级 > 当前分组 > 鉴权 > 所有分组共享）
   const authResult = authToHeaders(auth, securityKeys);
+  const consumedHeaderNames = serializedParameters.consumedHeaderNames;
   const headerMerge = mergeHeaderLayers([
-    { values: application.headers, source: 'application' },
-    { values: authResult.headers, source: 'auth' },
-    { values: gp.headers, source: 'global' },
-    { values: formValues.headerParams, source: 'interface' },
+    { values: omitHeaderNames(application.headers, consumedHeaderNames), source: 'application' },
+    { values: omitHeaderNames(authResult.headers, consumedHeaderNames), source: 'auth' },
+    { values: omitHeaderNames(gp.headers, consumedHeaderNames), source: 'global' },
+    { values: omitHeaderNames(formValues.headerParams, consumedHeaderNames), source: 'interface' },
+    // OAS 3.1 distinguishes an explicitly included empty value from an
+    // omitted parameter. Keep legacy empty-header omission unchanged.
+    { values: serializedParameters.headers, source: 'interface', includeEmpty: true },
   ]);
   const mergedHeaders = headerMerge.headers;
-  const headersWithCookies = appendCookieParams(mergedHeaders, formValues.cookieParams);
+  const legacyCookieParams = { ...formValues.cookieParams };
+  for (const name of serializedParameters.consumedCookieNames) delete legacyCookieParams[name];
+  const headersWithCookies = appendSerializedCookieParams(
+    appendCookieParams(mergedHeaders, legacyCookieParams),
+    serializedParameters.cookies,
+  );
   // query 参数合并（所有分组共享 < 鉴权 < 当前分组 < 接口级）。query 名大小写敏感。
   const mergedQuery: Record<string, QueryParamValue> = {
     ...application.queries,
@@ -390,6 +441,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     ...gp.queries,
     ...formValues.queryParams,
   };
+  for (const name of serializedParameters.consumedQueryNames) delete mergedQuery[name];
 
   // 3.5 sourceMap 追踪（仅当存在 applicationParams、auth 或 globalParams 时生成）
   const hasMultiSource = applicationParams !== undefined || auth !== undefined || globalParams !== undefined;
@@ -413,6 +465,10 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
       if (value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)) {
         querySource[key] = 'interface';
       }
+    }
+    for (const name of serializedParameters.consumedQueryNames) delete querySource[name];
+    for (const parameter of serializedParameters.query) {
+      querySource[parameter.name] = 'interface';
     }
 
     sourceMap = { headers: headerSource, query: querySource };
@@ -454,23 +510,43 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   const queryEncodings = Object.fromEntries(
     debugModel.queryParams.map((param) => [param.name, { style: param.style, explode: param.explode }]),
   );
-  const queryString = buildQueryString(mergedQuery, queryEncodings);
+  const legacyQueryString = buildQueryString(mergedQuery, queryEncodings);
+  const parameterQueryString = serializedParameters.query
+    .map((parameter) => `${parameter.encodedName}=${parameter.encodedValue}`)
+    .join('&');
+  const queryString = [legacyQueryString, parameterQueryString].filter(Boolean).join('&');
   const url = `${baseUrl}${resolvedPath}${queryString ? `?${queryString}` : ''}`;
+  const previewQuery: Record<string, QueryParamValue> = { ...mergedQuery };
+  for (const parameter of serializedParameters.query) {
+    appendQueryPreviewValue(previewQuery, parameter.name, parameter.value);
+  }
 
   return {
     url,
     method: method.toUpperCase(),
     headers: headersWithCookies,
-    query: mergedQuery,
+    query: previewQuery,
     body,
     binaryBodyFileName: formValues.binaryBodyFileName,
     contentType: selectedContentType,
     sourceMap,
     jsonFields: formValues.jsonFields,
+    ...(serializedParameters.instances.length > 0 ? { parameterInstances: serializedParameters.instances } : {}),
+    ...(serializedParameters.diagnostics.length > 0
+      ? { parameterInputDiagnostics: serializedParameters.diagnostics }
+      : {}),
+    ...(serializedParameters.cookies.some((parameter) => parameter.name !== '')
+      ? { hasExplicitCookieParameters: true }
+      : {}),
   };
 }
 
 // ─── Curl 生成 ────────────────────────────────────────
+
+/** Quote one dynamic argument for POSIX-compatible shells. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
 
 /**
  * 从 BuiltRequest 生成等价 curl 命令
@@ -490,7 +566,7 @@ export function buildCurl(req: BuiltRequest): string {
   // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
     if (isMultipart && key.toLowerCase() === 'content-type') continue;
-    parts.push('-H', `${key}: ${value}`);
+    parts.push('-H', shellQuote(`${key}: ${value}`));
   }
 
   if (isMultipart) {
@@ -510,12 +586,11 @@ export function buildCurl(req: BuiltRequest): string {
     if (fieldObj && Object.keys(fieldObj).length > 0) {
       for (const [name, value] of Object.entries(fieldObj)) {
         if (value === undefined) continue;
-        const escaped = String(value).replace(/'/g, "'\\''");
         if (jsonFieldSet.has(name)) {
           // JSON-encoded part: append ;type=application/json
-          parts.push('-F', `'${name}=${escaped};type=application/json'`);
+          parts.push('-F', shellQuote(`${name}=${String(value)};type=application/json`));
         } else {
-          parts.push('-F', `'${name}=${escaped}'`);
+          parts.push('-F', shellQuote(`${name}=${String(value)}`));
         }
       }
     }
@@ -523,16 +598,14 @@ export function buildCurl(req: BuiltRequest): string {
     // 若没有注入则仅提示用户手动追加 -F field=@/path/to/file）
     parts.push('# TODO append file fields via: -F field=@/path/to/file');
   } else if (req.binaryBodyFileName) {
-    const escapedFilename = req.binaryBodyFileName.replace(/'/g, "'\\''");
-    parts.push('--data-binary', `'@/path/to/${escapedFilename}'`);
+    parts.push('--data-binary', shellQuote(`@/path/to/${req.binaryBodyFileName}`));
   } else if (req.body !== undefined && req.body !== '') {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
-    const escapedBody = req.body.replace(/'/g, "'\\''");
-    parts.push('-d', `'${escapedBody}'`);
+    parts.push('-d', shellQuote(req.body));
   }
 
   // URL（用单引号包裹防止 shell 解析）
-  parts.push(`'${req.url}'`);
+  parts.push(shellQuote(req.url));
 
   return parts.join(' \\\n  ');
 }

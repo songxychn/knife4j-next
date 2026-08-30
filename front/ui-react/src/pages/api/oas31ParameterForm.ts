@@ -1,0 +1,38 @@
+import type { DebugParam, OperationDebugModel } from 'knife4j-core';
+import { paramKey, type ParamValueMap } from './debugDefaultValues';
+
+function declaredParameters(model: OperationDebugModel): DebugParam[] {
+  return [...model.pathParams, ...model.queryParams, ...model.headerParams, ...model.cookieParams];
+}
+
+export function buildInitialParamEnabled(
+  model: OperationDebugModel,
+  values: Readonly<ParamValueMap>,
+): Record<string, boolean> {
+  const enabled: Record<string, boolean> = {};
+  for (const parameter of declaredParameters(model)) {
+    const key = paramKey(parameter);
+    enabled[key] = parameter.parameterSerialization === undefined || parameter.required || (values[key] ?? '') !== '';
+  }
+  return enabled;
+}
+
+export function collectOas31ParameterValues(
+  model: OperationDebugModel,
+  values: Readonly<ParamValueMap>,
+  enabled: Readonly<Record<string, boolean>>,
+): Record<string, string> {
+  const collected: Record<string, string> = {};
+  for (const parameter of declaredParameters(model)) {
+    if (!parameter.parameterSerialization) continue;
+    const key = paramKey(parameter);
+    if (enabled[key] === false) continue;
+    collected[key] = values[key] ?? '';
+  }
+  return collected;
+}
+
+export function isNullableOas31Parameter(parameter: DebugParam): boolean {
+  if (!parameter.parameterSerialization || !parameter.schema || typeof parameter.schema === 'boolean') return false;
+  return Array.isArray(parameter.schema.type) && parameter.schema.type.includes('null');
+}

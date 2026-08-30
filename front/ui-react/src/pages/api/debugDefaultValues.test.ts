@@ -139,6 +139,62 @@ describe('debugDefaultValues', () => {
     expect(buildInitialParamValues(debugModel, doc, operation)).toMatchObject({ 'query:locale': 'zh-CN' });
   });
 
+  it('keeps OAS 3.1 JSON content strings and null examples as logical JSON editor values', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.1.1',
+      info: { title: 'parameter examples', version: '1.0.0' },
+      paths: {
+        '/search': {
+          get: {
+            parameters: [
+              {
+                name: 'literal',
+                in: 'query',
+                content: {
+                  'application/json': {
+                    schema: { type: 'string' },
+                    example: 'json-string',
+                  },
+                },
+              } as never,
+              {
+                name: 'nullable',
+                in: 'query',
+                schema: { type: ['string', 'null'] },
+                example: null,
+              } as never,
+              {
+                name: 'literal-null',
+                in: 'query',
+                schema: { type: ['string', 'null'] },
+                example: 'null',
+              } as never,
+              {
+                name: 'default-null',
+                in: 'query',
+                schema: { type: ['integer', 'null'], default: null },
+              } as never,
+            ],
+            responses: {},
+          },
+        },
+      },
+    };
+    const operation = operationFrom(doc, '/search', 'get');
+    const debugModel = buildOperationDebugModel({
+      doc: doc as unknown as Record<string, unknown>,
+      path: '/search',
+      method: 'get',
+    });
+
+    expect(buildInitialParamValues(debugModel, doc, operation)).toEqual({
+      'query:literal': '"json-string"',
+      'query:nullable': 'null',
+      'query:literal-null': '"null"',
+      'query:default-null': 'null',
+    });
+  });
+
   it('uses requestBody media examples before schema-generated body examples', () => {
     const schema = {
       type: 'object',

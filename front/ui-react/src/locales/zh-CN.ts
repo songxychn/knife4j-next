@@ -236,14 +236,18 @@ const zhCN = {
   'apiDebug.send': '发送',
   'apiDebug.reset': '重置',
   'apiDebug.sending': '请求中...',
-  'apiDebug.schemaValidation.title': '请求体不符合 OAS 3.1 JSON Schema',
+  'apiDebug.schemaValidation.title': '请求参数或请求体不符合 OAS 3.1 JSON Schema',
   'apiDebug.schemaValidation.description': '请求尚未发送。请修正以下问题，或明确选择“仍然发送”以进行负向接口测试。',
   'apiDebug.schemaValidation.invalidJson': '请求体不是有效的 JSON。',
+  'apiDebug.schemaValidation.parameterInvalidJson': '参数值不是有效的 JSON。',
+  'apiDebug.schemaValidation.parameterUnsafeNumber': '参数包含浏览器无法无损表示的数字。',
   'apiDebug.schemaValidation.issue': '{{keyword}} 校验失败',
   'apiDebug.schemaValidation.moreIssues': '另有 {{count}} 个问题未显示',
   'apiDebug.schemaValidation.stillSend': '仍然发送',
   'apiDebug.schemaValidation.backToEdit': '返回修改',
   'apiDebug.schemaValidation.unavailable': '无法定位当前请求体 Schema，本次按原行为继续发送。',
+  'apiDebug.schemaValidation.parameterUnavailable':
+    '无法定位 {{count}} 个参数的 Schema，本次对这些参数按原行为继续发送。',
   'apiDebug.schemaValidation.engineNotReady': 'JSON Schema 引擎尚未就绪',
   'apiDebug.schemaValidation.engineFailed': '发送前 Schema 诊断不可用，本次按原行为继续发送：{{message}}',
   'apiDebug.receiving': '正在接收响应：{{received}}',
@@ -322,6 +326,8 @@ const zhCN = {
     '浏览器 Fetch API 不允许为 {{method}} 请求发送请求体，请改用生成的 cURL 或调整接口方法。',
   'apiDebug.method.browserUnsupported':
     '浏览器 Fetch API 禁止发送 {{method}} 请求，请改用生成的 cURL 或其他非浏览器客户端。',
+  'apiDebug.cookie.browserUnsupported':
+    '浏览器 Fetch API 禁止脚本设置 Cookie 请求头，本次请求未发送。请使用浏览器 Cookie 会话，或复制预览中的等价 cURL。',
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',

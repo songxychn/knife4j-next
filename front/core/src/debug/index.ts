@@ -11,6 +11,9 @@
 // 类型
 export type {
   ParamIn,
+  ParameterInstance,
+  Oas31ParameterSerialization,
+  ParameterDocumentDiagnostic,
   DebugParam,
   BodyContentType,
   BodyContent,
@@ -24,6 +27,8 @@ export type {
   BuiltRequestSourceMap,
   ParamSource,
   ValidationError,
+  BuiltParameterInstance,
+  ParameterInputDiagnostic,
   SchemaResolveContext,
   SchemaValue,
   SchemaFieldNode,
@@ -57,6 +62,24 @@ export {
   buildUrlencodedBody,
 } from './requestBuilder';
 export type { BuildRequestOptions } from './requestBuilder';
+
+// OAS 3.1 parameter conversion + serialization
+export {
+  encodeParameterComponent,
+  encodeReservedQueryValue,
+  isJsonMediaType,
+  isTextMediaType,
+  isSupportedParameterContentType,
+  parameterKey,
+  parseOas31ParameterValue,
+  replaceSerializedPathParams,
+  serializeOas31Parameters,
+} from './parameterSerialization';
+export type {
+  SerializedCookieParameter,
+  SerializedOas31Parameters,
+  SerializedQueryParameter,
+} from './parameterSerialization';
 
 // schemaExample
 export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';

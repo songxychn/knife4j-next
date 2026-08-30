@@ -3,6 +3,7 @@ import type { DebugParam } from 'knife4j-core';
 import {
   displayQueryParamValue,
   enumParamSelectMode,
+  enumParamSelectOptions,
   enumParamSelectValue,
   isEnumParamSelectSupported,
   queryParamRequestValue,
@@ -60,5 +61,54 @@ describe('enumParamValue', () => {
 
     expect(enumParamSelectValue(commaParam, 'A,B')).toEqual(['A,B']);
     expect(queryParamRequestValue(commaParam, 'A,B')).toEqual(['A,B']);
+  });
+
+  it('keeps OAS 3.1 scalar enum JSON types distinct in the editor', () => {
+    const scalarParam: DebugParam = {
+      name: 'choice',
+      in: 'query',
+      required: false,
+      type: 'integer',
+      schema: { type: ['integer', 'string', 'null'] },
+      enum: [1, '1', null],
+      parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+    };
+
+    expect(enumParamSelectOptions(scalarParam)).toEqual([
+      { value: '1', label: '1' },
+      { value: '"1"', label: '"1"' },
+      { value: 'null', label: 'null' },
+    ]);
+    expect(enumParamSelectValue(scalarParam, '1')).toBe('1');
+    expect(enumParamSelectValue(scalarParam, '"1"')).toBe('"1"');
+    expect(serializeEnumParamSelection(scalarParam, '"1"')).toBe('"1"');
+  });
+
+  it('serializes OAS 3.1 array item enum selections as typed JSON values', () => {
+    const arrayParam: DebugParam = {
+      ...batchEnumParam,
+      schema: { type: 'array', items: { type: 'integer', enum: [1, 2] } },
+      enum: [1, 2],
+      parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+    };
+
+    expect(enumParamSelectOptions(arrayParam)).toEqual([
+      { value: '1', label: '1' },
+      { value: '2', label: '2' },
+    ]);
+    expect(enumParamSelectValue(arrayParam, '[1,2]')).toEqual(['1', '2']);
+    expect(serializeEnumParamSelection(arrayParam, ['1', '2'])).toBe('[1,2]');
+  });
+
+  it('keeps the raw JSON editor for a nullable OAS 3.1 array with item enums', () => {
+    const nullableArrayParam: DebugParam = {
+      ...batchEnumParam,
+      schema: { type: ['array', 'null'], items: { type: 'integer', enum: [1, 2] } },
+      enum: [1, 2],
+      parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+    };
+
+    expect(isEnumParamSelectSupported(nullableArrayParam)).toBe(false);
+    expect(enumParamSelectMode(nullableArrayParam)).toBeUndefined();
   });
 });

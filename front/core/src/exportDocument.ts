@@ -22,6 +22,8 @@ export interface MdSchemaObject {
   enum?: unknown[];
 }
 
+export type MdSchemaValue = MdSchemaObject | boolean;
+
 export interface MdExampleObject {
   summary?: string;
   description?: string;
@@ -41,7 +43,7 @@ export interface MdParameterObject {
   in: string;
   required?: boolean;
   description?: string;
-  schema?: MdSchemaObject;
+  schema?: MdSchemaValue;
   type?: string;
   format?: string;
 }
@@ -197,8 +199,9 @@ function primarySchemaType(type: MdSchemaObject['type']): string | undefined {
   return types.find((value) => value !== 'null') ?? types[0];
 }
 
-function schemaDisplayType(schema?: MdSchemaObject): string {
-  if (!schema) return '';
+function schemaDisplayType(schema?: MdSchemaValue): string {
+  if (schema === undefined) return '';
+  if (typeof schema === 'boolean') return schema ? 'unknown' : 'never';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
   const type = primarySchemaType(schema.type);
   if (type === 'array') {
@@ -210,8 +213,9 @@ function schemaDisplayType(schema?: MdSchemaObject): string {
   return parts.length ? parts.join(' / ') : 'object';
 }
 
-function compactSchemaDisplayType(schema?: MdSchemaObject): string {
-  if (!schema) return '';
+function compactSchemaDisplayType(schema?: MdSchemaValue): string {
+  if (schema === undefined) return '';
+  if (typeof schema === 'boolean') return schema ? 'unknown' : 'never';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
   const type = primarySchemaType(schema.type);
   if (type === 'array') return `${compactSchemaDisplayType(schema.items) || 'object'}[]`;
