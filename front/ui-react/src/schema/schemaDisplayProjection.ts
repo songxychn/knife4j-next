@@ -80,6 +80,7 @@ export interface SchemaDisplayProjectionRunOptions {
 
 export interface SchemaDisplayProjector {
   project(reference: string, options?: SchemaDisplayProjectionRunOptions): Promise<SchemaDisplayProjection>;
+  projectValue(schema: JsonValue, options?: SchemaDisplayProjectionRunOptions): Promise<SchemaDisplayProjection>;
 }
 
 interface ProjectionContext {
@@ -524,6 +525,23 @@ export function createSchemaDisplayProjector(
         baseAlreadyIncludesOwnId: true,
       };
       const projected = await projectNode('', schemaNode.schema, false, context);
+      return { fields: rootFields(projected), diagnostics };
+    },
+    async projectValue(schema, runOptions = {}) {
+      throwIfAborted(runOptions.signal);
+      const diagnostics: SchemaProjectionDiagnostic[] = [];
+      const context: ProjectionContext = {
+        baseUri: session.retrievalUri,
+        schemaUri: session.retrievalUri,
+        path: '$',
+        depth: 0,
+        maxDepth,
+        referenceChain: new Set(),
+        diagnostics,
+        signal: runOptions.signal,
+        baseAlreadyIncludesOwnId: false,
+      };
+      const projected = await projectNode('', schema, false, context);
       return { fields: rootFields(projected), diagnostics };
     },
   };

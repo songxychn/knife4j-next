@@ -1,6 +1,8 @@
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { TFunction } from 'i18next';
+import type { JsonValue } from 'knife4j-schema-engine';
 import {
   buildSchemaFieldTree,
   dereferenceReferenceObject,
@@ -8,8 +10,11 @@ import {
   resolveRefMeta,
   type SchemaFieldNode,
 } from 'knife4j-core';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
+  MenuOperation,
+  OperationObject,
   ParameterObject,
   RequestBodyObject,
   ResponseHeaderObject,
@@ -25,12 +30,30 @@ import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/Schema
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
-import { applyValidationGroupRequiredFields } from './validationGroups';
 import { firstRequestMedia, requestBodyExample, responseExamples } from './apiDocExamples';
 import { useSettings } from '../../context/SettingsContext';
+import { useSchemaEngine } from '../../context/SchemaEngineContext';
+import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
+import { createSchemaDisplayProjector } from '../../schema/schemaDisplayProjection';
 import { resolveResponseOverviewVisibility } from './responseOverview';
+import {
+  prepareApiDocSchemaFields,
+  projectApiDocSchemaRegions,
+  REQUEST_BODY_REGION_KEY,
+  responseSchemaRegionKey,
+  type ApiDocSchemaProjectionTarget,
+} from './apiDocSchemaProjection';
+import {
+  selectApiDocSchemaView,
+  type ApiDocSchemaProjectionState,
+  type ApiDocSchemaViewNotice,
+} from './apiDocSchemaViewState';
 
 const { Title, Text } = Typography;
+
+const IDLE_SCHEMA_PROJECTION_STATE: ApiDocSchemaProjectionState = Object.freeze({ status: 'idle' });
+
+type ApiDocSchemaValue = SchemaObject | boolean;
 
 interface ParamRow {
   key: string;
@@ -47,7 +70,7 @@ interface ResponseRow {
   key: string;
   statusCode: string;
   description: string;
-  schema?: SchemaObject;
+  schema?: ApiDocSchemaValue;
   mediaType?: string;
   headers: Array<{
     key: string;
@@ -59,14 +82,15 @@ interface ResponseRow {
   }>;
 }
 
-function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
+function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): ApiDocSchemaValue | undefined {
   const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
   if (!match) return undefined;
-  return (doc.components?.schemas ?? doc.definitions ?? {})[match[1]];
+  return (doc.components?.schemas ?? doc.definitions ?? {})[match[1]] as ApiDocSchemaValue | undefined;
 }
 
-function schemaName(schema?: SchemaObject): string {
-  if (!schema) return '';
+function schemaName(schema?: ApiDocSchemaValue): string {
+  if (schema === undefined) return '';
+  if (typeof schema === 'boolean') return schema ? 'unknown' : 'never';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
   const declaredTypes = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
   const type = declaredTypes.find((value) => value !== 'null') ?? declaredTypes[0];
@@ -84,18 +108,19 @@ function parameterType(parameter: ParameterObject): string {
 function firstRequestSchema(
   requestBody: RequestBodyObject | undefined,
   parameters: ParameterObject[] | undefined,
-): SchemaObject | undefined {
-  const bodyParameter = parameters?.find((parameter) => parameter.in === 'body')?.schema;
+): ApiDocSchemaValue | undefined {
+  const bodyParameter = parameters?.find((parameter) => parameter.in === 'body')?.schema as
+    ApiDocSchemaValue | undefined;
   const mediaEntry = firstRequestMedia(requestBody);
   if (!mediaEntry) return bodyParameter;
-  return mediaEntry.mediaObj.schema ?? bodyParameter;
+  return (mediaEntry.mediaObj.schema as ApiDocSchemaValue | undefined) ?? bodyParameter;
 }
 
-function responseSchema(response: ResponseObject): SchemaObject | undefined {
+function responseSchema(response: ResponseObject): ApiDocSchemaValue | undefined {
   return (
-    response.content?.['application/json']?.schema ??
-    response.schema ??
-    Object.values(response.content ?? {})[0]?.schema
+    (response.content?.['application/json']?.schema as ApiDocSchemaValue | undefined) ??
+    (response.schema as ApiDocSchemaValue | undefined) ??
+    (Object.values(response.content ?? {})[0]?.schema as ApiDocSchemaValue | undefined)
   );
 }
 
@@ -109,26 +134,18 @@ function exampleText(value: unknown): string {
   return typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
 }
 
-function schemaToFieldNodes(schema: SchemaObject, doc: SwaggerDoc): SchemaFieldNode[] {
-  return buildSchemaFieldTree(schema as Record<string, unknown>, {
+function schemaToFieldNodes(schema: ApiDocSchemaValue, doc: SwaggerDoc): SchemaFieldNode[] {
+  return buildSchemaFieldTree(schema as Record<string, unknown> | boolean, {
     doc: doc as unknown as Record<string, unknown>,
     maxDepth: 8,
   });
 }
 
-/** Recursively filter field nodes by access mode. */
-function filterFieldNodes(nodes: SchemaFieldNode[], mode: 'request' | 'response'): SchemaFieldNode[] {
-  return nodes
-    .filter((node) => {
-      if (mode === 'request' && node.readOnly) return false;
-      if (mode === 'response' && node.writeOnly) return false;
-      return true;
-    })
-    .map((node) => (node.children ? { ...node, children: filterFieldNodes(node.children, mode) } : node));
-}
-
-function schemaToTypeNode(schema: SchemaObject | undefined): SchemaFieldNode {
-  if (!schema) return { name: '', type: 'unknown', required: false };
+function schemaToTypeNode(schema: ApiDocSchemaValue | undefined): SchemaFieldNode {
+  if (schema === undefined) return { name: '', type: 'unknown', required: false };
+  if (typeof schema === 'boolean') {
+    return { name: '', type: schema ? 'unknown' : 'never', required: false, booleanSchema: schema };
+  }
   if (schema.$ref) {
     return {
       name: '',
@@ -158,13 +175,13 @@ function schemaToTypeNode(schema: SchemaObject | undefined): SchemaFieldNode {
 }
 
 function collectSchemaRefs(
-  schema: SchemaObject | undefined,
+  schema: ApiDocSchemaValue | undefined,
   doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
   refs: Set<string>,
   seenRefs = new Set<string>(),
   depth = 0,
 ) {
-  if (!schema || depth > 12) return;
+  if (schema === undefined || typeof schema === 'boolean' || depth > 12) return;
   if (schema.$ref) {
     const refName = schemaNameFromRef(schema.$ref);
     if (refName) refs.add(refName);
@@ -203,9 +220,76 @@ const METHOD_COLOR: Record<string, string> = {
   TRACE: 'magenta',
 };
 
+function resolveReferenceObject<T extends object>(value: T, swaggerDoc: SwaggerDoc): T {
+  return '$ref' in value && typeof (value as { $ref?: unknown }).$ref === 'string'
+    ? (dereferenceReferenceObject(
+        value as Record<string, unknown>,
+        swaggerDoc as unknown as Record<string, unknown>,
+      ) as T)
+    : value;
+}
+
+function resolveApiDocOperation(rawOperation: OperationObject, swaggerDoc: SwaggerDoc): OperationObject {
+  return {
+    ...rawOperation,
+    parameters: (rawOperation.parameters ?? []).map((parameter) => resolveReferenceObject(parameter, swaggerDoc)),
+    requestBody: rawOperation.requestBody ? resolveReferenceObject(rawOperation.requestBody, swaggerDoc) : undefined,
+    responses: Object.fromEntries(
+      Object.entries(rawOperation.responses ?? {}).map(([status, response]) => [
+        status,
+        resolveReferenceObject(response, swaggerDoc),
+      ]),
+    ),
+  };
+}
+
+function projectionErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unable to project OAS 3.1 ApiDoc schemas.';
+}
+
+function projectionRegionLabel(regionKey: string, t: TFunction): string {
+  if (regionKey === REQUEST_BODY_REGION_KEY) return t('apiDoc.requestBody');
+  if (regionKey.startsWith('response:')) return `${t('apiDoc.responseStructure')} ${regionKey.slice(9)}`;
+  return regionKey;
+}
+
+function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction) {
+  if (notice.kind === 'loading') {
+    return {
+      type: 'info' as const,
+      title: t('apiDoc.schemaProjection.loading.title'),
+      description: t('apiDoc.schemaProjection.loading.description'),
+    };
+  }
+  if (notice.kind === 'fallback') {
+    return {
+      type: 'warning' as const,
+      title: t('apiDoc.schemaProjection.degraded.title'),
+      description: t(
+        notice.reason === 'engine'
+          ? 'apiDoc.schemaProjection.engineFallback.description'
+          : 'apiDoc.schemaProjection.projectionFallback.description',
+      ),
+    };
+  }
+  const visibleRegions = notice.regions.slice(0, 5).map((region) => projectionRegionLabel(region, t));
+  const regions = `${visibleRegions.join(', ')}${notice.regions.length > visibleRegions.length ? ', …' : ''}`;
+  const visibleKeywords = notice.keywords.slice(0, 5);
+  const keywords = `${visibleKeywords.join(', ')}${notice.keywords.length > visibleKeywords.length ? ', …' : ''}`;
+  return {
+    type: 'warning' as const,
+    title: t('apiDoc.schemaProjection.degraded.title'),
+    description: t('apiDoc.schemaProjection.degraded.description', {
+      count: notice.issueCount,
+      regionCount: notice.regionCount,
+      regions,
+      keywords,
+    }),
+  };
+}
+
 export default function ApiDoc() {
   const { t } = useTranslation();
-  const { settings } = useSettings();
   const { loading, swaggerDoc, operation } = useCurrentOperation();
 
   if (loading) {
@@ -224,26 +308,16 @@ export default function ApiDoc() {
     );
   }
 
+  return <ApiDocContent swaggerDoc={swaggerDoc} operation={operation} />;
+}
+
+function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; operation: MenuOperation }) {
+  const { t } = useTranslation();
+  const { settings } = useSettings();
+  const schemaEngine = useSchemaEngine();
+  const op = useMemo(() => resolveApiDocOperation(operation.operation, swaggerDoc), [operation.operation, swaggerDoc]);
+
   const method = operation.method.toUpperCase();
-  const rawOperation = operation.operation;
-  const resolveReference = <T extends object>(value: T): T =>
-    '$ref' in value && typeof (value as { $ref?: unknown }).$ref === 'string'
-      ? (dereferenceReferenceObject(
-          value as Record<string, unknown>,
-          swaggerDoc as unknown as Record<string, unknown>,
-        ) as T)
-      : value;
-  const resolvedParameters = (rawOperation.parameters ?? []).map(resolveReference);
-  const resolvedRequestBody = rawOperation.requestBody ? resolveReference(rawOperation.requestBody) : undefined;
-  const resolvedResponses = Object.fromEntries(
-    Object.entries(rawOperation.responses ?? {}).map(([status, response]) => [status, resolveReference(response)]),
-  );
-  const op = {
-    ...rawOperation,
-    parameters: resolvedParameters,
-    requestBody: resolvedRequestBody,
-    responses: resolvedResponses,
-  };
 
   const handleCopyMarkdown = () => {
     const md = generateApiMarkdown({
@@ -376,36 +450,126 @@ export default function ApiDoc() {
       refTitle,
     };
   });
-  const bodySchema = firstRequestSchema(op.requestBody, op.parameters);
-  const bodyFields = bodySchema
-    ? filterFieldNodes(applyValidationGroupRequiredFields(schemaToFieldNodes(bodySchema, swaggerDoc), op), 'request')
-    : [];
-  const responses: ResponseRow[] = Object.entries(op.responses ?? {}).map(([statusCode, response]) => {
-    const headers = Object.entries(response.headers ?? {}).map(([name, header]) => {
-      const resolvedHeader = header.$ref
-        ? (dereferenceReferenceObject(
-            header as unknown as Record<string, unknown>,
-            swaggerDoc as unknown as Record<string, unknown>,
-          ) as ResponseHeaderObject)
-        : header;
-      return {
-        key: name,
-        name,
-        type: schemaName(resolvedHeader.schema) || '-',
-        required: Boolean(resolvedHeader.required),
-        description: resolvedHeader.description ?? '',
-        example: exampleText(resolvedHeader.example ?? resolvedHeader.schema?.example),
-      };
-    });
-    return {
-      key: statusCode,
-      statusCode,
-      description: response.description ?? '',
-      schema: responseSchema(response),
-      mediaType: responseMediaType(response),
-      headers,
-    };
-  });
+  const bodySchema = useMemo(() => firstRequestSchema(op.requestBody, op.parameters), [op.parameters, op.requestBody]);
+  const responses: ResponseRow[] = useMemo(
+    () =>
+      Object.entries(op.responses ?? {}).map(([statusCode, response]) => {
+        const headers = Object.entries(response.headers ?? {}).map(([name, header]) => {
+          const resolvedHeader = header.$ref
+            ? (dereferenceReferenceObject(
+                header as unknown as Record<string, unknown>,
+                swaggerDoc as unknown as Record<string, unknown>,
+              ) as ResponseHeaderObject)
+            : header;
+          return {
+            key: name,
+            name,
+            type: schemaName(resolvedHeader.schema) || '-',
+            required: Boolean(resolvedHeader.required),
+            description: resolvedHeader.description ?? '',
+            example: exampleText(resolvedHeader.example ?? resolvedHeader.schema?.example),
+          };
+        });
+        return {
+          key: statusCode,
+          statusCode,
+          description: response.description ?? '',
+          schema: responseSchema(response),
+          mediaType: responseMediaType(response),
+          headers,
+        };
+      }),
+    [op.responses, swaggerDoc],
+  );
+  const legacySchemaRegions = useMemo(() => {
+    const regions: Array<{ key: string; fields: SchemaFieldNode[] }> = [];
+    if (bodySchema !== undefined) {
+      regions.push({
+        key: REQUEST_BODY_REGION_KEY,
+        fields: prepareApiDocSchemaFields(schemaToFieldNodes(bodySchema, swaggerDoc), 'request', op),
+      });
+    }
+    for (const response of responses) {
+      if (response.schema === undefined) continue;
+      regions.push({
+        key: responseSchemaRegionKey(response.key),
+        fields: prepareApiDocSchemaFields(schemaToFieldNodes(response.schema, swaggerDoc), 'response'),
+      });
+    }
+    return regions;
+  }, [bodySchema, op, responses, swaggerDoc]);
+  const projectionTargets = useMemo<ApiDocSchemaProjectionTarget[]>(() => {
+    const targets: ApiDocSchemaProjectionTarget[] = [];
+    if (bodySchema !== undefined) {
+      targets.push({
+        key: REQUEST_BODY_REGION_KEY,
+        schema: bodySchema as unknown as JsonValue,
+        mode: 'request',
+        operation: op,
+      });
+    }
+    for (const response of responses) {
+      if (response.schema === undefined) continue;
+      targets.push({
+        key: responseSchemaRegionKey(response.key),
+        schema: response.schema as unknown as JsonValue,
+        mode: 'response',
+      });
+    }
+    return targets;
+  }, [bodySchema, op, responses]);
+  const projectionIdentity = useMemo(
+    () =>
+      schemaEngine.status === 'ready' && projectionTargets.length > 0
+        ? Object.freeze({
+            retrievalUri: schemaEngine.retrievalUri,
+            operationKey: operation.routeId ?? operation.key,
+          })
+        : null,
+    [operation.key, operation.routeId, projectionTargets, schemaEngine],
+  );
+  const [projectionState, setProjectionState] = useState<ApiDocSchemaProjectionState>(IDLE_SCHEMA_PROJECTION_STATE);
+  const isOas31 = isOas31SchemaDocument(swaggerDoc);
+
+  useEffect(() => {
+    if (!isOas31 || projectionTargets.length === 0 || schemaEngine.status !== 'ready' || !projectionIdentity) {
+      setProjectionState(IDLE_SCHEMA_PROJECTION_STATE);
+      return;
+    }
+
+    const controller = new AbortController();
+    const projector = createSchemaDisplayProjector(schemaEngine.session);
+    setProjectionState({ status: 'loading', identity: projectionIdentity });
+    projectApiDocSchemaRegions(projectionTargets, projector, { signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) setProjectionState({ status: 'ready', identity: projectionIdentity, result });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return;
+        setProjectionState({
+          status: 'error',
+          identity: projectionIdentity,
+          message: projectionErrorMessage(error),
+        });
+      });
+
+    return () => controller.abort();
+  }, [isOas31, projectionIdentity, projectionTargets, schemaEngine]);
+
+  const schemaView = useMemo(
+    () =>
+      selectApiDocSchemaView({
+        isOas31,
+        hasTargets: projectionTargets.length > 0,
+        engineStatus: schemaEngine.status,
+        currentIdentity: projectionIdentity,
+        projectionState,
+        legacyFields: legacySchemaRegions,
+      }),
+    [isOas31, legacySchemaRegions, projectionIdentity, projectionState, projectionTargets.length, schemaEngine.status],
+  );
+  const bodyFields = schemaView.fieldsByRegion[REQUEST_BODY_REGION_KEY] ?? [];
+  const projectionNotice = schemaView.notice ? projectionNoticeContent(schemaView.notice, t) : null;
   const relatedModelNames = (() => {
     const refs = new Set<string>();
     (op.parameters ?? []).forEach((parameter) => collectSchemaRefs(parameter.schema, swaggerDoc, refs));
@@ -418,7 +582,7 @@ export default function ApiDoc() {
     );
   })();
 
-  const requestExample = requestBodyExample(op.requestBody, bodySchema, swaggerDoc);
+  const requestExample = requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
   const respExamples = responseExamples(op.responses, swaggerDoc);
   const responseOverviewVisibility = resolveResponseOverviewVisibility(settings.enableResponseCode, responses.length);
   const authors = operationAuthors(op);
@@ -509,6 +673,16 @@ export default function ApiDoc() {
         </Space>
       )}
 
+      {projectionNotice && (
+        <Alert
+          showIcon
+          type={projectionNotice.type}
+          message={projectionNotice.title}
+          description={projectionNotice.description}
+          style={{ marginTop: 8, marginBottom: 8 }}
+        />
+      )}
+
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestParams')}
       </Title>
@@ -529,7 +703,7 @@ export default function ApiDoc() {
           <Markdown source={op.requestBody.description} preserveLineBreaks />
         </div>
       )}
-      {bodySchema || requestExample !== null ? (
+      {bodySchema !== undefined || requestExample !== null ? (
         <Tabs
           size="small"
           items={[
@@ -584,9 +758,10 @@ export default function ApiDoc() {
                       : row.statusCode.startsWith('4')
                         ? 'warning'
                         : 'error';
-                    const fields = row.schema
-                      ? filterFieldNodes(schemaToFieldNodes(row.schema, swaggerDoc), 'response')
-                      : [];
+                    const fields =
+                      row.schema === undefined
+                        ? []
+                        : (schemaView.fieldsByRegion[responseSchemaRegionKey(row.key)] ?? []);
                     return (
                       <div key={row.key} style={{ marginBottom: 16 }}>
                         {(responseOverviewVisibility.showStatusCode || responseOverviewVisibility.showDetails) && (
@@ -599,7 +774,7 @@ export default function ApiDoc() {
                                     {row.description}
                                   </DescriptionText>
                                 )}
-                                {row.schema && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
+                                {row.schema !== undefined && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
                                 {row.mediaType && <Tag>{row.mediaType}</Tag>}
                               </>
                             )}

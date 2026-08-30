@@ -138,6 +138,15 @@ const zhCN = {
   'apiDoc.example.copied': '示例已复制',
   'apiDoc.noResponse': '无响应结构',
   'apiDoc.response.notExpandable': '当前响应暂不支持字段展开',
+  'apiDoc.schemaProjection.loading.title': '正在解析 OAS 3.1 接口结构',
+  'apiDoc.schemaProjection.loading.description': '当前暂时显示兼容请求/响应字段树，解析完成后会自动更新。',
+  'apiDoc.schemaProjection.degraded.title': '部分 OAS 3.1 接口结构已降级显示',
+  'apiDoc.schemaProjection.engineFallback.description':
+    'SchemaEngine 初始化失败，当前保留兼容请求/响应字段树；原始 Schema 未被修改。',
+  'apiDoc.schemaProjection.projectionFallback.description':
+    '接口结构投影失败，当前保留兼容请求/响应字段树；原始 Schema 未被修改。',
+  'apiDoc.schemaProjection.degraded.description':
+    '{{regionCount}} 个区域包含 {{count}} 项无法完整投影为字段树的语义（区域：{{regions}}；关键字：{{keywords}}）；原始 Schema 未被修改。',
 
   // ApiDoc — 复制操作 (TASK-042)
   'apiDoc.copy.markdown': '复制文档 Markdown',
