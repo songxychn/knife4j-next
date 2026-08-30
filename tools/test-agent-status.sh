@@ -40,12 +40,38 @@ assert_calls() {
   [ "$actual" = "$expected" ] || fail "expected $expected '$prefix' calls, got $actual"
 }
 
+assert_occurrences() {
+  local text=$1
+  local needle=$2
+  local expected=$3
+  local actual
+  actual="$(printf '%s\n' "$text" | awk -v needle="$needle" 'index($0, needle) { count++ } END { print count + 0 }')"
+  [ "$actual" = "$expected" ] || fail "expected $expected '$needle' occurrences, got $actual"
+}
+
+assert_log_contains() {
+  assert_contains "$(cat "$FAKE_GH_LOG")" "$1"
+}
+
 reset_fake() {
   : > "$FAKE_GH_LOG"
   unset FAKE_REPO_FAIL FAKE_ISSUE_FAIL FAKE_PR_FAIL FAKE_PR
 }
 
-export FAKE_ISSUES=$'1\tReady task\tstatus:ready\tarea:java\n2\tWorking task\tstatus:in-progress\tarea:ui-react\n3\tBlocked task\tstatus:blocked\t'
+assert_invalid() {
+  local output status
+  reset_fake
+  set +e
+  output="$("$subject" "$@" 2>&1)"
+  status=$?
+  set -e
+  [ "$status" = 2 ] || fail "invalid arguments should exit 2, got $status"
+  assert_contains "$output" "Usage:"
+  assert_calls "repo view" 0
+  assert_calls "issue list" 0
+}
+
+export FAKE_ISSUES=$'1\x1fReady task\x1fstatus:ready\x1farea:java\n2\x1fWorking task\x1fstatus:in-progress\x1farea:ui-react\n3\x1fBlocked task\x1fstatus:blocked\x1f\n4\x1fDual status\x1fstatus:ready\x1farea:java\n4\x1fDual status\x1fstatus:blocked\x1farea:java\n5\x1fPath C:\\tmp\x1fstatus:review\x1farea:docs'
 
 reset_fake
 output="$("$subject" all)"
@@ -53,13 +79,18 @@ assert_contains "$output" "#1"
 assert_contains "$output" "Ready task"
 assert_contains "$output" "Working task"
 assert_contains "$output" "Blocked task"
+assert_occurrences "$output" "Dual status" 2
+assert_contains "$output" 'Path C:\tmp'
 assert_contains "$output" "status:review"
 assert_calls "issue list" 1
 assert_calls "repo view" 0
+assert_log_contains "--label agent-task"
+assert_log_contains "--state open"
 
 reset_fake
 output="$("$subject" ready)"
 assert_contains "$output" "Ready task"
+assert_contains "$output" "Dual status"
 assert_not_contains "$output" "Blocked task"
 assert_calls "issue list" 1
 
@@ -72,15 +103,27 @@ assert_contains "$output" "Working task"
 assert_contains "$output" "Ready task"
 assert_calls "issue list" 1
 assert_calls "pr list" 1
+assert_log_contains "headRefOid"
+assert_log_contains "$(git rev-parse HEAD)"
 
 reset_fake
+output="$("$subject" snapshot)"
+assert_contains "$output" "current PR: (none for current head)"
+assert_calls "pr list" 1
+
+reset_fake
+export FAKE_PR_FAIL=true
 set +e
-output="$("$subject" invalid 2>&1)"
+output="$("$subject" snapshot 2>&1)"
 status=$?
 set -e
-[ "$status" = 2 ] || fail "invalid mode should exit 2, got $status"
-assert_contains "$output" "Usage:"
-assert_calls "issue list" 0
+[ "$status" != 0 ] || fail "PR query failure should be non-zero"
+assert_contains "$output" "fake pr failure"
+assert_not_contains "$output" "none for current head"
+
+assert_invalid invalid
+assert_invalid ""
+assert_invalid ready unexpected
 
 reset_fake
 export FAKE_ISSUE_FAIL=true
