@@ -74,6 +74,51 @@ describe('SchemaDisplayProjector', () => {
     ]);
   });
 
+  test('projects an inline schema with the document retrieval URI as its initial base', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch must not be called'));
+    const inlineSchema = {
+      type: 'object',
+      $defs: {
+        Code: { $anchor: 'inline-code', type: 'string', pattern: '^[A-Z]+$' },
+        Embedded: {
+          $id: 'inline-resource/',
+          type: 'object',
+          properties: { id: { type: 'integer', minimum: 1 } },
+        },
+      },
+      properties: {
+        code: { $ref: '#inline-code' },
+        embedded: { $ref: 'inline-resource/' },
+        denied: false,
+      },
+    };
+    const projector = await projectorFor({ Container: inlineSchema });
+
+    const result = await projector.projectValue(inlineSchema);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.fields).toEqual([
+      expect.objectContaining({ name: 'code', type: 'string', pattern: '^[A-Z]+$' }),
+      expect.objectContaining({
+        name: 'embedded',
+        type: 'object',
+        children: [expect.objectContaining({ name: 'id', type: 'integer', minimum: 1 })],
+      }),
+      expect.objectContaining({ name: 'denied', type: 'never', booleanSchema: false }),
+    ]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('honors cancellation before projecting an inline schema', async () => {
+    const projector = await projectorFor({ Value: { type: 'string' } });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(projector.projectValue({ type: 'string' }, { signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+
   test('keeps compositions, tuple positions, and boolean schemas visible without selecting a branch', async () => {
     const projector = await projectorFor({
       Model: {

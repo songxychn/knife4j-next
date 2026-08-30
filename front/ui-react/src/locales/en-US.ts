@@ -144,6 +144,16 @@ const enUS = {
   'apiDoc.example.copied': 'Example copied',
   'apiDoc.noResponse': 'No response structure',
   'apiDoc.response.notExpandable': 'Field expansion is not supported for this response',
+  'apiDoc.schemaProjection.loading.title': 'Resolving OAS 3.1 API structures',
+  'apiDoc.schemaProjection.loading.description':
+    'The compatibility request and response field trees are shown temporarily and will update when resolution completes.',
+  'apiDoc.schemaProjection.degraded.title': 'Some OAS 3.1 API structures use fallback display',
+  'apiDoc.schemaProjection.engineFallback.description':
+    'SchemaEngine initialization failed, so the compatibility request and response field trees are retained. The original Schema is unchanged.',
+  'apiDoc.schemaProjection.projectionFallback.description':
+    'API structure projection failed, so the compatibility request and response field trees are retained. The original Schema is unchanged.',
+  'apiDoc.schemaProjection.degraded.description':
+    '{{regionCount}} region(s) contain {{count}} semantic item(s) that cannot be fully projected as a field tree (regions: {{regions}}; keywords: {{keywords}}). The original Schema is unchanged.',
 
   // ApiDoc — copy actions (TASK-042)
   'apiDoc.copy.markdown': 'Copy Markdown',

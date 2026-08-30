@@ -148,6 +148,16 @@ const jaJP = {
   'apiDoc.example.copied': 'サンプルをコピーしました',
   'apiDoc.noResponse': 'レスポンス構造はありません',
   'apiDoc.response.notExpandable': 'このレスポンスはフィールド展開に対応していません',
+  'apiDoc.schemaProjection.loading.title': 'OAS 3.1 API 構造を解析しています',
+  'apiDoc.schemaProjection.loading.description':
+    '現在は互換リクエスト・レスポンスフィールドツリーを表示しており、解析完了後に自動更新されます。',
+  'apiDoc.schemaProjection.degraded.title': '一部の OAS 3.1 API 構造を縮退表示しています',
+  'apiDoc.schemaProjection.engineFallback.description':
+    'SchemaEngine の初期化に失敗したため、互換リクエスト・レスポンスフィールドツリーを維持しています。元の Schema は変更されていません。',
+  'apiDoc.schemaProjection.projectionFallback.description':
+    'API 構造の投影に失敗したため、互換リクエスト・レスポンスフィールドツリーを維持しています。元の Schema は変更されていません。',
+  'apiDoc.schemaProjection.degraded.description':
+    '{{regionCount}} 件の領域に、フィールドツリーへ完全には投影できない {{count}} 件のセマンティクスがあります（領域：{{regions}}、キーワード：{{keywords}}）。元の Schema は変更されていません。',
 
   // ApiDoc — copy actions (TASK-042)
   'apiDoc.copy.markdown': 'Markdown をコピー',
