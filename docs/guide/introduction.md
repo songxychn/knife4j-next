@@ -76,13 +76,15 @@ upstream 文档里列出的增强特性在本 fork 的实际实现状态，前�
 - 用 **Springfox + OpenAPI2** 走 `openapi2-starter`，UI 是本仓库 `front/vue3` 的构建产物（兼容维护），继续提供 upstream 已有功能。
 - 用 **springdoc-openapi + OpenAPI3** 走 `openapi3-starter`、`openapi3-jakarta-starter` 或 Boot4 专用 starter，UI 是 **新 React 版本**（覆盖见上表），不熟悉行为请同时参考 [FAQ](./faq)。
 
-## 维护节奏
+## 版本规则与维护节奏
 
 knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关：
 
 - **Patch**（`5.0.1`、`5.0.2`、`5.0.3`、`5.0.4`、`5.0.5`、`5.0.6`、`5.0.7`、`5.0.8`、`5.0.9`、`5.0.10`、`5.0.11`、`5.0.12`、`5.0.13`、`5.0.14`、`5.0.15`、`5.0.17`、`5.0.18`、`5.2.1`、`5.2.3`、`5.2.4`、`5.3.1`、`5.3.2`、`5.3.3`）：安全修复、Bug 修复与兼容体验改进。
 - **Minor**（`5.1.0`、`5.2.0`、`5.3.0`、`5.4.0`）：前端体验改动、新功能（向后兼容）。
 - **Major**（`6.0.0`）：破坏性变更。
+
+版本号表达变化类型，不代表固定发布日期或响应 SLA。哪些版本和模块仍受支持、哪些兼容面会被保留，以及什么才算一次完整发布，请以仓库的 [维护政策](https://github.com/songxychn/knife4j-next/blob/master/MAINTENANCE.md) 为准。安全问题请通过 [安全政策](https://github.com/songxychn/knife4j-next/blob/master/SECURITY.md) 中的私密入口报告，不要先在公开 issue 披露利用细节。
 
 ## 下一步推荐路径
 
