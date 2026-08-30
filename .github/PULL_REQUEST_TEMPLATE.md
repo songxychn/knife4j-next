@@ -1,96 +1,49 @@
 <!--
-本模板同时服务人工贡献者与 agent。
-请在提交 PR 前完成下方各项；对不适用的项勾 [x] 并在后面注明 "N/A + 原因"。
+本模板同时服务人工贡献者与 agent。删除不适用的小节，不要堆叠 "N/A"。
+Agent PR 必须有独立 reviewer；worker 始终可选。
 -->
 
 ## 关联 issue
 
-<!-- 每个 PR 应只关联一条主 issue。upstream issue 不是本仓库 issue，不要直接写 "fix upstream #xxx"。 -->
-
 - Closes #
-- （可选）upstream 灵感来源：<https://github.com/xiaoymin/knife4j/issues/>
+- Upstream 来源（如有）：
 
 ## 变更摘要
 
-<!-- 2–5 行说明本 PR 做了什么、不做什么。避免"顺手清理"。 -->
+<!-- 说明做了什么，以及最重要的不做什么。 -->
 
-## 契约与审查预算
-
-<!-- 首次 review 前冻结；review 评论不得隐式扩大这些边界。 -->
+## 契约边界
 
 - 支持版本 / 规范：
-- 范围内模块与对象：
+- 范围内模块与外部行为：
 - 明确非目标：
 - 范围外后续 issue：
+
+## 复现与验证
+
+<!-- Bug 先给未打补丁基线的失败证据，再列修复后的实际命令与结果。 -->
+
+- 基线复现：
+- 自动验证：
+- 手动 / 浏览器验证：
 - 当前 head SHA：
-- 审查轮次：全量 0/1；定向复核 0/1
+- PR CI：
 
-Finding 处置：
+如涉及 upstream issue，请补充：已读原文与评论、具体复现证据，以及本仓范围与 upstream 诉求的差异；不要直接声称修复 upstream。
 
-- 当前契约缺陷（本 PR 修复）：
-- 无效 / 拒绝（回复但不解决线程）：
-- 范围外能力（后续 issue）：
+## 独立审查
 
-## Upstream issue 处理自检
+<!-- Agent PR 必填。Reviewer 可以是独立 agent 或维护者人工 review，结论必须绑定当前 head。 -->
 
-> 如果本 PR **不涉及** upstream issue，请在每项后写 "N/A"。
-
-- [ ] 本 PR 只关联 **≤1 条** upstream issue（不在同一 commit / PR 中批量声明修多个 upstream）
-- [ ] 已通读 upstream 原文（描述 + 堆栈 + 评论 + 复现截图），本仓库 issue 正文摘录了关键片段
-- [ ] 已在 `knife4j-smoke-tests/` 或本地最小工程**复现** upstream 报告的具体场景（贴出复现前的失败输出）
-- [ ] 本 PR 的 smoke test **能区分**修复前后的行为（去掉修复，测试应变红）；不要依赖"只断言 200"的弱断言
-- [ ] 若本仓库范围与 upstream 诉求不同，issue 正文已**显式声明换了范围**（不自认为修了 upstream #xxx）
-
-## 影响面自检
-
-- [ ] 本 PR **未**修改发布流程 / 项目坐标 / 兼容性承诺（如需修改，已在 issue 评论中请示维护者）
-- [ ] 如果碰了 Java 核心 starter / filter / autoconfiguration，已勾选以下高影响区并说明理由：
-  - [ ] `knife4j-openapi2-spring-boot-starter`
-  - [ ] `knife4j-openapi3-spring-boot-starter`
-  - [ ] `knife4j-openapi3-jakarta-spring-boot-starter`
-  - [ ] `knife4j-gateway-spring-boot-starter`
-  - [ ] `knife4j-aggregation-*-starter`
-  - [ ] `knife4j-core` 的 filter / security / config
-
-## 验证
-
-<!-- 列出实际跑了哪些命令 / 测试 / 手动验证步骤。 -->
-
-- [ ] 相关 smoke-tests 模块 `mvn -pl ... -am test` 通过
-- [ ] 如涉及前端：`front/core` 或 `knife4j-ui-react` 的 test / build 通过
-- [ ] 如涉及文档：`docs` 本地构建通过
-
-```
-# 粘贴关键命令输出
-```
-
-## 流程自检
-
-- [ ] 分支名符合 `agent/<task-id>-<slug>` 或 `codex/<task-id>-<slug>` 约定（agent 产出）
-- [ ] 已按 `.agent/PLAYBOOK.md` 判断风险等级、契约边界和审查预算
-- [ ] commit message 关联 issue ≤1 条；未在同一分支混入无关修复
-- [ ] 未把 Java 核心逻辑改动夹带在"标题是文档/UI"的 PR 中
-- [ ] 未绕过 PR 直推 master；未 force push 到 `master`
-- [ ] 已附 worker handoff 摘要；如跳过 worker，已写明例外原因和替代验证
-- [ ] 已附 reviewer handoff 摘要；如跳过 reviewer，已写明例外原因和剩余风险
-- [ ] reviewer 的 `block` / `high` / `medium` 发现已处理，或已在 PR 中写明暂缓理由
-- [ ] 未逐条触发全量 review；默认不超过一轮全量审查和一轮定向复核
-- [ ] 新版本 / 新模块 / 新产品承诺已分流到后续 issue，或有维护者明确改契约记录
-- [ ] 任意新 push 后已重新核对当前 head SHA；旧 CI / review 未被当作当前状态
-
-## Agent 交接
-
-> 人工 PR 可写 "N/A"。Agent PR 必填，避免协作过程只留在聊天上下文。
-
-- Worker：
 - Reviewer：
-- 跳过角色与原因：
-- 剩余风险：
+- 审查 head SHA：
+- 全量审查结论：
+- 定向复核结论（如有修复 push）：
+- Finding 处置：
+  - 当前契约缺陷：
+  - 无效 / 拒绝：
+  - 范围外后续：
 
-<!--
-参考资料：
-- .agent/RUNBOOK.md —— upstream issue 复现工作流
-- .agent/KNOWN_PITFALLS.md —— 历史误读 / 违规案例
-- .agent/PLAYBOOK.md —— 契约锁定、审查预算与状态门禁
-- .agent/COORDINATION.md —— coordinator / worker / reviewer 门禁
--->
+## 风险
+
+- 已知风险与回滚方式：
