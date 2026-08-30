@@ -56,6 +56,8 @@ printf '%s\n' '<project>' '<artifactId>api</artifactId>' '</project>' > "$fixtur
 printf '%s\n' '<project>' '<artifactId>bom</artifactId>' '<packaging>pom</packaging>' '</project>' > "$fixture_root/knife4j/bom/pom.xml"
 printf '%s\n' '<project>' '<artifactId>knife4j-test-ui</artifactId>' '</project>' > "$fixture_root/knife4j/knife4j-test-ui/pom.xml"
 printf '%s\n' api bom knife4j-test-ui > "$fixture_root/tools/release-modules.txt"
+[ ! -e "$fixture_root/tools/verify-maven-central.sh" ] || \
+  fail "legacy release fixture must not contain the current Central verifier"
 
 jar_payload="$tmp_root/jar-payload"
 valid_jar="$tmp_root/valid.jar"
@@ -183,6 +185,8 @@ run_context() {
 }
 
 context_root="$(make_context_repo success 1.2.3 1.2.3 annotated)"
+[ ! -e "$context_root/tools/verify-release-context.sh" ] || \
+  fail "legacy release fixture must not contain the current context verifier"
 run_context context-success "$context_root" v1.2.3
 [ "$context_status" -eq 0 ] || fail "valid release context should pass"
 assert_contains "$context_output" "## 1.2.3"
@@ -331,11 +335,18 @@ fi
 assert_contains "$demo_workflow" "  workflow_call:"
 assert_contains "$demo_workflow" "  workflow_dispatch:"
 assert_contains "$demo_workflow" "  RELEASE_TAG: \${{ inputs.tag }}"
+assert_contains "$demo_workflow" "      RELEASE_ROOT: \${{ github.workspace }}/release-source"
+assert_contains "$demo_workflow" "      - name: Checkout current deployment tooling"
+assert_contains "$demo_workflow" "          ref: \${{ github.sha }}"
+assert_contains "$demo_workflow" "      - name: Checkout exact release tag source"
 assert_contains "$demo_workflow" "          ref: \${{ env.RELEASE_TAG }}"
+assert_contains "$demo_workflow" "          path: release-source"
 assert_contains "$demo_workflow" "          fetch-depth: 0"
 assert_contains "$demo_workflow" "  verify-release:"
 assert_contains "$demo_workflow" "    timeout-minutes: 45"
 assert_contains "$demo_workflow" "          VERIFY_GITHUB_RELEASE_REQUIRE_LATEST: true"
+assert_contains "$demo_workflow" "          VERIFY_RELEASE_REPO_ROOT=\"\$RELEASE_ROOT\" \\"
+assert_contains "$demo_workflow" "          VERIFY_MAVEN_REPO_ROOT=\"\$RELEASE_ROOT\" \\"
 assert_contains "$demo_workflow" "          tools/verify-release-context.sh"
 assert_contains "$demo_workflow" "          tools/verify-maven-central.sh"
 assert_contains "$demo_workflow" "          tools/verify-github-release.sh"
@@ -346,6 +357,19 @@ assert_not_contains "$demo_workflow" "secrets.GITHUB_TOKEN"
 
 required_tag_inputs="$(grep -c -F -- '        required: true' "$demo_workflow")"
 [ "$required_tag_inputs" -eq 2 ] || fail "demo workflow must require a tag for both workflow_call and workflow_dispatch"
+
+demo_verify_block="$tmp_root/demo-verify-block.txt"
+demo_build_block="$tmp_root/demo-build-block.txt"
+awk '/^  verify-release:/ { keep=1 } /^  build-and-push:/ { keep=0 } keep { print }' \
+  "$demo_workflow" > "$demo_verify_block"
+awk '/^  build-and-push:/ { keep=1 } keep { print }' \
+  "$demo_workflow" > "$demo_build_block"
+assert_contains "$demo_verify_block" "          ref: \${{ github.sha }}"
+assert_contains "$demo_verify_block" "          path: release-source"
+assert_contains "$demo_verify_block" "          VERIFY_RELEASE_REPO_ROOT=\"\$RELEASE_ROOT\" \\"
+assert_contains "$demo_verify_block" "          VERIFY_MAVEN_REPO_ROOT=\"\$RELEASE_ROOT\" \\"
+assert_contains "$demo_build_block" "          ref: \${{ env.RELEASE_TAG }}"
+assert_not_contains "$demo_build_block" "          ref: \${{ github.sha }}"
 
 demo_context_line="$(awk 'index($0, "tools/verify-release-context.sh") { print NR; exit }' "$demo_workflow")"
 demo_central_line="$(awk 'index($0, "tools/verify-maven-central.sh") { print NR; exit }' "$demo_workflow")"

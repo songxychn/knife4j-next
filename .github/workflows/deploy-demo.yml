@@ -31,11 +31,19 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+    env:
+      RELEASE_ROOT: ${{ github.workspace }}/release-source
     steps:
-      - name: Checkout exact release tag
+      - name: Checkout current deployment tooling
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Checkout exact release tag source
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
+          path: release-source
           fetch-depth: 0
 
       - name: Verify published release
@@ -44,8 +52,10 @@ jobs:
           VERIFY_GITHUB_RELEASE_REQUIRE_LATEST: true
         run: |
           release_notes="$RUNNER_TEMP/github-release-notes.md"
-          tools/verify-release-context.sh "$RELEASE_TAG" "$release_notes"
-          tools/verify-maven-central.sh "${RELEASE_TAG#v}"
+          VERIFY_RELEASE_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-release-context.sh "$RELEASE_TAG" "$release_notes"
+          VERIFY_MAVEN_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-maven-central.sh "${RELEASE_TAG#v}"
           tools/verify-github-release.sh "$RELEASE_TAG" "$release_notes"
 
   build-and-push:
