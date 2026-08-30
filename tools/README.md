@@ -31,3 +31,8 @@
 ```bash
 ./tools/upload-images.sh /absolute/path/before.png /absolute/path/after.png
 ```
+
+## 架构探针
+
+`test-json-schema-engine-spike.sh` — 运行 issue #683 的 JSON Schema 2020-12
+语义、浏览器构建、CSP 与性能探针。该探针不接入产品运行时。

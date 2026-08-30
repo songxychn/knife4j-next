@@ -1,0 +1,20 @@
+{
+  "name": "knife4j-json-schema-2020-12-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "build:browser": "bun run scripts/build-browser.ts",
+    "benchmark": "bun run scripts/benchmark.ts",
+    "check": "bun run typecheck && bun test && bun run build:browser && bun run benchmark"
+  },
+  "dependencies": {
+    "@hyperjump/browser": "1.5.0",
+    "@hyperjump/json-schema": "1.17.8"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
