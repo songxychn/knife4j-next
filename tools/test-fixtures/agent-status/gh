@@ -25,6 +25,12 @@ case "${1:-} ${2:-}" in
       echo "fake pr failure" >&2
       exit 1
     fi
+    if [ -n "${FAKE_EXPECT_PR_HEAD:-}" ]; then
+      case "$*" in
+        *"$FAKE_EXPECT_PR_HEAD"*) ;;
+        *) exit 0 ;;
+      esac
+    fi
     printf '%s' "${FAKE_PR:-}"
     ;;
   *)

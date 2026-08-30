@@ -78,9 +78,19 @@ print_git_snapshot() {
 }
 
 print_pr_snapshot() {
-  local branch head current_pr pr_jq
+  local branch checkout_head head current_pr pr_jq
   branch="${GITHUB_HEAD_REF:-$(git branch --show-current)}"
-  head="$(git rev-parse HEAD)"
+  checkout_head="$(git rev-parse HEAD)"
+  head="$checkout_head"
+
+  # GitHub pull_request workflows normally check out refs/pull/<n>/merge.
+  # Match the PR's source commit, not the synthetic merge commit in GITHUB_SHA.
+  if [[ "${GITHUB_REF:-}" =~ ^refs/pull/[0-9]+/merge$ ]] \
+    && [ -n "${GITHUB_HEAD_REF:-}" ] \
+    && [ -n "${GITHUB_SHA:-}" ] \
+    && [ "$checkout_head" = "$GITHUB_SHA" ]; then
+    head="$(git rev-parse HEAD^2)"
+  fi
 
   echo
   echo "=== github snapshot ==="

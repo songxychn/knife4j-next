@@ -56,7 +56,7 @@ assert_log_contains() {
 
 reset_fake() {
   : > "$FAKE_GH_LOG"
-  unset FAKE_REPO_FAIL FAKE_ISSUE_FAIL FAKE_PR_FAIL FAKE_PR
+  unset FAKE_REPO_FAIL FAKE_ISSUE_FAIL FAKE_PR_FAIL FAKE_PR FAKE_EXPECT_PR_HEAD
 }
 
 assert_invalid() {
@@ -97,6 +97,7 @@ assert_calls "issue list" 1
 
 reset_fake
 export FAKE_PR=$'#42 OPEN Agent status PR https://example.test/pr/42\n  changes: success'
+export FAKE_EXPECT_PR_HEAD="$(git rev-parse HEAD)"
 output="$("$subject" snapshot)"
 assert_contains "$output" "git snapshot"
 assert_contains "$output" "#42 OPEN Agent status PR"
@@ -107,6 +108,38 @@ assert_calls "pr list" 1
 assert_log_contains "--head fixture-branch"
 assert_log_contains "headRefOid"
 assert_log_contains "$(git rev-parse HEAD)"
+
+detached_repo="$tmp_dir/detached-repo"
+git -C "$tmp_dir" init -q -b base detached-repo
+git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+  commit -q --allow-empty -m base
+git -C "$detached_repo" switch -q -c fixture-branch
+git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+  commit -q --allow-empty -m head
+pr_head="$(git -C "$detached_repo" rev-parse HEAD)"
+git -C "$detached_repo" switch -q base
+git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+  commit -q --allow-empty -m base-advance
+git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+  merge -q --no-ff fixture-branch -m synthetic-pr-merge
+merge_head="$(git -C "$detached_repo" rev-parse HEAD)"
+git -C "$detached_repo" switch -q --detach "$merge_head"
+
+reset_fake
+export FAKE_PR=$'#42 OPEN Detached PR https://example.test/pr/42\n  changes: success'
+export FAKE_EXPECT_PR_HEAD="$pr_head"
+output="$({
+  cd "$detached_repo"
+  GITHUB_HEAD_REF=fixture-branch \
+    GITHUB_REF=refs/pull/42/merge \
+    GITHUB_SHA="$merge_head" \
+    "$subject" snapshot
+})"
+assert_contains "$output" "branch: (detached HEAD)"
+assert_contains "$output" "#42 OPEN Detached PR"
+assert_log_contains "--head fixture-branch"
+assert_log_contains "$pr_head"
+assert_not_contains "$(cat "$FAKE_GH_LOG")" "$merge_head"
 
 reset_fake
 output="$("$subject" snapshot)"
