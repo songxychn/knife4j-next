@@ -254,6 +254,19 @@ const jaJP = {
   'apiDebug.send': '送信',
   'apiDebug.reset': 'リセット',
   'apiDebug.sending': '送信中...',
+  'apiDebug.schemaValidation.title': 'リクエストボディが OAS 3.1 JSON Schema に適合していません',
+  'apiDebug.schemaValidation.description':
+    'リクエストはまだ送信されていません。以下の問題を修正するか、無効なリクエストのテストとして明示的に送信してください。',
+  'apiDebug.schemaValidation.invalidJson': 'リクエストボディは有効な JSON ではありません。',
+  'apiDebug.schemaValidation.issue': '{{keyword}} の検証に失敗しました',
+  'apiDebug.schemaValidation.moreIssues': 'ほかに {{count}} 件の問題があります',
+  'apiDebug.schemaValidation.stillSend': 'そのまま送信',
+  'apiDebug.schemaValidation.backToEdit': '編集に戻る',
+  'apiDebug.schemaValidation.unavailable':
+    '現在のリクエストボディ Schema を特定できませんでした。このリクエストは従来どおり送信を続行します。',
+  'apiDebug.schemaValidation.engineNotReady': 'JSON Schema エンジンの準備ができていません',
+  'apiDebug.schemaValidation.engineFailed':
+    '送信前の Schema 診断を利用できません。このリクエストは従来どおり送信を続行します：{{message}}',
   'apiDebug.receiving': 'レスポンス受信中：{{received}}',
   'apiDebug.receivingOf': 'レスポンス受信中：{{received}} / {{total}}',
   'apiDebug.history.title': 'リクエスト履歴',
