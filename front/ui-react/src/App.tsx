@@ -1,4 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { collectOas31CompatibilityDiagnostics } from 'knife4j-core';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Alert, Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import enUSLocale from 'antd/locale/en_US';
@@ -104,6 +105,10 @@ const AppInner: React.FC = () => {
   const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc, groupError } = useGroup();
   const { t, i18n } = useTranslation();
   const { settings, setSetting, storageResetSnapshot } = useSettings();
+  const oas31Diagnostics = useMemo(
+    () => (swaggerDoc ? collectOas31CompatibilityDiagnostics(swaggerDoc as unknown as Record<string, unknown>) : []),
+    [swaggerDoc],
+  );
 
   const {
     token: { colorBgContainer },
@@ -604,6 +609,27 @@ const AppInner: React.FC = () => {
                   message={t('app.groupError.title')}
                   description={
                     <span style={{ whiteSpace: 'pre-wrap' }}>{t(groupError.key, groupError.values ?? {})}</span>
+                  }
+                  style={{ margin: '2px 2px 8px' }}
+                />
+              )}
+              {oas31Diagnostics.length > 0 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={t('app.oas31Compatibility.title')}
+                  description={
+                    <div>
+                      <div>{t('app.oas31Compatibility.description', { count: oas31Diagnostics.length })}</div>
+                      <ul style={{ margin: '4px 0 0', paddingInlineStart: 20 }}>
+                        {oas31Diagnostics.slice(0, 5).map((diagnostic) => (
+                          <li key={`${diagnostic.code}:${diagnostic.path}:${diagnostic.value ?? ''}`}>
+                            <code>{diagnostic.code}</code> — <code>{diagnostic.path}</code>
+                            {diagnostic.value ? `: ${diagnostic.value}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   }
                   style={{ margin: '2px 2px 8px' }}
                 />

@@ -669,6 +669,41 @@ describe('operation OpenAPI preview compatibility', () => {
       buildOperationOpenApiDocument(document, '/pets/{petId}', 'get'),
     );
   });
+
+  it('preserves a webhook operation under webhooks in an OAS 3.1 preview', () => {
+    const document = {
+      openapi: '3.1.1',
+      jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
+      info: { title: 'Event API', version: '1.0.0' },
+      webhooks: {
+        petChanged: { $ref: '#/components/pathItems/PetChanged' },
+      },
+      components: {
+        pathItems: {
+          PetChanged: {
+            post: {
+              operationId: 'petChanged',
+              responses: { 200: { description: 'Accepted' } },
+            },
+          },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(buildOperationOpenApiPreviewDocument(document, 'petChanged', 'post', 'webhook')).toEqual({
+      openapi: '3.1.1',
+      jsonSchemaDialect: 'https://json-schema.org/draft/2020-12/schema',
+      info: { title: 'Event API', version: '1.0.0' },
+      webhooks: {
+        petChanged: {
+          post: {
+            operationId: 'petChanged',
+            responses: { 200: { description: 'Accepted' } },
+          },
+        },
+      },
+    });
+  });
 });
 
 describe('buildOperationOpenApiFilename', () => {

@@ -1,4 +1,4 @@
-import { resolveRef, dereference, normalizeAllOfSchema } from '../../debug/resolveRef';
+import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSchema } from '../../debug/resolveRef';
 
 describe('resolveRef', () => {
   const doc = {
@@ -57,6 +57,24 @@ describe('resolveRef', () => {
     expect(resolveRef('#/components/schemas/my~1type', docWithSpecialChars)).toEqual({ type: 'string' });
     expect(resolveRef('#/components/schemas/my~0tilde', docWithSpecialChars)).toEqual({ type: 'integer' });
   });
+
+  test('decodes URI fragment percent escapes before JSON Pointer tokens', () => {
+    const docWithPercentEncodedKey = {
+      components: {
+        schemas: {
+          Container: {
+            $defs: {
+              'display name': { type: 'string' },
+            },
+          },
+        },
+      },
+    };
+
+    expect(resolveRef('#/components/schemas/Container/$defs/display%20name', docWithPercentEncodedKey)).toEqual({
+      type: 'string',
+    });
+  });
 });
 
 describe('dereference', () => {
@@ -102,6 +120,32 @@ describe('dereference', () => {
     const obj = { $ref: '#/components/schemas/NotExist' };
     const result = dereference(obj, doc);
     expect(result.$ref).toBe('#/components/schemas/NotExist');
+  });
+});
+
+describe('dereferenceReferenceObject', () => {
+  const components = {
+    headers: {
+      TraceId: { description: 'Target description', schema: { type: 'string' } },
+    },
+  };
+
+  test('applies Reference Object annotations in OAS 3.1', () => {
+    expect(
+      dereferenceReferenceObject(
+        { $ref: '#/components/headers/TraceId', description: 'Use-site description' },
+        { openapi: '3.1.1', components },
+      ),
+    ).toMatchObject({ description: 'Use-site description', schema: { type: 'string' } });
+  });
+
+  test('ignores Reference Object siblings in OAS 3.0', () => {
+    expect(
+      dereferenceReferenceObject(
+        { $ref: '#/components/headers/TraceId', description: 'Ignored description' },
+        { openapi: '3.0.3', components },
+      ).description,
+    ).toBe('Target description');
   });
 });
 
@@ -173,6 +217,24 @@ describe('normalizeAllOfSchema', () => {
         ['regular', { type: 'string' }],
       ]),
     );
+  });
+
+  test('intersects Schema $ref sibling constraints in OAS 3.1', () => {
+    const doc = {
+      openapi: '3.1.1',
+      components: {
+        schemas: {
+          Choice: { type: ['string', 'null'], enum: ['A', 'B', null], minLength: 1, maxLength: 20 },
+        },
+      },
+    };
+
+    expect(
+      normalizeAllOfSchema(
+        { $ref: '#/components/schemas/Choice', type: 'string', enum: ['B'], minLength: 3, maxLength: 10 },
+        doc,
+      ),
+    ).toEqual({ type: 'string', enum: ['B'], minLength: 3, maxLength: 10 });
   });
 
   test('keeps shallow allOf fields when max depth truncates a deeper ref', () => {

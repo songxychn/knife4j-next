@@ -21,6 +21,8 @@ import { Knife4jServerVariableObject } from '../knife4j/servers/Knife4jServerVar
  * 解析OpenAPI3的规范,参考规范文档：https://spec.openapis.org/oas/v3.1.0
  */
 export class OpenAPIParser extends BaseCommonParser {
+  private static readonly HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+
   /**
    * 解析OpenAPI3规范
    * @param data OpenAPI原始数据
@@ -28,7 +30,6 @@ export class OpenAPIParser extends BaseCommonParser {
    * @returns
    */
   parse(data: Record<string, any>, options: Knife4jParseOptions): Knife4jInstance {
-    console.log(options);
     // 当前openapi规范的版本
     const specVersion = lodash.defaultTo(data['openapi'] as string, '3.0');
     //赋值解析器,当前对象本身
@@ -42,7 +43,7 @@ export class OpenAPIParser extends BaseCommonParser {
     const tagArray = data['tags'] as TagObject[];
     this.resolveTag(tagArray, instance);
     //解析path接口
-    const paths = data['paths'] as PathsObject;
+    const paths = data['paths'] as PathsObject | undefined;
     this.resolvePaths(paths, instance);
     // 解析externalDocs外部文档
     const extDoc = data['externalDocs'] as ExternalDocumentationObject;
@@ -60,16 +61,13 @@ export class OpenAPIParser extends BaseCommonParser {
    */
   parsePathAsync(operation: Knife4jPathItemObject, instance: Knife4jInstance, options: Knife4jParseOptions): void {
     void options;
-    console.log('异步解析path节点');
     const data = instance.originalRecord;
-    const paths = data['paths'] as PathsObject;
-    const methods = paths[operation.url];
+    const paths = data['paths'] as PathsObject | undefined;
+    const methods = paths?.[operation.url];
     if (lodash.isEmpty(methods)) {
       return;
     }
-    console.log('operation', operation);
     const _operation = methods[operation.methodType] as OperationObject;
-    console.log('original:', _operation);
     //解析请求参数parameters
     operation.asyncResolveParameters(_operation.parameters);
     //解析请求参数
@@ -136,7 +134,8 @@ export class OpenAPIParser extends BaseCommonParser {
    * @param paths 路由paths
    * @param instance 对象实例
    */
-  resolvePaths(paths: PathsObject, instance: Knife4jInstance): void {
+  resolvePaths(paths: PathsObject | undefined, instance: Knife4jInstance): void {
+    if (!paths) return;
     //console.log(paths)
     for (const key in paths) {
       const methods = paths[key];
@@ -144,9 +143,9 @@ export class OpenAPIParser extends BaseCommonParser {
       if (lodash.isEmpty(methods)) {
         continue;
       }
-      for (const methodType in methods) {
-        //console.log("method:", methodType)
-        const operation = methods[methodType] as OperationObject;
+      for (const methodType of OpenAPIParser.HTTP_METHODS) {
+        const operation = methods[methodType];
+        if (!operation) continue;
         // 解析operation
         this.resolveOperation(operation, key, methodType, instance);
       }
@@ -189,6 +188,7 @@ export class OpenAPIParser extends BaseCommonParser {
    * @param instance 当前对象实例
    */
   resolveExternalDoc(extdoc: ExternalDocumentationObject, instance: Knife4jInstance): void {
+    if (lodash.isEmpty(extdoc)) return;
     const _ext = new Knife4jExternalDocumentationObject(extdoc.url);
     _ext.description = extdoc.description;
     instance.setExtDoc(_ext);

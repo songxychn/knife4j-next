@@ -94,16 +94,25 @@ export interface SwaggerTag {
 }
 
 export interface SchemaObject {
-  type?: string;
+  type?: string | string[];
   format?: string;
   title?: string;
   description?: string;
   example?: unknown;
+  examples?: unknown[];
+  const?: unknown;
   properties?: Record<string, SchemaObject>;
   items?: SchemaObject;
   $ref?: string;
   required?: string[];
   enum?: unknown[];
+  prefixItems?: SchemaObject[];
+  $defs?: Record<string, SchemaObject>;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  contentMediaType?: string;
+  contentEncoding?: string;
+  [key: string]: unknown;
 }
 
 export interface ExampleObject {
@@ -122,6 +131,8 @@ export interface ParameterObject {
   schema?: SchemaObject;
   type?: string; // OAS2
   format?: string; // OAS2
+  $ref?: string;
+  summary?: string;
 }
 
 export interface RequestBodyObject {
@@ -135,6 +146,8 @@ export interface RequestBodyObject {
       examples?: Record<string, ExampleObject>;
     }
   >;
+  $ref?: string;
+  summary?: string;
 }
 
 export interface ResponseHeaderObject {
@@ -157,11 +170,13 @@ export interface ResponseObject {
     }
   >;
   schema?: SchemaObject; // OAS2
+  $ref?: string;
+  summary?: string;
 }
 
 /** OpenAPI securityScheme 定义（OAS3 components.securitySchemes / OAS2 securityDefinitions） */
 export interface SecuritySchemeObject {
-  type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect';
+  type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect' | 'mutualTLS';
   description?: string;
   // apiKey
   in?: 'query' | 'header' | 'cookie';
@@ -210,6 +225,10 @@ export interface OperationObject {
 }
 
 export interface PathItemObject {
+  $ref?: string;
+  summary?: string;
+  description?: string;
+  parameters?: ParameterObject[];
   /** OAS3 path item 级 servers */
   servers?: SwaggerServer[];
   get?: OperationObject;
@@ -219,6 +238,8 @@ export interface PathItemObject {
   patch?: OperationObject;
   head?: OperationObject;
   options?: OperationObject;
+  trace?: OperationObject;
+  [key: string]: unknown;
 }
 
 /** 自定义 Markdown 文档子项（对应 x-markdownFiles[].children[]） */
@@ -240,6 +261,10 @@ export interface SwaggerDoc {
   info: SwaggerInfo;
   tags?: SwaggerTag[];
   paths: Record<string, PathItemObject>;
+  /** OAS 3.1 inbound webhook definitions. */
+  webhooks?: Record<string, PathItemObject>;
+  /** OAS 3.1 default JSON Schema dialect. */
+  jsonSchemaDialect?: string;
   /** OAS3 servers */
   servers?: SwaggerServer[];
   /** OAS2 host / basePath / schemes */
@@ -250,6 +275,10 @@ export interface SwaggerDoc {
     schemas?: Record<string, SchemaObject>;
     examples?: Record<string, ExampleObject>;
     headers?: Record<string, ResponseHeaderObject>;
+    parameters?: Record<string, ParameterObject>;
+    requestBodies?: Record<string, RequestBodyObject>;
+    responses?: Record<string, ResponseObject>;
+    pathItems?: Record<string, PathItemObject>;
     securitySchemes?: Record<string, SecuritySchemeObject>;
   };
   definitions?: Record<string, SchemaObject>; // OAS2
@@ -277,6 +306,10 @@ export interface MenuOperation {
   operationId?: string;
   deprecated?: boolean;
   operation: OperationObject;
+  /** Path operations are executable; webhook operations are read-only inbound contracts. */
+  source?: 'path' | 'webhook';
+  /** Collision-safe identity used in the operation route. */
+  routeId?: string;
 }
 
 export interface MenuTag {

@@ -10,7 +10,7 @@
 import { selectRequestBodyExample, selectResponseExamples } from './debug/operationExamples';
 
 export interface MdSchemaObject {
-  type?: string;
+  type?: string | string[];
   format?: string;
   description?: string;
   example?: unknown;
@@ -187,23 +187,36 @@ function resolveRef(ref: string, doc: MdDocContext): MdSchemaObject | undefined 
   return (doc.components?.schemas ?? doc.definitions ?? {})[match[1]];
 }
 
+function declaredSchemaTypes(type: MdSchemaObject['type']): string[] {
+  if (typeof type === 'string') return [type];
+  return Array.isArray(type) ? type.filter((value): value is string => typeof value === 'string') : [];
+}
+
+function primarySchemaType(type: MdSchemaObject['type']): string | undefined {
+  const types = declaredSchemaTypes(type);
+  return types.find((value) => value !== 'null') ?? types[0];
+}
+
 function schemaDisplayType(schema?: MdSchemaObject): string {
   if (!schema) return '';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
-  if (schema.type === 'array') {
+  const type = primarySchemaType(schema.type);
+  if (type === 'array') {
     const inner = schemaDisplayType(schema.items);
     return `${inner || 'object'}[]`;
   }
-  const parts = [schema.type, schema.format].filter(Boolean);
+  const typeDisplay = declaredSchemaTypes(schema.type).join(' | ');
+  const parts = [typeDisplay, schema.format].filter(Boolean);
   return parts.length ? parts.join(' / ') : 'object';
 }
 
 function compactSchemaDisplayType(schema?: MdSchemaObject): string {
   if (!schema) return '';
   if (schema.$ref) return schema.$ref.split('/').pop() ?? '$ref';
-  if (schema.type === 'array') return `${compactSchemaDisplayType(schema.items) || 'object'}[]`;
-  if (schema.type === 'string' && schema.format === 'byte') return 'byte';
-  return [schema.type, schema.format].filter(Boolean).join('/') || 'object';
+  const type = primarySchemaType(schema.type);
+  if (type === 'array') return `${compactSchemaDisplayType(schema.items) || 'object'}[]`;
+  if (type === 'string' && schema.format === 'byte') return 'byte';
+  return [declaredSchemaTypes(schema.type).join('|'), schema.format].filter(Boolean).join('/') || 'object';
 }
 
 function schemaKind(schema: MdSchemaObject, doc: MdDocContext, seenRefs: Set<string> = new Set()): ExportSchemaKind {
@@ -215,8 +228,9 @@ function schemaKind(schema: MdSchemaObject, doc: MdDocContext, seenRefs: Set<str
     nextSeen.add(schema.$ref);
     return schemaKind(resolved, doc, nextSeen);
   }
-  if (schema.type === 'array') return 'array';
-  if (schema.type === 'object' || schema.properties) return 'object';
+  const type = primarySchemaType(schema.type);
+  if (type === 'array') return 'array';
+  if (type === 'object' || schema.properties) return 'object';
   if (schema.type) return 'primitive';
   return 'unknown';
 }
@@ -267,7 +281,7 @@ function flattenSchemaFields(
     return flattenSchemaFields(resolved, doc, prefix, new Set(resolved.required ?? []), depth, nextSeen);
   }
 
-  if (schema.type === 'array' && schema.items) {
+  if (primarySchemaType(schema.type) === 'array' && schema.items) {
     return flattenSchemaFields(schema.items, doc, prefix, new Set(schema.items.required ?? []), depth, seenRefs);
   }
 

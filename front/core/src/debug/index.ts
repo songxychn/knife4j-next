@@ -25,13 +25,20 @@ export type {
   ParamSource,
   ValidationError,
   SchemaResolveContext,
+  SchemaValue,
   SchemaFieldNode,
   BuildSchemaExampleFn,
   BuildSchemaFieldTreeFn,
 } from './types';
 
 // resolveRef
-export { resolveRef, resolveRefMeta, dereference } from './resolveRef';
+export {
+  resolveRef,
+  resolveRefMeta,
+  dereference,
+  dereferenceReferenceObject,
+  normalizeAllOfSchema,
+} from './resolveRef';
 
 // operationDebugModel
 export { buildOperationDebugModel } from './operationDebugModel';

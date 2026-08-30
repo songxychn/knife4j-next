@@ -10,27 +10,23 @@
  * The resulting map can be looked up while iterating the pretty-printed
  * JSON response so that field descriptions can be rendered inline.
  */
+import { normalizeAllOfSchema } from 'knife4j-core';
 import type { SchemaObject, SwaggerDoc } from '../types/swagger';
 
-/** Resolve a `$ref` string against the doc's component/definition registry. */
-function resolveRef(ref: string, doc: Pick<SwaggerDoc, 'components' | 'definitions'>): SchemaObject | undefined {
-  const match = ref.match(/^#\/components\/schemas\/(.+)$/) ?? ref.match(/^#\/definitions\/(.+)$/);
-  if (!match) return undefined;
-  return (doc.components?.schemas ?? doc.definitions ?? {})[match[1]];
+type SchemaDoc = Pick<SwaggerDoc, 'openapi' | 'components' | 'definitions'>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** Resolve a schema, following at most 10 levels of `$ref`. */
-function resolveSchema(
-  schema: SchemaObject | undefined,
-  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
-  depth = 0,
-): SchemaObject | undefined {
+/** Resolve local refs and conjunctions with the core OAS 3.1 projection. */
+function resolveSchema(schema: SchemaObject | undefined, doc: SchemaDoc, depth = 0): SchemaObject | undefined {
   if (!schema || depth > 10) return schema;
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, doc);
-    return resolveSchema(resolved, doc, depth + 1);
-  }
-  return schema;
+  return normalizeAllOfSchema(
+    schema as Record<string, unknown>,
+    doc as unknown as Record<string, unknown>,
+    10 - depth,
+  ) as SchemaObject;
 }
 
 /**
@@ -40,10 +36,7 @@ function resolveSchema(
  * @param doc     The full SwaggerDoc for ref resolution.
  * @returns       e.g. `{ "data": "响应数据", "data.name": "用户名", "items[*].id": "ID" }`
  */
-export function buildSchemaDescriptionMap(
-  schema: SchemaObject | undefined,
-  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
-): Map<string, string> {
+export function buildSchemaDescriptionMap(schema: SchemaObject | undefined, doc: SchemaDoc): Map<string, string> {
   const map = new Map<string, string>();
   if (!schema) return map;
 
@@ -54,13 +47,7 @@ export function buildSchemaDescriptionMap(
   return map;
 }
 
-function walk(
-  schema: SchemaObject,
-  prefix: string,
-  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
-  map: Map<string, string>,
-  depth = 0,
-) {
+function walk(schema: SchemaObject, prefix: string, doc: SchemaDoc, map: Map<string, string>, depth = 0) {
   if (depth > 15) return; // safety guard
 
   const resolved = resolveSchema(schema, doc, depth);
@@ -82,6 +69,15 @@ function walk(
   if (resolved.items) {
     const path = prefix ? `${prefix}[*]` : '[*]';
     walk(resolved.items, path, doc, map, depth + 1);
+  }
+
+  for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
+    const branches = resolved[keyword];
+    if (Array.isArray(branches)) {
+      branches.forEach((branch) => {
+        if (isRecord(branch)) walk(branch as SchemaObject, prefix, doc, map, depth + 1);
+      });
+    }
   }
 }
 

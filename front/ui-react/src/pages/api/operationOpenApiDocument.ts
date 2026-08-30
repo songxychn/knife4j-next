@@ -81,6 +81,27 @@ function resolveJsonPointer(source: unknown, tokens: string[]): { found: boolean
   return { found: true, value: current };
 }
 
+function dereferenceLocalRecord(source: OpenApiRecord, value: unknown, maxDepth = 10): OpenApiRecord | null {
+  let current = asRecord(value);
+  let depth = 0;
+  while (current && typeof current.$ref === 'string' && depth < maxDepth) {
+    const pointer = localJsonPointer(current.$ref);
+    if (!pointer) return null;
+    const resolved = resolveJsonPointer(source, pointer.tokens);
+    const resolvedRecord = resolved.found ? asRecord(resolved.value) : null;
+    if (!resolvedRecord) return null;
+    const summary = typeof current.summary === 'string' ? current.summary : undefined;
+    const description = typeof current.description === 'string' ? current.description : undefined;
+    current = {
+      ...resolvedRecord,
+      ...(summary === undefined ? {} : { summary }),
+      ...(description === undefined ? {} : { description }),
+    };
+    depth++;
+  }
+  return current;
+}
+
 function selectedPathItem(source: OpenApiRecord, method: string, operation: unknown): OpenApiRecord {
   const result: OpenApiRecord = {};
 
@@ -528,14 +549,15 @@ export function buildOperationOpenApiPreviewDocument(
   swaggerDoc: SwaggerDoc,
   path: string,
   method: string,
+  sourceKind: 'path' | 'webhook' = 'path',
 ): OpenApiRecord | null {
-  if (supportsOperationOpenApiDownload(swaggerDoc)) {
+  if (sourceKind === 'path' && supportsOperationOpenApiDownload(swaggerDoc)) {
     return buildOperationOpenApiDocument(swaggerDoc, path, method);
   }
 
   const source = swaggerDoc as unknown as OpenApiRecord;
-  const paths = asRecord(source.paths);
-  const pathItem = paths ? asRecord(paths[path]) : null;
+  const sourceItems = asRecord(sourceKind === 'webhook' ? source.webhooks : source.paths);
+  const pathItem = sourceItems ? dereferenceLocalRecord(source, sourceItems[path]) : null;
   const operation = pathItem ? asRecord(pathItem[method.toLowerCase()]) : null;
   if (!operation || !asRecord(source.info)) return null;
 
@@ -555,8 +577,9 @@ export function buildOperationOpenApiPreviewDocument(
     if (!record) return;
 
     if (typeof record.$ref === 'string') {
-      const match = record.$ref.match(/^#\/components\/schemas\/(.+)$/) ?? record.$ref.match(/^#\/definitions\/(.+)$/);
-      const name = match?.[1];
+      const component = componentTarget(record.$ref);
+      const definitionMatch = record.$ref.match(/^#\/definitions\/([^/]+)/);
+      const name = component?.section === 'schemas' ? component.name : definitionMatch?.[1];
       if (name && !seenSchemas.has(name) && hasOwn(allSchemas, name)) {
         seenSchemas.add(name);
         referencedSchemas[name] = allSchemas[name];
@@ -569,13 +592,14 @@ export function buildOperationOpenApiPreviewDocument(
   collectSchemaRefs(operation);
   const outputPathItem = createOpenApiRecord();
   outputPathItem[method.toLowerCase()] = operation;
-  const outputPaths = createOpenApiRecord();
-  outputPaths[path] = outputPathItem;
   const output: OpenApiRecord = {
     openapi: source.openapi ?? '3.0.0',
     info: source.info,
-    paths: outputPaths,
   };
+  if (hasOwn(source, 'jsonSchemaDialect')) output.jsonSchemaDialect = source.jsonSchemaDialect;
+  const outputItems = createOpenApiRecord();
+  outputItems[path] = outputPathItem;
+  output[sourceKind === 'webhook' ? 'webhooks' : 'paths'] = outputItems;
 
   if (Object.keys(referencedSchemas).length > 0) {
     if (componentSchemas) output.components = { schemas: referencedSchemas };

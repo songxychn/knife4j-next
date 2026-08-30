@@ -14,6 +14,9 @@ export type OpenAPI = {
    */
   info: InfoObject;
 
+  /** Default JSON Schema dialect used by Schema Objects in an OAS 3.1 document. */
+  jsonSchemaDialect?: string;
+
   /**
    * An array of Server Objects, which provide connectivity information to a target server.
    */
@@ -22,12 +25,12 @@ export type OpenAPI = {
   /**
    * The available paths and operations for the API.
    */
-  paths: PathsObject;
+  paths?: PathsObject;
 
   /**
    * The incoming webhooks that MAY be received as part of this API and that the API consumer MAY choose to implement.
    */
-  webhooks?: { [expression: string]: WebhookObject | ReferenceObject };
+  webhooks?: Record<string, PathItemObject>;
 
   /**
    * Holds the relative paths to the individual endpoints and their operations. The path is appended to the URL from the Server Object in order to construct the full URL.
@@ -192,7 +195,7 @@ export type ComponentsObject = {
   /**
    * An object to hold reusable Schema Objects.
    */
-  schemas?: Record<string, SchemaObject>;
+  schemas?: Record<string, SchemaObject | boolean>;
 
   /**
    * An object to hold reusable Response Objects.
@@ -233,6 +236,9 @@ export type ComponentsObject = {
    * An object to hold reusable Callback Objects.
    */
   callbacks?: Record<string, CallbackObject>;
+
+  /** OAS 3.1 reusable Path Item Objects. */
+  pathItems?: Record<string, PathItemObject>;
 };
 
 /**
@@ -365,7 +371,7 @@ export type SchemaObject = {
   /**
    * Whether the maximum value is exclusive.
    */
-  exclusiveMaximum?: boolean;
+  exclusiveMaximum?: boolean | number;
 
   /**
    * Minimum value allowed.
@@ -375,7 +381,7 @@ export type SchemaObject = {
   /**
    * Whether the minimum value is exclusive.
    */
-  exclusiveMinimum?: boolean;
+  exclusiveMinimum?: boolean | number;
 
   /**
    * Maximum length of a string.
@@ -430,6 +436,12 @@ export type SchemaObject = {
    */
   enum?: any[];
 
+  /** JSON Schema exact-value constraint. */
+  const?: any;
+
+  /** JSON Schema example annotations. */
+  examples?: any[];
+
   /**
    * Data type of the schema.
    */
@@ -438,7 +450,7 @@ export type SchemaObject = {
   /**
    * List of schemas that this schema must conform to all of.
    */
-  allOf?: SchemaObject[];
+  allOf?: Array<SchemaObject | boolean>;
   /**
    * Reference to the object.
    */
@@ -446,32 +458,55 @@ export type SchemaObject = {
   /**
    * List of schemas that this schema must conform to one of.
    */
-  oneOf?: SchemaObject[];
+  oneOf?: Array<SchemaObject | boolean>;
 
   /**
    * List of schemas that this schema may conform to.
    */
-  anyOf?: SchemaObject[];
+  anyOf?: Array<SchemaObject | boolean>;
 
   /**
    * Schema that this schema must not conform to.
    */
-  not?: SchemaObject;
+  not?: SchemaObject | boolean;
 
   /**
    * Schema(s) for the items in an array.
    */
-  items?: SchemaObject;
+  items?: SchemaObject | boolean;
+
+  /** OAS 3.1 tuple item schemas. */
+  prefixItems?: Array<SchemaObject | boolean>;
 
   /**
    * List of properties in an object.
    */
-  properties?: Record<string, SchemaObject>;
+  properties?: Record<string, SchemaObject | boolean>;
+
+  /** OAS 3.1 local JSON Schema definitions. */
+  $defs?: Record<string, SchemaObject | boolean>;
 
   /**
    * Whether additional properties are allowed in an object.
    */
   additionalProperties?: boolean | SchemaObject;
+
+  patternProperties?: Record<string, SchemaObject | boolean>;
+  dependentSchemas?: Record<string, SchemaObject | boolean>;
+  propertyNames?: SchemaObject | boolean;
+  contains?: SchemaObject | boolean;
+  if?: SchemaObject | boolean;
+  then?: SchemaObject | boolean;
+  else?: SchemaObject | boolean;
+  unevaluatedProperties?: SchemaObject | boolean;
+  unevaluatedItems?: SchemaObject | boolean;
+  dependentRequired?: Record<string, string[]>;
+
+  $schema?: string;
+  $id?: string;
+  $anchor?: string;
+  $dynamicAnchor?: string;
+  $dynamicRef?: string;
 
   /**
    * Description of the schema.
@@ -482,6 +517,10 @@ export type SchemaObject = {
    * Format of the data.
    */
   format?: string;
+
+  contentMediaType?: string;
+  contentEncoding?: string;
+  contentSchema?: SchemaObject | boolean;
 
   /**
    * Default value for the data.
@@ -527,6 +566,9 @@ export type SchemaObject = {
    * Whether the schema is deprecated.
    */
   deprecated?: boolean;
+
+  /** JSON Schema vocabularies and OAS specification extensions may add keywords. */
+  [key: string]: any;
 };
 
 /**
@@ -537,6 +579,8 @@ export type ReferenceObject = {
    * Reference to the object.
    */
   $ref: string;
+  summary?: string;
+  description?: string;
 };
 
 /**

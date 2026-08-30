@@ -1,6 +1,6 @@
 import type { MenuTag, PathItemObject, SwaggerDoc } from '../types/swagger';
 
-export const HOME_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
+export const HOME_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
 
 export type HomeHttpMethod = (typeof HOME_HTTP_METHODS)[number];
 
@@ -27,6 +27,7 @@ function createEmptyMethodCounts(): Record<HomeHttpMethod, number> {
     patch: 0,
     head: 0,
     options: 0,
+    trace: 0,
   };
 }
 
@@ -60,6 +61,21 @@ export function buildHomeStats(swaggerDoc: SwaggerDoc | null | undefined, menuTa
     }
     if (pathHasOp) pathCount++;
   }
+
+  const seenWebhooks = new Set<string>();
+  menuTags.forEach((tag) => {
+    tag.operations.forEach((operation) => {
+      if (operation.source !== 'webhook') return;
+      const identity = `${operation.path}\u0000${operation.method}\u0000${operation.operationId ?? ''}`;
+      if (seenWebhooks.has(identity)) return;
+      seenWebhooks.add(identity);
+      const method = operation.method as HomeHttpMethod;
+      if (!HOME_HTTP_METHODS.includes(method)) return;
+      counts[method]++;
+      total++;
+      if (operation.deprecated) deprecatedCount++;
+    });
+  });
 
   const topTags = menuTags
     .filter((m) => m.operations.length > 0)

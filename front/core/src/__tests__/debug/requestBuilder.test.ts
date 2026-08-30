@@ -503,6 +503,28 @@ describe('validateRequired', () => {
     form.fileFields = { file: [new Uint8Array([1, 2, 3])] };
     expect(validateRequired(multipartModel, form)).toHaveLength(0);
   });
+
+  test('binary body: validates that a file was selected', () => {
+    const binaryModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [{ mediaType: 'application/octet-stream', category: 'raw', binary: true }],
+      bodyRequired: true,
+    };
+    const form: DebugFormValues = {
+      pathParams: {},
+      queryParams: {},
+      headerParams: {},
+      cookieParams: {},
+      selectedContentType: 'application/octet-stream',
+    };
+
+    expect(validateRequired(binaryModel, form).map((error) => error.key)).toContain('body:requestBody');
+    form.binaryBodyFileName = 'payload.bin';
+    expect(validateRequired(binaryModel, form)).toHaveLength(0);
+  });
 });
 
 // ─── buildRequest ─────────────────────────────────────
@@ -534,6 +556,46 @@ describe('buildRequest', () => {
     expect(result.url).toBe('http://localhost:8080/users/42?verbose=true');
     expect(result.method).toBe('GET');
     expect(result.body).toBeUndefined();
+  });
+
+  test('keeps an explicitly supplied GET body for non-browser clients and cURL', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/search',
+      method: 'GET',
+      debugModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'application/json',
+        body: '{"query":"knife4j"}',
+      },
+    });
+
+    expect(result.body).toBe('{"query":"knife4j"}');
+    expect(buildCurl(result)).toContain('-d');
+  });
+
+  test('keeps an explicitly supplied HEAD body in the pure request and cURL model', () => {
+    const result = buildRequest({
+      baseUrl: 'http://localhost:8080',
+      path: '/probe',
+      method: 'HEAD',
+      debugModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'application/json',
+        body: '{"probe":true}',
+      },
+    });
+
+    expect(result.body).toBe('{"probe":true}');
+    expect(buildCurl(result)).toContain('-d');
   });
 
   test('serializes array query params with their OAS3 style and explode metadata', () => {
@@ -911,6 +973,21 @@ describe('buildCurl', () => {
     });
 
     expect(curl).not.toContain('-d');
+  });
+
+  test('generates a binary-file placeholder without serializing file contents', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/avatar',
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
+      query: {},
+      binaryBodyFileName: "avatar's.png",
+      contentType: 'image/png',
+    });
+
+    expect(curl).toContain('--data-binary');
+    expect(curl).toContain("'@/path/to/avatar'\\''s.png'");
+    expect(curl).not.toContain('-d ');
   });
 
   test('multipart body emits -F entries and TODO comment (no -d)', () => {

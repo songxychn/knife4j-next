@@ -139,8 +139,14 @@ function buildConstraintLines(node: SchemaFieldNode): string[] {
   if (node.maxLength !== undefined) lines.push(`maxLength: ${node.maxLength}`);
   if (node.minimum !== undefined) lines.push(`minimum: ${node.minimum}`);
   if (node.maximum !== undefined) lines.push(`maximum: ${node.maximum}`);
+  if (node.exclusiveMinimum !== undefined) lines.push(`exclusiveMinimum: ${node.exclusiveMinimum}`);
+  if (node.exclusiveMaximum !== undefined) lines.push(`exclusiveMaximum: ${node.exclusiveMaximum}`);
+  if (node.contentMediaType !== undefined) lines.push(`contentMediaType: ${node.contentMediaType}`);
+  if (node.contentEncoding !== undefined) lines.push(`contentEncoding: ${node.contentEncoding}`);
   if (node.pattern !== undefined) lines.push(`pattern: ${node.pattern}`);
   if (node.enum !== undefined && node.enum.length > 0) lines.push(`enum: ${node.enum.join(', ')}`);
+  if (node.constValue !== undefined) lines.push(`const: ${JSON.stringify(node.constValue)}`);
+  if (node.booleanSchema === false) lines.push('boolean schema: false');
   return lines;
 }
 

@@ -127,6 +127,16 @@ interface AuthFormDraft {
   oauth2AccessToken: string;
 }
 
+type SecuritySchemeUiKind = 'apiKey' | 'http' | 'oauth2' | 'mutualTLS' | 'unsupported';
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function securitySchemeUiKind(scheme: SecuritySchemeObject): SecuritySchemeUiKind {
+  if (scheme.type === 'apiKey' || scheme.type === 'http' || scheme.type === 'oauth2' || scheme.type === 'mutualTLS') {
+    return scheme.type;
+  }
+  return 'unsupported';
+}
+
 /** 将已持久化的鉴权值投影为各表单草稿；undefined 明确投影为空值。 */
 // eslint-disable-next-line react-refresh/only-export-components
 export function getAuthFormDraft(existingValue: SchemeValue | undefined): AuthFormDraft {
@@ -778,8 +788,9 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
   const collapseItems = schemeEntries.map(([securityKey, scheme]) => {
     const isAuthorized = !!schemes[securityKey];
     let schemeForm: React.ReactNode;
+    const schemeKind = securitySchemeUiKind(scheme);
 
-    if (scheme.type === 'apiKey') {
+    if (schemeKind === 'apiKey') {
       schemeForm = (
         <ApiKeySchemeForm
           securityKey={securityKey}
@@ -789,7 +800,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
           onRemove={handleRemove}
         />
       );
-    } else if (scheme.type === 'http') {
+    } else if (schemeKind === 'http') {
       if (scheme.scheme === 'bearer') {
         schemeForm = (
           <HttpBearerSchemeForm
@@ -811,7 +822,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
       } else {
         schemeForm = <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
       }
-    } else if (scheme.type === 'oauth2') {
+    } else if (schemeKind === 'oauth2') {
       schemeForm = (
         <OAuth2SchemeForm
           securityKey={securityKey}
@@ -819,6 +830,15 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
           existingValue={schemes[securityKey]}
           onSave={handleSave}
           onRemove={handleRemove}
+        />
+      );
+    } else if (schemeKind === 'mutualTLS') {
+      schemeForm = (
+        <Alert
+          type="info"
+          showIcon
+          message={t('auth.schemes.mutualTLS.readOnly')}
+          description={t('auth.schemes.mutualTLS.description')}
         />
       );
     } else {

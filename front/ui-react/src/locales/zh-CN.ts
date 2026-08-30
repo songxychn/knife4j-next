@@ -5,6 +5,9 @@ const zhCN = {
   'app.tab.home': '主页',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': '接口文档加载失败',
+  'app.oas31Compatibility.title': 'OAS 3.1 文档包含需要降级处理的能力',
+  'app.oas31Compatibility.description':
+    '原始文档仍可浏览，但以下 {{count}} 处内容无法在本地安全解析；字段树、示例或调试模型可能省略对应部分。',
 
   // Runtime diagnostics
   'error.apiDocs.http': 'api-docs 请求失败：HTTP {{status}}',
@@ -105,6 +108,7 @@ const zhCN = {
   'apiDoc.notFound.title': '未找到接口文档',
   'apiDoc.notFound.desc': '当前路由没有匹配到 OpenAPI operation，请重新从左侧接口列表打开。',
   'apiDoc.deprecated': '已废弃',
+  'apiDoc.webhook.readOnly': '这是 OAS 3.1 入站 Webhook 契约，仅提供文档与 OpenAPI 预览，不会从浏览器主动发送请求。',
   'apiDoc.author': '作者：',
   'apiDoc.requestParams': '请求参数',
   'apiDoc.col.paramName': '参数名',
@@ -287,6 +291,11 @@ const zhCN = {
   'apiDebug.body.beautifyFailed': '格式化失败，请检查内容是否为有效的 {{contentType}}。',
   'apiDebug.body.file': '文件',
   'apiDebug.body.selectFile': '选择文件',
+  'apiDebug.body.binaryHint': '该 OAS 3.1 请求体会按 {{contentType}} 原样发送所选文件，不会转成文本或 multipart。',
+  'apiDebug.body.browserMethodUnsupported':
+    '浏览器 Fetch API 不允许为 {{method}} 请求发送请求体，请改用生成的 cURL 或调整接口方法。',
+  'apiDebug.method.browserUnsupported':
+    '浏览器 Fetch API 禁止发送 {{method}} 请求，请改用生成的 cURL 或其他非浏览器客户端。',
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',
@@ -379,6 +388,9 @@ const zhCN = {
   'auth.schemes.oauth2.implicit': '隐式模式',
   'auth.schemes.oauth2.authorizationCode': '授权码模式',
   'auth.btn.authorize': '保存凭证',
+  'auth.schemes.mutualTLS.readOnly': '已识别 mutualTLS 安全方案',
+  'auth.schemes.mutualTLS.description':
+    '浏览器页面不会保存或注入客户端证书。请在浏览器、操作系统或上游代理中配置双向 TLS。',
   'auth.btn.unauthorize': '移除凭证',
   'auth.btn.clearAll': '清除全部',
   'apiDebug.auth.modal.title': '请求返回 401 — 请先完成认证',

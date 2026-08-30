@@ -304,7 +304,9 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
     const category = current.category;
 
     let bodyMissing = false;
-    if (category === 'json' || category === 'raw') {
+    if (current.binary) {
+      bodyMissing = !form.binaryBodyFileName;
+    } else if (category === 'json' || category === 'raw') {
       bodyMissing = !form.body || form.body.trim() === '';
     } else if (category === 'urlencoded' || category === 'multipart') {
       const hasFormField = form.formFields
@@ -420,32 +422,31 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   const selectedContentType =
     formValues.selectedContentType ?? (debugModel.bodyContents.length > 0 ? debugModel.bodyContents[0].mediaType : '');
 
-  const hasBody = !['GET', 'HEAD'].includes(method.toUpperCase());
   let body: string | undefined = undefined;
 
-  if (hasBody) {
-    const category = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType)?.category ?? 'raw';
+  const category = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType)?.category ?? 'raw';
 
-    if (category === 'urlencoded' && formValues.formFields) {
-      // application/x-www-form-urlencoded: 从 formFields 序列化
-      body = buildUrlencodedBodyForRequest(formValues.formFields, formValues.formFieldNamesToIncludeWhenEmpty);
-      if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
-        headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
-      }
-    } else if (category === 'multipart') {
-      // multipart/form-data: 纯函数只拼文本字段；
-      // UI 层需要用 fileFields 构建 FormData 后替换 body
-      // 这里输出 JSON 占位（文本字段序列化），UI 层自行组装 FormData
-      body = JSON.stringify(
-        formFieldsForRequest(formValues.formFields ?? {}, formValues.formFieldNamesToIncludeWhenEmpty),
-      );
-      // multipart 不设 Content-Type（浏览器自动设 boundary）
-    } else {
-      // json / raw: 直接用 body 文本
-      body = formValues.body;
-      if (selectedContentType && findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
-        headersWithCookies['Content-Type'] = selectedContentType;
-      }
+  // Keep explicit request bodies for every HTTP method in the pure model and
+  // generated cURL. Browser callers reject GET / HEAD bodies before Fetch.
+  if (category === 'urlencoded' && formValues.formFields) {
+    // application/x-www-form-urlencoded: 从 formFields 序列化
+    body = buildUrlencodedBodyForRequest(formValues.formFields, formValues.formFieldNamesToIncludeWhenEmpty);
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
+      headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
+    }
+  } else if (category === 'multipart') {
+    // multipart/form-data: 纯函数只拼文本字段；
+    // UI 层需要用 fileFields 构建 FormData 后替换 body
+    // 这里输出 JSON 占位（文本字段序列化），UI 层自行组装 FormData
+    body = JSON.stringify(
+      formFieldsForRequest(formValues.formFields ?? {}, formValues.formFieldNamesToIncludeWhenEmpty),
+    );
+    // multipart 不设 Content-Type（浏览器自动设 boundary）
+  } else {
+    // json / raw: 直接用 body 文本
+    body = formValues.body;
+    if (selectedContentType && findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
+      headersWithCookies['Content-Type'] = selectedContentType;
     }
   }
 
@@ -462,6 +463,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     headers: headersWithCookies,
     query: mergedQuery,
     body,
+    binaryBodyFileName: formValues.binaryBodyFileName,
     contentType: selectedContentType,
     sourceMap,
     jsonFields: formValues.jsonFields,
@@ -520,6 +522,9 @@ export function buildCurl(req: BuiltRequest): string {
     // 文件字段占位（UI 层调用方会在 body 外通过 curlFileFields 注入，
     // 若没有注入则仅提示用户手动追加 -F field=@/path/to/file）
     parts.push('# TODO append file fields via: -F field=@/path/to/file');
+  } else if (req.binaryBodyFileName) {
+    const escapedFilename = req.binaryBodyFileName.replace(/'/g, "'\\''");
+    parts.push('--data-binary', `'@/path/to/${escapedFilename}'`);
   } else if (req.body !== undefined && req.body !== '') {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
     const escapedBody = req.body.replace(/'/g, "'\\''");

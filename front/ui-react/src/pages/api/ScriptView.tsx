@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { normalizeAllOfSchema } from 'knife4j-core';
 import { Alert, Radio, Space, Spin, Typography, message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
@@ -24,18 +25,15 @@ interface ParamInfo {
 
 function resolveSchema(
   schema: SchemaObject | undefined,
-  doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
+  doc: Pick<SwaggerDoc, 'openapi' | 'components' | 'definitions'>,
   depth = 0,
 ): SchemaObject | undefined {
   if (!schema || depth > 8) return schema;
-  if (schema.$ref) {
-    const match = schema.$ref.match(/^#\/components\/schemas\/(.+)$/) ?? schema.$ref.match(/^#\/definitions\/(.+)$/);
-    if (match) {
-      const resolved = (doc.components?.schemas ?? doc.definitions ?? {})[match[1]];
-      return resolveSchema(resolved, doc, depth + 1);
-    }
-  }
-  return schema;
+  return normalizeAllOfSchema(
+    schema as Record<string, unknown>,
+    doc as unknown as Record<string, unknown>,
+    8 - depth,
+  ) as SchemaObject;
 }
 
 function schemaToTsType(
@@ -52,23 +50,26 @@ function schemaToTsType(
     return name ?? 'unknown';
   }
 
-  const type = resolved.type;
-  if (type === 'string') return resolved.format === 'date-time' ? 'string /* date-time */' : 'string';
-  if (type === 'integer' || type === 'number') return 'number';
-  if (type === 'boolean') return 'boolean';
+  const declaredTypes = Array.isArray(resolved.type) ? resolved.type : resolved.type ? [resolved.type] : [];
+  const type = declaredTypes.find((value) => value !== 'null') ?? declaredTypes[0];
+  const nullable = declaredTypes.includes('null');
+  const withNullable = (value: string) => (nullable ? `${value} | null` : value);
+  if (type === 'string') return withNullable(resolved.format === 'date-time' ? 'string /* date-time */' : 'string');
+  if (type === 'integer' || type === 'number') return withNullable('number');
+  if (type === 'boolean') return withNullable('boolean');
   if (type === 'array') {
     const itemType = schemaToTsType(resolved.items, doc, depth + 1);
-    return `${itemType}[]`;
+    return withNullable(`${itemType.includes('|') ? `(${itemType})` : itemType}[]`);
   }
   if (type === 'object' || resolved.properties) {
-    if (!resolved.properties) return 'Record<string, unknown>';
+    if (!resolved.properties) return withNullable('Record<string, unknown>');
     const props = Object.entries(resolved.properties)
       .map(([k, v]) => {
         const required = Array.isArray(resolved.required) && resolved.required.includes(k);
         return `  ${k}${required ? '' : '?'}: ${schemaToTsType(v, doc, depth + 1)};`;
       })
       .join('\n');
-    return `{\n${props}\n}`;
+    return withNullable(`{\n${props}\n}`);
   }
   return 'unknown';
 }
@@ -82,7 +83,7 @@ function upperFirst(str: string): string {
 function deriveFunctionName(operationId: string | undefined, method: string, path: string): string {
   if (operationId) {
     // strip common suffixes like "UsingGET", "UsingPOST"
-    return operationId.replace(/Using(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)(_\d+)?$/i, '');
+    return operationId.replace(/Using(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|TRACE)(_\d+)?$/i, '');
   }
   // fallback: methodPathSegments
   const segments = path
@@ -168,7 +169,10 @@ export function generateCode(
   let tsParamsInterface = '';
   if (hasBody && requestBodySchema) {
     const resolved = resolveSchema(requestBodySchema, doc);
-    if (resolved?.type === 'object' || resolved?.properties) {
+    const resolvedType = Array.isArray(resolved?.type)
+      ? resolved.type.find((value) => value !== 'null')
+      : resolved?.type;
+    if (resolvedType === 'object' || resolved?.properties) {
       const props = Object.entries(resolved?.properties ?? {})
         .map(([k, v]) => {
           const req = Array.isArray(resolved?.required) && resolved.required.includes(k);
@@ -176,7 +180,7 @@ export function generateCode(
         })
         .join('\n');
       tsParamsInterface = `// ${labels.requestInterface}\nexport interface ${interfaceName}Params {\n${props}\n}\n\n`;
-    } else if (resolved?.type === 'array') {
+    } else if (resolvedType === 'array') {
       tsParamsInterface = `// ${labels.requestType}\nexport type ${interfaceName}Params = ${schemaToTsType(resolved, doc)};\n\n`;
     }
   }
@@ -184,7 +188,10 @@ export function generateCode(
   let tsResInterface = '';
   if (responseSchema) {
     const resolved = resolveSchema(responseSchema, doc);
-    if (resolved?.type === 'object' || resolved?.properties) {
+    const resolvedType = Array.isArray(resolved?.type)
+      ? resolved.type.find((value) => value !== 'null')
+      : resolved?.type;
+    if (resolvedType === 'object' || resolved?.properties) {
       const props = Object.entries(resolved?.properties ?? {})
         .map(([k, v]) => {
           const req = Array.isArray(resolved?.required) && resolved.required.includes(k);
@@ -192,7 +199,7 @@ export function generateCode(
         })
         .join('\n');
       tsResInterface = `// ${labels.responseInterface}\nexport interface ${interfaceName}Res {\n${props}\n}\n\n`;
-    } else if (resolved?.type === 'array') {
+    } else if (resolvedType === 'array') {
       tsResInterface = `// ${labels.responseType}\nexport type ${interfaceName}Res = ${schemaToTsType(resolved, doc)};\n\n`;
     }
   }
