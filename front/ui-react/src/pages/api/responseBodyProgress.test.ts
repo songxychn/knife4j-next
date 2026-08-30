@@ -37,14 +37,16 @@ describe('readResponseBlob', () => {
 
   it('falls back to received bytes when the transfer length is unknown', async () => {
     const progress: ResponseBodyProgress[] = [];
-    await readResponseBlob(
+    const blob = await readResponseBlob(
       responseFrom(['hello world'], {
         'Content-Length': '11',
         'Content-Encoding': 'gzip',
+        'Content-Type': 'application/json',
       }),
       (value) => progress.push(value),
     );
 
+    expect(blob.type).toBe('application/json');
     expect(progress).toEqual([
       { receivedBytes: 0, totalBytes: null },
       { receivedBytes: 11, totalBytes: null },
@@ -68,9 +70,12 @@ describe('readResponseBlob', () => {
     vi.stubGlobal('TransformStream', undefined);
     const progress: ResponseBodyProgress[] = [];
 
-    const blob = await readResponseBlob(responseFrom(['hello world']), (value) => progress.push(value));
+    const blob = await readResponseBlob(responseFrom(['hello world'], { 'Content-Type': 'text/plain' }), (value) =>
+      progress.push(value),
+    );
 
     expect(await blob.text()).toBe('hello world');
+    expect(blob.type).toBe('text/plain');
     expect(progress).toEqual([
       { receivedBytes: 0, totalBytes: null },
       { receivedBytes: 11, totalBytes: null },
@@ -79,11 +84,15 @@ describe('readResponseBlob', () => {
 
   it('does not trust a CORS content length when content encoding is hidden', async () => {
     const progress: ResponseBodyProgress[] = [];
-    const response = responseFrom(['hello world'], { 'Content-Length': '11' });
+    const response = responseFrom(['hello world'], {
+      'Content-Length': '11',
+      'Content-Type': 'text/plain; charset=UTF-8',
+    });
     Object.defineProperty(response, 'type', { value: 'cors' });
 
-    await readResponseBlob(response, (value) => progress.push(value));
+    const blob = await readResponseBlob(response, (value) => progress.push(value));
 
+    expect(blob.type).toBe('text/plain;charset=utf-8');
     expect(progress[0]).toEqual({ receivedBytes: 0, totalBytes: null });
   });
 });
