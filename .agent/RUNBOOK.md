@@ -6,8 +6,10 @@
 
 - Java：`.java-version`
 - Node：`.nvmrc`
-- 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）
+- 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）；CI / Demo / Release 基准版本读取根目录 `.bun-version`
 - CI：`.github/workflows/build.yml`、`release.yml`
+
+本地与 agent 优先使用当前已安装的 Bun；版本字符串不同本身不构成下载安装或降级理由。先运行受影响区域的标准验证，只有失败可归因于版本、lock / 生成物发生差异，或需要复现 CI / 发布环境时，才切换到 `.bun-version`。安装使用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
 
 ## 验证命令
 

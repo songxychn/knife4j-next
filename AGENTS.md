@@ -10,10 +10,8 @@
 |---|---|
 | 本文件 | 始终 |
 | `.agent/PROJECT.md` | 改产品行为、前端线、模块边界时 |
-| `.agent/AUTONOMY_POLICY.md` | 不确定能不能改某类东西时 |
 | `.agent/RUNBOOK.md` | 选验证命令、**bug 复现**、发版验收时 |
 | `.agent/KNOWN_PITFALLS.md` | 触碰 Java 兼容、bug/upstream、审查结论时 |
-| `.agent/PLAYBOOK.md` | 需要完整工作循环时 |
 | `.agent/COORDINATION.md` | 交付 agent PR、安排独立审查或拆 worker 时 |
 
 ## 使命（一句话）
@@ -22,17 +20,20 @@
 
 ## 硬约束
 
-1. 不直接 push `master`；走分支 → PR → CI → 合并。
-2. 不擅自发版、改 secrets / release 凭据、改 Maven 坐标或默认兼容承诺。
-3. 不删除大模块或重要历史路径，除非维护者明确批准。
-4. OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
-5. 一个分支只做一件可独立验证的事；优先小而可回滚。
-6. **Bug / 回归类任务先复现再修**（本仓 issue 与 upstream 关联均适用）；证据写入 issue。细则见 `.agent/RUNBOOK.md`。
-7. 维护者已持续授权：本仓任务需要在 issue / PR 展示非敏感截图时，可直接运行 `./tools/upload-images.sh`，无需逐次询问。边界见 `.agent/RUNBOOK.md`。
-8. 维护者要求“处理 GPT 建议”时，视为同时授权处理当前 PR 中 GPT / Codex 自动审查的可操作评论；实现并验证后可直接回复并解决对应线程。未采纳的建议只回复原因，不解决线程；此授权不适用于人工 reviewer 评论。
-9. 处理附带 OpenAPI / Swagger JSON 或 YAML 的 issue 时，必须先按文档声明的规范版本验证结构与复现路径的契约语义。违反规范或无法表达报告意图的文档，不得作为其所主张行为的 bug 契约或兼容依据：先要求报告者修正文档，禁止为接受该文档增加 alias、猜测或自动转换；若等价的规范最小夹具仍能复现，只修规范场景。非规范输入若另行暴露崩溃、安全或无法安全拒绝等问题，只修拒绝/诊断能力，不把输入兼容成合法契约。细则见 `.agent/RUNBOOK.md`。
-10. PR 开始审查前必须冻结支持版本、范围内对象与非目标。Agent PR 必须由当前实现上下文之外的独立 reviewer 审查（独立 agent 或维护者人工 review）；默认预算为 **一轮全量审查 + 一轮定向复核**。当前契约缺陷批量修，拒绝项说明原因并保留线程，范围外能力创建后续 issue。新规范版本、新模块、新产品承诺或第三轮审查必须停下来由维护者决定，禁止由 review 评论隐式扩张当前 PR。
-11. 任意新 push 都使旧 SHA 的 CI 与审查结论失效；修 review 使用普通追加提交，不为每条评论 amend / force-push。只有当前 head SHA 的本地验证、审查结论与 CI 全绿后，才能标 `status:review`。细则见 `.agent/PLAYBOOK.md`。
+1. 不直接 push `master`，不代替维护者 merge PR；走分支 → PR → CI → 维护者合并。
+2. 不擅自发布 release / tag、改 secrets / release 凭据、改 Maven 坐标或默认兼容承诺。
+3. 不删除大模块或重要历史路径，不用 `--no-verify`、破坏性 git 或随意 force-push 掩盖问题，除非维护者明确批准相应动作。
+4. 维护者明确交付任务后，可直接完成任务内最小实现、定向测试、PR、后续 issue，以及由授权源码变更必需的生成物同步。改 CI workflow 逻辑、依赖主版本、大范围升级、新模块 / package 或任务外的产品行为，需要明确授权。
+5. OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
+6. 一个分支只做一件可独立验证的事；优先小而可回滚。
+7. **Bug / 回归类任务先复现再修**（本仓 issue 与 upstream 关联均适用）；证据写入 issue。细则见 `.agent/RUNBOOK.md`。
+8. 维护者已持续授权：本仓任务需要在 issue / PR 展示非敏感截图时，可直接运行 `./tools/upload-images.sh`，无需逐次询问。边界见 `.agent/RUNBOOK.md`。
+9. 维护者要求“处理 GPT 建议”时，视为同时授权处理当前 PR 中 GPT / Codex 自动审查的可操作评论；实现并验证后可直接回复并解决对应线程。未采纳的建议只回复原因，不解决线程；此授权不适用于人工 reviewer 评论。
+10. 处理附带 OpenAPI / Swagger JSON 或 YAML 的 issue 时，必须先按文档声明的规范版本验证结构与复现路径的契约语义。违反规范或无法表达报告意图的文档，不得作为其所主张行为的 bug 契约或兼容依据：先要求报告者修正文档，禁止为接受该文档增加 alias、猜测或自动转换；若等价的规范最小夹具仍能复现，只修规范场景。非规范输入若另行暴露崩溃、安全或无法安全拒绝等问题，只修拒绝/诊断能力，不把输入兼容成合法契约。细则见 `.agent/RUNBOOK.md`。
+11. PR 开始审查前必须冻结支持版本、范围内对象与非目标。Agent PR 必须由当前实现上下文之外的独立 reviewer 审查（独立 agent 或维护者人工 review）；默认预算为 **一轮全量审查 + 一轮定向复核**。当前契约缺陷批量修，拒绝项说明原因并保留线程，范围外能力创建后续 issue。新规范版本、新模块、新产品承诺或第三轮审查必须停下来由维护者决定，禁止由 review 评论隐式扩张当前 PR。
+12. 任意新 push 都使旧 SHA 的 CI 与审查结论失效；修 review 使用普通追加提交，不为每条评论 amend / force-push。只有当前 head SHA 的本地验证、审查结论与 CI 全绿后，才能标 `status:review`。
+
+两个合理方案会产生不同外部行为、需要跨模块架构取舍、失败超出任务范围、影响 release / 兼容承诺或只能猜测维护者意图时，停止并询问。Java 兼容、多模块、CI / 构建 / 发布逻辑或验证曾红后才绿属于高风险，独立 reviewer 须重点核对真实 diff 与证据，维护者决定是否追加人工审。
 
 ## 任务状态（Issue）
 
@@ -51,7 +52,7 @@
 
 ## 默认工作方式
 
-维护者在场时：主 agent 端到端负责复现、实现、验证和 PR；worker 仅在并行或上下文隔离有实际收益时使用。Agent PR 合入前必须经过独立 reviewer（独立 agent 或维护者人工 review）。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → 独立审查 → PR CI。细则见 `.agent/COORDINATION.md` 与 `.agent/PLAYBOOK.md`。
+维护者在场时：主 agent 端到端负责复现、实现、验证和 PR；worker 仅在并行或上下文隔离有实际收益时使用。Agent PR 合入前必须经过独立 reviewer（独立 agent 或维护者人工 review）。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → 独立审查 → PR CI。细则见 `.agent/COORDINATION.md`。
 
 分支：`agent/<task-id>-<slug>`；无 issue 的现场小改可用 `agent/codex-<slug>` 并在 PR 说明原因。
 
