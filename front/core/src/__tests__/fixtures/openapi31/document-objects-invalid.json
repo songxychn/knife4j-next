@@ -1,0 +1,91 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "Invalid document objects",
+    "summary": 42,
+    "version": "1.0.0",
+    "license": {
+      "name": "Apache License 2.0",
+      "identifier": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "paths": {
+    "pets": {},
+    "/ambiguous": {
+      "$ref": "#/components/pathItems/Base",
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Local response"
+          }
+        }
+      }
+    },
+    "/missing": {
+      "$ref": "#/components/pathItems/Missing"
+    },
+    "/duplicates": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Ok": {
+        "description": "OK"
+      },
+      "BadAlias": {
+        "$ref": "#/components/responses/Ok",
+        "content": {}
+      },
+      "WrongTypeAlias": {
+        "$ref": "#/components/parameters/Id",
+        "description": "Must not resolve as a response"
+      },
+      "bad/name": {
+        "description": "Invalid component key"
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "pathItems": {
+      "Base": {
+        "get": {
+          "responses": {
+            "200": {
+              "description": "Referenced response"
+            }
+          }
+        }
+      }
+    },
+    "widgets": {}
+  }
+}

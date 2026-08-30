@@ -130,6 +130,7 @@ describe('Knife4x startup', () => {
     await expect(fetchSwaggerDocForMode('/swagger.json', 'embed')).resolves.toEqual({
       doc: null,
       error: { key: 'error.knife4x.openApi3Only' },
+      diagnostics: [],
     });
   });
 });

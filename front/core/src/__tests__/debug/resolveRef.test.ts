@@ -41,6 +41,12 @@ describe('resolveRef', () => {
     expect(resolveRef('https://example.com/schema.json', doc)).toBeUndefined();
   });
 
+  test('uses the complete local JSON Pointer grammar only for OAS 3.1', () => {
+    const oas31 = { openapi: '3.1.2', components: {} };
+    expect(resolveRef('#', oas31)).toBe(oas31);
+    expect(resolveRef('#', { openapi: '3.0.4', components: {} })).toBeUndefined();
+  });
+
   test('returns undefined for broken path', () => {
     expect(resolveRef('#/nonexistent/path', doc)).toBeUndefined();
   });
@@ -146,6 +152,15 @@ describe('dereferenceReferenceObject', () => {
         { openapi: '3.0.3', components },
       ).description,
     ).toBe('Target description');
+  });
+
+  test('keeps the existing unresolved Reference Object fallback outside OAS 3.1', () => {
+    const unresolved = {
+      $ref: '#/components/headers/Missing',
+      description: 'Legacy unresolved fallback',
+    };
+
+    expect(dereferenceReferenceObject(unresolved, { openapi: '3.0.4', components })).toBe(unresolved);
   });
 });
 

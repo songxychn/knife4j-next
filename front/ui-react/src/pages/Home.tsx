@@ -14,6 +14,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { dereferenceOasReferenceObject, isOpenApi31Version } from 'knife4j-core';
 import { useGroup } from '../context/GroupContext';
 import { useSettings } from '../context/SettingsContext';
 import DescriptionText from '../components/DescriptionText';
@@ -37,6 +38,10 @@ const METHOD_COLORS: Record<HomeHttpMethod, string> = {
   options: '#0d5aa7',
   trace: '#c41d7f',
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
 export default function Home() {
   const { t } = useTranslation();
@@ -83,7 +88,8 @@ export default function Home() {
   const hostLabel = resolveHomeHostLabel(swaggerDoc, servers, pageOrigin);
   const sourceHost = normalizeHomeHost(swaggerDoc.host, pageOrigin);
 
-  const securitySchemes = swaggerDoc.components?.securitySchemes ?? swaggerDoc.securityDefinitions ?? {};
+  const rawSecuritySchemes = swaggerDoc.components?.securitySchemes ?? swaggerDoc.securityDefinitions;
+  const securitySchemes = isRecord(rawSecuritySchemes) ? rawSecuritySchemes : {};
   const securitySchemeCount = Object.keys(securitySchemes).length;
 
   const tagTotalOps = stats.topTags.reduce((sum, it) => sum + it.count, 0);
@@ -627,7 +633,17 @@ export default function Home() {
                       <div>
                         {Object.entries(securitySchemes).map(([name, scheme]) => (
                           <Tag key={name} color="geekblue" style={{ marginBottom: 4 }}>
-                            {name} · {scheme.type}
+                            {name} ·{' '}
+                            {String(
+                              (isOpenApi31Version(swaggerDoc.openapi) && isRecord(scheme)
+                                ? dereferenceOasReferenceObject(
+                                    scheme,
+                                    swaggerDoc as unknown as Record<string, unknown>,
+                                    20,
+                                    'securityScheme',
+                                  ).type
+                                : (scheme as { type?: unknown }).type) ?? 'unknown',
+                            )}
                           </Tag>
                         ))}
                       </div>,

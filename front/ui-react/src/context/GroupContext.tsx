@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { Oas31DocumentDiagnostic } from 'knife4j-core';
 import { useLocation } from 'react-router-dom';
 import {
   getSchemas,
@@ -70,6 +71,8 @@ interface GroupContextValue {
   usingMock: boolean;
   /** 当前激活 group 的加载错误信息，null 表示无错误 */
   groupError: LocalizedMessage | null;
+  /** 对原始 OAS 3.1 文档执行的结构与兼容性诊断。 */
+  documentDiagnostics: Oas31DocumentDiagnostic[];
 }
 
 const GroupContext = createContext<GroupContextValue | null>(null);
@@ -86,6 +89,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
   const [groupError, setGroupError] = useState<LocalizedMessage | null>(null);
+  const [documentDiagnostics, setDocumentDiagnostics] = useState<Oas31DocumentDiagnostic[]>([]);
   const knife4xBootstrap = useMemo(() => readKnife4xBootstrap(), []);
 
   // Knife4x 直接加载宿主注入的 spec；Java 模式保留现有 discovery 顺序。
@@ -126,6 +130,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (activeGroupValue === routeGroupName) return;
 
     setGroupError(null);
+    setDocumentDiagnostics([]);
     setLoading(true);
     setActiveGroupValue(routeGroupName);
   }, [activeGroupValue, rawGroups, routeGroupName]);
@@ -140,14 +145,17 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let cancelled = false;
     setLoading(true);
     setGroupError(null);
+    setDocumentDiagnostics([]);
     const mode = knife4xBootstrap.mode === 'embed' ? 'embed' : 'java';
     fetchSwaggerDocForMode(group.url, mode, { preferredLanguage, routeHeader: group.header }).then((result) => {
       if (cancelled) return;
       if (result.doc) {
         setSwaggerDoc(result.doc);
+        setDocumentDiagnostics(result.diagnostics);
       } else {
         // 单个 provider 加载失败：保留其他 group 可用，仅标记当前 group 错误
         setSwaggerDoc(null);
+        setDocumentDiagnostics([]);
         setGroupError(result.error ?? { key: 'error.apiDocs.load' });
       }
       setLoading(false);
@@ -245,6 +253,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     (value: string) => {
       setGroupError(null);
       if (value === activeGroupValue) return;
+      setDocumentDiagnostics([]);
       setLoading(true);
       setActiveGroupValue(value);
     },
@@ -268,6 +277,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         routeGroupReady,
         usingMock,
         groupError,
+        documentDiagnostics,
       }}
     >
       {children}

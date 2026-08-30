@@ -1,8 +1,14 @@
+import {
+  OPENAPI_HTTP_METHODS,
+  isOpenApi31Version,
+  resolvePathItemOperation,
+  type OpenApiHttpMethod,
+} from 'knife4j-core';
 import type { MenuTag, PathItemObject, SwaggerDoc } from '../types/swagger';
 
-export const HOME_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
+export const HOME_HTTP_METHODS = OPENAPI_HTTP_METHODS;
 
-export type HomeHttpMethod = (typeof HOME_HTTP_METHODS)[number];
+export type HomeHttpMethod = OpenApiHttpMethod;
 
 export interface HomeTagStats {
   tag: string;
@@ -51,12 +57,14 @@ export function buildHomeStats(swaggerDoc: SwaggerDoc | null | undefined, menuTa
   for (const pathItem of Object.values(swaggerDoc.paths ?? {})) {
     let pathHasOp = false;
     for (const method of HOME_HTTP_METHODS) {
-      const op = (pathItem as PathItemObject)[method];
-      if (op) {
+      const operation = isOpenApi31Version(swaggerDoc.openapi)
+        ? resolvePathItemOperation(pathItem, method, swaggerDoc as unknown as Record<string, unknown>)?.operation
+        : (pathItem as PathItemObject)[method];
+      if (operation) {
         counts[method]++;
         total++;
         pathHasOp = true;
-        if (op.deprecated) deprecatedCount++;
+        if (operation.deprecated) deprecatedCount++;
       }
     }
     if (pathHasOp) pathCount++;

@@ -123,6 +123,13 @@ export interface ExampleObject {
   $ref?: string;
 }
 
+/** OAS 3.1 Reference Object. Only these two annotation siblings are defined. */
+export interface ReferenceObject {
+  $ref: string;
+  summary?: string;
+  description?: string;
+}
+
 export interface ParameterObject {
   name: string;
   in: 'query' | 'header' | 'path' | 'cookie' | 'body' | 'formData';
@@ -174,6 +181,17 @@ export interface ResponseObject {
   summary?: string;
 }
 
+export interface LinkObject {
+  operationRef?: string;
+  operationId?: string;
+  parameters?: Record<string, unknown>;
+  requestBody?: unknown;
+  description?: string;
+  server?: SwaggerServer;
+}
+
+export type CallbackObject = Record<string, PathItemObject | ReferenceObject>;
+
 /** OpenAPI securityScheme 定义（OAS3 components.securitySchemes / OAS2 securityDefinitions） */
 export interface SecuritySchemeObject {
   type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect' | 'mutualTLS';
@@ -211,6 +229,7 @@ export interface OperationObject {
   parameters?: ParameterObject[];
   requestBody?: RequestBodyObject;
   responses?: Record<string, ResponseObject>;
+  callbacks?: Record<string, CallbackObject | ReferenceObject>;
   deprecated?: boolean;
   /** operation 级别的 security 声明，每项是 `{ [schemeName]: string[] } */
   security?: Record<string, string[]>[];
@@ -260,9 +279,9 @@ export interface SwaggerDoc {
   swagger?: string; // OAS2
   info: SwaggerInfo;
   tags?: SwaggerTag[];
-  paths: Record<string, PathItemObject>;
+  paths?: Record<string, PathItemObject>;
   /** OAS 3.1 inbound webhook definitions. */
-  webhooks?: Record<string, PathItemObject>;
+  webhooks?: Record<string, PathItemObject | ReferenceObject>;
   /** OAS 3.1 default JSON Schema dialect. */
   jsonSchemaDialect?: string;
   /** OAS3 servers */
@@ -273,13 +292,15 @@ export interface SwaggerDoc {
   schemes?: string[];
   components?: {
     schemas?: Record<string, SchemaObject>;
-    examples?: Record<string, ExampleObject>;
-    headers?: Record<string, ResponseHeaderObject>;
-    parameters?: Record<string, ParameterObject>;
-    requestBodies?: Record<string, RequestBodyObject>;
-    responses?: Record<string, ResponseObject>;
-    pathItems?: Record<string, PathItemObject>;
-    securitySchemes?: Record<string, SecuritySchemeObject>;
+    examples?: Record<string, ExampleObject | ReferenceObject>;
+    headers?: Record<string, ResponseHeaderObject | ReferenceObject>;
+    parameters?: Record<string, ParameterObject | ReferenceObject>;
+    requestBodies?: Record<string, RequestBodyObject | ReferenceObject>;
+    responses?: Record<string, ResponseObject | ReferenceObject>;
+    pathItems?: Record<string, PathItemObject | ReferenceObject>;
+    securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>;
+    links?: Record<string, LinkObject | ReferenceObject>;
+    callbacks?: Record<string, CallbackObject | ReferenceObject>;
   };
   definitions?: Record<string, SchemaObject>; // OAS2
   securityDefinitions?: Record<string, SecuritySchemeObject>; // OAS2

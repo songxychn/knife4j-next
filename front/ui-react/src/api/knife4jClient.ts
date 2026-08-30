@@ -3,6 +3,16 @@
  * 负责拉取 group 列表和 api-docs 文档
  */
 
+import {
+  OPENAPI_HTTP_METHODS,
+  collectOas31DocumentDiagnostics,
+  isOpenApi31Version,
+  resolveLocalJsonPointer,
+  resolvePathItemOperation,
+  type Oas31DocumentDiagnostic,
+  type OpenApiHttpMethod,
+} from 'knife4j-core';
+
 import type {
   SwaggerDoc,
   SwaggerInfo,
@@ -12,19 +22,19 @@ import type {
   SwaggerUiConfig,
   Knife4jRuntimeConfig,
   OperationObject,
+  PathItemObject,
 } from '../types/swagger';
 import type { LocalizedMessage } from '../types/i18n';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
 import { buildRouteProxyHeaders } from './routeProxyHeader';
 
-const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
-type HttpMethod = (typeof HTTP_METHODS)[number];
 const KNIFE4J_ORDER_EXTENSION = 'x-order';
 const DEFAULT_SWAGGER_INFO: SwaggerInfo = { title: 'API Docs', version: '' };
 
 export interface SwaggerDocFetchResult {
   doc: SwaggerDoc | null;
   error: LocalizedMessage | null;
+  diagnostics: Oas31DocumentDiagnostic[];
 }
 
 export interface LanguageAwareRequestOptions {
@@ -36,16 +46,9 @@ export interface SwaggerDocRequestOptions extends LanguageAwareRequestOptions {
 }
 
 /** HTTP method 在 swagger-ui 'method' sorter 下的固定顺序 */
-const METHOD_ORDER: Record<string, number> = {
-  get: 0,
-  post: 1,
-  put: 2,
-  delete: 3,
-  patch: 4,
-  head: 5,
-  options: 6,
-  trace: 7,
-};
+const METHOD_ORDER: Record<string, number> = Object.fromEntries(
+  OPENAPI_HTTP_METHODS.map((method, index) => [method, index]),
+);
 
 /** tag 排序策略 */
 export type TagsSorter = 'alpha' | 'preserve';
@@ -160,12 +163,12 @@ export async function fetchSwaggerDocResult(
       buildRouteProxyHeaders(options.routeHeader),
     );
     if (!res.ok) {
-      return { doc: null, error: { key: 'error.apiDocs.http', values: { status: res.status } } };
+      return { doc: null, error: { key: 'error.apiDocs.http', values: { status: res.status } }, diagnostics: [] };
     }
     const text = await res.text();
     return normalizeSwaggerDocResponse(text);
   } catch (_) {
-    return { doc: null, error: { key: 'error.apiDocs.load' } };
+    return { doc: null, error: { key: 'error.apiDocs.load' }, diagnostics: [] };
   }
 }
 
@@ -182,23 +185,27 @@ function normalizeSwaggerDocResponse(text: string): SwaggerDocFetchResult {
     payload = JSON.parse(text);
   } catch (_) {
     if (isBase64EncodedJson(text)) {
-      return { doc: null, error: base64ApiDocsError() };
+      return { doc: null, error: base64ApiDocsError(), diagnostics: [] };
     }
-    return { doc: null, error: { key: 'error.apiDocs.invalidJson' } };
+    return { doc: null, error: { key: 'error.apiDocs.invalidJson' }, diagnostics: [] };
   }
 
   if (typeof payload === 'string') {
     if (isBase64EncodedJson(payload)) {
-      return { doc: null, error: base64ApiDocsError() };
+      return { doc: null, error: base64ApiDocsError(), diagnostics: [] };
     }
-    return { doc: null, error: { key: 'error.apiDocs.stringPayload' } };
+    return { doc: null, error: { key: 'error.apiDocs.stringPayload' }, diagnostics: [] };
   }
 
   if (!isSwaggerDocLike(payload)) {
-    return { doc: null, error: { key: 'error.apiDocs.invalidObject' } };
+    return { doc: null, error: { key: 'error.apiDocs.invalidObject' }, diagnostics: [] };
   }
 
-  return { doc: normalizeSwaggerDoc(payload), error: null };
+  return {
+    doc: normalizeSwaggerDoc(payload),
+    error: null,
+    diagnostics: collectOas31DocumentDiagnostics(payload),
+  };
 }
 
 function normalizeSwaggerDoc(doc: Record<string, unknown>): SwaggerDoc {
@@ -271,41 +278,37 @@ export interface MenuSortOptions {
 
 interface ParsedOperation {
   path: string;
-  method: HttpMethod;
+  method: OpenApiHttpMethod;
   operation: OperationObject;
   tags: string[];
   source: 'path' | 'webhook';
 }
 
-function resolveLocalPointer(document: SwaggerDoc, ref: string): unknown {
-  if (!ref.startsWith('#/')) return undefined;
-  let pointer: string;
-  try {
-    pointer = decodeURIComponent(ref.slice(2));
-  } catch {
-    return undefined;
+function resolveLegacyPathItem(document: SwaggerDoc, value: unknown): PathItemObject | null {
+  if (!isRecord(value)) return null;
+  let current = value as PathItemObject;
+  const seenRefs = new Set<string>();
+
+  for (let depth = 0; typeof current.$ref === 'string' && depth < 10; depth++) {
+    if (seenRefs.has(current.$ref)) return null;
+    seenRefs.add(current.$ref);
+    const target = resolveLocalJsonPointer(document as unknown as Record<string, unknown>, current.$ref);
+    if (!target.found || !isRecord(target.value)) return null;
+    current = target.value as PathItemObject;
   }
-  let current: unknown = document;
-  for (const segment of pointer.split('/')) {
-    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined;
-    const key = segment.replace(/~1/g, '/').replace(/~0/g, '~');
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
+  return typeof current.$ref === 'string' ? null : current;
 }
 
-function resolvePathItem(doc: SwaggerDoc, pathItem: unknown): import('../types/swagger').PathItemObject | null {
-  if (!pathItem || typeof pathItem !== 'object' || Array.isArray(pathItem)) return null;
-  let item = pathItem as import('../types/swagger').PathItemObject;
-  const seenRefs = new Set<string>();
-  for (let depth = 0; typeof item.$ref === 'string' && depth < 10; depth++) {
-    if (seenRefs.has(item.$ref)) return null;
-    seenRefs.add(item.$ref);
-    const resolved = resolveLocalPointer(doc, item.$ref);
-    if (!resolved || typeof resolved !== 'object' || Array.isArray(resolved)) return null;
-    item = resolved as import('../types/swagger').PathItemObject;
+function resolveMenuOperation(
+  document: SwaggerDoc,
+  pathItem: unknown,
+  method: OpenApiHttpMethod,
+): OperationObject | null {
+  if (isOpenApi31Version(document.openapi)) {
+    return (resolvePathItemOperation(pathItem, method, document as unknown as Record<string, unknown>)?.operation ??
+      null) as OperationObject | null;
   }
-  return typeof item.$ref === 'string' ? null : item;
+  return resolveLegacyPathItem(document, pathItem)?.[method] ?? null;
 }
 
 function defaultOperationRouteId(operation: ParsedOperation): string {
@@ -365,10 +368,10 @@ function sortByKnife4jOrder<T>(items: T[], getOrder: (item: T) => unknown): T[] 
     .map((entry) => entry.item);
 }
 
-function normalizeHttpMethod(value: unknown): HttpMethod | null {
+function normalizeHttpMethod(value: unknown): OpenApiHttpMethod | null {
   if (typeof value !== 'string') return null;
   const method = value.trim().toLowerCase();
-  return (HTTP_METHODS as readonly string[]).includes(method) ? (method as HttpMethod) : null;
+  return (OPENAPI_HTTP_METHODS as readonly string[]).includes(method) ? (method as OpenApiHttpMethod) : null;
 }
 
 function filterMultipartOperations(operations: ParsedOperation[], methodType: string | undefined): ParsedOperation[] {
@@ -401,16 +404,20 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
   const parsedOperations: ParsedOperation[] = [];
 
   // 初始化 tag 列表（保持 doc.tags 原始顺序）
-  (doc.tags ?? []).forEach((t) => {
+  const declaredTags = Array.isArray(doc.tags) ? doc.tags : [];
+  declaredTags.forEach((t) => {
+    if (!isRecord(t) || typeof t.name !== 'string') return;
     tagOrders.set(t.name, t[KNIFE4J_ORDER_EXTENSION]);
-    tagMap.set(t.name, { tag: t.name, description: t.description, operations: [] });
+    tagMap.set(t.name, {
+      tag: t.name,
+      description: typeof t.description === 'string' ? t.description : undefined,
+      operations: [],
+    });
   });
 
-  Object.entries(doc.paths ?? {}).forEach(([path, rawPathItem]) => {
-    const pathItem = resolvePathItem(doc, rawPathItem);
-    if (!pathItem) return;
-    HTTP_METHODS.forEach((method) => {
-      const op = pathItem[method];
+  Object.entries(isRecord(doc.paths) ? doc.paths : {}).forEach(([path, rawPathItem]) => {
+    OPENAPI_HTTP_METHODS.forEach((method) => {
+      const op = resolveMenuOperation(doc, rawPathItem, method);
       if (!op) return;
 
       const tags = op.tags?.length ? op.tags : ['default'];
@@ -418,11 +425,9 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
     });
   });
 
-  Object.entries(doc.webhooks ?? {}).forEach(([name, rawPathItem]) => {
-    const pathItem = resolvePathItem(doc, rawPathItem);
-    if (!pathItem) return;
-    HTTP_METHODS.forEach((method) => {
-      const op = pathItem[method] as OperationObject | undefined;
+  Object.entries(isRecord(doc.webhooks) ? doc.webhooks : {}).forEach(([name, rawPathItem]) => {
+    OPENAPI_HTTP_METHODS.forEach((method) => {
+      const op = resolveMenuOperation(doc, rawPathItem, method);
       if (!op) return;
       const tags = op.tags?.length ? op.tags : ['webhooks'];
       parsedOperations.push({ path: name, method, operation: op, tags, source: 'webhook' });

@@ -5,9 +5,9 @@ const jaJP = {
   'app.tab.home': 'ホーム',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'API ドキュメントを読み込めません',
-  'app.oas31Compatibility.title': 'この OAS 3.1 ドキュメントには縮退処理が必要な機能があります',
+  'app.oas31Compatibility.title': 'この OAS 3.1 ドキュメントには構造またはローカル解決の診断があります',
   'app.oas31Compatibility.description':
-    '元のドキュメントは閲覧できますが、{{count}} 件をブラウザー内で安全に解決できません。対応するフィールドツリー、例、またはデバッグモデルが不完全になる場合があります。',
+    '{{count}} 件が構造制約に違反しているか、ローカルで安全に解決できません。安全な元データは表示し、曖昧な操作は省略します。',
 
   // Runtime diagnostics
   'error.apiDocs.http': 'api-docs リクエストに失敗しました：HTTP {{status}}',

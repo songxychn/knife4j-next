@@ -1,0 +1,136 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Components only",
+    "summary": "Reusable OAS 3.1 objects",
+    "version": "1.0.0",
+    "license": {
+      "name": "Apache License 2.0",
+      "identifier": "Apache-2.0"
+    }
+  },
+  "components": {
+    "schemas": {
+      "Message": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "acme-vocabulary": {
+          "$ref": "./literal-vocabulary-value.json"
+        }
+      }
+    },
+    "responses": {
+      "Ok": {
+        "description": "OK"
+      },
+      "OkAlias": {
+        "$ref": "#/components/responses/Ok",
+        "description": "Alias response"
+      }
+    },
+    "parameters": {
+      "RequestId": {
+        "name": "requestId",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RequestIdAlias": {
+        "$ref": "#/components/parameters/RequestId",
+        "description": "Request correlation id"
+      }
+    },
+    "examples": {
+      "Message": {
+        "summary": "Message example",
+        "value": {
+          "text": "hello"
+        }
+      },
+      "MessageAlias": {
+        "$ref": "#/components/examples/Message",
+        "summary": "Alias example"
+      }
+    },
+    "requestBodies": {
+      "MessageBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "MessageBodyAlias": {
+        "$ref": "#/components/requestBodies/MessageBody",
+        "description": "Alias body"
+      }
+    },
+    "headers": {
+      "TraceId": {
+        "description": "Trace id",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "TraceIdAlias": {
+        "$ref": "#/components/headers/TraceId",
+        "description": "Alias trace id"
+      }
+    },
+    "securitySchemes": {
+      "ClientCertificate": {
+        "type": "mutualTLS",
+        "description": "Client certificate"
+      },
+      "ClientCertificateAlias": {
+        "$ref": "#/components/securitySchemes/ClientCertificate",
+        "description": "Alias certificate"
+      }
+    },
+    "links": {
+      "Status": {
+        "operationId": "getStatus",
+        "description": "Status link"
+      },
+      "StatusAlias": {
+        "$ref": "#/components/links/Status",
+        "description": "Alias link"
+      }
+    },
+    "callbacks": {
+      "Changed": {
+        "{$request.body#/callbackUrl}": {
+          "post": {
+            "responses": {
+              "200": {
+                "description": "Callback accepted"
+              }
+            }
+          }
+        }
+      },
+      "ChangedAlias": {
+        "$ref": "#/components/callbacks/Changed"
+      }
+    },
+    "pathItems": {
+      "Health": {
+        "get": {
+          "summary": "Health",
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/Ok"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,16 @@
+import {
+  OPENAPI_HTTP_METHODS,
+  isOpenApi31Version,
+  parseLocalJsonPointer,
+  resolveJsonPointerTokens,
+  resolvePathItemObject,
+} from 'knife4j-core';
 import type { SwaggerDoc } from '../../types/swagger';
 
 type OpenApiRecord = Record<string, unknown>;
 
 const PATH_ITEM_FIELDS = ['$ref', 'summary', 'description', 'servers', 'parameters'] as const;
-const HTTP_METHOD_FIELDS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const HTTP_METHOD_FIELDS = OPENAPI_HTTP_METHODS;
 const SINGLE_SCHEMA_FIELDS = ['not', 'items', 'additionalProperties'] as const;
 const ARRAY_SCHEMA_FIELDS = ['allOf', 'anyOf', 'oneOf'] as const;
 const MAP_SCHEMA_FIELDS = ['properties'] as const;
@@ -39,22 +46,10 @@ function createOpenApiRecord(): OpenApiRecord {
   return Object.create(null) as OpenApiRecord;
 }
 
-function decodeJsonPointerToken(token: string): string {
-  return token.replace(/~1/g, '/').replace(/~0/g, '~');
-}
-
 function localJsonPointer(ref: string): LocalJsonPointer | null {
-  if (!ref.startsWith('#')) return null;
-
-  let pointer: string;
-  try {
-    pointer = decodeURIComponent(ref.slice(1));
-  } catch {
-    return null;
-  }
-
-  if (!pointer.startsWith('/')) return null;
-  const tokens = pointer.slice(1).split('/').map(decodeJsonPointerToken);
+  const parsed = parseLocalJsonPointer(ref);
+  if (!parsed.valid || !parsed.tokens || parsed.tokens.length === 0) return null;
+  const tokens = parsed.tokens;
   return { key: JSON.stringify(tokens), tokens };
 }
 
@@ -71,14 +66,7 @@ function componentTarget(ref: string): { section: string; name: string } | null 
 }
 
 function resolveJsonPointer(source: unknown, tokens: string[]): { found: boolean; value?: unknown } {
-  let current = source;
-  for (const token of tokens) {
-    if (current === null || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, token)) {
-      return { found: false };
-    }
-    current = (current as OpenApiRecord)[token];
-  }
-  return { found: true, value: current };
+  return resolveJsonPointerTokens(source, tokens);
 }
 
 function dereferenceLocalRecord(source: OpenApiRecord, value: unknown, maxDepth = 10): OpenApiRecord | null {
@@ -557,8 +545,17 @@ export function buildOperationOpenApiPreviewDocument(
 
   const source = swaggerDoc as unknown as OpenApiRecord;
   const sourceItems = asRecord(sourceKind === 'webhook' ? source.webhooks : source.paths);
-  const pathItem = sourceItems ? dereferenceLocalRecord(source, sourceItems[path]) : null;
-  const operation = pathItem ? asRecord(pathItem[method.toLowerCase()]) : null;
+  const rawPathItem = sourceItems?.[path];
+  const resolvedPathItem =
+    rawPathItem !== undefined && isOpenApi31Version(source.openapi) ? resolvePathItemObject(rawPathItem, source) : null;
+  const pathItem: OpenApiRecord | null =
+    resolvedPathItem?.status === 'resolved'
+      ? resolvedPathItem.value
+      : resolvedPathItem
+        ? null
+        : (dereferenceLocalRecord(source, rawPathItem) ?? null);
+  if (!pathItem) return null;
+  const operation = asRecord(pathItem[method.toLowerCase()]);
   if (!operation || !asRecord(source.info)) return null;
 
   const referencedSchemas = createOpenApiRecord();
@@ -589,9 +586,8 @@ export function buildOperationOpenApiPreviewDocument(
     Object.values(record).forEach(collectSchemaRefs);
   };
 
-  collectSchemaRefs(operation);
-  const outputPathItem = createOpenApiRecord();
-  outputPathItem[method.toLowerCase()] = operation;
+  const outputPathItem = selectedPathItem(pathItem, method.toLowerCase(), operation);
+  collectSchemaRefs(outputPathItem);
   const output: OpenApiRecord = {
     openapi: source.openapi ?? '3.0.0',
     info: source.info,

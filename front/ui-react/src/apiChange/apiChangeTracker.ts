@@ -1,8 +1,8 @@
+import { OPENAPI_HTTP_METHODS } from 'knife4j-core';
 import { buildOperationOpenApiDocument } from '../pages/api/operationOpenApiDocument';
 import { KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
 import type { SwaggerDoc } from '../types/swagger';
 
-const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 const IDENTITY_FIELDS = ['origin', 'applicationPath', 'group', 'apiDocsUrl'] as const;
 const MAX_IDENTITY_FIELD_LENGTH = 8 * 1024;
 const MAX_OPERATION_IDENTITY_LENGTH = 16 * 1024;
@@ -188,16 +188,17 @@ export function buildApiOperationFingerprints(swaggerDoc: SwaggerDoc): ApiOperat
   if (typeof swaggerDoc.openapi !== 'string' || !swaggerDoc.openapi.startsWith('3.0.')) return null;
 
   const canonicalDoc = JSON.parse(stableSerializeJson(swaggerDoc)) as SwaggerDoc;
-  if (!isRecord(canonicalDoc.paths)) return null;
+  const canonicalPaths = canonicalDoc.paths;
+  if (!isRecord(canonicalPaths)) return null;
 
   const fingerprints = emptyFingerprintMap();
-  Object.keys(canonicalDoc.paths)
+  Object.keys(canonicalPaths)
     .sort()
     .forEach((path) => {
-      const pathItem = canonicalDoc.paths[path] as unknown;
+      const pathItem = canonicalPaths[path] as unknown;
       if (!isRecord(pathItem)) return;
 
-      HTTP_METHODS.forEach((method) => {
+      OPENAPI_HTTP_METHODS.forEach((method) => {
         if (!isRecord(pathItem[method])) return;
         const operationDocument = buildOperationOpenApiDocument(canonicalDoc, path, method);
         if (!operationDocument) return;

@@ -18,6 +18,7 @@ import type {
   SchemaResolveContext,
 } from './types';
 import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSchema } from './resolveRef';
+import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/document';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 
@@ -172,10 +173,13 @@ function extractEnum(
 }
 
 function supportsSchemaRefSiblings(doc: DocLike): boolean {
+  if (isOpenApi31Version(doc.openapi)) return true;
+  // Keep the pre-existing behavior for later, out-of-scope OAS versions while
+  // requiring a complete patch version before enabling the 3.1 contract.
   const [majorText, minorText] = (doc.openapi ?? '').split('.');
   const major = Number(majorText);
   const minor = Number(minorText);
-  return major > 3 || (major === 3 && minor >= 1);
+  return major > 3 || (major === 3 && minor > 1);
 }
 
 function schemaDeclaresType(schema: Record<string, unknown>, expected: string): boolean {
@@ -259,7 +263,7 @@ function classifyContentType(mediaType: string): BodyContentType {
 }
 
 function isOas31(doc: DocLike): boolean {
-  return typeof doc.openapi === 'string' && /^3\.1(?:\.|$)/.test(doc.openapi);
+  return isOpenApi31Version(doc.openapi);
 }
 
 function isBinaryMediaType(mediaType: string | undefined): boolean {
@@ -562,9 +566,20 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
   // 定位 PathItem 和 Operation
   const rawPathItem = doc.paths?.[path];
-  const pathItem = rawPathItem
-    ? (dereference(rawPathItem as unknown as Record<string, unknown>, doc as Record<string, unknown>) as PathItemLike)
-    : undefined;
+  const useOas31PathResolution = !isOAS2 && isOpenApi31Version(doc.openapi);
+  const resolvedPathOperation =
+    useOas31PathResolution && rawPathItem
+      ? resolvePathItemOperation(
+          rawPathItem as unknown as Record<string, unknown>,
+          method.toLowerCase() as Parameters<typeof resolvePathItemOperation>[1],
+          doc as Record<string, unknown>,
+        )
+      : null;
+  const pathItem = useOas31PathResolution
+    ? (resolvedPathOperation?.pathItem as PathItemLike | undefined)
+    : rawPathItem
+      ? (dereference(rawPathItem as unknown as Record<string, unknown>, doc as Record<string, unknown>) as PathItemLike)
+      : undefined;
   if (!pathItem) {
     return {
       pathParams: [],
@@ -576,7 +591,9 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     };
   }
 
-  const operation = pathItem[method] as OperationLike | undefined;
+  const operation = resolvedPathOperation
+    ? (resolvedPathOperation.operation as OperationLike)
+    : (pathItem[method] as OperationLike | undefined);
   if (!operation) {
     return {
       pathParams: [],
@@ -592,10 +609,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
   // 合并 path-level parameters + operation-level parameters
   // operation 级参数覆盖 path 级（按 name+in 去重）
-  const allRawParams: Array<OAS3Param | OAS2Param> = [
-    ...(pathItem.parameters ?? []).map((p) => resolveParameter(p, doc)),
-    ...(operation.parameters ?? []).map((p) => resolveParameter(p, doc)),
-  ];
+  const allRawParams: Array<OAS3Param | OAS2Param> = (
+    resolvedPathOperation
+      ? (operation.parameters ?? [])
+      : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
+  ).map((parameter) => resolveParameter(parameter, doc));
 
   // 去重（同名同位置，后者覆盖前者）
   const paramMap = new Map<string, OAS3Param | OAS2Param>();

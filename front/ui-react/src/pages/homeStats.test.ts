@@ -73,4 +73,24 @@ describe('homeStats', () => {
     expect(stats).toMatchObject({ total: 2, pathCount: 1 });
     expect(stats.counts).toMatchObject({ trace: 1, post: 1 });
   });
+
+  it('keeps OpenAPI 3.0 home counts based on the raw Path Item', () => {
+    const doc = {
+      openapi: '3.0.4',
+      info: { title: 'legacy', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          post: { tags: ['pets'], summary: 'Local POST' },
+        },
+      },
+      components: {
+        pathItems: { Pets: { get: { tags: ['pets'], summary: 'Referenced GET' } } },
+      },
+    } as SwaggerDoc;
+
+    const stats = buildHomeStats(doc, parseMenuTags(doc));
+    expect(stats).toMatchObject({ total: 1, pathCount: 1 });
+    expect(stats.counts).toMatchObject({ get: 0, post: 1 });
+  });
 });

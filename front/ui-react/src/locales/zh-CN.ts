@@ -5,9 +5,9 @@ const zhCN = {
   'app.tab.home': '主页',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': '接口文档加载失败',
-  'app.oas31Compatibility.title': 'OAS 3.1 文档包含需要降级处理的能力',
+  'app.oas31Compatibility.title': 'OAS 3.1 文档存在结构或本地解析诊断',
   'app.oas31Compatibility.description':
-    '原始文档仍可浏览，但以下 {{count}} 处内容无法在本地安全解析；字段树、示例或调试模型可能省略对应部分。',
+    '以下 {{count}} 处不符合结构约束或无法在本地安全解析；可安全展示的原文仍会加载，存在歧义的操作将被省略。',
 
   // Runtime diagnostics
   'error.apiDocs.http': 'api-docs 请求失败：HTTP {{status}}',

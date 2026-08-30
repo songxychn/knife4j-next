@@ -51,7 +51,10 @@ export function normalizeHomeHost(host: string | undefined, origin: string): str
 
 function legacySwaggerServers(swaggerDoc: SwaggerDoc): SwaggerServer[] {
   if (!swaggerDoc.host) return [];
-  const schemes = swaggerDoc.schemes && swaggerDoc.schemes.length > 0 ? swaggerDoc.schemes : ['http'];
+  const configuredSchemes = Array.isArray(swaggerDoc.schemes)
+    ? swaggerDoc.schemes.filter((scheme): scheme is string => typeof scheme === 'string')
+    : [];
+  const schemes = configuredSchemes.length > 0 ? configuredSchemes : ['http'];
   return schemes.map((scheme) => ({
     url: `${scheme}://${swaggerDoc.host}${swaggerDoc.basePath ?? ''}`,
   }));
@@ -63,8 +66,13 @@ export function resolveHomeServers(
 ): SwaggerServer[] {
   if (!swaggerDoc) return [];
 
-  const sourceServers =
-    swaggerDoc.servers && swaggerDoc.servers.length > 0 ? swaggerDoc.servers : legacySwaggerServers(swaggerDoc);
+  const validServers = Array.isArray(swaggerDoc.servers)
+    ? swaggerDoc.servers.filter(
+        (server): server is SwaggerServer =>
+          server !== null && typeof server === 'object' && typeof (server as { url?: unknown }).url === 'string',
+      )
+    : [];
+  const sourceServers = validServers.length > 0 ? validServers : legacySwaggerServers(swaggerDoc);
 
   return sourceServers.map((server) => ({
     ...server,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildOperationDebugModel, type BodyContent, type OperationDebugModel } from 'knife4j-core';
+import { parseMenuTags } from '../../api/knife4jClient';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import {
   buildBodyContentDefaults,
@@ -103,6 +104,39 @@ describe('debugDefaultValues', () => {
     expect(values['path:id']).toBe('pet-42');
     expect(values['query:trace']).toBe('trace-1');
     expect(JSON.parse(values['query:filter'])).toEqual({ status: 'available', page: 1 });
+  });
+
+  it('uses examples from parameters inherited through an OAS 3.1 Path Item reference', () => {
+    const doc = {
+      openapi: '3.1.2',
+      info: { title: 'Referenced defaults', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          post: { tags: ['pets'], responses: { 204: { description: 'Updated' } } },
+        },
+      },
+      components: {
+        parameters: {
+          Locale: {
+            name: 'locale',
+            in: 'query',
+            schema: { type: 'string' },
+            examples: { preferred: { value: 'zh-CN' } },
+          },
+        },
+        pathItems: {
+          Pets: {
+            parameters: [{ $ref: '#/components/parameters/Locale' }],
+            get: { tags: ['pets'], responses: { 200: { description: 'OK' } } },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const operation = parseMenuTags(doc)[0].operations.find(({ method }) => method === 'post')!;
+    const debugModel = buildOperationDebugModel({ doc, path: operation.path, method: operation.method });
+
+    expect(buildInitialParamValues(debugModel, doc, operation)).toMatchObject({ 'query:locale': 'zh-CN' });
   });
 
   it('uses requestBody media examples before schema-generated body examples', () => {

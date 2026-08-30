@@ -26,7 +26,7 @@ describe('collectOas31CompatibilityDiagnostics', () => {
     expect(diagnostics.every((item) => item.path.startsWith('#/'))).toBe(true);
   });
 
-  test('does not warn for local JSON Pointer refs and the OAS base dialect', () => {
+  test('does not warn for local JSON Pointer refs and locally supported dialects', () => {
     expect(
       collectOas31CompatibilityDiagnostics({
         openapi: '3.1.1',
@@ -35,7 +35,11 @@ describe('collectOas31CompatibilityDiagnostics', () => {
         components: {
           schemas: {
             User: { type: ['object', 'null'] },
-            Wrapper: { $ref: '#/components/schemas/User', description: 'nullable user' },
+            Wrapper: {
+              $schema: 'https://json-schema.org/draft/2020-12/schema',
+              $ref: '#/components/schemas/User',
+              description: 'nullable user',
+            },
           },
         },
       }),

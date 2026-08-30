@@ -1525,4 +1525,59 @@ describe('buildOperationDebugModel — OAS 3.1 parameter semantics', () => {
     expect(model.bodyContents[0].fileFields).toEqual(['avatar', 'rawDefault', 'attachments', 'referencedImage']);
     expect(model.bodyContents[0].fileFieldsMultiple).toEqual(['attachments']);
   });
+
+  test('uses the safe Path Item projection for inherited and overridden parameters', () => {
+    const doc = {
+      openapi: '3.1.2',
+      paths: {
+        '/pets/{id}': {
+          $ref: '#/components/pathItems/PetById',
+          post: {
+            parameters: [{ $ref: '#/components/parameters/Id', description: 'Operation-specific id' }],
+          },
+        },
+      },
+      components: {
+        parameters: {
+          Id: { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          Locale: { name: 'locale', in: 'query', schema: { type: 'string' } },
+        },
+        pathItems: {
+          PetById: {
+            parameters: [{ $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/Locale' }],
+            get: {},
+          },
+        },
+      },
+    };
+
+    const model = buildOperationDebugModel({ doc, path: '/pets/{id}', method: 'post' });
+    expect(model.pathParams).toEqual([
+      expect.objectContaining({ name: 'id', description: 'Operation-specific id', required: true }),
+    ]);
+    expect(model.queryParams).toEqual([expect.objectContaining({ name: 'locale' })]);
+  });
+
+  test('does not guess an operation when Path Item reference fields overlap', () => {
+    const doc = {
+      openapi: '3.1.2',
+      paths: {
+        '/ambiguous': {
+          $ref: '#/components/pathItems/Base',
+          get: { parameters: [{ name: 'local', in: 'query' }] },
+        },
+      },
+      components: {
+        pathItems: {
+          Base: { get: { parameters: [{ name: 'referenced', in: 'query' }] } },
+        },
+      },
+    };
+
+    expect(buildOperationDebugModel({ doc, path: '/ambiguous', method: 'get' })).toMatchObject({
+      pathParams: [],
+      queryParams: [],
+      bodyContents: [],
+    });
+  });
 });

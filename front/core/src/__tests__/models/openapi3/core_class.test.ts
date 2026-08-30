@@ -2,6 +2,7 @@ import { SpecParserFactory } from '../../../models/SpecParserFactory';
 import { SpecType } from '../../../models/SpecType';
 import { Knife4jValidateNumericObject } from '../../../models/knife4j/validate/Knife4jValidateNumericObject';
 import data from './test.json';
+import referencedPathDocument from '../../fixtures/openapi31/document-objects-3.1.2.json';
 
 test('creates a Knife4j instance from an OpenAPI document', () => {
   const factory = new SpecParserFactory();
@@ -54,6 +55,51 @@ test('only parses standard HTTP operation fields from a Path Item', () => {
 
   expect(instance.paths).toHaveLength(1);
   expect(instance.paths[0]).toMatchObject({ url: '/trace', methodType: 'trace', summary: 'Trace endpoint' });
+});
+
+test('resolves Path Item references and inherited component parameters without guessing conflicts', () => {
+  const parser = new SpecParserFactory().getParser(SpecType.OpenAPI);
+  const instance = parser.parse(referencedPathDocument, {});
+
+  expect(instance.paths).toHaveLength(2);
+  const post = instance.paths.find((operation) => operation.methodType === 'post');
+  expect(post).toMatchObject({
+    url: '/pets/{id}',
+    summary: 'Update pet',
+    description: 'Local path description',
+  });
+
+  parser.parsePathAsync(post!, instance, {});
+  expect(post?.parameters.map(({ name, description }) => ({ name, description }))).toEqual([
+    { name: 'id', description: 'Operation-specific id' },
+    { name: 'locale', description: '' },
+  ]);
+});
+
+test('keeps the existing OpenAPI 3.0 parser behavior for Path Item references', () => {
+  const parser = new SpecParserFactory().getParser(SpecType.OpenAPI);
+  const instance = parser.parse(
+    {
+      openapi: '3.0.4',
+      info: { title: 'Legacy Path Item handling', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          post: { summary: 'Local POST', responses: { 204: { description: 'Updated' } } },
+        },
+      },
+      components: {
+        pathItems: {
+          Pets: { get: { summary: 'Referenced GET', responses: { 200: { description: 'OK' } } } },
+        },
+      },
+    },
+    {},
+  );
+
+  expect(instance.paths.map(({ methodType, summary }) => ({ methodType, summary }))).toEqual([
+    { methodType: 'post', summary: 'Local POST' },
+  ]);
 });
 
 test('parses request body properties from the media type schema', () => {

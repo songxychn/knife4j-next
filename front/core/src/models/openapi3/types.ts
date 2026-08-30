@@ -30,7 +30,7 @@ export type OpenAPI = {
   /**
    * The incoming webhooks that MAY be received as part of this API and that the API consumer MAY choose to implement.
    */
-  webhooks?: Record<string, PathItemObject>;
+  webhooks?: Record<string, PathItemObject | ReferenceObject>;
 
   /**
    * Holds the relative paths to the individual endpoints and their operations. The path is appended to the URL from the Server Object in order to construct the full URL.
@@ -127,6 +127,9 @@ export type LicenseObject = {
    */
   name: string;
 
+  /** SPDX license expression for OAS 3.1 documents. Mutually exclusive with `url`. */
+  identifier?: string;
+
   /**
    * A URL to the license used for the API. MUST be in the format of a URL.
    */
@@ -200,45 +203,45 @@ export type ComponentsObject = {
   /**
    * An object to hold reusable Response Objects.
    */
-  responses?: Record<string, ResponseObject>;
+  responses?: Record<string, ResponseObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Parameter Objects.
    */
-  parameters?: Record<string, ParameterObject>;
+  parameters?: Record<string, ParameterObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Example Objects.
    */
-  examples?: Record<string, ExampleObject>;
+  examples?: Record<string, ExampleObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Request Body Objects.
    */
-  requestBodies?: Record<string, RequestBodyObject>;
+  requestBodies?: Record<string, RequestBodyObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Header Objects.
    */
-  headers?: Record<string, HeaderObject>;
+  headers?: Record<string, HeaderObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Security Scheme Objects.
    */
-  securitySchemes?: Record<string, SecuritySchemeObject>;
+  securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Link Objects.
    */
-  links?: Record<string, LinkObject>;
+  links?: Record<string, LinkObject | ReferenceObject>;
 
   /**
    * An object to hold reusable Callback Objects.
    */
-  callbacks?: Record<string, CallbackObject>;
+  callbacks?: Record<string, CallbackObject | ReferenceObject>;
 
   /** OAS 3.1 reusable Path Item Objects. */
-  pathItems?: Record<string, PathItemObject>;
+  pathItems?: Record<string, PathItemObject | ReferenceObject>;
 };
 
 /**
@@ -895,7 +898,7 @@ export type PathItemObject = {
    * A unique parameter is defined by a combination of a name and location.
    * The list can use the Reference Object to link to parameters that are defined at the OpenAPI Object's components/parameters.
    */
-  parameters?: ParameterObject[];
+  parameters?: Array<ParameterObject | ReferenceObject>;
   /**
    * Allows extensions to the OpenAPI Schema. The field name MUST begin with x-, for example, x-internal-id. The value can be null, a primitive, an array or an object. Can have any valid JSON format value.
    */
@@ -934,12 +937,12 @@ export type OperationObject = {
   /**
    * A list of parameters that are applicable for this operation.
    */
-  parameters?: ParameterObject[];
+  parameters?: Array<ParameterObject | ReferenceObject>;
 
   /**
    * The request body applicable for this operation.
    */
-  requestBody?: RequestBodyObject;
+  requestBody?: RequestBodyObject | ReferenceObject;
 
   /**
    * Expected responses for this operation.
@@ -949,7 +952,7 @@ export type OperationObject = {
   /**
    * A map of possible out-of band callbacks related to the parent operation.
    */
-  callbacks?: CallbackObject;
+  callbacks?: Record<string, CallbackObject | ReferenceObject>;
 
   /**
    * Declares this operation to be deprecated.
@@ -1078,17 +1081,17 @@ export type ResponsesObject = {
    * The documentation of responses other than the ones declared for specific HTTP response codes.
    * It can be used to cover undeclared responses.
    */
-  [httpStatusCode: string]: ResponseObject;
+  [httpStatusCode: string]: ResponseObject | ReferenceObject;
 
   /**
    * The documentation of a successful response.
    */
-  200: ResponseObject;
+  200: ResponseObject | ReferenceObject;
 
   /**
    * The documentation of responses to other error situations.
    */
-  default: ResponseObject;
+  default: ResponseObject | ReferenceObject;
 };
 
 /**

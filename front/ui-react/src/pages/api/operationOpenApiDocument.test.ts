@@ -704,6 +704,38 @@ describe('operation OpenAPI preview compatibility', () => {
       },
     });
   });
+
+  it('uses the shared OAS 3.1 Path Item resolution for local non-conflicting operations and metadata', () => {
+    const document = {
+      openapi: '3.1.2',
+      info: { title: 'Path Item API', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          description: 'Local description',
+          post: { summary: 'Update pet', responses: { 204: { description: 'Updated' } } },
+        },
+      },
+      components: {
+        pathItems: {
+          Pets: {
+            summary: 'Pets',
+            get: { summary: 'List pets', responses: { 200: { description: 'OK' } } },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+
+    expect(buildOperationOpenApiPreviewDocument(document, '/pets', 'post')).toMatchObject({
+      paths: {
+        '/pets': {
+          summary: 'Pets',
+          description: 'Local description',
+          post: { summary: 'Update pet' },
+        },
+      },
+    });
+  });
 });
 
 describe('buildOperationOpenApiFilename', () => {

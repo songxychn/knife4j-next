@@ -1,4 +1,11 @@
-import { buildSchemaExample, type BodyContent, type DebugParam, type OperationDebugModel } from 'knife4j-core';
+import {
+  buildSchemaExample,
+  isOpenApi31Version,
+  resolveLocalJsonPointer,
+  type BodyContent,
+  type DebugParam,
+  type OperationDebugModel,
+} from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 
 export type ParamValueMap = Record<string, string>;
@@ -44,6 +51,10 @@ function decodePointerPart(part: string): string {
 }
 
 function resolveLocalRef(ref: string | undefined, doc: SwaggerDoc | JsonRecord): unknown {
+  if (ref && isOpenApi31Version((doc as JsonRecord).openapi)) {
+    const resolved = resolveLocalJsonPointer(doc as JsonRecord, ref);
+    return resolved.found ? resolved.value : undefined;
+  }
   if (!ref?.startsWith('#/')) return undefined;
   let current: unknown = doc;
   for (const part of ref.slice(2).split('/').map(decodePointerPart)) {
@@ -126,6 +137,7 @@ export function paramKey(param: DebugParam): string {
 }
 
 function operationObjectFromDoc(doc: SwaggerDoc, operation: MenuOperation): JsonRecord | undefined {
+  if (isOpenApi31Version(doc.openapi)) return operation.operation as unknown as JsonRecord;
   const pathItem = doc.paths?.[operation.path] as JsonRecord | undefined;
   const fromDoc = pathItem?.[operation.method.toLowerCase()];
   return resolveRecord(fromDoc, doc) ?? (operation.operation as unknown as JsonRecord);
@@ -135,10 +147,14 @@ function rawParametersForOperation(doc: SwaggerDoc, operation: MenuOperation): M
   const map = new Map<string, JsonRecord>();
   const pathItem = doc.paths?.[operation.path] as JsonRecord | undefined;
   const operationObject = operationObjectFromDoc(doc, operation);
-  const rawParams = [
-    ...(Array.isArray(pathItem?.parameters) ? pathItem.parameters : []),
-    ...(Array.isArray(operationObject?.parameters) ? operationObject.parameters : []),
-  ];
+  const rawParams = isOpenApi31Version(doc.openapi)
+    ? Array.isArray(operationObject?.parameters)
+      ? operationObject.parameters
+      : []
+    : [
+        ...(Array.isArray(pathItem?.parameters) ? pathItem.parameters : []),
+        ...(Array.isArray(operationObject?.parameters) ? operationObject.parameters : []),
+      ];
 
   for (const rawParam of rawParams) {
     const param = resolveRecord(rawParam, doc);
