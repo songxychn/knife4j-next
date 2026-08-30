@@ -27,6 +27,7 @@
     "idb-keyval": "^6.3.0",
     "jsonpath-plus": "10.4.0",
     "knife4j-core": "*",
+    "knife4j-schema-engine": "*",
     "marked": "^9.1.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
