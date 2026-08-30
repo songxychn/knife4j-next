@@ -19,6 +19,7 @@ import type {
   QueryParamValue,
   ValidationError,
 } from './types';
+import { replaceSerializedPathParams, serializeOas31Parameters } from './parameterSerialization';
 
 // ─── URL 构建 ─────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export function buildQueryString(
 interface HeaderLayer {
   values: Record<string, string> | undefined;
   source?: ParamSource;
+  includeEmpty?: boolean;
 }
 
 /**
@@ -106,7 +108,7 @@ function mergeHeaderLayers(layers: HeaderLayer[]): {
   for (const layer of layers) {
     if (!layer.values) continue;
     for (const [key, value] of Object.entries(layer.values)) {
-      if (value !== undefined && value !== '') {
+      if (value !== undefined && (value !== '' || layer.includeEmpty)) {
         const normalizedKey = key.toLowerCase();
         const previousKey = keysByLowercase.get(normalizedKey);
         if (previousKey !== undefined && previousKey !== key) {
@@ -157,6 +159,29 @@ function appendCookieParams(
     ...headers,
     Cookie: pairs.join('; '),
   };
+}
+
+function appendSerializedCookieParams(
+  headers: Record<string, string>,
+  cookieParams: readonly { readonly name: string; readonly value: string }[],
+): Record<string, string> {
+  const pairs = cookieParams.filter((item) => item.name !== '').map((item) => `${item.name}=${item.value}`);
+  if (pairs.length === 0) return headers;
+  const existingKey = findHeaderKey(headers, 'Cookie');
+  if (existingKey) {
+    return {
+      ...headers,
+      [existingKey]: `${headers[existingKey]}; ${pairs.join('; ')}`,
+    };
+  }
+  return { ...headers, Cookie: pairs.join('; ') };
+}
+
+function appendQueryPreviewValue(query: Record<string, QueryParamValue>, name: string, value: string): void {
+  const current = query[name];
+  if (current === undefined) query[name] = value;
+  else if (Array.isArray(current)) current.push(value);
+  else query[name] = [current, value];
 }
 
 // ─── 鉴权 → headers + query ──────────────────────────
@@ -258,6 +283,9 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
   const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
       if (!param.required) continue;
+      if (param.parameterSerialization && form.oas31ParameterValues) {
+        if (Object.prototype.hasOwnProperty.call(form.oas31ParameterValues, `${param.in}:${param.name}`)) continue;
+      }
       const value = values[param.name];
       if (value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
         errors.push({
@@ -366,8 +394,15 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   const { baseUrl, path, method, debugModel, formValues, globalParams, applicationParams, auth, securityKeys } =
     options;
 
+  const parameterDiagnostic = debugModel.parameterDiagnostics?.[0];
+  if (parameterDiagnostic) throw new Error(parameterDiagnostic.message);
+  const serializedParameters = serializeOas31Parameters(debugModel, formValues.oas31ParameterValues);
+
   // 1. path 替换
-  const resolvedPath = replacePathParams(path, formValues.pathParams);
+  const resolvedPath = replacePathParams(
+    replaceSerializedPathParams(path, serializedParameters.path),
+    formValues.pathParams,
+  );
 
   // 2. 参数拆分：application 为所有分组共享，global 为当前分组
   const application = splitGlobalParams(applicationParams);
@@ -380,9 +415,17 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     { values: authResult.headers, source: 'auth' },
     { values: gp.headers, source: 'global' },
     { values: formValues.headerParams, source: 'interface' },
+    // OAS 3.1 distinguishes an explicitly included empty value from an
+    // omitted parameter. Keep legacy empty-header omission unchanged.
+    { values: serializedParameters.headers, source: 'interface', includeEmpty: true },
   ]);
   const mergedHeaders = headerMerge.headers;
-  const headersWithCookies = appendCookieParams(mergedHeaders, formValues.cookieParams);
+  const legacyCookieParams = { ...formValues.cookieParams };
+  for (const name of serializedParameters.consumedCookieNames) delete legacyCookieParams[name];
+  const headersWithCookies = appendSerializedCookieParams(
+    appendCookieParams(mergedHeaders, legacyCookieParams),
+    serializedParameters.cookies,
+  );
   // query 参数合并（所有分组共享 < 鉴权 < 当前分组 < 接口级）。query 名大小写敏感。
   const mergedQuery: Record<string, QueryParamValue> = {
     ...application.queries,
@@ -390,6 +433,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     ...gp.queries,
     ...formValues.queryParams,
   };
+  for (const name of serializedParameters.consumedQueryNames) delete mergedQuery[name];
 
   // 3.5 sourceMap 追踪（仅当存在 applicationParams、auth 或 globalParams 时生成）
   const hasMultiSource = applicationParams !== undefined || auth !== undefined || globalParams !== undefined;
@@ -413,6 +457,10 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
       if (value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)) {
         querySource[key] = 'interface';
       }
+    }
+    for (const name of serializedParameters.consumedQueryNames) delete querySource[name];
+    for (const parameter of serializedParameters.query) {
+      querySource[parameter.name] = 'interface';
     }
 
     sourceMap = { headers: headerSource, query: querySource };
@@ -454,19 +502,31 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   const queryEncodings = Object.fromEntries(
     debugModel.queryParams.map((param) => [param.name, { style: param.style, explode: param.explode }]),
   );
-  const queryString = buildQueryString(mergedQuery, queryEncodings);
+  const legacyQueryString = buildQueryString(mergedQuery, queryEncodings);
+  const parameterQueryString = serializedParameters.query
+    .map((parameter) => `${parameter.encodedName}=${parameter.encodedValue}`)
+    .join('&');
+  const queryString = [legacyQueryString, parameterQueryString].filter(Boolean).join('&');
   const url = `${baseUrl}${resolvedPath}${queryString ? `?${queryString}` : ''}`;
+  const previewQuery: Record<string, QueryParamValue> = { ...mergedQuery };
+  for (const parameter of serializedParameters.query) {
+    appendQueryPreviewValue(previewQuery, parameter.name, parameter.value);
+  }
 
   return {
     url,
     method: method.toUpperCase(),
     headers: headersWithCookies,
-    query: mergedQuery,
+    query: previewQuery,
     body,
     binaryBodyFileName: formValues.binaryBodyFileName,
     contentType: selectedContentType,
     sourceMap,
     jsonFields: formValues.jsonFields,
+    ...(serializedParameters.instances.length > 0 ? { parameterInstances: serializedParameters.instances } : {}),
+    ...(serializedParameters.diagnostics.length > 0
+      ? { parameterInputDiagnostics: serializedParameters.diagnostics }
+      : {}),
   };
 }
 

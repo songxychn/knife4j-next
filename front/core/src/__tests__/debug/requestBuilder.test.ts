@@ -1291,3 +1291,290 @@ describe('buildRequest sourceMap', () => {
     expect(Object.keys(result.queries)).toHaveLength(0);
   });
 });
+
+describe('OAS 3.1 parameter request snapshots', () => {
+  const model: OperationDebugModel = {
+    pathParams: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        type: 'integer',
+        schema: { type: 'integer' },
+        parameterSerialization: { kind: 'schema', style: 'simple', explode: false, allowReserved: false },
+      },
+    ],
+    queryParams: [
+      {
+        name: 'filter',
+        in: 'query',
+        required: false,
+        type: 'object',
+        schema: { type: 'object' },
+        parameterSerialization: { kind: 'schema', style: 'deepObject', explode: true, allowReserved: false },
+      },
+    ],
+    headerParams: [
+      {
+        name: 'X-Ids',
+        in: 'header',
+        required: false,
+        type: 'array',
+        schema: { type: 'array' },
+        parameterSerialization: { kind: 'schema', style: 'simple', explode: false, allowReserved: false },
+      },
+    ],
+    cookieParams: [
+      {
+        name: 'session',
+        in: 'cookie',
+        required: false,
+        type: 'array',
+        schema: { type: 'array' },
+        parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+      },
+    ],
+    bodyContents: [],
+    bodyRequired: false,
+  };
+
+  test('uses one serialized result for URL preview, headers, query data, and cURL', () => {
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items/{id}',
+      method: 'GET',
+      debugModel: model,
+      formValues: {
+        pathParams: {},
+        queryParams: { extra: 'x' },
+        headerParams: {},
+        cookieParams: {},
+        oas31ParameterValues: {
+          'path:id': '42',
+          'query:filter': '{"role":"admin","label":"你好"}',
+          'header:X-Ids': '[1,2]',
+          'cookie:session': '["a","b"]',
+        },
+      },
+    });
+
+    expect(built.url).toBe(
+      'https://api.example.test/items/42?extra=x&filter%5Brole%5D=admin&filter%5Blabel%5D=%E4%BD%A0%E5%A5%BD',
+    );
+    expect(built.query).toEqual({ extra: 'x', 'filter[role]': 'admin', 'filter[label]': '你好' });
+    expect(built.headers).toMatchObject({ 'X-Ids': '1,2', Cookie: 'session=a; session=b' });
+    expect(buildCurl(built)).toContain(`'${built.url}'`);
+    expect(built.parameterInstances).toEqual([
+      expect.objectContaining({ key: 'path:id', instance: 42 }),
+      expect.objectContaining({ key: 'query:filter', instance: { role: 'admin', label: '你好' } }),
+      expect.objectContaining({ key: 'header:X-Ids', instance: [1, 2] }),
+      expect.objectContaining({ key: 'cookie:session', instance: ['a', 'b'] }),
+    ]);
+  });
+
+  test('keeps the exact raw fallback snapshot for an explicit invalid-JSON override', () => {
+    const arrayModel: OperationDebugModel = {
+      ...model,
+      pathParams: [],
+      headerParams: [],
+      cookieParams: [],
+      queryParams: [
+        {
+          name: 'ids',
+          in: 'query',
+          required: false,
+          type: 'array',
+          schema: { type: 'array' },
+          parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+        },
+      ],
+    };
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items',
+      method: 'GET',
+      debugModel: arrayModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        oas31ParameterValues: { 'query:ids': '[broken' },
+      },
+    });
+
+    expect(built.url).toBe('https://api.example.test/items?ids=%5Bbroken');
+    expect(built.parameterInputDiagnostics).toEqual([
+      expect.objectContaining({ key: 'query:ids', kind: 'invalid-json' }),
+    ]);
+  });
+
+  test('keeps declared exploded query and cookie names above custom values', () => {
+    const explodedModel: OperationDebugModel = {
+      ...model,
+      pathParams: [],
+      headerParams: [],
+      queryParams: [
+        {
+          name: 'filter',
+          in: 'query',
+          required: false,
+          type: 'object',
+          schema: { type: 'object' },
+          parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+        },
+      ],
+      cookieParams: [
+        {
+          name: 'state',
+          in: 'cookie',
+          required: false,
+          type: 'object',
+          schema: { type: 'object' },
+          parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+        },
+      ],
+    };
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items',
+      method: 'GET',
+      debugModel: explodedModel,
+      formValues: {
+        pathParams: {},
+        queryParams: { R: 'custom', untouched: 'yes' },
+        headerParams: {},
+        cookieParams: { state: 'custom', theme: 'custom' },
+        oas31ParameterValues: {
+          'query:filter': '{"R":100}',
+          'cookie:state': '{"theme":"dark"}',
+        },
+      },
+    });
+
+    expect(built.url).toBe('https://api.example.test/items?untouched=yes&R=100');
+    expect(built.query).toEqual({ untouched: 'yes', R: '100' });
+    expect(built.headers.Cookie).toBe('theme=dark');
+  });
+
+  test('keeps OAS 3.1 path and exploded query values above legacy and global sources', () => {
+    const precedenceModel: OperationDebugModel = {
+      ...model,
+      queryParams: [
+        {
+          ...model.queryParams[0],
+          parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+        },
+      ],
+    };
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items/{id}',
+      method: 'GET',
+      debugModel: precedenceModel,
+      formValues: {
+        pathParams: { id: 'legacy' },
+        queryParams: { filter: 'legacy', role: 'legacy' },
+        headerParams: {},
+        cookieParams: {},
+        oas31ParameterValues: {
+          'path:id': '42',
+          'query:filter': '{"role":"interface"}',
+        },
+      },
+      globalParams: { headers: {}, queries: { filter: 'global', role: 'global' } },
+    });
+
+    expect(built.url).toBe('https://api.example.test/items/42?role=interface');
+    expect(built.query).toEqual({ role: 'interface' });
+    expect(built.sourceMap?.query).toEqual({ role: 'interface' });
+  });
+
+  test('treats an explicitly included empty OAS 3.1 string as present', () => {
+    const requiredModel: OperationDebugModel = {
+      ...model,
+      pathParams: [],
+      headerParams: [],
+      cookieParams: [],
+      queryParams: [
+        {
+          name: 'q',
+          in: 'query',
+          required: true,
+          type: 'string',
+          schema: { type: 'string' },
+          parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+        },
+      ],
+    };
+    expect(
+      validateRequired(requiredModel, {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        oas31ParameterValues: { 'query:q': '' },
+      }),
+    ).toEqual([]);
+  });
+
+  test('keeps an explicitly included empty OAS 3.1 header in the shared request snapshot', () => {
+    const emptyHeaderModel: OperationDebugModel = {
+      ...model,
+      pathParams: [],
+      queryParams: [],
+      cookieParams: [],
+      headerParams: [
+        {
+          name: 'X-Optional',
+          in: 'header',
+          required: false,
+          type: 'string',
+          schema: { type: 'string' },
+          parameterSerialization: { kind: 'schema', style: 'simple', explode: false, allowReserved: false },
+        },
+      ],
+    };
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items',
+      method: 'GET',
+      debugModel: emptyHeaderModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        oas31ParameterValues: { 'header:X-Optional': '' },
+      },
+      globalParams: { headers: { 'x-optional': 'global' }, queries: {} },
+    });
+
+    expect(built.headers).toEqual({ 'X-Optional': '' });
+    expect(built.sourceMap?.headers).toEqual({ 'X-Optional': 'interface' });
+    expect(buildCurl(built)).toContain('X-Optional: ');
+  });
+
+  test('blocks request construction when the document contract is invalid', () => {
+    expect(() =>
+      buildRequest({
+        baseUrl: 'https://api.example.test',
+        path: '/items',
+        method: 'GET',
+        debugModel: {
+          ...model,
+          parameterDiagnostics: [
+            {
+              key: 'query:filter',
+              name: 'filter',
+              in: 'query',
+              code: 'SCHEMA_CONTENT_CONFLICT',
+              message: 'schema/content conflict',
+            },
+          ],
+        },
+        formValues: { pathParams: {}, queryParams: {}, headerParams: {}, cookieParams: {} },
+      }),
+    ).toThrow('schema/content conflict');
+  });
+});

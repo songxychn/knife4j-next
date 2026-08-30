@@ -197,6 +197,28 @@ describe('buildExportDocument', () => {
     });
   });
 
+  test('keeps OAS 3.1 boolean parameter schemas representable in offline exports', () => {
+    const operation = buildExportOperation(
+      {
+        method: 'get',
+        path: '/boolean-parameters',
+        operation: {
+          parameters: [
+            { name: 'blocked', in: 'query', schema: false },
+            { name: 'anything', in: 'header', schema: true },
+          ],
+          responses: {},
+        },
+      },
+      doc,
+    );
+
+    expect(operation.parameters).toEqual([
+      expect.objectContaining({ name: 'blocked', typeDisplay: 'never', compactTypeDisplay: 'never' }),
+      expect.objectContaining({ name: 'anything', typeDisplay: 'unknown', compactTypeDisplay: 'unknown' }),
+    ]);
+  });
+
   test('uses item-level required fields for a top-level inline array schema', () => {
     const operation = buildExportOperation(
       {

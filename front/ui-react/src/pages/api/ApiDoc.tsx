@@ -435,7 +435,9 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   ];
 
   const parameters: ParamRow[] = (op.parameters ?? []).map((parameter, index) => {
-    const ref = (parameter as ParameterObject & { $ref?: string }).$ref ?? parameter.schema?.$ref;
+    const ref =
+      (parameter as ParameterObject & { $ref?: string }).$ref ??
+      (typeof parameter.schema === 'object' ? parameter.schema.$ref : undefined);
     const { refDescription, refTitle } = ref
       ? resolveRefMeta(ref, swaggerDoc as unknown as Record<string, unknown>)
       : {};

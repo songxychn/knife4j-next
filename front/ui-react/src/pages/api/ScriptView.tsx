@@ -19,7 +19,7 @@ interface ParamInfo {
   name: string;
   in: 'path' | 'query' | 'header' | 'cookie' | 'body' | 'formData' | string;
   required?: boolean;
-  schema?: SchemaObject;
+  schema?: SchemaObject | boolean;
   description?: string;
 }
 
@@ -37,11 +37,12 @@ function resolveSchema(
 }
 
 function schemaToTsType(
-  schema: SchemaObject | undefined,
+  schema: SchemaObject | boolean | undefined,
   doc: Pick<SwaggerDoc, 'components' | 'definitions'>,
   depth = 0,
 ): string {
-  if (!schema || depth > 6) return 'unknown';
+  if (schema === undefined || depth > 6) return 'unknown';
+  if (typeof schema === 'boolean') return schema ? 'unknown' : 'never';
   const resolved = resolveSchema(schema, doc, 0);
   if (!resolved) return 'unknown';
 
@@ -264,7 +265,7 @@ export default function ScriptView() {
     } else {
       // OAS2 body parameter
       const bodyParam = parameters.find((p) => p.in === 'body');
-      requestBodySchema = bodyParam?.schema;
+      requestBodySchema = typeof bodyParam?.schema === 'object' ? bodyParam.schema : undefined;
     }
 
     // resolve first 2xx response schema

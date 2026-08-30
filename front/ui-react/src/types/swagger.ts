@@ -135,7 +135,21 @@ export interface ParameterObject {
   in: 'query' | 'header' | 'path' | 'cookie' | 'body' | 'formData';
   required?: boolean;
   description?: string;
-  schema?: SchemaObject;
+  schema?: SchemaObject | boolean;
+  content?: Record<
+    string,
+    {
+      schema?: SchemaObject | boolean;
+      example?: unknown;
+      examples?: Record<string, ExampleObject>;
+    }
+  >;
+  style?: string;
+  explode?: boolean;
+  allowReserved?: boolean;
+  example?: unknown;
+  examples?: Record<string, ExampleObject>;
+  deprecated?: boolean;
   type?: string; // OAS2
   format?: string; // OAS2
   $ref?: string;

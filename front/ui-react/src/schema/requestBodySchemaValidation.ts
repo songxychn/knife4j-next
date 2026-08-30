@@ -1,9 +1,9 @@
-import type { EvaluationIssue, EvaluationResult } from 'knife4j-schema-engine';
+import type { EvaluationResult } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 import { isOas31SchemaDocument } from './schemaDocumentSession';
-
-type OpenApiRecord = Record<string, unknown>;
+import { asOpenApiRecord as asRecord, followLocalReference, pointerReference } from './openApiDocumentPointer';
+import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
 
 export type RequestBodySchemaPreparation =
   | {
@@ -18,11 +18,7 @@ export type RequestBodySchemaPreparation =
       readonly instance: unknown;
     };
 
-export interface RequestBodySchemaIssue {
-  readonly instanceLocation: string;
-  readonly keyword: string;
-  readonly absoluteKeywordLocation: string;
-}
+export type RequestBodySchemaIssue = SchemaEvaluationIssue;
 
 export type RequestBodySchemaEvaluation =
   | { readonly status: 'valid' }
@@ -42,75 +38,10 @@ export interface PrepareRequestBodySchemaEvaluationOptions {
   readonly body: string | undefined;
 }
 
-interface LocatedRecord {
-  readonly value: OpenApiRecord;
-  readonly tokens: readonly string[];
-}
-
 type LocatedSchema =
   | { readonly status: 'found'; readonly reference: string }
   | { readonly status: 'none' }
   | { readonly status: 'unavailable' };
-
-function asRecord(value: unknown): OpenApiRecord | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as OpenApiRecord) : null;
-}
-
-function decodePointerToken(value: string): string {
-  return value.replace(/~1/g, '/').replace(/~0/g, '~');
-}
-
-function encodePointerToken(value: string): string {
-  return value.replace(/~/g, '~0').replace(/\//g, '~1');
-}
-
-function localPointerTokens(reference: string): string[] | null {
-  if (!reference.startsWith('#')) return null;
-  let pointer: string;
-  try {
-    pointer = decodeURIComponent(reference.slice(1));
-  } catch {
-    return null;
-  }
-  if (!pointer.startsWith('/')) return null;
-  return pointer.slice(1).split('/').map(decodePointerToken);
-}
-
-function valueAtPointer(document: SwaggerDoc, tokens: readonly string[]): unknown {
-  let current: unknown = document;
-  for (const token of tokens) {
-    const record = asRecord(current);
-    if (!record || !Object.prototype.hasOwnProperty.call(record, token)) return undefined;
-    current = record[token];
-  }
-  return current;
-}
-
-function followLocalReference(
-  document: SwaggerDoc,
-  initialValue: unknown,
-  initialTokens: readonly string[],
-): LocatedRecord | null {
-  let value = asRecord(initialValue);
-  let tokens = [...initialTokens];
-  const seen = new Set<string>();
-
-  for (let depth = 0; value && typeof value.$ref === 'string' && depth < 10; depth++) {
-    if (seen.has(value.$ref)) return null;
-    seen.add(value.$ref);
-    const targetTokens = localPointerTokens(value.$ref);
-    if (!targetTokens) return null;
-    value = asRecord(valueAtPointer(document, targetTokens));
-    tokens = targetTokens;
-  }
-
-  if (!value || typeof value.$ref === 'string') return null;
-  return { value, tokens };
-}
-
-function pointerReference(tokens: readonly string[]): string {
-  return `#/${tokens.map((token) => encodeURIComponent(encodePointerToken(token))).join('/')}`;
-}
 
 export function isJsonCompatibleMediaType(value: string): boolean {
   const essence = value.split(';', 1)[0].trim().toLowerCase();
@@ -174,52 +105,6 @@ export function prepareRequestBodySchemaEvaluation(
   }
 }
 
-function keywordName(issue: EvaluationIssue): string {
-  for (const value of [issue.keyword, issue.absoluteKeywordLocation]) {
-    try {
-      const url = new URL(value);
-      const fragment = url.hash.replace(/^#\/?/, '');
-      const fragmentParts = fragment.split('/').filter(Boolean);
-      const fragmentName = fragmentParts[fragmentParts.length - 1];
-      if (fragmentName) return decodeURIComponent(fragmentName).replace(/~1/g, '/').replace(/~0/g, '~');
-      const pathParts = url.pathname.split('/').filter(Boolean);
-      const pathName = pathParts[pathParts.length - 1];
-      if (pathName) return decodeURIComponent(pathName);
-    } catch {
-      const parts = value.split(/[/#]/).filter(Boolean);
-      const name = parts[parts.length - 1];
-      if (name) return name;
-    }
-  }
-  return 'schema';
-}
-
-function collectLeafIssues(issues: readonly EvaluationIssue[]): RequestBodySchemaIssue[] {
-  const collected: RequestBodySchemaIssue[] = [];
-  const seen = new Set<string>();
-
-  const visit = (issue: EvaluationIssue): void => {
-    const nested = issue.errors?.filter((candidate) => candidate.valid === false) ?? [];
-    if (nested.length > 0) {
-      nested.forEach(visit);
-      return;
-    }
-    if (issue.valid !== false) return;
-    const keyword = keywordName(issue);
-    const key = `${issue.instanceLocation}\u0000${keyword}\u0000${issue.absoluteKeywordLocation}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    collected.push({
-      instanceLocation: issue.instanceLocation,
-      keyword,
-      absoluteKeywordLocation: issue.absoluteKeywordLocation,
-    });
-  };
-
-  issues.forEach(visit);
-  return collected;
-}
-
 export async function evaluateRequestBodySchema(
   session: SchemaDocumentSession,
   preparation: Extract<RequestBodySchemaPreparation, { status: 'ready' }>,
@@ -230,7 +115,7 @@ export async function evaluateRequestBodySchema(
   });
   if (result.valid) return { status: 'valid' };
 
-  const issues = collectLeafIssues(result.errors);
+  const issues = collectLeafSchemaIssues(result.errors);
   const normalizedIssues =
     issues.length > 0
       ? issues

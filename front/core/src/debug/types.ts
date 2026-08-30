@@ -12,6 +12,39 @@
 /** 参数位置（统一 OAS2 + OAS3） */
 export type ParamIn = 'path' | 'query' | 'header' | 'cookie';
 
+/** JSON value produced from an OAS 3.1 parameter editor before schema evaluation. */
+export type ParameterInstance =
+  null | string | number | boolean | ParameterInstance[] | { [key: string]: ParameterInstance };
+
+/** OAS 3.1 Parameter Object serialization selected by the document. */
+export type Oas31ParameterSerialization =
+  | {
+      readonly kind: 'schema';
+      readonly style: string;
+      readonly explode: boolean;
+      readonly allowReserved: boolean;
+    }
+  | {
+      readonly kind: 'content';
+      readonly mediaType: string;
+    };
+
+/** A document-level Parameter Object error that prevents safe request construction. */
+export interface ParameterDocumentDiagnostic {
+  readonly key: string;
+  readonly name: string;
+  readonly in: ParamIn;
+  readonly code:
+    | 'SCHEMA_CONTENT_CONFLICT'
+    | 'PARAMETER_ENCODING_MISSING'
+    | 'CONTENT_CARDINALITY'
+    | 'CONTENT_STYLE_CONFLICT'
+    | 'UNSUPPORTED_CONTENT_TYPE'
+    | 'UNSUPPORTED_STYLE'
+    | 'UNDEFINED_STYLE_COMBINATION';
+  readonly message: string;
+}
+
 /** 调试参数 — 从 OpenAPI 参数解析后的统一结构 */
 export interface DebugParam {
   /** 参数名 */
@@ -37,11 +70,15 @@ export interface DebugParam {
   /** 是否只读（写回时不发） */
   readOnly?: boolean;
   /** 原始 schema 引用（可用于深层字段树展开） */
-  schema?: Record<string, unknown>;
+  schema?: SchemaValue;
   /** 查询参数序列化样式（OAS3 Parameter Object style）。 */
   style?: string;
   /** 查询参数是否展开数组/对象值。 */
   explode?: boolean;
+  /** Whether reserved query characters may pass through value expansion. */
+  allowReserved?: boolean;
+  /** Present only for the OAS 3.1 parameter path; OAS 3.0 and OAS2 stay legacy. */
+  parameterSerialization?: Oas31ParameterSerialization;
 }
 
 // ─── RequestBody 模型 ─────────────────────────────────
@@ -99,6 +136,8 @@ export interface OperationDebugModel {
   bodyContents: BodyContent[];
   /** requestBody 是否必填 */
   bodyRequired: boolean;
+  /** Invalid or unsupported OAS 3.1 Parameter Object definitions. */
+  parameterDiagnostics?: ParameterDocumentDiagnostic[];
 }
 
 // ─── RequestBuilder 输入/输出 ─────────────────────────
@@ -112,6 +151,8 @@ export interface DebugFormValues {
   queryParams: Record<string, QueryParamValue>;
   headerParams: Record<string, string>;
   cookieParams: Record<string, string>;
+  /** Raw editor values for declared OAS 3.1 parameters, keyed by `${in}:${name}`. */
+  oas31ParameterValues?: Record<string, string>;
   /** 当前选中的 content-type */
   selectedContentType?: string;
   /** body 文本（已序列化，用于 json/raw 模式） */
@@ -225,6 +266,25 @@ export interface BuiltRequest {
    * buildCurl 用此输出 `-F 'field=...;type=application/json'`。
    */
   jsonFields?: string[];
+  /** Parsed logical parameter instances used by the document-level Schema session. */
+  parameterInstances?: BuiltParameterInstance[];
+  /** Input syntax failures; the request contains a stable raw fallback for explicit override. */
+  parameterInputDiagnostics?: ParameterInputDiagnostic[];
+}
+
+export interface BuiltParameterInstance {
+  readonly key: string;
+  readonly name: string;
+  readonly in: ParamIn;
+  readonly instance: ParameterInstance;
+}
+
+export interface ParameterInputDiagnostic {
+  readonly key: string;
+  readonly name: string;
+  readonly in: ParamIn;
+  readonly kind: 'invalid-json';
+  readonly message: string;
 }
 
 /** required 校验结果 */
