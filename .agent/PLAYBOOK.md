@@ -1,6 +1,6 @@
 # 工作手册（维护者在场）
 
-默认路径：**维护者 + 当前 agent 端到端**。不假设无人值守或定时唤醒。
+默认路径：**主 agent 端到端交付 + 独立 reviewer 审查**。worker 按需使用，不假设无人值守或定时唤醒。
 
 ## 快速入口
 
@@ -18,8 +18,8 @@
 5. 开/切分支：`agent/<task-id>-<slug>`（无 issue：`agent/codex-<slug>`）。
 6. 最小改动；不夹带无关清理。
 7. 跑 `.agent/RUNBOOK.md` 中最窄验证。
-8. 开/更新 PR，记录契约快照与审查轮次，`gh pr checks <N> --watch`。
-9. 当前 head SHA 的本地验证 + 审查结论 + CI 全绿后，才把 issue 标 `status:review`。
+8. 开/更新 PR，记录契约快照；由独立 reviewer 对当前 head 做全量审查，主 agent 批量处理 finding 后再做定向复核。
+9. 运行 `gh pr checks <N> --watch`；当前 head SHA 的本地验证 + 独立审查结论 + CI 全绿后，才把 issue 标 `status:review`。
 
 ## 可执行性检查
 
@@ -41,7 +41,7 @@ Upstream 关联额外：
 - 读完 upstream 原文、堆栈、截图与评论
 - 若只是衍生范围，issue 须写明**不自认为修了 upstream**
 
-## 契约锁定与审查止损
+## 契约与独立审查
 
 首次实现或审查前，在主 issue / PR 明确一份契约快照：
 
@@ -50,33 +50,20 @@ Upstream 关联额外：
 - 明确非目标及对应后续 issue（若已有）
 - 验证命令与完成条件
 
-自动审查默认预算为 **一轮全量审查 + 一轮定向复核**：
+每个 agent PR 都必须由当前实现上下文之外的独立 reviewer 审查；维护者人工 review 也满足独立性。审查者自行读取冻结契约与真实 diff，不以主 agent 摘要代替证据。默认只做一轮全量审查和一轮定向复核，finding 的分类、停止条件、输入输出契约见 `.agent/COORDINATION.md`。
 
-1. 全量审查的 finding 一次性归类，不逐条修完就重新触发 review。
-2. `当前契约缺陷`：在同一批追加提交中修复、验证并回复；采纳后可解决线程。
-3. `无效 / 拒绝`：回复证据与原因，不改代码，不解决线程。
-4. `范围外能力`：创建或关联后续 issue，回复分流结果，不解决线程。
-5. 定向复核只核对已采纳 finding 及其回归，不重新打开全量扫描。
-
-出现以下任一情况必须停止自动追评，保持或恢复 `status:in-progress`，由维护者决定收敛、拆分或改契约：
-
-- review 要求新增未列明的规范版本、模块或产品承诺
-- 已进入第三轮审查
-- 为处理 finding 需要实质改写当前核心实现或让 PR 跨过原模块边界
-- 两条合理处置会产生不同外部行为
-
-Review 修复使用普通追加提交；不要为每条评论 amend / force-push。最终历史由 squash merge 整理。任意 push 后，旧 SHA 的 CI、review 与 `status:review` 都不再代表当前状态，必须等待当前 head SHA 重新满足门禁。
+Review 修复使用普通追加提交，不为每条评论 amend / force-push。任意 push 都使旧 SHA 的 CI、review 与 `status:review` 失效，必须对当前 head 重新满足门禁。
 
 ## 风险与审查
 
 | 级别 | 例子 | 做法 |
 |---|---|---|
-| 低 | label、文案、流程文档、无行为变化的笔误 | 单 agent 即可；PR 写清验证 |
-| 普通 | 单模块前端/文档/测试、行为清晰、回滚简单 | 单 agent + 对应 `tools/test-*`；维护者可人工审 |
-| 高 | Java 兼容、多模块、CI/构建/发布逻辑、验证曾红后才绿 | 需要第二意见：独立 reviewer agent **或** 维护者人工审；接受结论前用 `git diff`/`git show` 核对 |
+| 低 | label、文案、流程文档、无行为变化的笔误 | 主 agent + 轻量独立审查；PR 写清验证 |
+| 普通 | 单模块前端/文档/测试、行为清晰、回滚简单 | 主 agent + 对应 `tools/test-*` + 独立审查 |
+| 高 | Java 兼容、多模块、CI/构建/发布逻辑、验证曾红后才绿 | 独立 reviewer 重点核对真实 diff 与证据；维护者决定是否追加人工审 |
 | 必须问人 | 发版、改坐标/凭据、删大段历史、大范围依赖升级、产品方向 | 停止，等维护者 |
 
-维护者在场时，**人工 review 可以替代独立 reviewer agent**。不要为了角色齐全而硬拆会话。
+维护者在场时，**人工 review 可以替代独立 reviewer agent**。worker 仍然可选，不要为了角色齐全而硬拆实现工作。
 
 ## Issue 评论
 
@@ -88,9 +75,8 @@ Review 修复使用普通追加提交；不要为每条评论 amend / force-push
 - 契约快照：支持版本、范围内对象、非目标
 - 变更范围
 - 验证命令与结果
-- 审查轮次与每条 finding 的处置（修复 / 拒绝 / 后续 issue）
+- 独立 reviewer、审查所绑定的 head SHA 与 finding 处置（修复 / 拒绝 / 后续 issue）
 - 风险与范围外事项
-- 若跳过独立 reviewer，写明由谁审、结论如何
 
 ## 停止条件
 
