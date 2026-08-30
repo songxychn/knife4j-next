@@ -16,6 +16,8 @@ export interface Oas31DebugBodyExamples {
 }
 
 export interface Oas31DebugExampleIdentity {
+  readonly document: SwaggerDoc;
+  readonly session: SchemaDocumentSession;
   readonly retrievalUri: string;
   readonly operationKey: string;
 }
@@ -144,6 +146,8 @@ export function sameOas31DebugExampleIdentity(
   return (
     left !== null &&
     right !== null &&
+    left.document === right.document &&
+    left.session === right.session &&
     left.retrievalUri === right.retrievalUri &&
     left.operationKey === right.operationKey
   );

@@ -67,22 +67,35 @@ const examples: Oas31DebugBodyExamples = {
   resultByMediaType: {},
 };
 
+const session = {
+  retrievalUri: 'https://examples.knife4j.example/first.json',
+  resolve: vi.fn(),
+  evaluate: vi.fn(),
+  dispose: vi.fn(),
+} as unknown as SchemaDocumentSession;
+
+const replacementDocument: SwaggerDoc = { ...document };
+const replacementSession = { ...session } as SchemaDocumentSession;
+
 const firstIdentity: Oas31DebugExampleIdentity = {
+  document,
+  session,
   retrievalUri: 'https://examples.knife4j.example/first.json',
   operationKey: 'Pets/post',
 };
 
 const secondIdentity: Oas31DebugExampleIdentity = {
+  document: replacementDocument,
+  session: replacementSession,
   retrievalUri: 'https://examples.knife4j.example/second.json',
   operationKey: 'Pets/put',
 };
 
-const session = {
-  retrievalUri: firstIdentity.retrievalUri,
-  resolve: vi.fn(),
-  evaluate: vi.fn(),
-  dispose: vi.fn(),
-} as unknown as SchemaDocumentSession;
+const replacementIdentityAtSameAddress: Oas31DebugExampleIdentity = {
+  ...firstIdentity,
+  document: replacementDocument,
+  session: replacementSession,
+};
 
 beforeEach(() => {
   reactHarness.effects.length = 0;
@@ -147,6 +160,48 @@ describe('OAS 3.1 debug example effect components', () => {
     expect(setState).toHaveBeenLastCalledWith({ status: 'ready', identity: secondIdentity, examples });
   });
 
+  test('treats a new document session at the same URL and operation as a new task', async () => {
+    const previous = deferred<Oas31DebugBodyExamples>();
+    const current = deferred<Oas31DebugBodyExamples>();
+    const setState = vi.fn();
+
+    Oas31DebugExampleLoader({
+      enabled: true,
+      document,
+      operation,
+      debugModel,
+      session,
+      identity: firstIdentity,
+      setState,
+      generateExamples: vi.fn(() => previous.promise),
+    });
+    const cleanup = reactHarness.effects[0]?.();
+    if (typeof cleanup === 'function') cleanup();
+
+    reactHarness.effects.length = 0;
+    Oas31DebugExampleLoader({
+      enabled: true,
+      document: replacementDocument,
+      operation,
+      debugModel,
+      session: replacementSession,
+      identity: replacementIdentityAtSameAddress,
+      setState,
+      generateExamples: vi.fn(() => current.promise),
+    });
+    reactHarness.effects[0]?.();
+
+    previous.resolve(examples);
+    current.resolve(examples);
+    await Promise.all([previous.promise, current.promise]);
+    await Promise.resolve();
+
+    const readyCalls = setState.mock.calls.filter(([state]) => state.status === 'ready');
+    expect(readyCalls).toHaveLength(1);
+    expect(readyCalls[0]?.[0].identity).toBe(replacementIdentityAtSameAddress);
+    expect(setState.mock.calls.at(-1)?.[0].examples).toBe(examples);
+  });
+
   test('does not overwrite user edits or stale identities and applies a current result only once', () => {
     const ready: Oas31DebugExampleState = { status: 'ready', identity: firstIdentity, examples };
     const editRevisionRef = { current: 1 };
@@ -172,6 +227,15 @@ describe('OAS 3.1 debug example effect components', () => {
     editRevisionRef.current = 0;
     reactHarness.effects.length = 0;
     Oas31DebugDefaultHydrator({ ...base, activeExamples: null, identity: secondIdentity });
+    reactHarness.effects[0]?.();
+    expect(setBody).not.toHaveBeenCalled();
+
+    reactHarness.effects.length = 0;
+    Oas31DebugDefaultHydrator({
+      ...base,
+      activeExamples: null,
+      identity: replacementIdentityAtSameAddress,
+    });
     reactHarness.effects[0]?.();
     expect(setBody).not.toHaveBeenCalled();
 

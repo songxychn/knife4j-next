@@ -1,8 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import type { OperationSchemaExamples } from '../../schema/operationSchemaExamples';
+import type { SchemaDocumentSession } from '../../schema/schemaDocumentSession';
+import type { SwaggerDoc } from '../../types/swagger';
 import { currentApiDocExamples, type ApiDocExampleIdentity, type ApiDocExampleState } from './apiDocExampleState';
 
+const document = { openapi: '3.1.1', info: { title: 'Examples', version: '1' }, paths: {} } as SwaggerDoc;
+const session = {} as SchemaDocumentSession;
 const identity: ApiDocExampleIdentity = {
+  document,
+  session,
   retrievalUri: 'https://examples.knife4j.example/openapi.json',
   operationKey: 'Pets/post',
 };
@@ -19,6 +25,8 @@ describe('ApiDoc OAS 3.1 example state', () => {
         retrievalUri: 'https://examples.knife4j.example/other.json',
       }),
     ).toBeNull();
+    expect(currentApiDocExamples(ready, { ...identity, document: { ...document } })).toBeNull();
+    expect(currentApiDocExamples(ready, { ...identity, session: {} as SchemaDocumentSession })).toBeNull();
   });
 
   test('keeps loading, failed and stale results out of the rendered example tabs', () => {

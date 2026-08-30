@@ -108,6 +108,7 @@ interface SearchContext {
   readonly referenceChain: ReadonlySet<string>;
   readonly signal?: AbortSignal;
   readonly resolvedNodes: Map<string, Promise<SchemaNode>>;
+  readonly directionalAnnotations: Map<string, boolean>;
 }
 
 const DEFAULT_LIMITS: EffectiveLimits = Object.freeze({
@@ -473,9 +474,45 @@ function primitiveCandidates(schema: { [key: string]: JsonValue }, type: string,
   return [];
 }
 
-function shouldIgnoreProperty(schema: JsonValue, direction: SchemaExampleDirection): boolean {
-  if (!isRecord(schema)) return false;
-  return direction === 'request' ? schema.readOnly === true : schema.writeOnly === true;
+async function shouldIgnoreProperty(
+  schema: JsonValue,
+  ctx: SearchContext,
+  activeReferences: ReadonlySet<string> = new Set(),
+): Promise<boolean> {
+  if (!enterNode(ctx) || !isRecord(schema)) return false;
+  const baseUri = effectiveBaseUri(schema, ctx.baseUri);
+  const localCtx = { ...ctx, baseUri };
+  if (ctx.direction === 'request' ? schema.readOnly === true : schema.writeOnly === true) return true;
+
+  for (const reference of [schema.$ref, schema.$dynamicRef, schema.$recursiveRef]) {
+    if (typeof reference !== 'string') continue;
+    const referenceUri = resolvedReferenceUri(reference, baseUri);
+    const cacheKey = referenceUri === null ? null : `${ctx.direction}\u0000${referenceUri}`;
+    if (cacheKey !== null) {
+      const cached = ctx.directionalAnnotations.get(cacheKey);
+      if (cached === true) return true;
+    }
+    if (referenceUri !== null && !activeReferences.has(referenceUri)) {
+      const resolved = await resolveNode(reference, localCtx);
+      if (resolved) {
+        const ignored = await shouldIgnoreProperty(
+          resolved.node.schema,
+          resolvedContext(localCtx, resolved.node, resolved.uri),
+          new Set(activeReferences).add(referenceUri),
+        );
+        if (cacheKey !== null && ignored) ctx.directionalAnnotations.set(cacheKey, true);
+        if (ignored) return true;
+      }
+    }
+  }
+
+  if (Array.isArray(schema.allOf)) {
+    for (const branch of schema.allOf) {
+      if (await shouldIgnoreProperty(branch, childContext(localCtx), activeReferences)) return true;
+      if (ctx.budget.exhausted) return false;
+    }
+  }
+  return false;
 }
 
 function mergeObjects(left: JsonValue, right: JsonValue): JsonValue | null {
@@ -521,10 +558,13 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
   const required = new Set(
     Array.isArray(schema.required) ? schema.required.filter((value): value is string => typeof value === 'string') : [],
   );
-  const entries = Object.entries(properties).filter(([, propertySchema]) => {
-    if (!shouldIgnoreProperty(propertySchema, ctx.direction)) return true;
-    return false;
-  });
+  const entries: Array<[string, JsonValue]> = [];
+  const ignoredProperties = new Set<string>();
+  for (const [name, propertySchema] of Object.entries(properties)) {
+    if (await shouldIgnoreProperty(propertySchema, childContext(ctx))) ignoredProperties.add(name);
+    else entries.push([name, propertySchema]);
+    if (ctx.budget.exhausted) return [];
+  }
   const requiredEntries = entries.filter(([name]) => required.has(name));
   const optionalEntries = entries.filter(([name]) => !required.has(name));
   const maxProperties =
@@ -573,7 +613,7 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
         for (const dependency of dependencies) {
           if (typeof dependency !== 'string' || Object.prototype.hasOwnProperty.call(next, dependency)) continue;
           const propertySchema = properties[dependency];
-          if (propertySchema === undefined || shouldIgnoreProperty(propertySchema, ctx.direction)) continue;
+          if (propertySchema === undefined || ignoredProperties.has(dependency)) continue;
           const [value] = await buildCandidates(propertySchema, childContext(ctx));
           if (value !== undefined) next[dependency] = cloneValue(value);
         }
@@ -876,6 +916,7 @@ export async function generateSchemaExample(
   const limits = effectiveLimits(options.limits);
   const budget: SearchBudget = { nodes: 0, references: 0, exhausted: false };
   const resolvedNodes = new Map<string, Promise<SchemaNode>>();
+  const directionalAnnotations = new Map<string, boolean>();
   let root: SchemaNode;
   try {
     root = await session.resolve(reference);
@@ -910,6 +951,7 @@ export async function generateSchemaExample(
     referenceChain: new Set([root.requestedUri, root.canonicalUri]),
     signal: options.signal,
     resolvedNodes,
+    directionalAnnotations,
   };
   const explicit = options.explicit?.[0];
   // Hyperjump canonicalizes a resource root with an empty fragment. Reusing

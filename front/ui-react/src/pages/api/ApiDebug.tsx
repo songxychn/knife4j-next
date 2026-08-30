@@ -1895,13 +1895,15 @@ export default function ApiDebug() {
   const initialBodyDefaults = isOas31 ? emptyOas31Defaults : synchronousBodyDefaults;
   const oas31ExampleIdentity = useMemo<Oas31DebugExampleIdentity | null>(
     () =>
-      isOas31 && schemaEngine.retrievalUri && operation
+      isOas31 && schemaEngine.status === 'ready' && operation && swaggerDoc
         ? {
+            document: swaggerDoc,
+            session: schemaEngine.session,
             retrievalUri: schemaEngine.retrievalUri,
             operationKey: operation.routeId ?? operation.key,
           }
         : null,
-    [isOas31, operation, schemaEngine.retrievalUri],
+    [isOas31, operation, schemaEngine, swaggerDoc],
   );
   const [oas31ExampleState, setOas31ExampleState] = useState<Oas31DebugExampleState>({ status: 'idle' });
   const activeOas31Examples = useMemo(() => {
@@ -1918,7 +1920,7 @@ export default function ApiDebug() {
         : undefined;
     const unavailableMessage =
       generationError ?? (schemaEngine.status === 'error' ? schemaEngine.error.message : undefined);
-    if (isOas31 && unavailableMessage !== undefined && swaggerDoc && operation && debugModel && oas31ExampleIdentity) {
+    if (isOas31 && unavailableMessage !== undefined && swaggerDoc && operation && debugModel) {
       return unavailableOas31DebugBodyExamples(swaggerDoc, operation, debugModel, unavailableMessage);
     }
     return null;

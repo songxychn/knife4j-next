@@ -547,13 +547,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
   const exampleIdentity = useMemo<ApiDocExampleIdentity | null>(
     () =>
-      isOas31 && schemaEngine.retrievalUri
+      isOas31 && schemaEngine.status === 'ready'
         ? {
+            document: swaggerDoc,
+            session: schemaEngine.session,
             retrievalUri: schemaEngine.retrievalUri,
             operationKey: operation.routeId ?? operation.key,
           }
         : null,
-    [isOas31, operation.key, operation.routeId, schemaEngine.retrievalUri],
+    [isOas31, operation.key, operation.routeId, schemaEngine, swaggerDoc],
   );
   const [exampleState, setExampleState] = useState<ApiDocExampleState>(IDLE_EXAMPLE_STATE);
 

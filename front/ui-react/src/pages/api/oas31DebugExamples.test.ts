@@ -114,7 +114,15 @@ describe('OAS 3.1 debug defaults', () => {
 });
 
 describe('async hydration guard', () => {
+  const identityDocument = {
+    openapi: '3.1.1',
+    info: { title: 'Identity', version: '1' },
+    paths: {},
+  } as SwaggerDoc;
+  const identitySession = {} as SchemaDocumentSession;
   const identity: Oas31DebugExampleIdentity = {
+    document: identityDocument,
+    session: identitySession,
     retrievalUri: 'https://examples.knife4j.example/debug.json',
     operationKey: 'Pets/post',
   };
@@ -158,6 +166,18 @@ describe('async hydration guard', () => {
       canHydrateOas31DebugDefaults({
         ...base,
         currentIdentity: { ...identity, retrievalUri: 'https://examples.knife4j.example/other.json' },
+      }),
+    ).toBe(false);
+    expect(
+      canHydrateOas31DebugDefaults({
+        ...base,
+        currentIdentity: { ...identity, document: { ...identityDocument } },
+      }),
+    ).toBe(false);
+    expect(
+      canHydrateOas31DebugDefaults({
+        ...base,
+        currentIdentity: { ...identity, session: {} as SchemaDocumentSession },
       }),
     ).toBe(false);
     expect(canHydrateOas31DebugDefaults({ ...base, currentIdentity: identity, currentDebugCacheKey: 'other' })).toBe(

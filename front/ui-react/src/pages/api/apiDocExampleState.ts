@@ -1,6 +1,10 @@
 import type { OperationSchemaExamples } from '../../schema/operationSchemaExamples';
+import type { SchemaDocumentSession } from '../../schema/schemaDocumentSession';
+import type { SwaggerDoc } from '../../types/swagger';
 
 export interface ApiDocExampleIdentity {
+  readonly document: SwaggerDoc;
+  readonly session: SchemaDocumentSession;
   readonly retrievalUri: string;
   readonly operationKey: string;
 }
@@ -22,6 +26,8 @@ export function sameApiDocExampleIdentity(
   return (
     left !== null &&
     right !== null &&
+    left.document === right.document &&
+    left.session === right.session &&
     left.retrievalUri === right.retrievalUri &&
     left.operationKey === right.operationKey
   );
