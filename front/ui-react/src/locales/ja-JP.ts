@@ -108,6 +108,16 @@ const jaJP = {
   'schema.flag.writeOnly': '書き込み専用',
   'schema.flag.truncated': '省略',
   'schema.resizeColumn': '列幅を調整',
+  'schema.projection.loading.title': 'OAS 3.1 データモデルを解析しています',
+  'schema.projection.loading.description':
+    '現在は互換フィールドツリーを表示しており、解析が完了すると自動的に更新されます。',
+  'schema.projection.degraded.title': '一部の OAS 3.1 データモデルを縮退表示しています',
+  'schema.projection.engineFallback.description':
+    'SchemaEngine の初期化に失敗したため、互換フィールドツリーを維持しています。元の Schema は変更されていません。',
+  'schema.projection.projectionFallback.description':
+    'データモデルの投影に失敗したため、互換フィールドツリーを維持しています。元の Schema は変更されていません。',
+  'schema.projection.degraded.description':
+    '{{modelCount}} 件のモデルに、フィールドツリーへ完全には投影できない {{count}} 件のセマンティクスがあります（モデル：{{models}}、キーワード：{{keywords}}）。元の Schema は変更されていません。',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API ドキュメントが見つかりません',

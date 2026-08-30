@@ -1,53 +1,80 @@
-import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
-import { Collapse, Empty, Input, Result, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Collapse, Empty, Input, Result, Space, Spin, Tag, Typography } from 'antd';
+import type { TFunction } from 'i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SchemaFieldTable from '../components/schema/SchemaFieldTable';
-import { normalizeGenericTitle } from '../components/schema/schemaUtils';
 import { useGroup } from '../context/GroupContext';
+import { useSchemaEngine } from '../context/SchemaEngineContext';
 import { useSettings } from '../context/SettingsContext';
-import type { SchemaObject, SwaggerDoc } from '../types/swagger';
 import DescriptionText from '../components/DescriptionText';
+import { isOas31SchemaDocument } from '../schema/schemaDocumentSession';
+import { createSchemaDisplayProjector } from '../schema/schemaDisplayProjection';
+import { buildLegacySchemaModels, projectSchemaModels } from '../schema/schemaModelProjection';
+import {
+  selectSchemaModelView,
+  type SchemaModelViewNotice,
+  type SchemaModelsProjectionState,
+} from '../schema/schemaModelViewState';
 import { resolveSchemaActiveKeys } from './schemaActiveKeys';
 
 const { Title, Text } = Typography;
 
-interface ModelDef {
-  name: string;
-  title?: string;
-  description?: string;
-  fields: SchemaFieldNode[];
-}
+const IDLE_PROJECTION_STATE: SchemaModelsProjectionState = Object.freeze({ status: 'idle' });
 
 function modelDomId(name: string): string {
   return `schema-${encodeURIComponent(name)}`;
 }
 
-function schemaToFields(schema: SchemaObject, swaggerDoc: SwaggerDoc): SchemaFieldNode[] {
-  return buildSchemaFieldTree(schema as Record<string, unknown>, {
-    doc: swaggerDoc as unknown as Record<string, unknown>,
-    maxDepth: 8,
-  });
+function projectionErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unable to project OAS 3.1 data models.';
 }
 
-function schemasToModels(schemas: Record<string, SchemaObject>, swaggerDoc: SwaggerDoc): ModelDef[] {
-  return Object.entries(schemas).map(([name, schema]) => ({
-    name,
-    title: normalizeGenericTitle(schema.title),
-    description: schema.description,
-    fields: schemaToFields(schema, swaggerDoc),
-  }));
+function projectionNoticeContent(notice: SchemaModelViewNotice, t: TFunction) {
+  if (notice.kind === 'loading') {
+    return {
+      type: 'info' as const,
+      title: t('schema.projection.loading.title'),
+      description: t('schema.projection.loading.description'),
+    };
+  }
+  if (notice.kind === 'fallback') {
+    return {
+      type: 'warning' as const,
+      title: t('schema.projection.degraded.title'),
+      description: t(
+        notice.reason === 'engine'
+          ? 'schema.projection.engineFallback.description'
+          : 'schema.projection.projectionFallback.description',
+      ),
+    };
+  }
+  const visibleModels = notice.models.slice(0, 5);
+  const modelNames = `${visibleModels.join(', ')}${notice.models.length > visibleModels.length ? ', …' : ''}`;
+  const visibleKeywords = notice.keywords.slice(0, 5);
+  const keywords = `${visibleKeywords.join(', ')}${notice.keywords.length > visibleKeywords.length ? ', …' : ''}`;
+  return {
+    type: 'warning' as const,
+    title: t('schema.projection.degraded.title'),
+    description: t('schema.projection.degraded.description', {
+      count: notice.issueCount,
+      modelCount: notice.modelCount,
+      models: modelNames,
+      keywords,
+    }),
+  };
 }
 
 export default function Schema() {
   const { t } = useTranslation();
   const { group: routeGroup, schemaName } = useParams<{ group?: string; schemaName?: string }>();
   const { schemas, swaggerDoc, loading, activeGroup } = useGroup();
+  const schemaEngine = useSchemaEngine();
   const { settings } = useSettings();
   const navigate = useNavigate();
   const selectedSchemaName = schemaName ? decodeURIComponent(schemaName) : undefined;
   const [searchText, setSearchText] = useState('');
+  const [projectionState, setProjectionState] = useState<SchemaModelsProjectionState>(IDLE_PROJECTION_STATE);
 
   // Route guard: when enableSwaggerModels=false, redirect away from schema page.
   // Prefer the route's :group param (always present on /:group/schema), then fall
@@ -65,10 +92,46 @@ export default function Schema() {
     }
   }, [settings.enableSwaggerModels, routeGroup, activeGroup.value, navigate]);
 
-  const models: ModelDef[] = useMemo(() => {
+  const legacyModels = useMemo(() => {
     if (loading || !swaggerDoc || settings.enableSwaggerModels === false) return [];
-    return schemasToModels(schemas, swaggerDoc);
+    return buildLegacySchemaModels(schemas, swaggerDoc);
   }, [loading, schemas, swaggerDoc, settings.enableSwaggerModels]);
+
+  const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  useEffect(() => {
+    if (!isOas31 || !swaggerDoc || settings.enableSwaggerModels === false || schemaEngine.status !== 'ready') {
+      setProjectionState(IDLE_PROJECTION_STATE);
+      return;
+    }
+
+    const controller = new AbortController();
+    const retrievalUri = schemaEngine.retrievalUri;
+    const projector = createSchemaDisplayProjector(schemaEngine.session);
+    setProjectionState({ status: 'loading', retrievalUri });
+    projectSchemaModels(schemas, swaggerDoc, projector, { signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) setProjectionState({ status: 'ready', retrievalUri, result });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return;
+        setProjectionState({ status: 'error', retrievalUri, message: projectionErrorMessage(error) });
+      });
+
+    return () => controller.abort();
+  }, [isOas31, schemaEngine, schemas, settings.enableSwaggerModels, swaggerDoc]);
+
+  const { models, notice: projectionNotice } = useMemo(
+    () =>
+      selectSchemaModelView({
+        isOas31,
+        engineStatus: schemaEngine.status,
+        retrievalUri: schemaEngine.retrievalUri,
+        projectionState,
+        legacyModels,
+      }),
+    [isOas31, legacyModels, projectionState, schemaEngine.retrievalUri, schemaEngine.status],
+  );
+  const noticeContent = projectionNotice ? projectionNoticeContent(projectionNotice, t) : null;
 
   const filteredModels = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -144,6 +207,16 @@ export default function Schema() {
           style={{ width: 280 }}
         />
       </Space>
+
+      {noticeContent && (
+        <Alert
+          showIcon
+          type={noticeContent.type}
+          message={noticeContent.title}
+          description={noticeContent.description}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {loading ? (
         <Spin />

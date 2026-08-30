@@ -103,6 +103,13 @@ const zhCN = {
   'schema.flag.writeOnly': '只写',
   'schema.flag.truncated': '已截断',
   'schema.resizeColumn': '调整列宽',
+  'schema.projection.loading.title': '正在解析 OAS 3.1 数据模型',
+  'schema.projection.loading.description': '当前暂时显示兼容字段树，解析完成后会自动更新。',
+  'schema.projection.degraded.title': '部分 OAS 3.1 数据模型已降级显示',
+  'schema.projection.engineFallback.description': 'SchemaEngine 初始化失败，当前保留兼容字段树；原始 Schema 未被修改。',
+  'schema.projection.projectionFallback.description': '数据模型投影失败，当前保留兼容字段树；原始 Schema 未被修改。',
+  'schema.projection.degraded.description':
+    '{{modelCount}} 个模型包含 {{count}} 项无法完整投影为字段树的语义（模型：{{models}}；关键字：{{keywords}}）；原始 Schema 未被修改。',
 
   // ApiDoc
   'apiDoc.notFound.title': '未找到接口文档',
