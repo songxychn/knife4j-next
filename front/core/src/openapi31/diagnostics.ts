@@ -76,6 +76,7 @@ export type Oas31DocumentDiagnosticCode =
   | 'path-item-reference-conflict'
   | 'path-item-reference-cycle'
   | 'reference-cycle'
+  | 'reference-depth-exceeded'
   | 'reference-target-type-mismatch'
   | 'unresolved-local-reference'
   | 'duplicate-parameter'
@@ -240,6 +241,7 @@ export function collectOas31DocumentDiagnostics(document: unknown): Oas31Documen
       for (let depth = 0; currentRef && depth < 20; depth++) {
         if (seen.has(currentRef)) {
           add('reference-cycle', `${path}/$ref`, 'Reference Object 的本地引用形成循环', currentRef);
+          currentRef = undefined;
           break;
         }
         seen.add(currentRef);
@@ -260,6 +262,7 @@ export function collectOas31DocumentDiagnostics(document: unknown): Oas31Documen
             'Reference Object 的本地引用链包含不存在或非法的目标',
             currentRef,
           );
+          currentRef = undefined;
           break;
         }
         if (!isRecord(target.value)) {
@@ -269,10 +272,14 @@ export function collectOas31DocumentDiagnostics(document: unknown): Oas31Documen
             `Reference Object 需要指向 ${targetKind} 对象，但引用链目标不是对象`,
             currentRef,
           );
+          currentRef = undefined;
           break;
         }
-        if (typeof target.value.$ref !== 'string') break;
-        currentRef = target.value.$ref.startsWith('#') ? target.value.$ref : undefined;
+        currentRef =
+          typeof target.value.$ref === 'string' && target.value.$ref.startsWith('#') ? target.value.$ref : undefined;
+      }
+      if (currentRef) {
+        add('reference-depth-exceeded', `${path}/$ref`, 'Reference Object 的本地引用链超过安全解析深度', currentRef);
       }
     }
     Object.keys(reference).forEach((key) => {

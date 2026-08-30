@@ -25,7 +25,12 @@ vi.mock('../context/GroupContext', () => ({
   useGroup: vi.fn(),
 }));
 
-import { createAuthAsyncCommitGuard, getAuthFormDraft, securitySchemeUiKind } from './Authorize';
+import {
+  createAuthAsyncCommitGuard,
+  extractSecuritySchemes,
+  getAuthFormDraft,
+  securitySchemeUiKind,
+} from './Authorize';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -96,5 +101,26 @@ describe('Authorize persisted-value projection', () => {
 describe('Authorize OAS 3.1 security schemes', () => {
   it('recognizes mutualTLS as externally configured rather than a credential form', () => {
     expect(securitySchemeUiKind({ type: 'mutualTLS' })).toBe('mutualTLS');
+  });
+
+  it('resolves local security scheme aliases and skips unsafe references', () => {
+    expect(
+      extractSecuritySchemes({
+        openapi: '3.1.2',
+        components: {
+          securitySchemes: {
+            ClientCertificate: { type: 'mutualTLS', description: 'target description' },
+            Alias: {
+              $ref: '#/components/securitySchemes/ClientCertificate',
+              description: 'alias description',
+            },
+            Missing: { $ref: '#/components/securitySchemes/MissingTarget' },
+          },
+        },
+      }),
+    ).toEqual({
+      ClientCertificate: { type: 'mutualTLS', description: 'target description' },
+      Alias: { type: 'mutualTLS', description: 'alias description' },
+    });
   });
 });

@@ -279,6 +279,30 @@ describe('OAS 3.1 Reference and Path Item resolution', () => {
       responses: { 200: {}, 201: {} },
     });
   });
+
+  test('diagnoses Reference Object chains that exceed the safe resolution depth', () => {
+    const responses: Record<string, Record<string, unknown>> = Object.fromEntries(
+      Array.from({ length: 21 }, (_, index) => [
+        `Response${index}`,
+        { $ref: `#/components/responses/Response${index + 1}` },
+      ]),
+    );
+    responses.Response21 = { description: 'terminal response' };
+    const document = {
+      openapi: '3.1.2',
+      info: { title: 'Deep references', version: '1.0.0' },
+      components: { responses },
+    };
+
+    expect(collectOas31DocumentDiagnostics(document)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'reference-depth-exceeded',
+          path: '#/components/responses/Response0/$ref',
+        }),
+      ]),
+    );
+  });
 });
 
 describe('OAS 3.1 document diagnostics', () => {

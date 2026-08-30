@@ -4,19 +4,38 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 import type { SecuritySchemeObject, OAuth2Flow } from '../types/swagger';
-import type { SchemeValue } from 'knife4j-core';
+import { dereferenceOasReferenceObject, isOpenApi31Version, type SchemeValue } from 'knife4j-core';
 import { KNIFE4J_STORAGE_PREFIXES, setKnife4jSessionStorageItem } from '../storage/knife4jStorage';
 
 const { Text } = Typography;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 /** 从 SwaggerDoc 提取安全方案（兼容 OAS3 + OAS2） */
-function extractSecuritySchemes(swaggerDoc: Record<string, unknown> | null): Record<string, SecuritySchemeObject> {
+// eslint-disable-next-line react-refresh/only-export-components
+export function extractSecuritySchemes(
+  swaggerDoc: Record<string, unknown> | null,
+): Record<string, SecuritySchemeObject> {
   if (!swaggerDoc) return {};
   // OAS3: components.securitySchemes
-  const oas3 = (swaggerDoc as { components?: { securitySchemes?: Record<string, SecuritySchemeObject> } }).components
-    ?.securitySchemes;
+  const components = isRecord(swaggerDoc.components) ? swaggerDoc.components : null;
+  const rawOas3 = components && isRecord(components.securitySchemes) ? components.securitySchemes : null;
   // OAS2: securityDefinitions
   const oas2 = (swaggerDoc as { securityDefinitions?: Record<string, SecuritySchemeObject> }).securityDefinitions;
+
+  if (!isOpenApi31Version(swaggerDoc.openapi)) {
+    return { ...(rawOas3 as Record<string, SecuritySchemeObject> | null), ...oas2 };
+  }
+
+  const oas3: Record<string, SecuritySchemeObject> = {};
+  Object.entries(rawOas3 ?? {}).forEach(([name, value]) => {
+    if (!isRecord(value)) return;
+    const resolved = dereferenceOasReferenceObject(value, swaggerDoc, 20, 'securityScheme');
+    if (typeof resolved.$ref === 'string' || typeof resolved.type !== 'string') return;
+    oas3[name] = resolved as unknown as SecuritySchemeObject;
+  });
   return { ...oas3, ...oas2 };
 }
 
