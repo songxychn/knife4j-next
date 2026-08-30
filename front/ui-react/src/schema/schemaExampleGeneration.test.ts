@@ -136,6 +136,27 @@ describe('authored example priority', () => {
     expect(cloneSpy.mock.calls.length).toBeLessThanOrEqual(3);
   });
 
+  test('shares the authored candidate bound across unconditional allOf branches', async () => {
+    const branchCount = 1000;
+    const session = await sessionFor({
+      Many: {
+        allOf: Array.from({ length: branchCount }, (_, index) => ({ examples: [index] })),
+      },
+    });
+    const cloneSpy = vi.spyOn(globalThis, 'structuredClone');
+
+    await expect(
+      generateSchemaExample(session, reference('Many'), {
+        direction: 'request',
+        limits: { maxCandidates: 1 },
+      }),
+    ).resolves.toMatchObject({ status: 'value', source: 'schema-examples', value: 0 });
+
+    // A valid Hyperjump result clones each branch annotation once. The
+    // collector itself may only clone its single retained top-K value.
+    expect(cloneSpy.mock.calls.length).toBeLessThanOrEqual(branchCount + 3);
+  });
+
   test('finds annotations through an id and anchor reference without local pointer guessing', async () => {
     const session = await sessionFor({
       Container: {
@@ -532,6 +553,167 @@ describe('bounded structural candidates', () => {
     ).resolves.toMatchObject({ valid: true });
     await expect(
       evaluateSchemaDocumentDirectionally(session, schemaReference, responseValue, 'response'),
+    ).resolves.toMatchObject({ valid: true });
+  });
+
+  test('keeps distinct effective dynamic scopes isolated in shared templates', async () => {
+    const session = await sessionFor({
+      SharedSlot: {
+        $id: 'https://scope-cache.knife4j.example/slot',
+        $dynamicAnchor: 'slot',
+        type: 'string',
+      },
+      SharedTemplate: {
+        $id: 'https://scope-cache.knife4j.example/template',
+        type: 'object',
+        required: ['value'],
+        properties: {
+          value: { $dynamicRef: 'https://scope-cache.knife4j.example/slot#slot' },
+        },
+        additionalProperties: false,
+      },
+      ReadOnlyCaller: {
+        $id: 'https://scope-cache.knife4j.example/read-only',
+        $ref: 'https://scope-cache.knife4j.example/template',
+        $defs: {
+          OverrideSlot: {
+            $dynamicAnchor: 'slot',
+            type: 'string',
+            readOnly: true,
+          },
+        },
+      },
+      PlainCaller: {
+        $id: 'https://scope-cache.knife4j.example/plain',
+        $ref: 'https://scope-cache.knife4j.example/template',
+      },
+      DynamicScopeContainer: {
+        type: 'object',
+        required: ['readOnly', 'plain'],
+        properties: {
+          readOnly: { $ref: 'https://scope-cache.knife4j.example/read-only' },
+          plain: { $ref: 'https://scope-cache.knife4j.example/plain' },
+        },
+        additionalProperties: false,
+      },
+    });
+
+    const schemaReference = reference('DynamicScopeContainer');
+    const requestValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'request' }),
+    );
+
+    expect(requestValue).toEqual({ readOnly: {}, plain: { value: '' } });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, requestValue, 'request'),
+    ).resolves.toMatchObject({ valid: true });
+  });
+
+  test('loads dynamic anchors when allOf enters an embedded id resource', async () => {
+    const session = await sessionFor({
+      DynamicSlot: {
+        $id: 'https://embedded.knife4j.example/slot',
+        $dynamicAnchor: 'slot',
+        type: 'string',
+      },
+      DynamicTemplate: {
+        $id: 'https://embedded.knife4j.example/template',
+        type: 'object',
+        required: ['value'],
+        properties: {
+          value: { $dynamicRef: 'https://embedded.knife4j.example/slot#slot' },
+        },
+        additionalProperties: false,
+      },
+      DynamicContainer: {
+        allOf: [
+          {
+            $id: 'https://embedded.knife4j.example/override',
+            $ref: 'https://embedded.knife4j.example/template',
+            $defs: {
+              OverrideSlot: {
+                $dynamicAnchor: 'slot',
+                type: 'string',
+                readOnly: true,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const schemaReference = reference('DynamicContainer');
+    const requestValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'request' }),
+    );
+    const responseValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'response' }),
+    );
+
+    expect(requestValue).toEqual({});
+    expect(responseValue).toEqual({ value: '' });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, requestValue, 'request'),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, responseValue, 'response'),
+    ).resolves.toMatchObject({ valid: true });
+  });
+
+  test('uses a root dynamic-anchor override during recursive directional analysis', async () => {
+    const session = await sessionFor({
+      DynamicTree: {
+        $id: 'https://recursive.knife4j.example/tree',
+        $dynamicAnchor: 'node',
+        type: 'object',
+        required: ['child'],
+        properties: { child: { $dynamicRef: '#node' } },
+        additionalProperties: false,
+      },
+      StrictDynamicTree: {
+        $id: 'https://recursive.knife4j.example/strict',
+        $dynamicAnchor: 'node',
+        readOnly: true,
+        $ref: 'https://recursive.knife4j.example/tree',
+      },
+    });
+
+    const schemaReference = reference('StrictDynamicTree');
+    const requestValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'request' }),
+    );
+
+    expect(requestValue).toEqual({});
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, requestValue, 'request'),
+    ).resolves.toMatchObject({ valid: true });
+  });
+
+  test('does not cache cycle-tainted directional annotation misses', async () => {
+    const session = await sessionFor({
+      CyclicA: {
+        $ref: '#/components/schemas/CyclicB',
+        allOf: [{ readOnly: true }],
+      },
+      CyclicB: { $ref: '#/components/schemas/CyclicA' },
+      CyclicContainer: {
+        type: 'object',
+        required: ['first', 'second'],
+        properties: {
+          first: { $ref: '#/components/schemas/CyclicA' },
+          second: { $ref: '#/components/schemas/CyclicB' },
+        },
+        additionalProperties: false,
+      },
+    });
+    const schemaReference = reference('CyclicContainer');
+    const requestValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, schemaReference, { direction: 'request' }),
+    );
+
+    expect(requestValue).toEqual({});
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, schemaReference, requestValue, 'request'),
     ).resolves.toMatchObject({ valid: true });
   });
 

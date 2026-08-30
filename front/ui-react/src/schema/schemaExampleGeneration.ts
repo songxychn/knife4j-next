@@ -92,6 +92,16 @@ interface AuthoredCandidate {
   readonly depth: number;
 }
 
+interface CollectedAuthoredCandidate extends AuthoredCandidate {
+  readonly order: number;
+}
+
+interface AuthoredCandidateCollector {
+  readonly limit: number;
+  readonly candidates: CollectedAuthoredCandidate[];
+  nextOrder: number;
+}
+
 interface SearchBudget {
   nodes: number;
   references: number;
@@ -330,10 +340,81 @@ function localAuthoredCandidates(
   return candidates;
 }
 
-async function resolveNode(reference: string, ctx: SearchContext): Promise<{ uri: string; node: SchemaNode } | null> {
+function compareAuthoredCandidates(left: CollectedAuthoredCandidate, right: CollectedAuthoredCandidate): number {
+  return left.rank - right.rank || left.depth - right.depth || left.order - right.order;
+}
+
+function worstAuthoredCandidate(collector: AuthoredCandidateCollector): CollectedAuthoredCandidate | undefined {
+  let worst: CollectedAuthoredCandidate | undefined;
+  for (const candidate of collector.candidates) {
+    if (worst === undefined || compareAuthoredCandidates(candidate, worst) > 0) worst = candidate;
+  }
+  return worst;
+}
+
+function authoredCandidateCanImprove(collector: AuthoredCandidateCollector, rank: number, depth: number): boolean {
+  if (collector.candidates.length < collector.limit) return true;
+  const worst = worstAuthoredCandidate(collector);
+  return (
+    worst !== undefined &&
+    compareAuthoredCandidates(
+      { source: 'schema-examples', value: null, rank, depth, order: collector.nextOrder },
+      worst,
+    ) < 0
+  );
+}
+
+function collectLocalAuthoredCandidates(
+  schema: { [key: string]: JsonValue },
+  depth: number,
+  collector: AuthoredCandidateCollector,
+): void {
+  const append = (source: AuthoredCandidate['source'], value: unknown): boolean => {
+    const rank = AUTHOR_SOURCE_RANK[source];
+    if (!authoredCandidateCanImprove(collector, rank, depth)) return false;
+    if (!isJsonValue(value)) return true;
+    const candidate: CollectedAuthoredCandidate = {
+      source,
+      value,
+      rank,
+      depth,
+      order: collector.nextOrder,
+    };
+    collector.nextOrder += 1;
+    if (collector.candidates.length < collector.limit) {
+      collector.candidates.push(candidate);
+      return true;
+    }
+    const worst = worstAuthoredCandidate(collector);
+    if (worst !== undefined && compareAuthoredCandidates(candidate, worst) < 0) {
+      collector.candidates[collector.candidates.indexOf(worst)] = candidate;
+    }
+    return true;
+  };
+
+  if (Array.isArray(schema.examples)) {
+    for (const value of schema.examples) {
+      if (!append('schema-examples', value)) return;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(schema, 'example') && !append('schema-example', schema.example)) return;
+  if (Object.prototype.hasOwnProperty.call(schema, 'const') && !append('const', schema.const)) return;
+  if (Object.prototype.hasOwnProperty.call(schema, 'default') && !append('default', schema.default)) return;
+  if (Array.isArray(schema.enum)) {
+    for (const value of schema.enum) {
+      if (!append('enum', value)) return;
+    }
+  }
+}
+
+async function resolveNode(
+  reference: string,
+  ctx: SearchContext,
+  allowReferenceCycle = false,
+): Promise<{ uri: string; node: SchemaNode } | null> {
   throwIfAborted(ctx.signal);
   const uri = resolvedReferenceUri(reference, ctx.baseUri);
-  if (!uri || ctx.referenceChain.has(uri)) return null;
+  if (!uri || (!allowReferenceCycle && ctx.referenceChain.has(uri))) return null;
   ctx.budget.references += 1;
   if (ctx.budget.references > ctx.limits.maxReferences) {
     ctx.budget.exhausted = true;
@@ -351,13 +432,24 @@ async function resolveNode(reference: string, ctx: SearchContext): Promise<{ uri
   try {
     const node = await pending;
     throwIfAborted(ctx.signal);
-    if (ctx.referenceChain.has(node.canonicalUri)) return null;
+    if (!allowReferenceCycle && ctx.referenceChain.has(node.canonicalUri)) return null;
     ctx.dynamicAnchorsByResource.set(node.resourceUri, node.dynamicAnchors);
     return { uri, node };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error;
     return null;
   }
+}
+
+async function ensureEmbeddedDynamicAnchors(
+  schema: { [key: string]: JsonValue },
+  ctx: SearchContext,
+  baseUri: string,
+): Promise<void> {
+  if (ctx.baseAlreadyIncludesOwnId || typeof schema.$id !== 'string') return;
+  const resource = resourceUri(baseUri);
+  if (ctx.dynamicAnchorsByResource.has(resource)) return;
+  await resolveNode(resource, ctx, true);
 }
 
 function referenceAnchor(referenceUri: string): string | null {
@@ -374,8 +466,9 @@ async function resolveSchemaReference(
   reference: string,
   ctx: SearchContext,
   dynamic: boolean,
+  allowReferenceCycle = false,
 ): Promise<{ uri: string; node: SchemaNode } | null> {
-  const resolved = await resolveNode(reference, ctx);
+  const resolved = await resolveNode(reference, ctx, allowReferenceCycle);
   if (!resolved || !dynamic) return resolved;
   const anchor = referenceAnchor(resolved.uri);
   if (!anchor || !Object.prototype.hasOwnProperty.call(resolved.node.dynamicAnchors, anchor)) return resolved;
@@ -383,50 +476,70 @@ async function resolveSchemaReference(
   for (const scopeResource of ctx.dynamicScope) {
     const overrideUri = ctx.dynamicAnchorsByResource.get(scopeResource)?.[anchor];
     if (!overrideUri || overrideUri === resolved.node.canonicalUri) continue;
-    const override = await resolveNode(overrideUri, ctx);
+    const override = await resolveNode(overrideUri, ctx, allowReferenceCycle);
     if (override) return override;
   }
   return resolved;
 }
 
-async function collectRootAuthoredCandidates(
+async function visitRootAuthoredCandidates(
   schema: JsonValue,
   ctx: SearchContext,
+  collector: AuthoredCandidateCollector,
   depth = 0,
-): Promise<AuthoredCandidate[]> {
+): Promise<void> {
   throwIfAborted(ctx.signal);
-  if (!isRecord(schema) || depth > ctx.limits.maxDepth) return [];
+  if (
+    !isRecord(schema) ||
+    depth > ctx.limits.maxDepth ||
+    !authoredCandidateCanImprove(collector, AUTHOR_SOURCE_RANK['schema-examples'], depth)
+  ) {
+    return;
+  }
   const baseUri = effectiveBaseUri(schema, ctx);
+  await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
   const localCtx = {
     ...ctx,
     baseUri,
     baseAlreadyIncludesOwnId: true,
     dynamicScope: dynamicScopeWithBase(ctx, baseUri),
   };
-  const candidates = localAuthoredCandidates(schema, depth, ctx.limits.maxCandidates);
+  collectLocalAuthoredCandidates(schema, depth, collector);
   const referenceKeyword =
     typeof schema.$ref === 'string' ? '$ref' : typeof schema.$dynamicRef === 'string' ? '$dynamicRef' : null;
-  if (referenceKeyword) {
+  if (referenceKeyword && authoredCandidateCanImprove(collector, AUTHOR_SOURCE_RANK['schema-examples'], depth + 1)) {
     const reference = schema[referenceKeyword] as string;
     const resolved = await resolveSchemaReference(reference, localCtx, referenceKeyword === '$dynamicRef');
     if (resolved) {
-      candidates.push(
-        ...(await collectRootAuthoredCandidates(
-          resolved.node.schema,
-          resolvedContext(localCtx, resolved.node, resolved.uri),
-          depth + 1,
-        )),
+      await visitRootAuthoredCandidates(
+        resolved.node.schema,
+        resolvedContext(localCtx, resolved.node, resolved.uri),
+        collector,
+        depth + 1,
       );
     }
   }
   if (Array.isArray(schema.allOf)) {
     for (const branch of schema.allOf) {
-      candidates.push(...(await collectRootAuthoredCandidates(branch, childContext(localCtx), depth + 1)));
+      if (!authoredCandidateCanImprove(collector, AUTHOR_SOURCE_RANK['schema-examples'], depth + 1)) break;
+      await visitRootAuthoredCandidates(branch, childContext(localCtx), collector, depth + 1);
     }
   }
-  return candidates
-    .sort((left, right) => left.rank - right.rank || left.depth - right.depth)
-    .slice(0, ctx.limits.maxCandidates);
+}
+
+async function collectRootAuthoredCandidates(schema: JsonValue, ctx: SearchContext): Promise<AuthoredCandidate[]> {
+  const collector: AuthoredCandidateCollector = {
+    limit: ctx.limits.maxCandidates,
+    candidates: [],
+    nextOrder: 0,
+  };
+  await visitRootAuthoredCandidates(schema, ctx, collector);
+  return collector.candidates.sort(compareAuthoredCandidates).map((candidate) => ({
+    source: candidate.source,
+    value: cloneValue(candidate.value),
+    rank: candidate.rank,
+    depth: candidate.depth,
+  }));
 }
 
 function normalizedTypes(schema: { [key: string]: JsonValue }): string[] {
@@ -548,6 +661,7 @@ async function shouldIgnoreProperty(
 ): Promise<boolean> {
   if (!enterNode(ctx) || !isRecord(schema)) return false;
   const baseUri = effectiveBaseUri(schema, ctx);
+  await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
   const localCtx = {
     ...ctx,
     baseUri,
@@ -571,7 +685,7 @@ async function shouldIgnoreProperty(
       if (cached === true) return true;
     }
     if (referenceUri !== null && !activeReferences.has(referenceUri)) {
-      const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef');
+      const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef', true);
       if (resolved) {
         const ignored = await shouldIgnoreProperty(
           resolved.node.schema,
@@ -610,6 +724,7 @@ async function directionalPropertyNames(
 ): Promise<ReadonlySet<string>> {
   if (!isRecord(schema)) return new Set();
   const baseUri = effectiveBaseUri(schema, ctx);
+  await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
   const localCtx = {
     ...ctx,
     baseUri,
@@ -636,7 +751,7 @@ async function directionalPropertyNames(
     ['$recursiveRef', schema.$recursiveRef],
   ] as const) {
     if (typeof reference !== 'string') continue;
-    const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef');
+    const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef', true);
     if (!resolved) continue;
     const resolvedNames = await directionalPropertyNames(
       resolved.node.schema,
@@ -899,6 +1014,7 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
   if (!isRecord(schema)) return [];
 
   const baseUri = effectiveBaseUri(schema, ctx);
+  await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
   const localCtx = {
     ...ctx,
     baseUri,
