@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# agent-status.sh — 查看 GitHub Issues 驱动的任务看板
 # 用法: ./tools/agent-status.sh [ready|in-progress|review|blocked|all|snapshot]
-# 仓库：GH_REPO / GITHUB_REPOSITORY → gh repo view → 默认 songxychn/knife4j-next
 
 set -euo pipefail
+
+mode="${1:-all}"
+case "$mode" in
+  ready|in-progress|review|blocked|all|snapshot) ;;
+  *)
+    echo "Usage: $0 [ready|in-progress|review|blocked|all|snapshot]" >&2
+    exit 2
+    ;;
+esac
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "GitHub CLI 'gh' is required." >&2
@@ -11,112 +18,103 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 if [ -n "${GH_REPO:-}" ]; then
-  REPO="$GH_REPO"
+  repo="$GH_REPO"
 elif [ -n "${GITHUB_REPOSITORY:-}" ]; then
-  REPO="$GITHUB_REPOSITORY"
+  repo="$GITHUB_REPOSITORY"
 else
-  REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
+  repo="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
 fi
-REPO="${REPO:-songxychn/knife4j-next}"
-STATUS="${1:-all}"
+[ -n "$repo" ] || { echo "Unable to resolve GitHub repository." >&2; exit 1; }
 
-# 颜色
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-status_color() {
-  case "$1" in
-    ready)        echo -e "$GREEN" ;;
-    in-progress)  echo -e "$YELLOW" ;;
-    review)       echo -e "$BLUE" ;;
-    blocked)      echo -e "$RED" ;;
-    *)            echo -e "$CYAN" ;;
-  esac
-}
+issues_tsv="$(
+  gh issue list \
+    --repo "$repo" \
+    --label agent-task \
+    --state open \
+    --limit 1000 \
+    --json number,title,labels \
+    --jq '.[] | [.number, .title, ([.labels[].name | select(startswith("status:"))][0] // ""), ([.labels[].name | select(startswith("area:"))] | join(","))] | @tsv'
+)"
 
 print_status_group() {
-  local st="$1"
-  local color
-  color=$(status_color "$st")
-  echo -e "\n${color}━━━ status:${st} ━━━${NC}"
+  local status=$1
+  local found=false
+  local number title status_label area
 
-  local issues
-  issues=$(gh issue list --repo "$REPO" --label "agent-task" --label "status:${st}" --state open --json number,title,labels --jq '.[] | "\(.number)|\(.title)|\([.labels[].name | select(startswith("area:"))] | join(","))"' 2>/dev/null || true)
+  printf '\n=== status:%s ===\n' "$status"
+  while IFS=$'\t' read -r number title status_label area; do
+    [ -n "$number" ] || continue
+    [ "$status_label" = "status:$status" ] || continue
+    found=true
+    printf '  #%-4s %-20s %s\n' "$number" "[${area:-?}]" "$title"
+  done <<< "$issues_tsv"
 
-  if [ -z "$issues" ]; then
+  if [ "$found" = false ]; then
     echo "  (none)"
-    return
   fi
-
-  while IFS='|' read -r num title area; do
-    printf "  #%-4s %-8s %s\n" "$num" "[${area:-?}]" "$title"
-  done <<< "$issues"
 }
 
 print_git_snapshot() {
-  echo -e "${CYAN}━━━ git snapshot ━━━${NC}"
-  echo "repo: $REPO"
+  local branch head worktree
+  branch="$(git branch --show-current)"
+  head="$(git rev-parse --short HEAD)"
+  worktree="$(git status --short)"
 
-  local branch
-  branch=$(git branch --show-current 2>/dev/null || true)
-  if [ -z "$branch" ]; then
-    branch="(detached HEAD)"
-  fi
-  echo "branch: $branch"
-
-  local head
-  head=$(git rev-parse --short HEAD 2>/dev/null || true)
-  echo "head: ${head:-unknown}"
-
-  local status
-  status=$(git status --short 2>/dev/null || true)
-  if [ -z "$status" ]; then
+  echo "=== git snapshot ==="
+  echo "repo: $repo"
+  echo "branch: ${branch:-(detached HEAD)}"
+  echo "head: $head"
+  if [ -z "$worktree" ]; then
     echo "worktree: clean"
   else
     echo "worktree:"
-    echo "$status" | sed 's/^/  /'
+    printf '%s\n' "$worktree" | sed 's/^/  /'
   fi
 }
 
 print_pr_snapshot() {
-  echo -e "\n${CYAN}━━━ github snapshot ━━━${NC}"
+  local branch current_pr
+  branch="$(git branch --show-current)"
 
-  local current_pr
-  current_pr=$(gh pr view --repo "$REPO" --json number,title,state,url --jq '"#\(.number) \(.state) \(.title) \(.url)"' 2>/dev/null || true)
-  if [ -n "$current_pr" ]; then
-    echo "current PR: $current_pr"
-    echo "checks:"
-    gh pr checks --repo "$REPO" 2>/dev/null | sed 's/^/  /' || true
-  else
+  echo
+  echo "=== github snapshot ==="
+  if [ -z "$branch" ]; then
+    echo "current PR: (none for detached HEAD)"
+    return
+  fi
+
+  current_pr="$(
+    gh pr list \
+      --repo "$repo" \
+      --head "$branch" \
+      --state all \
+      --limit 1 \
+      --json number,title,state,url,statusCheckRollup \
+      --jq '.[0] | if . == null then empty else "#\(.number) \(.state) \(.title) \(.url)\n" + ((.statusCheckRollup // []) | map(if .__typename == "CheckRun" then "  \(.name): " + (if .status != "COMPLETED" then (.status | ascii_downcase) else ((.conclusion // "UNKNOWN") | ascii_downcase) end) else "  \(.context): \((.state // "UNKNOWN") | ascii_downcase)" end) | join("\n")) end'
+  )"
+
+  if [ -z "$current_pr" ]; then
     echo "current PR: (none for current branch)"
+  else
+    echo "current PR:"
+    printf '%s\n' "$current_pr" | sed 's/^/  /'
   fi
 }
 
-print_snapshot() {
-  print_git_snapshot
-  print_pr_snapshot
-  print_status_group "in-progress"
-  print_status_group "ready"
-}
-
-if [ "$STATUS" = "all" ]; then
-  echo -e "${CYAN}📋 knife4j-next Agent Task Board (${REPO})${NC}"
-  for st in ready in-progress review blocked; do
-    print_status_group "$st"
-  done
-  echo ""
-  echo "Quick commands:"
-  echo "  ./tools/agent-status.sh snapshot"
-  echo "  gh issue edit <N> --repo ${REPO} --remove-label status:ready --add-label status:in-progress --add-assignee @me"
-  echo "  gh issue edit <N> --repo ${REPO} --remove-label status:in-progress --add-label status:review"
-  echo "  gh issue comment <N> --repo ${REPO} --body 'progress update'"
-  echo "  gh issue close <N> --repo ${REPO}"
-elif [ "$STATUS" = "snapshot" ]; then
-  print_snapshot
-else
-  print_status_group "$STATUS"
-fi
+case "$mode" in
+  all)
+    echo "knife4j-next Agent Task Board ($repo)"
+    for status in ready in-progress review blocked; do
+      print_status_group "$status"
+    done
+    ;;
+  snapshot)
+    print_git_snapshot
+    print_pr_snapshot
+    print_status_group in-progress
+    print_status_group ready
+    ;;
+  *)
+    print_status_group "$mode"
+    ;;
+esac

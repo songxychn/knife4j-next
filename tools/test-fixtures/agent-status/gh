@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -n "${FAKE_GH_LOG:-}" ]; then
+  printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+fi
+
+case "${1:-} ${2:-}" in
+  "repo view")
+    if [ "${FAKE_REPO_FAIL:-false}" = true ]; then
+      echo "fake repo failure" >&2
+      exit 1
+    fi
+    printf '%s\n' "${FAKE_REPO:-test/repo}"
+    ;;
+  "issue list")
+    if [ "${FAKE_ISSUE_FAIL:-false}" = true ]; then
+      echo "fake issue failure" >&2
+      exit 1
+    fi
+    printf '%s' "${FAKE_ISSUES:-}"
+    ;;
+  "pr list")
+    if [ "${FAKE_PR_FAIL:-false}" = true ]; then
+      echo "fake pr failure" >&2
+      exit 1
+    fi
+    printf '%s' "${FAKE_PR:-}"
+    ;;
+  *)
+    echo "unexpected gh call: $*" >&2
+    exit 64
+    ;;
+esac

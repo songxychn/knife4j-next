@@ -12,6 +12,7 @@
 | `test-vue3.sh` | Vue3 构建与产物检查 |
 | `test-docs.sh` | 文档站构建 |
 | `test-all.sh` | java + front-core + vue3 + docs |
+| `test-agent-status.sh` | 任务看板查询、过滤与失败路径 |
 
 ## 发布
 
@@ -24,10 +25,11 @@
 
 ## 任务看板
 
-`agent-status.sh` — 按 label 列 agent-task；`snapshot` 含 git / PR。
+`agent-status.sh` — 一次拉取 open `agent-task` 后按 status label 展示；`snapshot` 另含 git、当前 PR 与 checks。仓库依次取 `GH_REPO`、`GITHUB_REPOSITORY`、当前 `gh repo view`；查询失败时返回非零，不把失败显示为 `(none)`。
 
 ```bash
 ./tools/agent-status.sh snapshot
+./tools/test-agent-status.sh
 ```
 
 ## 截图上传
