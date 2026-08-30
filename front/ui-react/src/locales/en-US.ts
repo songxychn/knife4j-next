@@ -263,6 +263,21 @@ const enUS = {
   'apiDebug.schemaValidation.engineNotReady': 'The JSON Schema engine is not ready',
   'apiDebug.schemaValidation.engineFailed':
     'Pre-send schema diagnostics are unavailable. This request will continue with the previous behavior: {{message}}',
+  'apiDebug.responseSchemaValidation.title': 'Response body does not match the OAS 3.1 JSON Schema',
+  'apiDebug.responseSchemaValidation.nonBlocking':
+    'This diagnostic does not change the HTTP status, response body, headers, or request history.',
+  'apiDebug.responseSchemaValidation.running': 'Running OAS 3.1 JSON Schema response diagnostics',
+  'apiDebug.responseSchemaValidation.invalidJson':
+    'The response Content-Type declares JSON, but the response body is not valid JSON.',
+  'apiDebug.responseSchemaValidation.issue': '{{keyword}} validation failed',
+  'apiDebug.responseSchemaValidation.moreIssues': '{{count}} more issues are not shown',
+  'apiDebug.responseSchemaValidation.unavailableTitle': 'Response schema diagnostics are unavailable',
+  'apiDebug.responseSchemaValidation.engineInactive': 'The JSON Schema engine is not ready.',
+  'apiDebug.responseSchemaValidation.engineFailed': 'The JSON Schema engine failed to initialize.',
+  'apiDebug.responseSchemaValidation.referenceUnavailable':
+    'The current response schema or one of its references is unavailable.',
+  'apiDebug.responseSchemaValidation.budgetRejected': 'The response body or schema exceeded the diagnostic budget.',
+  'apiDebug.responseSchemaValidation.evaluationFailed': 'Response schema evaluation failed.',
   'apiDebug.receiving': 'Receiving response: {{received}}',
   'apiDebug.receivingOf': 'Receiving response: {{received}} / {{total}}',
   'apiDebug.history.title': 'Request History',

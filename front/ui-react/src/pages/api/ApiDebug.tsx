@@ -150,6 +150,14 @@ import {
   prepareParameterSchemaEvaluation,
   type ParameterSchemaIssue,
 } from '../../schema/parameterSchemaValidation';
+import {
+  evaluateResponseBodySchema,
+  isResponseBodySchemaEvaluationAborted,
+  prepareResponseBodySchemaEvaluation,
+  responseBodySchemaFailureDiagnostic,
+  responseBodySchemaResultIsCurrent,
+  type ResponseBodySchemaDiagnostic,
+} from '../../schema/responseBodySchemaValidation';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -1881,11 +1889,14 @@ export default function ApiDebug() {
   const [sseStreaming, setSseStreaming] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
+  const currentSchemaEngineRef = useRef(schemaEngine);
   const requestSeqRef = useRef(0);
   const schemaValidationRevisionRef = useRef(0);
   const schemaValidationAbortRef = useRef<AbortController | null>(null);
   const [schemaValidating, setSchemaValidating] = useState(false);
   const [pendingSchemaOverride, setPendingSchemaOverride] = useState<PendingSchemaOverride | null>(null);
+  const responseSchemaValidationAbortRef = useRef<AbortController | null>(null);
+  const [responseSchemaDiagnostic, setResponseSchemaDiagnostic] = useState<ResponseBodySchemaDiagnostic | null>(null);
   /** Pending history entry id for the in-flight request (strategy C). */
   const pendingHistoryIdRef = useRef<string | null>(null);
   const pendingHistoryCacheKeyRef = useRef<string | null>(null);
@@ -1917,17 +1928,25 @@ export default function ApiDebug() {
     activeDebugCacheKeyRef.current = debugCacheKey;
   }, [debugCacheKey]);
 
+  useLayoutEffect(() => {
+    currentSchemaEngineRef.current = schemaEngine;
+  }, [schemaEngine]);
+
   useEffect(() => {
     schemaValidationRevisionRef.current += 1;
     schemaValidationAbortRef.current?.abort();
     schemaValidationAbortRef.current = null;
     setSchemaValidating(false);
     setPendingSchemaOverride(null);
+    responseSchemaValidationAbortRef.current?.abort();
+    responseSchemaValidationAbortRef.current = null;
+    setResponseSchemaDiagnostic(null);
   }, [debugCacheKey, schemaEngine]);
 
   useEffect(
     () => () => {
       schemaValidationAbortRef.current?.abort();
+      responseSchemaValidationAbortRef.current?.abort();
     },
     [],
   );
@@ -2704,6 +2723,9 @@ export default function ApiDebug() {
     const requestDebugCacheKey = debugCacheKey;
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
+    responseSchemaValidationAbortRef.current?.abort();
+    responseSchemaValidationAbortRef.current = null;
+    setResponseSchemaDiagnostic(null);
     const isCurrentDebugRequest = () =>
       activeDebugCacheKeyRef.current === requestDebugCacheKey && requestSeqRef.current === requestSeq;
 
@@ -3010,7 +3032,7 @@ export default function ApiDebug() {
         return;
       }
 
-      setResponse({
+      const completedResponse: DebugResponsePayload = {
         status: res.status,
         statusText: res.statusText,
         method: built.method,
@@ -3022,7 +3044,79 @@ export default function ApiDebug() {
         objectUrl,
         filename,
         kind,
+      };
+      setResponse(completedResponse);
+
+      const responseSchemaPreparation = prepareResponseBodySchemaEvaluation({
+        document: swaggerDoc,
+        operation,
+        statusCode: res.status,
+        contentType: blobContentType,
+        body: rawText,
       });
+      if (responseSchemaPreparation.status === 'invalid-json') {
+        setResponseSchemaDiagnostic({ status: 'invalid-json' });
+      } else if (responseSchemaPreparation.status === 'unavailable') {
+        setResponseSchemaDiagnostic({ status: 'unavailable', reason: 'reference-unavailable' });
+      } else if (responseSchemaPreparation.status === 'ready') {
+        const currentSchemaEngine = currentSchemaEngineRef.current;
+        if (currentSchemaEngine.status !== 'ready') {
+          setResponseSchemaDiagnostic(
+            currentSchemaEngine.status === 'error'
+              ? { status: 'unavailable', reason: 'engine-failed', message: currentSchemaEngine.error.message }
+              : { status: 'unavailable', reason: 'engine-inactive' },
+          );
+        } else {
+          const responseSchemaSession = currentSchemaEngine.session;
+          const responseSchemaController = new AbortController();
+          responseSchemaValidationAbortRef.current = responseSchemaController;
+          setResponseSchemaDiagnostic({ status: 'running' });
+          const isCurrentResponseSchemaEvaluation = () => {
+            const latestSchemaEngine = currentSchemaEngineRef.current;
+            return (
+              !responseSchemaController.signal.aborted &&
+              responseBodySchemaResultIsCurrent(
+                requestSeq,
+                requestSeqRef.current,
+                requestDebugCacheKey,
+                activeDebugCacheKeyRef.current,
+                responseSchemaSession,
+                latestSchemaEngine.status === 'ready' ? latestSchemaEngine.session : null,
+              )
+            );
+          };
+
+          void evaluateResponseBodySchema(responseSchemaSession, responseSchemaPreparation, {
+            signal: responseSchemaController.signal,
+          })
+            .then((evaluation) => {
+              if (!isCurrentResponseSchemaEvaluation()) return;
+              setResponseSchemaDiagnostic(
+                evaluation.status === 'valid'
+                  ? null
+                  : {
+                      status: 'invalid',
+                      issues: evaluation.issues,
+                      totalIssues: evaluation.totalIssues,
+                    },
+              );
+            })
+            .catch((reason: unknown) => {
+              if (
+                isResponseBodySchemaEvaluationAborted(reason, responseSchemaController.signal) ||
+                !isCurrentResponseSchemaEvaluation()
+              ) {
+                return;
+              }
+              setResponseSchemaDiagnostic(responseBodySchemaFailureDiagnostic(reason));
+            })
+            .finally(() => {
+              if (responseSchemaValidationAbortRef.current === responseSchemaController) {
+                responseSchemaValidationAbortRef.current = null;
+              }
+            });
+        }
+      }
     } catch (reason: unknown) {
       if (reason instanceof Error && reason.name === 'AbortError') {
         finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
@@ -3065,6 +3159,9 @@ export default function ApiDebug() {
     schemaValidationAbortRef.current = null;
     setSchemaValidating(false);
     setPendingSchemaOverride(null);
+    responseSchemaValidationAbortRef.current?.abort();
+    responseSchemaValidationAbortRef.current = null;
+    setResponseSchemaDiagnostic(null);
     handleSseAbort();
     if (settings.enableRequestCache && debugCacheKey !== null) {
       removeDebugCache(debugCacheKey);
@@ -3504,6 +3601,7 @@ export default function ApiDebug() {
             sseEvents={sseEvents}
             onSseAbort={handleSseAbort}
             sseStreaming={sseStreaming}
+            schemaDiagnostic={responseSchemaDiagnostic}
           />
         </div>
 
