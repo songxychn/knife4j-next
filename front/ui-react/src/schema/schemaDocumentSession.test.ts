@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { SwaggerDoc } from '../types/swagger';
 import {
   createSchemaDocumentSession,
+  evaluateSchemaDocumentDirectionally,
   isOas31SchemaDocument,
   schemaDocumentRetrievalUri,
   schemaReferenceUri,
@@ -115,6 +116,71 @@ describe('SchemaDocumentSession', () => {
       code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
     });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('evaluates request and response projections without changing raw schema semantics', async () => {
+    const session = await createSchemaDocumentSession(
+      openApiDocument({
+        type: 'object',
+        required: ['responseId', 'requestSecret'],
+        properties: {
+          responseId: { type: 'integer', readOnly: true },
+          requestSecret: { type: 'string', writeOnly: true },
+        },
+        additionalProperties: false,
+      }),
+      retrievalUri,
+    );
+    sessions.push(session);
+
+    const [request, response, raw] = await Promise.all([
+      evaluateSchemaDocumentDirectionally(session, '#/components/schemas/Pet', { requestSecret: 'secret' }, 'request'),
+      evaluateSchemaDocumentDirectionally(session, '#/components/schemas/Pet', { responseId: 1 }, 'response'),
+      session.evaluate('#/components/schemas/Pet', { requestSecret: 'secret' }),
+    ]);
+
+    expect(request.valid).toBe(true);
+    expect(response.valid).toBe(true);
+    expect(raw).toMatchObject({
+      valid: false,
+      errors: [expect.objectContaining({ keyword: 'https://json-schema.org/keyword/required' })],
+    });
+  });
+
+  test('projects inline schemas under an OpenAPI default response', async () => {
+    const document: SwaggerDoc = {
+      openapi: '3.1.1',
+      info: { title: 'Default response projection', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          get: {
+            responses: {
+              default: {
+                description: 'fallback',
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      required: ['responseId'],
+                      properties: { responseId: { type: 'integer', readOnly: true } },
+                      additionalProperties: false,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const session = await createSchemaDocumentSession(document, retrievalUri);
+    sessions.push(session);
+    const reference = '#/paths/~1pets/get/responses/default/content/application~1json/schema';
+
+    await expect(session.evaluate(reference, {})).resolves.toMatchObject({ valid: false });
+    await expect(evaluateSchemaDocumentDirectionally(session, reference, {}, 'request')).resolves.toMatchObject({
+      valid: true,
+    });
   });
 
   test('disposes the underlying engine exactly once', async () => {

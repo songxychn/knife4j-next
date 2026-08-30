@@ -1,5 +1,5 @@
 import type { EvaluationIssue, EvaluationResult, JsonValue, SchemaNode } from 'knife4j-schema-engine';
-import type { SchemaDocumentSession } from './schemaDocumentSession';
+import { evaluateSchemaDocumentDirectionally, type SchemaDocumentSession } from './schemaDocumentSession';
 
 export type SchemaExampleDirection = 'request' | 'response';
 
@@ -167,8 +167,6 @@ const ASSERTION_KEYS = new Set([
   'unevaluatedItems',
   'unevaluatedProperties',
 ]);
-
-const REQUIRED_KEYWORD_ID = 'https://json-schema.org/keyword/required';
 
 function effectiveLimits(overrides: SchemaExampleSearchLimits | undefined): EffectiveLimits {
   const positiveInteger = (value: number | undefined, fallback: number): number =>
@@ -478,119 +476,6 @@ function primitiveCandidates(schema: { [key: string]: JsonValue }, type: string,
 function shouldIgnoreProperty(schema: JsonValue, direction: SchemaExampleDirection): boolean {
   if (!isRecord(schema)) return false;
   return direction === 'request' ? schema.readOnly === true : schema.writeOnly === true;
-}
-
-function valueAtInstanceLocation(instance: JsonValue, location: string): JsonValue | undefined {
-  const pointer = location.startsWith('#') ? location.slice(1) : location;
-  if (pointer === '') return instance;
-  if (!pointer.startsWith('/')) return undefined;
-
-  let current: JsonValue = instance;
-  for (const rawToken of pointer.slice(1).split('/')) {
-    let token: string;
-    try {
-      token = decodeURIComponent(rawToken).replace(/~1/g, '/').replace(/~0/g, '~');
-    } catch {
-      return undefined;
-    }
-    if (Array.isArray(current)) {
-      if (!/^(0|[1-9]\d*)$/.test(token)) return undefined;
-      const next = current[Number(token)];
-      if (next === undefined) return undefined;
-      current = next;
-    } else if (isRecord(current) && Object.prototype.hasOwnProperty.call(current, token)) {
-      current = current[token];
-    } else {
-      return undefined;
-    }
-    if (current === undefined) return undefined;
-  }
-  return current;
-}
-
-function schemaReferenceForRequiredKeyword(location: string): string | null {
-  const hashIndex = location.indexOf('#');
-  if (hashIndex < 0) return null;
-  const fragment = location.slice(hashIndex + 1);
-  const tokens = fragment.split('/');
-  const rawKeyword = tokens[tokens.length - 1];
-  if (rawKeyword === undefined) return null;
-  try {
-    if (decodeURIComponent(rawKeyword).replace(/~1/g, '/').replace(/~0/g, '~') !== 'required') return null;
-  } catch {
-    return null;
-  }
-  return `${location.slice(0, hashIndex)}#${tokens.slice(0, -1).join('/')}`;
-}
-
-async function isDirectionalRequiredFailure(
-  session: SchemaDocumentSession,
-  issue: EvaluationIssue,
-  instance: JsonValue,
-  direction: SchemaExampleDirection,
-  signal: AbortSignal | undefined,
-  schemas: Map<string, Promise<SchemaNode>>,
-): Promise<boolean> {
-  if (issue.valid !== false || issue.keyword !== REQUIRED_KEYWORD_ID || issue.errors?.length) return false;
-  const reference = schemaReferenceForRequiredKeyword(issue.absoluteKeywordLocation);
-  const objectValue = valueAtInstanceLocation(instance, issue.instanceLocation);
-  if (!reference || objectValue === undefined || !isRecord(objectValue)) return false;
-
-  throwIfAborted(signal);
-  let pending = schemas.get(reference);
-  if (!pending) {
-    pending = session.resolve(reference);
-    schemas.set(reference, pending);
-    pending.catch(() => {
-      if (schemas.get(reference) === pending) schemas.delete(reference);
-    });
-  }
-
-  try {
-    const node = await pending;
-    throwIfAborted(signal);
-    const schema = node.schema;
-    if (!isRecord(schema) || !Array.isArray(schema.required) || !isRecord(schema.properties)) {
-      return false;
-    }
-    const properties = schema.properties;
-    const missing = schema.required.filter(
-      (name): name is string => typeof name === 'string' && !Object.prototype.hasOwnProperty.call(objectValue, name),
-    );
-    return (
-      missing.length > 0 &&
-      missing.every((name) => {
-        const propertySchema = properties[name];
-        return propertySchema !== undefined && shouldIgnoreProperty(propertySchema, direction);
-      })
-    );
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') throw error;
-    return false;
-  }
-}
-
-async function isDirectionallyValidGeneratedCandidate(
-  session: SchemaDocumentSession,
-  evaluation: EvaluationResult,
-  instance: JsonValue,
-  direction: SchemaExampleDirection,
-  signal: AbortSignal | undefined,
-  schemas: Map<string, Promise<SchemaNode>>,
-): Promise<boolean> {
-  if (evaluation.valid) return true;
-  if (evaluation.errors.length === 0) return false;
-
-  // In OpenAPI, a required readOnly property applies only to responses and a
-  // required writeOnly property applies only to requests. SchemaEngine remains
-  // a pure JSON Schema evaluator, so accept only the exact `required` failures
-  // introduced by the direction projection; every other assertion must pass.
-  const verdicts = await Promise.all(
-    evaluation.errors.map((issue) =>
-      isDirectionalRequiredFailure(session, issue, instance, direction, signal, schemas),
-    ),
-  );
-  return verdicts.every(Boolean);
 }
 
 function mergeObjects(left: JsonValue, right: JsonValue): JsonValue | null {
@@ -920,6 +805,22 @@ async function evaluateCandidate(
   }
 }
 
+async function evaluateGeneratedCandidate(
+  session: SchemaDocumentSession,
+  reference: string,
+  value: JsonValue,
+  direction: SchemaExampleDirection,
+  signal?: AbortSignal,
+): Promise<EvaluationResult> {
+  try {
+    return await evaluateSchemaDocumentDirectionally(session, reference, value, direction, { signal });
+  } catch (error) {
+    if (!isRecoverableResolutionFailure(error)) throw error;
+    throwIfAborted(signal);
+    return evaluateSchemaDocumentDirectionally(session, reference, value, direction, { signal });
+  }
+}
+
 async function evaluateAuthoredCandidate(
   session: SchemaDocumentSession,
   reference: string,
@@ -975,7 +876,6 @@ export async function generateSchemaExample(
   const limits = effectiveLimits(options.limits);
   const budget: SearchBudget = { nodes: 0, references: 0, exhausted: false };
   const resolvedNodes = new Map<string, Promise<SchemaNode>>();
-  const directionalRequiredSchemas = new Map<string, Promise<SchemaNode>>();
   let root: SchemaNode;
   try {
     root = await session.resolve(reference);
@@ -1039,17 +939,14 @@ export async function generateSchemaExample(
     }
     evaluations += 1;
     try {
-      const evaluation = await evaluateCandidate(session, evaluationReference, candidate, options.signal);
-      if (
-        await isDirectionallyValidGeneratedCandidate(
-          session,
-          evaluation,
-          candidate,
-          options.direction,
-          options.signal,
-          directionalRequiredSchemas,
-        )
-      ) {
+      const evaluation = await evaluateGeneratedCandidate(
+        session,
+        evaluationReference,
+        candidate,
+        options.direction,
+        options.signal,
+      );
+      if (evaluation.valid) {
         return {
           status: 'value',
           value: cloneValue(candidate),

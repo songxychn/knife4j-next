@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { SwaggerDoc } from '../types/swagger';
-import { createSchemaDocumentSession, type SchemaDocumentSession } from './schemaDocumentSession';
+import {
+  createSchemaDocumentSession,
+  evaluateSchemaDocumentDirectionally,
+  type SchemaDocumentSession,
+} from './schemaDocumentSession';
 import { generateSchemaExample, type SchemaExampleResult } from './schemaExampleGeneration';
 
 const retrievalUri = 'https://examples.knife4j.example/openapi.json';
@@ -326,14 +330,8 @@ describe('bounded structural candidates', () => {
     const requestValue = expectDirectionallyGeneratedValue(requestResult);
     const responseValue = expectDirectionallyGeneratedValue(responseResult);
 
-    expect(requestValue).toMatchObject({ shared: expect.any(String), requestSecret: expect.any(String) });
-    expect(requestValue).not.toHaveProperty('responseId');
-    expect(responseValue).toMatchObject({ shared: expect.any(String), responseId: expect.any(Number) });
-    expect(responseValue).not.toHaveProperty('requestSecret');
-
-    // A pure JSON Schema evaluator still reports the directionally omitted
-    // required property. The generator accepts only this OpenAPI-specific
-    // required failure; all other JSON Schema assertions must remain valid.
+    // The unchanged JSON Schema still requires both fields; generated values
+    // are valid only after applying the corresponding OpenAPI projection.
     await expect(session.evaluate(reference('Message'), requestValue)).resolves.toMatchObject({
       valid: false,
       errors: [expect.objectContaining({ keyword: 'https://json-schema.org/keyword/required' })],
@@ -342,9 +340,102 @@ describe('bounded structural candidates', () => {
       valid: false,
       errors: [expect.objectContaining({ keyword: 'https://json-schema.org/keyword/required' })],
     });
+
+    expect(requestValue).toMatchObject({ shared: expect.any(String), requestSecret: expect.any(String) });
+    expect(requestValue).not.toHaveProperty('responseId');
+    expect(responseValue).toMatchObject({ shared: expect.any(String), responseId: expect.any(Number) });
+    expect(responseValue).not.toHaveProperty('requestSecret');
     await expect(
       generateSchemaExample(session, reference('StrictDirection'), { direction: 'request' }),
     ).resolves.toMatchObject({ status: 'none', reason: 'no-valid-candidate' });
+  });
+
+  test('evaluates oneOf after projecting directional required properties', async () => {
+    const session = await sessionFor({
+      DirectionalChoice: {
+        type: 'object',
+        minProperties: 1,
+        properties: {
+          responseId: { type: 'string', readOnly: true },
+          requestSecret: { type: 'string', writeOnly: true },
+        },
+        oneOf: [{ required: ['responseId'] }, { required: ['requestSecret'] }],
+        additionalProperties: false,
+      },
+    });
+
+    // Raw evaluation sees exactly one required branch. Direction projection
+    // removes the ignored branch requirement, so both branches become valid
+    // and oneOf must reject the generated request/response candidate.
+    const requestCandidate = { requestSecret: '' };
+    await expect(session.evaluate(reference('DirectionalChoice'), requestCandidate)).resolves.toMatchObject({
+      valid: true,
+    });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, reference('DirectionalChoice'), requestCandidate, 'request'),
+    ).resolves.toMatchObject({ valid: false });
+    await expect(
+      generateSchemaExample(session, reference('DirectionalChoice'), { direction: 'request' }),
+    ).resolves.toMatchObject({ status: 'none', reason: 'no-valid-candidate' });
+    await expect(
+      generateSchemaExample(session, reference('DirectionalChoice'), { direction: 'response' }),
+    ).resolves.toMatchObject({ status: 'none', reason: 'no-valid-candidate' });
+  });
+
+  test('keeps projected component refs, resource ids and anchors resolvable', async () => {
+    const session = await sessionFor({
+      DirectionalContainer: {
+        $id: 'schemas/directional-container',
+        $defs: {
+          Payload: {
+            $anchor: 'not',
+            type: 'object',
+            required: ['shared', 'responseId', 'requestSecret'],
+            properties: {
+              shared: { type: 'string' },
+              responseId: { type: 'integer', readOnly: true },
+              requestSecret: { type: 'string', writeOnly: true },
+            },
+            additionalProperties: false,
+          },
+        },
+        not: false,
+        $ref: '#not',
+      },
+      DirectionalAlias: { $ref: '#/components/schemas/DirectionalContainer' },
+    });
+
+    const requestValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, reference('DirectionalAlias'), { direction: 'request' }),
+    );
+    const responseValue = expectDirectionallyGeneratedValue(
+      await generateSchemaExample(session, reference('DirectionalAlias'), { direction: 'response' }),
+    );
+
+    expect(requestValue).toEqual({ shared: '', requestSecret: '' });
+    expect(responseValue).toEqual({ shared: '', responseId: 0 });
+  });
+
+  test('does not rewrite reference-shaped data inside projected assertions', async () => {
+    const session = await sessionFor({
+      LiteralReference: {
+        type: 'object',
+        required: ['payload'],
+        properties: {
+          payload: { const: { $ref: '#/literal-value' } },
+        },
+        additionalProperties: false,
+      },
+    });
+
+    await expect(
+      generateSchemaExample(session, reference('LiteralReference'), { direction: 'request' }),
+    ).resolves.toMatchObject({
+      status: 'value',
+      source: 'generated',
+      validation: 'valid',
+      value: { payload: { $ref: '#/literal-value' } },
+    });
   });
 
   test('combines const, pattern, tuple and directional fields in one valid object', async () => {
