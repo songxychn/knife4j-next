@@ -8,6 +8,7 @@ import {
   Input,
   InputNumber,
   message,
+  Modal,
   Progress,
   Radio,
   Select,
@@ -59,6 +60,7 @@ import RevealableValue from '../../components/RevealableValue';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam, type GlobalParamScope, type ScopedGlobalParamItem } from '../../context/GlobalParamContext';
+import { useSchemaEngine } from '../../context/SchemaEngineContext';
 import { useSettings } from '../../context/SettingsContext';
 import { applyRouteProxyHeader } from '../../api/routeProxyHeader';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
@@ -129,10 +131,38 @@ import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDe
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
+import {
+  consumeRequestBodySchemaOverride,
+  effectiveRequestContentType,
+  evaluateRequestBodySchema,
+  prepareRequestBodySchemaEvaluation,
+  requestBodyInstanceLabel,
+  type RequestBodySchemaIssue,
+} from '../../schema/requestBodySchemaValidation';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
 const PARAM_TABLE_SCROLL = { x: apiDebugParamTableScrollX() };
+
+type PendingSchemaOverride = {
+  readonly preview: RequestPreviewBuild;
+  readonly debugCacheKey: string | null;
+  readonly revision: number;
+  readonly diagnostic:
+    | { readonly kind: 'invalid-json' }
+    | {
+        readonly kind: 'invalid-schema';
+        readonly issues: readonly RequestBodySchemaIssue[];
+        readonly totalIssues: number;
+      };
+};
+
+interface HandleSendOptions {
+  readonly prepared?: RequestPreviewBuild;
+  readonly skipSchemaValidation?: boolean;
+  readonly validationRevision?: number;
+  readonly validationDebugCacheKey?: string | null;
+}
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'green',
@@ -1743,6 +1773,7 @@ export default function ApiDebug() {
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { activeSwaggerGroup, routeGroupReady } = useGroup();
   const { settings } = useSettings();
+  const schemaEngine = useSchemaEngine();
   const groupContextPath = activeSwaggerGroup?.contextPath;
   const operationMethod = operation?.method;
   const operationPath = operation?.path;
@@ -1816,6 +1847,10 @@ export default function ApiDebug() {
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
   const requestSeqRef = useRef(0);
+  const schemaValidationRevisionRef = useRef(0);
+  const schemaValidationAbortRef = useRef<AbortController | null>(null);
+  const [schemaValidating, setSchemaValidating] = useState(false);
+  const [pendingSchemaOverride, setPendingSchemaOverride] = useState<PendingSchemaOverride | null>(null);
   /** Pending history entry id for the in-flight request (strategy C). */
   const pendingHistoryIdRef = useRef<string | null>(null);
   const pendingHistoryCacheKeyRef = useRef<string | null>(null);
@@ -1846,6 +1881,21 @@ export default function ApiDebug() {
   useLayoutEffect(() => {
     activeDebugCacheKeyRef.current = debugCacheKey;
   }, [debugCacheKey]);
+
+  useEffect(() => {
+    schemaValidationRevisionRef.current += 1;
+    schemaValidationAbortRef.current?.abort();
+    schemaValidationAbortRef.current = null;
+    setSchemaValidating(false);
+    setPendingSchemaOverride(null);
+  }, [debugCacheKey, schemaEngine]);
+
+  useEffect(
+    () => () => {
+      schemaValidationAbortRef.current?.abort();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!settings.enableRequestHistory || debugCacheKey === null) {
@@ -2405,11 +2455,13 @@ export default function ApiDebug() {
     setHistoryEntries([]);
   };
 
-  const handleSend = async () => {
+  const handleSend = async (options: HandleSendOptions = {}) => {
     if (!debugModel) return;
     setError(null);
 
-    const previewResult = buildRequestPreviewSafely(buildPreview);
+    const previewResult: RequestPreviewBuildResult = options.prepared
+      ? { ok: true, value: options.prepared }
+      : buildRequestPreviewSafely(buildPreview);
     if (!previewResult.ok) {
       setValidationErrors([]);
       setActiveTab('query');
@@ -2455,6 +2507,95 @@ export default function ApiDebug() {
       setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
       return;
     }
+
+    if (options.skipSchemaValidation) {
+      if (
+        !options.prepared ||
+        options.validationRevision !== schemaValidationRevisionRef.current ||
+        options.validationDebugCacheKey !== activeDebugCacheKeyRef.current
+      ) {
+        return;
+      }
+    } else {
+      schemaValidationAbortRef.current?.abort();
+      const validationRevision = schemaValidationRevisionRef.current + 1;
+      schemaValidationRevisionRef.current = validationRevision;
+      const validationDebugCacheKey = debugCacheKey;
+      const isCurrentValidation = () =>
+        schemaValidationRevisionRef.current === validationRevision &&
+        activeDebugCacheKeyRef.current === validationDebugCacheKey;
+      setPendingSchemaOverride(null);
+
+      const preparation = prepareRequestBodySchemaEvaluation({
+        document: swaggerDoc,
+        operation,
+        schemaMediaType: selectedContentType,
+        effectiveContentType: effectiveRequestContentType(built.headers, built.contentType),
+        body: built.body,
+      });
+
+      if (preparation.status === 'invalid-json') {
+        setActiveTab('body');
+        setPendingSchemaOverride({
+          preview: previewResult.value,
+          debugCacheKey: validationDebugCacheKey,
+          revision: validationRevision,
+          diagnostic: { kind: 'invalid-json' },
+        });
+        return;
+      }
+
+      if (preparation.status === 'unavailable') {
+        void message.warning(t('apiDebug.schemaValidation.unavailable'));
+      } else if (preparation.status === 'ready') {
+        if (schemaEngine.status !== 'ready') {
+          const detail =
+            schemaEngine.status === 'error'
+              ? schemaEngine.error.message
+              : t('apiDebug.schemaValidation.engineNotReady');
+          void message.warning(t('apiDebug.schemaValidation.engineFailed', { message: detail }));
+        } else {
+          const controller = new AbortController();
+          schemaValidationAbortRef.current = controller;
+          setSchemaValidating(true);
+          try {
+            const evaluation = await evaluateRequestBodySchema(schemaEngine.session, preparation, {
+              signal: controller.signal,
+            });
+            if (!isCurrentValidation()) return;
+            if (evaluation.status === 'invalid') {
+              setActiveTab('body');
+              setPendingSchemaOverride({
+                preview: previewResult.value,
+                debugCacheKey: validationDebugCacheKey,
+                revision: validationRevision,
+                diagnostic: {
+                  kind: 'invalid-schema',
+                  issues: evaluation.issues,
+                  totalIssues: evaluation.totalIssues,
+                },
+              });
+              return;
+            }
+          } catch (reason: unknown) {
+            const code =
+              reason && typeof reason === 'object' && 'code' in reason
+                ? (reason as { code?: unknown }).code
+                : undefined;
+            if (controller.signal.aborted || code === 'OPERATION_ABORTED' || !isCurrentValidation()) return;
+            const detail = reason instanceof Error ? reason.message : String(reason);
+            void message.warning(t('apiDebug.schemaValidation.engineFailed', { message: detail }));
+          } finally {
+            if (schemaValidationAbortRef.current === controller) {
+              schemaValidationAbortRef.current = null;
+              setSchemaValidating(false);
+            }
+          }
+          if (!isCurrentValidation()) return;
+        }
+      }
+    }
+
     const requestDebugCacheKey = debugCacheKey;
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
@@ -2814,6 +2955,11 @@ export default function ApiDebug() {
 
   const handleReset = () => {
     if (!initialDebugState) return;
+    schemaValidationRevisionRef.current += 1;
+    schemaValidationAbortRef.current?.abort();
+    schemaValidationAbortRef.current = null;
+    setSchemaValidating(false);
+    setPendingSchemaOverride(null);
     handleSseAbort();
     if (settings.enableRequestCache && debugCacheKey !== null) {
       removeDebugCache(debugCacheKey);
@@ -3066,6 +3212,68 @@ export default function ApiDebug() {
 
   return (
     <OperationModeLayout activeKey="debug">
+      <Modal
+        open={pendingSchemaOverride !== null}
+        title={t('apiDebug.schemaValidation.title')}
+        okText={t('apiDebug.schemaValidation.stillSend')}
+        cancelText={t('apiDebug.schemaValidation.backToEdit')}
+        okButtonProps={{ danger: true }}
+        onCancel={() => {
+          schemaValidationRevisionRef.current += 1;
+          setPendingSchemaOverride(null);
+          setActiveTab('body');
+        }}
+        onOk={() => {
+          const pending = pendingSchemaOverride;
+          if (!pending) return;
+          const consumedRevision = consumeRequestBodySchemaOverride(
+            pending.revision,
+            schemaValidationRevisionRef.current,
+            pending.debugCacheKey,
+            activeDebugCacheKeyRef.current,
+          );
+          if (consumedRevision === null) {
+            setPendingSchemaOverride(null);
+            return;
+          }
+          // Consume the confirmation before dispatch so a repeated click cannot
+          // reuse the same one-shot override.
+          schemaValidationRevisionRef.current = consumedRevision;
+          setPendingSchemaOverride(null);
+          void handleSend({
+            prepared: pending.preview,
+            skipSchemaValidation: true,
+            validationRevision: consumedRevision,
+            validationDebugCacheKey: pending.debugCacheKey,
+          });
+        }}
+      >
+        <div id="knife4j-schema-validation-dialog">
+          <Paragraph>{t('apiDebug.schemaValidation.description')}</Paragraph>
+          {pendingSchemaOverride?.diagnostic.kind === 'invalid-json' ? (
+            <Alert type="error" showIcon message={t('apiDebug.schemaValidation.invalidJson')} />
+          ) : pendingSchemaOverride?.diagnostic.kind === 'invalid-schema' ? (
+            <>
+              <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+                {pendingSchemaOverride.diagnostic.issues.map((issue) => (
+                  <li key={`${issue.instanceLocation}:${issue.absoluteKeywordLocation}`} style={{ marginBottom: 6 }}>
+                    <Text code>{requestBodyInstanceLabel(issue.instanceLocation)}</Text>{' '}
+                    <Text>{t('apiDebug.schemaValidation.issue', { keyword: issue.keyword })}</Text>
+                  </li>
+                ))}
+              </ul>
+              {pendingSchemaOverride.diagnostic.totalIssues > pendingSchemaOverride.diagnostic.issues.length && (
+                <Text type="secondary">
+                  {t('apiDebug.schemaValidation.moreIssues', {
+                    count:
+                      pendingSchemaOverride.diagnostic.totalIssues - pendingSchemaOverride.diagnostic.issues.length,
+                  })}
+                </Text>
+              )}
+            </>
+          ) : null}
+        </div>
+      </Modal>
       {/* Peer columns: main debug + history share one surface (no floating overlay). */}
       <div
         id="knife4j-api-debug-page"
@@ -3111,7 +3319,12 @@ export default function ApiDebug() {
               onChange={(event) => handlePathInputChange(event.target.value)}
               style={{ flex: '1 1 220px', minWidth: 0 }}
             />
-            <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={loading}>
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={() => void handleSend()}
+              loading={loading || schemaValidating}
+            >
               {t('apiDebug.send')}
             </Button>
             <Button icon={<ReloadOutlined />} onClick={handleReset}>

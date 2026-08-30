@@ -245,6 +245,19 @@ const enUS = {
   'apiDebug.send': 'Send',
   'apiDebug.reset': 'Reset',
   'apiDebug.sending': 'Sending...',
+  'apiDebug.schemaValidation.title': 'Request body does not match the OAS 3.1 JSON Schema',
+  'apiDebug.schemaValidation.description':
+    'The request has not been sent. Fix the issues below, or explicitly continue to test an invalid request.',
+  'apiDebug.schemaValidation.invalidJson': 'The request body is not valid JSON.',
+  'apiDebug.schemaValidation.issue': '{{keyword}} validation failed',
+  'apiDebug.schemaValidation.moreIssues': '{{count}} more issues are not shown',
+  'apiDebug.schemaValidation.stillSend': 'Send anyway',
+  'apiDebug.schemaValidation.backToEdit': 'Back to editing',
+  'apiDebug.schemaValidation.unavailable':
+    'The current request body schema could not be located. This request will continue with the previous behavior.',
+  'apiDebug.schemaValidation.engineNotReady': 'The JSON Schema engine is not ready',
+  'apiDebug.schemaValidation.engineFailed':
+    'Pre-send schema diagnostics are unavailable. This request will continue with the previous behavior: {{message}}',
   'apiDebug.receiving': 'Receiving response: {{received}}',
   'apiDebug.receivingOf': 'Receiving response: {{received}} / {{total}}',
   'apiDebug.history.title': 'Request History',
