@@ -33,6 +33,7 @@ trap 'rm -rf "$tmp_dir"' EXIT
 cd "$front_root"
 bun install --frozen-lockfile
 bun run --filter knife4j-core build
+bun run --filter knife4j-schema-engine build
 
 cd "$ui_root"
 bun x tsc

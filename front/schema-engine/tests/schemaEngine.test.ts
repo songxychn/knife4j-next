@@ -101,6 +101,7 @@ describe('resource graph and evaluation semantics', () => {
     const embedded = await engine.resolve(`${embeddedUri}#value`);
     expect(embedded.resourceUri).toBe(embeddedUri);
     expect(embedded.anchors).toHaveProperty('value');
+    expect(embedded.schema).toMatchObject({ type: 'string', pattern: '^[0-9]{6}$' });
     await expect(engine.evaluate(containerUri, '310000')).resolves.toMatchObject({ valid: true });
     await expect(engine.evaluate(containerUri, 'invalid')).resolves.toMatchObject({ valid: false });
     await expect(engine.evaluate(falseUri, null)).resolves.toMatchObject({ valid: false });
@@ -189,6 +190,10 @@ describe('OpenAPI 3.1 and resource policy', () => {
     await expect(engine.evaluate(`${documentUri}#/components/schemas/Pet`, { name: '' })).resolves.toMatchObject({
       valid: false,
     });
+
+    const pet = await engine.resolve(`${documentUri}#/components/schemas/Pet`);
+    expect(pet.schema).toMatchObject({ type: 'object', required: ['id', 'name'] });
+    expect(pet.schema).not.toHaveProperty('openapi');
   });
 
   test('rejects custom OpenAPI dialects explicitly', async () => {

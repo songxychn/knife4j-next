@@ -269,6 +269,31 @@ const normalizeInstanceLocation = (location: string): string =>
 
 const clonePublicValue = <T>(value: T): T => structuredClone(value);
 
+function schemaAtCursor(schema: JsonValue, cursor: string, operationUri: string): JsonValue {
+  if (cursor === '') return schema;
+  if (!cursor.startsWith('/')) {
+    throw new SchemaEngineError(
+      'SCHEMA_RESOLUTION_FAILED',
+      `Resolved schema '${operationUri}' has an invalid JSON Pointer cursor.`,
+      { uri: operationUri },
+    );
+  }
+
+  let current: JsonValue = schema;
+  for (const encodedToken of cursor.slice(1).split('/')) {
+    const token = encodedToken.replace(/~1/g, '/').replace(/~0/g, '~');
+    if (current === null || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, token)) {
+      throw new SchemaEngineError(
+        'SCHEMA_RESOLUTION_FAILED',
+        `Resolved schema '${operationUri}' is missing its JSON Pointer target.`,
+        { uri: operationUri },
+      );
+    }
+    current = (current as { [key: string]: JsonValue })[token];
+  }
+  return current;
+}
+
 const cloneIssue = (unit: OutputUnit, budget: EvaluationBudgetPlugin): EvaluationIssue => {
   budget.assertWithinBudget();
   return {
@@ -432,6 +457,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     try {
       const resource = await this.getResource(normalizedSchemaUri);
       this.assertGeneration(generation);
+      const resourceSchema = toSchema(resource, { includeDialect: 'always', includeEmbedded: true }) as JsonValue;
       return {
         requestedUri: normalizedSchemaUri,
         canonicalUri: canonicalUri(resource),
@@ -439,7 +465,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         dialectId: resource.document.dialectId,
         anchors: Object.freeze({ ...resource.document.anchors }),
         dynamicAnchors: Object.freeze({ ...resource.document.dynamicAnchors }),
-        schema: toSchema(resource, { includeDialect: 'always', includeEmbedded: true }) as JsonValue,
+        schema: schemaAtCursor(resourceSchema, resource.cursor, normalizedSchemaUri),
       };
     } catch (error) {
       throw asEngineError(error, normalizedSchemaUri);

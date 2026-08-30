@@ -17,6 +17,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "bun run build",
     "test": "vitest run",
     "check:browser": "bun run scripts/check-browser.ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.{ts,json}\" \"scripts/**/*.ts\"",
