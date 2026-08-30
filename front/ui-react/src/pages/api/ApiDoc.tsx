@@ -27,6 +27,7 @@ import DescriptionText from '../../components/DescriptionText';
 import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
+import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
@@ -48,10 +49,22 @@ import {
   type ApiDocSchemaProjectionState,
   type ApiDocSchemaViewNotice,
 } from './apiDocSchemaViewState';
+import {
+  formatSchemaExampleValue,
+  generateOperationSchemaExamples,
+  unavailableOperationSchemaExamples,
+} from '../../schema/operationSchemaExamples';
+import {
+  currentApiDocExamples,
+  sameApiDocExampleIdentity,
+  type ApiDocExampleIdentity,
+  type ApiDocExampleState,
+} from './apiDocExampleState';
 
 const { Title, Text } = Typography;
 
 const IDLE_SCHEMA_PROJECTION_STATE: ApiDocSchemaProjectionState = Object.freeze({ status: 'idle' });
+const IDLE_EXAMPLE_STATE: ApiDocExampleState = Object.freeze({ status: 'idle' });
 
 type ApiDocSchemaValue = SchemaObject | boolean;
 
@@ -532,6 +545,17 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   );
   const [projectionState, setProjectionState] = useState<ApiDocSchemaProjectionState>(IDLE_SCHEMA_PROJECTION_STATE);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  const exampleIdentity = useMemo<ApiDocExampleIdentity | null>(
+    () =>
+      isOas31 && schemaEngine.retrievalUri
+        ? {
+            retrievalUri: schemaEngine.retrievalUri,
+            operationKey: operation.routeId ?? operation.key,
+          }
+        : null,
+    [isOas31, operation.key, operation.routeId, schemaEngine.retrievalUri],
+  );
+  const [exampleState, setExampleState] = useState<ApiDocExampleState>(IDLE_EXAMPLE_STATE);
 
   useEffect(() => {
     if (!isOas31 || projectionTargets.length === 0 || schemaEngine.status !== 'ready' || !projectionIdentity) {
@@ -557,6 +581,29 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
 
     return () => controller.abort();
   }, [isOas31, projectionIdentity, projectionTargets, schemaEngine]);
+
+  useEffect(() => {
+    if (!isOas31 || schemaEngine.status !== 'ready' || !exampleIdentity) {
+      setExampleState(IDLE_EXAMPLE_STATE);
+      return;
+    }
+
+    const controller = new AbortController();
+    setExampleState({ status: 'loading', identity: exampleIdentity });
+    generateOperationSchemaExamples(swaggerDoc, operation, schemaEngine.session, { signal: controller.signal })
+      .then((examples) => {
+        if (!controller.signal.aborted) setExampleState({ status: 'ready', identity: exampleIdentity, examples });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return;
+        setExampleState({
+          status: 'error',
+          identity: exampleIdentity,
+          message: error instanceof Error ? error.message : 'Unable to generate OAS 3.1 examples.',
+        });
+      });
+    return () => controller.abort();
+  }, [exampleIdentity, isOas31, operation, schemaEngine, swaggerDoc]);
 
   const schemaView = useMemo(
     () =>
@@ -584,8 +631,52 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
     );
   })();
 
-  const requestExample = requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
-  const respExamples = responseExamples(op.responses, swaggerDoc);
+  const currentGeneratedExamples = currentApiDocExamples(exampleState, exampleIdentity);
+  const currentExampleError =
+    exampleState.status === 'error' && sameApiDocExampleIdentity(exampleState.identity, exampleIdentity)
+      ? exampleState.message
+      : schemaEngine.status === 'error'
+        ? schemaEngine.error.message
+        : undefined;
+  const oas31Examples = isOas31
+    ? (currentGeneratedExamples ??
+      (currentExampleError === undefined
+        ? null
+        : unavailableOperationSchemaExamples(swaggerDoc, operation, currentExampleError)))
+    : null;
+  const exampleLoading =
+    isOas31 &&
+    oas31Examples === null &&
+    (schemaEngine.status === 'loading' ||
+      (exampleState.status === 'loading' && sameApiDocExampleIdentity(exampleState.identity, exampleIdentity)));
+  const requestExample = isOas31
+    ? null
+    : requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
+  const respExamples = isOas31 ? [] : responseExamples(op.responses, swaggerDoc);
+  const oas31RequestExample = oas31Examples?.request;
+  const renderOas31Example = (selection: NonNullable<typeof oas31RequestExample>) => {
+    const code =
+      selection.result.status === 'value'
+        ? formatSchemaExampleValue(selection.result.value, selection.mediaType)
+        : null;
+    return (
+      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <SchemaExampleNotice result={selection.result} />
+        {code !== null && (
+          <CodeBlock
+            code={code}
+            onCopy={() =>
+              copyToClipboard(
+                code,
+                () => message.success(t('apiDoc.example.copied')),
+                () => message.error(t('apiDoc.copy.failed')),
+              )
+            }
+          />
+        )}
+      </Space>
+    );
+  };
   const responseOverviewVisibility = resolveResponseOverviewVisibility(settings.enableResponseCode, responses.length);
   const authors = operationAuthors(op);
 
@@ -705,7 +796,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           <Markdown source={op.requestBody.description} preserveLineBreaks />
         </div>
       )}
-      {bodySchema !== undefined || requestExample !== null ? (
+      {bodySchema !== undefined || requestExample !== null || oas31RequestExample !== undefined || exampleLoading ? (
         <Tabs
           size="small"
           items={[
@@ -714,26 +805,49 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
               label: t('apiDoc.tab.schema'),
               children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
             },
-            ...(requestExample !== null
+            ...(isOas31 && oas31RequestExample
               ? [
                   {
                     key: 'example',
                     label: t('apiDoc.tab.requestExample'),
-                    children: (
-                      <CodeBlock
-                        code={requestExample}
-                        onCopy={() =>
-                          copyToClipboard(
-                            requestExample,
-                            () => message.success(t('apiDoc.example.copied')),
-                            () => message.error(t('apiDoc.copy.failed')),
-                          )
-                        }
-                      />
-                    ),
+                    children: renderOas31Example(oas31RequestExample),
                   },
                 ]
-              : []),
+              : isOas31 && exampleLoading && op.requestBody
+                ? [
+                    {
+                      key: 'example',
+                      label: t('apiDoc.tab.requestExample'),
+                      children: (
+                        <Alert
+                          type="info"
+                          showIcon
+                          message={t('schema.example.loading.title')}
+                          description={t('schema.example.loading.description')}
+                        />
+                      ),
+                    },
+                  ]
+                : requestExample !== null
+                  ? [
+                      {
+                        key: 'example',
+                        label: t('apiDoc.tab.requestExample'),
+                        children: (
+                          <CodeBlock
+                            code={requestExample}
+                            onCopy={() =>
+                              copyToClipboard(
+                                requestExample,
+                                () => message.success(t('apiDoc.example.copied')),
+                                () => message.error(t('apiDoc.copy.failed')),
+                              )
+                            }
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
           ]}
         />
       ) : (
@@ -803,22 +917,28 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
               </div>
             ),
           },
-          ...respExamples.map(({ statusCode, example }) => ({
-            key: `resp-${statusCode}`,
-            label: `${t('apiDoc.tab.responseExample')} ${statusCode}`,
-            children: (
-              <CodeBlock
-                code={example}
-                onCopy={() =>
-                  copyToClipboard(
-                    example,
-                    () => message.success(t('apiDoc.example.copied')),
-                    () => message.error(t('apiDoc.copy.failed')),
-                  )
-                }
-              />
-            ),
-          })),
+          ...(isOas31
+            ? (oas31Examples?.responses ?? []).map((selection) => ({
+                key: `resp-${selection.statusCode}`,
+                label: `${t('apiDoc.tab.responseExample')} ${selection.statusCode}`,
+                children: renderOas31Example(selection),
+              }))
+            : respExamples.map(({ statusCode, example }) => ({
+                key: `resp-${statusCode}`,
+                label: `${t('apiDoc.tab.responseExample')} ${statusCode}`,
+                children: (
+                  <CodeBlock
+                    code={example}
+                    onCopy={() =>
+                      copyToClipboard(
+                        example,
+                        () => message.success(t('apiDoc.example.copied')),
+                        () => message.error(t('apiDoc.copy.failed')),
+                      )
+                    }
+                  />
+                ),
+              }))),
         ]}
       />
     </OperationModeLayout>
