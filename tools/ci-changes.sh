@@ -37,7 +37,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)
       full=true
       ;;
-    README.md|CONTRIBUTING.md|AGENTS.md|.agent/*|.gitignore|tools/README.md|tools/agent-status.sh|tools/claude/*|tools/test-all.sh|tools/verify-github-release.sh)
+    README.md|CONTRIBUTING.md|AGENTS.md|.agent/*|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/claude/*|tools/test-all.sh|tools/verify-github-release.sh)
       ;;
     *)
       full=true
