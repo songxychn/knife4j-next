@@ -1,0 +1,17 @@
+{
+  "name": "knife4j-oas31-resource-loader-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "probe": "bun run scripts/run-browser-probe.ts",
+    "check": "bun run typecheck && bun test && bun run probe"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.0",
+    "playwright-core": "1.62.1",
+    "typescript": "5.9.3"
+  }
+}
