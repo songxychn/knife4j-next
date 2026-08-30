@@ -5,9 +5,9 @@ import type {
   SchemaEngineErrorDetails,
   SchemaNode,
 } from 'knife4j-schema-engine';
+import { isOpenApi31Version } from 'knife4j-core';
 import type { SwaggerDoc } from '../types/swagger';
 
-const OAS_31_VERSION = /^3\.1\.\d+(?:-.+)?$/;
 const FALLBACK_SCHEMA_ORIGIN = 'https://knife4j.invalid/';
 
 type SchemaEngineModule = typeof import('knife4j-schema-engine');
@@ -77,7 +77,7 @@ export function schemaDocumentRetrievalUri(sourceUrl: string, groupName: string,
 }
 
 export function isOas31SchemaDocument(document: SwaggerDoc | null): document is SwaggerDoc {
-  return typeof document?.openapi === 'string' && OAS_31_VERSION.test(document.openapi);
+  return isOpenApi31Version(document?.openapi);
 }
 
 export function schemaReferenceUri(retrievalUri: string, reference: string): string {

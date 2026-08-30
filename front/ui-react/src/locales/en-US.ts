@@ -5,9 +5,9 @@ const enUS = {
   'app.tab.home': 'Home',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'Failed to load API docs',
-  'app.oas31Compatibility.title': 'This OAS 3.1 document requires degraded handling',
+  'app.oas31Compatibility.title': 'This OAS 3.1 document has structure or local-resolution diagnostics',
   'app.oas31Compatibility.description':
-    'The raw document remains available, but {{count}} item(s) cannot be resolved safely in the browser. Related field trees, examples, or debug models may be incomplete.',
+    '{{count}} item(s) violate structural constraints or cannot be resolved locally. Safe raw content remains available; ambiguous operations are omitted.',
 
   // Runtime diagnostics
   'error.apiDocs.http': 'api-docs request failed: HTTP {{status}}',

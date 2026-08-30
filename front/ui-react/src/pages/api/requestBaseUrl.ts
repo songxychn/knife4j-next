@@ -1,3 +1,4 @@
+import { isOpenApi31Version, resolvePathItemObject } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc, SwaggerServer } from '../../types/swagger';
 
 export interface ResolveRequestBaseUrlOptions {
@@ -118,13 +119,15 @@ function appendServerOptions(
   result: RequestServerOption[],
   seen: Set<string>,
   source: RequestServerSource,
-  servers: SwaggerServer[] | undefined,
+  servers: unknown,
   origin: string,
 ): void {
-  if (!servers) return;
+  if (!Array.isArray(servers)) return;
 
   for (const server of servers) {
-    const rawUrl = server.url.trim();
+    if (!server || typeof server !== 'object' || typeof (server as { url?: unknown }).url !== 'string') continue;
+    const typedServer = server as SwaggerServer;
+    const rawUrl = typedServer.url.trim();
     if (!rawUrl) continue;
 
     const url = normalizeRequestBaseUrl(rawUrl, origin, {
@@ -137,7 +140,7 @@ function appendServerOptions(
       source,
       url,
       rawUrl,
-      description: server.description,
+      description: typedServer.description,
     });
   }
 }
@@ -151,7 +154,17 @@ export function resolveRequestServerOptions({
   ResolveRequestBaseUrlOptions,
   'swaggerDoc' | 'operation' | 'groupContextPath' | 'origin'
 >): RequestServerOption[] {
-  const pathItem = operation ? swaggerDoc?.paths[operation.path] : undefined;
+  const rawPathItem = operation ? swaggerDoc?.paths?.[operation.path] : undefined;
+  const resolvedPathItem =
+    swaggerDoc && rawPathItem && isOpenApi31Version(swaggerDoc.openapi)
+      ? resolvePathItemObject(rawPathItem, swaggerDoc as unknown as Record<string, unknown>)
+      : null;
+  const pathServers =
+    resolvedPathItem?.status === 'resolved' && Array.isArray(resolvedPathItem.value.servers)
+      ? (resolvedPathItem.value.servers as SwaggerServer[])
+      : !resolvedPathItem && Array.isArray(rawPathItem?.servers)
+        ? rawPathItem.servers
+        : undefined;
   const result: RequestServerOption[] = [];
   const seen = new Set<string>();
   const gatewayContextBaseUrl = resolveGatewayContextBaseUrl(origin, groupContextPath);
@@ -166,7 +179,7 @@ export function resolveRequestServerOptions({
   }
 
   appendServerOptions(result, seen, 'operation', operation?.operation.servers, origin);
-  appendServerOptions(result, seen, 'path', pathItem?.servers, origin);
+  appendServerOptions(result, seen, 'path', pathServers, origin);
   appendServerOptions(result, seen, 'document', swaggerDoc?.servers, origin);
 
   return result;

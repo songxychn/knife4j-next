@@ -74,7 +74,7 @@ export async function fetchSwaggerDocForMode(
 ): Promise<SwaggerDocFetchResult> {
   const result = await fetchSwaggerDocResult(url, options);
   if (mode === 'embed' && result.doc && !isOpenApi3Document(result.doc)) {
-    return { doc: null, error: { key: 'error.knife4x.openApi3Only' } };
+    return { doc: null, error: { key: 'error.knife4x.openApi3Only' }, diagnostics: [] };
   }
   return result;
 }

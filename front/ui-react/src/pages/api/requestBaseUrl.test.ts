@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseMenuTags } from '../../api/knife4jClient';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import { normalizeRequestBaseUrl, resolveRequestBaseUrl, resolveRequestServerOptions } from './requestBaseUrl';
 
@@ -225,6 +226,71 @@ describe('request base URL resolution', () => {
         origin: 'http://127.0.0.1:3002',
       }),
     ).toBe('http://path.example.test/api');
+  });
+
+  it('uses path-level servers inherited through a non-conflicting Path Item reference', () => {
+    const swaggerDoc = {
+      openapi: '3.1.2',
+      info: { title: 'Referenced server', version: '1' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          description: 'Local description',
+        },
+      },
+      components: {
+        pathItems: {
+          Pets: {
+            servers: [{ url: 'http://path.example.test/api' }],
+            get: { summary: 'List pets', responses: { 200: { description: 'OK' } } },
+          },
+        },
+      },
+      servers: [{ url: 'http://root.example.test/api' }],
+    } as unknown as SwaggerDoc;
+    const operation = parseMenuTags(swaggerDoc)[0].operations[0];
+
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc,
+        operation,
+        enableHost: false,
+        enableHostText: '',
+        origin: 'http://127.0.0.1:3002',
+      }),
+    ).toBe('http://path.example.test/api');
+  });
+
+  it('keeps OpenAPI 3.0 request servers on the raw Path Item', () => {
+    const swaggerDoc = {
+      openapi: '3.0.4',
+      info: { title: 'Legacy referenced server', version: '1' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          servers: [{ url: 'http://local.example.test/api' }],
+        },
+      },
+      components: {
+        pathItems: {
+          Pets: {
+            servers: [{ url: 'http://referenced.example.test/api' }],
+            get: { summary: 'List pets', responses: { 200: { description: 'OK' } } },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const operation = parseMenuTags(swaggerDoc)[0].operations[0];
+
+    expect(
+      resolveRequestBaseUrl({
+        swaggerDoc,
+        operation,
+        enableHost: false,
+        enableHostText: '',
+        origin: 'http://127.0.0.1:3002',
+      }),
+    ).toBe('http://local.example.test/api');
   });
 
   it('falls back to root servers when operation and path servers are unavailable', () => {

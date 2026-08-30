@@ -1,5 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { collectOas31CompatibilityDiagnostics } from 'knife4j-core';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { Alert, Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
 import enUSLocale from 'antd/locale/en_US';
@@ -103,14 +102,17 @@ const AppInner: React.FC = () => {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { groups, activeGroup, markdownDocs, setActiveGroupValue, swaggerDoc, groupError } = useGroup();
+  const {
+    groups,
+    activeGroup,
+    markdownDocs,
+    setActiveGroupValue,
+    swaggerDoc,
+    groupError,
+    documentDiagnostics: oas31Diagnostics,
+  } = useGroup();
   const { t, i18n } = useTranslation();
   const { settings, setSetting, storageResetSnapshot } = useSettings();
-  const oas31Diagnostics = useMemo(
-    () => (swaggerDoc ? collectOas31CompatibilityDiagnostics(swaggerDoc as unknown as Record<string, unknown>) : []),
-    [swaggerDoc],
-  );
-
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -627,6 +629,7 @@ const AppInner: React.FC = () => {
                           <li key={`${diagnostic.code}:${diagnostic.path}:${diagnostic.value ?? ''}`}>
                             <code>{diagnostic.code}</code> — <code>{diagnostic.path}</code>
                             {diagnostic.value ? `: ${diagnostic.value}` : ''}
+                            {` — ${diagnostic.reason}`}
                           </li>
                         ))}
                       </ul>

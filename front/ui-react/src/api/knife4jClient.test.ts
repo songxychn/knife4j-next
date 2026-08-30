@@ -57,6 +57,7 @@ describe('knife4jClient', () => {
 
   it('distinguishes OpenAPI 3 from Swagger 2 documents', () => {
     expect(isOpenApi3Document({ openapi: '3.1.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(true);
+    expect(isOpenApi3Document({ openapi: '3.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(true);
     expect(isOpenApi3Document({ openapi: '3.bad', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
     expect(isOpenApi3Document({ swagger: '2.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
   });
@@ -114,7 +115,95 @@ describe('knife4jClient', () => {
         paths: {},
       },
       error: null,
+      diagnostics: [],
     });
+  });
+
+  it('accepts a components-only OAS 3.1 document and keeps raw structural diagnostics empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        textResponse(
+          JSON.stringify({
+            openapi: '3.1.2',
+            info: {
+              title: 'Reusable objects',
+              summary: 'Components-only contract',
+              version: '1',
+              license: { name: 'Apache License 2.0', identifier: 'Apache-2.0' },
+            },
+            components: {
+              securitySchemes: { ClientCertificate: { type: 'mutualTLS' } },
+              pathItems: {
+                Health: { trace: { summary: 'Trace health', responses: { 204: { description: 'OK' } } } },
+              },
+            },
+          }),
+        ),
+      ),
+    );
+
+    const result = await fetchSwaggerDocResult('/openapi.json');
+    expect(result.error).toBeNull();
+    expect(result.diagnostics).toEqual([]);
+    expect(result.doc).toMatchObject({ paths: {}, info: { summary: 'Components-only contract' } });
+  });
+
+  it('models reusable Reference unions and Path Item $ref semantics separately', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.1.2',
+      info: { title: 'Reference unions', version: '1' },
+      components: {
+        responses: { Alias: { $ref: '#/components/responses/Ok' } },
+        parameters: { Alias: { $ref: '#/components/parameters/Id' } },
+        examples: { Alias: { $ref: '#/components/examples/Example' } },
+        requestBodies: { Alias: { $ref: '#/components/requestBodies/Body' } },
+        headers: { Alias: { $ref: '#/components/headers/Header' } },
+        securitySchemes: { Alias: { $ref: '#/components/securitySchemes/Auth' } },
+        links: { Alias: { $ref: '#/components/links/Link' } },
+        callbacks: { Alias: { $ref: '#/components/callbacks/Callback' } },
+        pathItems: { Alias: { $ref: '#/components/pathItems/Path' } },
+      },
+    };
+
+    expect(doc.components?.responses?.Alias).toEqual({ $ref: '#/components/responses/Ok' });
+  });
+
+  it('keeps diagnostics from the raw OAS 3.1 document before display normalization', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        textResponse(
+          JSON.stringify({
+            openapi: '3.1.2',
+            info: {
+              title: 'Invalid contract',
+              summary: 42,
+              version: '1',
+              license: { name: 'Apache', identifier: 'Apache-2.0', url: 'https://example.test/license' },
+            },
+            paths: {
+              invalid: {},
+              '/missing': { $ref: '#/components/pathItems/Missing' },
+            },
+            components: { pathItems: {} },
+          }),
+        ),
+      ),
+    );
+
+    const result = await fetchSwaggerDocResult('/openapi.json');
+    expect(result.doc).not.toBeNull();
+    expect(result.error).toBeNull();
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(
+      expect.arrayContaining([
+        'invalid-field-type',
+        'license-fields-mutually-exclusive',
+        'invalid-path-key',
+        'unresolved-local-reference',
+      ]),
+    );
+    expect(result.diagnostics.every(({ path, reason }) => path.startsWith('#') && reason.length > 0)).toBe(true);
   });
 
   it('sends the selected UI language when fetching api-docs', async () => {
@@ -419,13 +508,14 @@ describe('knife4jClient', () => {
     expect(menuTags[1].operations.map((operation) => operation.operationId)).toEqual(['createUser', 'listUsers']);
   });
 
-  it('parses TRACE paths and OAS 3.1 webhook operations while ignoring Path Item metadata', () => {
+  it('parses TRACE and webhooks while applying Path Item metadata and inherited parameters', () => {
     const doc = {
       openapi: '3.1.1',
       info: { title: 'Events', version: '1.0.0' },
       paths: {
         '/diagnostics': {
           summary: 'metadata only',
+          description: 'Path-level diagnostics description',
           parameters: [{ name: 'requestId', in: 'query' }],
           trace: {
             tags: ['diagnostics'],
@@ -456,6 +546,10 @@ describe('knife4jClient', () => {
     const webhook = menuTags.find((tag) => tag.tag === 'events')?.operations[0];
 
     expect(trace).toMatchObject({ method: 'trace', source: 'path', routeId: 'traceDiagnostics' });
+    expect(trace?.operation).toMatchObject({
+      description: 'Path-level diagnostics description',
+      parameters: [{ name: 'requestId', in: 'query' }],
+    });
     expect(webhook).toMatchObject({
       path: 'petChanged',
       method: 'post',
@@ -463,6 +557,71 @@ describe('knife4jClient', () => {
       routeId: 'webhook:petChanged',
     });
     expect(menuTags.flatMap((tag) => tag.operations)).toHaveLength(2);
+  });
+
+  it('keeps non-conflicting Path Item siblings and applies operation parameter overrides', () => {
+    const doc = {
+      openapi: '3.1.2',
+      info: { title: 'Path Item references', version: '1.0.0' },
+      paths: {
+        '/pets/{id}': {
+          $ref: '#/components/pathItems/PetById',
+          description: 'Local path description',
+          post: {
+            tags: ['pets'],
+            summary: 'Update pet',
+            parameters: [{ $ref: '#/components/parameters/Id', description: 'Operation-specific id' }],
+            responses: { 204: { description: 'Updated' } },
+          },
+        },
+      },
+      components: {
+        parameters: {
+          Id: { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          Locale: { name: 'locale', in: 'query', schema: { type: 'string' } },
+        },
+        pathItems: {
+          PetById: {
+            summary: 'Pet by id',
+            parameters: [{ $ref: '#/components/parameters/Id' }, { $ref: '#/components/parameters/Locale' }],
+            get: { tags: ['pets'], summary: 'Read pet', responses: { 200: { description: 'OK' } } },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+
+    const operations = parseMenuTags(doc)[0].operations;
+    expect(operations.map(({ method }) => method)).toEqual(['get', 'post']);
+    expect(operations[1].operation).toMatchObject({
+      summary: 'Update pet',
+      description: 'Local path description',
+      parameters: [
+        { name: 'id', in: 'path', description: 'Operation-specific id' },
+        { name: 'locale', in: 'query' },
+      ],
+    });
+  });
+
+  it('keeps the existing OpenAPI 3.0 menu behavior for Path Item references', () => {
+    const doc = {
+      openapi: '3.0.4',
+      info: { title: 'Legacy Path Item handling', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          $ref: '#/components/pathItems/Pets',
+          post: { tags: ['pets'], summary: 'Local POST' },
+        },
+      },
+      components: {
+        pathItems: {
+          Pets: { get: { tags: ['pets'], summary: 'Referenced GET' } },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(parseMenuTags(doc)[0].operations.map(({ method, summary }) => ({ method, summary }))).toEqual([
+      { method: 'get', summary: 'Referenced GET' },
+    ]);
   });
 
   it('accepts a webhook-only OAS 3.1 document with no paths field', () => {

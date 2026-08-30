@@ -1,0 +1,74 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "Path Item references",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/pets/{id}": {
+      "$ref": "#/components/pathItems/PetById",
+      "description": "Local path description",
+      "post": {
+        "summary": "Update pet",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id",
+            "description": "Operation-specific id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Updated"
+          }
+        }
+      },
+      "x-knife4j-note": "preserved"
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Locale": {
+        "name": "locale",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "pathItems": {
+      "PetById": {
+        "summary": "Pet by id",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          },
+          {
+            "$ref": "#/components/parameters/Locale"
+          }
+        ],
+        "get": {
+          "summary": "Read pet",
+          "parameters": [
+            {
+              "$ref": "#/components/parameters/Locale",
+              "description": "Operation locale"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "OK"
+            }
+          }
+        }
+      }
+    }
+  }
+}

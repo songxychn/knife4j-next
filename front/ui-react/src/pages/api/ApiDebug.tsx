@@ -47,6 +47,7 @@ import type {
   ValidationError,
 } from 'knife4j-core';
 import {
+  OPENAPI_HTTP_METHODS,
   buildCurl,
   buildOperationDebugModel,
   buildRequest as coreBuildRequest,
@@ -1695,7 +1696,7 @@ function buildInitialDebugState(
   };
 }
 
-const DEBUG_HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE']);
+const DEBUG_HTTP_METHODS = new Set(OPENAPI_HTTP_METHODS.map((method) => method.toUpperCase()));
 
 function requestServerSourceLabel(source: RequestServerSource, t: ReturnType<typeof useTranslation>['t']): string {
   if (source === 'gateway') return t('apiDebug.baseUrl.source.gateway');
@@ -3300,7 +3301,7 @@ export default function ApiDebug() {
               value={method}
               onChange={setMethod}
               style={{ width: 110, flex: '0 0 110px' }}
-              options={['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE'].map((item) => ({
+              options={Array.from(DEBUG_HTTP_METHODS).map((item) => ({
                 value: item,
                 label: item,
               }))}

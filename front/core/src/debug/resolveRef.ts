@@ -9,27 +9,27 @@
  */
 
 import type { SchemaValue } from './types';
+import { dereferenceOasReferenceObject, isOpenApi31Version, resolveLocalJsonPointer } from '../openapi31/document';
 
 function resolveRefValue(ref: string, doc: Record<string, unknown>): unknown {
-  if (!ref || !ref.startsWith('#/')) return undefined;
-
-  let pointer: string;
-  try {
-    pointer = decodeURIComponent(ref.slice(2));
-  } catch {
-    return undefined;
+  if (!isOpenApi31Version(doc.openapi)) {
+    if (!ref || !ref.startsWith('#/')) return undefined;
+    let pointer: string;
+    try {
+      pointer = decodeURIComponent(ref.slice(2));
+    } catch {
+      return undefined;
+    }
+    let current: unknown = doc;
+    for (const encodedPart of pointer.split('/')) {
+      if (current === null || typeof current !== 'object') return undefined;
+      const part = encodedPart.replace(/~1/g, '/').replace(/~0/g, '~');
+      current = (current as Record<string, unknown>)[part];
+    }
+    return current;
   }
-  const parts = pointer.split('/');
-  let current: unknown = doc;
-
-  for (const part of parts) {
-    if (current === null || typeof current !== 'object') return undefined;
-    // JSON Pointer 允许 ~1 → / 和 ~0 → ~
-    const key = part.replace(/~1/g, '/').replace(/~0/g, '~');
-    current = (current as Record<string, unknown>)[key];
-  }
-
-  return current;
+  const result = resolveLocalJsonPointer(doc, ref);
+  return result.found ? result.value : undefined;
 }
 
 /**
@@ -107,10 +107,16 @@ export function dereferenceReferenceObject(
   doc: Record<string, unknown>,
   maxResolveDepth = 10,
 ): Record<string, unknown> {
+  if (isOpenApi31Version(doc.openapi)) {
+    return dereferenceOasReferenceObject(obj, doc, maxResolveDepth);
+  }
+
+  // Keep the established non-3.1 behavior unchanged. In particular, an
+  // unresolved reference is returned verbatim and OAS 3.0 siblings are only
+  // discarded after a target has actually been resolved.
   const allowAnnotations = supportsReferenceObjectSiblings(doc);
   let current = obj;
   let depth = 0;
-
   while (typeof current.$ref === 'string' && depth < maxResolveDepth) {
     const summary = allowAnnotations && typeof current.summary === 'string' ? current.summary : undefined;
     const description = allowAnnotations && typeof current.description === 'string' ? current.description : undefined;
@@ -123,7 +129,6 @@ export function dereferenceReferenceObject(
     };
     depth++;
   }
-
   return current;
 }
 

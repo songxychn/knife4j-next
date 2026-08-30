@@ -12,17 +12,23 @@ import {
   OperationObject,
   ExternalDocumentationObject,
   ServerObject,
+  ParameterObject,
+  RequestBodyObject,
 } from './types';
 import { Knife4jPathItemObject } from '../knife4j/operation/Knife4jPathItemObject';
 import { Knife4jServer } from '../knife4j/servers/Knife4jServer';
 import { Knife4jServerVariableObject } from '../knife4j/servers/Knife4jServerVariableObject';
+import {
+  OPENAPI_HTTP_METHODS,
+  dereferenceOasReferenceObject,
+  isOpenApi31Version,
+  resolvePathItemOperation,
+} from '../../openapi31/document';
 
 /**
  * 解析OpenAPI3的规范,参考规范文档：https://spec.openapis.org/oas/v3.1.0
  */
 export class OpenAPIParser extends BaseCommonParser {
-  private static readonly HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
-
   /**
    * 解析OpenAPI3规范
    * @param data OpenAPI原始数据
@@ -63,15 +69,47 @@ export class OpenAPIParser extends BaseCommonParser {
     void options;
     const data = instance.originalRecord;
     const paths = data['paths'] as PathsObject | undefined;
-    const methods = paths?.[operation.url];
-    if (lodash.isEmpty(methods)) {
+    const pathItem = paths?.[operation.url];
+    if (lodash.isEmpty(pathItem)) {
       return;
     }
-    const _operation = methods[operation.methodType] as OperationObject;
+    if (!isOpenApi31Version(data.openapi)) {
+      const legacyOperation = pathItem[operation.methodType] as OperationObject | undefined;
+      if (!legacyOperation) return;
+      operation.asyncResolveParameters(legacyOperation.parameters as ParameterObject[] | undefined);
+      operation.asyncResolveRequestBody(legacyOperation.requestBody as RequestBodyObject | undefined, instance);
+      return;
+    }
+
+    const resolved = resolvePathItemOperation(
+      pathItem,
+      operation.methodType as (typeof OPENAPI_HTTP_METHODS)[number],
+      data,
+    );
+    if (!resolved) return;
+    const _operation = resolved.operation as OperationObject;
     //解析请求参数parameters
-    operation.asyncResolveParameters(_operation.parameters);
+    const parameters = (_operation.parameters ?? [])
+      .map((parameter) =>
+        dereferenceOasReferenceObject(parameter as unknown as Record<string, unknown>, data, 20, 'parameter'),
+      )
+      .filter(
+        (parameter) => typeof parameter.name === 'string' && typeof parameter.in === 'string',
+      ) as unknown as ParameterObject[];
+    operation.asyncResolveParameters(parameters);
     //解析请求参数
-    operation.asyncResolveRequestBody(_operation.requestBody, instance);
+    const requestBody = _operation.requestBody
+      ? dereferenceOasReferenceObject(
+          _operation.requestBody as unknown as Record<string, unknown>,
+          data,
+          20,
+          'requestBody',
+        )
+      : undefined;
+    operation.asyncResolveRequestBody(
+      requestBody && requestBody.content ? (requestBody as unknown as RequestBodyObject) : undefined,
+      instance,
+    );
   }
 
   /**
@@ -138,16 +176,21 @@ export class OpenAPIParser extends BaseCommonParser {
     if (!paths) return;
     //console.log(paths)
     for (const key in paths) {
-      const methods = paths[key];
+      const pathItem = paths[key];
       // 判断非空
-      if (lodash.isEmpty(methods)) {
+      if (lodash.isEmpty(pathItem)) {
         continue;
       }
-      for (const methodType of OpenAPIParser.HTTP_METHODS) {
-        const operation = methods[methodType];
-        if (!operation) continue;
+      for (const methodType of OPENAPI_HTTP_METHODS) {
+        if (!isOpenApi31Version(instance.originalRecord.openapi)) {
+          const legacyOperation = pathItem[methodType];
+          if (legacyOperation) this.resolveOperation(legacyOperation, key, methodType, instance);
+          continue;
+        }
+        const resolved = resolvePathItemOperation(pathItem, methodType, instance.originalRecord);
+        if (!resolved) continue;
         // 解析operation
-        this.resolveOperation(operation, key, methodType, instance);
+        this.resolveOperation(resolved.operation as OperationObject, key, methodType, instance);
       }
     }
   }
