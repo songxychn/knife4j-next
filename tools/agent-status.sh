@@ -89,7 +89,11 @@ print_pr_snapshot() {
     && [ -n "${GITHUB_HEAD_REF:-}" ] \
     && [ -n "${GITHUB_SHA:-}" ] \
     && [ "$checkout_head" = "$GITHUB_SHA" ]; then
-    head="$(git rev-parse HEAD^2)"
+    head="$(git cat-file -p HEAD | awk '$1 == "parent" { count++; if (count == 2) print $2 }')"
+    [ -n "$head" ] || {
+      echo "Unable to resolve pull request head from merge commit." >&2
+      exit 1
+    }
   fi
 
   echo

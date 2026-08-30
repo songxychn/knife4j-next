@@ -109,21 +109,28 @@ assert_log_contains "--head fixture-branch"
 assert_log_contains "headRefOid"
 assert_log_contains "$(git rev-parse HEAD)"
 
-detached_repo="$tmp_dir/detached-repo"
-git -C "$tmp_dir" init -q -b base detached-repo
-git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+merge_source="$tmp_dir/merge-source"
+git -C "$tmp_dir" init -q -b base merge-source
+git -C "$merge_source" -c user.name=Agent -c user.email=agent@example.test \
   commit -q --allow-empty -m base
-git -C "$detached_repo" switch -q -c fixture-branch
-git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+git -C "$merge_source" switch -q -c fixture-branch
+git -C "$merge_source" -c user.name=Agent -c user.email=agent@example.test \
   commit -q --allow-empty -m head
-pr_head="$(git -C "$detached_repo" rev-parse HEAD)"
-git -C "$detached_repo" switch -q base
-git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+pr_head="$(git -C "$merge_source" rev-parse HEAD)"
+git -C "$merge_source" switch -q base
+git -C "$merge_source" -c user.name=Agent -c user.email=agent@example.test \
   commit -q --allow-empty -m base-advance
-git -C "$detached_repo" -c user.name=Agent -c user.email=agent@example.test \
+git -C "$merge_source" -c user.name=Agent -c user.email=agent@example.test \
   merge -q --no-ff fixture-branch -m synthetic-pr-merge
-merge_head="$(git -C "$detached_repo" rev-parse HEAD)"
-git -C "$detached_repo" switch -q --detach "$merge_head"
+merge_head="$(git -C "$merge_source" rev-parse HEAD)"
+
+detached_repo="$tmp_dir/detached-repo"
+git init -q "$detached_repo"
+git -C "$detached_repo" fetch -q --depth=1 "file://$merge_source" "$merge_head"
+git -C "$detached_repo" switch -q --detach FETCH_HEAD
+if git -C "$detached_repo" rev-parse --verify HEAD^2 >/dev/null 2>&1; then
+  fail "detached fixture should not resolve HEAD^2 in a depth-1 checkout"
+fi
 
 reset_fake
 export FAKE_PR=$'#42 OPEN Detached PR https://example.test/pr/42\n  changes: success'
