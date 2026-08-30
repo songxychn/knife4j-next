@@ -272,6 +272,20 @@ const jaJP = {
   'apiDebug.schemaValidation.engineNotReady': 'JSON Schema エンジンの準備ができていません',
   'apiDebug.schemaValidation.engineFailed':
     '送信前の Schema 診断を利用できません。このリクエストは従来どおり送信を続行します：{{message}}',
+  'apiDebug.responseSchemaValidation.title': 'レスポンスボディが OAS 3.1 JSON Schema に適合していません',
+  'apiDebug.responseSchemaValidation.nonBlocking':
+    'この診断は HTTP ステータス、レスポンス本文、Header、リクエスト履歴を変更しません。',
+  'apiDebug.responseSchemaValidation.running': 'OAS 3.1 JSON Schema レスポンス診断を実行中です',
+  'apiDebug.responseSchemaValidation.invalidJson':
+    'レスポンスの Content-Type は JSON ですが、レスポンスボディは有効な JSON ではありません。',
+  'apiDebug.responseSchemaValidation.issue': '{{keyword}} の検証に失敗しました',
+  'apiDebug.responseSchemaValidation.moreIssues': 'ほかに {{count}} 件の問題があります',
+  'apiDebug.responseSchemaValidation.unavailableTitle': 'レスポンス Schema 診断を利用できません',
+  'apiDebug.responseSchemaValidation.engineInactive': 'JSON Schema エンジンの準備ができていません。',
+  'apiDebug.responseSchemaValidation.engineFailed': 'JSON Schema エンジンの初期化に失敗しました。',
+  'apiDebug.responseSchemaValidation.referenceUnavailable': '現在のレスポンス Schema またはその参照を利用できません。',
+  'apiDebug.responseSchemaValidation.budgetRejected': 'レスポンスボディまたは Schema が診断予算を超えました。',
+  'apiDebug.responseSchemaValidation.evaluationFailed': 'レスポンス Schema の評価に失敗しました。',
   'apiDebug.receiving': 'レスポンス受信中：{{received}}',
   'apiDebug.receivingOf': 'レスポンス受信中：{{received}} / {{total}}',
   'apiDebug.history.title': 'リクエスト履歴',

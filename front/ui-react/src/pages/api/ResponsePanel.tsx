@@ -10,6 +10,10 @@ import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import CodeBlock from './CodeBlock';
 import { formatSseEventTime } from './sseEventTime';
 import { formatByteSize } from './responseBodyProgress';
+import {
+  responseBodyInstanceLabel,
+  type ResponseBodySchemaDiagnostic,
+} from '../../schema/responseBodySchemaValidation';
 
 const { Text } = Typography;
 
@@ -65,6 +69,8 @@ interface ResponsePanelProps {
   onSseAbort?: () => void;
   /** true while SSE stream is still open */
   sseStreaming?: boolean;
+  /** non-blocking OAS 3.1 response body diagnostic for the current request */
+  schemaDiagnostic?: ResponseBodySchemaDiagnostic | null;
 }
 
 const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
@@ -182,6 +188,7 @@ export default function ResponsePanel({
   sseEvents,
   onSseAbort,
   sseStreaming,
+  schemaDiagnostic,
 }: ResponsePanelProps) {
   const { t } = useTranslation();
   const [activeKey, setActiveKey] = useState<string>('content');
@@ -368,6 +375,8 @@ export default function ResponsePanel({
             </Button>
           </Space>
 
+          <ResponseSchemaDiagnosticAlert diagnostic={schemaDiagnostic} />
+
           <Tabs
             size="small"
             activeKey={activeKey}
@@ -410,6 +419,107 @@ export default function ResponsePanel({
           />
         </>
       )}
+    </div>
+  );
+}
+
+export function ResponseSchemaDiagnosticAlert({
+  diagnostic,
+}: {
+  readonly diagnostic?: ResponseBodySchemaDiagnostic | null;
+}) {
+  const { t } = useTranslation();
+  if (!diagnostic) return null;
+
+  if (diagnostic.status === 'running') {
+    return (
+      <div id="knife4j-response-schema-diagnostics" data-diagnostic-status="running">
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={t('apiDebug.responseSchemaValidation.running')}
+          description={t('apiDebug.responseSchemaValidation.nonBlocking')}
+        />
+      </div>
+    );
+  }
+
+  if (diagnostic.status === 'invalid-json') {
+    return (
+      <div id="knife4j-response-schema-diagnostics" data-diagnostic-status="invalid-json">
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={t('apiDebug.responseSchemaValidation.title')}
+          description={
+            <Space direction="vertical" size={4}>
+              <Text>{t('apiDebug.responseSchemaValidation.invalidJson')}</Text>
+              <Text type="secondary">{t('apiDebug.responseSchemaValidation.nonBlocking')}</Text>
+            </Space>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (diagnostic.status === 'invalid') {
+    return (
+      <div id="knife4j-response-schema-diagnostics" data-diagnostic-status="invalid-schema">
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={t('apiDebug.responseSchemaValidation.title')}
+          description={
+            <div>
+              <Text type="secondary">{t('apiDebug.responseSchemaValidation.nonBlocking')}</Text>
+              <ul style={{ margin: '8px 0 0', paddingInlineStart: 20 }}>
+                {diagnostic.issues.map((issue) => (
+                  <li key={`${issue.instanceLocation}:${issue.absoluteKeywordLocation}`} style={{ marginBottom: 4 }}>
+                    <Text code>{responseBodyInstanceLabel(issue.instanceLocation)}</Text>{' '}
+                    <Text>{t('apiDebug.responseSchemaValidation.issue', { keyword: issue.keyword })}</Text>
+                  </li>
+                ))}
+              </ul>
+              {diagnostic.totalIssues > diagnostic.issues.length && (
+                <Text type="secondary">
+                  {t('apiDebug.responseSchemaValidation.moreIssues', {
+                    count: diagnostic.totalIssues - diagnostic.issues.length,
+                  })}
+                </Text>
+              )}
+            </div>
+          }
+        />
+      </div>
+    );
+  }
+
+  const reasonKey = {
+    'engine-inactive': 'apiDebug.responseSchemaValidation.engineInactive',
+    'engine-failed': 'apiDebug.responseSchemaValidation.engineFailed',
+    'reference-unavailable': 'apiDebug.responseSchemaValidation.referenceUnavailable',
+    'budget-rejected': 'apiDebug.responseSchemaValidation.budgetRejected',
+    'evaluation-failed': 'apiDebug.responseSchemaValidation.evaluationFailed',
+  }[diagnostic.reason];
+  const reason = t(reasonKey);
+
+  return (
+    <div id="knife4j-response-schema-diagnostics" data-diagnostic-status="unavailable">
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 12 }}
+        message={t('apiDebug.responseSchemaValidation.unavailableTitle')}
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>{diagnostic.message ? `${reason}: ${diagnostic.message}` : reason}</Text>
+            <Text type="secondary">{t('apiDebug.responseSchemaValidation.nonBlocking')}</Text>
+          </Space>
+        }
+      />
     </div>
   );
 }
