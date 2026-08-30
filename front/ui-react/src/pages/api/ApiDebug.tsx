@@ -1889,6 +1889,7 @@ export default function ApiDebug() {
   const [sseStreaming, setSseStreaming] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
+  const currentSchemaEngineRef = useRef(schemaEngine);
   const requestSeqRef = useRef(0);
   const schemaValidationRevisionRef = useRef(0);
   const schemaValidationAbortRef = useRef<AbortController | null>(null);
@@ -1926,6 +1927,10 @@ export default function ApiDebug() {
   useLayoutEffect(() => {
     activeDebugCacheKeyRef.current = debugCacheKey;
   }, [debugCacheKey]);
+
+  useLayoutEffect(() => {
+    currentSchemaEngineRef.current = schemaEngine;
+  }, [schemaEngine]);
 
   useEffect(() => {
     schemaValidationRevisionRef.current += 1;
@@ -3054,26 +3059,34 @@ export default function ApiDebug() {
       } else if (responseSchemaPreparation.status === 'unavailable') {
         setResponseSchemaDiagnostic({ status: 'unavailable', reason: 'reference-unavailable' });
       } else if (responseSchemaPreparation.status === 'ready') {
-        if (schemaEngine.status !== 'ready') {
+        const currentSchemaEngine = currentSchemaEngineRef.current;
+        if (currentSchemaEngine.status !== 'ready') {
           setResponseSchemaDiagnostic(
-            schemaEngine.status === 'error'
-              ? { status: 'unavailable', reason: 'engine-failed', message: schemaEngine.error.message }
+            currentSchemaEngine.status === 'error'
+              ? { status: 'unavailable', reason: 'engine-failed', message: currentSchemaEngine.error.message }
               : { status: 'unavailable', reason: 'engine-inactive' },
           );
         } else {
+          const responseSchemaSession = currentSchemaEngine.session;
           const responseSchemaController = new AbortController();
           responseSchemaValidationAbortRef.current = responseSchemaController;
           setResponseSchemaDiagnostic({ status: 'running' });
-          const isCurrentResponseSchemaEvaluation = () =>
-            !responseSchemaController.signal.aborted &&
-            responseBodySchemaResultIsCurrent(
-              requestSeq,
-              requestSeqRef.current,
-              requestDebugCacheKey,
-              activeDebugCacheKeyRef.current,
+          const isCurrentResponseSchemaEvaluation = () => {
+            const latestSchemaEngine = currentSchemaEngineRef.current;
+            return (
+              !responseSchemaController.signal.aborted &&
+              responseBodySchemaResultIsCurrent(
+                requestSeq,
+                requestSeqRef.current,
+                requestDebugCacheKey,
+                activeDebugCacheKeyRef.current,
+                responseSchemaSession,
+                latestSchemaEngine.status === 'ready' ? latestSchemaEngine.session : null,
+              )
             );
+          };
 
-          void evaluateResponseBodySchema(schemaEngine.session, responseSchemaPreparation, {
+          void evaluateResponseBodySchema(responseSchemaSession, responseSchemaPreparation, {
             signal: responseSchemaController.signal,
           })
             .then((evaluation) => {

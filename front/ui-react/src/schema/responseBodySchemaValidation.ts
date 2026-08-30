@@ -266,8 +266,14 @@ export function responseBodySchemaResultIsCurrent(
   currentRequestSequence: number,
   evaluationDebugCacheKey: string | null,
   currentDebugCacheKey: string | null,
+  evaluationSession: SchemaDocumentSession,
+  currentSession: SchemaDocumentSession | null,
 ): boolean {
-  return evaluationRequestSequence === currentRequestSequence && evaluationDebugCacheKey === currentDebugCacheKey;
+  return (
+    evaluationRequestSequence === currentRequestSequence &&
+    evaluationDebugCacheKey === currentDebugCacheKey &&
+    evaluationSession === currentSession
+  );
 }
 
 export function responseBodyInstanceLabel(instanceLocation: string): string {

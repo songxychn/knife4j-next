@@ -227,7 +227,7 @@ describe('response schema evaluation', () => {
     await expect(evaluateResponseBodySchema(session, booleanFalse)).resolves.toMatchObject({ status: 'invalid' });
   });
 
-  test('caps nested issues, passes cancellation, and rejects stale request results', async () => {
+  test('caps nested issues, passes cancellation, and rejects stale request or session results', async () => {
     const nestedError = {
       keyword: 'https://json-schema.org/keyword/oneOf',
       absoluteKeywordLocation: 'https://schemas.example.test/body#/oneOf',
@@ -249,6 +249,7 @@ describe('response schema evaluation', () => {
       ],
     };
     const { session, evaluate } = fakeSession({ valid: false, errors: [nestedError], annotations: [] });
+    const { session: replacementSession } = fakeSession({ valid: true, errors: [], annotations: [] });
     const controller = new AbortController();
     const result = await evaluateResponseBodySchema(
       session,
@@ -265,9 +266,12 @@ describe('response schema evaluation', () => {
     expect(result).toMatchObject({ status: 'invalid', totalIssues: 2, issues: [{ keyword: 'type' }] });
     expect(evaluate).toHaveBeenCalledWith('#/components/schemas/Envelope', {}, { signal: controller.signal });
     expect(responseBodyInstanceLabel('/profile/age')).toBe('$/profile/age');
-    expect(responseBodySchemaResultIsCurrent(7, 7, 'group|operation', 'group|operation')).toBe(true);
-    expect(responseBodySchemaResultIsCurrent(7, 8, 'group|operation', 'group|operation')).toBe(false);
-    expect(responseBodySchemaResultIsCurrent(7, 7, 'old', 'new')).toBe(false);
+    expect(responseBodySchemaResultIsCurrent(7, 7, 'group|operation', 'group|operation', session, session)).toBe(true);
+    expect(responseBodySchemaResultIsCurrent(7, 8, 'group|operation', 'group|operation', session, session)).toBe(false);
+    expect(responseBodySchemaResultIsCurrent(7, 7, 'old', 'new', session, session)).toBe(false);
+    expect(
+      responseBodySchemaResultIsCurrent(7, 7, 'group|operation', 'group|operation', session, replacementSession),
+    ).toBe(false);
   });
 
   test('aborts an in-flight response evaluation through the document session signal', async () => {
