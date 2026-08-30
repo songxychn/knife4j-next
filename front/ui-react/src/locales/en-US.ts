@@ -250,6 +250,8 @@ const enUS = {
     'The request has not been sent. Fix the issues below, or explicitly continue to test an invalid request.',
   'apiDebug.schemaValidation.invalidJson': 'The request body is not valid JSON.',
   'apiDebug.schemaValidation.parameterInvalidJson': 'The parameter value is not valid JSON.',
+  'apiDebug.schemaValidation.parameterUnsafeNumber':
+    'The parameter contains a number that this browser cannot represent without changing its value.',
   'apiDebug.schemaValidation.issue': '{{keyword}} validation failed',
   'apiDebug.schemaValidation.moreIssues': '{{count}} more issues are not shown',
   'apiDebug.schemaValidation.stillSend': 'Send anyway',
@@ -339,6 +341,8 @@ const enUS = {
     'The browser Fetch API cannot send a request body with {{method}}. Use the generated cURL command or change the operation method.',
   'apiDebug.method.browserUnsupported':
     'The browser Fetch API forbids {{method}} requests. Use the generated cURL command or another non-browser client.',
+  'apiDebug.cookie.browserUnsupported':
+    'The browser Fetch API forbids scripts from setting the Cookie request header. This request was not sent; use the browser Cookie session or copy the equivalent cURL command from Preview.',
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',

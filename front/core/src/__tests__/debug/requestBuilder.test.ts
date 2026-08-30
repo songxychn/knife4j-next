@@ -963,6 +963,20 @@ describe('buildCurl', () => {
     expect(curl).toContain("it'\\''s a test");
   });
 
+  test('shell-quotes headers and allowReserved URLs as complete arguments', () => {
+    const curl = buildCurl({
+      url: "https://api.example.test/items?q=it's$(printf injected)",
+      method: 'GET',
+      headers: { Cookie: "session=a; token=$(printf injected); note=it's" },
+      query: {},
+      contentType: '',
+    });
+
+    expect(curl).toContain("'Cookie: session=a; token=$(printf injected); note=it'\\''s'");
+    expect(curl).toContain("'https://api.example.test/items?q=it'\\''s$(printf injected)'");
+    expect(curl).not.toContain('-H \\\n  Cookie:');
+  });
+
   test('no -d flag when body is empty', () => {
     const curl = buildCurl({
       url: 'http://localhost:8080/items',
@@ -1363,6 +1377,7 @@ describe('OAS 3.1 parameter request snapshots', () => {
     );
     expect(built.query).toEqual({ extra: 'x', 'filter[role]': 'admin', 'filter[label]': '你好' });
     expect(built.headers).toMatchObject({ 'X-Ids': '1,2', Cookie: 'session=a; session=b' });
+    expect(built.hasExplicitCookieParameters).toBe(true);
     expect(buildCurl(built)).toContain(`'${built.url}'`);
     expect(built.parameterInstances).toEqual([
       expect.objectContaining({ key: 'path:id', instance: 42 }),
@@ -1553,6 +1568,43 @@ describe('OAS 3.1 parameter request snapshots', () => {
     expect(built.headers).toEqual({ 'X-Optional': '' });
     expect(built.sourceMap?.headers).toEqual({ 'X-Optional': 'interface' });
     expect(buildCurl(built)).toContain('X-Optional: ');
+  });
+
+  test('omits an empty composite header and consumes lower-priority values with the same name', () => {
+    const emptyHeaderModel: OperationDebugModel = {
+      ...model,
+      pathParams: [],
+      queryParams: [],
+      cookieParams: [],
+      headerParams: [
+        {
+          name: 'X-Ids',
+          in: 'header',
+          required: false,
+          type: 'array',
+          schema: { type: 'array' },
+          parameterSerialization: { kind: 'schema', style: 'simple', explode: false, allowReserved: false },
+        },
+      ],
+    };
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items',
+      method: 'GET',
+      debugModel: emptyHeaderModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: { 'x-ids': 'legacy' },
+        cookieParams: {},
+        oas31ParameterValues: { 'header:X-Ids': '[]' },
+      },
+      auth: { apiKeys: { 'X-Ids': 'auth' } },
+      globalParams: { headers: { 'X-IDS': 'global' }, queries: {} },
+    });
+
+    expect(built.headers).toEqual({});
+    expect(built.sourceMap?.headers).toEqual({});
   });
 
   test('blocks request construction when the document contract is invalid', () => {

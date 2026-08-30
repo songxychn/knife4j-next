@@ -240,6 +240,7 @@ const zhCN = {
   'apiDebug.schemaValidation.description': '请求尚未发送。请修正以下问题，或明确选择“仍然发送”以进行负向接口测试。',
   'apiDebug.schemaValidation.invalidJson': '请求体不是有效的 JSON。',
   'apiDebug.schemaValidation.parameterInvalidJson': '参数值不是有效的 JSON。',
+  'apiDebug.schemaValidation.parameterUnsafeNumber': '参数包含浏览器无法无损表示的数字。',
   'apiDebug.schemaValidation.issue': '{{keyword}} 校验失败',
   'apiDebug.schemaValidation.moreIssues': '另有 {{count}} 个问题未显示',
   'apiDebug.schemaValidation.stillSend': '仍然发送',
@@ -325,6 +326,8 @@ const zhCN = {
     '浏览器 Fetch API 不允许为 {{method}} 请求发送请求体，请改用生成的 cURL 或调整接口方法。',
   'apiDebug.method.browserUnsupported':
     '浏览器 Fetch API 禁止发送 {{method}} 请求，请改用生成的 cURL 或其他非浏览器客户端。',
+  'apiDebug.cookie.browserUnsupported':
+    '浏览器 Fetch API 禁止脚本设置 Cookie 请求头，本次请求未发送。请使用浏览器 Cookie 会话，或复制预览中的等价 cURL。',
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',

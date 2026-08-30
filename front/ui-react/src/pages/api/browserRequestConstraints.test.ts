@@ -11,4 +11,8 @@ describe('browserRequestConstraint', () => {
     expect(browserRequestConstraint('HEAD', true)).toBe('unsupported-body');
     expect(browserRequestConstraint('POST', true)).toBeNull();
   });
+
+  it('blocks an explicit Cookie parameter instead of letting Fetch silently drop it', () => {
+    expect(browserRequestConstraint('GET', false, true)).toBe('unsupported-cookie');
+  });
 });

@@ -155,9 +155,19 @@ const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
 const PARAM_TABLE_SCROLL = { x: apiDebugParamTableScrollX() };
 
+type ParameterInputRequestSchemaDiagnosticIssue =
+  | (Omit<ParameterInputDiagnostic, 'kind'> & {
+      readonly kind: 'invalid-json';
+      readonly target: 'parameter';
+    })
+  | (Omit<ParameterInputDiagnostic, 'kind'> & {
+      readonly kind: 'unsafe-number';
+      readonly target: 'parameter';
+    });
+
 type RequestSchemaDiagnosticIssue =
   | { readonly kind: 'invalid-json'; readonly target: 'body' }
-  | ({ readonly kind: 'invalid-json'; readonly target: 'parameter' } & ParameterInputDiagnostic)
+  | ParameterInputRequestSchemaDiagnosticIssue
   | {
       readonly kind: 'invalid-schema';
       readonly target: 'body';
@@ -2536,7 +2546,11 @@ export default function ApiDebug() {
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
         : built.body !== undefined && built.body !== '';
-    const browserConstraint = browserRequestConstraint(built.method, hasBodyInput);
+    const browserConstraint = browserRequestConstraint(
+      built.method,
+      hasBodyInput,
+      built.hasExplicitCookieParameters === true,
+    );
     if (browserConstraint === 'unsupported-method') {
       setActiveTab('preview');
       setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
@@ -2545,6 +2559,11 @@ export default function ApiDebug() {
     if (browserConstraint === 'unsupported-body') {
       setActiveTab('body');
       setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
+      return;
+    }
+    if (browserConstraint === 'unsupported-cookie') {
+      setActiveTab('cookie');
+      setError(t('apiDebug.cookie.browserUnsupported'));
       return;
     }
 
@@ -2569,8 +2588,11 @@ export default function ApiDebug() {
       setPendingSchemaOverride(null);
 
       const diagnosticIssues: RequestSchemaDiagnosticIssue[] =
-        built.parameterInputDiagnostics?.map((issue) => ({ ...issue, kind: 'invalid-json', target: 'parameter' })) ??
-        [];
+        built.parameterInputDiagnostics?.map((issue): ParameterInputRequestSchemaDiagnosticIssue =>
+          issue.kind === 'invalid-json'
+            ? { ...issue, kind: 'invalid-json', target: 'parameter' }
+            : { ...issue, kind: 'unsafe-number', target: 'parameter' },
+        ) ?? [];
       let totalDiagnosticIssues = diagnosticIssues.length;
       const bodyPreparation = prepareRequestBodySchemaEvaluation({
         document: swaggerDoc,
@@ -3348,6 +3370,13 @@ export default function ApiDebug() {
                             ? t('apiDebug.schemaValidation.invalidJson')
                             : t('apiDebug.schemaValidation.parameterInvalidJson')}
                         </Text>
+                      </li>
+                    );
+                  }
+                  if (issue.kind === 'unsafe-number') {
+                    return (
+                      <li key={`${issue.target}:${location}:number:${index}`} style={{ marginBottom: 6 }}>
+                        <Text code>{location}</Text> <Text>{t('apiDebug.schemaValidation.parameterUnsafeNumber')}</Text>
                       </li>
                     );
                   }

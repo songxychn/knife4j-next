@@ -116,6 +116,45 @@ describe('OAS 3.1 parameter logical instances', () => {
     expect(invalid.query[0]).toMatchObject({ value: '{broken', encodedValue: '%7Bbroken' });
   });
 
+  test('diagnoses unsafe JSON numbers before parsing can silently rewrite them', () => {
+    const integer = parameter(
+      'id',
+      'query',
+      { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+      { type: 'integer', format: 'int64' },
+      'integer',
+    );
+    const object = parameter(
+      'filter',
+      'query',
+      { kind: 'schema', style: 'deepObject', explode: true, allowReserved: false },
+      { type: 'object' },
+      'object',
+    );
+
+    expect(parseOas31ParameterValue(integer, '9007199254740991')).toEqual({
+      ok: true,
+      instance: 9007199254740991,
+    });
+    expect(parseOas31ParameterValue(integer, '9007199254740993')).toEqual(
+      expect.objectContaining({ ok: false, kind: 'unsafe-number' }),
+    );
+    expect(parseOas31ParameterValue(integer, '1e309')).toEqual(
+      expect.objectContaining({ ok: false, kind: 'unsafe-number' }),
+    );
+    expect(parseOas31ParameterValue(object, '{"id":9007199254740993}')).toEqual(
+      expect.objectContaining({ ok: false, kind: 'unsafe-number' }),
+    );
+
+    const fallback = serialize(integer, '9007199254740993');
+    expect(fallback.instances).toEqual([]);
+    expect(fallback.diagnostics).toEqual([expect.objectContaining({ key: 'query:id', kind: 'unsafe-number' })]);
+    expect(fallback.query[0]).toMatchObject({
+      value: '9007199254740993',
+      encodedValue: '9007199254740993',
+    });
+  });
+
   test('uses form-urlencoded encoding only for content-based query parameters', () => {
     const content = parameter('note id', 'query', { kind: 'content', mediaType: 'text/plain' }, { type: 'string' });
     const schema = parameter(
@@ -249,6 +288,62 @@ describe('OAS 3.1 style serialization', () => {
     expect(serialize(form, 'null').query).toEqual([
       { name: 'color', value: '', encodedName: 'color', encodedValue: '' },
     ]);
+  });
+
+  test.each([
+    ['path', 'simple', false, '[]'],
+    ['path', 'label', true, '[]'],
+    ['path', 'matrix', false, '{}'],
+    ['query', 'form', false, '[]'],
+    ['query', 'form', true, '{}'],
+    ['query', 'spaceDelimited', false, '[]'],
+    ['query', 'pipeDelimited', false, '{}'],
+    ['query', 'deepObject', true, '{}'],
+    ['header', 'simple', false, '[]'],
+    ['cookie', 'form', false, '{}'],
+    ['cookie', 'form', true, '[]'],
+  ] as const)('omits an RFC6570-undefined empty composite for %s %s/%s', (in_, style, explode, raw) => {
+    const type = raw === '[]' ? 'array' : 'object';
+    const value = parameter('color', in_, { kind: 'schema', style, explode, allowReserved: false }, { type }, type);
+    const result = serialize(value, raw);
+
+    expect(result.instances[0]?.instance).toEqual(type === 'array' ? [] : {});
+    if (in_ === 'path') expect(result.path.color).toBe('');
+    if (in_ === 'query') {
+      expect(result.query).toEqual([]);
+      expect(result.consumedQueryNames).toContain('color');
+    }
+    if (in_ === 'header') {
+      expect(result.headers).toEqual({});
+      expect(result.consumedHeaderNames).toEqual(['color']);
+    }
+    if (in_ === 'cookie') {
+      expect(result.cookies).toEqual([]);
+      expect(result.consumedCookieNames).toContain('color');
+    }
+  });
+
+  test('omits undefined null members while preserving defined empty strings', () => {
+    const object = parameter(
+      'filter',
+      'query',
+      { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+      { type: 'object' },
+      'object',
+    );
+    const array = parameter(
+      'color',
+      'path',
+      { kind: 'schema', style: 'label', explode: true, allowReserved: false },
+      { type: 'array' },
+      'array',
+    );
+
+    expect(serialize(object, '{"missing":null,"empty":"","active":true}').query).toEqual([
+      { name: 'empty', value: '', encodedName: 'empty', encodedValue: '' },
+      { name: 'active', value: 'true', encodedName: 'active', encodedValue: 'true' },
+    ]);
+    expect(serialize(array, '[null,"",null,"blue"]').path.color).toBe('..blue');
   });
 
   test('serializes query form arrays and objects with both explode values', () => {

@@ -1109,6 +1109,18 @@ describe('buildOperationDebugModel — OAS 3.1 parameter contract', () => {
     expect(model.parameterDiagnostics).toBeUndefined();
   });
 
+  test('ignores the three reserved OAS 3.1 header Parameter names case-insensitively', () => {
+    const model = modelFor([
+      { name: 'Accept', in: 'header', schema: { type: 'string' } },
+      { name: 'content-TYPE', in: 'header', schema: { type: 'string' } },
+      { name: 'AUTHORIZATION', in: 'header', schema: { type: 'string' } },
+      { name: 'X-Trace', in: 'header', schema: { type: 'string' } },
+    ]);
+
+    expect(model.headerParams.map((parameter) => parameter.name)).toEqual(['X-Trace']);
+    expect(model.parameterDiagnostics).toBeUndefined();
+  });
+
   test.each([
     {
       label: 'schema and content',
@@ -1171,6 +1183,13 @@ describe('buildOperationDebugModel — OAS 3.1 parameter contract', () => {
     const model = modelFor([{ name: 'filter', in: 'query', style: 'deepObject', schema: { type: 'object' } }], '3.0.4');
     expect(model.queryParams[0].parameterSerialization).toBeUndefined();
     expect(model.parameterDiagnostics).toBeUndefined();
+  });
+
+  test('does not change the legacy OAS 3.0 header model', () => {
+    const model = modelFor([{ name: 'Authorization', in: 'header', schema: { type: 'string' } }], '3.0.4');
+    expect(model.headerParams).toHaveLength(1);
+    expect(model.headerParams[0].name).toBe('Authorization');
+    expect(model.headerParams[0].parameterSerialization).toBeUndefined();
   });
 });
 

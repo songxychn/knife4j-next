@@ -280,6 +280,8 @@ function isOas31(doc: DocLike): boolean {
   return isOpenApi31Version(doc.openapi);
 }
 
+const OAS31_IGNORED_HEADER_PARAMETER_NAMES = new Set(['accept', 'content-type', 'authorization']);
+
 function hasOwn(record: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
 }
@@ -730,6 +732,7 @@ export interface BuildDebugModelOptions {
  */
 export function buildOperationDebugModel(options: BuildDebugModelOptions): OperationDebugModel {
   const { doc, path, method, isOAS2 = Boolean(doc.swagger), schemaCtx } = options;
+  const useOas31ParameterPath = !isOAS2 && isOas31(doc);
 
   // 定位 PathItem 和 Operation
   const rawPathItem = doc.paths?.[path];
@@ -881,9 +884,17 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     // 普通参数（path / query / header / cookie）
     const paramIn = in_ as ParamIn;
     if (!['path', 'query', 'header', 'cookie'].includes(paramIn)) continue;
+    if (
+      useOas31ParameterPath &&
+      paramIn === 'header' &&
+      OAS31_IGNORED_HEADER_PARAMETER_NAMES.has((raw.name ?? '').toLowerCase())
+    ) {
+      continue;
+    }
 
-    const oas31Analysis =
-      !isOAS2 && isOas31(doc) ? analyzeOas31Parameter(raw as OAS3Param, paramIn, doc, ctx.maxDepth ?? 8) : undefined;
+    const oas31Analysis = useOas31ParameterPath
+      ? analyzeOas31Parameter(raw as OAS3Param, paramIn, doc, ctx.maxDepth ?? 8)
+      : undefined;
     if (oas31Analysis?.diagnostic) parameterDiagnostics.push(oas31Analysis.diagnostic);
     const rawSchema = raw.schema;
     const schema = oas31Analysis

@@ -99,4 +99,16 @@ describe('enumParamValue', () => {
     expect(enumParamSelectValue(arrayParam, '[1,2]')).toEqual(['1', '2']);
     expect(serializeEnumParamSelection(arrayParam, ['1', '2'])).toBe('[1,2]');
   });
+
+  it('keeps the raw JSON editor for a nullable OAS 3.1 array with item enums', () => {
+    const nullableArrayParam: DebugParam = {
+      ...batchEnumParam,
+      schema: { type: ['array', 'null'], items: { type: 'integer', enum: [1, 2] } },
+      enum: [1, 2],
+      parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
+    };
+
+    expect(isEnumParamSelectSupported(nullableArrayParam)).toBe(false);
+    expect(enumParamSelectMode(nullableArrayParam)).toBeUndefined();
+  });
 });

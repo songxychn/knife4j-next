@@ -27,16 +27,22 @@ export interface SerializedOas31Parameters {
   readonly instances: BuiltParameterInstance[];
   readonly diagnostics: ParameterInputDiagnostic[];
   readonly consumedQueryNames: string[];
+  readonly consumedHeaderNames: string[];
   readonly consumedCookieNames: string[];
 }
 
 type ParseResult =
-  { readonly ok: true; readonly instance: ParameterInstance } | { readonly ok: false; readonly message: string };
+  | { readonly ok: true; readonly instance: ParameterInstance }
+  | {
+      readonly ok: false;
+      readonly kind: ParameterInputDiagnostic['kind'];
+      readonly message: string;
+    };
 
 type SerializedParameter =
   | { readonly in: 'path'; readonly value: string }
   | { readonly in: 'query'; readonly pairs: SerializedQueryParameter[] }
-  | { readonly in: 'header'; readonly value: string }
+  | { readonly in: 'header'; readonly value: string | undefined }
   | { readonly in: 'cookie'; readonly pairs: SerializedCookieParameter[] };
 
 const UNRESERVED = /^[A-Za-z0-9._~-]$/;
@@ -105,21 +111,30 @@ function scalarText(value: null | string | number | boolean): string {
   return value === null ? '' : String(value);
 }
 
-function primitiveArray(value: ParameterInstance[]): Array<null | string | number | boolean> {
+function definedPrimitiveArray(value: ParameterInstance[]): Array<string | number | boolean> {
   if (!value.every(isPrimitive)) {
     throw new Error('Nested array or object parameter values do not have a defined OAS serialization.');
   }
-  return value;
+  return value.filter((item): item is string | number | boolean => item !== null && isPrimitive(item));
 }
 
-function primitiveEntries(value: {
+function definedPrimitiveEntries(value: {
   [key: string]: ParameterInstance;
-}): Array<readonly [string, null | string | number | boolean]> {
+}): Array<readonly [string, string | number | boolean]> {
   const entries = Object.entries(value);
   if (!entries.every((entry): entry is [string, null | string | number | boolean] => isPrimitive(entry[1]))) {
     throw new Error('Nested array or object parameter values do not have a defined OAS serialization.');
   }
-  return entries;
+  return entries.filter(
+    (entry): entry is [string, string | number | boolean] => entry[1] !== null && isPrimitive(entry[1]),
+  );
+}
+
+/** RFC6570 treats an empty composite, or a map with only undefined members, as undefined. */
+function isUndefinedComposite(value: ParameterInstance): boolean {
+  if (Array.isArray(value)) return definedPrimitiveArray(value).length === 0;
+  if (isRecord(value)) return definedPrimitiveEntries(value).length === 0;
+  return false;
 }
 
 function jsonValueType(value: unknown): string | undefined {
@@ -186,9 +201,51 @@ function matchesDeclaredType(value: unknown, type: string): boolean {
   return typeof value === type;
 }
 
+const JSON_NUMBER = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+
+/** Find a JSON number that the JavaScript runtime would silently round outside its safe integer range. */
+function unsafeJsonNumber(rawValue: string): string | undefined {
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < rawValue.length; index += 1) {
+    const character = rawValue[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+    if (character !== '-' && !/[0-9]/.test(character)) continue;
+    JSON_NUMBER.lastIndex = index;
+    const match = JSON_NUMBER.exec(rawValue);
+    if (!match || match.index !== index) continue;
+    const numericValue = Number(match[0]);
+    if (!Number.isFinite(numericValue) || (Number.isInteger(numericValue) && !Number.isSafeInteger(numericValue))) {
+      return match[0];
+    }
+    index = JSON_NUMBER.lastIndex - 1;
+  }
+  return undefined;
+}
+
+function invalidJson(message: string): ParseResult {
+  return { ok: false, kind: 'invalid-json', message };
+}
+
 function parseJson(rawValue: string): ParseResult {
   try {
     const parsed: unknown = JSON.parse(rawValue);
+    if (unsafeJsonNumber(rawValue) !== undefined) {
+      return {
+        ok: false,
+        kind: 'unsafe-number',
+        message: 'The parameter value contains a JSON number that JavaScript cannot represent safely.',
+      };
+    }
     if (
       parsed === null ||
       typeof parsed === 'string' ||
@@ -202,7 +259,7 @@ function parseJson(rawValue: string): ParseResult {
   } catch {
     // Returned below as a stable input diagnostic.
   }
-  return { ok: false, message: 'The parameter value is not valid JSON.' };
+  return invalidJson('The parameter value is not valid JSON.');
 }
 
 export function parseOas31ParameterValue(param: DebugParam, rawValue: string): ParseResult {
@@ -226,13 +283,14 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
   }
   if (nonNullTypes.length === 0 && acceptsUntypedJsonSyntax(param.schema)) {
     const parsed = parseJson(rawValue);
-    return parsed.ok ? parsed : { ok: true, instance: rawValue };
+    return parsed.ok || parsed.kind === 'unsafe-number' ? parsed : { ok: true, instance: rawValue };
   }
   if (nonNullTypes.length > 1) {
     const parsed = parseJson(rawValue);
     if (parsed.ok && nonNullTypes.some((type) => matchesDeclaredType(parsed.instance, type))) return parsed;
+    if (!parsed.ok && parsed.kind === 'unsafe-number') return parsed;
     if (nonNullTypes.includes('string')) return { ok: true, instance: rawValue };
-    return { ok: false, message: 'The parameter value does not match any declared JSON type.' };
+    return invalidJson('The parameter value does not match any declared JSON type.');
   }
 
   const expectedType = nonNullTypes[0] ?? param.type;
@@ -240,19 +298,20 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
     const parsed = parseJson(rawValue);
     if (!parsed.ok) return parsed;
     if (!matchesDeclaredType(parsed.instance, expectedType)) {
-      return { ok: false, message: `The parameter value must be a JSON ${expectedType}.` };
+      return invalidJson(`The parameter value must be a JSON ${expectedType}.`);
     }
     return parsed;
   }
   if (expectedType === 'boolean') {
     if (rawValue === 'true') return { ok: true, instance: true };
     if (rawValue === 'false') return { ok: true, instance: false };
-    return { ok: false, message: 'The parameter value must be true or false.' };
+    return invalidJson('The parameter value must be true or false.');
   }
   if (expectedType === 'integer' || expectedType === 'number') {
     const parsed = parseJson(rawValue);
-    if (!parsed.ok || !matchesDeclaredType(parsed.instance, expectedType)) {
-      return { ok: false, message: `The parameter value must be a JSON ${expectedType}.` };
+    if (!parsed.ok) return parsed;
+    if (!matchesDeclaredType(parsed.instance, expectedType)) {
+      return invalidJson(`The parameter value must be a JSON ${expectedType}.`);
     }
     return parsed;
   }
@@ -308,7 +367,7 @@ function serializeQuerySchema(
   const { style, explode, allowReserved } = serialization;
   if (style === 'form') {
     if (Array.isArray(instance)) {
-      const values = primitiveArray(instance).map(scalarText);
+      const values = definedPrimitiveArray(instance).map(scalarText);
       return explode
         ? values.map((value) => queryPair(name, value, allowReserved))
         : [
@@ -321,7 +380,7 @@ function serializeQuerySchema(
           ];
     }
     if (isRecord(instance)) {
-      const entries = primitiveEntries(instance);
+      const entries = definedPrimitiveEntries(instance);
       if (explode) {
         return entries.map(([key, value]) => queryPair(key, scalarText(value), allowReserved));
       }
@@ -343,9 +402,9 @@ function serializeQuerySchema(
     const delimiter = style === 'spaceDelimited' ? ' ' : '|';
     const encodedDelimiter = style === 'spaceDelimited' ? '%20' : '%7C';
     const values = Array.isArray(instance)
-      ? primitiveArray(instance).map(scalarText)
+      ? definedPrimitiveArray(instance).map(scalarText)
       : isRecord(instance)
-        ? primitiveEntries(instance).flatMap(([key, value]) => [key, scalarText(value)])
+        ? definedPrimitiveEntries(instance).flatMap(([key, value]) => [key, scalarText(value)])
         : null;
     if (!values) throw new Error(`The OAS query style ${style} requires an array or object instance.`);
     return [
@@ -362,7 +421,7 @@ function serializeQuerySchema(
     if (!explode || !isRecord(instance)) {
       throw new Error('The OAS query style deepObject requires an object instance and explode=true.');
     }
-    return primitiveEntries(instance).map(([key, value]) => {
+    return definedPrimitiveEntries(instance).map(([key, value]) => {
       const pairName = `${name}[${key}]`;
       return encodedQueryPair(
         pairName,
@@ -381,9 +440,9 @@ function encodeScalars(values: Array<null | string | number | boolean>, delimite
 }
 
 function serializeSimpleValue(instance: ParameterInstance, explode: boolean, delimiter: string): string {
-  if (Array.isArray(instance)) return encodeScalars(primitiveArray(instance), delimiter);
+  if (Array.isArray(instance)) return encodeScalars(definedPrimitiveArray(instance), delimiter);
   if (isRecord(instance)) {
-    const entries = primitiveEntries(instance);
+    const entries = definedPrimitiveEntries(instance);
     if (explode) {
       return entries
         .map(([key, value]) => `${encodeParameterComponent(key)}=${encodeParameterComponent(scalarText(value))}`)
@@ -409,14 +468,14 @@ function serializePathSchema(
   if (style === 'matrix') {
     const encodedName = encodeParameterComponent(name);
     if (Array.isArray(instance)) {
-      const values = primitiveArray(instance);
+      const values = definedPrimitiveArray(instance);
       if (explode) {
         return values.map((value) => `;${encodedName}=${encodeParameterComponent(scalarText(value))}`).join('');
       }
       return `;${encodedName}=${encodeScalars(values, ',')}`;
     }
     if (isRecord(instance)) {
-      const entries = primitiveEntries(instance);
+      const entries = definedPrimitiveEntries(instance);
       if (explode) {
         return entries
           .map(([key, value]) => `;${encodeParameterComponent(key)}=${encodeParameterComponent(scalarText(value))}`)
@@ -453,13 +512,13 @@ function serializeCookieSchema(
   }
   const encodedName = encodeParameterComponent(name);
   if (Array.isArray(instance)) {
-    const values = primitiveArray(instance).map((value) => encodeParameterComponent(scalarText(value)));
+    const values = definedPrimitiveArray(instance).map((value) => encodeParameterComponent(scalarText(value)));
     return serialization.explode
       ? values.map((value) => ({ name: encodedName, value }))
       : [{ name: encodedName, value: values.join(',') }];
   }
   if (isRecord(instance)) {
-    const entries = primitiveEntries(instance);
+    const entries = definedPrimitiveEntries(instance);
     if (serialization.explode) {
       return entries.map(([key, value]) => ({
         name: encodeParameterComponent(key),
@@ -517,6 +576,12 @@ function serializeContentParameter(param: DebugParam, instance: ParameterInstanc
 function serializeSchemaParameter(param: DebugParam, instance: ParameterInstance): SerializedParameter {
   const serialization = param.parameterSerialization;
   if (!serialization || serialization.kind !== 'schema') throw new Error('Expected schema parameter serialization.');
+  if (isUndefinedComposite(instance)) {
+    if (param.in === 'path') return { in: 'path', value: '' };
+    if (param.in === 'query') return { in: 'query', pairs: [] };
+    if (param.in === 'header') return { in: 'header', value: undefined };
+    return { in: 'cookie', pairs: [] };
+  }
   if (param.in === 'path') return { in: 'path', value: serializePathSchema(param.name, instance, serialization) };
   if (param.in === 'query') return { in: 'query', pairs: serializeQuerySchema(param.name, instance, serialization) };
   if (param.in === 'header') {
@@ -566,6 +631,7 @@ export function serializeOas31Parameters(
   const instances: BuiltParameterInstance[] = [];
   const diagnostics: ParameterInputDiagnostic[] = [];
   const consumedQueryNames: string[] = [];
+  const consumedHeaderNames: string[] = [];
   const consumedCookieNames: string[] = [];
 
   for (const param of allParams(params)) {
@@ -583,21 +649,33 @@ export function serializeOas31Parameters(
     if (parsed.ok) {
       instances.push({ key, name: param.name, in: param.in, instance: parsed.instance });
     } else {
-      diagnostics.push({ key, name: param.name, in: param.in, kind: 'invalid-json', message: parsed.message });
+      diagnostics.push({ key, name: param.name, in: param.in, kind: parsed.kind, message: parsed.message });
     }
 
     if (serialized.in === 'path') path[param.name] = serialized.value;
     else if (serialized.in === 'query') {
       query.push(...serialized.pairs);
       consumedQueryNames.push(param.name, ...serialized.pairs.map((pair) => pair.name));
-    } else if (serialized.in === 'header') headers[param.name] = serialized.value;
-    else {
+    } else if (serialized.in === 'header') {
+      consumedHeaderNames.push(param.name);
+      if (serialized.value !== undefined) headers[param.name] = serialized.value;
+    } else {
       cookies.push(...serialized.pairs);
       consumedCookieNames.push(param.name, ...serialized.pairs.map((pair) => decodeURIComponent(pair.name)));
     }
   }
 
-  return { path, query, headers, cookies, instances, diagnostics, consumedQueryNames, consumedCookieNames };
+  return {
+    path,
+    query,
+    headers,
+    cookies,
+    instances,
+    diagnostics,
+    consumedQueryNames,
+    consumedHeaderNames,
+    consumedCookieNames,
+  };
 }
 
 export function replaceSerializedPathParams(path: string, values: Readonly<Record<string, string>>): string {

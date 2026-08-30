@@ -1,4 +1,5 @@
 import { parseOas31ParameterValue, type DebugParam, type QueryParamValue } from 'knife4j-core';
+import { isNullableOas31Parameter } from './oas31ParameterForm';
 
 export type EnumParamSelection = string | string[] | undefined;
 
@@ -64,11 +65,15 @@ export function enumParamSelectOptions(param: DebugParam): Array<{ value: string
 }
 
 export function isEnumParamSelectSupported(param: DebugParam): boolean {
-  return param.type !== 'array' || isQueryArrayParam(param);
+  if (param.type !== 'array') return true;
+  if (!isQueryArrayParam(param)) return false;
+  // A multi-select can only construct an array. Keep the raw JSON editor for
+  // nullable arrays so the user can express the distinct root `null` value.
+  return !(isOas31Parameter(param) && isNullableOas31Parameter(param));
 }
 
 export function enumParamSelectMode(param: DebugParam): 'multiple' | undefined {
-  return isQueryArrayParam(param) ? 'multiple' : undefined;
+  return isQueryArrayParam(param) && isEnumParamSelectSupported(param) ? 'multiple' : undefined;
 }
 
 function validEnumSelections(param: DebugParam, values: unknown[]): string[] {

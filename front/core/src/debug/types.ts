@@ -270,6 +270,8 @@ export interface BuiltRequest {
   parameterInstances?: BuiltParameterInstance[];
   /** Input syntax failures; the request contains a stable raw fallback for explicit override. */
   parameterInputDiagnostics?: ParameterInputDiagnostic[];
+  /** OAS 3.1 cookie pairs were serialized into the forbidden browser `Cookie` request header. */
+  hasExplicitCookieParameters?: boolean;
 }
 
 export interface BuiltParameterInstance {
@@ -283,7 +285,7 @@ export interface ParameterInputDiagnostic {
   readonly key: string;
   readonly name: string;
   readonly in: ParamIn;
-  readonly kind: 'invalid-json';
+  readonly kind: 'invalid-json' | 'unsafe-number';
   readonly message: string;
 }
 

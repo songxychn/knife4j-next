@@ -139,6 +139,13 @@ function findHeaderKey(headers: Record<string, string>, name: string): string | 
   return undefined;
 }
 
+/** Remove names claimed by an explicitly supplied OAS 3.1 header parameter. */
+function omitHeaderNames(headers: Record<string, string>, names: readonly string[]): Record<string, string> {
+  if (names.length === 0) return headers;
+  const omitted = new Set(names.map((name) => name.toLowerCase()));
+  return Object.fromEntries(Object.entries(headers).filter(([name]) => !omitted.has(name.toLowerCase())));
+}
+
 /** 将 cookie params 追加到 headers 的 Cookie 头，大小写不敏感地合并。 */
 function appendCookieParams(
   headers: Record<string, string>,
@@ -410,11 +417,12 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   // 3. headers 合并（接口级 > 当前分组 > 鉴权 > 所有分组共享）
   const authResult = authToHeaders(auth, securityKeys);
+  const consumedHeaderNames = serializedParameters.consumedHeaderNames;
   const headerMerge = mergeHeaderLayers([
-    { values: application.headers, source: 'application' },
-    { values: authResult.headers, source: 'auth' },
-    { values: gp.headers, source: 'global' },
-    { values: formValues.headerParams, source: 'interface' },
+    { values: omitHeaderNames(application.headers, consumedHeaderNames), source: 'application' },
+    { values: omitHeaderNames(authResult.headers, consumedHeaderNames), source: 'auth' },
+    { values: omitHeaderNames(gp.headers, consumedHeaderNames), source: 'global' },
+    { values: omitHeaderNames(formValues.headerParams, consumedHeaderNames), source: 'interface' },
     // OAS 3.1 distinguishes an explicitly included empty value from an
     // omitted parameter. Keep legacy empty-header omission unchanged.
     { values: serializedParameters.headers, source: 'interface', includeEmpty: true },
@@ -527,10 +535,18 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     ...(serializedParameters.diagnostics.length > 0
       ? { parameterInputDiagnostics: serializedParameters.diagnostics }
       : {}),
+    ...(serializedParameters.cookies.some((parameter) => parameter.name !== '')
+      ? { hasExplicitCookieParameters: true }
+      : {}),
   };
 }
 
 // ─── Curl 生成 ────────────────────────────────────────
+
+/** Quote one dynamic argument for POSIX-compatible shells. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
 
 /**
  * 从 BuiltRequest 生成等价 curl 命令
@@ -550,7 +566,7 @@ export function buildCurl(req: BuiltRequest): string {
   // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
     if (isMultipart && key.toLowerCase() === 'content-type') continue;
-    parts.push('-H', `${key}: ${value}`);
+    parts.push('-H', shellQuote(`${key}: ${value}`));
   }
 
   if (isMultipart) {
@@ -570,12 +586,11 @@ export function buildCurl(req: BuiltRequest): string {
     if (fieldObj && Object.keys(fieldObj).length > 0) {
       for (const [name, value] of Object.entries(fieldObj)) {
         if (value === undefined) continue;
-        const escaped = String(value).replace(/'/g, "'\\''");
         if (jsonFieldSet.has(name)) {
           // JSON-encoded part: append ;type=application/json
-          parts.push('-F', `'${name}=${escaped};type=application/json'`);
+          parts.push('-F', shellQuote(`${name}=${String(value)};type=application/json`));
         } else {
-          parts.push('-F', `'${name}=${escaped}'`);
+          parts.push('-F', shellQuote(`${name}=${String(value)}`));
         }
       }
     }
@@ -583,16 +598,14 @@ export function buildCurl(req: BuiltRequest): string {
     // 若没有注入则仅提示用户手动追加 -F field=@/path/to/file）
     parts.push('# TODO append file fields via: -F field=@/path/to/file');
   } else if (req.binaryBodyFileName) {
-    const escapedFilename = req.binaryBodyFileName.replace(/'/g, "'\\''");
-    parts.push('--data-binary', `'@/path/to/${escapedFilename}'`);
+    parts.push('--data-binary', shellQuote(`@/path/to/${req.binaryBodyFileName}`));
   } else if (req.body !== undefined && req.body !== '') {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
-    const escapedBody = req.body.replace(/'/g, "'\\''");
-    parts.push('-d', `'${escapedBody}'`);
+    parts.push('-d', shellQuote(req.body));
   }
 
   // URL（用单引号包裹防止 shell 解析）
-  parts.push(`'${req.url}'`);
+  parts.push(shellQuote(req.url));
 
   return parts.join(' \\\n  ');
 }
