@@ -4,8 +4,11 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 central_verifier="$repo_root/tools/verify-maven-central.sh"
 context_verifier="$repo_root/tools/verify-release-context.sh"
+github_verifier="$repo_root/tools/verify-github-release.sh"
 mock_curl="$repo_root/tools/test-fixtures/mock-maven-central-curl.sh"
+mock_gh="$repo_root/tools/test-fixtures/mock-gh-release.sh"
 workflow="$repo_root/.github/workflows/release.yml"
+demo_workflow="$repo_root/.github/workflows/deploy-demo.yml"
 pom_file="$repo_root/knife4j/pom.xml"
 tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
@@ -245,6 +248,64 @@ if ! env VERIFY_RELEASE_REPO_ROOT="$module_root" \
 fi
 assert_contains "$tmp_root/release-modules.log" "Release module list OK (1 modules)."
 
+expected_github_body="$tmp_root/expected-github-body.md"
+different_github_body="$tmp_root/different-github-body.md"
+printf '%s\n' 'expected release body' > "$expected_github_body"
+printf '%s\n' 'different release body' > "$different_github_body"
+
+github_status=0
+github_log=""
+
+run_github_verifier() {
+  local name="$1"
+  local state="$2"
+  local actual_tag="$3"
+  local latest_tag="$4"
+  local require_latest="$5"
+  local body_file="$6"
+
+  github_log="$tmp_root/$name-github.log"
+  set +e
+  env \
+    GITHUB_RELEASE_GH_BIN="$mock_gh" \
+    MOCK_GH_RELEASE_STATE="$state" \
+    MOCK_GH_RELEASE_TAG="$actual_tag" \
+    MOCK_GH_LATEST_TAG="$latest_tag" \
+    MOCK_GH_RELEASE_BODY_FILE="$body_file" \
+    VERIFY_GITHUB_RELEASE_REQUIRE_LATEST="$require_latest" \
+    "$github_verifier" v1.2.3 "$expected_github_body" example/repo \
+    > "$github_log" 2>&1
+  github_status=$?
+  set -e
+}
+
+run_github_verifier github-published published v1.2.3 v1.2.3 false "$expected_github_body"
+[ "$github_status" -eq 0 ] || fail "published GitHub Release should pass"
+assert_contains "$github_log" "GitHub Release OK: example/repo@v1.2.3"
+
+run_github_verifier github-draft draft v1.2.3 v1.2.3 false "$expected_github_body"
+[ "$github_status" -ne 0 ] || fail "draft GitHub Release should fail"
+assert_contains "$github_log" "is still a draft"
+
+run_github_verifier github-prerelease prerelease v1.2.3 v1.2.3 false "$expected_github_body"
+[ "$github_status" -ne 0 ] || fail "prerelease GitHub Release should fail"
+assert_contains "$github_log" "is a prerelease"
+
+run_github_verifier github-wrong-tag published v9.9.9 v9.9.9 false "$expected_github_body"
+[ "$github_status" -ne 0 ] || fail "mismatched GitHub Release tag should fail"
+assert_contains "$github_log" "tag mismatch"
+
+run_github_verifier github-old-release published v1.2.3 v2.0.0 true "$expected_github_body"
+[ "$github_status" -ne 0 ] || fail "non-latest GitHub Release should fail the deployment gate"
+assert_contains "$github_log" "current latest GitHub Release is v2.0.0"
+
+run_github_verifier github-latest published v1.2.3 v1.2.3 true "$expected_github_body"
+[ "$github_status" -eq 0 ] || fail "current latest GitHub Release should pass the deployment gate"
+
+run_github_verifier github-body-mismatch published v1.2.3 v1.2.3 false "$different_github_body"
+[ "$github_status" -ne 0 ] || fail "mismatched GitHub Release body should fail"
+assert_contains "$github_log" "body differs"
+
 assert_contains "$workflow" "mode:"
 assert_contains "$workflow" "finalize-only"
 assert_contains "$workflow" "tag:"
@@ -255,6 +316,48 @@ assert_contains "$workflow" "VERIFY_MAVEN_REPO_ROOT="
 assert_contains "$workflow" "tools/verify-release-context.sh"
 assert_contains "$workflow" "tools/verify-maven-central.sh"
 assert_not_contains "$workflow" '\$RELEASE_ROOT/tools/verify-release-modules.sh'
+assert_contains "$workflow" "  deploy-demo:"
+assert_contains "$workflow" "    needs: publish"
+assert_contains "$workflow" "    if: \${{ needs.publish.result == 'success' }}"
+assert_contains "$workflow" "    uses: ./.github/workflows/deploy-demo.yml"
+assert_contains "$workflow" "      tag: \${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+assert_not_contains "$workflow" "    secrets: inherit"
+assert_contains "$workflow" "              --draft=false \\"
+assert_contains "$workflow" "              --prerelease=false"
+
+if grep -Eq '^  push:' "$demo_workflow"; then
+  fail "demo workflow must not trigger independently from a pushed tag"
+fi
+assert_contains "$demo_workflow" "  workflow_call:"
+assert_contains "$demo_workflow" "  workflow_dispatch:"
+assert_contains "$demo_workflow" "  RELEASE_TAG: \${{ inputs.tag }}"
+assert_contains "$demo_workflow" "          ref: \${{ env.RELEASE_TAG }}"
+assert_contains "$demo_workflow" "          fetch-depth: 0"
+assert_contains "$demo_workflow" "  verify-release:"
+assert_contains "$demo_workflow" "    timeout-minutes: 45"
+assert_contains "$demo_workflow" "          VERIFY_GITHUB_RELEASE_REQUIRE_LATEST: true"
+assert_contains "$demo_workflow" "          tools/verify-release-context.sh"
+assert_contains "$demo_workflow" "          tools/verify-maven-central.sh"
+assert_contains "$demo_workflow" "          tools/verify-github-release.sh"
+assert_contains "$demo_workflow" "    needs: verify-release"
+assert_contains "$demo_workflow" '            type=semver,pattern={{version}},value=${{ inputs.tag }}'
+assert_contains "$demo_workflow" "          password: \${{ github.token }}"
+assert_not_contains "$demo_workflow" "secrets.GITHUB_TOKEN"
+
+required_tag_inputs="$(grep -c -F -- '        required: true' "$demo_workflow")"
+[ "$required_tag_inputs" -eq 2 ] || fail "demo workflow must require a tag for both workflow_call and workflow_dispatch"
+
+demo_context_line="$(awk 'index($0, "tools/verify-release-context.sh") { print NR; exit }' "$demo_workflow")"
+demo_central_line="$(awk 'index($0, "tools/verify-maven-central.sh") { print NR; exit }' "$demo_workflow")"
+demo_github_line="$(awk 'index($0, "tools/verify-github-release.sh") { print NR; exit }' "$demo_workflow")"
+demo_build_line="$(awk '/^  build-and-push:/ { print NR; exit }' "$demo_workflow")"
+if [ -z "$demo_context_line" ] || [ -z "$demo_central_line" ] || \
+  [ -z "$demo_github_line" ] || [ -z "$demo_build_line" ] || \
+  [ "$demo_context_line" -ge "$demo_central_line" ] || \
+  [ "$demo_central_line" -ge "$demo_github_line" ] || \
+  [ "$demo_github_line" -ge "$demo_build_line" ]; then
+  fail "demo must verify tag, Central and published GitHub Release before building images"
+fi
 
 context_line="$(awk 'index($0, "tools/verify-release-context.sh") { print NR; exit }' "$workflow")"
 modules_line="$(awk 'index($0, "tools/verify-release-modules.sh") { print NR; exit }' "$workflow")"

@@ -13,7 +13,7 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 | `knife4j-demo-openapi3` | Spring Boot 4.0 + springdoc + `knife4j-openapi3-boot4-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
 | `knife4j-demo-openapi2` | Spring Boot 2.7 + springfox 2.10.5 + `knife4j-openapi2-spring-boot-starter` | Vue 3（`knife4j-openapi2-ui`） | [https://openapi2.demo.knife4jnext.com/doc.html](https://openapi2.demo.knife4jnext.com/doc.html) |
 
-两个站点都跟随 `master` 分支自动构建与刷新，建议直接打开比对，看看 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
+两个站点都跟随已经完成正式发布的最新稳定版；`master` 合并不会直接刷新线上环境。建议打开比对 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
 
 如果访问失败，优先在本地跑一遍，避免把预览环境问题当成功能问题。
 
@@ -155,7 +155,7 @@ docker run --rm -p 8081:8081 \
 
 ## 镜像发布
 
-两个 demo 镜像都由 `.github/workflows/deploy-demo.yml` 在推送 `v*` 发布 tag 时通过 matrix 构建并推送到 GitHub Container Registry（`master` 合并不自动部署，保证在线 demo 与已发布版本一致；紧急情况可 `workflow_dispatch` 手动跑）：
+正式 `.github/workflows/release.yml` 会先核验发布 tag、Maven Central 公开制品与已经发布的 GitHub Release，再调用 `.github/workflows/deploy-demo.yml`，通过 matrix 构建并推送两个 demo 镜像。Demo 不再独立响应 `v*` tag；手工恢复必须显式填写当前 latest release 的 tag，旧版本不能回滚 `latest`：
 
 - `ghcr.io/songxychn/knife4j-next/knife4j-next-demo-openapi3:latest`
 - `ghcr.io/songxychn/knife4j-next/knife4j-next-demo-openapi2:latest`

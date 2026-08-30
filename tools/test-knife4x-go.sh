@@ -31,7 +31,18 @@ assert_java_tag_filter() {
 }
 
 assert_java_tag_filter "$repo_root/.github/workflows/release.yml"
-assert_java_tag_filter "$repo_root/.github/workflows/deploy-demo.yml"
+
+demo_workflow="$repo_root/.github/workflows/deploy-demo.yml"
+if grep -Eq '^  push:' "$demo_workflow"; then
+  echo "Demo workflow must be called by the verified Java release instead of matching tags directly" >&2
+  exit 1
+fi
+for expected in '  workflow_call:' '  workflow_dispatch:' '  RELEASE_TAG: ${{ inputs.tag }}'; do
+  if ! grep -Fq -- "$expected" "$demo_workflow"; then
+    printf 'Demo workflow is missing explicit release-tag contract: %s\n' "$expected" >&2
+    exit 1
+  fi
+done
 
 case "knife4x/go/v0.1.0" in
   v*)
