@@ -8,12 +8,14 @@ fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 "$REPO_ROOT/tools/test-release-tools.sh"
+"$REPO_ROOT/tools/test-java-compatibility.sh"
 cd "$REPO_ROOT/knife4j"
 
 mvn -B -ntp spotless:check
 mvn -B -ntp -Dknife4j-skipTests=false verify
 
 "$REPO_ROOT/tools/verify-configuration-metadata.sh"
+"$REPO_ROOT/tools/verify-java-compatibility-contracts.py"
 
 # ---------------------------------------------------------------------------
 # Smoke-tests evidence gate (issue #241 / #198 FU-3)

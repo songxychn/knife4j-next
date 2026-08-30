@@ -76,6 +76,25 @@ jobs:
       - name: Verify Java modules
         run: tools/test-java.sh
 
+      - name: Generate Java compatibility report
+        run: tools/java-compatibility-report.sh
+
+      - name: Publish Java compatibility summary
+        if: always()
+        run: |
+          if [ -f build/reports/java-compatibility/summary.md ]; then
+            cat build/reports/java-compatibility/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload Java compatibility report
+        if: always() && hashFiles('build/reports/java-compatibility/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-compatibility-report
+          path: build/reports/java-compatibility/**
+          if-no-files-found: error
+          retention-days: 14
+
       # issue #241 / #198 FU-3: make smoke-tests coverage visible in PR checks.
       # The gate inside tools/test-java.sh already fails the build if a smoke
       # module is missing; this step surfaces the per-module counts as a
