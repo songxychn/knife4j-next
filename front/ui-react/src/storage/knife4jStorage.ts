@@ -28,6 +28,8 @@ export const KNIFE4J_STORAGE_PREFIXES = {
   debugHistory: 'knife4j-next:debug-history:',
   /** Per-document baseline used by per-operation API change prompts. */
   apiVersionBaseline: 'knife4j-next:api-version-baseline:',
+  /** Exact-URI hash grants for one immutable OAS document scope; never stores response bodies or full query values. */
+  resourceGrants: 'knife4j-next:resource-grants:',
   groupGlobalParams: 'knife4j:global-params:',
   applicationGlobalParams: 'knife4j:application-global-params:',
   oauth2Pending: 'knife4j:oauth2:pending:',
@@ -53,6 +55,7 @@ export const KNIFE4J_STORAGE_REGISTRY = {
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.debugCache, scope: 'request-cache' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.debugHistory, scope: 'request-cache' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.apiVersionBaseline, scope: 'request-cache' },
+    { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.resourceGrants, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.settings, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.language, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyGlobalParams, scope: 'all-local-data' },

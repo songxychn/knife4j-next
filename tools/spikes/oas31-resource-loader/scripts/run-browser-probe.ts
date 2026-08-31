@@ -121,6 +121,16 @@ allowedServer = Bun.serve({
         return new Response('{"valid":true}', {
           headers: { ...corsHeaders(), 'content-type': 'text/plain; charset=utf-8' },
         });
+      case '/production-graph.json':
+        return json(
+          {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            $defs: { Authorized: { type: 'string' } },
+          },
+          corsHeaders(),
+        );
+      case '/production-ungranted.json':
+        return json({ type: 'number' }, corsHeaders());
       case '/cycle-a.json':
         return json({
           $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -294,6 +304,12 @@ try {
         evidence.requests
           .filter((request) => request.origin === 'no-cors' && request.path === '/cors-blocked.json')
           .every((request) => !request.cookie && !request.authorization && !request.referer),
+    },
+    {
+      name: 'production graph requested exactly the selected URI and not the ungranted neighbor',
+      passed:
+        countRequests('allowed', '/production-graph.json?token=browser-secret') === 1 &&
+        countRequests('allowed', '/production-ungranted.json') === 0,
     },
     {
       name: 'cycle resources were fetched exactly once each',

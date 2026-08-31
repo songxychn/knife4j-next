@@ -18,6 +18,7 @@ import type { SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import Markdown from './components/Markdown';
+import ExternalResourcePanel from './components/schema/ExternalResourcePanel';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
 import {
   closeTabsOnSide,
@@ -638,6 +639,7 @@ const AppInner: React.FC = () => {
                   style={{ margin: '2px 2px 8px' }}
                 />
               )}
+              <ExternalResourcePanel />
               <Tabs
                 className="knife4j-workspace-tabs"
                 hideAdd

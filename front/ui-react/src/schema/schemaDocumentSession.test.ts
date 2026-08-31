@@ -119,6 +119,30 @@ describe('SchemaDocumentSession', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  test('registers policy-validated graph documents without giving SchemaEngine a fetch capability', async () => {
+    const externalUri = 'https://schemas.knife4j.example/pet';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch must not be called'));
+    const session = await createSchemaDocumentSession(openApiDocument({ $ref: externalUri }), retrievalUri, {
+      resourceDocuments: [
+        {
+          retrievalUri: externalUri,
+          document: {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            type: 'object',
+            required: ['id'],
+            properties: { id: { type: 'integer' } },
+            additionalProperties: false,
+          },
+        },
+      ],
+    });
+    sessions.push(session);
+
+    await expect(session.evaluate('#/components/schemas/Pet', { id: 1 })).resolves.toMatchObject({ valid: true });
+    await expect(session.evaluate('#/components/schemas/Pet', { id: '1' })).resolves.toMatchObject({ valid: false });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test('evaluates request and response projections without changing raw schema semantics', async () => {
     const session = await createSchemaDocumentSession(
       openApiDocument({

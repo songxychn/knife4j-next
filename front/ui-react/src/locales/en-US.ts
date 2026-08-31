@@ -131,6 +131,51 @@ const enUS = {
   'schema.example.none.budgetTitle': 'The example search reached its budget',
   'schema.example.none.budgetDescription': 'No example is generated, avoiding unbounded backtracking.',
 
+  // OAS 3.1 external resources
+  'resource.summary.discovering.title': 'Checking OAS 3.1 external resources',
+  'resource.summary.discovering.description': 'References are discovered without sending automatic network requests.',
+  'resource.summary.pending.title': '{{pending}} external document(s) need authorization',
+  'resource.summary.pending.description':
+    'The original API document remains available; features that need an external resource are temporarily unavailable.',
+  'resource.summary.loading.title': 'Loading authorized external documents',
+  'resource.summary.loading.description': 'Requests are bounded by no-credential, zero-redirect, and resource limits.',
+  'resource.summary.ready.title': '{{loaded}} external document(s) loaded and registered',
+  'resource.summary.ready.description': 'Schema, ApiDoc, and diagnostics share this read-only resource graph.',
+  'resource.summary.partial.title': '{{loaded}} loaded; {{pending}} still need attention',
+  'resource.summary.partial.description':
+    'Resolved regions remain available. Missing resources never trigger implicit retries or network access.',
+  'resource.summary.failed.title': 'The external resource graph has {{failed}} diagnostic(s)',
+  'resource.summary.failed.description':
+    'The entry document is unchanged. Inspect the failed phase and retry only eligible resources.',
+  'resource.open': 'View resources',
+  'resource.modal.title': 'OAS 3.1 external resources',
+  'resource.security.title': 'Every URL requires explicit authorization',
+  'resource.security.body':
+    'Loading sends one GET to each selected exact URL without Cookie, Authorization, or Referer. A server may still receive the request when CORS rejects the response; Knife4j never bypasses CSP, CORS, TLS, or uses a proxy.',
+  'resource.pending.title': 'Pending authorization',
+  'resource.pending.empty': 'No resources are waiting for authorization.',
+  'resource.selectAll': 'Select all pending resources',
+  'resource.sameOrigin': 'Same origin',
+  'resource.crossOrigin': 'Cross origin',
+  'resource.referenceSummary': '{{count}} reference(s); first source {{source}}',
+  'resource.referenceDetails': '{{kind}} · raw {{reference}} · base {{base}} · fragment {{fragment}}',
+  'resource.loaded.title': 'Loaded in this graph',
+  'resource.loaded.tag': 'Verified',
+  'resource.authorization.entry': 'Entry document',
+  'resource.authorization.generation': 'Authorized once',
+  'resource.authorization.document': 'Remembered for document',
+  'resource.loaded.meta': '{{mediaType}} · {{bytes}} bytes · {{resources}} Schema resource identifier(s)',
+  'resource.diagnostics.title': 'Resource diagnostics',
+  'resource.loadOnce': 'Load selected once',
+  'resource.rememberAndLoad': 'Remember for this document and load',
+  'resource.cancelLoad': 'Cancel loading',
+  'resource.close': 'Close',
+  'resource.retry': 'Retry once',
+  'resource.remembered': 'Remembered the selected exact resources for this document',
+  'resource.notRemembered': 'The grant was not persisted; the selected resources will still load once',
+  'resource.registrationFailed':
+    'External resources could not be registered safely; Knife4j fell back to the entry document without them.',
+
   // ApiDoc
   'apiDoc.notFound.title': 'API doc not found',
   'apiDoc.notFound.desc': 'No OpenAPI operation matched the current route. Please reopen from the left API list.',
