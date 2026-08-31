@@ -295,6 +295,7 @@ const enUS = {
   'apiDebug.formDiagnostic.FORM_INPUT_INVALID_JSON': 'The field value is not a valid JSON logical instance.',
   'apiDebug.formDiagnostic.FORM_UNSAFE_NUMBER': 'The field contains a number the browser cannot represent losslessly.',
   'apiDebug.formDiagnostic.FORM_BODY_REQUIRED': 'The request body is required, but there are no form values to send.',
+  'apiDebug.formDiagnostic.FORM_DEPENDENT_REQUIRED': 'A form field required by another present field is missing.',
   'apiDebug.formDiagnostic.FORM_BUDGET_EXCEEDED': 'The form field or part count exceeds the diagnostic budget.',
   'apiDebug.formDiagnostic.FILE_REQUIRED': 'A required file is missing.',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': 'The selected file count does not satisfy the Schema.',

@@ -303,6 +303,7 @@ const jaJP = {
   'apiDebug.formDiagnostic.FORM_INPUT_INVALID_JSON': 'フィールド値は有効な JSON 論理インスタンスではありません。',
   'apiDebug.formDiagnostic.FORM_UNSAFE_NUMBER': 'フィールドにブラウザーで損失なく表現できない数値があります。',
   'apiDebug.formDiagnostic.FORM_BODY_REQUIRED': 'リクエストボディは必須ですが、送信するフォーム値がありません。',
+  'apiDebug.formDiagnostic.FORM_DEPENDENT_REQUIRED': '入力済みの別フィールドが必要とするフィールドがありません。',
   'apiDebug.formDiagnostic.FORM_BUDGET_EXCEEDED': 'フォームフィールドまたは part 数が診断予算を超えています。',
   'apiDebug.formDiagnostic.FILE_REQUIRED': '必須ファイルがありません。',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': '選択したファイル数が Schema 制約を満たしていません。',

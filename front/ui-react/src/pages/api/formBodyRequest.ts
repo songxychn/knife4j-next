@@ -13,8 +13,8 @@ export interface MaterializeMultipartBodyOptions {
 
 type FileMap = Readonly<Record<string, readonly File[]>>;
 
-function mediaTypeEssence(value: string): string {
-  return value.split(';', 1)[0].trim().toLowerCase();
+function normalizedMediaType(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function hasHeaders(part: MultipartPart): boolean {
@@ -28,16 +28,16 @@ function fileForPart(part: MultipartFilePart, files: FileMap): File {
 }
 
 function canUseNativeFormData(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>, files: FileMap): boolean {
-  if (mediaTypeEssence(plan.mediaType) !== 'multipart/form-data') return false;
+  if (normalizedMediaType(plan.mediaType) !== 'multipart/form-data') return false;
   for (const part of plan.parts) {
     if (hasHeaders(part)) return false;
     if (part.kind === 'text') {
-      if (mediaTypeEssence(part.contentType) !== 'text/plain') return false;
+      if (normalizedMediaType(part.contentType) !== 'text/plain') return false;
       continue;
     }
     const file = fileForPart(part, files);
-    const actualType = mediaTypeEssence(file.type || 'application/octet-stream');
-    if (actualType !== mediaTypeEssence(part.contentType)) return false;
+    const actualType = normalizedMediaType(file.type || 'application/octet-stream');
+    if (actualType !== normalizedMediaType(part.contentType)) return false;
   }
   return true;
 }

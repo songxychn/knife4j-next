@@ -198,10 +198,83 @@ describe('OAS 3.1 form body encoding', () => {
       contentType: 'multipart/form-data',
       formBodyPlan: plan,
     });
-    expect(curl).toContain('"metadata"="{\\"active\\":true}";type=application/json');
+    expect(curl).toContain('="{\\"active\\":true}"');
+    expect(curl).toContain('headers="Content-Disposition: form-data; name=\\"metadata\\""');
+    expect(curl).toContain('headers="Content-Type: application/json"');
     expect(curl).toContain('headers="X-Part-Trace: trace-1"');
-    expect(curl).toContain('"avatar"=@"/path/to/avatar.png";type=image/png');
+    expect(curl).toContain('=@"/path/to/avatar.png"');
+    expect(curl).toContain('headers="Content-Type: image/png"');
+    expect(curl).toContain('headers="Content-Disposition: form-data; name=\\"avatar\\"; filename=\\"avatar.png\\""');
     expect(curl).not.toContain('Content-Type: multipart/form-data');
+  });
+
+  test('quotes contentType inside curl MIME syntax and preserves declared parameters', () => {
+    const model = debugModelFor(
+      'multipart/form-data',
+      {
+        type: 'object',
+        properties: {
+          document: { type: 'string' },
+          avatar: { type: 'string', format: 'binary' },
+        },
+      },
+      {
+        document: { contentType: 'application/xml;encoder=base64' },
+        avatar: { contentType: 'image/png; profile=thumbnail' },
+      },
+    );
+    const plan = serializeOas31FormBody(model.bodyContents[0], {
+      formFields: { document: '<safe />' },
+      fileFields: { avatar: [{ name: 'avatar.png', type: 'image/png' }] },
+    });
+
+    expect(plan).toMatchObject({
+      kind: 'multipart',
+      diagnostics: [],
+      parts: [
+        { name: 'document', contentType: 'application/xml;encoder=base64' },
+        { name: 'avatar', contentType: 'image/png; profile=thumbnail' },
+      ],
+    });
+    const curl = buildCurl({
+      url: 'https://api.example.test/submit',
+      method: 'POST',
+      headers: {},
+      query: {},
+      contentType: 'multipart/form-data',
+      formBodyPlan: plan,
+    });
+    expect(curl).toContain('headers="Content-Type: application/xml;encoder=base64"');
+    expect(curl).toContain('headers="Content-Type: image/png; profile=thumbnail"');
+    expect(curl).not.toContain(';type=application/xml;encoder=base64');
+
+    const invalidModel = debugModelFor(
+      'multipart/form-data',
+      { type: 'object', properties: { document: { type: 'string' } } },
+      { document: { contentType: 'application/xml;headers=@/etc/hosts' } },
+    );
+    expect(invalidModel.bodyContents[0].oas31Form?.diagnostics).toEqual([
+      expect.objectContaining({ code: 'CONTENT_TYPE_INVALID', fieldName: 'document' }),
+    ]);
+  });
+
+  test('preserves generic multipart media type and form-data property disposition in curl', () => {
+    const model = debugModelFor('multipart/mixed', {
+      type: 'object',
+      properties: { note: { type: 'string' } },
+    });
+    const plan = serializeOas31FormBody(model.bodyContents[0], { formFields: { note: 'hello' } });
+    const curl = buildCurl({
+      url: 'https://api.example.test/submit',
+      method: 'POST',
+      headers: {},
+      query: {},
+      contentType: 'multipart/mixed',
+      formBodyPlan: plan,
+    });
+
+    expect(curl).toContain("-H \\\n  'Content-Type: multipart/mixed'");
+    expect(curl).toContain('headers="Content-Disposition: form-data; name=\\"note\\""');
   });
 
   test('applies RFC6570-style fields to multipart/form-data and keeps header diagnostics', () => {
@@ -301,6 +374,74 @@ describe('OAS 3.1 form body encoding', () => {
     ]);
     if (plan.kind !== 'multipart') throw new Error('expected multipart plan');
     expect(plan.parts[0].headers).toEqual({});
+  });
+
+  test('validates part headers and file cardinality only for present optional parts', () => {
+    const model = debugModelFor(
+      'multipart/form-data',
+      {
+        type: 'object',
+        properties: {
+          optionalText: { type: 'string' },
+          attachments: {
+            type: 'array',
+            minItems: 2,
+            items: { type: 'string', format: 'binary' },
+          },
+        },
+      },
+      {
+        optionalText: {
+          headers: { 'X-Part-Trace': { required: true, schema: { type: 'string' } } },
+        },
+      },
+    );
+
+    const omitted = serializeOas31FormBody(model.bodyContents[0], {});
+    expect(omitted.diagnostics).toEqual([]);
+
+    const present = serializeOas31FormBody(model.bodyContents[0], {
+      formFields: { optionalText: 'value' },
+      fileFields: { attachments: [{ name: 'one.bin', type: 'application/octet-stream' }] },
+    });
+    expect(present.diagnostics.map((item) => item.code)).toEqual(
+      expect.arrayContaining(['HEADER_REQUIRED', 'FILE_CARDINALITY']),
+    );
+  });
+
+  test('diagnoses dependentRequired across file and logical form properties', () => {
+    const model = debugModelFor('multipart/form-data', {
+      type: 'object',
+      properties: {
+        metadata: { type: 'string' },
+        avatar: { type: 'string', format: 'binary' },
+        caption: { type: 'string' },
+      },
+      dependentRequired: {
+        metadata: ['avatar'],
+        avatar: ['caption'],
+      },
+    });
+
+    const missingFile = serializeOas31FormBody(model.bodyContents[0], {
+      formFields: { metadata: 'present' },
+    });
+    expect(missingFile.diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'FORM_DEPENDENT_REQUIRED', fieldName: 'avatar' }),
+    );
+
+    const missingLogicalField = serializeOas31FormBody(model.bodyContents[0], {
+      fileFields: { avatar: [{ name: 'avatar.png', type: 'image/png' }] },
+    });
+    expect(missingLogicalField.diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'FORM_DEPENDENT_REQUIRED', fieldName: 'caption' }),
+    );
+
+    const valid = serializeOas31FormBody(model.bodyContents[0], {
+      formFields: { metadata: 'present', caption: 'ready' },
+      fileFields: { avatar: [{ name: 'avatar.png', type: 'image/png' }] },
+    });
+    expect(valid.diagnostics).toEqual([]);
   });
 
   test('supports nullable, prefixItems, boolean schemas and property references in the logical instance', () => {

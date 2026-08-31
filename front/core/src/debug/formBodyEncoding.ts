@@ -34,6 +34,7 @@ const DEFAULT_LIMITS = Object.freeze({
 });
 
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const MEDIA_TYPE_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 
 function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -98,10 +99,64 @@ function splitMediaTypes(value: string): string[] {
   return result.filter(Boolean);
 }
 
+function splitMediaTypeParameters(value: string): string[] | null {
+  const result: string[] = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') quoted = false;
+      continue;
+    }
+    if (character === '"') quoted = true;
+    else if (character === ';') {
+      result.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  if (quoted || escaped) return null;
+  result.push(value.slice(start).trim());
+  return result;
+}
+
+function validQuotedMediaTypeValue(value: string): boolean {
+  if (value.length < 2 || value[0] !== '"' || value[value.length - 1] !== '"') return false;
+  let escaped = false;
+  for (let index = 1; index < value.length - 1; index += 1) {
+    const character = value[index];
+    const code = character.charCodeAt(0);
+    if (escaped) {
+      if ((code < 0x20 && character !== '\t') || code === 0x7f) return false;
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (character === '"' || (code < 0x20 && character !== '\t') || code === 0x7f) {
+      return false;
+    }
+  }
+  return !escaped;
+}
+
 function validMediaType(value: string): boolean {
-  if (/\r|\n/.test(value)) return false;
-  const essence = mediaTypeEssence(value);
-  return /^(?:[!#$&^_.+*0-9A-Za-z-]+|\*)\/(?:[!#$&^_.+*0-9A-Za-z-]+|\*)$/.test(essence);
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return false;
+  }
+  const segments = splitMediaTypeParameters(value);
+  if (!segments || segments.length === 0) return false;
+  const [type = '', subtype = '', ...extra] = segments[0].split('/');
+  if (extra.length > 0 || !MEDIA_TYPE_TOKEN.test(type) || !MEDIA_TYPE_TOKEN.test(subtype)) return false;
+  return segments.slice(1).every((parameter) => {
+    const equals = parameter.indexOf('=');
+    if (equals <= 0) return false;
+    const name = parameter.slice(0, equals).trim();
+    const rawValue = parameter.slice(equals + 1).trim();
+    return MEDIA_TYPE_TOKEN.test(name) && (MEDIA_TYPE_TOKEN.test(rawValue) || validQuotedMediaTypeValue(rawValue));
+  });
 }
 
 function declaredTypes(schema: SchemaValue): string[] {
@@ -709,6 +764,11 @@ export function serializeOas31FormBody(
   const urlencodedEntries: UrlencodedFormEntry[] = [];
   const multipartParts: MultipartPart[] = [];
   const modeledNames = new Set(bodyContent.oas31Form.fields.map((field) => field.name));
+  const fileNames = new Set(bodyContent.oas31Form.fields.filter((field) => field.file).map((field) => field.name));
+  const readOnlyNames = new Set(
+    bodyContent.oas31Form.fields.filter((field) => field.readOnly).map((field) => field.name),
+  );
+  const presentFileNames = new Set<string>();
   let totalBytes = 0;
 
   for (const field of bodyContent.oas31Form.fields) {
@@ -716,15 +776,19 @@ export function serializeOas31FormBody(
       ignoredProperties.push(field.name);
       continue;
     }
-    const rawHeaderValues = input.partHeaders?.[field.name] ?? {};
-    const headers = serializePartHeaders(field, rawHeaderValues, diagnostics);
     if (field.file) {
       ignoredProperties.push(field.name);
       const rawFiles = input.fileFields?.[field.name] ?? [];
       const files = rawFiles.map(rawFileMetadata).filter((value): value is FormFileMetadata => value !== null);
-      if (field.required && files.length === 0) {
-        diagnostics.push(diagnostic('FILE_REQUIRED', `File field ${field.name} is required.`, field.name));
+      if (files.length === 0) {
+        if (field.required) {
+          diagnostics.push(diagnostic('FILE_REQUIRED', `File field ${field.name} is required.`, field.name));
+        }
+        continue;
       }
+      presentFileNames.add(field.name);
+      const rawHeaderValues = input.partHeaders?.[field.name] ?? {};
+      const headers = serializePartHeaders(field, rawHeaderValues, diagnostics);
       const minimum = field.minFiles ?? (field.required && field.multiple ? 1 : 0);
       const maximum = field.maxFiles ?? (field.multiple ? Number.POSITIVE_INFINITY : 1);
       if (files.length < minimum || files.length > maximum) {
@@ -755,7 +819,7 @@ export function serializeOas31FormBody(
         }
         if (field.encoding.contentTypeExplicit) {
           const matching = actual ? expected.find((candidate) => mediaTypeMatches(actual, candidate)) : undefined;
-          if (matching) contentType = actual;
+          if (matching) contentType = mediaTypeEssence(matching).includes('*') ? actual : matching;
           else {
             diagnostics.push(
               diagnostic(
@@ -784,6 +848,8 @@ export function serializeOas31FormBody(
     if (!hasOwn(rawFields, field.name)) continue;
     const rawValue = rawFields[field.name];
     if (rawValue === '' && !includeEmpty.has(field.name)) continue;
+    const rawHeaderValues = input.partHeaders?.[field.name] ?? {};
+    const headers = serializePartHeaders(field, rawHeaderValues, diagnostics);
     const bytes = utf8Bytes(rawValue);
     totalBytes += bytes;
     if (bytes > limits.maxFieldBytes || totalBytes > limits.maxTotalBytes) {
@@ -848,6 +914,34 @@ export function serializeOas31FormBody(
         contentType: 'text/plain',
         headers: {},
       });
+    }
+  }
+
+  const bodySchema = bodyContent.schema;
+  const dependentRequired =
+    bodySchema && isRecord(bodySchema.dependentRequired) ? bodySchema.dependentRequired : undefined;
+  if (dependentRequired) {
+    const presentNames = new Set(Object.keys(instance));
+    presentFileNames.forEach((name) => presentNames.add(name));
+    for (const [trigger, rawDependencies] of Object.entries(dependentRequired)) {
+      if (!presentNames.has(trigger) || !Array.isArray(rawDependencies)) continue;
+      for (const dependency of rawDependencies) {
+        if (
+          typeof dependency !== 'string' ||
+          presentNames.has(dependency) ||
+          readOnlyNames.has(dependency) ||
+          (!fileNames.has(trigger) && !fileNames.has(dependency))
+        ) {
+          continue;
+        }
+        diagnostics.push(
+          diagnostic(
+            'FORM_DEPENDENT_REQUIRED',
+            `Form field ${trigger} requires ${dependency} to be present.`,
+            dependency,
+          ),
+        );
+      }
     }
   }
 

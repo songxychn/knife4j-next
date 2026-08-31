@@ -13,6 +13,7 @@ import type {
   BuiltRequestSourceMap,
   DebugFormValues,
   GlobalParamValues,
+  MultipartPart,
   OperationDebugModel,
   ParamIn,
   ParamSource,
@@ -574,6 +575,47 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
+function multipartMediaTypeWithoutBoundary(value: string): string {
+  const segments: string[] = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') quoted = false;
+      continue;
+    }
+    if (character === '"') quoted = true;
+    else if (character === ';') {
+      segments.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  segments.push(value.slice(start).trim());
+  return segments
+    .filter((segment, index) => index === 0 || !/^boundary\s*=/iu.test(segment))
+    .filter(Boolean)
+    .join('; ');
+}
+
+function multipartMediaTypeEssence(value: string): string {
+  return value.split(';', 1)[0].trim().toLowerCase();
+}
+
+function mimeQuotedParameter(value: string): string {
+  if (/\r|\n/u.test(value)) throw new Error('Multipart disposition metadata contains a forbidden line break.');
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function multipartDisposition(part: MultipartPart): string {
+  const name = mimeQuotedParameter(part.name);
+  const disposition = `Content-Disposition: form-data; name="${name}"`;
+  return part.kind === 'file' ? `${disposition}; filename="${mimeQuotedParameter(part.fileName)}"` : disposition;
+}
+
 /**
  * 从 BuiltRequest 生成等价 curl 命令
  *
@@ -586,9 +628,12 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push('curl');
   parts.push('-X', req.method);
 
-  const isMultipart =
-    req.formBodyPlan?.kind === 'multipart' ||
-    (typeof req.contentType === 'string' && req.contentType.toLowerCase().startsWith('multipart/'));
+  const plannedMultipart = req.formBodyPlan?.kind === 'multipart' ? req.formBodyPlan : undefined;
+  const legacyMultipart =
+    plannedMultipart === undefined &&
+    typeof req.contentType === 'string' &&
+    req.contentType.toLowerCase().includes('multipart/form-data');
+  const isMultipart = plannedMultipart !== undefined || legacyMultipart;
 
   // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
@@ -596,15 +641,29 @@ export function buildCurl(req: BuiltRequest): string {
     parts.push('-H', shellQuote(`${key}: ${value}`));
   }
 
-  if (req.formBodyPlan?.kind === 'multipart') {
-    for (const part of req.formBodyPlan.parts) {
-      const attributes = [`${curlFormQuoted(part.name)}=`];
+  if (plannedMultipart) {
+    const contentType = multipartMediaTypeWithoutBoundary(plannedMultipart.mediaType);
+    if (
+      contentType &&
+      (multipartMediaTypeEssence(contentType) !== 'multipart/form-data' ||
+        contentType.toLowerCase() !== 'multipart/form-data')
+    ) {
+      // Native curl can generate only the bare multipart/form-data header;
+      // preserve every other declared parameter while curl appends boundary.
+      parts.push('-H', shellQuote(`Content-Type: ${contentType}`));
+    }
+  }
+
+  if (plannedMultipart) {
+    for (const part of plannedMultipart.parts) {
+      const attributes = ['='];
       if (part.kind === 'file') {
         attributes[0] += `@${curlFormQuoted(`/path/to/${part.fileName}`)}`;
       } else {
         attributes[0] += curlFormQuoted(part.value);
       }
-      if (part.contentType) attributes.push(`type=${part.contentType}`);
+      attributes.push(`headers=${curlFormQuoted(multipartDisposition(part))}`);
+      if (part.contentType) attributes.push(`headers=${curlFormQuoted(`Content-Type: ${part.contentType}`)}`);
       for (const [name, value] of Object.entries(part.headers)) {
         attributes.push(`headers=${curlFormQuoted(`${name}: ${value}`)}`);
       }

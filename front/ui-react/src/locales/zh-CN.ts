@@ -277,6 +277,7 @@ const zhCN = {
   'apiDebug.formDiagnostic.FORM_INPUT_INVALID_JSON': '字段值不是有效的 JSON 逻辑实例。',
   'apiDebug.formDiagnostic.FORM_UNSAFE_NUMBER': '字段包含浏览器无法无损表示的数字。',
   'apiDebug.formDiagnostic.FORM_BODY_REQUIRED': '请求体为必填项，但当前没有可发送的表单值。',
+  'apiDebug.formDiagnostic.FORM_DEPENDENT_REQUIRED': '当前表单缺少其他已填写字段所依赖的字段。',
   'apiDebug.formDiagnostic.FORM_BUDGET_EXCEEDED': '表单字段或 part 数量超出诊断预算。',
   'apiDebug.formDiagnostic.FILE_REQUIRED': '缺少必填文件。',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': '选择的文件数量不符合 Schema 约束。',

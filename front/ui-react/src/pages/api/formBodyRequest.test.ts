@@ -93,6 +93,60 @@ describe('multipart request materialization', () => {
     );
   });
 
+  test('uses the MIME envelope when native FormData would drop explicit media type parameters', async () => {
+    const textPlan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
+      kind: 'multipart',
+      mediaType: 'multipart/form-data',
+      instance: { note: 'hello' },
+      ignoredProperties: [],
+      diagnostics: [],
+      parts: [
+        {
+          kind: 'text',
+          sourceField: 'note',
+          name: 'note',
+          value: 'hello',
+          contentType: 'text/plain; charset=utf-8',
+          headers: {},
+        },
+      ],
+    };
+    const textBody = materializeMultipartBody(textPlan, {}, { boundaryFactory: () => 'text-boundary' });
+    expect(textBody.mode).toBe('encoded');
+    await expect((textBody.body as Blob).text()).resolves.toContain('Content-Type: text/plain; charset=utf-8');
+
+    const avatar = file(['png'], 'avatar.png', 'image/png');
+    const filePlan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
+      ...textPlan,
+      instance: {},
+      ignoredProperties: ['avatar'],
+      parts: [
+        {
+          kind: 'file',
+          sourceField: 'avatar',
+          name: 'avatar',
+          fileIndex: 0,
+          fileName: avatar.name,
+          contentType: 'image/png; profile=thumbnail',
+          headers: {},
+        },
+      ],
+    };
+    const fileBody = materializeMultipartBody(filePlan, { avatar: [avatar] }, { boundaryFactory: () => 'file' });
+    expect(fileBody.mode).toBe('encoded');
+    await expect((fileBody.body as Blob).text()).resolves.toContain('Content-Type: image/png; profile=thumbnail');
+
+    const topLevelBody = materializeMultipartBody(
+      { ...textPlan, mediaType: 'multipart/form-data; profile=upload', parts: [] },
+      {},
+      { boundaryFactory: () => 'top' },
+    );
+    expect(topLevelBody).toMatchObject({
+      mode: 'encoded',
+      contentType: 'multipart/form-data; profile=upload; boundary=top',
+    });
+  });
+
   test('rejects unsafe MIME framing and stale file snapshots before fetch', () => {
     const unsafePlan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
       kind: 'multipart',

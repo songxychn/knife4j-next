@@ -104,6 +104,7 @@ export interface FormBodyDiagnostic {
     | 'FORM_INPUT_INVALID_JSON'
     | 'FORM_UNSAFE_NUMBER'
     | 'FORM_BODY_REQUIRED'
+    | 'FORM_DEPENDENT_REQUIRED'
     | 'FORM_BUDGET_EXCEEDED'
     | 'FILE_REQUIRED'
     | 'FILE_CARDINALITY'

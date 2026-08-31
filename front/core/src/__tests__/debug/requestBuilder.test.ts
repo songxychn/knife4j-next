@@ -1076,6 +1076,22 @@ describe('buildCurl', () => {
     expect(curl).toContain('X-Trace: 1');
   });
 
+  test('keeps non-form-data legacy multipart on the pre-existing raw curl path', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/mixed' },
+      query: {},
+      body: '{"legacy":"body"}',
+      contentType: 'multipart/mixed',
+    });
+
+    expect(curl).toContain("-H \\\n  'Content-Type: multipart/mixed'");
+    expect(curl).toContain('-d \\\n  \'{"legacy":"body"}\'');
+    expect(curl).not.toContain('-F');
+    expect(curl).not.toContain('TODO append file fields');
+  });
+
   test('multipart body emits an explicitly empty field from the final request body', () => {
     const curl = buildCurl({
       url: 'http://localhost:8080/upload',
