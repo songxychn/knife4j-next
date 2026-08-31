@@ -95,8 +95,8 @@ PR 至少写清：关联 issue、范围、验证命令与结果、风险。
 须维护者明确确认后再 tag。完成条件同时满足：
 
 - `vX.Y.Z` tag 已推送
-- `Release` workflow 成功
-- `Build and Deploy Demo` workflow 成功
+- `Release` workflow 的发布与公开制品核验 job 成功
+- 由 `Release` workflow 在核验成功后调用的 `Build and Deploy Demo` workflow 成功
 - Maven Central 目标构件可访问
 - GitHub Release 存在且 body 与 `docs/release-notes/index.md` 对应小节一致
 

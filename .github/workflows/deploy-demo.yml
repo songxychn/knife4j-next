@@ -1,20 +1,65 @@
 name: Build and Deploy Demo
 
-# Demo 只跟已发布版本对齐：master 合并不自动部署，避免线上 demo 跑到
-# 用户尚未能通过 Maven Central 拿到的未发版 master 代码。
-# 紧急手动部署仍可用 workflow_dispatch。
+# Demo 只部署已经完成公开制品核验的正式版本。Release workflow 是正常入口；
+# workflow_dispatch 只用于重新部署当前 latest release。
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: "Published vX.Y.Z tag to deploy"
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Current latest published vX.Y.Z tag to redeploy"
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-demo-${{ inputs.tag }}
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
+  RELEASE_TAG: ${{ inputs.tag }}
 
 jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RELEASE_ROOT: ${{ github.workspace }}/release-source
+    steps:
+      - name: Checkout current deployment tooling
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Checkout exact release tag source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: release-source
+          fetch-depth: 0
+
+      - name: Verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFY_GITHUB_RELEASE_REQUIRE_LATEST: true
+        run: |
+          release_notes="$RUNNER_TEMP/github-release-notes.md"
+          VERIFY_RELEASE_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-release-context.sh "$RELEASE_TAG" "$release_notes"
+          VERIFY_MAVEN_REPO_ROOT="$RELEASE_ROOT" \
+            tools/verify-maven-central.sh "${RELEASE_TAG#v}"
+          tools/verify-github-release.sh "$RELEASE_TAG" "$release_notes"
+
   build-and-push:
+    needs: verify-release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,7 +77,11 @@ jobs:
             image: knife4j-next-demo-openapi2
             context: knife4j/knife4j-demo-openapi2
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout exact release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
 
       - uses: actions/setup-java@v5
         with:
@@ -67,7 +116,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ github.token }}
 
       - name: Extract metadata
         id: meta
@@ -75,7 +124,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}
           tags: |
-            type=semver,pattern={{version}}
+            type=semver,pattern={{version}},value=${{ inputs.tag }}
             type=raw,value=latest
 
       - name: Build and push image
