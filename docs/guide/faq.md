@@ -8,7 +8,7 @@ title: 常见问题
 
 ### 和 upstream knife4j 是什么关系
 
-`knife4j-next` 是 [`xiaoymin/knife4j`](https://github.com/xiaoymin/knife4j) 的社区维护 fork。功能语义完全兼容，只改了 Maven `groupId`（`com.github.xiaoymin` → `com.baizhukui`）。详见 [产品介绍](./introduction)。
+`knife4j-next` 是 [`xiaoymin/knife4j`](https://github.com/xiaoymin/knife4j) 的社区维护 fork。迁移时必须把 Maven `groupId` 从 `com.github.xiaoymin` 改为 `com.baizhukui`；项目优先保留既有 starter、Java 包名、`knife4j.*` 配置与 `/doc.html` 等外部契约，但不会承诺所有版本、前端能力和非规范输入都与 upstream 完全一致。详见 [维护政策](https://github.com/songxychn/knife4j-next/blob/master/MAINTENANCE.md) 和 [产品介绍](./introduction)。
 
 ### 如何从 `com.github.xiaoymin` 切到 `com.baizhukui`
 

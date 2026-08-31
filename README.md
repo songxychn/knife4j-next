@@ -1,7 +1,7 @@
 # knife4j-next
 
 `knife4j-next` 是一个面向社区持续维护的 `knife4j` fork。它服务于仍依赖 `doc.html` 体验和相关 starter
-模块的用户，目标是在保持兼容性的前提下，提供更稳定的维护节奏、发布流程和下一代前端演进路径。
+模块的用户，目标是在保持兼容性的前提下，提供更明确的维护边界、发布流程和下一代前端演进路径。
 
 ## 项目定位
 
@@ -86,6 +86,8 @@ http://ip:port/doc.html
 
 ## 维护策略
 
+下表是便于浏览的摘要；受支持版本、兼容面、发布完成标准和停止维护时的处置以 [维护政策](./MAINTENANCE.md) 为准。安全问题请不要直接公开利用细节，改用 [安全政策](./SECURITY.md) 中的私密报告入口。
+
 | 方向 | 源码 | 产物 / 使用方 | 策略 |
 |---|---|---|---|
 | Java 后端 | `knife4j/` | starter、UI webjar、聚合组件 | 优先做兼容性修复、回归修复和发布维护 |
@@ -155,6 +157,8 @@ bun run dev
 - 仓库地址：[songxychn/knife4j-next](https://github.com/songxychn/knife4j-next)
 - Issue 反馈：[GitHub Issues](https://github.com/songxychn/knife4j-next/issues)
 - Release 记录：[GitHub Releases](https://github.com/songxychn/knife4j-next/releases)
+- 维护政策：[MAINTENANCE.md](./MAINTENANCE.md)
+- 安全政策与私密报告入口：[SECURITY.md](./SECURITY.md)
 - Java 发布说明：[knife4j/RELEASE.md](./knife4j/RELEASE.md)
 - 迁移指南：[knife4j/MIGRATION.md](./knife4j/MIGRATION.md)
 - 文档站源码：[docs](./docs)
