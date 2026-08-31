@@ -442,6 +442,28 @@ describe('OAS 3.1 form body encoding', () => {
       fileFields: { avatar: [{ name: 'avatar.png', type: 'image/png' }] },
     });
     expect(valid.diagnostics).toEqual([]);
+
+    const fallbackModel = debugModelFor('multipart/form-data', {
+      type: 'object',
+      properties: {
+        metadata: { type: 'object' },
+        avatar: { type: 'string', format: 'binary' },
+      },
+      dependentRequired: { metadata: ['avatar'] },
+    });
+    const rawFallback = serializeOas31FormBody(fallbackModel.bodyContents[0], {
+      formFields: { metadata: '{broken' },
+    });
+    expect(rawFallback.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'FORM_INPUT_INVALID_JSON', fieldName: 'metadata' }),
+        expect.objectContaining({ code: 'FORM_DEPENDENT_REQUIRED', fieldName: 'avatar' }),
+      ]),
+    );
+    expect(rawFallback).toMatchObject({
+      kind: 'multipart',
+      parts: [expect.objectContaining({ name: 'metadata', value: '{broken' })],
+    });
   });
 
   test('supports nullable, prefixItems, boolean schemas and property references in the logical instance', () => {

@@ -59,12 +59,34 @@ function defaultBoundary(): string {
   return `----Knife4jFormBoundary${random}`;
 }
 
+function mediaTypeParameters(value: string): string[] {
+  const segments: string[] = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') quoted = false;
+      continue;
+    }
+    if (character === '"') quoted = true;
+    else if (character === ';') {
+      segments.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  segments.push(value.slice(start).trim());
+  return segments;
+}
+
 function topLevelContentType(mediaType: string, boundary: string): string {
-  const withoutBoundary = mediaType
-    .split(';')
-    .filter((part) => !/^\s*boundary\s*=/i.test(part))
-    .join(';')
-    .trim();
+  const withoutBoundary = mediaTypeParameters(mediaType)
+    .filter((part, index) => index === 0 || !/^boundary\s*=/i.test(part))
+    .filter(Boolean)
+    .join('; ');
   return `${withoutBoundary}; boundary=${boundary}`;
 }
 

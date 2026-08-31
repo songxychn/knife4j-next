@@ -137,13 +137,17 @@ describe('multipart request materialization', () => {
     await expect((fileBody.body as Blob).text()).resolves.toContain('Content-Type: image/png; profile=thumbnail');
 
     const topLevelBody = materializeMultipartBody(
-      { ...textPlan, mediaType: 'multipart/form-data; profile=upload', parts: [] },
+      {
+        ...textPlan,
+        mediaType: 'multipart/form-data; profile="upload;a"; boundary=authored',
+        parts: [],
+      },
       {},
       { boundaryFactory: () => 'top' },
     );
     expect(topLevelBody).toMatchObject({
       mode: 'encoded',
-      contentType: 'multipart/form-data; profile=upload; boundary=top',
+      contentType: 'multipart/form-data; profile="upload;a"; boundary=top',
     });
   });
 

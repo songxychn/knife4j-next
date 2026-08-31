@@ -769,6 +769,7 @@ export function serializeOas31FormBody(
     bodyContent.oas31Form.fields.filter((field) => field.readOnly).map((field) => field.name),
   );
   const presentFileNames = new Set<string>();
+  const presentLogicalNames = new Set<string>();
   let totalBytes = 0;
 
   for (const field of bodyContent.oas31Form.fields) {
@@ -848,6 +849,7 @@ export function serializeOas31FormBody(
     if (!hasOwn(rawFields, field.name)) continue;
     const rawValue = rawFields[field.name];
     if (rawValue === '' && !includeEmpty.has(field.name)) continue;
+    presentLogicalNames.add(field.name);
     const rawHeaderValues = input.partHeaders?.[field.name] ?? {};
     const headers = serializePartHeaders(field, rawHeaderValues, diagnostics);
     const bytes = utf8Bytes(rawValue);
@@ -896,6 +898,7 @@ export function serializeOas31FormBody(
 
   for (const [name, rawValue] of Object.entries(rawFields)) {
     if (modeledNames.has(name) || (rawValue === '' && !includeEmpty.has(name))) continue;
+    presentLogicalNames.add(name);
     instance[name] = rawValue;
     if (bodyContent.category === 'urlencoded') {
       urlencodedEntries.push({
@@ -921,7 +924,8 @@ export function serializeOas31FormBody(
   const dependentRequired =
     bodySchema && isRecord(bodySchema.dependentRequired) ? bodySchema.dependentRequired : undefined;
   if (dependentRequired) {
-    const presentNames = new Set(Object.keys(instance));
+    const presentNames = new Set<string>();
+    presentLogicalNames.forEach((name) => presentNames.add(name));
     presentFileNames.forEach((name) => presentNames.add(name));
     for (const [trigger, rawDependencies] of Object.entries(dependentRequired)) {
       if (!presentNames.has(trigger) || !Array.isArray(rawDependencies)) continue;

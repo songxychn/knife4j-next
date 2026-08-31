@@ -632,7 +632,7 @@ export function buildCurl(req: BuiltRequest): string {
   const legacyMultipart =
     plannedMultipart === undefined &&
     typeof req.contentType === 'string' &&
-    req.contentType.toLowerCase().includes('multipart/form-data');
+    multipartMediaTypeEssence(req.contentType) === 'multipart/form-data';
   const isMultipart = plannedMultipart !== undefined || legacyMultipart;
 
   // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）

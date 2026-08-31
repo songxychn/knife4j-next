@@ -1092,6 +1092,22 @@ describe('buildCurl', () => {
     expect(curl).not.toContain('TODO append file fields');
   });
 
+  test('does not classify a legacy media type parameter value as multipart/form-data', () => {
+    const contentType = 'application/example; profile="multipart/form-data"';
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+      query: {},
+      body: 'legacy body',
+      contentType,
+    });
+
+    expect(curl).toContain(`Content-Type: ${contentType}`);
+    expect(curl).toContain("-d \\\n  'legacy body'");
+    expect(curl).not.toContain('-F');
+  });
+
   test('multipart body emits an explicitly empty field from the final request body', () => {
     const curl = buildCurl({
       url: 'http://localhost:8080/upload',
