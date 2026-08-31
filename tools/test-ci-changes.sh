@@ -36,7 +36,7 @@ knife4x_only="$(outputs false false false false true)"
 all="$(outputs true true true true true)"
 
 assert_case "docs" "$docs_only" $'docs/guide/index.md\ntools/test-docs.sh'
-assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/test-release-tools.sh\ntools/test-fixtures/mock-maven-central-curl.sh\ntools/extract-release-note.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-context.sh\ntools/verify-maven-central.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
+assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/test-java-compatibility.sh\ntools/java-compatibility-report.sh\ntools/java-compatibility-summary.py\ntools/java-compatibility-baseline.properties\ntools/java-compatibility-contracts.tsv\ntools/verify-java-compatibility-contracts.py\ntools/test-release-tools.sh\ntools/test-fixtures/mock-maven-central-curl.sh\ntools/extract-release-note.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-context.sh\ntools/verify-maven-central.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
 for path in front/core/src/index.ts front/ui-react/src/App.tsx front/package.json front/bun.lock; do
   assert_case "react and knife4x: $path" "$react_java_and_knife4x" "$path"
 done

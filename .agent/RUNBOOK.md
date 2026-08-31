@@ -15,7 +15,8 @@
 
 | 改动 | 命令 | 说明 |
 |---|---|---|
-| `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + smoke 证据门禁 |
+| `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + smoke 证据与兼容契约门禁 |
+| Java 发布面差异 | `./tools/java-compatibility-report.sh` | 与显式 Central 基线比较并生成 report-first artifact；需先完成 Java 构建 |
 | `front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
 | `front/vue3` | `./tools/test-vue3.sh` | 构建并检查 `doc.html` / webjars |
 | `docs/**` | `./tools/test-docs.sh` | 文档站构建 |
@@ -25,6 +26,8 @@
 
 - 改前端源码时用对应脚本，不要用单独 `tsc` / `vite build` 冒充全量。
 - Java 改动的 PR / issue 应能指向 smoke 证据：本地 `test-java.sh` 尾部 `Smoke-tests evidence OK`，或 CI 的 smoke summary。
+- Java CI 的兼容报告只把真实 API / 实现差异作为审查信号，不因差异本身失败；基线、工具、发布模块或已登记配置/公开入口契约异常仍是硬失败。单模块分析忽略缺失外部类，不能替代消费方测试。
+- 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 后再执行标准 Java 验证；不得为过门禁直接重生成并跳过语义审查。
 - 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表（若仓库已抽出 `tools/smoke-modules.txt` 则只改该文件）。
 
 ## Bug 复现（强制）

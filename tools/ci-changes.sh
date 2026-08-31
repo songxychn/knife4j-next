@@ -15,7 +15,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     docs/*|tools/test-docs.sh)
       docs=true
       ;;
-    knife4j/*|tools/test-java.sh|tools/test-release-tools.sh|tools/test-fixtures/mock-maven-central-curl.sh|tools/extract-release-note.sh|tools/verify-configuration-metadata.sh|tools/verify-release-context.sh|tools/verify-maven-central.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
+    knife4j/*|tools/test-java.sh|tools/test-java-compatibility.sh|tools/java-compatibility-*|tools/verify-java-compatibility-contracts.py|tools/test-release-tools.sh|tools/test-fixtures/mock-maven-central-curl.sh|tools/extract-release-note.sh|tools/verify-configuration-metadata.sh|tools/verify-release-context.sh|tools/verify-maven-central.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
       java=true
       ;;
     front/core/*|front/ui-react/*|front/package.json|front/bun.lock)

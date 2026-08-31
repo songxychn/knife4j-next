@@ -6,13 +6,33 @@
 
 | 脚本 | 作用 |
 |---|---|
-| `test-java.sh` | spotless + Maven verify + smoke 证据 |
+| `test-java.sh` | spotless + Maven verify + smoke 证据 + Java 兼容契约 |
+| `test-java-compatibility.sh` | 兼容报告与契约护栏的离线回归 |
+| `java-compatibility-report.sh` | 对比显式 Central 基线并生成 report-first 的 Markdown / JSON / XML 报告 |
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
 | `test-front-core.sh` | core + React format/lint/test/build |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
 | `test-docs.sh` | 文档站构建 |
 | `test-all.sh` | java + front-core + vue3 + docs |
 | `test-agent-status.sh` | 任务看板查询、过滤与失败路径 |
+
+### Java 兼容性报告
+
+`java-compatibility-report.sh` 在 `test-java.sh` 生成本地 JAR 后运行，默认把报告写到
+`build/reports/java-compatibility/`。基线与 japicmp 版本固定在
+`java-compatibility-baseline.properties`；发布模块沿用 `release-modules.txt`。
+
+真实的二进制、源码兼容或实现/资源差异只进入报告，不令命令失败。Central 基线下载失败、
+japicmp 执行失败、发布模块/产物异常，以及 `java-compatibility-contracts.tsv` 中登记的完整
+Spring Boot 配置 key 或关键公开入口漂移会失败。japicmp 按单模块使用
+`--ignore-missing-classes`，报告是维护信号，不替代消费方测试或人工审查。
+
+配置元数据有意变化时，先完成评审和构建，再显式更新、核对差异：
+
+```bash
+./tools/verify-java-compatibility-contracts.py --update-config
+./tools/verify-java-compatibility-contracts.py
+```
 
 ## 发布
 
