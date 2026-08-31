@@ -167,6 +167,7 @@ interface MutableEdge {
   readonly resolutionBase: string;
   readonly depth: number;
   readonly expectedTarget: ExpectedTargetKind;
+  expanded: boolean;
   state: ResourceGraphEdge['state'];
 }
 
@@ -174,6 +175,7 @@ interface ResourceTarget {
   readonly ownerRetrievalUri: string;
   readonly value: unknown;
   readonly pointer: string;
+  readonly evaluationBaseUri: string;
 }
 
 interface ScanCollector {
@@ -222,6 +224,7 @@ const SCHEMA_SINGLE_KEYWORDS = [
 const SCHEMA_ARRAY_KEYWORDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const;
 const SCHEMA_MAP_KEYWORDS = ['properties', 'patternProperties', 'dependentSchemas', '$defs', 'definitions'] as const;
 const ANCHOR_NAME = /^[A-Za-z_][-A-Za-z0-9._]*$/;
+const COMPONENT_NAME = /^[A-Za-z0-9._-]+$/;
 
 const isRecord = (value: unknown): value is JsonRecord =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -274,20 +277,21 @@ function safeRawReferenceDisplay(reference: string): string {
 
 function readonlyMap<K, V>(values: ReadonlyMap<K, V>): ReadonlyMap<K, V> {
   const snapshot = new Map(values);
-  return Object.freeze({
+  const facade: ReadonlyMap<K, V> = Object.freeze({
     get size() {
       return snapshot.size;
     },
     get: (key: K) => snapshot.get(key),
     has: (key: K) => snapshot.has(key),
     forEach: (callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown) => {
-      snapshot.forEach((value, key) => callbackfn.call(thisArg, value, key, snapshot));
+      snapshot.forEach((value, key) => callbackfn.call(thisArg, value, key, facade));
     },
     entries: () => snapshot.entries(),
     keys: () => snapshot.keys(),
     values: () => snapshot.values(),
     [Symbol.iterator]: () => snapshot[Symbol.iterator](),
   });
+  return facade;
 }
 
 function genericDiagnostic(
@@ -614,21 +618,53 @@ function cloneAndCountEntry(
   return { document: freezeJsonValue(parsed.value), nodes: parsed.nodes, text };
 }
 
-function addResourceTarget(collector: ScanCollector, uri: string, value: unknown, pointer: string): void {
+function addResourceTarget(
+  collector: ScanCollector,
+  uri: string,
+  value: unknown,
+  pointer: string,
+  evaluationBaseUri = uri,
+): void {
   const identity = uriWithoutFragment(uri);
   const existing = collector.resources.get(identity);
   if (existing && existing.pointer !== pointer) {
-    throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema resource URI is declared more than once.');
+    throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema resource URI is declared more than once.', {
+      retrievalUri: identity,
+    });
   }
-  collector.resources.set(identity, { ownerRetrievalUri: collector.sourceRetrievalUri, value, pointer });
+  collector.resources.set(identity, {
+    ownerRetrievalUri: collector.sourceRetrievalUri,
+    value,
+    pointer,
+    evaluationBaseUri,
+  });
 }
 
-function addAnchorTarget(collector: ScanCollector, uri: string, value: unknown, pointer: string): void {
+function addAnchorTarget(
+  collector: ScanCollector,
+  uri: string,
+  value: unknown,
+  pointer: string,
+  evaluationBaseUri: string,
+): void {
   const existing = collector.anchors.get(uri);
   if (existing && existing.pointer !== pointer) {
-    throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema anchor URI is declared more than once.');
+    throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema anchor URI is declared more than once.', {
+      retrievalUri: uri,
+    });
   }
-  collector.anchors.set(uri, { ownerRetrievalUri: collector.sourceRetrievalUri, value, pointer });
+  collector.anchors.set(uri, {
+    ownerRetrievalUri: collector.sourceRetrievalUri,
+    value,
+    pointer,
+    evaluationBaseUri,
+  });
+}
+
+function edgeIdentity(
+  edge: Pick<MutableEdge, 'sourceRetrievalUri' | 'sourcePointer' | 'kind' | 'resolvedUri' | 'expectedTarget'>,
+): string {
+  return `${edge.sourceRetrievalUri}\n${edge.sourcePointer}\n${edge.kind}\n${edge.resolvedUri}\n${edge.expectedTarget}`;
 }
 
 function addReference(
@@ -664,12 +700,13 @@ function addReference(
           resolutionBase: baseUri,
           depth,
           expectedTarget,
+          expanded: true,
         },
       ),
     );
     return;
   }
-  collector.edges.push({
+  const edge: MutableEdge = {
     sourceRetrievalUri: collector.sourceRetrievalUri,
     sourcePointer,
     kind,
@@ -682,7 +719,9 @@ function addReference(
     resolutionBase: baseUri,
     depth,
     expectedTarget,
-  });
+    expanded: false,
+  };
+  if (!collector.edges.some((existing) => edgeIdentity(existing) === edgeIdentity(edge))) collector.edges.push(edge);
 }
 
 function walkSchema(
@@ -701,6 +740,7 @@ function walkSchema(
       'The Schema declares a dialect outside the supported OAS 3.1 base and Draft 2020-12 dialects.',
     );
   }
+  const evaluationBaseUri = inheritedBase;
   let baseUri = inheritedBase;
   if (typeof value.$id === 'string') {
     try {
@@ -709,7 +749,7 @@ function walkSchema(
         throw new ResourceLoadError('RESOURCE_URI_INVALID', 'Schema $id values must not contain a non-empty fragment.');
       }
       baseUri = identifier.href;
-      addResourceTarget(collector, baseUri, value, pointer);
+      addResourceTarget(collector, baseUri, value, pointer, evaluationBaseUri);
     } catch (error) {
       if (error instanceof ResourceLoadError) throw error;
       throw new ResourceLoadError('RESOURCE_URI_INVALID', 'Schema $id cannot be resolved.', {}, error);
@@ -721,7 +761,7 @@ function walkSchema(
     if (!ANCHOR_NAME.test(anchor)) {
       throw new ResourceLoadError('RESOURCE_URI_INVALID', `Schema ${keyword} is invalid.`);
     }
-    addAnchorTarget(collector, `${uriWithoutFragment(baseUri)}#${anchor}`, value, pointer);
+    addAnchorTarget(collector, `${uriWithoutFragment(baseUri)}#${anchor}`, value, pointer, evaluationBaseUri);
   }
 
   if (emitReferences && typeof value.$ref === 'string') {
@@ -753,12 +793,14 @@ function walkSchema(
   if (emitReferences && mapping) {
     Object.entries(mapping).forEach(([name, target]) => {
       if (typeof target !== 'string') return;
-      const explicitUri = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\.{1,2}\/|\/|#)/.test(target);
-      if (!explicitUri) return;
+      // OAS component-name shorthand wins for bare values. Every other value is
+      // an explicit URI reference and, unlike Schema $ref, resolves against the
+      // physical OpenAPI document rather than the nearest Schema Resource $id.
+      if (COMPONENT_NAME.test(target)) return;
       addReference(
         collector,
         target,
-        baseUri,
+        collector.sourceRetrievalUri,
         childPointer(childPointer(childPointer(pointer, 'discriminator'), 'mapping'), name),
         'discriminator-mapping',
         'schema',
@@ -1397,17 +1439,33 @@ function walkOpenApiDocument(
   );
 }
 
+function decodedJsonPointer(fragment: string): string | undefined {
+  if (!fragment || fragment === '#') return '';
+  if (!fragment.startsWith('#')) return undefined;
+  let pointer: string;
+  try {
+    pointer = decodeURIComponent(fragment.slice(1));
+  } catch {
+    return undefined;
+  }
+  if (!pointer.startsWith('/')) return undefined;
+  if (
+    pointer
+      .slice(1)
+      .split('/')
+      .some((token) => /~(?:[^01]|$)/.test(token))
+  )
+    return undefined;
+  return pointer;
+}
+
 function resolveJsonPointer(root: unknown, fragment: string): unknown {
-  if (!fragment || fragment === '#') return root;
-  if (!fragment.startsWith('#/')) return undefined;
+  const pointer = decodedJsonPointer(fragment);
+  if (pointer === undefined) return undefined;
+  if (!pointer) return root;
   let current = root;
-  for (const encoded of fragment.slice(2).split('/')) {
-    let token: string;
-    try {
-      token = decodeURIComponent(encoded).replace(/~1/g, '/').replace(/~0/g, '~');
-    } catch {
-      return undefined;
-    }
+  for (const encoded of pointer.slice(1).split('/')) {
+    const token = encoded.replace(/~1/g, '/').replace(/~0/g, '~');
     if (current === null || typeof current !== 'object' || !owns(current, token)) return undefined;
     current = (current as JsonRecord)[token];
   }
@@ -1415,38 +1473,48 @@ function resolveJsonPointer(root: unknown, fragment: string): unknown {
 }
 
 function pointerWithinResource(resourcePointer: string, fragment: string): string {
-  if (!fragment || fragment === '#') return resourcePointer;
-  if (!fragment.startsWith('#/')) return resourcePointer;
-  return resourcePointer === '#' ? fragment : `${resourcePointer}${fragment.slice(1)}`;
+  const pointer = decodedJsonPointer(fragment);
+  if (!pointer) return resourcePointer;
+  return resourcePointer === '#' ? `#${pointer}` : `${resourcePointer}${pointer}`;
+}
+
+interface IndexedTargetValue {
+  readonly value: unknown;
+  readonly pointer: string;
+  readonly baseUri: string;
+  readonly ownerRetrievalUri: string;
 }
 
 function expectedTargetValue(
-  document: unknown,
   edge: MutableEdge,
-  collector: ScanCollector,
-): { value: unknown; pointer: string; baseUri: string } {
-  const directAnchor = collector.anchors.get(edge.resolvedUri);
+  resourceTarget: (uri: string) => ResourceTarget | undefined,
+  anchorTarget: (uri: string) => ResourceTarget | undefined,
+): IndexedTargetValue | undefined {
+  const directAnchor = anchorTarget(edge.resolvedUri);
   if (directAnchor)
-    return { value: directAnchor.value, pointer: directAnchor.pointer, baseUri: edge.targetRetrievalUri };
-  const resource = collector.resources.get(edge.targetRetrievalUri);
+    return {
+      value: directAnchor.value,
+      pointer: directAnchor.pointer,
+      baseUri: directAnchor.evaluationBaseUri,
+      ownerRetrievalUri: directAnchor.ownerRetrievalUri,
+    };
+  const resource = resourceTarget(edge.targetRetrievalUri);
   if (resource) {
     const value = resolveJsonPointer(resource.value, edge.fragment);
     if (value !== undefined) {
       return {
         value,
         pointer: pointerWithinResource(resource.pointer, edge.fragment),
-        baseUri: edge.targetRetrievalUri,
+        baseUri: edge.fragment ? edge.targetRetrievalUri : resource.evaluationBaseUri,
+        ownerRetrievalUri: resource.ownerRetrievalUri,
       };
     }
-  }
-  const value = resolveJsonPointer(document, edge.fragment);
-  if (value === undefined) {
     throw new ResourceLoadError(
       'FRAGMENT_NOT_FOUND',
       'The complete external document does not contain the referenced fragment.',
     );
   }
-  return { value, pointer: edge.fragment || '#', baseUri: edge.targetRetrievalUri };
+  return undefined;
 }
 
 function walkExpectedTarget(
@@ -1687,7 +1755,9 @@ export class ExternalResourceLoader {
         scope: 'graph',
       });
     }
-    this.commitCollector(state, collector);
+    const collectors = new Map([[this.entryRetrievalUri, collector]]);
+    this.assertCollectorsFit(state, collectors, 0);
+    this.commitCollectors(state, collectors, new Set());
     const node = freezeNode({
       retrievalUri: this.entryRetrievalUri,
       retrievalUriHash: sha256Hex(this.entryRetrievalUri),
@@ -1702,6 +1772,9 @@ export class ExternalResourceLoader {
     });
     state.nodes.set(this.entryRetrievalUri, node);
     this.refreshGraph(state);
+    state.edges.forEach((edge) => {
+      if (edge.state === 'local') edge.expanded = true;
+    });
     return state;
   }
 
@@ -1870,15 +1943,15 @@ export class ExternalResourceLoader {
       if (kind === 'json-schema') {
         walkSchema(parsed.document, '#', candidate.retrievalUri, collector, false, candidate.depth, state.generation);
       }
-      incoming.forEach((edge) => {
-        const target = expectedTargetValue(parsed.document, edge, collector);
-        walkExpectedTarget(target, edge, collector, state.generation);
-      });
-      this.assertCollectorFits(state, collector, parsed.nodes);
+      const resourceUris = [...collector.resources.keys()].sort();
+      const collectors = new Map<string, ScanCollector>([[candidate.retrievalUri, collector]]);
+      this.assertCollectorsFit(state, collectors, parsed.nodes);
+      const expandedEdges = this.expandReachableTargets(state, collectors);
+      this.assertCollectorsFit(state, collectors, parsed.nodes);
       if (signal.aborted) throw new ResourceLoadError('RESOURCE_ABORTED', 'Resource loading was cancelled.');
       if (this.state !== state)
         throw new ResourceLoadError('STALE_GENERATION', 'A newer resource graph generation is active.');
-      this.commitCollector(state, collector);
+      this.commitCollectors(state, collectors, expandedEdges);
       state.totalParsedNodes += parsed.nodes;
       const node = freezeNode({
         retrievalUri: candidate.retrievalUri,
@@ -1889,7 +1962,7 @@ export class ExternalResourceLoader {
         contentDigest: sha256Hex(fetched.text),
         documentKind: kind,
         authorizationScope: state.grants.get(candidate.retrievalUriHash) ?? 'generation',
-        resourceUris: [...collector.resources.keys()].sort(),
+        resourceUris,
         document: parsed.document,
       });
       state.nodes.set(candidate.retrievalUri, node);
@@ -1927,17 +2000,75 @@ export class ExternalResourceLoader {
     }
   }
 
-  private assertCollectorFits(state: MutableGraphState, collector: ScanCollector, parsedNodes: number): void {
-    if (state.edges.length + collector.edges.length > this.limits.maxReferences) {
+  private collectorFor(collectors: Map<string, ScanCollector>, ownerRetrievalUri: string): ScanCollector {
+    const existing = collectors.get(ownerRetrievalUri);
+    if (existing) return existing;
+    const collector = createCollector(ownerRetrievalUri);
+    collectors.set(ownerRetrievalUri, collector);
+    return collector;
+  }
+
+  private targetFromCollectors(
+    state: MutableGraphState,
+    collectors: ReadonlyMap<string, ScanCollector>,
+    edge: MutableEdge,
+  ): IndexedTargetValue | undefined {
+    const findResource = (uri: string): ResourceTarget | undefined => {
+      for (const collector of collectors.values()) {
+        const target = collector.resources.get(uri);
+        if (target) return target;
+      }
+      return state.resourceTargets.get(uri);
+    };
+    const findAnchor = (uri: string): ResourceTarget | undefined => {
+      for (const collector of collectors.values()) {
+        const target = collector.anchors.get(uri);
+        if (target) return target;
+      }
+      return state.anchorTargets.get(uri);
+    };
+    return expectedTargetValue(edge, findResource, findAnchor);
+  }
+
+  private expandReachableTargets(
+    state: MutableGraphState,
+    collectors: Map<string, ScanCollector>,
+  ): ReadonlySet<string> {
+    const expandedEdges = new Set<string>();
+    for (;;) {
+      const edges = new Map<string, MutableEdge>();
+      state.edges.forEach((edge) => edges.set(edgeIdentity(edge), edge));
+      collectors.forEach((collector) => {
+        collector.edges.forEach((edge) => {
+          if (!edges.has(edgeIdentity(edge))) edges.set(edgeIdentity(edge), edge);
+        });
+      });
+
+      let progressed = false;
+      for (const [identity, edge] of edges) {
+        if (edge.state === 'failed' || edge.expanded || expandedEdges.has(identity)) continue;
+        const target = this.targetFromCollectors(state, collectors, edge);
+        if (!target) continue;
+        const ownerCollector = this.collectorFor(collectors, target.ownerRetrievalUri);
+        walkExpectedTarget(target, edge, ownerCollector, state.generation);
+        expandedEdges.add(identity);
+        progressed = true;
+      }
+      if (!progressed) return expandedEdges;
+    }
+  }
+
+  private assertCollectorsFit(
+    state: MutableGraphState,
+    collectors: ReadonlyMap<string, ScanCollector>,
+    parsedNodes: number,
+  ): void {
+    const referenceKeys = new Set(state.edges.map(edgeIdentity));
+    collectors.forEach((collector) => collector.edges.forEach((edge) => referenceKeys.add(edgeIdentity(edge))));
+    if (referenceKeys.size > this.limits.maxReferences) {
       throw new ResourceLoadError('GRAPH_REFERENCE_LIMIT', 'Resource graph reference limit exceeded.', {
         limit: this.limits.maxReferences,
-        actual: state.edges.length + collector.edges.length,
-      });
-    }
-    if (state.resourceTargets.size + collector.resources.size > this.limits.maxSchemaResources) {
-      throw new ResourceLoadError('GRAPH_RESOURCE_LIMIT', 'Schema resource limit exceeded.', {
-        limit: this.limits.maxSchemaResources,
-        actual: state.resourceTargets.size + collector.resources.size,
+        actual: referenceKeys.size,
       });
     }
     if (state.totalParsedNodes + parsedNodes > this.limits.maxTotalParsedNodes) {
@@ -1947,37 +2078,88 @@ export class ExternalResourceLoader {
         scope: 'graph',
       });
     }
-    collector.resources.forEach((_target, uri) => {
-      const existing = state.resourceTargets.get(uri);
-      if (existing && existing.ownerRetrievalUri !== collector.sourceRetrievalUri) {
-        throw new ResourceLoadError(
-          'RESOURCE_URI_CONFLICT',
-          'A Schema resource URI is already owned by another document.',
-        );
-      }
+
+    const resources = new Map(state.resourceTargets);
+    collectors.forEach((collector) => {
+      collector.resources.forEach((target, uri) => {
+        const existing = resources.get(uri);
+        if (
+          existing &&
+          (existing.ownerRetrievalUri !== target.ownerRetrievalUri || existing.pointer !== target.pointer)
+        ) {
+          throw new ResourceLoadError(
+            'RESOURCE_URI_CONFLICT',
+            'A Schema resource URI is already owned by another resource location.',
+            { retrievalUri: uri },
+          );
+        }
+        resources.set(uri, target);
+      });
     });
-    collector.anchors.forEach((_target, uri) => {
-      const existing = state.anchorTargets.get(uri);
-      if (existing && existing.ownerRetrievalUri !== collector.sourceRetrievalUri) {
-        throw new ResourceLoadError(
-          'RESOURCE_URI_CONFLICT',
-          'A Schema anchor URI is already owned by another document.',
-        );
-      }
+    if (resources.size > this.limits.maxSchemaResources) {
+      throw new ResourceLoadError('GRAPH_RESOURCE_LIMIT', 'Schema resource limit exceeded.', {
+        limit: this.limits.maxSchemaResources,
+        actual: resources.size,
+      });
+    }
+
+    const anchors = new Map(state.anchorTargets);
+    collectors.forEach((collector) => {
+      collector.anchors.forEach((target, uri) => {
+        const existing = anchors.get(uri);
+        if (
+          existing &&
+          (existing.ownerRetrievalUri !== target.ownerRetrievalUri || existing.pointer !== target.pointer)
+        ) {
+          throw new ResourceLoadError(
+            'RESOURCE_URI_CONFLICT',
+            'A Schema anchor URI is already owned by another resource location.',
+            { retrievalUri: uri },
+          );
+        }
+        anchors.set(uri, target);
+      });
     });
   }
 
-  private commitCollector(state: MutableGraphState, collector: ScanCollector): void {
-    if (state.edges.length + collector.edges.length > this.limits.maxReferences) {
-      throw new ResourceLoadError('GRAPH_REFERENCE_LIMIT', 'Resource graph reference limit exceeded.', {
-        limit: this.limits.maxReferences,
-        actual: state.edges.length + collector.edges.length,
+  private commitCollectors(
+    state: MutableGraphState,
+    collectors: ReadonlyMap<string, ScanCollector>,
+    expandedEdges: ReadonlySet<string>,
+  ): void {
+    const existingEdges = new Map(state.edges.map((edge) => [edgeIdentity(edge), edge]));
+    state.edges.forEach((edge) => {
+      if (expandedEdges.has(edgeIdentity(edge))) edge.expanded = true;
+    });
+    collectors.forEach((collector) => {
+      collector.resources.forEach((target, uri) => {
+        if (!state.resourceTargets.has(uri)) state.resourceTargets.set(uri, target);
       });
-    }
-    collector.resources.forEach((target, uri) => state.resourceTargets.set(uri, target));
-    collector.anchors.forEach((target, uri) => state.anchorTargets.set(uri, target));
-    state.edges.push(...collector.edges);
-    state.diagnostics.push(...collector.diagnostics);
+      collector.anchors.forEach((target, uri) => {
+        if (!state.anchorTargets.has(uri)) state.anchorTargets.set(uri, target);
+      });
+      collector.edges.forEach((edge) => {
+        const identity = edgeIdentity(edge);
+        const existing = existingEdges.get(identity);
+        if (existing) {
+          if (expandedEdges.has(identity)) existing.expanded = true;
+          return;
+        }
+        edge.expanded = expandedEdges.has(identity);
+        state.edges.push(edge);
+        existingEdges.set(identity, edge);
+      });
+      collector.diagnostics.forEach((diagnostic) => {
+        const duplicate = state.diagnostics.some(
+          (existing) =>
+            existing.code === diagnostic.code &&
+            existing.sourceRetrievalUriHash === diagnostic.sourceRetrievalUriHash &&
+            existing.sourcePointer === diagnostic.sourcePointer &&
+            existing.referenceKind === diagnostic.referenceKind,
+        );
+        if (!duplicate) state.diagnostics.push(diagnostic);
+      });
+    });
   }
 
   private refreshGraph(state: MutableGraphState): void {
@@ -2065,7 +2247,10 @@ export class ExternalResourceLoader {
           sameOrigin,
           depth: Math.min(...edges.map((edge) => edge.depth)),
           state: failure ? 'failed' : 'pending',
-          retryable: failure ? isRetryableResourceError(failure.error) : false,
+          retryable:
+            failure && isRetryableResourceError(failure.error)
+              ? (state.attempts.get(retrievalUri) ?? 0) < 1 + this.limits.maxExplicitRetriesPerResource
+              : false,
           ...(failure ? { failureCode: failure.error.code } : {}),
           references: Object.freeze(
             edges.map((edge) =>
@@ -2120,6 +2305,7 @@ export class ExternalResourceLoader {
   }
 
   private isFatalGraphFailure(error: ResourceLoadError): boolean {
+    if (error.code === 'RESOURCE_URI_CONFLICT') return true;
     if (
       error.code === 'GRAPH_RESOURCE_LIMIT' ||
       error.code === 'GRAPH_REFERENCE_LIMIT' ||

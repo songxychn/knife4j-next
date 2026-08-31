@@ -17,6 +17,7 @@ import {
   type SchemaDocumentSession,
 } from '../schema/schemaDocumentSession';
 import type { SwaggerDoc } from '../types/swagger';
+import { resourceGrantsForOperation } from './resourceOperationGrants';
 import { useGroup } from './GroupContext';
 
 export type SchemaEngineContextValue =
@@ -57,7 +58,6 @@ interface ActiveResourceRuntime {
   readonly document: SwaggerDoc;
   readonly retrievalUri: string;
   readonly loader: ExternalResourceLoader;
-  readonly memoryGrantKeys: Set<string>;
   readonly rememberedGrantKeys: Set<string>;
   operationRevision: number;
 }
@@ -110,12 +110,16 @@ function resourceData(
   });
 }
 
-function grantsFor(runtime: ActiveResourceRuntime): ResourceGrant[] {
-  return [...new Set([...runtime.memoryGrantKeys, ...runtime.rememberedGrantKeys])].map((resourceKey) => ({
-    scope: runtime.rememberedGrantKeys.has(resourceKey) ? 'document' : 'generation',
-    documentScope: runtime.loader.documentScope,
-    resourceKey,
-  }));
+function grantsFor(runtime: ActiveResourceRuntime, selectedGrantKeys: readonly string[] = []): ResourceGrant[] {
+  return resourceGrantsForOperation(runtime.loader.documentScope, runtime.rememberedGrantKeys, selectedGrantKeys);
+}
+
+function selectedCandidateKeys(runtime: ActiveResourceRuntime, resourceKeys: readonly string[]): string[] {
+  const requested = new Set(resourceKeys);
+  return runtime.loader
+    .currentDiscovery()
+    .candidates.filter((candidate) => requested.has(candidate.retrievalUriHash))
+    .map((candidate) => candidate.retrievalUriHash);
 }
 
 export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -193,8 +197,9 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
     async (resourceKeys: readonly string[]): Promise<void> => {
       const runtime = runtimeRef.current;
       if (!runtime || resourceKeys.length === 0) return;
-      resourceKeys.forEach((key) => runtime.memoryGrantKeys.add(key));
-      await applyGraphOperation(runtime, () => runtime.loader.load(grantsFor(runtime)));
+      const selectedKeys = selectedCandidateKeys(runtime, resourceKeys);
+      if (selectedKeys.length === 0) return;
+      await applyGraphOperation(runtime, () => runtime.loader.load(grantsFor(runtime, selectedKeys)));
     },
     [applyGraphOperation],
   );
@@ -203,17 +208,18 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
     async (resourceKeys: readonly string[]): Promise<boolean> => {
       const runtime = runtimeRef.current;
       if (!runtime || resourceKeys.length === 0) return false;
+      const requested = new Set(resourceKeys);
       const selected = runtime.loader
         .currentDiscovery()
-        .candidates.filter((candidate) => resourceKeys.includes(candidate.retrievalUriHash));
+        .candidates.filter((candidate) => requested.has(candidate.retrievalUriHash));
       if (selected.length === 0) return false;
+      const selectedKeys = selected.map((candidate) => candidate.retrievalUriHash);
       const persisted = await rememberResourceGrants(runtime.loader.documentScope, selected);
       if (!isCurrent(runtime)) return persisted;
-      resourceKeys.forEach((key) => {
-        runtime.memoryGrantKeys.add(key);
+      selectedKeys.forEach((key) => {
         if (persisted) runtime.rememberedGrantKeys.add(key);
       });
-      await applyGraphOperation(runtime, () => runtime.loader.load(grantsFor(runtime)));
+      await applyGraphOperation(runtime, () => runtime.loader.load(grantsFor(runtime, selectedKeys)));
       return persisted;
     },
     [applyGraphOperation, isCurrent],
@@ -266,7 +272,6 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
           document: swaggerDoc,
           retrievalUri,
           loader,
-          memoryGrantKeys: new Set(),
           rememberedGrantKeys: new Set(remembered),
           operationRevision: 0,
         };

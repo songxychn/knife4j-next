@@ -82,6 +82,20 @@ describe('resource graph discovery and exact grants', () => {
     expect(Object.isFrozen(snapshot.nodes.get(resourceUri)?.document)).toBe(true);
   });
 
+  test('does not expose the mutable backing map through readonly snapshot callbacks', () => {
+    const loader = new ExternalResourceLoader(entryDocument({ Local: { type: 'string' } }), entryUri, { pageUri });
+    const snapshot = loader.currentSnapshot();
+    let callbackMap: ReadonlyMap<string, unknown> | undefined;
+
+    snapshot.nodes.forEach((_value, _key, map) => {
+      callbackMap = map;
+    });
+
+    expect(callbackMap).toBe(snapshot.nodes);
+    expect(() => Map.prototype.clear.call(callbackMap)).toThrow();
+    expect(snapshot.nodes.size).toBe(1);
+  });
+
   test('uses embedded ids as the base for relative refs and resolves local anchors and dynamic anchors', async () => {
     const root = 'https://schemas.example.test/root.json';
     const child = 'https://schemas.example.test/nested/child.json';
@@ -128,6 +142,138 @@ describe('resource graph discovery and exact grants', () => {
     );
   });
 
+  test('continues discovery from an embedded canonical target without scanning unrelated document content', async () => {
+    const root = 'https://schemas.example.test/root.json';
+    const canonical = 'https://schemas.example.test/embedded';
+    const nested = 'https://schemas.example.test/nested.json';
+    const requested: string[] = [];
+    const loader = new ExternalResourceLoader(
+      entryDocument({
+        Visible: { $ref: `${root}#/$defs/Visible` },
+        Embedded: { $ref: canonical },
+      }),
+      entryUri,
+      {
+        pageUri,
+        fetchImpl: async (input) => {
+          requested.push(String(input));
+          return new Response(
+            JSON.stringify({
+              $defs: {
+                Visible: { type: 'string' },
+                Embedded: { $id: canonical, $ref: nested },
+                Unrelated: { $ref: 'https://schemas.example.test/unrelated.json' },
+              },
+            }),
+            { headers: { 'content-type': 'application/schema+json' } },
+          );
+        },
+      },
+    );
+
+    const snapshot = await loader.load([grant(loader, root)]);
+    const candidates = loader.currentDiscovery().candidates;
+
+    expect(requested).toEqual([root]);
+    expect(snapshot.complete).toBe(false);
+    expect(candidates.map((candidate) => candidate.retrievalUri)).toEqual([nested]);
+    expect(candidates.some((candidate) => candidate.retrievalUri.includes('unrelated'))).toBe(false);
+  });
+
+  test('expands a new edge into an embedded resource owned by an already loaded document', async () => {
+    const a = 'https://schemas.example.test/a.json';
+    const b = 'https://schemas.example.test/b.json';
+    const canonical = 'https://schemas.example.test/a-embedded';
+    const nested = 'https://schemas.example.test/nested.json';
+    const releases = new Map<string, () => void>();
+    const loader = new ExternalResourceLoader(
+      entryDocument({ A: { $ref: `${a}#/$defs/Visible` }, B: { $ref: b } }),
+      entryUri,
+      {
+        pageUri,
+        fetchImpl: (input) =>
+          new Promise<Response>((resolve) => {
+            const uri = String(input);
+            const document =
+              uri === a
+                ? { $defs: { Visible: { type: 'string' }, Embedded: { $id: canonical, $ref: nested } } }
+                : { $ref: canonical };
+            releases.set(uri, () =>
+              resolve(
+                new Response(JSON.stringify(document), {
+                  headers: { 'content-type': 'application/schema+json' },
+                }),
+              ),
+            );
+          }),
+      },
+    );
+
+    const loading = loader.load([grant(loader, a), grant(loader, b)]);
+    await vi.waitFor(() => expect(releases.size).toBe(2));
+    releases.get(b)!();
+    await vi.waitFor(() => expect(loader.currentSnapshot().nodes.has(b)).toBe(true));
+    releases.get(a)!();
+    await loading;
+
+    expect(loader.currentDiscovery().candidates.map((candidate) => candidate.retrievalUri)).toEqual([nested]);
+  });
+
+  test('counts a reachable reference field once when multiple incoming edges select the same target', async () => {
+    const root = 'https://schemas.example.test/root.json';
+    const nested = 'https://schemas.example.test/nested.json';
+    const loader = new ExternalResourceLoader(entryDocument({ A: { $ref: root }, B: { $ref: `${root}#` } }), entryUri, {
+      pageUri,
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ $ref: nested }), {
+          headers: { 'content-type': 'application/schema+json' },
+        }),
+    });
+
+    const snapshot = await loader.load([grant(loader, root)]);
+    const nestedCandidate = loader.currentDiscovery().candidates.find((candidate) => candidate.retrievalUri === nested);
+
+    expect(
+      snapshot.edges.filter((edge) => edge.sourceRetrievalUri === root && edge.sourcePointer === '#/$ref'),
+    ).toHaveLength(1);
+    expect(nestedCandidate?.references).toHaveLength(1);
+  });
+
+  test('decodes a JSON Pointer fragment before tokenization and rejects invalid tilde escapes', async () => {
+    const root = 'https://schemas.example.test/pointers.json';
+    const nested = 'https://schemas.example.test/nested.json';
+    const wrong = 'https://schemas.example.test/wrong.json';
+    const invalid = 'https://schemas.example.test/invalid.json';
+    const document = {
+      a: { b: { $ref: nested } },
+      'a/b': { $ref: wrong },
+      'foo~2bar': { $ref: invalid },
+    };
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(document), { headers: { 'content-type': 'application/schema+json' } }),
+    );
+    const loader = new ExternalResourceLoader(entryDocument({ Value: { $ref: `${root}#/a%2Fb` } }), entryUri, {
+      pageUri,
+      fetchImpl,
+    });
+
+    await loader.load([grant(loader, root)]);
+    const candidate = loader.currentDiscovery().candidates[0];
+    expect(candidate.retrievalUri).toBe(nested);
+    expect(candidate.references[0].sourcePointer).toBe('#/a/b/$ref');
+
+    const invalidLoader = new ExternalResourceLoader(
+      entryDocument({ Value: { $ref: `${root}#/foo~2bar` } }),
+      entryUri,
+      { pageUri, fetchImpl },
+    );
+    const invalidSnapshot = await invalidLoader.load([grant(invalidLoader, root)]);
+    expect(invalidSnapshot.nodes.size).toBe(1);
+    expect(invalidSnapshot.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'FRAGMENT_NOT_FOUND' })]),
+    );
+  });
+
   test('discovers only protocol resource edges, not link-only OpenAPI URLs', () => {
     const loader = new ExternalResourceLoader(
       entryDocument(
@@ -168,6 +314,32 @@ describe('resource graph discovery and exact grants', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].displayUri).toContain('/schemas/dog.json');
     expect(candidates[0].references[0].kind).toBe('discriminator-mapping');
+  });
+
+  test('resolves path-relative discriminator mappings from the document retrieval URI, not a Schema id', () => {
+    const loader = new ExternalResourceLoader(
+      entryDocument({
+        Pet: {
+          $id: 'nested/',
+          type: 'object',
+          discriminator: {
+            propertyName: 'kind',
+            mapping: {
+              componentName: 'Pet',
+              pathRelative: 'schemas/dog.json#/Dog',
+              dotRelative: './schemas/cat.json#/Cat',
+            },
+          },
+        },
+      }),
+      entryUri,
+      { pageUri },
+    );
+
+    expect(loader.discover().candidates.map((candidate) => candidate.retrievalUri)).toEqual([
+      'https://docs.knife4j.example/v3/schemas/cat.json',
+      'https://docs.knife4j.example/v3/schemas/dog.json',
+    ]);
   });
 
   test('rejects userinfo, file, and mixed-content targets before any request', () => {
@@ -295,28 +467,48 @@ describe('complete JSON/YAML parsing and graph budgets', () => {
     expect(snapshot.complete).toBe(true);
   });
 
-  test('reports duplicate canonical ids instead of silently replacing the first owner', async () => {
+  test('rejects the entire generation for duplicate canonical ids regardless of response order', async () => {
     const a = 'https://schemas.example.test/a.json';
     const b = 'https://schemas.example.test/b.json';
     const canonical = 'https://schemas.example.test/canonical';
-    const fetchImpl = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ $id: canonical, type: 'string' }), {
-          headers: { 'content-type': 'application/schema+json' },
-        }),
-    );
-    const loader = new ExternalResourceLoader(entryDocument({ A: { $ref: a }, B: { $ref: b } }), entryUri, {
-      pageUri,
-      fetchImpl,
-    });
+    const run = async (first: string, second: string) => {
+      const releases = new Map<string, () => void>();
+      const fetchImpl = vi.fn(
+        (input: RequestInfo | URL) =>
+          new Promise<Response>((resolve) => {
+            const uri = String(input);
+            releases.set(uri, () =>
+              resolve(
+                new Response(JSON.stringify({ $id: canonical, const: uri }), {
+                  headers: { 'content-type': 'application/schema+json' },
+                }),
+              ),
+            );
+          }),
+      );
+      const loader = new ExternalResourceLoader(entryDocument({ A: { $ref: a }, B: { $ref: b } }), entryUri, {
+        pageUri,
+        fetchImpl,
+      });
+      const loading = loader.load([grant(loader, a), grant(loader, b)]);
+      await vi.waitFor(() => expect(releases.size).toBe(2));
+      releases.get(first)!();
+      await vi.waitFor(() => expect(loader.currentSnapshot().nodes.has(first)).toBe(true));
+      releases.get(second)!();
+      const snapshot = await loading;
 
-    const snapshot = await loader.load([grant(loader, a), grant(loader, b)]);
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect(snapshot.nodes.size).toBe(2);
-    expect(snapshot.complete).toBe(false);
-    expect(snapshot.diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_URI_CONFLICT', phase: 'index' })]),
-    );
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      expect(snapshot.nodes.size).toBe(1);
+      expect(snapshot.nodes.has(a)).toBe(false);
+      expect(snapshot.nodes.has(b)).toBe(false);
+      expect(snapshot.complete).toBe(false);
+      expect(snapshot.diagnostics).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_URI_CONFLICT', phase: 'index' })]),
+      );
+    };
+
+    await run(a, b);
+    await run(b, a);
   });
 
   test('rejects unsupported external dialects as a resource-level diagnostic', async () => {
@@ -429,11 +621,13 @@ describe('bounded scheduling, cancellation, retry, and generation isolation', ()
 
     const first = await loader.load([grant(loader, resourceUri)]);
     const second = await loader.retry(sha256Hex(resourceUri));
+    const exhausted = loader.currentDiscovery().candidates.find((candidate) => candidate.retrievalUri === resourceUri);
     const third = await loader.retry(sha256Hex(resourceUri));
 
     expect(second.generation).toBeGreaterThan(first.generation);
     expect(third.generation).toBe(second.generation);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(exhausted?.retryable).toBe(false);
   });
 
   test('does not reuse response bodies across grant generations', async () => {

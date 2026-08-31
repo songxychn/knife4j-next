@@ -86,4 +86,19 @@ describe('collectOas31CompatibilityDiagnostics', () => {
     ]);
     expect(JSON.stringify(diagnostics)).not.toContain('secret');
   });
+
+  test('redacts credentials from browser-normalized special-scheme references', () => {
+    const diagnostics = collectOas31CompatibilityDiagnostics({
+      openapi: '3.1.1',
+      info: { title: 'Malformed sensitive refs', version: '1' },
+      components: {
+        schemas: {
+          Backslashes: { $ref: 'https:\\\\user:secret@schemas.example.test/pet.json?token=secret#Pet' },
+        },
+      },
+    });
+
+    expect(diagnostics.map((item) => item.value)).toEqual(['https://schemas.example.test/pet.json?…#Pet']);
+    expect(JSON.stringify(diagnostics)).not.toMatch(/user|secret|token/);
+  });
 });

@@ -37,6 +37,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Keep diagnostic values useful without echoing URL credentials or query values. */
 function safeDiagnosticValue(value: string): string {
+  const urlLike = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|[\\/]{2})/.test(value);
+  if (urlLike) {
+    try {
+      const normalized = /^https?:/i.test(value) ? value.replace(/\\/g, '/') : value;
+      const networkRelative = /^[\\/]{2}/.test(normalized);
+      const parsed = networkRelative ? new URL(normalized, 'https://diagnostic.invalid/') : new URL(normalized);
+      parsed.username = '';
+      parsed.password = '';
+      const hadQuery = parsed.search.length > 0;
+      parsed.search = '';
+      let safeValue = parsed.href;
+      if (networkRelative) safeValue = safeValue.replace(/^https:/, '');
+      if (hadQuery) {
+        const fragmentIndex = safeValue.indexOf('#');
+        safeValue =
+          fragmentIndex < 0
+            ? `${safeValue}?…`
+            : `${safeValue.slice(0, fragmentIndex)}?…${safeValue.slice(fragmentIndex)}`;
+      }
+      return safeValue.slice(0, 512);
+    } catch {
+      // Fall through to bounded lexical redaction for malformed URI text.
+    }
+  }
   const withoutCredentials = value.replace(/^((?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/)[^/@?#\s]+@/, '$1');
   const fragmentIndex = withoutCredentials.indexOf('#');
   const queryIndex = withoutCredentials.indexOf('?');
