@@ -118,6 +118,20 @@ const jaJP = {
     'データモデルの投影に失敗したため、互換フィールドツリーを維持しています。元の Schema は変更されていません。',
   'schema.projection.degraded.description':
     '{{modelCount}} 件のモデルに、フィールドツリーへ完全には投影できない {{count}} 件のセマンティクスがあります（モデル：{{models}}、キーワード：{{keywords}}）。元の Schema は変更されていません。',
+  'schema.example.loading.title': 'OAS 3.1 のサンプルを生成しています',
+  'schema.example.loading.description':
+    '候補は現在の Schema で検証された後にのみ表示され、デバッグの初期値へ反映されます。',
+  'schema.example.explicitInvalid.title': '作成者のサンプルが現在の Schema に適合しません',
+  'schema.example.explicitInvalid.description':
+    '元のサンプルを保持します。Knife4j が作成者の内容を暗黙に修正することはありません。',
+  'schema.example.explicitInvalid.issue': '元のサンプルを保持します。{{path}} は {{keyword}} 制約を満たしていません。',
+  'schema.example.validationUnavailable.title': 'サンプルを検証できません',
+  'schema.example.validationUnavailable.description':
+    '作成者のサンプルは保持しますが、未検証の OAS 3.1 候補は生成しません。',
+  'schema.example.none.title': '検証済みの生成サンプルがありません',
+  'schema.example.none.description': '制限付きの決定的検索では現在の Schema に適合する候補が見つかりませんでした。',
+  'schema.example.none.budgetTitle': 'サンプル検索が予算に達しました',
+  'schema.example.none.budgetDescription': '無制限のバックトラックを避けるため、今回はサンプルを生成しません。',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API ドキュメントが見つかりません',

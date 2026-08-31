@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AutoComplete,
@@ -61,6 +61,7 @@ import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation'
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import DescriptionText from '../../components/DescriptionText';
 import RevealableValue from '../../components/RevealableValue';
+import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam, type GlobalParamScope, type ScopedGlobalParamItem } from '../../context/GlobalParamContext';
@@ -158,6 +159,15 @@ import {
   responseBodySchemaResultIsCurrent,
   type ResponseBodySchemaDiagnostic,
 } from '../../schema/responseBodySchemaValidation';
+import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
+import {
+  emptyOas31BodyContentDefaults,
+  sameOas31DebugExampleIdentity,
+  unavailableOas31DebugBodyExamples,
+  type Oas31DebugExampleIdentity,
+  type Oas31DebugExampleState,
+} from './oas31DebugExamples';
+import { Oas31DebugDefaultHydrator, Oas31DebugExampleLoader } from './Oas31DebugExampleEffects';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -1873,13 +1883,49 @@ export default function ApiDebug() {
       isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
     });
   }, [operation, swaggerDoc]);
-  const bodyDefaults = useMemo(
+  const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  const synchronousBodyDefaults = useMemo(
     () =>
-      swaggerDoc && operation && debugModel
+      !isOas31 && swaggerDoc && operation && debugModel
         ? buildBodyContentDefaults(swaggerDoc, operation, debugModel)
         : EMPTY_BODY_CONTENT_DEFAULTS,
-    [debugModel, operation, swaggerDoc],
+    [debugModel, isOas31, operation, swaggerDoc],
   );
+  const emptyOas31Defaults = useMemo(() => emptyOas31BodyContentDefaults(debugModel), [debugModel]);
+  const initialBodyDefaults = isOas31 ? emptyOas31Defaults : synchronousBodyDefaults;
+  const oas31ExampleIdentity = useMemo<Oas31DebugExampleIdentity | null>(
+    () =>
+      isOas31 && schemaEngine.status === 'ready' && operation && swaggerDoc
+        ? {
+            document: swaggerDoc,
+            session: schemaEngine.session,
+            retrievalUri: schemaEngine.retrievalUri,
+            operationKey: operation.routeId ?? operation.key,
+          }
+        : null,
+    [isOas31, operation, schemaEngine, swaggerDoc],
+  );
+  const [oas31ExampleState, setOas31ExampleState] = useState<Oas31DebugExampleState>({ status: 'idle' });
+  const activeOas31Examples = useMemo(() => {
+    if (
+      oas31ExampleState.status === 'ready' &&
+      sameOas31DebugExampleIdentity(oas31ExampleState.identity, oas31ExampleIdentity)
+    ) {
+      return oas31ExampleState.examples;
+    }
+    const generationError =
+      oas31ExampleState.status === 'error' &&
+      sameOas31DebugExampleIdentity(oas31ExampleState.identity, oas31ExampleIdentity)
+        ? oas31ExampleState.message
+        : undefined;
+    const unavailableMessage =
+      generationError ?? (schemaEngine.status === 'error' ? schemaEngine.error.message : undefined);
+    if (isOas31 && unavailableMessage !== undefined && swaggerDoc && operation && debugModel) {
+      return unavailableOas31DebugBodyExamples(swaggerDoc, operation, debugModel, unavailableMessage);
+    }
+    return null;
+  }, [debugModel, isOas31, oas31ExampleIdentity, oas31ExampleState, operation, schemaEngine, swaggerDoc]);
+  const bodyDefaults = activeOas31Examples?.defaults ?? initialBodyDefaults;
   const [loading, setLoading] = useState(false);
   const [responseProgress, setResponseProgress] = useState<ResponseBodyProgress | null>(null);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
@@ -1911,6 +1957,8 @@ export default function ApiDebug() {
   const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
   const skipNextDebugCacheWriteRef = useRef(false);
   const [historyEntries, setHistoryEntries] = useState<DebugHistoryEntry[]>([]);
+  const debugDefaultEditRevisionRef = useRef(0);
+  const appliedOas31ExampleIdentityRef = useRef<Oas31DebugExampleIdentity | null>(null);
 
   // ── TASK-028: 校验错误与预览 ──
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1921,8 +1969,8 @@ export default function ApiDebug() {
 
   const initialDebugState = useMemo(() => {
     if (!debugModel || !operation || !swaggerDoc) return null;
-    return buildInitialDebugState(debugModel, operation, swaggerDoc, defaultBaseUrl, bodyDefaults);
-  }, [bodyDefaults, debugModel, operation, swaggerDoc, defaultBaseUrl]);
+    return buildInitialDebugState(debugModel, operation, swaggerDoc, defaultBaseUrl, initialBodyDefaults);
+  }, [debugModel, operation, swaggerDoc, defaultBaseUrl, initialBodyDefaults]);
 
   useLayoutEffect(() => {
     activeDebugCacheKeyRef.current = debugCacheKey;
@@ -1990,8 +2038,10 @@ export default function ApiDebug() {
   useEffect(() => {
     if (!initialDebugState || !debugModel) return;
     const cached = settings.enableRequestCache && debugCacheKey !== null ? readDebugCache(debugCacheKey) : null;
-    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel, bodyDefaults);
+    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel, initialBodyDefaults);
     skipNextDebugCacheWriteRef.current = true;
+    debugDefaultEditRevisionRef.current = cached === null ? 0 : 1;
+    appliedOas31ExampleIdentityRef.current = null;
     requestSeqRef.current += 1;
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
@@ -2004,7 +2054,7 @@ export default function ApiDebug() {
     setBuiltRequest(cachedSession?.builtRequest ?? null);
     setSseEvents(cachedSession?.sseEvents ?? null);
     setHydratedDebugCacheKey(debugCacheKey);
-  }, [bodyDefaults, debugCacheKey, debugModel, initialDebugState, settings.enableRequestCache]);
+  }, [debugCacheKey, debugModel, initialBodyDefaults, initialDebugState, settings.enableRequestCache]);
 
   useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
@@ -2062,6 +2112,16 @@ export default function ApiDebug() {
     settings.enableRequestCache,
     hydratedDebugCacheKey,
   ]);
+
+  const setBodyFromUser = useCallback((next: string) => {
+    debugDefaultEditRevisionRef.current += 1;
+    setBody(next);
+  }, []);
+
+  const setFormFieldsFromUser = useCallback((next: React.SetStateAction<Record<string, string>>) => {
+    debugDefaultEditRevisionRef.current += 1;
+    setFormFields(next);
+  }, []);
 
   const updateValue = (param: DebugParam, next: string) => {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
@@ -2468,6 +2528,7 @@ export default function ApiDebug() {
   };
 
   const handleApplyHistory = (entry: DebugHistoryEntry) => {
+    debugDefaultEditRevisionRef.current += 1;
     const snap = entry.formSnapshot;
     if (snap) {
       setBaseUrl(snap.baseUrl);
@@ -3153,7 +3214,7 @@ export default function ApiDebug() {
   };
 
   const handleReset = () => {
-    if (!initialDebugState) return;
+    if (!initialDebugState || !debugModel || !operation || !swaggerDoc) return;
     schemaValidationRevisionRef.current += 1;
     schemaValidationAbortRef.current?.abort();
     schemaValidationAbortRef.current = null;
@@ -3177,7 +3238,10 @@ export default function ApiDebug() {
         /* ignore */
       }
     }
-    applyInitialDebugState(initialDebugState);
+    debugDefaultEditRevisionRef.current = 0;
+    const resetState = buildInitialDebugState(debugModel, operation, swaggerDoc, defaultBaseUrl, bodyDefaults);
+    applyInitialDebugState(resetState);
+    appliedOas31ExampleIdentityRef.current = activeOas31Examples ? oas31ExampleIdentity : null;
     setLoading(false);
     setResponseProgress(null);
     setResponse(null);
@@ -3236,6 +3300,14 @@ export default function ApiDebug() {
     debugModel.bodyContents.length > 0
       ? `${t('apiDebug.tab.body')} (${getEffectiveContentType()})`
       : t('apiDebug.tab.body');
+  const currentBodyExampleResult = activeOas31Examples?.resultByMediaType[selectedContentType];
+  const bodyExampleLoading =
+    isOas31 &&
+    debugModel.bodyContents.length > 0 &&
+    activeOas31Examples === null &&
+    (schemaEngine.status === 'loading' ||
+      (oas31ExampleState.status === 'loading' &&
+        sameOas31DebugExampleIdentity(oas31ExampleState.identity, oas31ExampleIdentity)));
 
   const pathParams = debugModel.pathParams.filter((param) => !param.readOnly);
   const queryParams = debugModel.queryParams.filter((param) => !param.readOnly);
@@ -3366,24 +3438,38 @@ export default function ApiDebug() {
       label: bodyLabel,
       disabled: false,
       children: (
-        <BodyTab
-          key={resetNonce}
-          debugModel={debugModel}
-          bodyDefaults={bodyDefaults}
-          body={body}
-          setBody={setBody}
-          selectedContentType={selectedContentType}
-          setSelectedContentType={setSelectedContentType}
-          formFields={formFields}
-          setFormFields={setFormFields}
-          enableDynamicParameter={settings.enableDynamicParameter}
-          customBodyParams={customBodyParams}
-          setCustomBodyParams={setCustomBodyParams}
-          fileFieldsRef={fileFieldsRef}
-          binaryBodyFileRef={binaryBodyFileRef}
-          rawMode={rawMode}
-          setRawMode={setRawMode}
-        />
+        <>
+          {bodyExampleLoading && (
+            <Alert
+              type="info"
+              showIcon
+              message={t('schema.example.loading.title')}
+              description={t('schema.example.loading.description')}
+              style={{ marginBottom: 12 }}
+            />
+          )}
+          {currentBodyExampleResult && (
+            <SchemaExampleNotice result={currentBodyExampleResult} style={{ marginBottom: 12 }} />
+          )}
+          <BodyTab
+            key={resetNonce}
+            debugModel={debugModel}
+            bodyDefaults={bodyDefaults}
+            body={body}
+            setBody={setBodyFromUser}
+            selectedContentType={selectedContentType}
+            setSelectedContentType={setSelectedContentType}
+            formFields={formFields}
+            setFormFields={setFormFieldsFromUser}
+            enableDynamicParameter={settings.enableDynamicParameter}
+            customBodyParams={customBodyParams}
+            setCustomBodyParams={setCustomBodyParams}
+            fileFieldsRef={fileFieldsRef}
+            binaryBodyFileRef={binaryBodyFileRef}
+            rawMode={rawMode}
+            setRawMode={setRawMode}
+          />
+        </>
       ),
     },
     {
@@ -3414,6 +3500,27 @@ export default function ApiDebug() {
 
   return (
     <OperationModeLayout activeKey="debug">
+      <Oas31DebugExampleLoader
+        enabled={isOas31}
+        document={swaggerDoc}
+        operation={operation}
+        debugModel={debugModel}
+        session={schemaEngine.status === 'ready' ? schemaEngine.session : null}
+        identity={oas31ExampleIdentity}
+        setState={setOas31ExampleState}
+      />
+      <Oas31DebugDefaultHydrator
+        activeExamples={activeOas31Examples}
+        state={oas31ExampleState}
+        identity={oas31ExampleIdentity}
+        editRevisionRef={debugDefaultEditRevisionRef}
+        appliedIdentityRef={appliedOas31ExampleIdentityRef}
+        hydratedDebugCacheKey={hydratedDebugCacheKey}
+        currentDebugCacheKey={debugCacheKey}
+        selectedBody={debugModel.bodyContents.find((content) => content.mediaType === selectedContentType)}
+        setBody={setBody}
+        setFormFields={setFormFields}
+      />
       <Modal
         open={pendingSchemaOverride !== null}
         title={t('apiDebug.schemaValidation.title')}

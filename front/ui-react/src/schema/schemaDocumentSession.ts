@@ -7,10 +7,25 @@ import type {
 } from 'knife4j-schema-engine';
 import { isOpenApi31Version } from 'knife4j-core';
 import type { SwaggerDoc } from '../types/swagger';
+import {
+  createDirectionalSchemaProjection,
+  type DirectionalSchemaProjection,
+  type SchemaEvaluationDirection,
+} from './schemaDirectionProjection';
 
 const FALLBACK_SCHEMA_ORIGIN = 'https://knife4j.invalid/';
 
 type SchemaEngineModule = typeof import('knife4j-schema-engine');
+
+type DirectionalEvaluator = (
+  reference: string,
+  instance: unknown,
+  direction: SchemaEvaluationDirection,
+  options?: EvaluationOptions,
+) => Promise<EvaluationResult>;
+
+const directionalEvaluators = new WeakMap<SchemaDocumentSession, DirectionalEvaluator>();
+let projectionSessionSequence = 0;
 
 export interface SchemaDocumentSession {
   readonly retrievalUri: string;
@@ -106,6 +121,19 @@ export function toSchemaDocumentFailure(error: unknown): SchemaDocumentFailure {
   });
 }
 
+/** Evaluate a candidate against the OpenAPI request/response projection. */
+export function evaluateSchemaDocumentDirectionally(
+  session: SchemaDocumentSession,
+  reference: string,
+  instance: unknown,
+  direction: SchemaEvaluationDirection,
+  options?: EvaluationOptions,
+): Promise<EvaluationResult> {
+  const evaluator = directionalEvaluators.get(session);
+  if (!evaluator) return Promise.reject(new Error('Directional schema evaluation is unavailable for this session.'));
+  return evaluator(reference, instance, direction, options);
+}
+
 export async function createSchemaDocumentSession(
   document: SwaggerDoc,
   retrievalUri: string,
@@ -125,17 +153,83 @@ export async function createSchemaDocumentSession(
   }
 
   let disposed = false;
-  return Object.freeze({
+  let activeOperations = 0;
+  let pendingRegistryChanges = 0;
+  let registryChangeTail = Promise.resolve();
+  const idleWaiters = new Set<() => void>();
+
+  const runOperation = async <T>(operation: () => Promise<T>): Promise<T> => {
+    while (pendingRegistryChanges > 0) await registryChangeTail;
+    activeOperations += 1;
+    try {
+      return await operation();
+    } finally {
+      activeOperations -= 1;
+      if (activeOperations === 0) {
+        idleWaiters.forEach((resolve) => resolve());
+        idleWaiters.clear();
+      }
+    }
+  };
+
+  const waitForIdle = (): Promise<void> => {
+    if (activeOperations === 0) return Promise.resolve();
+    return new Promise((resolve) => idleWaiters.add(resolve));
+  };
+
+  const changeRegistry = <T>(change: () => Promise<T>): Promise<T> => {
+    pendingRegistryChanges += 1;
+    const result = registryChangeTail.then(async () => {
+      await waitForIdle();
+      return change();
+    });
+    registryChangeTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result.finally(() => {
+      pendingRegistryChanges -= 1;
+    });
+  };
+
+  projectionSessionSequence += 1;
+  const projectionSessionId = globalThis.crypto?.randomUUID?.() ?? `session-${projectionSessionSequence}`;
+  const projectionNamespace = `https://knife4j.invalid/schema-projections/${projectionSessionId}/`;
+  const projections = new Map<SchemaEvaluationDirection, Promise<DirectionalSchemaProjection>>();
+  const ensureProjection = (direction: SchemaEvaluationDirection): Promise<DirectionalSchemaProjection> => {
+    const existing = projections.get(direction);
+    if (existing) return existing;
+    const pending = changeRegistry(async () => {
+      const projection = createDirectionalSchemaProjection(document, retrievalUri, direction, projectionNamespace);
+      await engine.registerDocument(projection.document, projection.retrievalUri);
+      return projection;
+    });
+    projections.set(direction, pending);
+    pending.catch(() => {
+      if (projections.get(direction) === pending) projections.delete(direction);
+    });
+    return pending;
+  };
+
+  const session: SchemaDocumentSession = Object.freeze({
     retrievalUri,
-    resolve: (reference: string) => engine.resolve(schemaReferenceUri(retrievalUri, reference)),
+    resolve: (reference: string) => runOperation(() => engine.resolve(schemaReferenceUri(retrievalUri, reference))),
     evaluate: (reference: string, instance: unknown, evaluationOptions?: EvaluationOptions) =>
-      engine.evaluate(schemaReferenceUri(retrievalUri, reference), instance, evaluationOptions),
+      runOperation(() => engine.evaluate(schemaReferenceUri(retrievalUri, reference), instance, evaluationOptions)),
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      directionalEvaluators.delete(session);
       engine.dispose();
     },
   });
+  directionalEvaluators.set(session, async (reference, instance, direction, evaluationOptions) => {
+    if (evaluationOptions?.signal?.aborted) throw new DOMException('Schema evaluation was aborted.', 'AbortError');
+    const projection = await ensureProjection(direction);
+    if (evaluationOptions?.signal?.aborted) throw new DOMException('Schema evaluation was aborted.', 'AbortError');
+    return runOperation(() => engine.evaluate(projection.referenceFor(reference), instance, evaluationOptions));
+  });
+  return session;
 }
 
 /** Owns the single active Hyperjump registry owner used by the React app. */

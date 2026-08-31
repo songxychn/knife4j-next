@@ -110,6 +110,17 @@ const zhCN = {
   'schema.projection.projectionFallback.description': '数据模型投影失败，当前保留兼容字段树；原始 Schema 未被修改。',
   'schema.projection.degraded.description':
     '{{modelCount}} 个模型包含 {{count}} 项无法完整投影为字段树的语义（模型：{{models}}；关键字：{{keywords}}）；原始 Schema 未被修改。',
+  'schema.example.loading.title': '正在生成 OAS 3.1 示例',
+  'schema.example.loading.description': '候选通过当前 Schema 验证后才会显示或写入调试默认值。',
+  'schema.example.explicitInvalid.title': '作者提供的示例不符合当前 Schema',
+  'schema.example.explicitInvalid.description': '示例按原值保留，Knife4j 不会静默修正作者内容。',
+  'schema.example.explicitInvalid.issue': '示例按原值保留；{{path}} 未通过 {{keyword}} 约束。',
+  'schema.example.validationUnavailable.title': '示例验证暂不可用',
+  'schema.example.validationUnavailable.description': '作者示例会保留，但不会生成未经验证的 OAS 3.1 候选。',
+  'schema.example.none.title': '没有可验证的生成示例',
+  'schema.example.none.description': '固定搜索范围内未找到符合当前 Schema 的候选。',
+  'schema.example.none.budgetTitle': '示例搜索已达到预算',
+  'schema.example.none.budgetDescription': '为避免无界回溯，本次不生成示例。',
 
   // ApiDoc
   'apiDoc.notFound.title': '未找到接口文档',

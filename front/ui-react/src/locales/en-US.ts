@@ -115,6 +115,21 @@ const enUS = {
     'Data model projection failed, so the compatibility field tree is retained. The original Schema is unchanged.',
   'schema.projection.degraded.description':
     '{{modelCount}} model(s) contain {{count}} semantic item(s) that cannot be fully projected as a field tree (models: {{models}}; keywords: {{keywords}}). The original Schema is unchanged.',
+  'schema.example.loading.title': 'Generating the OAS 3.1 example',
+  'schema.example.loading.description':
+    'A candidate is shown or written into debug defaults only after the current Schema validates it.',
+  'schema.example.explicitInvalid.title': 'The authored example does not match the current Schema',
+  'schema.example.explicitInvalid.description':
+    'The original example is preserved. Knife4j does not silently rewrite authored content.',
+  'schema.example.explicitInvalid.issue':
+    'The original example is preserved; {{path}} did not satisfy the {{keyword}} constraint.',
+  'schema.example.validationUnavailable.title': 'Example validation is unavailable',
+  'schema.example.validationUnavailable.description':
+    'Authored examples are preserved, but Knife4j will not create an unvalidated OAS 3.1 candidate.',
+  'schema.example.none.title': 'No validated generated example',
+  'schema.example.none.description': 'No candidate in the bounded deterministic search matched the current Schema.',
+  'schema.example.none.budgetTitle': 'The example search reached its budget',
+  'schema.example.none.budgetDescription': 'No example is generated, avoiding unbounded backtracking.',
 
   // ApiDoc
   'apiDoc.notFound.title': 'API doc not found',
