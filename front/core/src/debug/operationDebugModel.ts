@@ -25,6 +25,7 @@ import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSche
 import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/document';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
+import { analyzeOas31FormBody } from './formBodyEncoding';
 
 // ─── 内部类型 ─────────────────────────────────────────
 
@@ -988,21 +989,38 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
             !(allowOas31Binary && typeof schema.contentEncoding === 'string' && schema.contentEncoding.length > 0)) ||
             (allowOas31Binary && isOas31RawBinarySchema(schema, mediaType)));
 
+        const fileFields = isMultipart ? extractFileFields(schema, encoding, allowOas31Binary, doc) : undefined;
+        const fileFieldsMultiple = isMultipart
+          ? extractMultipleFileFields(schema, encoding, allowOas31Binary, doc)
+          : undefined;
+        const oas31Form =
+          allowOas31Binary &&
+          !isMultipartFallback &&
+          (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+            ? analyzeOas31FormBody({
+                mediaType: effectiveMediaType,
+                schema,
+                encoding,
+                fileFields: fileFields ?? [],
+                multipleFileFields: fileFieldsMultiple ?? [],
+                document: doc as Record<string, unknown>,
+              })
+            : undefined;
+
         bodyContents.push({
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
           exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, ctx, { mediaType }),
           binary: binary || undefined,
-          fileFields: isMultipart ? extractFileFields(schema, encoding, allowOas31Binary, doc) : undefined,
+          fileFields,
           // 区分「单文件」与「多文件」语义（issue #251）：
           // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录
           // 其中允许多选的子集。UI 层据此决定 `<Upload multiple>` 和 FormData
           // 组装时 append 几次。
-          fileFieldsMultiple: isMultipart
-            ? extractMultipleFileFields(schema, encoding, allowOas31Binary, doc)
-            : undefined,
+          fileFieldsMultiple,
           jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
+          oas31Form,
         });
       }
     }

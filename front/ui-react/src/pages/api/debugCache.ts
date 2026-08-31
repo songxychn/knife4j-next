@@ -25,6 +25,7 @@ export interface DebugCacheState {
   selectedContentType: string;
   body: string;
   formFields: Record<string, string>;
+  formPartHeaders: Record<string, Record<string, string>>;
   rawMode: DebugCacheRawMode;
   customQueryParams: DebugCacheCustomParamRow[];
   customBodyParams: DebugCacheCustomParamRow[];
@@ -70,6 +71,16 @@ function readBooleanRecord(value: unknown): Record<string, boolean> {
   return result;
 }
 
+function readNestedStringRecord(value: unknown): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {};
+  if (!isRecord(value)) return result;
+  for (const [key, item] of Object.entries(value)) {
+    const nested = readStringRecord(item);
+    if (Object.keys(nested).length > 0) result[key] = nested;
+  }
+  return result;
+}
+
 function readRawMode(value: unknown): DebugCacheRawMode {
   return typeof value === 'string' && RAW_MODES.has(value as DebugCacheRawMode) ? (value as DebugCacheRawMode) : 'text';
 }
@@ -103,6 +114,7 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
     selectedContentType: readString(value.selectedContentType),
     body: readString(value.body),
     formFields: readStringRecord(value.formFields),
+    formPartHeaders: readNestedStringRecord(value.formPartHeaders),
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
     customBodyParams: readCustomRows(value.customBodyParams),

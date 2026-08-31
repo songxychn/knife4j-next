@@ -21,6 +21,7 @@ type DirectionalEvaluator = (
   reference: string,
   instance: unknown,
   direction: SchemaEvaluationDirection,
+  ignoredProperties: readonly string[] | undefined,
   options?: EvaluationOptions,
 ) => Promise<EvaluationResult>;
 
@@ -131,7 +132,21 @@ export function evaluateSchemaDocumentDirectionally(
 ): Promise<EvaluationResult> {
   const evaluator = directionalEvaluators.get(session);
   if (!evaluator) return Promise.reject(new Error('Directional schema evaluation is unavailable for this session.'));
-  return evaluator(reference, instance, direction, options);
+  return evaluator(reference, instance, direction, undefined, options);
+}
+
+/** Evaluate a logical form instance while keeping file/read-only fields outside JSON evaluation. */
+export function evaluateSchemaDocumentDirectionallyIgnoringProperties(
+  session: SchemaDocumentSession,
+  reference: string,
+  instance: unknown,
+  direction: SchemaEvaluationDirection,
+  ignoredProperties: readonly string[],
+  options?: EvaluationOptions,
+): Promise<EvaluationResult> {
+  const evaluator = directionalEvaluators.get(session);
+  if (!evaluator) return Promise.reject(new Error('Directional schema evaluation is unavailable for this session.'));
+  return evaluator(reference, instance, direction, ignoredProperties, options);
 }
 
 export async function createSchemaDocumentSession(
@@ -195,18 +210,31 @@ export async function createSchemaDocumentSession(
   projectionSessionSequence += 1;
   const projectionSessionId = globalThis.crypto?.randomUUID?.() ?? `session-${projectionSessionSequence}`;
   const projectionNamespace = `https://knife4j.invalid/schema-projections/${projectionSessionId}/`;
-  const projections = new Map<SchemaEvaluationDirection, Promise<DirectionalSchemaProjection>>();
-  const ensureProjection = (direction: SchemaEvaluationDirection): Promise<DirectionalSchemaProjection> => {
-    const existing = projections.get(direction);
+  const projections = new Map<string, Promise<DirectionalSchemaProjection>>();
+  let projectionVariantSequence = 0;
+  const ensureProjection = (
+    direction: SchemaEvaluationDirection,
+    reference?: string,
+    ignoredProperties?: readonly string[],
+  ): Promise<DirectionalSchemaProjection> => {
+    const ignoredNames = Array.from(new Set(ignoredProperties ?? [])).sort();
+    const key = JSON.stringify([direction, reference ?? '', ignoredNames]);
+    const existing = projections.get(key);
     if (existing) return existing;
     const pending = changeRegistry(async () => {
-      const projection = createDirectionalSchemaProjection(document, retrievalUri, direction, projectionNamespace);
+      const namespace =
+        ignoredNames.length === 0
+          ? projectionNamespace
+          : new URL(`variant-${projectionVariantSequence++}/`, projectionNamespace).href;
+      const projection = createDirectionalSchemaProjection(document, retrievalUri, direction, namespace, {
+        ignoredProperties: reference && ignoredNames.length > 0 ? [{ reference, names: ignoredNames }] : undefined,
+      });
       await engine.registerDocument(projection.document, projection.retrievalUri);
       return projection;
     });
-    projections.set(direction, pending);
+    projections.set(key, pending);
     pending.catch(() => {
-      if (projections.get(direction) === pending) projections.delete(direction);
+      if (projections.get(key) === pending) projections.delete(key);
     });
     return pending;
   };
@@ -223,9 +251,13 @@ export async function createSchemaDocumentSession(
       engine.dispose();
     },
   });
-  directionalEvaluators.set(session, async (reference, instance, direction, evaluationOptions) => {
+  directionalEvaluators.set(session, async (reference, instance, direction, ignoredProperties, evaluationOptions) => {
     if (evaluationOptions?.signal?.aborted) throw new DOMException('Schema evaluation was aborted.', 'AbortError');
-    const projection = await ensureProjection(direction);
+    const projection = await ensureProjection(
+      direction,
+      ignoredProperties && ignoredProperties.length > 0 ? reference : undefined,
+      ignoredProperties,
+    );
     if (evaluationOptions?.signal?.aborted) throw new DOMException('Schema evaluation was aborted.', 'AbortError');
     return runOperation(() => engine.evaluate(projection.referenceFor(reference), instance, evaluationOptions));
   });

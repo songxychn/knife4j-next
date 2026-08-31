@@ -504,6 +504,56 @@ describe('validateRequired', () => {
     expect(validateRequired(multipartModel, form)).toHaveLength(0);
   });
 
+  test('OAS 3.1 multipart files defer required diagnostics to the shared form plan', () => {
+    const multipartModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [
+        {
+          mediaType: 'multipart/form-data',
+          category: 'multipart',
+          schema: { type: 'object', required: ['file'], properties: { file: { format: 'binary' } } },
+          fileFields: ['file'],
+          oas31Form: {
+            diagnostics: [],
+            fields: [
+              {
+                name: 'file',
+                schema: { format: 'binary' },
+                type: 'unknown',
+                required: true,
+                readOnly: false,
+                file: true,
+                multiple: false,
+                maxFiles: 1,
+                encoding: {
+                  kind: 'content',
+                  contentTypes: ['application/octet-stream'],
+                  contentTypeExplicit: false,
+                  headers: [],
+                },
+              },
+            ],
+          },
+        },
+      ],
+      bodyRequired: true,
+    };
+
+    expect(
+      validateRequired(multipartModel, {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'multipart/form-data',
+        fileFields: { file: [] },
+      }),
+    ).toEqual([]);
+  });
+
   test('binary body: validates that a file was selected', () => {
     const binaryModel: OperationDebugModel = {
       pathParams: [],

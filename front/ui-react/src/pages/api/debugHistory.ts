@@ -1,3 +1,4 @@
+import type { FormBodyEncodingPlan } from 'knife4j-core';
 import {
   KNIFE4J_STORAGE_PREFIXES,
   getKnife4jStorageItemSnapshot,
@@ -32,6 +33,8 @@ export interface DebugHistoryFormSnapshot {
   selectedContentType: string;
   body: string;
   formFields: Record<string, string>;
+  /** Multipart Encoding Object Header Object editor values. */
+  formPartHeaders?: Record<string, Record<string, string>>;
   rawMode: DebugHistoryRawMode;
   customQueryParams: DebugHistoryCustomParamRow[];
   customBodyParams: DebugHistoryCustomParamRow[];
@@ -203,6 +206,16 @@ function readStringArrayRecord(value: unknown): Record<string, string[]> | undef
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+function readNestedStringRecord(value: unknown): Record<string, Record<string, string>> | undefined {
+  if (!isRecord(value)) return undefined;
+  const result: Record<string, Record<string, string>> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const nested = readStringRecord(item);
+    if (Object.keys(nested).length > 0) result[key] = nested;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function readCustomRows(value: unknown): DebugHistoryCustomParamRow[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
@@ -337,6 +350,30 @@ export function buildMultipartHistoryBody(
   return JSON.stringify(snapshot, null, 2);
 }
 
+/** Persist only multipart plan metadata and redact sensitive per-part headers. */
+export function buildOas31MultipartHistoryBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
+  return JSON.stringify(
+    plan.parts.map((part) => ({
+      name: part.name,
+      ...(part.kind === 'file'
+        ? {
+            file: part.fileName,
+            ...(part.fileSize === undefined ? {} : { size: part.fileSize }),
+          }
+        : { value: part.value }),
+      contentType: part.contentType,
+      headers: Object.fromEntries(
+        Object.entries(part.headers).map(([name, value]) => [
+          name,
+          isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : value,
+        ]),
+      ),
+    })),
+    null,
+    2,
+  );
+}
+
 function truncateStringRecord(fields: Record<string, string>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(fields)) {
@@ -349,12 +386,30 @@ function truncateCustomRows(rows: DebugHistoryCustomParamRow[]): DebugHistoryCus
   return rows.map((row) => ({ ...row, value: truncateBody(row.value).text }));
 }
 
+function prepareFormPartHeaders(
+  fields: Record<string, Record<string, string>> | undefined,
+): Record<string, Record<string, string>> | undefined {
+  if (!fields) return undefined;
+  return Object.fromEntries(
+    Object.entries(fields).map(([fieldName, headers]) => [
+      fieldName,
+      Object.fromEntries(
+        Object.entries(headers).map(([name, value]) => [
+          name,
+          isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : truncateBody(value).text,
+        ]),
+      ),
+    ]),
+  );
+}
+
 /** Sanitize + truncate form snapshot fields before persist / after read. */
 export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHistoryFormSnapshot {
   return {
     ...snapshot,
     body: truncateBody(snapshot.body).text,
     formFields: truncateStringRecord(snapshot.formFields),
+    formPartHeaders: prepareFormPartHeaders(snapshot.formPartHeaders),
     paramValues: truncateStringRecord(snapshot.paramValues),
     customBodyParams: truncateCustomRows(snapshot.customBodyParams),
     customHeaders: sanitizeCustomRows(snapshot.customHeaders),
@@ -392,6 +447,7 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     selectedContentType: readString(value.selectedContentType),
     body: readString(value.body),
     formFields: readStringRecord(value.formFields),
+    formPartHeaders: readNestedStringRecord(value.formPartHeaders),
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
     customBodyParams: readCustomRows(value.customBodyParams),

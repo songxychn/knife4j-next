@@ -20,6 +20,7 @@ import type {
   ValidationError,
 } from './types';
 import { replaceSerializedPathParams, serializeOas31Parameters } from './parameterSerialization';
+import { serializeOas31FormBody } from './formBodyEncoding';
 
 // ─── URL 构建 ─────────────────────────────────────────
 
@@ -314,7 +315,10 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
   const current = model.bodyContents.find((body) => body.mediaType === selected) ?? model.bodyContents[0];
   let hasMissingRequiredFile = false;
 
-  if (current?.category === 'multipart' && current.schema) {
+  // OAS 3.1 form files use the shared encoding plan so missing/cardinality
+  // diagnostics participate in the same one-shot override as Schema issues.
+  // Keep the historical hard-required behavior for OAS 3.0/OAS2.
+  if (current?.category === 'multipart' && current.schema && !current.oas31Form) {
     const requiredFields = Array.isArray(current.schema.required) ? current.schema.required : [];
     const properties = current.schema.properties as Record<string, Record<string, unknown>> | undefined;
     const fileFields = new Set(current.fileFields ?? []);
@@ -335,7 +339,7 @@ export function validateRequired(model: OperationDebugModel, form: DebugFormValu
   }
 
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
-  if (model.bodyRequired && current) {
+  if (model.bodyRequired && current && !current.oas31Form) {
     const category = current.category;
 
     let bodyMissing = false;
@@ -479,12 +483,33 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     formValues.selectedContentType ?? (debugModel.bodyContents.length > 0 ? debugModel.bodyContents[0].mediaType : '');
 
   let body: string | undefined = undefined;
-
-  const category = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType)?.category ?? 'raw';
+  const currentBody =
+    debugModel.bodyContents.find((candidate) => candidate.mediaType === selectedContentType) ??
+    debugModel.bodyContents[0];
+  const category = currentBody?.category ?? 'raw';
+  const formBodyPlan =
+    currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
+      ? serializeOas31FormBody(currentBody, {
+          formFields: formValues.formFields,
+          formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
+          fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
+          partHeaders: formValues.formPartHeaders,
+          bodyRequired: debugModel.bodyRequired,
+        })
+      : undefined;
 
   // Keep explicit request bodies for every HTTP method in the pure model and
   // generated cURL. Browser callers reject GET / HEAD bodies before Fetch.
-  if (category === 'urlencoded' && formValues.formFields) {
+  if (formBodyPlan?.kind === 'urlencoded') {
+    body = formBodyPlan.body;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
+      headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
+    }
+  } else if (formBodyPlan?.kind === 'multipart') {
+    body = JSON.stringify(
+      formFieldsForRequest(formValues.formFields ?? {}, formValues.formFieldNamesToIncludeWhenEmpty),
+    );
+  } else if (category === 'urlencoded' && formValues.formFields) {
     // application/x-www-form-urlencoded: 从 formFields 序列化
     body = buildUrlencodedBodyForRequest(formValues.formFields, formValues.formFieldNamesToIncludeWhenEmpty);
     if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
@@ -538,6 +563,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     ...(serializedParameters.cookies.some((parameter) => parameter.name !== '')
       ? { hasExplicitCookieParameters: true }
       : {}),
+    ...(formBodyPlan ? { formBodyPlan } : {}),
   };
 }
 
@@ -561,7 +587,8 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push('-X', req.method);
 
   const isMultipart =
-    typeof req.contentType === 'string' && req.contentType.toLowerCase().includes('multipart/form-data');
+    req.formBodyPlan?.kind === 'multipart' ||
+    (typeof req.contentType === 'string' && req.contentType.toLowerCase().startsWith('multipart/'));
 
   // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
@@ -569,7 +596,21 @@ export function buildCurl(req: BuiltRequest): string {
     parts.push('-H', shellQuote(`${key}: ${value}`));
   }
 
-  if (isMultipart) {
+  if (req.formBodyPlan?.kind === 'multipart') {
+    for (const part of req.formBodyPlan.parts) {
+      const attributes = [`${curlFormQuoted(part.name)}=`];
+      if (part.kind === 'file') {
+        attributes[0] += `@${curlFormQuoted(`/path/to/${part.fileName}`)}`;
+      } else {
+        attributes[0] += curlFormQuoted(part.value);
+      }
+      if (part.contentType) attributes.push(`type=${part.contentType}`);
+      for (const [name, value] of Object.entries(part.headers)) {
+        attributes.push(`headers=${curlFormQuoted(`${name}: ${value}`)}`);
+      }
+      parts.push('-F', shellQuote(attributes.join(';')));
+    }
+  } else if (isMultipart) {
     // multipart：尝试从 body（若为 JSON 字段映射）拆出字段，否则给占位注释
     let fieldObj: Record<string, unknown> | null = null;
     if (typeof req.body === 'string' && req.body !== '') {
@@ -608,6 +649,11 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push(shellQuote(req.url));
 
   return parts.join(' \\\n  ');
+}
+
+/** Quote a value inside curl's multipart MIME mini-language. */
+function curlFormQuoted(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 // ─── Urlencoded 序列化 ────────────────────────────────

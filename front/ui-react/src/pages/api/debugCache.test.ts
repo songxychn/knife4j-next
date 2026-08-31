@@ -44,6 +44,9 @@ function makeState(): DebugCacheState {
     formFields: {
       name: 'alice',
     },
+    formPartHeaders: {
+      metadata: { 'X-Part-Trace': 'trace-1' },
+    },
     rawMode: 'json',
     customQueryParams: [{ id: 'custom-query', name: 'debug', value: '1' }],
     customBodyParams: [
@@ -82,6 +85,10 @@ describe('debugCache', () => {
         selectedContentType: 'application/json',
         body: '{"name":"alice"}',
         formFields: { name: 'alice', ignored: false },
+        formPartHeaders: {
+          metadata: { 'X-Part-Trace': 'trace-1', broken: false },
+          broken: 'not-an-object',
+        },
         rawMode: 'bogus',
         customQueryParams: [
           { id: 'q1', name: 'debug', value: '1' },
@@ -106,6 +113,7 @@ describe('debugCache', () => {
       selectedContentType: 'application/json',
       body: '{"name":"alice"}',
       formFields: { name: 'alice' },
+      formPartHeaders: { metadata: { 'X-Part-Trace': 'trace-1' } },
       rawMode: 'text',
       customQueryParams: [{ id: 'q1', name: 'debug', value: '1' }],
       customBodyParams: [{ id: 'b1', name: 'folderId', value: '42' }],
@@ -119,9 +127,11 @@ describe('debugCache', () => {
     const cacheKey = 'default|legacy';
     const legacyState = { ...makeState() } as Partial<DebugCacheState>;
     delete legacyState.customBodyParams;
+    delete legacyState.formPartHeaders;
     storage.setItem(debugCacheStorageKey(cacheKey), JSON.stringify(legacyState));
 
     expect(readDebugCache(cacheKey, storage)?.customBodyParams).toEqual([]);
+    expect(readDebugCache(cacheKey, storage)?.formPartHeaders).toEqual({});
   });
 
   it('ignores unsupported versions and removes cache entries', () => {

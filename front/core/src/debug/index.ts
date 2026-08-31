@@ -17,6 +17,11 @@ export type {
   DebugParam,
   BodyContentType,
   BodyContent,
+  FormBodyDiagnostic,
+  Oas31FormPartHeader,
+  Oas31FormFieldEncoding,
+  Oas31FormField,
+  Oas31FormBodyModel,
   OperationDebugModel,
   DebugFormValues,
   QueryParamValue,
@@ -29,12 +34,24 @@ export type {
   ValidationError,
   BuiltParameterInstance,
   ParameterInputDiagnostic,
+  FormFileMetadata,
+  FormBodyInputLimits,
+  SerializeOas31FormBodyInput,
+  UrlencodedFormEntry,
+  MultipartTextPart,
+  MultipartFilePart,
+  MultipartPart,
+  FormBodyEncodingPlan,
   SchemaResolveContext,
   SchemaValue,
   SchemaFieldNode,
   BuildSchemaExampleFn,
   BuildSchemaFieldTreeFn,
 } from './types';
+
+// OAS 3.1 form request bodies
+export { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
+export type { AnalyzeOas31FormBodyOptions } from './formBodyEncoding';
 
 // resolveRef
 export {
