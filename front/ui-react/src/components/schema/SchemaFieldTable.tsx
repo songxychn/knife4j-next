@@ -44,6 +44,7 @@ interface SchemaFieldRow extends SchemaFieldNode {
 
 interface SchemaTypeLinkProps {
   node: SchemaFieldNode;
+  constrainToCell?: boolean;
 }
 
 interface SchemaFieldTableProps {
@@ -77,7 +78,7 @@ function modelPreviewFields(schema: SchemaObject, swaggerDoc: SwaggerDoc): Schem
   }).slice(0, 6);
 }
 
-export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
+export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLinkProps) {
   const { activeGroup, schemas, swaggerDoc } = useGroup();
   const { t } = useTranslation();
   const refName = schemaNodeRefName(node);
@@ -88,7 +89,11 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
   if (!refName || !schema || !swaggerDoc) {
     return (
       <ConstraintTooltip node={node}>
-        <Tag color={color} style={TYPE_TAG_STYLE} title={label}>
+        <Tag
+          color={color}
+          style={constrainToCell ? TYPE_TAG_STYLE : undefined}
+          title={constrainToCell ? label : undefined}
+        >
           {label}
         </Tag>
       </ConstraintTooltip>
@@ -134,7 +139,11 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
     <ConstraintTooltip node={node}>
       <Popover title={refName} content={content} placement="right" styles={{ root: { maxWidth: 460 } }}>
         <RouterLink to={target}>
-          <Tag color={color} style={{ ...TYPE_TAG_STYLE, cursor: 'pointer' }} title={label}>
+          <Tag
+            color={color}
+            style={constrainToCell ? { ...TYPE_TAG_STYLE, cursor: 'pointer' } : { cursor: 'pointer' }}
+            title={constrainToCell ? label : undefined}
+          >
             {label}
           </Tag>
         </RouterLink>
@@ -264,7 +273,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       title: t('schema.col.type'),
       width: columnWidths.type,
       onHeaderCell: () => resizableHeader('type'),
-      render: (_, record) => <SchemaTypeLink node={record} />,
+      render: (_, record) => <SchemaTypeLink node={record} constrainToCell />,
     },
     {
       title: t('schema.col.required'),
