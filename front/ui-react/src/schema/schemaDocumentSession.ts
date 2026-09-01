@@ -44,6 +44,13 @@ export interface SchemaDocumentFailure {
 export interface CreateSchemaDocumentSessionOptions {
   signal?: AbortSignal;
   loadEngine?: () => Promise<SchemaEngineModule>;
+  /** Complete, policy-validated graph documents; this option never carries a loader or fetch capability. */
+  resourceDocuments?: readonly SchemaDocumentResource[];
+}
+
+export interface SchemaDocumentResource {
+  readonly document: unknown;
+  readonly retrievalUri: string;
 }
 
 export type SchemaDocumentSessionFactory = (
@@ -160,8 +167,14 @@ export async function createSchemaDocumentSession(
 
   const engine = engineModule.createSchemaEngine();
   try {
-    await engine.registerDocument(document, retrievalUri);
-    assertNotAborted(options.signal);
+    const registrations = [
+      { document, retrievalUri },
+      ...(options.resourceDocuments ?? []).filter((resource) => resource.retrievalUri !== retrievalUri),
+    ].sort((left, right) => left.retrievalUri.localeCompare(right.retrievalUri));
+    for (const resource of registrations) {
+      await engine.registerDocument(resource.document, resource.retrievalUri);
+      assertNotAborted(options.signal);
+    }
   } catch (error) {
     engine.dispose();
     throw error;
@@ -272,7 +285,11 @@ export class SchemaDocumentSessionManager {
 
   public constructor(private readonly factory: SchemaDocumentSessionFactory = createSchemaDocumentSession) {}
 
-  public open(document: SwaggerDoc, retrievalUri: string): Promise<SchemaDocumentOpenResult> {
+  public open(
+    document: SwaggerDoc,
+    retrievalUri: string,
+    options: Omit<CreateSchemaDocumentSessionOptions, 'signal'> = {},
+  ): Promise<SchemaDocumentOpenResult> {
     const revision = ++this.revision;
     const previousSettled = this.pending?.settled ?? Promise.resolve();
     this.pending?.controller.abort();
@@ -287,7 +304,7 @@ export class SchemaDocumentSessionManager {
         await previousSettled;
         if (revision !== this.revision || controller.signal.aborted) return { status: 'stale' };
 
-        const session = await this.factory(document, retrievalUri, { signal: controller.signal });
+        const session = await this.factory(document, retrievalUri, { ...options, signal: controller.signal });
         if (revision !== this.revision || controller.signal.aborted) {
           session.dispose();
           return { status: 'stale' };

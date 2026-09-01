@@ -67,4 +67,38 @@ describe('collectOas31CompatibilityDiagnostics', () => {
       }),
     ).toEqual([]);
   });
+
+  test('redacts URL credentials and query values from diagnostics', () => {
+    const diagnostics = collectOas31CompatibilityDiagnostics({
+      openapi: '3.1.1',
+      info: { title: 'Sensitive refs', version: '1' },
+      components: {
+        schemas: {
+          Absolute: { $ref: 'https://user:secret@schemas.example.test/pet.json?token=secret#/$defs/Pet' },
+          Relative: { $dynamicRef: './shared.json?signature=secret#node' },
+        },
+      },
+    });
+
+    expect(diagnostics.map((item) => item.value)).toEqual([
+      'https://schemas.example.test/pet.json?…#/$defs/Pet',
+      './shared.json?…#node',
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain('secret');
+  });
+
+  test('redacts credentials from browser-normalized special-scheme references', () => {
+    const diagnostics = collectOas31CompatibilityDiagnostics({
+      openapi: '3.1.1',
+      info: { title: 'Malformed sensitive refs', version: '1' },
+      components: {
+        schemas: {
+          Backslashes: { $ref: 'https:\\\\user:secret@schemas.example.test/pet.json?token=secret#Pet' },
+        },
+      },
+    });
+
+    expect(diagnostics.map((item) => item.value)).toEqual(['https://schemas.example.test/pet.json?…#Pet']);
+    expect(JSON.stringify(diagnostics)).not.toMatch(/user|secret|token/);
+  });
 });

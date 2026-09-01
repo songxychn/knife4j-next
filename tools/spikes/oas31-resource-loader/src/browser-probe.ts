@@ -1,10 +1,11 @@
 import {
-  fetchAuthorizedResource,
-  loadProbeSchemaGraph,
-  normalizeResourceDocumentUri,
-  type FetchedResource,
+  fetchExternalResource,
+  normalizeExternalResourceUri,
+  type FetchedExternalResource,
   type ResourceLoadErrorCode,
-} from './resource-policy';
+} from '../../../../front/ui-react/src/schema/externalResourcePolicy';
+import { ExternalResourceLoader } from '../../../../front/ui-react/src/schema/externalResourceGraph';
+import { loadProbeSchemaGraph } from './resource-policy';
 
 interface AssertionResult {
   name: string;
@@ -32,13 +33,13 @@ const addAssertion = (name: string, passed: boolean, detail: string): void => {
 };
 
 const exactGrant = (uri: string): Set<string> =>
-  new Set([normalizeResourceDocumentUri(uri, pageUri, pageUri)]);
+  new Set([normalizeExternalResourceUri(uri, pageUri, pageUri)]);
 
 const fetchOne = (
   uri: string,
   options: { maxBytes?: number; signal?: AbortSignal; grants?: ReadonlySet<string> } = {},
-): Promise<FetchedResource> =>
-  fetchAuthorizedResource(uri, pageUri, {
+): Promise<FetchedExternalResource> =>
+  fetchExternalResource(uri, pageUri, {
     pageUri,
     authorizedUris: options.grants ?? exactGrant(uri),
     maxBytes: options.maxBytes ?? 4096,
@@ -110,11 +111,58 @@ const run = async (): Promise<Record<string, unknown>> => {
     fetchOne(`${config.allowedOrigin}/wrong-content-type`),
   );
 
+  const productionGraphUri = `${config.allowedOrigin}/production-graph.json?token=browser-secret`;
+  const productionUngrantedUri = `${config.allowedOrigin}/production-ungranted.json`;
+  const productionLoader = new ExternalResourceLoader(
+    {
+      openapi: '3.1.1',
+      info: { title: 'Production graph browser probe', version: '1.0.0' },
+      paths: {},
+      components: {
+        schemas: {
+          Authorized: { $ref: `${productionGraphUri}#/$defs/Authorized` },
+          Ungranted: { $ref: productionUngrantedUri },
+        },
+      },
+    },
+    `${location.origin}/entry.json`,
+    { pageUri },
+  );
+  const productionDiscovery = productionLoader.discover();
+  const productionCandidate = productionDiscovery.candidates.find(
+    (candidate) => candidate.retrievalUri === productionGraphUri,
+  );
+  const productionSnapshot = productionCandidate
+    ? await productionLoader.load([
+        {
+          scope: 'generation',
+          documentScope: productionLoader.documentScope,
+          resourceKey: productionCandidate.retrievalUriHash,
+        },
+      ])
+    : productionLoader.currentSnapshot();
+  const remainingProductionCandidates = productionLoader.currentDiscovery().candidates;
+  addAssertion(
+    'the production graph loader fetches only the exact selected resource and keeps other references pending',
+    productionDiscovery.candidates.length === 2 &&
+      productionCandidate?.displayUri.includes('browser-secret') === false &&
+      productionSnapshot.nodes.has(productionGraphUri) &&
+      !productionSnapshot.nodes.has(productionUngrantedUri) &&
+      remainingProductionCandidates.length === 1 &&
+      remainingProductionCandidates[0]?.retrievalUri === productionUngrantedUri,
+    JSON.stringify({
+      discovered: productionDiscovery.candidates.length,
+      nodes: productionSnapshot.nodes.size,
+      remaining: remainingProductionCandidates.map((candidate) => candidate.displayUri),
+    }),
+  );
+  productionLoader.dispose();
+
   const cycleA = `${config.allowedOrigin}/cycle-a.json`;
   const cycleB = `${config.allowedOrigin}/cycle-b.json`;
   const cycleGrants = new Set([
-    normalizeResourceDocumentUri(cycleA, pageUri, pageUri),
-    normalizeResourceDocumentUri(cycleB, pageUri, pageUri),
+    normalizeExternalResourceUri(cycleA, pageUri, pageUri),
+    normalizeExternalResourceUri(cycleB, pageUri, pageUri),
   ]);
   const cycleGraph = await loadProbeSchemaGraph(
     cycleA,
@@ -135,8 +183,8 @@ const run = async (): Promise<Record<string, unknown>> => {
   const budgetA = `${config.allowedOrigin}/budget-a.json`;
   const budgetB = `${config.allowedOrigin}/budget-b.json`;
   const budgetGrants = new Set([
-    normalizeResourceDocumentUri(budgetA, pageUri, pageUri),
-    normalizeResourceDocumentUri(budgetB, pageUri, pageUri),
+    normalizeExternalResourceUri(budgetA, pageUri, pageUri),
+    normalizeExternalResourceUri(budgetB, pageUri, pageUri),
   ]);
   await expectError('resource count is checked before fetching the next graph node', 'GRAPH_RESOURCE_LIMIT', () =>
     loadProbeSchemaGraph(

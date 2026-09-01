@@ -35,6 +35,42 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** Keep diagnostic values useful without echoing URL credentials or query values. */
+function safeDiagnosticValue(value: string): string {
+  const urlLike = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|[\\/]{2})/.test(value);
+  if (urlLike) {
+    try {
+      const normalized = /^https?:/i.test(value) ? value.replace(/\\/g, '/') : value;
+      const networkRelative = /^[\\/]{2}/.test(normalized);
+      const parsed = networkRelative ? new URL(normalized, 'https://diagnostic.invalid/') : new URL(normalized);
+      parsed.username = '';
+      parsed.password = '';
+      const hadQuery = parsed.search.length > 0;
+      parsed.search = '';
+      let safeValue = parsed.href;
+      if (networkRelative) safeValue = safeValue.replace(/^https:/, '');
+      if (hadQuery) {
+        const fragmentIndex = safeValue.indexOf('#');
+        safeValue =
+          fragmentIndex < 0
+            ? `${safeValue}?…`
+            : `${safeValue.slice(0, fragmentIndex)}?…${safeValue.slice(fragmentIndex)}`;
+      }
+      return safeValue.slice(0, 512);
+    } catch {
+      // Fall through to bounded lexical redaction for malformed URI text.
+    }
+  }
+  const withoutCredentials = value.replace(/^((?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/)[^/@?#\s]+@/, '$1');
+  const fragmentIndex = withoutCredentials.indexOf('#');
+  const queryIndex = withoutCredentials.indexOf('?');
+  if (queryIndex < 0 || (fragmentIndex >= 0 && queryIndex > fragmentIndex)) {
+    return withoutCredentials.slice(0, 512);
+  }
+  const fragment = fragmentIndex >= 0 ? withoutCredentials.slice(fragmentIndex) : '';
+  return `${withoutCredentials.slice(0, queryIndex)}?…${fragment}`.slice(0, 512);
+}
+
 /**
  * Find OAS 3.1 features that the local deterministic resolver cannot apply
  * safely. Schema traversal follows only standard subschema-bearing keywords;
@@ -51,10 +87,11 @@ export function collectOas31CompatibilityDiagnostics(
   let visited = 0;
 
   const add = (code: Oas31CompatibilityDiagnosticCode, path: string, reason: string, value?: string) => {
-    const identity = `${code}:${path}:${value ?? ''}`;
+    const safeValue = value === undefined ? undefined : safeDiagnosticValue(value);
+    const identity = `${code}:${path}:${safeValue ?? ''}`;
     if (identities.has(identity)) return;
     identities.add(identity);
-    diagnostics.push({ code, path, reason, value });
+    diagnostics.push({ code, path, reason, value: safeValue });
   };
 
   const inspectRef = (ref: string, path: string) => {

@@ -55,3 +55,8 @@ loader 请求。
 `TypeError`，稳定错误码因此统一为 `RESOURCE_FETCH_BLOCKED`，不得猜测具体原因。
 
 完整结论、生产接口草案和测试矩阵见 [DECISION.md](./DECISION.md)。
+
+自 #705 起，浏览器探针直接打包并执行生产 `externalResourcePolicy.ts`，并用生产
+`ExternalResourceLoader` 验证精确授权项会请求一次、同图未授权项保持零请求；循环和图预算夹具仍由
+本目录的最小图探针提供。这样 CSP、CORS、redirect、credentials、取消、decoded-byte 与 exact grant
+证据不会只覆盖一份与产品脱离的策略副本。

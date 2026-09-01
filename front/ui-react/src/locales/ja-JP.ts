@@ -133,6 +133,52 @@ const jaJP = {
   'schema.example.none.budgetTitle': 'サンプル検索が予算に達しました',
   'schema.example.none.budgetDescription': '無制限のバックトラックを避けるため、今回はサンプルを生成しません。',
 
+  // OAS 3.1 外部リソース
+  'resource.summary.discovering.title': 'OAS 3.1 の外部リソースを確認しています',
+  'resource.summary.discovering.description': '参照を検出するだけで、自動的なネットワークリクエストは送信しません。',
+  'resource.summary.pending.title': '{{pending}} 件の外部ドキュメントに許可が必要です',
+  'resource.summary.pending.description':
+    '元の API ドキュメントは表示できます。外部リソースが必要な機能は一時的に利用できません。',
+  'resource.summary.loading.title': '許可された外部ドキュメントを読み込んでいます',
+  'resource.summary.loading.description':
+    'リクエストは資格情報なし、リダイレクトなし、リソース上限付きで実行されます。',
+  'resource.summary.ready.title': '{{loaded}} 件の外部ドキュメントを読み込み、登録しました',
+  'resource.summary.ready.description': 'Schema、ApiDoc、診断は同じ読み取り専用リソースグラフを共有します。',
+  'resource.summary.partial.title': '{{loaded}} 件を読み込み済み、{{pending}} 件が未処理です',
+  'resource.summary.partial.description':
+    '解決済みの領域は利用できます。不足リソースへの暗黙の再試行やネットワークアクセスは行いません。',
+  'resource.summary.failed.title': '外部リソースグラフに {{failed}} 件の診断があります',
+  'resource.summary.failed.description':
+    '入口ドキュメントは変更されていません。失敗した段階を確認し、対象だけを再試行できます。',
+  'resource.open': 'リソースを表示',
+  'resource.modal.title': 'OAS 3.1 外部リソース',
+  'resource.security.title': 'URL ごとに明示的な許可が必要です',
+  'resource.security.body':
+    '選択した正確な URL へ Cookie、Authorization、Referer を含まない GET を 1 回送信します。CORS が応答を拒否してもサーバーに届く場合があります。Knife4j は CSP、CORS、TLS を回避せず、プロキシも使用しません。',
+  'resource.pending.title': '許可待ちリソース',
+  'resource.pending.empty': '許可待ちのリソースはありません。',
+  'resource.selectAll': '許可待ちをすべて選択',
+  'resource.sameOrigin': '同一オリジン',
+  'resource.crossOrigin': 'クロスオリジン',
+  'resource.referenceSummary': '{{count}} 件の参照、最初の場所 {{source}}',
+  'resource.referenceDetails': '{{kind}} · 元の参照 {{reference}} · 解決ベース {{base}} · fragment {{fragment}}',
+  'resource.loaded.title': '現在のグラフで読み込み済み',
+  'resource.loaded.tag': '検証済み',
+  'resource.authorization.entry': '入口ドキュメント',
+  'resource.authorization.generation': '今回のみ許可',
+  'resource.authorization.document': 'このドキュメント用に記憶済み',
+  'resource.loaded.meta': '{{mediaType}} · {{bytes}} バイト · {{resources}} 件の Schema リソース識別子',
+  'resource.diagnostics.title': 'リソース診断',
+  'resource.loadOnce': '選択項目を今回だけ読み込む',
+  'resource.rememberAndLoad': 'このドキュメント用に記憶して読み込む',
+  'resource.cancelLoad': '読み込みを中止',
+  'resource.close': '閉じる',
+  'resource.retry': '1 回再試行',
+  'resource.remembered': '選択した正確なリソースをこのドキュメント用に記憶しました',
+  'resource.notRemembered': '許可を保存できませんでした。今回は一時許可として読み込みます',
+  'resource.registrationFailed':
+    '外部リソースを安全に登録できなかったため、Knife4j は外部リソースを含まない入口ドキュメントへフォールバックしました。',
+
   // ApiDoc
   'apiDoc.notFound.title': 'API ドキュメントが見つかりません',
   'apiDoc.notFound.desc':

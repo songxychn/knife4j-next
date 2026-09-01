@@ -34,7 +34,8 @@
     "react-i18next": "^14.0.0",
     "react-resizable": "^3.2.0",
     "react-router-dom": "^6.30.4",
-    "highlight.js": "^11.0.0"
+    "highlight.js": "^11.0.0",
+    "yaml": "2.8.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.31",
