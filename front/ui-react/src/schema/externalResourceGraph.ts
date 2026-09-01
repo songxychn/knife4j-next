@@ -53,6 +53,9 @@ export const DEFAULT_RESOURCE_LOAD_LIMITS: Readonly<ResourceLoadLimits> = Object
   maxYamlAliases: 100,
 });
 
+export const PORTABLE_SCHEMA_RESOURCES_EXTENSION = 'x-knife4j-schema-resources';
+export const PORTABLE_SCHEMA_RESOURCES_VERSION = 1;
+
 export interface ResourceReferenceEvidence {
   readonly sourceDocumentUriHash: string;
   readonly sourcePointer: string;
@@ -103,6 +106,13 @@ export interface ResourceGraphEdge {
   readonly state: 'local' | 'pending' | 'loaded' | 'failed';
 }
 
+/** Immutable location metadata for a resource or anchor already indexed by the graph. */
+export interface ResourceGraphTarget {
+  readonly ownerRetrievalUri: string;
+  readonly pointer: string;
+  readonly evaluationBaseUri: string;
+}
+
 export interface ResourceDiagnostic {
   readonly code: ResourceLoadErrorCode;
   readonly phase: ResourceDiagnosticPhase;
@@ -124,6 +134,8 @@ export interface ResourceGraphSnapshot {
   readonly entryRetrievalUri: string;
   readonly documentScope: string;
   readonly nodes: ReadonlyMap<string, ResourceGraphNode>;
+  readonly resourceTargets: ReadonlyMap<string, ResourceGraphTarget>;
+  readonly anchorTargets: ReadonlyMap<string, ResourceGraphTarget>;
   readonly edges: readonly ResourceGraphEdge[];
   readonly diagnostics: readonly ResourceDiagnostic[];
   readonly complete: boolean;
@@ -206,6 +218,7 @@ interface MutableGraphState {
 }
 
 const OAS_31_VERSION = /^3\.1\.\d+(?:[-+].*)?$/;
+const KNIFE4J_SCHEMA_RESOURCES_FIELD = /^x-knife4j-schema-resources(?:-(?:[2-9]|[1-9]\d+))?$/;
 const SUPPORTED_SCHEMA_DIALECT =
   /^(?:https:\/\/spec\.openapis\.org\/oas\/3\.1\/dialect\/base|https:\/\/json-schema\.org\/draft\/2020-12\/schema)#?$/;
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
@@ -903,6 +916,7 @@ function walkMediaType(
   if (!isRecord(value)) return;
   if (owns(value, 'schema'))
     walkSchema(value.schema, childPointer(pointer, 'schema'), baseUri, collector, emit, depth, generation);
+  walkExamples(value.examples, childPointer(pointer, 'examples'), baseUri, collector, emit, depth, generation);
   if (!isRecord(value.encoding)) return;
   Object.entries(value.encoding).forEach(([name, encoding]) => {
     if (!isRecord(encoding) || !isRecord(encoding.headers)) return;
@@ -977,6 +991,15 @@ function walkParameter(
           generation,
         );
       }
+      walkExamples(
+        parameter.examples,
+        childPointer(parameterPointer, 'examples'),
+        baseUri,
+        collector,
+        nestedEmit,
+        depth,
+        generation,
+      );
     },
   );
 }
@@ -1023,6 +1046,15 @@ function walkHeader(
           generation,
         );
       }
+      walkExamples(
+        header.examples,
+        childPointer(headerPointer, 'examples'),
+        baseUri,
+        collector,
+        nestedEmit,
+        depth,
+        generation,
+      );
     },
   );
 }
@@ -1318,6 +1350,21 @@ function walkExample(
   walkReferenceOr(value, pointer, baseUri, collector, emit, depth, generation, 'example', () => {});
 }
 
+function walkExamples(
+  value: unknown,
+  pointer: string,
+  baseUri: string,
+  collector: ScanCollector,
+  emit: boolean,
+  depth: number,
+  generation: number,
+): void {
+  if (!isRecord(value)) return;
+  Object.entries(value).forEach(([name, example]) =>
+    walkExample(example, childPointer(pointer, name), baseUri, collector, emit, depth, generation),
+  );
+}
+
 function walkSecurityScheme(
   value: unknown,
   pointer: string,
@@ -1356,6 +1403,27 @@ function walkOpenApiDocument(
     );
   }
   const baseUri = collector.sourceRetrievalUri;
+  Object.entries(document).forEach(([key, container]) => {
+    if (
+      !KNIFE4J_SCHEMA_RESOURCES_FIELD.test(key) ||
+      !isRecord(container) ||
+      container.version !== PORTABLE_SCHEMA_RESOURCES_VERSION ||
+      !isRecord(container.resources)
+    ) {
+      return;
+    }
+    Object.entries(container.resources).forEach(([name, schema]) =>
+      walkSchema(
+        schema,
+        childPointer(childPointer(childPointer('#', key), 'resources'), name),
+        baseUri,
+        collector,
+        emit,
+        depth,
+        generation,
+      ),
+    );
+  });
   if (isRecord(document.paths)) {
     Object.entries(document.paths).forEach(([path, item]) =>
       walkPathItem(item, childPointer(childPointer('#', 'paths'), path), baseUri, collector, emit, depth, generation),
@@ -2298,6 +2366,30 @@ export class ExternalResourceLoader {
       entryRetrievalUri: this.entryRetrievalUri,
       documentScope: this.documentScope,
       nodes: readonlyMap(state.nodes),
+      resourceTargets: readonlyMap(
+        new Map(
+          [...state.resourceTargets].map(([uri, target]) => [
+            uri,
+            Object.freeze({
+              ownerRetrievalUri: target.ownerRetrievalUri,
+              pointer: target.pointer,
+              evaluationBaseUri: target.evaluationBaseUri,
+            }),
+          ]),
+        ),
+      ),
+      anchorTargets: readonlyMap(
+        new Map(
+          [...state.anchorTargets].map(([uri, target]) => [
+            uri,
+            Object.freeze({
+              ownerRetrievalUri: target.ownerRetrievalUri,
+              pointer: target.pointer,
+              evaluationBaseUri: target.evaluationBaseUri,
+            }),
+          ]),
+        ),
+      ),
       edges,
       diagnostics: Object.freeze([...state.diagnostics]),
       complete: edges.every((edge) => edge.state === 'local' || edge.state === 'loaded'),

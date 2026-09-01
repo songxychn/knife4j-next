@@ -79,6 +79,18 @@ describe('resource graph discovery and exact grants', () => {
     expect(snapshot.nodes.get(resourceUri)?.resourceUris).toEqual(
       expect.arrayContaining([resourceUri, 'https://canonical.example.test/common']),
     );
+    expect(snapshot.resourceTargets.get(resourceUri)).toMatchObject({
+      ownerRetrievalUri: resourceUri,
+      pointer: '#',
+    });
+    expect(snapshot.resourceTargets.get('https://canonical.example.test/common')).toMatchObject({
+      ownerRetrievalUri: resourceUri,
+      pointer: '#',
+    });
+    expect(snapshot.anchorTargets.get('https://canonical.example.test/common#namedB')).toMatchObject({
+      ownerRetrievalUri: resourceUri,
+      pointer: '#/$defs/B',
+    });
     expect(Object.isFrozen(snapshot.nodes.get(resourceUri)?.document)).toBe(true);
   });
 
@@ -94,6 +106,59 @@ describe('resource graph discovery and exact grants', () => {
     expect(callbackMap).toBe(snapshot.nodes);
     expect(() => Map.prototype.clear.call(callbackMap)).toThrow();
     expect(snapshot.nodes.size).toBe(1);
+
+    snapshot.resourceTargets.forEach((_value, _key, map) => {
+      callbackMap = map;
+    });
+    expect(callbackMap).toBe(snapshot.resourceTargets);
+    expect(() => Map.prototype.clear.call(callbackMap)).toThrow();
+    expect(snapshot.resourceTargets.size).toBeGreaterThan(0);
+  });
+
+  test('indexes marked portable Schema resources without treating similarly named user data as schemas', () => {
+    const originalUri = 'https://schemas.example.test/original.json';
+    const ignoredUri = 'https://schemas.example.test/ignored.json';
+    const document = {
+      openapi: '3.1.1',
+      info: { title: 'Portable', version: '1.0.0' },
+      paths: {
+        '/value': {
+          get: {
+            responses: {
+              200: {
+                description: 'ok',
+                content: {
+                  'application/json': { schema: { $ref: `${originalUri}#/$defs/value` } },
+                },
+              },
+            },
+          },
+        },
+      },
+      'x-knife4j-schema-resources': {
+        userOwned: { $id: ignoredUri, type: 'string' },
+      },
+      'x-knife4j-schema-resources-10': {
+        version: 1,
+        resources: {
+          original: {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            $id: originalUri,
+            $defs: { value: { type: 'string' } },
+          },
+        },
+      },
+    };
+    const loader = new ExternalResourceLoader(document, entryUri, { pageUri });
+    const snapshot = loader.currentSnapshot();
+
+    expect(snapshot.complete).toBe(true);
+    expect(loader.currentDiscovery().candidates).toEqual([]);
+    expect(snapshot.resourceTargets.get(originalUri)).toMatchObject({
+      ownerRetrievalUri: entryUri,
+      pointer: '#/x-knife4j-schema-resources-10/resources/original',
+    });
+    expect(snapshot.resourceTargets.has(ignoredUri)).toBe(false);
   });
 
   test('uses embedded ids as the base for relative refs and resolves local anchors and dynamic anchors', async () => {
@@ -314,6 +379,58 @@ describe('resource graph discovery and exact grants', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].displayUri).toContain('/schemas/dog.json');
     expect(candidates[0].references[0].kind).toBe('discriminator-mapping');
+  });
+
+  test('discovers Example Object references in parameters, headers, and media types', () => {
+    const loader = new ExternalResourceLoader(
+      entryDocument(
+        {},
+        {
+          paths: {
+            '/pets': {
+              get: {
+                parameters: [
+                  {
+                    name: 'filter',
+                    in: 'query',
+                    examples: { parameter: { $ref: './examples/parameter.json' } },
+                  },
+                ],
+                responses: {
+                  200: {
+                    description: 'ok',
+                    headers: {
+                      'X-Trace': {
+                        examples: { header: { $ref: './examples/header.json' } },
+                      },
+                    },
+                    content: {
+                      'application/json': {
+                        examples: { media: { $ref: './examples/media.json' } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      ),
+      entryUri,
+      { pageUri },
+    );
+
+    const candidates = loader.discover().candidates;
+    expect(candidates.map((candidate) => candidate.retrievalUri)).toEqual([
+      'https://docs.knife4j.example/v3/examples/header.json',
+      'https://docs.knife4j.example/v3/examples/media.json',
+      'https://docs.knife4j.example/v3/examples/parameter.json',
+    ]);
+    expect(
+      candidates
+        .flatMap((candidate) => candidate.references)
+        .every((reference) => reference.kind === 'reference-object'),
+    ).toBe(true);
   });
 
   test('resolves path-relative discriminator mappings from the document retrieval URI, not a Schema id', () => {

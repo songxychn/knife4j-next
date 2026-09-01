@@ -245,7 +245,15 @@ const jaJP = {
   'apiOpenApi.download.unsupported':
     'このブラウザーはファイルのダウンロードに対応していません。JSON をコピーして手動で保存してください。',
   'apiOpenApi.download.versionUnsupported':
-    '単一オペレーションのダウンロードは現在 OpenAPI 3.0.x のみ対応しています。このドキュメントは引き続き表示・コピーできます。',
+    '単一オペレーションのダウンロードは OpenAPI 3.0.x と 3.1.x に対応しています。このドキュメントは引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas31Preparing':
+    'ポータブルな OAS 3.1 ドキュメントを準備しています。現在の内容は引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas31Unavailable':
+    '現在、ポータブルな OAS 3.1 ドキュメントを生成できません。現在の内容は引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas31Blocked':
+    '参照クロージャが不完全なため、ポータブルな OAS 3.1 ドキュメントはまだダウンロードできません。',
+  'apiOpenApi.download.oas31Blocked.desc':
+    '不足している外部リソースを読み込むか、次の参照を修正してください。プレビューとコピーは引き続き利用できます。',
   'apiOpenApi.serialize.failed':
     'この API の OpenAPI JSON を生成できませんでした。API ドキュメントを確認して、もう一度お試しください。',
 

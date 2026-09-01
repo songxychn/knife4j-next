@@ -5,40 +5,40 @@ import { useTranslation } from 'react-i18next';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeBlock from './CodeBlock';
 import { copyToClipboard } from '../../utils/clipboard';
-import {
-  buildOperationOpenApiFilename,
-  buildOperationOpenApiPreviewDocument,
-  downloadOperationOpenApiJson,
-  serializeOperationOpenApiDocument,
-  supportsOperationOpenApiDownload,
-} from './operationOpenApiDocument';
-
-type OpenApiState =
-  { status: 'empty' } | { status: 'error' } | { status: 'ready'; downloadable: boolean; json: string };
+import { useExternalResources, useSchemaEngine } from '../../context/SchemaEngineContext';
+import { buildOperationOpenApiFilename, downloadOperationOpenApiJson } from './operationOpenApiDocument';
+import { buildOpenApiViewState, type Oas31ExportAvailability } from './openApiViewState';
 
 export default function OpenApiView() {
   const { t } = useTranslation();
   const { loading, swaggerDoc, operation } = useCurrentOperation();
+  const schemaEngine = useSchemaEngine();
+  const externalResources = useExternalResources();
 
-  const openApiState = useMemo<OpenApiState>(() => {
-    if (!swaggerDoc || !operation) return { status: 'empty' };
-    try {
-      const document = buildOperationOpenApiPreviewDocument(
-        swaggerDoc,
-        operation.path,
-        operation.method,
-        operation.source,
-      );
-      if (!document) return { status: 'empty' };
-      return {
-        status: 'ready',
-        downloadable: operation.source !== 'webhook' && supportsOperationOpenApiDownload(swaggerDoc),
-        json: serializeOperationOpenApiDocument(document),
-      };
-    } catch {
-      return { status: 'error' };
+  const oas31Availability = useMemo<Oas31ExportAvailability>(() => {
+    const snapshot = externalResources.snapshot;
+    if (
+      schemaEngine.status === 'loading' ||
+      externalResources.status === 'discovering' ||
+      externalResources.status === 'loading'
+    ) {
+      return { status: 'loading' };
     }
-  }, [swaggerDoc, operation]);
+    if (
+      schemaEngine.status === 'ready' &&
+      snapshot &&
+      schemaEngine.retrievalUri === snapshot.entryRetrievalUri &&
+      externalResources.documentScope === snapshot.documentScope
+    ) {
+      return { status: 'ready', retrievalUri: schemaEngine.retrievalUri, snapshot };
+    }
+    return { status: 'unavailable' };
+  }, [externalResources.documentScope, externalResources.snapshot, externalResources.status, schemaEngine]);
+
+  const openApiState = useMemo(
+    () => buildOpenApiViewState(swaggerDoc, operation, oas31Availability),
+    [oas31Availability, operation, swaggerDoc],
+  );
 
   if (loading) {
     return (
@@ -95,14 +95,41 @@ export default function OpenApiView() {
                 {t('apiOpenApi.download')}
               </Button>
             </div>
-          ) : (
+          ) : openApiState.notice ? (
             <Alert
-              type="info"
+              type={
+                openApiState.notice.kind === 'oas31-blocked' || openApiState.notice.kind === 'oas31-unavailable'
+                  ? 'warning'
+                  : 'info'
+              }
               showIcon
-              message={t('apiOpenApi.download.versionUnsupported')}
+              message={t(
+                openApiState.notice.kind === 'version-unsupported'
+                  ? 'apiOpenApi.download.versionUnsupported'
+                  : openApiState.notice.kind === 'oas31-loading'
+                    ? 'apiOpenApi.download.oas31Preparing'
+                    : openApiState.notice.kind === 'oas31-blocked'
+                      ? 'apiOpenApi.download.oas31Blocked'
+                      : 'apiOpenApi.download.oas31Unavailable',
+              )}
+              description={
+                openApiState.notice.kind === 'oas31-blocked' ? (
+                  <div>
+                    <div>{t('apiOpenApi.download.oas31Blocked.desc')}</div>
+                    <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+                      {openApiState.notice.blockers.map((blocker, index) => (
+                        <li key={`${blocker.code}-${blocker.sourcePointer}-${blocker.resourceDisplay ?? ''}-${index}`}>
+                          <code>{blocker.sourcePointer}</code>
+                          {blocker.resourceDisplay ? ` → ${blocker.resourceDisplay}` : ''} ({blocker.code})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : undefined
+              }
               style={{ marginBottom: 8 }}
             />
-          )}
+          ) : null}
           <CodeBlock code={openApiState.json} language="json" maxHeight={600} onCopy={handleCopy} />
         </div>
       ) : openApiState.status === 'error' ? (
