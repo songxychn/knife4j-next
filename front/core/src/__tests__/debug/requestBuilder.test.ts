@@ -504,6 +504,56 @@ describe('validateRequired', () => {
     expect(validateRequired(multipartModel, form)).toHaveLength(0);
   });
 
+  test('OAS 3.1 multipart files defer required diagnostics to the shared form plan', () => {
+    const multipartModel: OperationDebugModel = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyContents: [
+        {
+          mediaType: 'multipart/form-data',
+          category: 'multipart',
+          schema: { type: 'object', required: ['file'], properties: { file: { format: 'binary' } } },
+          fileFields: ['file'],
+          oas31Form: {
+            diagnostics: [],
+            fields: [
+              {
+                name: 'file',
+                schema: { format: 'binary' },
+                type: 'unknown',
+                required: true,
+                readOnly: false,
+                file: true,
+                multiple: false,
+                maxFiles: 1,
+                encoding: {
+                  kind: 'content',
+                  contentTypes: ['application/octet-stream'],
+                  contentTypeExplicit: false,
+                  headers: [],
+                },
+              },
+            ],
+          },
+        },
+      ],
+      bodyRequired: true,
+    };
+
+    expect(
+      validateRequired(multipartModel, {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'multipart/form-data',
+        fileFields: { file: [] },
+      }),
+    ).toEqual([]);
+  });
+
   test('binary body: validates that a file was selected', () => {
     const binaryModel: OperationDebugModel = {
       pathParams: [],
@@ -1024,6 +1074,38 @@ describe('buildCurl', () => {
     expect(curl).toContain('TODO append file fields');
     // 其他 header 仍保留
     expect(curl).toContain('X-Trace: 1');
+  });
+
+  test('keeps non-form-data legacy multipart on the pre-existing raw curl path', () => {
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/mixed' },
+      query: {},
+      body: '{"legacy":"body"}',
+      contentType: 'multipart/mixed',
+    });
+
+    expect(curl).toContain("-H \\\n  'Content-Type: multipart/mixed'");
+    expect(curl).toContain('-d \\\n  \'{"legacy":"body"}\'');
+    expect(curl).not.toContain('-F');
+    expect(curl).not.toContain('TODO append file fields');
+  });
+
+  test('does not classify a legacy media type parameter value as multipart/form-data', () => {
+    const contentType = 'application/example; profile="multipart/form-data"';
+    const curl = buildCurl({
+      url: 'http://localhost:8080/upload',
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+      query: {},
+      body: 'legacy body',
+      contentType,
+    });
+
+    expect(curl).toContain(`Content-Type: ${contentType}`);
+    expect(curl).toContain("-d \\\n  'legacy body'");
+    expect(curl).not.toContain('-F');
   });
 
   test('multipart body emits an explicitly empty field from the final request body', () => {

@@ -260,7 +260,7 @@ const enUS = {
   'apiDebug.send': 'Send',
   'apiDebug.reset': 'Reset',
   'apiDebug.sending': 'Sending...',
-  'apiDebug.schemaValidation.title': 'Request parameters or body do not match the OAS 3.1 JSON Schema',
+  'apiDebug.schemaValidation.title': 'The request parameters or body have OAS 3.1 diagnostic issues',
   'apiDebug.schemaValidation.description':
     'The request has not been sent. Fix the issues below, or explicitly continue to test an invalid request.',
   'apiDebug.schemaValidation.invalidJson': 'The request body is not valid JSON.',
@@ -278,6 +278,28 @@ const enUS = {
   'apiDebug.schemaValidation.engineNotReady': 'The JSON Schema engine is not ready',
   'apiDebug.schemaValidation.engineFailed':
     'Pre-send schema diagnostics are unavailable. This request will continue with the previous behavior: {{message}}',
+  'apiDebug.formDiagnostic.FORM_SCHEMA_NOT_OBJECT': 'A form body requires an object Schema with properties.',
+  'apiDebug.formDiagnostic.ENCODING_PROPERTY_UNKNOWN': 'The encoding references a field that is not in the Schema.',
+  'apiDebug.formDiagnostic.ENCODING_INVALID': 'The encoding definition is invalid and cannot be generated reliably.',
+  'apiDebug.formDiagnostic.UNSUPPORTED_STYLE': 'The selected encoding style is not supported.',
+  'apiDebug.formDiagnostic.UNDEFINED_STYLE_COMBINATION': 'This style and explode combination is undefined.',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_INVALID': 'The part contentType is invalid.',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_AMBIGUOUS':
+    'The part contentType is ambiguous; its encoding cannot be guessed.',
+  'apiDebug.formDiagnostic.UNSUPPORTED_CONTENT_TYPE': 'The part value cannot be encoded with its declared contentType.',
+  'apiDebug.formDiagnostic.CONTENT_ENCODING_HEADER_CONFLICT':
+    'Schema contentEncoding conflicts with the Content-Transfer-Encoding header constraint.',
+  'apiDebug.formDiagnostic.HEADER_INVALID': 'The part Header Object is invalid or unsafe to generate.',
+  'apiDebug.formDiagnostic.HEADER_REQUIRED': 'A required part header is missing.',
+  'apiDebug.formDiagnostic.HEADER_INPUT_INVALID': 'The part header value cannot be serialized with its Schema.',
+  'apiDebug.formDiagnostic.FORM_INPUT_INVALID_JSON': 'The field value is not a valid JSON logical instance.',
+  'apiDebug.formDiagnostic.FORM_UNSAFE_NUMBER': 'The field contains a number the browser cannot represent losslessly.',
+  'apiDebug.formDiagnostic.FORM_BODY_REQUIRED': 'The request body is required, but there are no form values to send.',
+  'apiDebug.formDiagnostic.FORM_DEPENDENT_REQUIRED': 'A form field required by another present field is missing.',
+  'apiDebug.formDiagnostic.FORM_BUDGET_EXCEEDED': 'The form field or part count exceeds the diagnostic budget.',
+  'apiDebug.formDiagnostic.FILE_REQUIRED': 'A required file is missing.',
+  'apiDebug.formDiagnostic.FILE_CARDINALITY': 'The selected file count does not satisfy the Schema.',
+  'apiDebug.formDiagnostic.FILE_MEDIA_TYPE': 'The file media type does not match the encoding declaration.',
   'apiDebug.responseSchemaValidation.title': 'Response body does not match the OAS 3.1 JSON Schema',
   'apiDebug.responseSchemaValidation.nonBlocking':
     'This diagnostic does not change the HTTP status, response body, headers, or request history.',
@@ -328,7 +350,7 @@ const enUS = {
   'apiDebug.history.applied': 'Applied to form',
   'apiDebug.history.reselectFiles': 'Files were not stored in history; please re-select them before sending',
   'apiDebug.history.sensitiveSkipped':
-    'Sensitive headers were not restored from history; rely on current auth settings',
+    'Sensitive headers were not restored from history; re-enter them if needed or use the current auth settings',
   'apiDebug.error.title': 'Request failed',
   'apiDebug.response.headers': 'Response Headers',
   'apiDebug.response.status': 'Status: ',
@@ -377,6 +399,9 @@ const enUS = {
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
   'apiDebug.body.jsonPart.placeholder': 'Enter JSON for this part',
+  'apiDebug.body.partHeader.placeholder': 'Enter the part header value',
+  'apiDebug.body.partHeader.ariaLabel': '{{header}} part header for {{field}}',
+  'apiDebug.body.partContentType': 'Part Content-Type: {{contentType}}',
 
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': 'Preview',
@@ -385,7 +410,7 @@ const enUS = {
   'apiDebug.preview.headers': 'Headers',
   'apiDebug.preview.query': 'Query',
   'apiDebug.preview.body': 'Body',
-  'apiDebug.preview.bodyMultipart': 'Body (multipart/form-data — file fields attached at send time)',
+  'apiDebug.preview.bodyMultipart': 'Body (ordered multipart part plan)',
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': 'Equivalent cURL',
   'apiDebug.preview.copyCurl': 'Copy cURL',

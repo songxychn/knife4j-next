@@ -6,6 +6,7 @@ import {
   resolveLocalJsonPointer,
   type BodyContent,
   type DebugParam,
+  type Oas31FormPartHeader,
   type OperationDebugModel,
 } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
@@ -26,6 +27,10 @@ export interface SchemaFieldRow {
   isFile: boolean;
   isMultipleFile: boolean;
   isJson: boolean;
+  /** Structured OAS 3.1 values use a JSON editor even for style-based encoding. */
+  structured: boolean;
+  contentTypes: readonly string[];
+  partHeaders: readonly Oas31FormPartHeader[];
   schema?: JsonRecord;
 }
 
@@ -279,6 +284,41 @@ export function initialFormFieldsForContent(
   return { ...(defaults.formFieldsByMediaType[bodyContent.mediaType] ?? {}) };
 }
 
+function initialPartHeaderValue(header: Oas31FormPartHeader): string {
+  if (header.example !== undefined) return stringifyDebugValue(header.example, header.type);
+  if (header.default !== undefined) return stringifyDebugValue(header.default, header.type);
+  return '';
+}
+
+export function initialFormPartHeadersForContent(
+  bodyContent: BodyContent | undefined,
+): Record<string, Record<string, string>> {
+  if (!bodyContent?.oas31Form || bodyContent.category !== 'multipart') return {};
+  return Object.fromEntries(
+    bodyContent.oas31Form.fields
+      .filter((field) => !field.readOnly && field.encoding.headers.length > 0)
+      .map((field) => [
+        field.name,
+        Object.fromEntries(field.encoding.headers.map((header) => [header.name, initialPartHeaderValue(header)])),
+      ]),
+  );
+}
+
+export function mergeCachedFormPartHeaders(
+  bodyContent: BodyContent | undefined,
+  cached: Record<string, Record<string, string>>,
+): Record<string, Record<string, string>> {
+  const next = initialFormPartHeadersForContent(bodyContent);
+  for (const [fieldName, headers] of Object.entries(next)) {
+    const cachedHeaders = cached[fieldName];
+    if (!cachedHeaders) continue;
+    for (const headerName of Object.keys(headers)) {
+      if (cachedHeaders[headerName] !== undefined) headers[headerName] = cachedHeaders[headerName];
+    }
+  }
+  return next;
+}
+
 export function buildBodyContentDefaults(
   doc: SwaggerDoc,
   operation: MenuOperation,
@@ -309,6 +349,32 @@ export function buildBodyContentDefaults(
 }
 
 export function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
+  if (bodyContent.oas31Form) {
+    return bodyContent.oas31Form.fields
+      .filter((field) => !field.readOnly)
+      .map((field) => {
+        const schema = isRecord(field.schema) ? field.schema : undefined;
+        const contentTypes = field.encoding.contentTypes;
+        return {
+          name: field.name,
+          type: field.file ? 'file' : field.type,
+          format: field.format,
+          required: field.required,
+          description: typeof schema?.description === 'string' ? schema.description : undefined,
+          default: schema?.default,
+          example: schema?.example,
+          enum: Array.isArray(schema?.enum) ? schema.enum : undefined,
+          isFile: field.file,
+          isMultipleFile: field.multiple,
+          isJson: !field.file && field.encoding.kind === 'content' && contentTypes.some(isJsonMediaType),
+          structured: !field.file && (field.type === 'array' || field.type === 'object'),
+          contentTypes,
+          partHeaders: field.encoding.headers,
+          schema,
+        };
+      });
+  }
+
   const schema = bodyContent.schema;
   if (!isRecord(schema) || schema.type !== 'object' || !isRecord(schema.properties)) return [];
 
@@ -351,6 +417,9 @@ export function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] 
         isFile,
         isMultipleFile,
         isJson: !isFile && jsonFields.has(name),
+        structured: false,
+        contentTypes: [],
+        partHeaders: [],
         schema: prop,
       };
     });
@@ -358,8 +427,16 @@ export function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] 
 
 export function initialFieldValue(field: SchemaFieldRow, doc: SwaggerDoc | JsonRecord): string {
   if (field.isFile) return '';
-  if (field.example !== undefined && field.example !== null) return stringifyDebugValue(field.example, field.type);
-  if (field.default !== undefined && field.default !== null) return stringifyDebugValue(field.default, field.type);
+  const stringifyFieldValue = (value: unknown): string => {
+    if (value === null) {
+      const declaredType = field.schema?.type;
+      const nullable = declaredType === 'null' || (Array.isArray(declaredType) && declaredType.includes('null'));
+      return nullable ? 'null' : '';
+    }
+    return field.isJson ? (JSON.stringify(value, null, 2) ?? '') : stringifyDebugValue(value, field.type);
+  };
+  if (field.example !== undefined) return stringifyFieldValue(field.example);
+  if (field.default !== undefined) return stringifyFieldValue(field.default);
   if (
     field.isJson ||
     field.type === 'array' ||
@@ -369,7 +446,7 @@ export function initialFieldValue(field: SchemaFieldRow, doc: SwaggerDoc | JsonR
     field.schema?.properties
   ) {
     const example = schemaExampleValue(field.schema, doc);
-    if (example !== undefined && example !== null) return stringifyDebugValue(example, field.type);
+    if (example !== undefined) return stringifyFieldValue(example);
     if (field.isJson) return '{}';
   }
   if (field.enum && field.enum.length > 0) return String(field.enum[0]);
@@ -394,7 +471,9 @@ function initialFormFieldsFor(
       if (field.isFile) continue;
       const exampleValue = mediaExample[field.name];
       if (exampleValue !== undefined && exampleValue !== null) {
-        initial[field.name] = stringifyDebugValue(exampleValue, field.type);
+        initial[field.name] = field.isJson
+          ? (JSON.stringify(exampleValue, null, 2) ?? '')
+          : stringifyDebugValue(exampleValue, field.type);
       }
     }
   }

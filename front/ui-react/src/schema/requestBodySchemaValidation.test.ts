@@ -174,6 +174,59 @@ describe('request body validation preparation', () => {
 });
 
 describe('request body schema evaluation', () => {
+  test('evaluates the logical multipart instance while keeping files outside JSON Schema', async () => {
+    const mediaType = 'multipart/form-data';
+    const document = documentWithSchema(
+      {
+        type: 'object',
+        required: ['metadata', 'avatar'],
+        properties: {
+          metadata: {
+            type: 'object',
+            required: ['active'],
+            properties: { active: { type: 'boolean' } },
+          },
+          avatar: false,
+        },
+        dependentRequired: { metadata: ['avatar'] },
+        additionalProperties: false,
+      },
+      mediaType,
+    );
+    const currentOperation = operation('/pets/{id}', document.paths['/pets/{id}'].post!);
+    const session = await createSchemaDocumentSession(
+      document,
+      'https://fixtures.knife4j.example/form-diagnostics.json',
+    );
+    sessions.push(session);
+
+    const prepare = (instance: Record<string, unknown>) =>
+      prepareRequestBodySchemaEvaluation({
+        document,
+        operation: currentOperation,
+        schemaMediaType: mediaType,
+        effectiveContentType: mediaType,
+        body: undefined,
+        formBodyPlan: {
+          kind: 'multipart',
+          mediaType,
+          parts: [],
+          instance,
+          ignoredProperties: ['avatar'],
+          diagnostics: [],
+        },
+      });
+    const valid = prepare({ metadata: { active: true } });
+    const invalid = prepare({ metadata: {} });
+    if (valid.status !== 'ready' || invalid.status !== 'ready') throw new Error('expected form preparations');
+
+    await expect(evaluateRequestBodySchema(session, valid)).resolves.toEqual({ status: 'valid' });
+    await expect(evaluateRequestBodySchema(session, invalid)).resolves.toMatchObject({
+      status: 'invalid',
+      issues: expect.arrayContaining([expect.objectContaining({ keyword: 'required' })]),
+    });
+  });
+
   test('uses JSON Schema 2020-12 conditionals and boolean schemas through the document session', async () => {
     const mediaType = 'application/problem+json';
     const conditionalSchema = {

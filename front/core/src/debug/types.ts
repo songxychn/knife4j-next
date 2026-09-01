@@ -86,6 +86,78 @@ export interface DebugParam {
 /** requestBody 内容分类 */
 export type BodyContentType = 'json' | 'urlencoded' | 'multipart' | 'raw';
 
+/** A document or editor diagnostic produced while planning an OAS 3.1 form body. */
+export interface FormBodyDiagnostic {
+  readonly code:
+    | 'FORM_SCHEMA_NOT_OBJECT'
+    | 'ENCODING_PROPERTY_UNKNOWN'
+    | 'ENCODING_INVALID'
+    | 'UNSUPPORTED_STYLE'
+    | 'UNDEFINED_STYLE_COMBINATION'
+    | 'CONTENT_TYPE_INVALID'
+    | 'CONTENT_TYPE_AMBIGUOUS'
+    | 'UNSUPPORTED_CONTENT_TYPE'
+    | 'CONTENT_ENCODING_HEADER_CONFLICT'
+    | 'HEADER_INVALID'
+    | 'HEADER_REQUIRED'
+    | 'HEADER_INPUT_INVALID'
+    | 'FORM_INPUT_INVALID_JSON'
+    | 'FORM_UNSAFE_NUMBER'
+    | 'FORM_BODY_REQUIRED'
+    | 'FORM_DEPENDENT_REQUIRED'
+    | 'FORM_BUDGET_EXCEEDED'
+    | 'FILE_REQUIRED'
+    | 'FILE_CARDINALITY'
+    | 'FILE_MEDIA_TYPE';
+  readonly message: string;
+  readonly fieldName?: string;
+  readonly headerName?: string;
+}
+
+/** One Header Object declared under a multipart Encoding Object. */
+export interface Oas31FormPartHeader {
+  readonly name: string;
+  readonly required: boolean;
+  readonly description?: string;
+  readonly type: string;
+  readonly schema?: SchemaValue;
+  readonly serialization?: Oas31ParameterSerialization;
+  readonly default?: unknown;
+  readonly example?: unknown;
+}
+
+/** Encoding Object semantics attached to one request-body property. */
+export interface Oas31FormFieldEncoding {
+  readonly kind: 'content' | 'style';
+  readonly contentTypes: readonly string[];
+  readonly contentTypeExplicit: boolean;
+  readonly style?: string;
+  readonly explode?: boolean;
+  readonly allowReserved?: boolean;
+  readonly headers: readonly Oas31FormPartHeader[];
+}
+
+/** OAS 3.1 form editor/serializer model for one Schema property. */
+export interface Oas31FormField {
+  readonly name: string;
+  readonly schema: SchemaValue;
+  readonly type: string;
+  readonly format?: string;
+  readonly required: boolean;
+  readonly readOnly: boolean;
+  readonly file: boolean;
+  readonly multiple: boolean;
+  readonly minFiles?: number;
+  readonly maxFiles?: number;
+  readonly encoding: Oas31FormFieldEncoding;
+}
+
+/** OAS 3.1-only analysis kept beside the legacy BodyContent shape. */
+export interface Oas31FormBodyModel {
+  readonly fields: readonly Oas31FormField[];
+  readonly diagnostics: readonly FormBodyDiagnostic[];
+}
+
 /** 单个 content-type 对应的 body 结构 */
 export interface BodyContent {
   /** 原始 MIME 类型 */
@@ -118,6 +190,8 @@ export interface BodyContent {
    * 这些字段在 UI 中以 JSON 文本框形式提交，发送时作为独立 JSON part 附加。
    */
   jsonFields?: string[];
+  /** Present only for OAS 3.1 urlencoded / declared multipart request bodies. */
+  oas31Form?: Oas31FormBodyModel;
 }
 
 // ─── OperationDebugModel ──────────────────────────────
@@ -170,7 +244,79 @@ export interface DebugFormValues {
    * 用于 buildCurl 输出 `-F 'field=...;type=application/json'`。
    */
   jsonFields?: string[];
+  /** Raw values for Encoding Object Header Objects: field name -> header name -> editor value. */
+  formPartHeaders?: Record<string, Record<string, string>>;
 }
+
+/** File metadata consumed by the pure planner without reading file bytes. */
+export interface FormFileMetadata {
+  readonly name: string;
+  readonly type?: string;
+  readonly size?: number;
+}
+
+export interface FormBodyInputLimits {
+  readonly maxFieldBytes?: number;
+  readonly maxTotalBytes?: number;
+  readonly maxParts?: number;
+}
+
+export interface SerializeOas31FormBodyInput {
+  readonly formFields?: Readonly<Record<string, string>>;
+  readonly formFieldNamesToIncludeWhenEmpty?: readonly string[];
+  readonly fileFields?: Readonly<Record<string, readonly unknown[]>>;
+  readonly partHeaders?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly bodyRequired?: boolean;
+  readonly limits?: FormBodyInputLimits;
+}
+
+export interface UrlencodedFormEntry {
+  readonly sourceField: string;
+  readonly name: string;
+  readonly value: string;
+  readonly encodedName: string;
+  readonly encodedValue: string;
+}
+
+export interface MultipartTextPart {
+  readonly kind: 'text';
+  readonly sourceField: string;
+  readonly name: string;
+  readonly value: string;
+  readonly contentType: string;
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+export interface MultipartFilePart {
+  readonly kind: 'file';
+  readonly sourceField: string;
+  readonly name: string;
+  readonly fileIndex: number;
+  readonly fileName: string;
+  readonly fileSize?: number;
+  readonly contentType: string;
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+export type MultipartPart = MultipartTextPart | MultipartFilePart;
+
+export type FormBodyEncodingPlan =
+  | {
+      readonly kind: 'urlencoded';
+      readonly body: string;
+      readonly entries: readonly UrlencodedFormEntry[];
+      readonly instance: Readonly<Record<string, ParameterInstance>>;
+      readonly ignoredProperties: readonly string[];
+      readonly diagnostics: readonly FormBodyDiagnostic[];
+    }
+  | {
+      readonly kind: 'multipart';
+      readonly mediaType: string;
+      readonly parts: readonly MultipartPart[];
+      readonly instance: Readonly<Record<string, ParameterInstance>>;
+      readonly ignoredProperties: readonly string[];
+      readonly diagnostics: readonly FormBodyDiagnostic[];
+    };
 
 /** 全局参数来源 */
 export interface GlobalParamValues {
@@ -272,6 +418,8 @@ export interface BuiltRequest {
   parameterInputDiagnostics?: ParameterInputDiagnostic[];
   /** OAS 3.1 cookie pairs were serialized into the forbidden browser `Cookie` request header. */
   hasExplicitCookieParameters?: boolean;
+  /** Single OAS 3.1 form encoding plan shared by preview, cURL and browser dispatch. */
+  formBodyPlan?: FormBodyEncodingPlan;
 }
 
 export interface BuiltParameterInstance {

@@ -268,7 +268,7 @@ const jaJP = {
   'apiDebug.send': '送信',
   'apiDebug.reset': 'リセット',
   'apiDebug.sending': '送信中...',
-  'apiDebug.schemaValidation.title': 'リクエストパラメータまたはボディが OAS 3.1 JSON Schema に適合していません',
+  'apiDebug.schemaValidation.title': 'リクエストパラメータまたはボディに OAS 3.1 診断の問題があります',
   'apiDebug.schemaValidation.description':
     'リクエストはまだ送信されていません。以下の問題を修正するか、無効なリクエストのテストとして明示的に送信してください。',
   'apiDebug.schemaValidation.invalidJson': 'リクエストボディは有効な JSON ではありません。',
@@ -286,6 +286,28 @@ const jaJP = {
   'apiDebug.schemaValidation.engineNotReady': 'JSON Schema エンジンの準備ができていません',
   'apiDebug.schemaValidation.engineFailed':
     '送信前の Schema 診断を利用できません。このリクエストは従来どおり送信を続行します：{{message}}',
+  'apiDebug.formDiagnostic.FORM_SCHEMA_NOT_OBJECT': 'フォームボディには properties を持つ object Schema が必要です。',
+  'apiDebug.formDiagnostic.ENCODING_PROPERTY_UNKNOWN': 'encoding が Schema にないフィールドを参照しています。',
+  'apiDebug.formDiagnostic.ENCODING_INVALID': 'encoding の定義が無効で、安全に生成できません。',
+  'apiDebug.formDiagnostic.UNSUPPORTED_STYLE': 'この encoding style はサポートされていません。',
+  'apiDebug.formDiagnostic.UNDEFINED_STYLE_COMBINATION': 'この style と explode の組み合わせは未定義です。',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_INVALID': 'part の contentType が無効です。',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_AMBIGUOUS':
+    'part の contentType が曖昧なため、エンコード方法を推測できません。',
+  'apiDebug.formDiagnostic.UNSUPPORTED_CONTENT_TYPE': 'part の値を宣言された contentType でエンコードできません。',
+  'apiDebug.formDiagnostic.CONTENT_ENCODING_HEADER_CONFLICT':
+    'Schema contentEncoding と Content-Transfer-Encoding Header の制約が競合しています。',
+  'apiDebug.formDiagnostic.HEADER_INVALID': 'part Header Object が無効、または安全に生成できません。',
+  'apiDebug.formDiagnostic.HEADER_REQUIRED': '必須の part Header がありません。',
+  'apiDebug.formDiagnostic.HEADER_INPUT_INVALID': 'part Header の値を Schema に従ってシリアライズできません。',
+  'apiDebug.formDiagnostic.FORM_INPUT_INVALID_JSON': 'フィールド値は有効な JSON 論理インスタンスではありません。',
+  'apiDebug.formDiagnostic.FORM_UNSAFE_NUMBER': 'フィールドにブラウザーで損失なく表現できない数値があります。',
+  'apiDebug.formDiagnostic.FORM_BODY_REQUIRED': 'リクエストボディは必須ですが、送信するフォーム値がありません。',
+  'apiDebug.formDiagnostic.FORM_DEPENDENT_REQUIRED': '入力済みの別フィールドが必要とするフィールドがありません。',
+  'apiDebug.formDiagnostic.FORM_BUDGET_EXCEEDED': 'フォームフィールドまたは part 数が診断予算を超えています。',
+  'apiDebug.formDiagnostic.FILE_REQUIRED': '必須ファイルがありません。',
+  'apiDebug.formDiagnostic.FILE_CARDINALITY': '選択したファイル数が Schema 制約を満たしていません。',
+  'apiDebug.formDiagnostic.FILE_MEDIA_TYPE': 'ファイルのメディアタイプが encoding 宣言と一致しません。',
   'apiDebug.responseSchemaValidation.title': 'レスポンスボディが OAS 3.1 JSON Schema に適合していません',
   'apiDebug.responseSchemaValidation.nonBlocking':
     'この診断は HTTP ステータス、レスポンス本文、Header、リクエスト履歴を変更しません。',
@@ -334,7 +356,8 @@ const jaJP = {
   'apiDebug.history.status.aborted': 'キャンセル',
   'apiDebug.history.applied': 'フォームに適用しました',
   'apiDebug.history.reselectFiles': '履歴にファイルは保存されていません。送信前にファイルを再選択してください',
-  'apiDebug.history.sensitiveSkipped': '機密ヘッダーは履歴から復元されません。現在の認証設定を利用してください',
+  'apiDebug.history.sensitiveSkipped':
+    '機密 Header は履歴から復元されません。必要に応じて再入力するか、現在の認証設定を利用してください',
   'apiDebug.error.title': 'リクエストに失敗しました',
   'apiDebug.response.headers': 'レスポンス Headers',
   'apiDebug.response.status': 'ステータス：',
@@ -383,6 +406,9 @@ const jaJP = {
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
   'apiDebug.body.jsonPart.placeholder': 'この part の JSON を入力してください',
+  'apiDebug.body.partHeader.placeholder': 'part Header の値を入力してください',
+  'apiDebug.body.partHeader.ariaLabel': '{{field}} の {{header}} part Header',
+  'apiDebug.body.partContentType': 'Part Content-Type：{{contentType}}',
 
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': 'プレビュー',
@@ -391,7 +417,7 @@ const jaJP = {
   'apiDebug.preview.headers': 'Headers',
   'apiDebug.preview.query': 'Query',
   'apiDebug.preview.body': 'リクエストボディ',
-  'apiDebug.preview.bodyMultipart': 'リクエストボディ（multipart/form-data、ファイルは送信時に添付されます）',
+  'apiDebug.preview.bodyMultipart': 'リクエストボディ（順序付き multipart part プラン）',
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': '同等の cURL',
   'apiDebug.preview.copyCurl': 'cURL をコピー',

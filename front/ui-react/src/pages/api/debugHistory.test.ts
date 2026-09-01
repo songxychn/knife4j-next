@@ -8,6 +8,7 @@ import {
   abortEntry,
   appendPending,
   buildMultipartHistoryBody,
+  buildOas31MultipartHistoryBody,
   clearHistory,
   completeEntry,
   createPendingEntry,
@@ -82,6 +83,53 @@ describe('debugHistory', () => {
     expect(isSensitiveHeaderName('X-Api-Key')).toBe(true);
     expect(isSensitiveHeaderName('apiKey')).toBe(true);
     expect(isSensitiveHeaderName('Content-Type')).toBe(false);
+  });
+
+  it('stores multipart plan metadata without sensitive part Header values', () => {
+    const body = buildOas31MultipartHistoryBody({
+      kind: 'multipart',
+      mediaType: 'multipart/form-data',
+      instance: { metadata: { active: true } },
+      ignoredProperties: ['avatar'],
+      diagnostics: [],
+      parts: [
+        {
+          kind: 'text',
+          sourceField: 'metadata',
+          name: 'metadata',
+          value: '{"active":true}',
+          contentType: 'application/json',
+          headers: { Authorization: 'Bearer secret', 'X-Part-Trace': 'trace-1' },
+        },
+        {
+          kind: 'file',
+          sourceField: 'avatar',
+          name: 'avatar',
+          fileIndex: 0,
+          fileName: 'avatar.png',
+          fileSize: 12,
+          contentType: 'image/png',
+          headers: {},
+        },
+      ],
+    });
+
+    expect(JSON.parse(body)).toEqual([
+      {
+        name: 'metadata',
+        value: '{"active":true}',
+        contentType: 'application/json',
+        headers: { Authorization: DEBUG_HISTORY_MASK, 'X-Part-Trace': 'trace-1' },
+      },
+      {
+        name: 'avatar',
+        file: 'avatar.png',
+        size: 12,
+        contentType: 'image/png',
+        headers: {},
+      },
+    ]);
+    expect(body).not.toContain('Bearer secret');
   });
 
   it('truncates large bodies and marks truncated', () => {
@@ -411,6 +459,9 @@ describe('debugHistory', () => {
         selectedContentType: 'application/json',
         body: largeBody,
         formFields: { note: largeField },
+        formPartHeaders: {
+          metadata: { 'X-Trace': largeField, Authorization: 'Bearer secret' },
+        },
         rawMode: 'json',
         customQueryParams: [],
         customBodyParams: [{ id: 'b1', name: 'note', value: largeField }],
@@ -424,6 +475,8 @@ describe('debugHistory', () => {
     expect(entry.formSnapshot?.body.length).toBeLessThan(largeBody.length);
     expect(new TextEncoder().encode(entry.formSnapshot!.body).length).toBeLessThanOrEqual(DEBUG_HISTORY_BODY_MAX_BYTES);
     expect(entry.formSnapshot?.formFields.note.length).toBeLessThan(largeField.length);
+    expect(entry.formSnapshot?.formPartHeaders?.metadata['X-Trace'].length).toBeLessThan(largeField.length);
+    expect(entry.formSnapshot?.formPartHeaders?.metadata.Authorization).toBe(DEBUG_HISTORY_MASK);
     expect(entry.formSnapshot?.customBodyParams[0].value.length).toBeLessThan(largeField.length);
     expect(entry.formSnapshot?.customCookies[0].value).toBe(DEBUG_HISTORY_MASK);
 
@@ -434,6 +487,8 @@ describe('debugHistory', () => {
       DEBUG_HISTORY_BODY_MAX_BYTES,
     );
     expect(loaded.formSnapshot?.formFields.note.length).toBeLessThan(largeField.length);
+    expect(loaded.formSnapshot?.formPartHeaders?.metadata['X-Trace'].length).toBeLessThan(largeField.length);
+    expect(loaded.formSnapshot?.formPartHeaders?.metadata.Authorization).toBe(DEBUG_HISTORY_MASK);
     expect(loaded.formSnapshot?.customBodyParams[0].value.length).toBeLessThan(largeField.length);
     expect(loaded.formSnapshot?.customCookies[0].value).toBe(DEBUG_HISTORY_MASK);
   });

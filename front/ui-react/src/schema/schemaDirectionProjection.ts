@@ -9,6 +9,18 @@ export interface DirectionalSchemaProjection {
   referenceFor(reference: string): string;
 }
 
+export interface DirectionalSchemaProjectionOptions {
+  /**
+   * Properties that are intentionally outside JSON evaluation (for example
+   * multipart files). They are removed from required/dependentRequired while
+   * the remaining logical object is evaluated normally.
+   */
+  readonly ignoredProperties?: readonly {
+    readonly reference: string;
+    readonly names: readonly string[];
+  }[];
+}
+
 interface SchemaRoot {
   readonly path: readonly string[];
   readonly schema: JsonSchema;
@@ -261,6 +273,7 @@ export function createDirectionalSchemaProjection(
   retrievalUri: string,
   direction: SchemaEvaluationDirection,
   namespaceUri: string,
+  options: DirectionalSchemaProjectionOptions = {},
 ): DirectionalSchemaProjection {
   const originalRetrieval = resourcePart(retrievalUri);
   const documentRecord = document as SwaggerDoc & { $id?: unknown };
@@ -269,6 +282,18 @@ export function createDirectionalSchemaProjection(
   const namespace = new URL(`${direction}/`, namespaceUri).href;
   const projectedRetrieval = new URL('bundle', namespace).href;
   const roots = collectOpenApiSchemaRoots(document);
+  const explicitlyIgnoredNames = new Map<string, ReadonlySet<string>>();
+  for (const entry of options.ignoredProperties ?? []) {
+    try {
+      explicitlyIgnoredNames.set(
+        referenceLookupKey(absoluteReference(entry.reference, originalRetrieval)),
+        new Set(entry.names),
+      );
+    } catch {
+      // The eventual reference lookup reports an unavailable schema. Keeping
+      // projection construction side-effect free is safer than guessing here.
+    }
+  }
   let projectionMetadataEntries = 0;
   let projectionMetadataOperations = 0;
   const reserveProjectionMetadataEntries = (count: number): void => {
@@ -1022,6 +1047,9 @@ export function createDirectionalSchemaProjection(
   }
 
   for (const root of roots) {
+    const rootIgnoredNames =
+      explicitlyIgnoredNames.get(referenceLookupKey(locationReference(originalRetrieval, root.path))) ??
+      emptyDirectionalProperties;
     definitions[root.key] = cloneSchemaWithBudget(
       root.schema,
       {
@@ -1030,7 +1058,7 @@ export function createDirectionalSchemaProjection(
         projectedResource: projectedRetrieval,
         projectedPath: ['$defs', root.key],
       },
-      emptyIgnoredProperties,
+      extendIgnoredProperties(emptyIgnoredProperties, rootIgnoredNames),
       dynamicScopeForSchema([], root.schema, originalDocumentResource),
     );
   }

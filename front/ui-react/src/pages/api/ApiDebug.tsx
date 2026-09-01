@@ -39,6 +39,8 @@ import type {
   BuiltRequest,
   DebugFormValues,
   DebugParam,
+  FormBodyDiagnostic,
+  FormBodyEncodingPlan,
   GlobalParamValues,
   OperationDebugModel,
   ParameterInputDiagnostic,
@@ -90,6 +92,7 @@ import {
   abortEntry,
   appendPending,
   buildMultipartHistoryBody,
+  buildOas31MultipartHistoryBody,
   clearHistory,
   completeEntry,
   createPendingEntry,
@@ -125,13 +128,16 @@ import {
   extractSchemaFields,
   initialBodyValueForContent,
   initialFormFieldsForContent,
+  initialFormPartHeadersForContent,
   mergeCachedFormFields,
+  mergeCachedFormPartHeaders,
   paramKey,
   stringifyDebugValue,
   type BodyContentDefaults,
   type ParamValueMap,
   type SchemaFieldRow,
 } from './debugDefaultValues';
+import { materializeMultipartBody } from './formBodyRequest';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import { buildInitialParamEnabled, collectOas31ParameterValues, isNullableOas31Parameter } from './oas31ParameterForm';
@@ -183,8 +189,14 @@ type ParameterInputRequestSchemaDiagnosticIssue =
       readonly target: 'parameter';
     });
 
+type FormBodyRequestSchemaDiagnosticIssue = FormBodyDiagnostic & {
+  readonly kind: 'form-body';
+  readonly target: 'body';
+};
+
 type RequestSchemaDiagnosticIssue =
   | { readonly kind: 'invalid-json'; readonly target: 'body' }
+  | FormBodyRequestSchemaDiagnosticIssue
   | ParameterInputRequestSchemaDiagnosticIssue
   | {
       readonly kind: 'invalid-schema';
@@ -820,8 +832,9 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
     );
   }
 
-  // JSON part (encoding.contentType = application/json) → TextArea
-  if (field.isJson) {
+  // OAS 3.1 structured form values are authored as JSON logical instances,
+  // regardless of whether their wire representation is content- or style-based.
+  if (field.isJson || field.structured) {
     return (
       <Input.TextArea
         size="small"
@@ -942,6 +955,8 @@ interface BodyTabProps {
   setSelectedContentType: (v: string) => void;
   formFields: Record<string, string>;
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  formPartHeaders: Record<string, Record<string, string>>;
+  setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
   enableDynamicParameter: boolean;
   customBodyParams: CustomParamRow[];
   setCustomBodyParams: (rows: CustomParamRow[]) => void;
@@ -960,6 +975,8 @@ function BodyTab({
   setSelectedContentType,
   formFields,
   setFormFields,
+  formPartHeaders,
+  setFormPartHeaders,
   enableDynamicParameter,
   customBodyParams,
   setCustomBodyParams,
@@ -985,6 +1002,7 @@ function BodyTab({
     const target = bodyContents.find((b) => b.mediaType === mediaType);
     if (target) {
       setFormFields(initialFormFieldsForContent(target, bodyDefaults));
+      setFormPartHeaders(initialFormPartHeadersForContent(target));
       setCustomBodyParams([]);
       // 重置 fileFields
       fileFieldsRef.current = {};
@@ -1057,6 +1075,8 @@ function BodyTab({
           bodyContent={currentBody}
           formFields={formFields}
           setFormFields={setFormFields}
+          formPartHeaders={formPartHeaders}
+          setFormPartHeaders={setFormPartHeaders}
           fileFieldsRef={fileFieldsRef}
         />
       )}
@@ -1215,16 +1235,32 @@ interface MultipartFormProps {
   bodyContent: BodyContent;
   formFields: Record<string, string>;
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  formPartHeaders: Record<string, Record<string, string>>;
+  setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
   fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
 }
 
-function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }: MultipartFormProps) {
+function MultipartForm({
+  bodyContent,
+  formFields,
+  setFormFields,
+  formPartHeaders,
+  setFormPartHeaders,
+  fileFieldsRef,
+}: MultipartFormProps) {
   const { t } = useTranslation();
   const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>({});
   const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
 
   const updateField = (name: string, value: string) => {
     setFormFields((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const updatePartHeader = (fieldName: string, headerName: string, value: string) => {
+    setFormPartHeaders((prev) => ({
+      ...prev,
+      [fieldName]: { ...(prev[fieldName] ?? {}), [headerName]: value },
+    }));
   };
 
   const handleFileChange = (name: string, info: { fileList: UploadFile[] }) => {
@@ -1279,6 +1315,7 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
       title: t('apiDebug.col.value'),
       key: 'value',
       render: (_value, record: SchemaFieldRow) => {
+        let editor: React.ReactNode;
         if (record.isFile) {
           // issue #251: only enable multi-select for schemas that are actually array
           // of binary/base64. Otherwise the server endpoint is a single-file handler
@@ -1288,7 +1325,7 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
           // `maxCount={1}` on top of `multiple={false}` makes the UI replace the
           // previously staged file on re-select instead of appending — matches user
           // expectation for a single-file control.
-          return (
+          editor = (
             <Upload
               beforeUpload={() => false} // 阻止自动上传
               multiple={record.isMultipleFile}
@@ -1301,9 +1338,8 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
               </Button>
             </Upload>
           );
-        }
-        if (record.isJson) {
-          return (
+        } else if (record.isJson || record.structured) {
+          editor = (
             <TextArea
               size="small"
               value={formFields[record.name] ?? '{}'}
@@ -1313,13 +1349,41 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
               style={{ fontFamily: 'monospace', fontSize: 12 }}
             />
           );
+        } else {
+          editor = (
+            <SchemaFieldInput
+              field={record}
+              value={formFields[record.name] ?? ''}
+              onChange={(next) => updateField(record.name, next)}
+            />
+          );
         }
+
         return (
-          <SchemaFieldInput
-            field={record}
-            value={formFields[record.name] ?? ''}
-            onChange={(next) => updateField(record.name, next)}
-          />
+          <Space direction="vertical" size={6} style={{ width: '100%' }}>
+            {editor}
+            {record.partHeaders.map((header) => (
+              <Input
+                key={header.name}
+                size="small"
+                value={formPartHeaders[record.name]?.[header.name] ?? ''}
+                onChange={(event) => updatePartHeader(record.name, header.name, event.target.value)}
+                placeholder={header.description ?? t('apiDebug.body.partHeader.placeholder')}
+                prefix={
+                  <Space size={4}>
+                    <Text code style={{ fontSize: 11 }}>
+                      {header.name}
+                    </Text>
+                    {header.required && <Text type="danger">*</Text>}
+                  </Space>
+                }
+                aria-label={t('apiDebug.body.partHeader.ariaLabel', {
+                  field: record.name,
+                  header: header.name,
+                })}
+              />
+            ))}
+          </Space>
         );
       },
     },
@@ -1330,6 +1394,11 @@ function MultipartForm({ bodyContent, formFields, setFormFields, fileFieldsRef }
       render: (_value, record: SchemaFieldRow) => (
         <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
           {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
+          {record.contentTypes.length > 0 && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {t('apiDebug.body.partContentType', { contentType: record.contentTypes.join(', ') })}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -1483,14 +1552,46 @@ interface PreviewTabPanelProps {
   onCopyText: (text: string) => void;
 }
 
+function formatMultipartPlanBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
+  return JSON.stringify(
+    plan.parts.map((part) =>
+      part.kind === 'file'
+        ? {
+            name: part.name,
+            file: part.fileName,
+            ...(part.fileSize === undefined ? {} : { size: part.fileSize }),
+            contentType: part.contentType,
+            headers: part.headers,
+          }
+        : {
+            name: part.name,
+            value: part.value,
+            contentType: part.contentType,
+            headers: part.headers,
+          },
+    ),
+    null,
+    2,
+  );
+}
+
+function applyMaterializedMultipartContentType(headers: Record<string, string>, contentType: string | undefined): void {
+  for (const name of Object.keys(headers)) {
+    if (name.toLowerCase() === 'content-type') delete headers[name];
+  }
+  if (contentType) headers['Content-Type'] = contentType;
+}
+
 function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   const { t } = useTranslation();
   if (!result.ok) {
     return <Alert type="error" showIcon message={t('apiDebug.error.title')} description={result.error} />;
   }
   const { built, curl } = result.value;
-  const isMultipart = built.contentType.toLowerCase().includes('multipart/form-data');
-  const hasBody = built.body !== undefined && built.body !== '';
+  const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
+  const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/form-data');
+  const previewBody = multipartPlan ? formatMultipartPlanBody(multipartPlan) : built.body;
+  const hasBody = previewBody !== undefined && previewBody !== '';
 
   const prettyJson = (raw: string): string => {
     try {
@@ -1658,7 +1759,7 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
         <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
-            {built.contentType.includes('json') ? prettyJson(built.body ?? '') : (built.body ?? '')}
+            {built.contentType.includes('json') ? prettyJson(previewBody ?? '') : (previewBody ?? '')}
           </pre>
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
@@ -1702,6 +1803,7 @@ interface InitialDebugState {
   selectedContentType: string;
   body: string;
   formFields: Record<string, string>;
+  formPartHeaders: Record<string, Record<string, string>>;
   rawMode: RawMode;
   customQueryParams: CustomParamRow[];
   customBodyParams: CustomParamRow[];
@@ -1740,6 +1842,7 @@ function buildInitialDebugState(
     selectedContentType: firstBody?.mediaType ?? '',
     body: initialBodyValueForContent(firstBody, bodyDefaults),
     formFields: initialFormFieldsForContent(firstBody, bodyDefaults),
+    formPartHeaders: initialFormPartHeadersForContent(firstBody),
     rawMode: inferRawMode(firstBody),
     customQueryParams: [],
     customBodyParams: [],
@@ -1810,6 +1913,9 @@ function restoreInitialDebugStateFromCache(
     formFields: restoreCachedBody
       ? mergeCachedFormFields(selectedBody, cached.formFields, bodyDefaults)
       : initialFormFieldsForContent(selectedBody, bodyDefaults),
+    formPartHeaders: restoreCachedBody
+      ? mergeCachedFormPartHeaders(selectedBody, cached.formPartHeaders)
+      : initialFormPartHeadersForContent(selectedBody),
     rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
     customQueryParams: cached.customQueryParams,
     customBodyParams: restoreCachedBody ? cached.customBodyParams : [],
@@ -1950,6 +2056,7 @@ export default function ApiDebug() {
   // ── requestBody 多内容类型状态 ──
   const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
+  const [formPartHeaders, setFormPartHeaders] = useState<Record<string, Record<string, string>>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const binaryBodyFileRef = useRef<File | null>(null);
   const [rawMode, setRawMode] = useState<RawMode>('text');
@@ -2016,6 +2123,7 @@ export default function ApiDebug() {
     setSelectedContentType(initial.selectedContentType);
     setBody(initial.body);
     setFormFields(initial.formFields);
+    setFormPartHeaders(initial.formPartHeaders);
     fileFieldsRef.current = {};
     binaryBodyFileRef.current = null;
     setRawMode(initial.rawMode);
@@ -2088,6 +2196,7 @@ export default function ApiDebug() {
       selectedContentType,
       body,
       formFields,
+      formPartHeaders,
       rawMode,
       customQueryParams,
       customBodyParams,
@@ -2103,6 +2212,7 @@ export default function ApiDebug() {
     customQueryParams,
     debugCacheKey,
     formFields,
+    formPartHeaders,
     method,
     paramEnabled,
     paramValues,
@@ -2122,6 +2232,14 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     setFormFields(next);
   }, []);
+
+  const setFormPartHeadersFromUser = useCallback(
+    (next: React.SetStateAction<Record<string, Record<string, string>>>) => {
+      debugDefaultEditRevisionRef.current += 1;
+      setFormPartHeaders(next);
+    },
+    [],
+  );
 
   const updateValue = (param: DebugParam, next: string) => {
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
@@ -2431,6 +2549,13 @@ export default function ApiDebug() {
         : undefined;
     const formFieldNamesToIncludeWhenEmpty = structuredForm?.formFieldNamesToIncludeWhenEmpty ?? [];
     const oas31ParameterValues = collectOas31ParameterValues(debugModel, paramValues, paramEnabled);
+    const fileSnapshot =
+      category === 'multipart'
+        ? Object.fromEntries(Object.entries(fileFieldsRef.current).map(([name, files]) => [name, [...files]]))
+        : undefined;
+    const partHeaderSnapshot = Object.fromEntries(
+      Object.entries(formPartHeaders).map(([fieldName, headers]) => [fieldName, { ...headers }]),
+    );
 
     return {
       pathParams: collectForIn(debugModel.pathParams),
@@ -2443,8 +2568,9 @@ export default function ApiDebug() {
       binaryBodyFileName: currentBody?.binary ? binaryBodyFileRef.current?.name : undefined,
       formFields: structuredForm?.formFields,
       ...(formFieldNamesToIncludeWhenEmpty.length > 0 ? { formFieldNamesToIncludeWhenEmpty } : {}),
-      fileFields: category === 'multipart' ? fileFieldsRef.current : undefined,
+      fileFields: fileSnapshot,
       jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
+      formPartHeaders: category === 'multipart' ? partHeaderSnapshot : undefined,
     };
   };
 
@@ -2491,6 +2617,9 @@ export default function ApiDebug() {
       selectedContentType,
       body,
       formFields: { ...formFields },
+      formPartHeaders: Object.fromEntries(
+        Object.entries(formPartHeaders).map(([fieldName, headers]) => [fieldName, { ...headers }]),
+      ),
       rawMode,
       customQueryParams: customQueryParams.map((row) => ({ ...row })),
       customBodyParams: customBodyParams.map((row) => ({ ...row })),
@@ -2539,6 +2668,20 @@ export default function ApiDebug() {
       setSelectedContentType(snap.selectedContentType);
       setBody(snap.body);
       setFormFields(snap.formFields);
+      const snapshotBodyContent = debugModel.bodyContents.find(
+        (candidate) => candidate.mediaType === snap.selectedContentType,
+      );
+      const restoredPartHeaders = Object.fromEntries(
+        Object.entries(snap.formPartHeaders ?? {}).map(([fieldName, headers]) => [
+          fieldName,
+          Object.fromEntries(
+            Object.entries(headers).filter(
+              ([name, value]) => value !== DEBUG_HISTORY_MASK && !isSensitiveHeaderName(name),
+            ),
+          ),
+        ]),
+      );
+      setFormPartHeaders(mergeCachedFormPartHeaders(snapshotBodyContent, restoredPartHeaders));
       setRawMode(snap.rawMode);
       setCustomQueryParams(snap.customQueryParams);
       setCustomBodyParams(snap.customBodyParams);
@@ -2559,7 +2702,10 @@ export default function ApiDebug() {
       }
       const hadSensitive =
         snap.customHeaders.some((row) => row.value === DEBUG_HISTORY_MASK || isSensitiveHeaderName(row.name)) ||
-        snap.customCookies.some((row) => row.value === DEBUG_HISTORY_MASK || isSensitiveHeaderName(row.name));
+        snap.customCookies.some((row) => row.value === DEBUG_HISTORY_MASK || isSensitiveHeaderName(row.name)) ||
+        Object.values(snap.formPartHeaders ?? {}).some((headers) =>
+          Object.entries(headers).some(([name, value]) => value === DEBUG_HISTORY_MASK || isSensitiveHeaderName(name)),
+        );
       if (hadSensitive) {
         void message.info(t('apiDebug.history.sensitiveSkipped'));
       }
@@ -2612,17 +2758,21 @@ export default function ApiDebug() {
       return;
     }
 
-    // multipart 场景：需要手动构建 FormData（requestBuilder 只处理文本字段）
-    const category = getCurrentCategory();
-    const isMultipart = category === 'multipart';
-    const activeBodyContent = debugModel.bodyContents.find((item) => item.mediaType === selectedContentType);
+    // From here on, use only the immutable preview snapshot. A schema override
+    // must not pick up fields/files/header values edited after diagnostics ran.
+    const snapshotContentType = formValues.selectedContentType ?? built.contentType;
+    const activeBodyContent = debugModel.bodyContents.find((item) => item.mediaType === snapshotContentType);
+    const category = activeBodyContent?.category ?? 'raw';
+    const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
+    const isMultipart = Boolean(multipartPlan) || category === 'multipart';
     const isBinaryBody = Boolean(activeBodyContent?.binary);
     // core 的 multipart built.body 是已经按发送规则过滤后的文本 part 映射，
     // 历史、cURL 和真实 FormData 共用它，避免在 UI 层维护第二套过滤逻辑。
     const multipartTextFields = isMultipart ? (JSON.parse(built.body ?? '{}') as Record<string, string>) : {};
-    const hasMultipartFile = Object.values(fileFieldsRef.current).some((files) => files.length > 0);
+    const multipartFiles = (formValues.fileFields ?? {}) as Record<string, File[]>;
+    const hasMultipartFile = Object.values(multipartFiles).some((files) => files.length > 0);
     const hasBodyInput = isMultipart
-      ? Object.keys(multipartTextFields).length > 0 || hasMultipartFile
+      ? (multipartPlan?.parts.length ?? Object.keys(multipartTextFields).length) > 0 || hasMultipartFile
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
         : built.body !== undefined && built.body !== '';
@@ -2673,6 +2823,13 @@ export default function ApiDebug() {
             ? { ...issue, kind: 'invalid-json', target: 'parameter' }
             : { ...issue, kind: 'unsafe-number', target: 'parameter' },
         ) ?? [];
+      diagnosticIssues.push(
+        ...(built.formBodyPlan?.diagnostics.map((issue): FormBodyRequestSchemaDiagnosticIssue => ({
+          ...issue,
+          kind: 'form-body',
+          target: 'body',
+        })) ?? []),
+      );
       let totalDiagnosticIssues = diagnosticIssues.length;
       const bodyPreparation = prepareRequestBodySchemaEvaluation({
         document: swaggerDoc,
@@ -2680,6 +2837,7 @@ export default function ApiDebug() {
         schemaMediaType: selectedContentType,
         effectiveContentType: effectiveRequestContentType(built.headers, built.contentType),
         body: built.body,
+        formBodyPlan: built.formBodyPlan,
       });
       const parameterPreparation = prepareParameterSchemaEvaluation({
         document: swaggerDoc,
@@ -2796,15 +2954,17 @@ export default function ApiDebug() {
       // multipart: built.body only represents text fields and cannot carry filenames.
       // Persist the sent text parts + filename/size placeholders (binary content is never stored).
       const historyBody = isMultipart
-        ? buildMultipartHistoryBody(
-            multipartTextFields,
-            Object.fromEntries(
-              Object.entries(fileFieldsRef.current).map(([name, fileList]) => [
-                name,
-                fileList.map((file) => ({ name: file.name, size: file.size })),
-              ]),
-            ),
-          )
+        ? multipartPlan
+          ? buildOas31MultipartHistoryBody(multipartPlan)
+          : buildMultipartHistoryBody(
+              multipartTextFields,
+              Object.fromEntries(
+                Object.entries(multipartFiles).map(([name, fileList]) => [
+                  name,
+                  fileList.map((file) => ({ name: file.name, size: file.size })),
+                ]),
+              ),
+            )
         : isBinaryBody && binaryBodyFileRef.current
           ? JSON.stringify({ file: binaryBodyFileRef.current.name, size: binaryBodyFileRef.current.size })
           : built.body;
@@ -2864,7 +3024,11 @@ export default function ApiDebug() {
         signal: abortController.signal,
       };
 
-      if (isMultipart) {
+      if (multipartPlan) {
+        const materialized = materializeMultipartBody(multipartPlan, multipartFiles);
+        init.body = materialized.body;
+        applyMaterializedMultipartContentType(init.headers as Record<string, string>, materialized.contentType);
+      } else if (isMultipart) {
         // 构建 FormData
         const fd = new FormData();
         const jsonFieldSet = new Set(formValues.jsonFields ?? []);
@@ -2886,7 +3050,7 @@ export default function ApiDebug() {
         // `fileFieldsMultiple` from knife4j-core to decide, matching the UI control
         // rendered in MultipartForm.
         const multipleFileNames = new Set(activeBodyContent?.fileFieldsMultiple ?? []);
-        const files = fileFieldsRef.current;
+        const files = multipartFiles;
         for (const [name, fileList] of Object.entries(files)) {
           if (fileList.length === 0) continue;
           if (multipleFileNames.has(name)) {
@@ -3461,6 +3625,8 @@ export default function ApiDebug() {
             setSelectedContentType={setSelectedContentType}
             formFields={formFields}
             setFormFields={setFormFieldsFromUser}
+            formPartHeaders={formPartHeaders}
+            setFormPartHeaders={setFormPartHeadersFromUser}
             enableDynamicParameter={settings.enableDynamicParameter}
             customBodyParams={customBodyParams}
             setCustomBodyParams={setCustomBodyParams}
@@ -3581,6 +3747,15 @@ export default function ApiDebug() {
                     return (
                       <li key={`${issue.target}:${location}:number:${index}`} style={{ marginBottom: 6 }}>
                         <Text code>{location}</Text> <Text>{t('apiDebug.schemaValidation.parameterUnsafeNumber')}</Text>
+                      </li>
+                    );
+                  }
+                  if (issue.kind === 'form-body') {
+                    const formLocation =
+                      [issue.fieldName, issue.headerName].filter(Boolean).join(' / ') || 'requestBody';
+                    return (
+                      <li key={`body:${formLocation}:${issue.code}:${index}`} style={{ marginBottom: 6 }}>
+                        <Text code>{formLocation}</Text> <Text>{t(`apiDebug.formDiagnostic.${issue.code}`)}</Text>
                       </li>
                     );
                   }

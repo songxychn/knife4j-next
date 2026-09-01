@@ -8,7 +8,9 @@ import {
   extractSchemaFields,
   initialBodyValueForContent,
   initialFormFieldsForContent,
+  initialFormPartHeadersForContent,
   mergeCachedFormFields,
+  mergeCachedFormPartHeaders,
 } from './debugDefaultValues';
 
 function operationFrom(doc: SwaggerDoc, path: string, method: string): MenuOperation {
@@ -441,5 +443,66 @@ describe('debugDefaultValues', () => {
     expect(byName.avatar).toMatchObject({ isFile: true, isMultipleFile: false });
     expect(byName.attachments).toMatchObject({ isFile: true, isMultipleFile: true });
     expect(byName.metadata.isJson).toBe(true);
+  });
+
+  it('exposes OAS 3.1 logical editors and multipart Header Object defaults', () => {
+    const doc = {
+      openapi: '3.1.1',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/upload': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      metadata: { type: 'object' },
+                      label: { type: 'string', default: 'hello' },
+                      nullable: { type: ['string', 'null'], default: null },
+                      avatar: { format: 'binary' },
+                      ignored: { type: 'string', readOnly: true },
+                    },
+                  },
+                  encoding: {
+                    metadata: {
+                      contentType: 'application/json',
+                      headers: {
+                        'X-Part-Trace': {
+                          required: true,
+                          schema: { type: 'string', default: 'trace-default' },
+                        },
+                      },
+                    },
+                    label: { contentType: 'application/json' },
+                  },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+    const debugModel = buildOperationDebugModel({ doc, path: '/upload', method: 'post' });
+    const bodyContent = debugModel.bodyContents[0];
+    const byName = Object.fromEntries(extractSchemaFields(bodyContent).map((field) => [field.name, field]));
+
+    expect(Object.keys(byName)).toEqual(['metadata', 'label', 'nullable', 'avatar']);
+    expect(byName.metadata).toMatchObject({ isJson: true, structured: true, contentTypes: ['application/json'] });
+    expect(byName.metadata.partHeaders).toEqual([
+      expect.objectContaining({ name: 'X-Part-Trace', required: true, default: 'trace-default' }),
+    ]);
+    expect(byName.avatar).toMatchObject({ isFile: true, isMultipleFile: false });
+    const defaults = buildBodyContentDefaults(doc, operationFrom(doc, '/upload', 'post'), debugModel);
+    expect(initialFormFieldsForContent(bodyContent, defaults).label).toBe('"hello"');
+    expect(initialFormFieldsForContent(bodyContent, defaults).nullable).toBe('null');
+    expect(initialFormPartHeadersForContent(bodyContent)).toEqual({
+      metadata: { 'X-Part-Trace': 'trace-default' },
+    });
+    expect(mergeCachedFormPartHeaders(bodyContent, { metadata: { 'X-Part-Trace': 'manual' } })).toEqual({
+      metadata: { 'X-Part-Trace': 'manual' },
+    });
   });
 });

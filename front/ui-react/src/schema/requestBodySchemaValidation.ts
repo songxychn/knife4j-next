@@ -1,7 +1,11 @@
 import type { EvaluationResult } from 'knife4j-schema-engine';
+import type { FormBodyEncodingPlan } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
-import type { SchemaDocumentSession } from './schemaDocumentSession';
-import { isOas31SchemaDocument } from './schemaDocumentSession';
+import {
+  evaluateSchemaDocumentDirectionallyIgnoringProperties,
+  isOas31SchemaDocument,
+  type SchemaDocumentSession,
+} from './schemaDocumentSession';
 import { asOpenApiRecord as asRecord, followLocalReference, pointerReference } from './openApiDocumentPointer';
 import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
 
@@ -16,6 +20,7 @@ export type RequestBodySchemaPreparation =
       readonly status: 'ready';
       readonly reference: string;
       readonly instance: unknown;
+      readonly ignoredProperties?: readonly string[];
     };
 
 export type RequestBodySchemaIssue = SchemaEvaluationIssue;
@@ -36,6 +41,8 @@ export interface PrepareRequestBodySchemaEvaluationOptions {
   /** The Content-Type that the built request will actually send. */
   readonly effectiveContentType: string;
   readonly body: string | undefined;
+  /** Logical OAS 3.1 form instance and file/read-only exclusions from the shared encoding plan. */
+  readonly formBodyPlan?: FormBodyEncodingPlan;
 }
 
 type LocatedSchema =
@@ -85,14 +92,26 @@ function locateRequestBodySchema(document: SwaggerDoc, operation: MenuOperation,
 export function prepareRequestBodySchemaEvaluation(
   options: PrepareRequestBodySchemaEvaluationOptions,
 ): RequestBodySchemaPreparation {
-  const { document, operation, schemaMediaType, effectiveContentType, body } = options;
+  const { document, operation, schemaMediaType, effectiveContentType, body, formBodyPlan } = options;
   if (!isOas31SchemaDocument(document) || !operation) return { status: 'skipped', reason: 'version' };
-  if (!isJsonCompatibleMediaType(effectiveContentType)) return { status: 'skipped', reason: 'content-type' };
-  if (body === undefined || body.trim() === '') return { status: 'skipped', reason: 'empty-body' };
+  if (!formBodyPlan && !isJsonCompatibleMediaType(effectiveContentType)) {
+    return { status: 'skipped', reason: 'content-type' };
+  }
+  if (!formBodyPlan && (body === undefined || body.trim() === '')) return { status: 'skipped', reason: 'empty-body' };
 
   const located = locateRequestBodySchema(document, operation, schemaMediaType);
   if (located.status === 'none') return { status: 'skipped', reason: 'no-schema' };
   if (located.status === 'unavailable') return located;
+
+  if (formBodyPlan) {
+    return {
+      status: 'ready',
+      reference: located.reference,
+      instance: formBodyPlan.instance,
+      ignoredProperties: formBodyPlan.ignoredProperties,
+    };
+  }
+  if (body === undefined) return { status: 'skipped', reason: 'empty-body' };
 
   try {
     return {
@@ -110,9 +129,17 @@ export async function evaluateRequestBodySchema(
   preparation: Extract<RequestBodySchemaPreparation, { status: 'ready' }>,
   options: { readonly signal?: AbortSignal; readonly maxIssues?: number } = {},
 ): Promise<RequestBodySchemaEvaluation> {
-  const result: EvaluationResult = await session.evaluate(preparation.reference, preparation.instance, {
-    signal: options.signal,
-  });
+  const result: EvaluationResult =
+    preparation.ignoredProperties && preparation.ignoredProperties.length > 0
+      ? await evaluateSchemaDocumentDirectionallyIgnoringProperties(
+          session,
+          preparation.reference,
+          preparation.instance,
+          'request',
+          preparation.ignoredProperties,
+          { signal: options.signal },
+        )
+      : await session.evaluate(preparation.reference, preparation.instance, { signal: options.signal });
   if (result.valid) return { status: 'valid' };
 
   const issues = collectLeafSchemaIssues(result.errors);
