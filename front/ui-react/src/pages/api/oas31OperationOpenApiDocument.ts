@@ -22,6 +22,12 @@ type SourceKind = 'path' | 'webhook';
 
 type CopyKind =
   | 'opaque'
+  | 'info'
+  | 'contact'
+  | 'license'
+  | 'servers'
+  | 'server'
+  | 'externalDocs'
   | 'schema'
   | 'pathItem'
   | 'operation'
@@ -42,7 +48,9 @@ type CopyKind =
   | 'callback'
   | 'encodingMap'
   | 'encoding'
-  | 'securityScheme';
+  | 'securityScheme'
+  | 'oauthFlows'
+  | 'oauthFlow';
 
 type ReferenceTargetKind =
   | 'pathItem'
@@ -65,7 +73,10 @@ export type Oas31OperationExportBlockerCode =
   | 'REFERENCE_TARGET_MISSING'
   | 'REFERENCE_TARGET_INVALID'
   | 'PATH_ITEM_REF_CONFLICT'
-  | 'SECURITY_SCHEME_MISSING';
+  | 'SECURITY_SCHEME_MISSING'
+  | 'LINK_OPERATION_ID_NOT_FOUND'
+  | 'LINK_OPERATION_ID_AMBIGUOUS'
+  | 'RELATIVE_URI_UNRESOLVED';
 
 export interface Oas31OperationExportBlocker {
   readonly code: Oas31OperationExportBlockerCode;
@@ -85,6 +96,8 @@ export interface Oas31OperationExportContext {
 
 interface LocatedValue {
   readonly ownerRetrievalUri: string;
+  /** OpenAPI document used for implicit connections such as security names and operationId. */
+  readonly implicitDocumentUri: string;
   readonly pointer: string;
   readonly value: unknown;
 }
@@ -108,6 +121,7 @@ const REF_TARGETS_FIELD = 'x-knife4j-operation-ref-targets';
 const NO_REFERENCE_ANNOTATIONS: ReadonlySet<string> = new Set();
 const DESCRIPTION_REFERENCE_ANNOTATION: ReadonlySet<string> = new Set(['description']);
 const ALL_REFERENCE_ANNOTATIONS: ReadonlySet<string> = new Set(['summary', 'description']);
+const ABSOLUTE_URI_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 
 function asRecord(value: unknown): JsonRecord | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : null;
@@ -158,6 +172,27 @@ function pointerUri(resourceUri: string, tokens: readonly string[]): string {
   return new URL(pointer, resourceUri).href;
 }
 
+function absolutePortableUri(value: string, baseUri: string): string | null {
+  if (ABSOLUTE_URI_SCHEME.test(value)) return value;
+
+  const replacements: Array<{ token: string; variable: string }> = [];
+  const masked = value.replace(/\{[^{}]+\}/g, (variable) => {
+    let token = `knife4jportablevar${replacements.length}`;
+    while (value.includes(token)) token += 'x';
+    replacements.push({ token, variable });
+    return token;
+  });
+  try {
+    let resolved = new URL(masked, baseUri).href;
+    replacements.forEach(({ token, variable }) => {
+      resolved = resolved.split(token).join(variable);
+    });
+    return resolved;
+  } catch {
+    return null;
+  }
+}
+
 function uniqueExtensionField(source: JsonRecord, preferred: string): string {
   if (!owns(source, preferred)) return preferred;
   let suffix = 2;
@@ -200,15 +235,22 @@ function referenceAnnotationFields(kind: ReferenceTargetKind): ReadonlySet<strin
 
 function childKind(kind: CopyKind, key: string): CopyKind {
   switch (kind) {
+    case 'info':
+      if (key === 'contact') return 'contact';
+      if (key === 'license') return 'license';
+      return 'opaque';
     case 'pathItem':
       if (HTTP_METHODS.includes(key)) return 'operation';
       if (key === 'parameters') return 'parameters';
+      if (key === 'servers') return 'servers';
       return 'opaque';
     case 'operation':
       if (key === 'parameters') return 'parameters';
       if (key === 'requestBody') return 'requestBody';
       if (key === 'responses') return 'responses';
       if (key === 'callbacks') return 'callbacks';
+      if (key === 'servers') return 'servers';
+      if (key === 'externalDocs') return 'externalDocs';
       return 'opaque';
     case 'parameter':
     case 'header':
@@ -230,6 +272,8 @@ function childKind(kind: CopyKind, key: string): CopyKind {
       return 'opaque';
     case 'encoding':
       return key === 'headers' ? 'headers' : 'opaque';
+    case 'securityScheme':
+      return key === 'flows' ? 'oauthFlows' : 'opaque';
     default:
       return 'opaque';
   }
@@ -251,6 +295,8 @@ function mapValueKind(kind: CopyKind): CopyKind | null {
       return 'callback';
     case 'encodingMap':
       return 'encoding';
+    case 'oauthFlows':
+      return 'oauthFlow';
     default:
       return null;
   }
@@ -319,7 +365,12 @@ class Oas31OperationBundler {
     const outputPathItem = record();
     PATH_ITEM_FIELDS.forEach((field) => {
       const located = resolvedPathItem.fields.get(field);
-      if (located) outputPathItem[field] = this.copyValue(located, field === 'parameters' ? 'parameters' : 'opaque');
+      if (located) {
+        outputPathItem[field] = this.copyValue(
+          located,
+          field === 'parameters' ? 'parameters' : field === 'servers' ? 'servers' : 'opaque',
+        );
+      }
     });
     resolvedPathItem.fields.forEach((located, field) => {
       if (field.startsWith('x-')) outputPathItem[field] = this.copyValue(located, 'opaque');
@@ -328,12 +379,18 @@ class Oas31OperationBundler {
 
     const output = record();
     output.openapi = this.source.openapi;
-    output.info = this.copyValue(this.childLocation(this.entryLocation(), 'info', this.source.info), 'opaque');
-    if (owns(this.source, 'jsonSchemaDialect')) output.jsonSchemaDialect = this.source.jsonSchemaDialect;
+    output.info = this.copyValue(this.childLocation(this.entryLocation(), 'info', this.source.info), 'info');
+    if (typeof this.source.jsonSchemaDialect === 'string') {
+      output.jsonSchemaDialect = this.copyPortableUri(
+        this.childLocation(this.entryLocation(), 'jsonSchemaDialect', this.source.jsonSchemaDialect),
+      );
+    } else if (owns(this.source, 'jsonSchemaDialect')) {
+      output.jsonSchemaDialect = this.source.jsonSchemaDialect;
+    }
     if (owns(this.source, 'servers')) {
       output.servers = this.copyValue(
         this.childLocation(this.entryLocation(), 'servers', this.source.servers),
-        'opaque',
+        'servers',
       );
     }
     Object.entries(this.source).forEach(([key, value]) => {
@@ -365,11 +422,16 @@ class Oas31OperationBundler {
   }
 
   private entryLocation(): LocatedValue {
-    return { ownerRetrievalUri: this.entryRetrievalUri, pointer: '#', value: this.source };
+    return {
+      ownerRetrievalUri: this.entryRetrievalUri,
+      implicitDocumentUri: this.entryRetrievalUri,
+      pointer: '#',
+      value: this.source,
+    };
   }
 
-  private locationKey(location: Pick<LocatedValue, 'ownerRetrievalUri' | 'pointer'>): string {
-    return `${location.ownerRetrievalUri}\n${location.pointer}`;
+  private locationKey(location: Pick<LocatedValue, 'ownerRetrievalUri' | 'implicitDocumentUri' | 'pointer'>): string {
+    return `${location.ownerRetrievalUri}\n${location.implicitDocumentUri}\n${location.pointer}`;
   }
 
   private edgeKey(ownerRetrievalUri: string, pointer: string): string {
@@ -379,23 +441,28 @@ class Oas31OperationBundler {
   private childLocation(parent: LocatedValue, key: string | number, value: unknown): LocatedValue {
     return {
       ownerRetrievalUri: parent.ownerRetrievalUri,
+      implicitDocumentUri: parent.implicitDocumentUri,
       pointer: appendPointer(parent.pointer, key),
       value,
     };
   }
 
-  private sourceDocument(ownerRetrievalUri: string): JsonRecord | null {
+  private sourceDocument(ownerRetrievalUri: string): unknown {
     if (ownerRetrievalUri === this.entryRetrievalUri) return this.source;
-    return asRecord(this.snapshot.nodes.get(ownerRetrievalUri)?.document);
+    return this.snapshot.nodes.get(ownerRetrievalUri)?.document;
   }
 
-  private location(ownerRetrievalUri: string, pointer: string): LocatedValue | null {
+  private location(
+    ownerRetrievalUri: string,
+    pointer: string,
+    implicitDocumentUri = ownerRetrievalUri,
+  ): LocatedValue | null {
     const document = this.sourceDocument(ownerRetrievalUri);
     const tokens = pointerTokens(pointer);
-    if (!document || !tokens) return null;
+    if (document === undefined || !tokens) return null;
     const resolved = resolveJsonPointerTokens(document, tokens);
     if (!resolved.found) return null;
-    return { ownerRetrievalUri, pointer, value: resolved.value };
+    return { ownerRetrievalUri, implicitDocumentUri, pointer, value: resolved.value };
   }
 
   private edgeAt(
@@ -445,9 +512,17 @@ class Oas31OperationBundler {
     return true;
   }
 
-  private targetLocation(edge: ResourceGraphEdge): LocatedValue | null {
+  private targetLocation(edge: ResourceGraphEdge, implicitDocumentUri?: string): LocatedValue | null {
+    const location = this.targetLocationQuiet(edge, implicitDocumentUri);
+    if (!location) this.block('REFERENCE_TARGET_MISSING', edge.sourcePointer, edge);
+    return location;
+  }
+
+  private targetLocationQuiet(edge: ResourceGraphEdge, implicitDocumentUri?: string): LocatedValue | null {
     const anchor = this.snapshot.anchorTargets.get(edge.resolvedUri);
-    if (anchor) return this.location(anchor.ownerRetrievalUri, anchor.pointer);
+    if (anchor) {
+      return this.location(anchor.ownerRetrievalUri, anchor.pointer, implicitDocumentUri ?? anchor.ownerRetrievalUri);
+    }
 
     let resourceUri: string;
     let fragment: string;
@@ -455,23 +530,14 @@ class Oas31OperationBundler {
       resourceUri = uriWithoutFragment(edge.resolvedUri);
       fragment = new URL(edge.resolvedUri).hash;
     } catch {
-      this.block('REFERENCE_TARGET_MISSING', edge.sourcePointer, edge);
       return null;
     }
     const target = this.snapshot.resourceTargets.get(resourceUri);
-    if (!target) {
-      this.block('REFERENCE_TARGET_MISSING', edge.sourcePointer, edge);
-      return null;
-    }
+    if (!target) return null;
     const parsed = parseLocalJsonPointer(fragment || '#');
-    if (!parsed.valid || !parsed.tokens) {
-      this.block('REFERENCE_TARGET_MISSING', edge.sourcePointer, edge);
-      return null;
-    }
+    if (!parsed.valid || !parsed.tokens) return null;
     const pointer = appendPointer(target.pointer, ...parsed.tokens);
-    const location = this.location(target.ownerRetrievalUri, pointer);
-    if (!location) this.block('REFERENCE_TARGET_MISSING', edge.sourcePointer, edge);
-    return location;
+    return this.location(target.ownerRetrievalUri, pointer, implicitDocumentUri ?? target.ownerRetrievalUri);
   }
 
   private resolvePathItem(location: LocatedValue, seen: Set<string>): LocatedPathItem | null {
@@ -496,7 +562,7 @@ class Oas31OperationBundler {
       this.block('REFERENCE_TARGET_INVALID', edgePointer, edge);
       return null;
     }
-    const target = this.targetLocation(edge);
+    const target = this.targetLocation(edge, location.implicitDocumentUri);
     if (!target || !asRecord(target.value)) {
       this.block('REFERENCE_TARGET_INVALID', edgePointer, edge);
       return null;
@@ -515,13 +581,142 @@ class Oas31OperationBundler {
     return { fields };
   }
 
+  private copyPortableUri(location: LocatedValue): string {
+    const value = location.value;
+    if (typeof value !== 'string') return String(value ?? '');
+    const resolved = absolutePortableUri(value, location.ownerRetrievalUri);
+    if (resolved !== null) return resolved;
+    this.block('RELATIVE_URI_UNRESOLVED', location.pointer);
+    return value;
+  }
+
+  private isPortableUriField(kind: CopyKind, key: string): boolean {
+    if (kind === 'info') return key === 'termsOfService';
+    if (kind === 'contact' || kind === 'license' || kind === 'server' || kind === 'externalDocs') {
+      return key === 'url';
+    }
+    if (kind === 'example') return key === 'externalValue';
+    if (kind === 'securityScheme') return key === 'openIdConnectUrl';
+    if (kind === 'oauthFlow') {
+      return key === 'authorizationUrl' || key === 'tokenUrl' || key === 'refreshUrl';
+    }
+    return false;
+  }
+
+  private findOperationsById(
+    implicitDocumentUri: string,
+    operationId: string,
+  ): { matches: LocatedValue[]; unresolvedEdges: ResourceGraphEdge[] } {
+    const root = this.location(implicitDocumentUri, '#', implicitDocumentUri);
+    if (!root || !asRecord(root.value)) return { matches: [], unresolvedEdges: [] };
+
+    const matches = new Map<string, LocatedValue>();
+    const unresolved = new Map<string, ResourceGraphEdge>();
+    const seenPathItems = new Set<string>();
+    const seenCallbacks = new Set<string>();
+    const seenOperations = new Set<string>();
+
+    const rememberUnresolved = (edge: ResourceGraphEdge): void => {
+      unresolved.set(`${edge.sourceRetrievalUri}\n${edge.sourcePointer}\n${edge.resolvedUri}`, edge);
+    };
+
+    const visitOperation = (location: LocatedValue): void => {
+      const key = this.locationKey(location);
+      if (seenOperations.has(key)) return;
+      seenOperations.add(key);
+      const operation = asRecord(location.value);
+      if (!operation) return;
+      if (operation.operationId === operationId) matches.set(key, location);
+      const callbacks = asRecord(operation.callbacks);
+      if (!callbacks) return;
+      const callbacksLocation = this.childLocation(location, 'callbacks', callbacks);
+      Object.entries(callbacks).forEach(([name, callback]) =>
+        visitCallback(this.childLocation(callbacksLocation, name, callback)),
+      );
+    };
+
+    const visitPathItem = (location: LocatedValue): void => {
+      const key = this.locationKey(location);
+      if (seenPathItems.has(key)) return;
+      seenPathItems.add(key);
+      const pathItem = asRecord(location.value);
+      if (!pathItem) return;
+      if (typeof pathItem.$ref === 'string') {
+        const reference = this.childLocation(location, '$ref', pathItem.$ref);
+        const edge = this.edgeAt(reference.ownerRetrievalUri, reference.pointer, ['path-item-ref']);
+        if (!edge || edge.state === 'pending' || edge.state === 'failed') {
+          if (edge) rememberUnresolved(edge);
+        } else {
+          const target = this.targetLocationQuiet(edge, location.implicitDocumentUri);
+          if (target) visitPathItem(target);
+          else rememberUnresolved(edge);
+        }
+      }
+      HTTP_METHODS.forEach((method) => {
+        if (owns(pathItem, method)) visitOperation(this.childLocation(location, method, pathItem[method]));
+      });
+    };
+
+    const visitCallback = (location: LocatedValue): void => {
+      const key = this.locationKey(location);
+      if (seenCallbacks.has(key)) return;
+      seenCallbacks.add(key);
+      const callback = asRecord(location.value);
+      if (!callback) return;
+      if (typeof callback.$ref === 'string') {
+        const reference = this.childLocation(location, '$ref', callback.$ref);
+        const edge = this.edgeAt(reference.ownerRetrievalUri, reference.pointer, ['reference-object']);
+        if (!edge || edge.state === 'pending' || edge.state === 'failed') {
+          if (edge) rememberUnresolved(edge);
+          return;
+        }
+        const target = this.targetLocationQuiet(edge, location.implicitDocumentUri);
+        if (target) visitCallback(target);
+        else rememberUnresolved(edge);
+        return;
+      }
+      Object.entries(callback).forEach(([expression, pathItem]) => {
+        if (expression.startsWith('x-')) return;
+        visitPathItem(this.childLocation(location, expression, pathItem));
+      });
+    };
+
+    const document = root.value as JsonRecord;
+    (['paths', 'webhooks'] as const).forEach((collection) => {
+      const items = asRecord(document[collection]);
+      if (!items) return;
+      const collectionLocation = this.childLocation(root, collection, items);
+      Object.entries(items).forEach(([path, pathItem]) =>
+        visitPathItem(this.childLocation(collectionLocation, path, pathItem)),
+      );
+    });
+    return { matches: [...matches.values()], unresolvedEdges: [...unresolved.values()] };
+  }
+
+  private copyOperationId(source: LocatedValue, operationId: string): string {
+    const lookup = this.findOperationsById(source.implicitDocumentUri, operationId);
+    if (lookup.matches.length === 1) {
+      return this.storeReferenceTarget(lookup.matches[0], 'operation', source.pointer);
+    }
+    if (lookup.matches.length > 1) {
+      this.block('LINK_OPERATION_ID_AMBIGUOUS', source.pointer);
+      return '#';
+    }
+    const unresolved = lookup.unresolvedEdges[0];
+    if (unresolved?.state === 'pending') this.block('RESOURCE_PENDING', source.pointer, unresolved);
+    else if (unresolved?.state === 'failed') this.block('RESOURCE_FAILED', source.pointer, unresolved);
+    else if (unresolved) this.block('REFERENCE_TARGET_MISSING', source.pointer, unresolved);
+    else this.block('LINK_OPERATION_ID_NOT_FOUND', source.pointer);
+    return '#';
+  }
+
   private copyValue(location: LocatedValue, kind: CopyKind): unknown {
     if (kind === 'schema') return this.schemaProxy(location);
     if (kind === 'pathItem') return this.copyPathItem(location);
     const value = location.value;
     if (value === null || typeof value !== 'object') return value;
     if (Array.isArray(value)) {
-      const itemKind: CopyKind = kind === 'parameters' ? 'parameter' : kind;
+      const itemKind: CopyKind = kind === 'parameters' ? 'parameter' : kind === 'servers' ? 'server' : kind;
       return value.map((item, index) => this.copyValue(this.childLocation(location, index, item), itemKind));
     }
 
@@ -529,8 +724,8 @@ class Oas31OperationBundler {
     const output = record();
     const targetKind = referenceTargetKind(kind);
     if (targetKind && typeof source.$ref === 'string') {
-      const pointer = appendPointer(location.pointer, '$ref');
-      output.$ref = this.copyReference(location.ownerRetrievalUri, pointer, targetKind, ['reference-object']);
+      const reference = this.childLocation(location, '$ref', source.$ref);
+      output.$ref = this.copyReference(reference, targetKind, ['reference-object'], true);
       const annotations = referenceAnnotationFields(targetKind);
       Object.entries(source).forEach(([key, nestedValue]) => {
         if (annotations.has(key)) {
@@ -561,10 +756,17 @@ class Oas31OperationBundler {
 
     Object.entries(source).forEach(([key, nestedValue]) => {
       const nested = this.childLocation(location, key, nestedValue);
-      if (kind === 'link' && key === 'operationRef' && typeof nestedValue === 'string') {
-        output[key] = this.copyReference(location.ownerRetrievalUri, nested.pointer, 'operation', [
-          'link-operation-ref',
-        ]);
+      if (typeof nestedValue === 'string' && this.isPortableUriField(kind, key)) {
+        output[key] = this.copyPortableUri(nested);
+      } else if (kind === 'link' && key === 'operationRef' && typeof nestedValue === 'string') {
+        output[key] = this.copyReference(nested, 'operation', ['link-operation-ref'], false);
+      } else if (
+        kind === 'link' &&
+        key === 'operationId' &&
+        typeof nestedValue === 'string' &&
+        typeof source.operationRef !== 'string'
+      ) {
+        output.operationRef = this.copyOperationId(nested, nestedValue);
       } else if (kind === 'operation' && key === 'security') {
         output[key] = this.copySecurityRequirements(nested);
       } else {
@@ -573,11 +775,16 @@ class Oas31OperationBundler {
     });
 
     if (kind === 'operation' && !owns(source, 'security') && this.locationKey(location) !== this.topOperationIdentity) {
-      const document = this.sourceDocument(location.ownerRetrievalUri);
+      const document = asRecord(this.sourceDocument(location.implicitDocumentUri));
       if (document && owns(document, 'security')) {
         output.security = this.copySecurityRequirements(
           this.childLocation(
-            { ownerRetrievalUri: location.ownerRetrievalUri, pointer: '#', value: document },
+            {
+              ownerRetrievalUri: location.implicitDocumentUri,
+              implicitDocumentUri: location.implicitDocumentUri,
+              pointer: '#',
+              value: document,
+            },
             'security',
             document.security,
           ),
@@ -597,31 +804,65 @@ class Oas31OperationBundler {
   }
 
   private copyReference(
-    ownerRetrievalUri: string,
-    pointer: string,
+    source: LocatedValue,
     targetKind: ReferenceTargetKind,
     edgeKinds: readonly ResourceReferenceKind[],
+    preserveImplicitScope: boolean,
   ): string {
-    const edge = this.edgeAt(ownerRetrievalUri, pointer, edgeKinds);
-    if (!this.usableEdge(edge, pointer)) return '#';
-    const key = `${targetKind}\n${edge.resolvedUri}`;
+    const edge = this.edgeAt(source.ownerRetrievalUri, source.pointer, edgeKinds);
+    if (!this.usableEdge(edge, source.pointer)) return '#';
+    const target = this.targetLocation(edge, preserveImplicitScope ? source.implicitDocumentUri : undefined);
+    if (!target || !asRecord(target.value)) {
+      this.block('REFERENCE_TARGET_INVALID', source.pointer, edge);
+      return '#';
+    }
+    return this.storeReferenceTarget(target, targetKind, source.pointer, edge);
+  }
+
+  private storeReferenceTarget(
+    target: LocatedValue,
+    targetKind: ReferenceTargetKind,
+    sourcePointer: string,
+    edge?: ResourceGraphEdge,
+  ): string {
+    const key = `${targetKind}\n${this.locationKey(target)}`;
     let name = this.referenceNames.get(key);
     if (name) return `#/${escapeJsonPointerSegment(this.refTargetsField)}/${escapeJsonPointerSegment(name)}`;
 
-    const target = this.targetLocation(edge);
-    if (!target || !asRecord(target.value)) {
-      this.block('REFERENCE_TARGET_INVALID', pointer, edge);
-      return '#';
-    }
     name = `target-${this.referenceNames.size + 1}`;
     this.referenceNames.set(key, name);
     const placeholder = record();
     this.referenceTargets[name] = placeholder;
-    const copied = this.copyValue(target, targetKind);
+    const copied = targetKind === 'operation' ? this.copyOperationTarget(target) : this.copyValue(target, targetKind);
     const copiedRecord = asRecord(copied);
-    if (!copiedRecord) this.block('REFERENCE_TARGET_INVALID', pointer, edge);
+    if (!copiedRecord) this.block('REFERENCE_TARGET_INVALID', sourcePointer, edge);
     else Object.assign(placeholder, copiedRecord);
     return `#/${escapeJsonPointerSegment(this.refTargetsField)}/${escapeJsonPointerSegment(name)}`;
+  }
+
+  private copyOperationTarget(location: LocatedValue): unknown {
+    const copied = this.copyValue(location, 'operation');
+    const output = asRecord(copied);
+    const source = asRecord(location.value);
+    if (!output || !source || owns(source, 'servers')) return copied;
+
+    const tokens = pointerTokens(location.pointer);
+    const parentPointer = tokens && tokens.length > 0 ? appendPointer('#', ...tokens.slice(0, -1)) : null;
+    const parent = parentPointer
+      ? this.location(location.ownerRetrievalUri, parentPointer, location.implicitDocumentUri)
+      : null;
+    const pathItem = asRecord(parent?.value);
+    if (pathItem && owns(pathItem, 'servers')) {
+      output.servers = this.copyValue(this.childLocation(parent!, 'servers', pathItem.servers), 'servers');
+      return output;
+    }
+
+    const document = asRecord(this.sourceDocument(location.implicitDocumentUri));
+    const root = document ? this.location(location.implicitDocumentUri, '#', location.implicitDocumentUri) : null;
+    if (document && root && owns(document, 'servers')) {
+      output.servers = this.copyValue(this.childLocation(root, 'servers', document.servers), 'servers');
+    }
+    return output;
   }
 
   private copySecurityRequirements(location: LocatedValue): unknown {
@@ -632,7 +873,11 @@ class Oas31OperationBundler {
       if (!requirementRecord) return this.copyValue(requirementLocation, 'opaque');
       const output = record();
       Object.entries(requirementRecord).forEach(([name, scopes]) => {
-        const outputName = this.ensureSecurityScheme(location.ownerRetrievalUri, name, requirementLocation.pointer);
+        const outputName = this.ensureSecurityScheme(
+          location.implicitDocumentUri,
+          name,
+          appendPointer(requirementLocation.pointer, name),
+        );
         output[outputName] = this.copyValue(this.childLocation(requirementLocation, name, scopes), 'opaque');
       });
       return output;
@@ -758,7 +1003,7 @@ class Oas31OperationBundler {
       }
     });
     if (selectedDialect) return selectedDialect;
-    const document = this.sourceDocument(resource.target.ownerRetrievalUri);
+    const document = asRecord(this.sourceDocument(resource.target.ownerRetrievalUri));
     if (typeof document?.jsonSchemaDialect === 'string') return document.jsonSchemaDialect;
     if (typeof document?.openapi === 'string') return OAS_31_BASE_DIALECT;
     if (typeof asRecord(resource.location.value)?.$schema === 'string') {
@@ -808,7 +1053,16 @@ class Oas31OperationBundler {
         if (edge) {
           if (this.usableEdge(edge, location.pointer)) {
             const target = this.targetLocation(edge);
-            if (target) this.ensureSchemaLocation(target);
+            if (target) {
+              const portableTarget = this.ensureSchemaLocation(target);
+              if (
+                portableTarget &&
+                edge.kind !== 'schema-dynamic-ref' &&
+                !this.snapshot.anchorTargets.has(edge.resolvedUri)
+              ) {
+                return portableTarget;
+              }
+            }
             return edge.resolvedUri;
           }
         }
