@@ -10,6 +10,7 @@ const entryUri = 'https://fixtures.knife4j.example/apis/openapi.json';
 const treeUri = 'https://fixtures.knife4j.example/apis/schemas/tree.json';
 const partUri = 'https://fixtures.knife4j.example/apis/parts.json';
 const strictUri = 'https://fixtures.knife4j.example/apis/schemas/strict.json';
+const urnSchemaUri = 'urn:example:knife4j-schema';
 
 function entryDocument(): SwaggerDoc {
   return {
@@ -285,6 +286,7 @@ function asReady(
 
 function absoluteSchemaReferenceUris(document: unknown): string[] {
   const references = new Set<string>();
+  const absoluteUriPattern = /^[A-Za-z][A-Za-z0-9+.-]*:/;
   const seen = new WeakSet<object>();
   const visit = (value: unknown): void => {
     if (!value || typeof value !== 'object' || seen.has(value)) return;
@@ -296,12 +298,12 @@ function absoluteSchemaReferenceUris(document: unknown): string[] {
     const item = value as JsonRecord;
     ['$ref', '$dynamicRef'].forEach((field) => {
       const reference = item[field];
-      if (typeof reference === 'string' && /^https?:/.test(reference)) references.add(reference);
+      if (typeof reference === 'string' && absoluteUriPattern.test(reference)) references.add(reference);
     });
     const mapping = (item.discriminator as JsonRecord | undefined)?.mapping;
     if (mapping && typeof mapping === 'object' && !Array.isArray(mapping)) {
       Object.values(mapping).forEach((reference) => {
-        if (typeof reference === 'string' && /^https?:/.test(reference)) references.add(reference);
+        if (typeof reference === 'string' && absoluteUriPattern.test(reference)) references.add(reference);
       });
     }
     Object.values(item).forEach(visit);
@@ -451,6 +453,50 @@ describe('OAS 3.1 portable single-operation export', () => {
     expect(JSON.stringify(webhookOutput)).not.toContain('pet.unrelated');
   });
 
+  it('relocates a relative Server URL nested in a Link Object', () => {
+    const document = {
+      openapi: '3.1.1',
+      info: { title: 'Link server', version: '1.0.0' },
+      paths: {
+        '/selected': {
+          get: {
+            responses: {
+              200: {
+                description: 'selected',
+                links: { next: { $ref: '#/components/links/Next' } },
+              },
+            },
+          },
+        },
+        '/linked': {
+          get: { operationId: 'linkedGet', responses: { 204: { description: 'linked' } } },
+        },
+      },
+      components: {
+        links: {
+          Next: {
+            operationRef: '#/paths/~1linked/get',
+            server: { url: './link-api' },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const snapshot = new ExternalResourceLoader(document, entryUri).currentSnapshot();
+    const output = asReady(
+      buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+        retrievalUri: entryUri,
+        snapshot,
+      }),
+    ).document;
+    const targets = Object.values(output['x-knife4j-operation-ref-targets'] as JsonRecord);
+    expect(targets).toContainEqual(
+      expect.objectContaining({
+        operationRef: expect.stringMatching(/^#\/x-knife4j-operation-ref-targets\/target-/),
+        server: { url: 'https://fixtures.knife4j.example/apis/link-api' },
+      }),
+    );
+  });
+
   it('resolves and evaluates every reachable Schema with an independent engine after relocation', async () => {
     const document = entryDocument();
     const external = externalDocuments();
@@ -524,7 +570,6 @@ describe('OAS 3.1 portable single-operation export', () => {
     const references = cases.map(({ reference }) => reference);
     const coveredReferences = new Set(references);
     expect(absoluteSchemaReferenceUris(output).filter((reference) => !coveredReferences.has(reference))).toEqual([]);
-
     const original = createSchemaEngine();
     await original.registerDocument(document, entryUri);
     await original.registerDocument(external[treeUri], treeUri);
@@ -576,6 +621,64 @@ describe('OAS 3.1 portable single-operation export', () => {
     );
     expect(portableEvaluations.map((result) => result.valid)).toEqual(cases.flatMap(() => [true, false]));
     expect(portableDocumentValidation.valid).toBe(true);
+  });
+
+  it('preserves a reachable Schema resource identified by an absolute non-HTTP URI', async () => {
+    const document = {
+      openapi: '3.1.1',
+      info: { title: 'URN Schema', version: '1.0.0' },
+      paths: {
+        '/urn': {
+          post: {
+            requestBody: {
+              content: { 'application/json': { schema: { $ref: urnSchemaUri } } },
+            },
+            responses: { 204: { description: 'accepted' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          UrnValue: {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            $id: urnSchemaUri,
+            type: 'string',
+            pattern: '^urn:',
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const snapshot = new ExternalResourceLoader(document, entryUri).currentSnapshot();
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    const output = asReady(
+      buildOas31OperationOpenApiDocument(document, '/urn', 'post', 'path', {
+        retrievalUri: entryUri,
+        snapshot,
+      }),
+    ).document;
+    expect(absoluteSchemaReferenceUris(output)).toContain(urnSchemaUri);
+
+    const original = createSchemaEngine();
+    await original.registerDocument(document, entryUri);
+    const originalNode = await original.resolve(urnSchemaUri);
+    const originalValid = await original.evaluate(urnSchemaUri, 'urn:value');
+    const originalInvalid = await original.evaluate(urnSchemaUri, 'value');
+    original.dispose();
+
+    const portable = createSchemaEngine();
+    await portable.registerDocument(output, 'https://portable.knife4j.example/urn.openapi.json');
+    const portableNode = await portable.resolve(urnSchemaUri);
+    const portableValid = await portable.evaluate(urnSchemaUri, 'urn:value');
+    const portableInvalid = await portable.evaluate(urnSchemaUri, 'value');
+    portable.dispose();
+
+    expect(portableNode).toMatchObject({
+      canonicalUri: originalNode.canonicalUri,
+      resourceUri: originalNode.resourceUri,
+      dialectId: originalNode.dialectId,
+    });
+    expect([portableValid.valid, portableInvalid.valid]).toEqual([originalValid.valid, originalInvalid.valid]);
+    expect([portableValid.valid, portableInvalid.valid]).toEqual([true, false]);
   });
 
   it('bundles an already loaded external boolean Schema without another request', async () => {

@@ -272,6 +272,8 @@ function childKind(kind: CopyKind, key: string): CopyKind {
       return 'opaque';
     case 'encoding':
       return key === 'headers' ? 'headers' : 'opaque';
+    case 'link':
+      return key === 'server' ? 'server' : 'opaque';
     case 'securityScheme':
       return key === 'flows' ? 'oauthFlows' : 'opaque';
     default:
