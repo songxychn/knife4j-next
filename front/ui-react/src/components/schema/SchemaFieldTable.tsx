@@ -29,6 +29,14 @@ const TYPE_COLOR: Record<string, string> = {
   unknown: 'default',
 };
 
+const TYPE_TAG_STYLE: React.CSSProperties = {
+  maxWidth: '100%',
+  marginInlineEnd: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  verticalAlign: 'middle',
+};
+
 interface SchemaFieldRow extends SchemaFieldNode {
   key: string;
   children?: SchemaFieldRow[];
@@ -80,7 +88,9 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
   if (!refName || !schema || !swaggerDoc) {
     return (
       <ConstraintTooltip node={node}>
-        <Tag color={color}>{label}</Tag>
+        <Tag color={color} style={TYPE_TAG_STYLE} title={label}>
+          {label}
+        </Tag>
       </ConstraintTooltip>
     );
   }
@@ -124,7 +134,7 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
     <ConstraintTooltip node={node}>
       <Popover title={refName} content={content} placement="right" styles={{ root: { maxWidth: 460 } }}>
         <RouterLink to={target}>
-          <Tag color={color} style={{ cursor: 'pointer' }}>
+          <Tag color={color} style={{ ...TYPE_TAG_STYLE, cursor: 'pointer' }} title={label}>
             {label}
           </Tag>
         </RouterLink>
@@ -303,6 +313,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       pagination={false}
       size="small"
       bordered
+      tableLayout="fixed"
       expandable={{
         childrenColumnName: 'children',
         defaultExpandAllRows: true,
