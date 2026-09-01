@@ -464,6 +464,31 @@ describe('OAS 3.1 form body encoding', () => {
       kind: 'multipart',
       parts: [expect.objectContaining({ name: 'metadata', value: '{broken' })],
     });
+
+    const emptyCompositeModel = debugModelFor('multipart/form-data', {
+      type: 'object',
+      properties: {
+        tags: { type: 'array', items: { type: 'string' } },
+        avatar: { type: 'string', format: 'binary' },
+      },
+      dependentRequired: {
+        tags: ['avatar'],
+        avatar: ['tags'],
+      },
+    });
+    const emptyTrigger = serializeOas31FormBody(emptyCompositeModel.bodyContents[0], {
+      formFields: { tags: '[]' },
+    });
+    expect(emptyTrigger).toMatchObject({ kind: 'multipart', parts: [] });
+    expect(emptyTrigger.diagnostics).not.toContainEqual(expect.objectContaining({ code: 'FORM_DEPENDENT_REQUIRED' }));
+
+    const emptyDependency = serializeOas31FormBody(emptyCompositeModel.bodyContents[0], {
+      formFields: { tags: '[]' },
+      fileFields: { avatar: [{ name: 'avatar.png', type: 'image/png' }] },
+    });
+    expect(emptyDependency.diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'FORM_DEPENDENT_REQUIRED', fieldName: 'tags' }),
+    );
   });
 
   test('supports nullable, prefixItems, boolean schemas and property references in the logical instance', () => {
