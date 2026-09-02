@@ -643,7 +643,17 @@ const enUS = {
   'officeDoc.btn.openapi': 'Download OpenAPI JSON',
   'officeDoc.response': 'Response',
   'officeDoc.circularReference': 'Circular reference',
+  'officeDoc.truncated': 'Truncated',
   'officeDoc.fallbackTitle': 'API Documentation',
+  'officeDoc.snapshot.incomplete.title': 'This OAS 3.1 export is incomplete',
+  'officeDoc.snapshot.incomplete.description':
+    '{{count}} semantic issue(s) affect the selected document. Cancel, or download a document that clearly records the degraded scope.',
+  'officeDoc.snapshot.incomplete.confirm': 'Download incomplete document',
+  'officeDoc.snapshot.incomplete.cancel': 'Cancel',
+  'officeDoc.snapshot.incomplete.documentTitle': 'Incomplete OAS 3.1 export',
+  'officeDoc.snapshot.incomplete.documentSummary': '{{count}} semantic issue(s) could not be represented completely.',
+  'officeDoc.snapshot.incomplete.more': '{{count}} more issue(s)',
+  'officeDoc.snapshot.failed': 'The offline document snapshot could not be created.',
 
   // Tab context menu
   'tab.context.closeCurrent': 'Close Current',

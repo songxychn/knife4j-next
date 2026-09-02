@@ -23,7 +23,7 @@ import { useGroup } from './GroupContext';
 export type SchemaEngineContextValue =
   | { status: 'inactive'; retrievalUri: null; session: null; error: null }
   | { status: 'loading'; retrievalUri: string; session: null; error: null }
-  | { status: 'ready'; retrievalUri: string; session: SchemaDocumentSession; error: null }
+  | { status: 'ready'; retrievalUri: string; document: SwaggerDoc; session: SchemaDocumentSession; error: null }
   | { status: 'error'; retrievalUri: string; session: null; error: SchemaDocumentFailure };
 
 export type ExternalResourceStatus =
@@ -148,7 +148,13 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
           resourceDocuments: schemaDocumentsFromResourceGraph(snapshot),
         });
         if (!isCurrentOperation() || result.status === 'stale') return;
-        setState({ status: 'ready', retrievalUri: runtime.retrievalUri, session: result.session, error: null });
+        setState({
+          status: 'ready',
+          retrievalUri: runtime.retrievalUri,
+          document: runtime.document,
+          session: result.session,
+          error: null,
+        });
         setResources(resourceData(runtime.loader, snapshot));
       } catch (error) {
         if (!isCurrentOperation()) return;
@@ -156,7 +162,13 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
         try {
           const fallback = await managerRef.current!.open(runtime.document, runtime.retrievalUri);
           if (!isCurrentOperation() || fallback.status === 'stale') return;
-          setState({ status: 'ready', retrievalUri: runtime.retrievalUri, session: fallback.session, error: null });
+          setState({
+            status: 'ready',
+            retrievalUri: runtime.retrievalUri,
+            document: runtime.document,
+            session: fallback.session,
+            error: null,
+          });
           setResources(resourceData(runtime.loader, snapshot, 'failed', registrationError));
         } catch (fallbackError) {
           if (!isCurrentOperation()) return;

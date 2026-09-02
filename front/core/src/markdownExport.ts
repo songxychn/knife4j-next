@@ -117,6 +117,8 @@ export interface ApiMarkdownLabels {
   schema: string;
   /** Marker appended to a field whose recursive expansion was truncated. */
   truncated?: string;
+  /** Marker for a circular-reference truncation. */
+  circularReference?: string;
 }
 
 type ResolvedApiMarkdownLabels = Required<ApiMarkdownLabels>;
@@ -145,6 +147,7 @@ const DEFAULT_LABELS: ResolvedApiMarkdownLabels = {
   status: 'Status',
   schema: 'Schema',
   truncated: 'Truncated',
+  circularReference: 'Truncated',
 };
 
 export type MarkdownOperationHeadingLevel = 1 | 2 | 3 | 4;
@@ -163,7 +166,11 @@ interface InternalRenderExportOperationMarkdownOptions extends RenderExportOpera
 }
 
 function resolveLabels(labels: Partial<ApiMarkdownLabels> | undefined): ResolvedApiMarkdownLabels {
-  return { ...DEFAULT_LABELS, ...labels };
+  const resolved = { ...DEFAULT_LABELS, ...labels };
+  if (labels?.circularReference === undefined && labels?.truncated !== undefined) {
+    resolved.circularReference = labels.truncated;
+  }
+  return resolved;
 }
 
 function heading(level: number, title: string): string {
@@ -189,7 +196,11 @@ function markdownTypeDisplay(typeDisplay: string): string {
 function fieldType(field: ExportSchemaField, labels: ResolvedApiMarkdownLabels): string {
   const typeDisplay = markdownTypeDisplay(field.typeDisplay);
   if (!field.truncated) return typeDisplay;
-  return `${typeDisplay || 'object'} (${labels.truncated})`;
+  const marker =
+    field.truncationReason === undefined || field.truncationReason === 'circular-reference'
+      ? labels.circularReference
+      : labels.truncated;
+  return `${typeDisplay || 'object'} (${marker})`;
 }
 
 function fieldTable(

@@ -8,6 +8,7 @@
  */
 
 import { selectRequestBodyExample, selectResponseExamples } from './debug/operationExamples';
+import type { SchemaFieldTruncationReason } from './debug/types';
 
 export interface MdSchemaObject {
   type?: string | string[];
@@ -85,6 +86,7 @@ export interface ExportSchemaField {
   required: boolean;
   description: string;
   truncated: boolean;
+  truncationReason?: SchemaFieldTruncationReason;
   depth: number;
 }
 

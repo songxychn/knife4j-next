@@ -1,10 +1,10 @@
-import { Button, Space, Typography, Alert } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Space, Typography, Alert, Modal, message } from 'antd';
 import { FileTextOutlined, FileWordOutlined, FileMarkdownOutlined, CodeOutlined } from '@ant-design/icons';
 import {
   buildExportDocument,
   renderExportDocumentMarkdown,
   type ApiMarkdownLabels,
-  type ExportDocument,
   type ExportOperation,
   type ExportParameter,
   type ExportRequestBody,
@@ -29,9 +29,19 @@ import {
   ShadingType,
 } from 'docx';
 import { useGroup } from '../../context/GroupContext';
+import { useExternalResources, useSchemaEngine } from '../../context/SchemaEngineContext';
 import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from '../../locales/language';
+import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
 import type { SupportedLang } from '../../types/settings';
 import type { SwaggerDoc, MenuTag } from '../../types/swagger';
+import {
+  createOfflineDocumentSnapshot,
+  incompleteOfflineDocumentIssues,
+  runOfflineDocumentExportTask,
+  type OfflineDocumentIssue,
+  type OfflineDocumentSnapshot,
+} from './offlineDocumentSnapshot';
+import { buildOas31ExportSnapshot, Oas31ExportBudgetError } from './oas31ExportSnapshot';
 
 const { Title, Paragraph } = Typography;
 
@@ -57,7 +67,11 @@ export interface OfficeDocLabels {
   deprecated: string;
   parameters: string;
   circularReference: string;
+  truncated?: string;
   fallbackTitle: string;
+  incompleteTitle?: string;
+  incompleteSummary?: (count: number) => string;
+  incompleteMore?: (count: number) => string;
   markdown: ApiMarkdownLabels;
 }
 
@@ -67,12 +81,20 @@ function sanitizeFilename(name: string): string {
 
 function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
+  downloadPreparedBlob(blob, filename);
+}
+
+function downloadPreparedBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = sanitizeFilename(filename);
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
 }
 
 function escapeHtml(s: string | undefined | null): string {
@@ -83,6 +105,13 @@ function escapeHtml(s: string | undefined | null): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function escapeMarkdownInline(value: string): string {
+  return value
+    .replace(/\r\n?|\n/g, ' ')
+    .replace(/\\/g, '\\\\')
+    .replace(/([`*[\]<>|])/g, '\\$1');
 }
 
 function methodColor(method: string): string {
@@ -98,8 +127,42 @@ function methodColor(method: string): string {
   return map[method.toUpperCase()] ?? '#999';
 }
 
-function buildDocumentModel(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): ExportDocument {
-  return buildExportDocument(doc, tags, { fallbackTitle: labels.fallbackTitle });
+function buildDocumentSnapshot(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): OfflineDocumentSnapshot {
+  return createOfflineDocumentSnapshot(buildExportDocument(doc, tags, { fallbackTitle: labels.fallbackTitle }));
+}
+
+const MAX_RENDERED_EXPORT_ISSUES = 20;
+
+function renderedExportIssueLines(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string[] {
+  const issues = incompleteOfflineDocumentIssues(snapshot);
+  const visible = issues.slice(0, MAX_RENDERED_EXPORT_ISSUES).map((issue) => {
+    const diagnostic = issue.keyword ? `${issue.code} (${issue.keyword})` : issue.code;
+    return [issue.operation, issue.region, diagnostic].filter(Boolean).join(' · ');
+  });
+  const remaining = issues.length - visible.length;
+  if (remaining > 0) visible.push(labels.incompleteMore?.(remaining) ?? `${remaining} more issue(s)`);
+  return visible;
+}
+
+function incompleteExportTitle(labels: OfficeDocLabels): string {
+  return labels.incompleteTitle ?? 'Incomplete OAS 3.1 export';
+}
+
+function incompleteExportSummary(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
+  const count = incompleteOfflineDocumentIssues(snapshot).length;
+  return labels.incompleteSummary?.(count) ?? `${count} semantic issue(s) could not be represented completely.`;
+}
+
+function renderIncompleteHtml(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
+  if (snapshot.complete) return '';
+  const issues = renderedExportIssueLines(snapshot, labels)
+    .map((issue) => `<li>${escapeHtml(issue)}</li>`)
+    .join('');
+  return `<div class="export-incomplete" role="alert">
+    <strong>${escapeHtml(incompleteExportTitle(labels))}</strong>
+    <p>${escapeHtml(incompleteExportSummary(snapshot, labels))}</p>
+    <ul>${issues}</ul>
+  </div>`;
 }
 
 function formatOutlineNumber(numberPath: readonly number[]): string {
@@ -107,11 +170,19 @@ function formatOutlineNumber(numberPath: readonly number[]): string {
 }
 
 function fieldPath(field: ExportSchemaField, labels: OfficeDocLabels): string {
-  return field.fieldPath || (field.truncated ? labels.circularReference : '');
+  if (field.fieldPath || !field.truncated) return field.fieldPath;
+  return field.truncationReason && field.truncationReason !== 'circular-reference'
+    ? (labels.truncated ?? labels.circularReference)
+    : labels.circularReference;
 }
 
 function fieldType(field: ExportSchemaField, labels: OfficeDocLabels): string {
-  return field.truncated ? labels.circularReference : field.typeDisplay;
+  if (!field.truncated) return field.typeDisplay;
+  if (field.truncationReason === undefined || field.truncationReason === 'circular-reference') {
+    return labels.circularReference;
+  }
+  const marker = labels.truncated ?? labels.circularReference;
+  return `${field.typeDisplay || 'object'} (${marker})`;
 }
 
 // ─── HTML renderers ─────────────────────────────────────────────────────────
@@ -286,8 +357,8 @@ function renderOperation(operation: ExportOperation, labels: OfficeDocLabels): s
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
-  const model = buildDocumentModel(doc, tags, labels);
+export function renderHtmlDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
+  const model = snapshot.document;
   const sections = model.tags
     .map((tag) => {
       const ops = tag.operations.map((operation) => renderOperation(operation, labels)).join('');
@@ -311,6 +382,9 @@ export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
     .wrap{max-width:960px;margin:0 auto;padding:24px;}
     h1{text-align:center;color:#00ab6d;}
     .info{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:4px;padding:14px;margin-bottom:20px;}
+    .export-incomplete{background:#fff7e6;border:1px solid #ffd591;border-radius:4px;padding:12px 14px;margin-bottom:20px;color:#873800;}
+    .export-incomplete p{margin:6px 0;}
+    .export-incomplete ul{margin:6px 0 0;padding-left:20px;}
     code{background:#f5f5f5;padding:1px 4px;border-radius:3px;font-size:12px;}
   </style>
 </head>
@@ -321,6 +395,7 @@ export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
       <p><strong>${labels.version}:</strong> ${escapeHtml(model.version)}</p>
       ${model.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(model.description)}</p>` : ''}
     </div>
+    ${renderIncompleteHtml(snapshot, labels)}
     ${sections}
   </div>
 </body>
@@ -328,9 +403,14 @@ export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
+export function buildHtmlDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
+  return renderHtmlDoc(buildDocumentSnapshot(doc, tags, labels), labels);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function renderWordDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
   const border = 'border:1px solid #000;padding:4px 6px;';
-  const model = buildDocumentModel(doc, tags, labels);
+  const model = snapshot.document;
   const sections = model.tags
     .map((tag) => {
       const ops = tag.operations
@@ -398,6 +478,7 @@ export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
   <style>
     body{font-family:Arial,"Yu Gothic","Microsoft YaHei",sans-serif;font-size:14px;margin:20px;}
     .document-title{text-align:center;font-size:28px;font-weight:bold;margin:0.67em 0;}
+    .export-incomplete{background:#fff7e6;border:1px solid #ffd591;padding:10px 12px;margin:12px 0;color:#873800;}
     code{font-family:monospace;}
   </style>
 </head>
@@ -405,10 +486,16 @@ export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDoc
   <p class="document-title">${escapeHtml(model.title)}</p>
   <p><strong>${labels.version}:</strong> ${escapeHtml(model.version)}</p>
   ${model.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(model.description)}</p>` : ''}
+  ${renderIncompleteHtml(snapshot, labels)}
   <hr/>
   ${sections}
 </body>
 </html>`;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildWordDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
+  return renderWordDoc(buildDocumentSnapshot(doc, tags, labels), labels);
 }
 
 // ─── docx helpers ───────────────────────────────────────────────────────────
@@ -607,9 +694,9 @@ function docxResponseSection(
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): Promise<Blob> {
+export async function renderDocx(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): Promise<Blob> {
   const children: (DocxParagraph | DocxTable)[] = [];
-  const model = buildDocumentModel(doc, tags, labels);
+  const model = snapshot.document;
 
   children.push(
     new DocxParagraph({
@@ -629,6 +716,25 @@ export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: Office
       new DocxParagraph({
         children: [new TextRun({ text: `${labels.description}: ${model.description}`, size: 22 })],
       }),
+    );
+  }
+  if (!snapshot.complete) {
+    children.push(
+      new DocxParagraph({
+        children: [new TextRun({ text: incompleteExportTitle(labels), bold: true, color: 'ad4e00', size: 22 })],
+        spacing: { before: 120, after: 40 },
+      }),
+      new DocxParagraph({
+        children: [new TextRun({ text: incompleteExportSummary(snapshot, labels), color: '873800', size: 20 })],
+        spacing: { after: 40 },
+      }),
+      ...renderedExportIssueLines(snapshot, labels).map(
+        (issue) =>
+          new DocxParagraph({
+            children: [new TextRun({ text: `• ${issue}`, color: '873800', size: 20 })],
+            spacing: { after: 20 },
+          }),
+      ),
     );
   }
   children.push(new DocxParagraph({ text: '' }));
@@ -744,13 +850,60 @@ export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: Office
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
-  return renderExportDocumentMarkdown(buildDocumentModel(doc, tags, labels), { labels: labels.markdown });
+export async function buildDocx(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): Promise<Blob> {
+  return renderDocx(buildDocumentSnapshot(doc, tags, labels), labels);
 }
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function renderMarkdownDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
+  const document = renderExportDocumentMarkdown(snapshot.document, { labels: labels.markdown });
+  if (snapshot.complete) return document;
+  const notice = [
+    `> **${incompleteExportTitle(labels)}**`,
+    `> ${incompleteExportSummary(snapshot, labels)}`,
+    ...renderedExportIssueLines(snapshot, labels).map((issue) => `> - ${escapeMarkdownInline(issue)}`),
+  ].join('\n');
+  return `${notice}\n\n${document}`;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildMarkdownDoc(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): string {
+  return renderMarkdownDoc(buildDocumentSnapshot(doc, tags, labels), labels);
+}
+
+type OfflineDocumentFormat = 'html' | 'docx' | 'doc' | 'markdown';
 
 export default function OfficeDoc() {
   const { t, i18n } = useTranslation();
   const { swaggerDoc, menuTags, loading, usingMock } = useGroup();
+  const schemaEngine = useSchemaEngine();
+  const externalResources = useExternalResources();
+  const [exporting, setExporting] = useState<OfflineDocumentFormat | null>(null);
+  const activeControllerRef = useRef<AbortController | null>(null);
+  const readySession =
+    schemaEngine.status === 'ready' && schemaEngine.document === swaggerDoc ? schemaEngine.session : null;
+  const retrievalUri = schemaEngine.retrievalUri;
+  const exportIdentity = useMemo(
+    () => Object.freeze({ document: swaggerDoc, tags: menuTags, session: readySession, retrievalUri }),
+    [menuTags, readySession, retrievalUri, swaggerDoc],
+  );
+  const activeIdentityRef = useRef(exportIdentity);
+
+  useEffect(() => {
+    activeIdentityRef.current = exportIdentity;
+    activeControllerRef.current?.abort();
+    activeControllerRef.current = null;
+    setExporting(null);
+  }, [exportIdentity]);
+
+  useEffect(
+    () => () => {
+      activeControllerRef.current?.abort();
+      activeControllerRef.current = null;
+    },
+    [],
+  );
+
   const labels: OfficeDocLabels = {
     language: normalizeSupportedLanguage(i18n.language) ?? DEFAULT_LANGUAGE,
     version: t('home.version'),
@@ -773,10 +926,15 @@ export default function OfficeDoc() {
     deprecated: t('apiDoc.deprecated'),
     parameters: t('apiDoc.requestParams'),
     circularReference: t('officeDoc.circularReference'),
+    truncated: t('officeDoc.truncated'),
     fallbackTitle: t('officeDoc.fallbackTitle'),
+    incompleteTitle: t('officeDoc.snapshot.incomplete.documentTitle'),
+    incompleteSummary: (count) => t('officeDoc.snapshot.incomplete.documentSummary', { count }),
+    incompleteMore: (count) => t('officeDoc.snapshot.incomplete.more', { count }),
     markdown: {
       version: t('home.version'),
-      truncated: t('officeDoc.circularReference'),
+      truncated: t('officeDoc.truncated'),
+      circularReference: t('officeDoc.circularReference'),
       deprecated: t('apiDoc.markdown.deprecated'),
       requestParameters: t('apiDoc.requestParams'),
       noRequestParameters: t('apiDoc.noParams'),
@@ -801,37 +959,163 @@ export default function OfficeDoc() {
     },
   };
 
-  function handleDownloadHtml() {
-    if (!swaggerDoc) return;
-    const html = buildHtmlDoc(swaggerDoc, menuTags, labels);
-    const title = swaggerDoc.info.title || 'api-docs';
-    downloadBlob(html, `${title}.html`, 'text/html;charset=utf-8');
+  function degradedSnapshot(issue: OfflineDocumentIssue): OfflineDocumentSnapshot {
+    return createOfflineDocumentSnapshot(
+      buildExportDocument(exportIdentity.document!, exportIdentity.tags, { fallbackTitle: labels.fallbackTitle }),
+      [issue],
+    );
   }
 
-  function handleDownloadWord() {
-    if (!swaggerDoc) return;
-    const html = buildWordDoc(swaggerDoc, menuTags, labels);
-    const title = swaggerDoc.info.title || 'api-docs';
-    downloadBlob(html, `${title}.doc`, 'application/msword');
+  function resourceSnapshotIssues(): OfflineDocumentIssue[] {
+    if (schemaEngine.status !== 'ready') return [];
+    const snapshot = externalResources.snapshot;
+    const currentGraph =
+      snapshot?.entryRetrievalUri === schemaEngine.retrievalUri &&
+      externalResources.documentScope === snapshot.documentScope;
+    const issues: OfflineDocumentIssue[] = [];
+    if (!currentGraph || !snapshot.complete || externalResources.status !== 'ready') {
+      issues.push({ code: 'RESOURCE_GRAPH_INCOMPLETE', severity: 'warning' });
+    }
+    if (externalResources.registrationError) {
+      issues.push({
+        code: 'RESOURCE_REGISTRATION_FAILED',
+        severity: 'warning',
+        ...(externalResources.registrationError.code === undefined
+          ? {}
+          : { keyword: externalResources.registrationError.code }),
+      });
+    }
+    return issues;
   }
 
-  async function handleDownloadDocx() {
-    if (!swaggerDoc) return;
-    const blob = await buildDocx(swaggerDoc, menuTags, labels);
-    const title = swaggerDoc.info.title || 'api-docs';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = sanitizeFilename(`${title}.docx`);
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+  async function snapshotForDownload(signal: AbortSignal): Promise<OfflineDocumentSnapshot> {
+    const document = exportIdentity.document!;
+    if (!isOas31SchemaDocument(document)) return buildDocumentSnapshot(document, exportIdentity.tags, labels);
+    if (schemaEngine.status !== 'ready' || !exportIdentity.session) {
+      return degradedSnapshot({
+        code:
+          schemaEngine.status === 'loading'
+            ? 'SCHEMA_SESSION_LOADING'
+            : schemaEngine.status === 'error'
+              ? 'SCHEMA_SESSION_FAILED'
+              : 'SCHEMA_SESSION_UNAVAILABLE',
+        severity: 'warning',
+      });
+    }
+    try {
+      return await buildOas31ExportSnapshot(document, exportIdentity.tags, exportIdentity.session, {
+        fallbackTitle: labels.fallbackTitle,
+        signal,
+        initialIssues: resourceSnapshotIssues(),
+      });
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      if (error instanceof Oas31ExportBudgetError) {
+        return createOfflineDocumentSnapshot(
+          {
+            title: document.info.title || labels.fallbackTitle,
+            version: document.info.version ?? '',
+            description: document.info.description ?? '',
+            tags: [],
+          },
+          [{ code: error.code, severity: 'warning', keyword: error.dimension }],
+        );
+      }
+      return degradedSnapshot({
+        code: 'SNAPSHOT_BUILD_FAILED',
+        severity: 'warning',
+      });
+    }
   }
 
-  function handleDownloadMarkdown() {
-    if (!swaggerDoc) return;
-    const md = buildMarkdownDoc(swaggerDoc, menuTags, labels);
-    const title = swaggerDoc.info.title || 'api-docs';
-    downloadBlob(md, `${title}.md`, 'text/markdown;charset=utf-8');
+  function confirmIncompleteSnapshot(snapshot: OfflineDocumentSnapshot, signal: AbortSignal): Promise<boolean> {
+    if (snapshot.complete) return Promise.resolve(true);
+    const issueLines = renderedExportIssueLines(snapshot, labels).slice(0, 6);
+    return new Promise((resolve) => {
+      let settled = false;
+      let destroy: () => void = () => undefined;
+      const settle = (accepted: boolean) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', handleAbort);
+        resolve(accepted);
+      };
+      const handleAbort = () => {
+        destroy();
+        settle(false);
+      };
+      const modal = Modal.confirm({
+        title: t('officeDoc.snapshot.incomplete.title'),
+        content: (
+          <div>
+            <Paragraph>
+              {t('officeDoc.snapshot.incomplete.description', {
+                count: incompleteOfflineDocumentIssues(snapshot).length,
+              })}
+            </Paragraph>
+            <ul style={{ paddingInlineStart: 20, marginBottom: 0 }}>
+              {issueLines.map((issue, index) => (
+                <li key={`${index}:${issue}`}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        ),
+        okText: t('officeDoc.snapshot.incomplete.confirm'),
+        cancelText: t('officeDoc.snapshot.incomplete.cancel'),
+        okButtonProps: { danger: true },
+        onOk: () => settle(true),
+        onCancel: () => settle(false),
+      });
+      destroy = modal.destroy;
+      signal.addEventListener('abort', handleAbort, { once: true });
+      if (signal.aborted) handleAbort();
+    });
+  }
+
+  async function materializeSnapshot(
+    format: OfflineDocumentFormat,
+    snapshot: OfflineDocumentSnapshot,
+  ): Promise<() => void> {
+    const title = snapshot.document.title || 'api-docs';
+    if (format === 'html') {
+      const content = renderHtmlDoc(snapshot, labels);
+      return () => downloadBlob(content, `${title}.html`, 'text/html;charset=utf-8');
+    }
+    if (format === 'doc') {
+      const content = renderWordDoc(snapshot, labels);
+      return () => downloadBlob(content, `${title}.doc`, 'application/msword');
+    }
+    if (format === 'markdown') {
+      const content = renderMarkdownDoc(snapshot, labels);
+      return () => downloadBlob(content, `${title}.md`, 'text/markdown;charset=utf-8');
+    }
+    const blob = await renderDocx(snapshot, labels);
+    return () => downloadPreparedBlob(blob, `${title}.docx`);
+  }
+
+  async function handleDownload(format: OfflineDocumentFormat): Promise<void> {
+    if (!exportIdentity.document || usingMock || exporting) return;
+    const controller = new AbortController();
+    activeControllerRef.current?.abort();
+    activeControllerRef.current = controller;
+    const capturedIdentity = exportIdentity;
+    setExporting(format);
+    try {
+      await runOfflineDocumentExportTask({
+        signal: controller.signal,
+        isCurrent: () => activeIdentityRef.current === capturedIdentity,
+        buildSnapshot: () => snapshotForDownload(controller.signal),
+        confirmIncomplete: (snapshot) => confirmIncompleteSnapshot(snapshot, controller.signal),
+        materialize: (snapshot) => materializeSnapshot(format, snapshot),
+      });
+    } catch (error) {
+      if (!isAbortError(error) && activeIdentityRef.current === capturedIdentity) {
+        void message.error(t('officeDoc.snapshot.failed'));
+      }
+    } finally {
+      if (activeControllerRef.current === controller) activeControllerRef.current = null;
+      if (activeIdentityRef.current === capturedIdentity) setExporting(null);
+    }
   }
 
   function handleDownloadOpenApiJson() {
@@ -841,6 +1125,7 @@ export default function OfficeDoc() {
   }
 
   const noData = !loading && (!swaggerDoc || usingMock);
+  const downloadDisabled = loading || !swaggerDoc || usingMock || exporting !== null;
 
   return (
     <div id="knife4j-office-doc-page" style={{ padding: 24, maxWidth: 800 }}>
@@ -857,40 +1142,40 @@ export default function OfficeDoc() {
         <Button
           type="primary"
           icon={<FileTextOutlined />}
-          onClick={handleDownloadHtml}
-          disabled={loading || !swaggerDoc || usingMock}
-          loading={loading}
+          onClick={() => void handleDownload('html')}
+          disabled={downloadDisabled}
+          loading={loading || exporting === 'html'}
         >
           {t('officeDoc.btn.html')}
         </Button>
         <Button
           icon={<FileWordOutlined />}
-          onClick={handleDownloadDocx}
-          disabled={loading || !swaggerDoc || usingMock}
-          loading={loading}
+          onClick={() => void handleDownload('docx')}
+          disabled={downloadDisabled}
+          loading={loading || exporting === 'docx'}
         >
           {t('officeDoc.btn.docx')}
         </Button>
         <Button
           icon={<FileWordOutlined />}
-          onClick={handleDownloadWord}
-          disabled={loading || !swaggerDoc || usingMock}
-          loading={loading}
+          onClick={() => void handleDownload('doc')}
+          disabled={downloadDisabled}
+          loading={loading || exporting === 'doc'}
         >
           {t('officeDoc.btn.word')}
         </Button>
         <Button
           icon={<FileMarkdownOutlined />}
-          onClick={handleDownloadMarkdown}
-          disabled={loading || !swaggerDoc || usingMock}
-          loading={loading}
+          onClick={() => void handleDownload('markdown')}
+          disabled={downloadDisabled}
+          loading={loading || exporting === 'markdown'}
         >
           {t('officeDoc.btn.markdown')}
         </Button>
         <Button
           icon={<CodeOutlined />}
           onClick={handleDownloadOpenApiJson}
-          disabled={loading || !swaggerDoc || usingMock}
+          disabled={downloadDisabled}
           loading={loading}
         >
           {t('officeDoc.btn.openapi')}

@@ -465,6 +465,9 @@ export interface SchemaResolveContext {
 /** OAS 3.1 Schema Object，包含 JSON Schema 允许的 boolean schema。 */
 export type SchemaValue = Record<string, unknown> | boolean;
 
+export type SchemaFieldTruncationReason =
+  'circular-reference' | 'max-depth' | 'projection-loss' | 'reference-unavailable';
+
 /** 字段树节点（用于文档展示） */
 export interface SchemaFieldNode {
   /** 字段名；根节点或 array 元素可能为空字符串 */
@@ -519,8 +522,10 @@ export interface SchemaFieldNode {
   refDescription?: string;
   /** $ref 目标 schema 的 title（不覆盖字段自身 description，用于二级展示） */
   refTitle?: string;
-  /** 因循环引用或达到最大深度被截断时标记 */
+  /** 字段投影未完整展开时标记。 */
   truncated?: boolean;
+  /** 区分循环、深度上限和 OAS 3.1 语义降级，供导出层选择准确标记。 */
+  truncationReason?: SchemaFieldTruncationReason;
   /** 子字段（object.properties 或 array.items） */
   children?: SchemaFieldNode[];
 }

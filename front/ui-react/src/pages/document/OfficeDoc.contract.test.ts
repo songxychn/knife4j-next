@@ -1,8 +1,19 @@
 import JSZip from 'jszip';
-import { buildExportDocument } from 'knife4j-core';
+import { buildExportDocument, type ExportDocument } from 'knife4j-core';
 import { describe, expect, test, vi } from 'vitest';
 import type { MenuOperation, MenuTag, OperationObject, SwaggerDoc } from '../../types/swagger';
-import { buildDocx, buildHtmlDoc, buildMarkdownDoc, buildWordDoc, type OfficeDocLabels } from './OfficeDoc';
+import { createOfflineDocumentSnapshot } from './offlineDocumentSnapshot';
+import {
+  buildDocx,
+  buildHtmlDoc,
+  buildMarkdownDoc,
+  buildWordDoc,
+  renderDocx,
+  renderHtmlDoc,
+  renderMarkdownDoc,
+  renderWordDoc,
+  type OfficeDocLabels,
+} from './OfficeDoc';
 
 vi.mock('../../context/GroupContext', () => ({
   useGroup: () => ({}),
@@ -30,10 +41,12 @@ const labels: OfficeDocLabels = {
   deprecated: 'Deprecated',
   parameters: 'Parameters',
   circularReference: 'Circular reference',
+  truncated: 'Truncated',
   fallbackTitle: 'API documentation',
   markdown: {
     version: 'Version',
-    truncated: 'Circular reference',
+    truncated: 'Truncated',
+    circularReference: 'Circular reference',
     deprecated: 'Deprecated',
     requestParameters: 'Request parameters',
     noRequestParameters: 'No request parameters.',
@@ -455,5 +468,121 @@ describe('offline document cross-format contract', () => {
     );
     expect(outputs.Markdown).toContain('#### Request Example');
     expect(outputs.Markdown).toContain('#### Response Example `202`');
+  });
+
+  test('all reading formats consume one immutable incomplete snapshot and preserve its marker', async () => {
+    const snapshot = createOfflineDocumentSnapshot(buildExportDocument(doc, tags), [
+      {
+        code: 'DYNAMIC_REFERENCE',
+        severity: 'warning',
+        operation: 'POST /people',
+        region: 'requestBody',
+        keyword: '$dynamicRef',
+      },
+    ]);
+    const snapshotLabels: OfficeDocLabels = {
+      ...labels,
+      incompleteTitle: 'INCOMPLETE SNAPSHOT',
+      incompleteSummary: (count) => `INCOMPLETE COUNT ${count}`,
+      incompleteMore: (count) => `MORE ${count}`,
+    };
+    const outputs = {
+      HTML: renderHtmlDoc(snapshot, snapshotLabels),
+      DOC: renderWordDoc(snapshot, snapshotLabels),
+      DOCX: await readDocumentXml(await renderDocx(snapshot, snapshotLabels)),
+      Markdown: renderMarkdownDoc(snapshot, snapshotLabels),
+    };
+
+    for (const output of Object.values(outputs)) {
+      expect(output).toContain('Unified Export API');
+      expect(output).toContain('INCOMPLETE SNAPSHOT');
+      expect(output).toContain('INCOMPLETE COUNT 1');
+      expect(output).toContain('POST /people');
+      expect(output).toContain('requestBody');
+      expect(output).toContain('DYNAMIC_REFERENCE');
+      expect(output).toContain('$dynamicRef');
+    }
+  });
+
+  test('keeps spec-derived diagnostics inside one Markdown quote line', () => {
+    const snapshot = createOfflineDocumentSnapshot(buildExportDocument(doc, tags), [
+      {
+        code: 'BROKEN*MARKER',
+        severity: 'warning',
+        operation: 'POST /unsafe|row\n> injected',
+      },
+    ]);
+    const markdown = renderMarkdownDoc(snapshot, labels);
+
+    expect(markdown).toContain('POST /unsafe\\|row \\> injected · BROKEN\\*MARKER');
+    expect(markdown).not.toContain('\n> injected');
+  });
+
+  test('preserves the projected type when every renderer marks a truncated field', async () => {
+    const field = {
+      fieldPath: 'coordinates',
+      typeDisplay: '[number, number]',
+      required: true,
+      description: '',
+      truncated: true,
+      truncationReason: 'projection-loss' as const,
+      depth: 0,
+    };
+    const circularField = {
+      fieldPath: 'parent',
+      typeDisplay: 'TupleNode',
+      required: false,
+      description: '',
+      truncated: true,
+      depth: 0,
+    };
+    const document: ExportDocument = {
+      title: 'Truncated tuple',
+      version: '1.0.0',
+      description: '',
+      tags: [
+        {
+          name: 'tuple',
+          description: '',
+          numberPath: [1],
+          operations: [
+            {
+              title: 'Tuple operation',
+              numberPath: [1, 1],
+              method: 'POST',
+              path: '/tuple',
+              summary: '',
+              description: '',
+              deprecated: false,
+              parameters: [],
+              requestBody: {
+                description: '',
+                required: true,
+                schema: {
+                  mediaType: 'application/json',
+                  typeDisplay: 'object',
+                  kind: 'object',
+                  shallowFields: [field, circularField],
+                  fields: [field, circularField],
+                },
+              },
+              responses: [],
+            },
+          ],
+        },
+      ],
+    };
+    const snapshot = createOfflineDocumentSnapshot(document);
+    const expected = '[number, number] (Truncated)';
+
+    expect(renderHtmlDoc(snapshot, labels)).toContain(expected);
+    expect(renderHtmlDoc(snapshot, labels)).toContain('Circular reference');
+    expect(renderWordDoc(snapshot, labels)).toContain(expected);
+    expect(renderWordDoc(snapshot, labels)).toContain('Circular reference');
+    const documentXml = await readDocumentXml(await renderDocx(snapshot, labels));
+    expect(documentXml).toContain(expected);
+    expect(documentXml).toContain('Circular reference');
+    expect(renderMarkdownDoc(snapshot, labels)).toContain(expected);
+    expect(renderMarkdownDoc(snapshot, labels)).toContain('TupleNode (Circular reference)');
   });
 });

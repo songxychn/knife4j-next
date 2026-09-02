@@ -66,6 +66,7 @@ export interface SchemaProjectionDiagnostic {
 }
 
 export interface SchemaDisplayProjection {
+  readonly root: SchemaFieldNode;
   readonly fields: SchemaFieldNode[];
   readonly diagnostics: SchemaProjectionDiagnostic[];
 }
@@ -355,6 +356,7 @@ export function createSchemaDisplayProjector(
         ...schemaAnnotations(name, schema, required),
         ...(refName === undefined ? {} : { refName }),
         truncated: true,
+        truncationReason: 'max-depth',
       };
     }
 
@@ -368,6 +370,7 @@ export function createSchemaDisplayProjector(
           type: 'object',
           refName,
           truncated: true,
+          truncationReason: 'circular-reference',
         };
       }
 
@@ -381,13 +384,16 @@ export function createSchemaDisplayProjector(
             type: 'object',
             refName,
             truncated: true,
+            truncationReason: 'circular-reference',
           };
         }
 
         const targetNode = await projectNode(name, target.schema, required, withResolvedNode(localCtx, target, uri));
         const projectedTarget = {
           ...annotationOverlay(targetNode, schema, target.schema, refName),
-          ...(!hasUnsupportedKeywords && !hasDynamicReference ? {} : { truncated: true }),
+          ...(!hasUnsupportedKeywords && !hasDynamicReference
+            ? {}
+            : { truncated: true, truncationReason: 'projection-loss' as const }),
         };
         if (!hasRefAssertionSiblings(schema)) return projectedTarget;
 
@@ -404,7 +410,9 @@ export function createSchemaDisplayProjector(
           ...schemaAnnotations(name, schema, required),
           type: 'allOf',
           refName,
-          ...(!hasUnsupportedKeywords && !hasDynamicReference ? {} : { truncated: true }),
+          ...(!hasUnsupportedKeywords && !hasDynamicReference
+            ? {}
+            : { truncated: true, truncationReason: 'projection-loss' as const }),
           children: [{ ...projectedTarget, name: 'allOf[1]', required: false }, siblingNode],
         };
       } catch (error) {
@@ -420,6 +428,7 @@ export function createSchemaDisplayProjector(
           ...schemaAnnotations(name, schema, required),
           refName,
           truncated: true,
+          truncationReason: 'reference-unavailable',
         };
       }
     }
@@ -498,7 +507,10 @@ export function createSchemaDisplayProjector(
       }
     }
 
-    if (hasProjectionLoss) node.truncated = true;
+    if (hasProjectionLoss) {
+      node.truncated = true;
+      node.truncationReason = 'projection-loss';
+    }
 
     const composition = compositionType(schema);
     if (composition) node.type = composition;
@@ -525,7 +537,7 @@ export function createSchemaDisplayProjector(
         baseAlreadyIncludesOwnId: true,
       };
       const projected = await projectNode('', schemaNode.schema, false, context);
-      return { fields: rootFields(projected), diagnostics };
+      return { root: projected, fields: rootFields(projected), diagnostics };
     },
     async projectValue(schema, runOptions = {}) {
       throwIfAborted(runOptions.signal);
@@ -542,7 +554,7 @@ export function createSchemaDisplayProjector(
         baseAlreadyIncludesOwnId: false,
       };
       const projected = await projectNode('', schema, false, context);
-      return { fields: rootFields(projected), diagnostics };
+      return { root: projected, fields: rootFields(projected), diagnostics };
     },
   };
 }

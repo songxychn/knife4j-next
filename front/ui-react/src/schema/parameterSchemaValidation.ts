@@ -41,6 +41,11 @@ interface LocatedParameter extends LocatedRecord {
   readonly key: string;
 }
 
+export interface OperationParameterSchemaTarget {
+  readonly key: string;
+  readonly reference: string;
+}
+
 function parameterKey(value: Record<string, unknown>): string | null {
   return typeof value.name === 'string' && typeof value.in === 'string' ? `${value.in}:${value.name}` : null;
 }
@@ -90,6 +95,18 @@ function schemaReference(parameter: LocatedParameter): string | null {
   const mediaObject = asRecord(mediaObjectValue);
   if (!mediaObject || !Object.prototype.hasOwnProperty.call(mediaObject, 'schema')) return null;
   return pointerReference([...parameter.tokens, 'content', mediaType, 'schema']);
+}
+
+export function locateOperationParameterSchemaTargets(
+  document: SwaggerDoc,
+  operation: MenuOperation,
+): OperationParameterSchemaTarget[] {
+  const parameters = parametersForOperation(document, operation);
+  if (!parameters) return [];
+  return Array.from(parameters.values()).flatMap((parameter) => {
+    const reference = schemaReference(parameter);
+    return reference ? [{ key: parameter.key, reference }] : [];
+  });
 }
 
 export function prepareParameterSchemaEvaluation(options: {
