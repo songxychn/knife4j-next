@@ -470,6 +470,53 @@ describe('offline document cross-format contract', () => {
     expect(outputs.Markdown).toContain('#### Response Example `202`');
   });
 
+  test('all reading formats include projected parameter fields and examples from the shared snapshot', async () => {
+    const document = buildExportDocument(doc, tags);
+    document.tags[0].operations[0].parameters[0] = {
+      name: 'criteria',
+      location: 'query',
+      required: true,
+      typeDisplay: 'object',
+      compactTypeDisplay: 'object',
+      description: 'Structured search criteria.',
+      schema: {
+        mediaType: '',
+        typeDisplay: 'object',
+        kind: 'object',
+        shallowFields: [],
+        fields: [
+          {
+            fieldPath: 'phrase',
+            typeDisplay: 'string',
+            required: true,
+            description: 'PARAMETER_FIELD_708',
+            truncated: false,
+            depth: 0,
+          },
+        ],
+      },
+      example: {
+        mediaType: '',
+        value: '{\n  "phrase": "PARAMETER_EXAMPLE_708"\n}',
+      },
+    };
+    const snapshot = createOfflineDocumentSnapshot(document);
+    const outputs = {
+      HTML: renderHtmlDoc(snapshot, labels),
+      DOC: renderWordDoc(snapshot, labels),
+      DOCX: await readDocumentXml(await renderDocx(snapshot, labels)),
+      Markdown: renderMarkdownDoc(snapshot, labels),
+    };
+
+    for (const output of Object.values(outputs)) {
+      expect(output).toContain('criteria');
+      expect(output).toContain('PARAMETER_FIELD_708');
+      expect(output).toContain('PARAMETER_EXAMPLE_708');
+    }
+    expect(outputs.Markdown).toContain('### Request parameters `criteria`');
+    expect(outputs.Markdown).toContain('#### Request Example');
+  });
+
   test('all reading formats consume one immutable incomplete snapshot and preserve its marker', async () => {
     const snapshot = createOfflineDocumentSnapshot(buildExportDocument(doc, tags), [
       {

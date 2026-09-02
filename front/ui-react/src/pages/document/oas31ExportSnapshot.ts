@@ -26,7 +26,11 @@ import {
   type OperationSchemaExampleTarget,
   type SelectedOperationSchemaExample,
 } from '../../schema/operationSchemaExamples';
-import { locateOperationParameterSchemaTargets } from '../../schema/parameterSchemaValidation';
+import {
+  locateOperationParameterSchemaTargets,
+  type OperationParameterSchemaTarget,
+} from '../../schema/parameterSchemaValidation';
+import { generateSchemaExample } from '../../schema/schemaExampleGeneration';
 import { prepareApiDocSchemaFields, type ApiDocSchemaAccessMode } from '../api/apiDocSchemaProjection';
 import type { MenuOperation, MenuTag, OperationObject, ParameterObject, SwaggerDoc } from '../../types/swagger';
 import {
@@ -39,6 +43,7 @@ const DEFAULT_MAX_OPERATIONS = 500;
 const DEFAULT_MAX_PROJECTED_FIELDS = 20_000;
 const DEFAULT_MAX_DIAGNOSTICS = 200;
 const PROJECTION_CONCURRENCY = 4;
+const SUPPORTED_OAS31_EXPORT_VERSIONS = new Set(['3.1.0', '3.1.1', '3.1.2']);
 
 export interface Oas31ExportSnapshotLimits {
   readonly maxOperations?: number;
@@ -371,30 +376,70 @@ function rawParameterHasSchema(parameter: ParameterObject): boolean {
   return Object.values(parameter.content ?? {}).some((media) => media.schema !== undefined);
 }
 
+async function buildParameterExample(
+  context: OperationBuildContext,
+  operation: MenuOperation,
+  parameter: ParameterObject,
+  target: OperationParameterSchemaTarget,
+): Promise<ExportExample | undefined> {
+  const region = `parameter ${parameter.in}:${parameter.name} example`;
+  try {
+    const result = await generateSchemaExample(context.session, target.reference, {
+      direction: 'request',
+      explicit: target.explicit,
+      signal: context.signal,
+    });
+    return recordExampleResult(
+      { mediaType: target.mediaType, result },
+      {
+        key: target.key,
+        mediaType: target.mediaType,
+        schemaReference: target.reference,
+        explicit: target.explicit,
+      },
+      operation,
+      region,
+      context.issues,
+    );
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    context.issues.add({
+      code: diagnosticCode(error, 'PARAMETER_EXAMPLE_GENERATION_FAILED'),
+      severity: 'warning',
+      operation: operationLabel(operation),
+      region,
+    });
+    return undefined;
+  }
+}
+
 async function buildParameters(
   context: OperationBuildContext,
   operation: MenuOperation,
   fallback: () => ExportOperation,
 ): Promise<ExportParameter[]> {
-  const references = new Map(
-    locateOperationParameterSchemaTargets(context.document, operation).map((target) => [target.key, target.reference]),
+  const targets = new Map(
+    locateOperationParameterSchemaTargets(context.document, operation).map((target) => [target.key, target]),
   );
   const parameters = operation.operation.parameters ?? [];
   const result: ExportParameter[] = [];
   for (const [index, parameter] of parameters.entries()) {
     throwIfAborted(context.signal);
-    const reference = references.get(parameterKey(parameter));
+    const target = targets.get(parameterKey(parameter));
     let typeDisplay = [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
-    if (reference) {
-      const projected = await projectSchema(context, {
-        reference,
-        mediaType: '',
+    let schema: ExportSchema | undefined;
+    let example: ExportExample | undefined;
+    if (target) {
+      schema = await projectSchema(context, {
+        reference: target.reference,
+        mediaType: target.mediaType,
         mode: 'request',
         operation,
         region: `parameter ${parameter.in}:${parameter.name}`,
         fallback: () => undefined,
       });
-      typeDisplay = projected?.typeDisplay ?? fallback().parameters[index]?.typeDisplay ?? '-';
+      typeDisplay = schema?.typeDisplay ?? fallback().parameters[index]?.typeDisplay ?? '-';
+      example = await buildParameterExample(context, operation, parameter, target);
     } else if (rawParameterHasSchema(parameter)) {
       context.issues.add({
         code: 'SCHEMA_REFERENCE_UNAVAILABLE',
@@ -411,6 +456,8 @@ async function buildParameters(
       typeDisplay,
       compactTypeDisplay: compactTypeDisplay(typeDisplay),
       description: parameter.description ?? '',
+      ...(schema === undefined ? {} : { schema }),
+      ...(example === undefined ? {} : { example }),
     });
   }
   return result;
@@ -531,8 +578,8 @@ export async function buildOas31ExportSnapshot(
   session: SchemaDocumentSession,
   options: BuildOas31ExportSnapshotOptions = {},
 ): Promise<OfflineDocumentSnapshot> {
-  if (!isOpenApi31Version(document.openapi)) {
-    throw new TypeError('OAS 3.1 offline export snapshot requires an OpenAPI 3.1.x document.');
+  if (!isOpenApi31Version(document.openapi) || !SUPPORTED_OAS31_EXPORT_VERSIONS.has(document.openapi ?? '')) {
+    throw new TypeError('OAS 3.1 offline export snapshot supports only OpenAPI 3.1.0, 3.1.1, and 3.1.2.');
   }
   throwIfAborted(options.signal);
   const limits = effectiveLimits(options.limits);

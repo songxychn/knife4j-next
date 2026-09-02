@@ -26,6 +26,24 @@ function documentFixture(openapi = '3.1.1'): SwaggerDoc {
         post: {
           tags: ['Payloads'],
           summary: 'Create payload',
+          parameters: [
+            {
+              name: 'criteria',
+              in: 'query',
+              required: true,
+              style: 'deepObject',
+              schema: {
+                type: 'object',
+                required: ['phrase', 'clientToken'],
+                properties: {
+                  phrase: { type: 'string' },
+                  clientToken: { type: 'string', writeOnly: true },
+                  serverHint: { type: 'string', readOnly: true },
+                },
+              },
+              example: { phrase: 'Ada', clientToken: 'parameter-secret' },
+            },
+          ],
           requestBody: {
             required: true,
             content: {
@@ -117,9 +135,16 @@ describe('OAS 3.1 offline export snapshot', () => {
     const requestFields = operation.requestBody?.schema?.fields.map((field) => field.fieldPath) ?? [];
     const responseFields = operation.responses[0].schema?.fields.map((field) => field.fieldPath) ?? [];
 
-    expect(operation.parameters).toEqual([
-      expect.objectContaining({ name: 'filter', typeDisplay: 'string | null', compactTypeDisplay: 'string|null' }),
-    ]);
+    expect(operation.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'filter', typeDisplay: 'string | null', compactTypeDisplay: 'string|null' }),
+        expect.objectContaining({ name: 'criteria', typeDisplay: 'object', compactTypeDisplay: 'object' }),
+      ]),
+    );
+    const criteria = operation.parameters.find((parameter) => parameter.name === 'criteria')!;
+    expect(criteria.schema?.fields.map((field) => field.fieldPath)).toEqual(['phrase', 'clientToken']);
+    expect(criteria.schema?.fields.map((field) => field.fieldPath)).not.toContain('serverHint');
+    expect(JSON.parse(criteria.example!.value)).toEqual({ phrase: 'Ada', clientToken: 'parameter-secret' });
     expect(requestFields).toEqual(expect.arrayContaining(['name', 'secret', 'tuple', 'tuple[0]', 'tuple[1]']));
     expect(requestFields).not.toContain('serverId');
     expect(responseFields).toContain('serverId');
@@ -188,6 +213,79 @@ describe('OAS 3.1 offline export snapshot', () => {
     const snapshot = await buildOas31ExportSnapshot(document, parseMenuTags(document), session);
     expect(snapshot.document.title).toBe('Patch line');
     expect(snapshot.complete).toBe(true);
+  });
+
+  test.each(['3.1.3', '3.1.999'])('rejects the unfrozen %s patch version', async (openapi) => {
+    const document = documentFixture(openapi);
+    const session = await openSession(document);
+    await expect(buildOas31ExportSnapshot(document, parseMenuTags(document), session)).rejects.toThrow(
+      'supports only OpenAPI 3.1.0, 3.1.1, and 3.1.2',
+    );
+  });
+
+  test('locates an operation kept as a non-conflicting Path Item reference sibling', async () => {
+    const document: SwaggerDoc = {
+      openapi: '3.1.2',
+      info: { title: 'Path Item sibling', version: '1.0.0' },
+      tags: [{ name: 'Sibling' }],
+      paths: {
+        '/sibling': {
+          $ref: '#/components/pathItems/SharedMetadata',
+          post: {
+            tags: ['Sibling'],
+            summary: 'Sibling operation',
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { type: 'object', properties: { input: { type: 'string' } } },
+                  example: { input: 'request-sibling' },
+                },
+              },
+            },
+            responses: {
+              '200': {
+                description: 'ok',
+                content: {
+                  'application/json': {
+                    schema: { type: 'object', properties: { output: { type: 'string' } } },
+                    example: { output: 'response-sibling' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        pathItems: {
+          SharedMetadata: {
+            summary: 'Referenced metadata',
+            parameters: [
+              {
+                name: 'tenant',
+                in: 'query',
+                schema: { type: 'string' },
+                example: 'tenant-sibling',
+              },
+            ],
+          },
+        },
+      },
+    };
+    const session = await openSession(document, false);
+    const snapshot = await buildOas31ExportSnapshot(document, parseMenuTags(document), session);
+    const operation = snapshot.document.tags[0].operations[0];
+
+    expect(snapshot.complete).toBe(true);
+    expect(operation.parameters[0]).toMatchObject({
+      name: 'tenant',
+      example: { value: 'tenant-sibling' },
+    });
+    expect(operation.requestBody?.schema?.fields.map((field) => field.fieldPath)).toEqual(['input']);
+    expect(operation.requestBody?.example?.value).toContain('request-sibling');
+    expect(operation.responses[0].schema?.fields.map((field) => field.fieldPath)).toEqual(['output']);
+    expect(operation.responses[0].example?.value).toContain('response-sibling');
   });
 
   test('keeps an incomplete resource graph explicit without trying to fetch', async () => {

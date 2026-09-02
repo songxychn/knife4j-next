@@ -275,6 +275,37 @@ function renderExportOperationMarkdownInternal(
         ]),
       ),
     );
+    if (!legacySingleOperation) {
+      for (const parameter of params) {
+        const fields = parameter.schema?.fields ?? [];
+        const example = parameter.example;
+        if (fields.length === 0 && example?.value === undefined) continue;
+        lines.push('');
+        lines.push(heading(sectionHeadingLevel + 1, `${labels.requestParameters} \`${escape(parameter.name)}\``));
+        lines.push('');
+        if (parameter.schema) {
+          const metadata = [
+            ...(parameter.schema.mediaType
+              ? [`**${labels.mediaType}:** \`${escape(parameter.schema.mediaType)}\``]
+              : []),
+            `**${labels.type}:** \`${escape(markdownTypeDisplay(parameter.schema.typeDisplay))}\``,
+          ];
+          lines.push(metadata.join(' · '));
+          lines.push('');
+          if (fields.length > 0) lines.push(fieldTable(fields, labels));
+        }
+        if (example?.value !== undefined) {
+          if (lines[lines.length - 1] !== '') lines.push('');
+          lines.push(heading(sectionHeadingLevel + 2, labels.requestExample));
+          lines.push('');
+          if (example.mediaType) {
+            lines.push(`**${labels.mediaType}:** \`${escape(example.mediaType)}\``);
+            lines.push('');
+          }
+          appendExampleCodeBlock(lines, example.value);
+        }
+      }
+    }
   }
   lines.push('');
 

@@ -241,12 +241,44 @@ function renderFieldTable(rows: readonly ExportSchemaField[], borderStyle: strin
 
 function renderHtmlExample(label: string, mediaType: string, value: string, statusCode?: string): string {
   return `
-    <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${label}${
+    <p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${escapeHtml(label)}${
       statusCode !== undefined ? ` <code>${escapeHtml(statusCode)}</code>` : ''
-    } (${escapeHtml(mediaType)})</p>
+    }${mediaType ? ` (${escapeHtml(mediaType)})` : ''}</p>
     <pre style="margin:4px 0;padding:8px;background:#f5f5f5;white-space:pre-wrap;overflow-wrap:anywhere;font-family:monospace;font-size:12px;">${escapeHtml(
       value,
     )}</pre>`;
+}
+
+function renderParameterDetails(
+  parameters: readonly ExportParameter[],
+  borderStyle: string,
+  labels: OfficeDocLabels,
+): string {
+  return parameters
+    .flatMap((parameter) => {
+      const fields = parameter.schema?.fields ?? [];
+      const example = parameter.example;
+      if (fields.length === 0 && example?.value === undefined) return [];
+      const metadata = parameter.schema
+        ? ` &nbsp;<span style="font-weight:400;color:#555;">${
+            parameter.schema.mediaType
+              ? `${labels.mediaType}: <code>${escapeHtml(parameter.schema.mediaType)}</code> &nbsp;`
+              : ''
+          }${labels.type}: <code>${escapeHtml(parameter.schema.typeDisplay)}</code></span>`
+        : '';
+      return [
+        `<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${labels.parameters} <code>${escapeHtml(
+          parameter.name,
+        )}</code>${metadata}</p>
+        ${fields.length ? renderFieldTable(fields, borderStyle, labels) : ''}
+        ${
+          example?.value === undefined
+            ? ''
+            : renderHtmlExample(`${labels.requestExample}: ${parameter.name}`, example.mediaType, example.value)
+        }`,
+      ];
+    })
+    .join('');
 }
 
 function renderRequestBodySection(
@@ -348,7 +380,11 @@ function renderOperation(operation: ExportOperation, labels: OfficeDocLabels): s
       }
       ${
         operation.parameters.length
-          ? `<div style="padding:5px 12px;">${renderParamTable(operation.parameters, labels)}</div>`
+          ? `<div style="padding:5px 12px;">${renderParamTable(operation.parameters, labels)}${renderParameterDetails(
+              operation.parameters,
+              'border:1px solid #ddd;padding:5px 8px;',
+              labels,
+            )}</div>`
           : ''
       }
       ${bodyHtml ? `<div style="padding:5px 12px;">${bodyHtml}</div>` : ''}
@@ -438,7 +474,7 @@ export function renderWordDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeD
             <th style="${border}">${labels.description}</th>
           </tr></thead>
           <tbody>${paramRows}</tbody>
-            </table>`
+            </table>${renderParameterDetails(operation.parameters, border, labels)}`
             : '';
           const bodyHtml = renderRequestBodySection(operation.requestBody, border, labels);
           const responseHtml = renderResponseSection(operation.responses, border, labels);
@@ -564,7 +600,7 @@ function docxExampleSection(label: string, mediaType: string, value: string, sta
     new DocxParagraph({
       children: [
         new TextRun({
-          text: `${label}${statusCode !== undefined ? ` ${statusCode}` : ''} (${mediaType})`,
+          text: `${label}${statusCode !== undefined ? ` ${statusCode}` : ''}${mediaType ? ` (${mediaType})` : ''}`,
           bold: true,
           size: 22,
         }),
@@ -584,6 +620,38 @@ function docxExampleSection(label: string, mediaType: string, value: string, sta
       spacing: { after: 80 },
     }),
   ];
+}
+
+function docxParameterDetails(
+  parameters: readonly ExportParameter[],
+  labels: OfficeDocLabels,
+): (DocxParagraph | DocxTable)[] {
+  return parameters.flatMap((parameter) => {
+    const fields = parameter.schema?.fields ?? [];
+    const example = parameter.example;
+    if (fields.length === 0 && example?.value === undefined) return [];
+    const metadata = parameter.schema
+      ? `${parameter.schema.mediaType ? `${labels.mediaType}: ${parameter.schema.mediaType}  ` : ''}${labels.type}: ${
+          parameter.schema.typeDisplay
+        }`
+      : '';
+    const children: (DocxParagraph | DocxTable)[] = [
+      new DocxParagraph({
+        children: [
+          new TextRun({ text: `${labels.parameters} ${parameter.name}  `, bold: true, size: 22 }),
+          ...(metadata ? [new TextRun({ text: metadata, size: 22 })] : []),
+        ],
+        spacing: { before: 120, after: 40 },
+      }),
+    ];
+    if (fields.length) children.push(docxFieldTable(fields, labels));
+    if (example?.value !== undefined) {
+      children.push(
+        ...docxExampleSection(`${labels.requestExample}: ${parameter.name}`, example.mediaType, example.value),
+      );
+    }
+    return children;
+  });
 }
 
 function docxRequestBodySection(
@@ -810,6 +878,7 @@ export async function renderDocx(snapshot: OfflineDocumentSnapshot, labels: Offi
             rows: [paramHeader, ...docxParamRows(operation.parameters, labels)],
             width: { size: 100, type: WidthType.PERCENTAGE },
           }),
+          ...docxParameterDetails(operation.parameters, labels),
         );
       }
 
