@@ -14,8 +14,8 @@ import {
   type ResourceGraphTarget,
   type ResourceReferenceKind,
 } from '../../schema/externalResourceGraph';
-import { sha256Hex, stableSerializeJson } from '../../apiChange/apiChangeTracker';
 import type { SwaggerDoc } from '../../types/swagger';
+import { sha256Hex, stableSerializeJson } from '../../utils/stableJson';
 
 type JsonRecord = Record<string, unknown>;
 type SourceKind = 'path' | 'webhook';
