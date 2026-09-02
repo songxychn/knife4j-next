@@ -101,8 +101,9 @@ export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLink
   }
 
   const previewFields = modelPreviewFields(schema, swaggerDoc);
+  const title = <div style={{ maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{refName}</div>;
   const content = (
-    <div style={{ maxWidth: 420 }}>
+    <div style={{ width: '100%', minWidth: 0 }}>
       {schema.description && (
         <DescriptionText type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           {schema.description}
@@ -114,16 +115,22 @@ export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLink
             key={`${field.name}-${field.refName ?? field.type}`}
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(90px, 1fr) minmax(90px, auto)',
+              gridTemplateColumns: 'minmax(90px, 1fr) minmax(90px, 2fr)',
               gap: 8,
               alignItems: 'center',
+              minWidth: 0,
             }}
           >
-            <Space size={4}>
-              <Text code>{field.name || 'items'}</Text>
+            <Space size={4} style={{ minWidth: 0 }}>
+              <Text code style={{ overflowWrap: 'anywhere' }}>
+                {field.name || 'items'}
+              </Text>
               {field.required && <Badge status="error" />}
             </Space>
-            <Text type="secondary" style={{ textAlign: 'right' }}>
+            <Text
+              type="secondary"
+              style={{ minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+            >
               {schemaNodeTypeLabel(field)}
             </Text>
           </div>
@@ -137,7 +144,12 @@ export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLink
 
   return (
     <ConstraintTooltip node={node}>
-      <Popover title={refName} content={content} placement="right" styles={{ root: { maxWidth: 460 } }}>
+      <Popover
+        title={title}
+        content={content}
+        placement="right"
+        styles={{ root: { width: 460, maxWidth: 'calc(100vw - 24px)' } }}
+      >
         <RouterLink to={target}>
           <Tag
             color={color}
