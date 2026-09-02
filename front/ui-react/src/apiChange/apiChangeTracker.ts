@@ -1,16 +1,65 @@
-import { OPENAPI_HTTP_METHODS } from 'knife4j-core';
+import { isOpenApi31Version, OPENAPI_HTTP_METHODS } from 'knife4j-core';
 import { buildOperationOpenApiDocument } from '../pages/api/operationOpenApiDocument';
+import {
+  buildOas31OperationOpenApiDocument,
+  type Oas31OperationExportBlocker,
+} from '../pages/api/oas31OperationOpenApiDocument';
+import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
 import { KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
 import type { SwaggerDoc } from '../types/swagger';
+import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
+
+export { sha256Hex, stableSerializeJson } from '../utils/stableJson';
 
 const IDENTITY_FIELDS = ['origin', 'applicationPath', 'group', 'apiDocsUrl'] as const;
 const MAX_IDENTITY_FIELD_LENGTH = 8 * 1024;
 const MAX_OPERATION_IDENTITY_LENGTH = 16 * 1024;
 const MAX_OPERATION_COUNT = 10_000;
 const SHA256_FINGERPRINT = /^sha256:[0-9a-f]{64}$/;
+const RESOURCE_BUDGET_FAILURES = new Set([
+  'RESOURCE_TOO_LARGE',
+  'GRAPH_RESOURCE_LIMIT',
+  'GRAPH_REFERENCE_LIMIT',
+  'GRAPH_DEPTH_LIMIT',
+  'GRAPH_NODE_LIMIT',
+]);
 
-export const API_CHANGE_BASELINE_VERSION = 1;
+export const API_CHANGE_BASELINE_VERSION = 2;
 export const API_CHANGE_BASELINE_MAX_BYTES = 1024 * 1024;
+export const OAS30_API_CHANGE_SNAPSHOT_VERSION = 'oas3.0-v1';
+export const OAS31_API_CHANGE_SNAPSHOT_VERSION = 'oas3.1-v1';
+
+export type ApiChangeSnapshotVersion =
+  typeof OAS30_API_CHANGE_SNAPSHOT_VERSION | typeof OAS31_API_CHANGE_SNAPSHOT_VERSION;
+
+export type ApiChangeUnavailableReason =
+  | 'preparing'
+  | 'resource-pending'
+  | 'resource-budget'
+  | 'dialect-unsupported'
+  | 'resource-failed'
+  | 'snapshot-unavailable'
+  | 'version-unsupported';
+
+export interface Oas31ApiChangeEnvironment {
+  readonly status: 'preparing' | 'ready' | 'failed';
+  readonly retrievalUri: string | null;
+  readonly snapshot: ResourceGraphSnapshot | null;
+  readonly errorCode?: string;
+}
+
+export type ApiChangeFingerprintBuildResult =
+  | {
+      readonly status: 'ready';
+      readonly snapshotVersion: ApiChangeSnapshotVersion;
+      readonly fingerprints: ApiOperationFingerprintMap;
+    }
+  | {
+      readonly status: 'unavailable';
+      readonly snapshotVersion: ApiChangeSnapshotVersion | null;
+      readonly reason: ApiChangeUnavailableReason;
+      readonly blockers?: readonly Oas31OperationExportBlocker[];
+    };
 
 export interface ApiDocumentIdentity {
   origin: string;
@@ -25,6 +74,7 @@ export type ApiChangeStatusMap = Record<string, ApiChangeStatus>;
 
 export interface ApiChangeBaseline {
   version: typeof API_CHANGE_BASELINE_VERSION;
+  snapshotVersion: ApiChangeSnapshotVersion;
   document: ApiDocumentIdentity;
   operations: ApiOperationFingerprintMap;
 }
@@ -67,124 +117,32 @@ function copyFingerprints(source: ApiOperationFingerprintMap): ApiOperationFinge
   return result;
 }
 
-/** JSON serialization with recursively sorted object keys and preserved array order. */
-export function stableSerializeJson(value: unknown): string {
-  const serialized = JSON.stringify(value, (_key, nestedValue) => {
-    if (!isRecord(nestedValue)) return nestedValue;
-
-    const sorted = Object.create(null) as JsonRecord;
-    Object.keys(nestedValue)
-      .sort()
-      .forEach((key) => {
-        sorted[key] = nestedValue[key];
-      });
-    return sorted;
-  });
-  if (serialized === undefined) throw new TypeError('Unable to serialize API change snapshot');
-  return serialized;
-}
-
-const SHA256_INITIAL_STATE = new Uint32Array([
-  0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-]);
-
-const SHA256_ROUND_CONSTANTS = new Uint32Array([
-  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
-  0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
-  0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8,
-  0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819,
-  0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
-  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
-  0xc67178f2,
-]);
-
-function rotateRight(value: number, bits: number): number {
-  return (value >>> bits) | (value << (32 - bits));
-}
-
-/** Small browser-safe SHA-256 implementation so HTTP-hosted doc pages do not depend on SubtleCrypto. */
-export function sha256Hex(value: string): string {
-  const input = new TextEncoder().encode(value);
-  const bitLength = input.byteLength * 8;
-  const paddedLength = Math.ceil((input.byteLength + 9) / 64) * 64;
-  const padded = new Uint8Array(paddedLength);
-  padded.set(input);
-  padded[input.byteLength] = 0x80;
-
-  const paddedView = new DataView(padded.buffer);
-  paddedView.setUint32(paddedLength - 8, Math.floor(bitLength / 0x1_0000_0000));
-  paddedView.setUint32(paddedLength - 4, bitLength >>> 0);
-
-  const state = new Uint32Array(SHA256_INITIAL_STATE);
-  const words = new Uint32Array(64);
-  for (let offset = 0; offset < paddedLength; offset += 64) {
-    for (let index = 0; index < 16; index += 1) {
-      words[index] = paddedView.getUint32(offset + index * 4);
-    }
-    for (let index = 16; index < 64; index += 1) {
-      const previous15 = words[index - 15];
-      const previous2 = words[index - 2];
-      const sigma0 = rotateRight(previous15, 7) ^ rotateRight(previous15, 18) ^ (previous15 >>> 3);
-      const sigma1 = rotateRight(previous2, 17) ^ rotateRight(previous2, 19) ^ (previous2 >>> 10);
-      words[index] = (words[index - 16] + sigma0 + words[index - 7] + sigma1) >>> 0;
-    }
-
-    let a = state[0];
-    let b = state[1];
-    let c = state[2];
-    let d = state[3];
-    let e = state[4];
-    let f = state[5];
-    let g = state[6];
-    let h = state[7];
-
-    for (let index = 0; index < 64; index += 1) {
-      const sum1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^ rotateRight(e, 25);
-      const choose = (e & f) ^ (~e & g);
-      const temporary1 = (h + sum1 + choose + SHA256_ROUND_CONSTANTS[index] + words[index]) >>> 0;
-      const sum0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^ rotateRight(a, 22);
-      const majority = (a & b) ^ (a & c) ^ (b & c);
-      const temporary2 = (sum0 + majority) >>> 0;
-
-      h = g;
-      g = f;
-      f = e;
-      e = (d + temporary1) >>> 0;
-      d = c;
-      c = b;
-      b = a;
-      a = (temporary1 + temporary2) >>> 0;
-    }
-
-    state[0] = (state[0] + a) >>> 0;
-    state[1] = (state[1] + b) >>> 0;
-    state[2] = (state[2] + c) >>> 0;
-    state[3] = (state[3] + d) >>> 0;
-    state[4] = (state[4] + e) >>> 0;
-    state[5] = (state[5] + f) >>> 0;
-    state[6] = (state[6] + g) >>> 0;
-    state[7] = (state[7] + h) >>> 0;
-  }
-
-  return Array.from(state, (word) => word.toString(16).padStart(8, '0')).join('');
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 export function apiOperationIdentity(method: string, path: string): string {
   return JSON.stringify([method.trim().toUpperCase(), path]);
 }
 
-export function buildApiChangeBaselineStorageKey(identity: ApiDocumentIdentity): string {
-  return `${KNIFE4J_STORAGE_PREFIXES.apiVersionBaseline}${sha256Hex(stableSerializeJson(identity))}`;
+export function buildApiChangeBaselineStorageKey(
+  identity: ApiDocumentIdentity,
+  snapshotVersion: ApiChangeSnapshotVersion,
+): string {
+  return `${KNIFE4J_STORAGE_PREFIXES.apiVersionBaseline}${sha256Hex(
+    stableSerializeJson({ document: identity, snapshotVersion }),
+  )}`;
 }
 
-/**
- * Build fingerprints for every operation in an OAS 3.0 document, independent
- * of sidebar filters and operationId. Object order is canonicalized before the
- * #658 snapshot builder runs so generated local-reference target names are
- * deterministic too.
- */
-export function buildApiOperationFingerprints(swaggerDoc: SwaggerDoc): ApiOperationFingerprintMap | null {
+function fingerprintOperationDocument(operationDocument: JsonRecord): string {
+  const semanticSnapshot = Object.create(null) as JsonRecord;
+  Object.entries(operationDocument).forEach(([key, nestedValue]) => {
+    if (key !== 'info' && key !== 'openapi') semanticSnapshot[key] = nestedValue;
+  });
+  return `sha256:${sha256Hex(stableSerializeJson(semanticSnapshot))}`;
+}
+
+function buildOas30ApiOperationFingerprints(swaggerDoc: SwaggerDoc): ApiOperationFingerprintMap | null {
   if (typeof swaggerDoc.openapi !== 'string' || !swaggerDoc.openapi.startsWith('3.0.')) return null;
 
   const canonicalDoc = JSON.parse(stableSerializeJson(swaggerDoc)) as SwaggerDoc;
@@ -202,21 +160,172 @@ export function buildApiOperationFingerprints(swaggerDoc: SwaggerDoc): ApiOperat
         if (!isRecord(pathItem[method])) return;
         const operationDocument = buildOperationOpenApiDocument(canonicalDoc, path, method);
         if (!operationDocument) return;
-
-        // Document title/version/contact changes and OAS 3.0 patch-level
-        // declaration changes should not mark every API as changed.
-        // Request/response semantics, servers, inherited security, extensions,
-        // and the reachable component closure remain included.
-        const semanticSnapshot = Object.create(null) as JsonRecord;
-        Object.entries(operationDocument).forEach(([key, nestedValue]) => {
-          if (key !== 'info' && key !== 'openapi') semanticSnapshot[key] = nestedValue;
-        });
-        const serializedSnapshot = stableSerializeJson(semanticSnapshot);
-        fingerprints[apiOperationIdentity(method, path)] = `sha256:${sha256Hex(serializedSnapshot)}`;
+        fingerprints[apiOperationIdentity(method, path)] = fingerprintOperationDocument(operationDocument);
       });
     });
 
   return fingerprints;
+}
+
+function canonicalResourceGraphSnapshot(snapshot: ResourceGraphSnapshot): ResourceGraphSnapshot {
+  const canonicalNodes = new Map(
+    [...snapshot.nodes.entries()]
+      .sort(([left], [right]) => compareText(left, right))
+      .map(([uri, node]) => [
+        uri,
+        {
+          ...node,
+          document: JSON.parse(stableSerializeJson(node.document)) as unknown,
+        },
+      ]),
+  );
+  const canonicalTargets = <T>(targets: ReadonlyMap<string, T>): ReadonlyMap<string, T> =>
+    new Map([...targets.entries()].sort(([left], [right]) => compareText(left, right)));
+  const canonicalEdges = [...snapshot.edges].sort((left, right) => {
+    const leftKey = [left.sourceRetrievalUri, left.sourcePointer, left.kind, left.resolvedUri].join('\n');
+    const rightKey = [right.sourceRetrievalUri, right.sourcePointer, right.kind, right.resolvedUri].join('\n');
+    return compareText(leftKey, rightKey);
+  });
+  return {
+    ...snapshot,
+    nodes: canonicalNodes,
+    resourceTargets: canonicalTargets(snapshot.resourceTargets),
+    anchorTargets: canonicalTargets(snapshot.anchorTargets),
+    edges: canonicalEdges,
+  };
+}
+
+function graphUnavailableReason(snapshot: ResourceGraphSnapshot): ApiChangeUnavailableReason | null {
+  const diagnostics = snapshot.diagnostics.filter((diagnostic) => diagnostic.code !== 'LEGACY_MEDIA_TYPE');
+  if (diagnostics.some((diagnostic) => diagnostic.code === 'DIALECT_UNSUPPORTED')) {
+    return 'dialect-unsupported';
+  }
+  if (diagnostics.some((diagnostic) => RESOURCE_BUDGET_FAILURES.has(diagnostic.code))) {
+    return 'resource-budget';
+  }
+  if (
+    snapshot.edges.some((edge) => edge.state === 'pending') ||
+    diagnostics.some(
+      (diagnostic) => diagnostic.code === 'RESOURCE_LOADING_DISABLED' || diagnostic.code === 'RESOURCE_NOT_AUTHORIZED',
+    )
+  ) {
+    return 'resource-pending';
+  }
+  if (diagnostics.length > 0) return 'resource-failed';
+  return snapshot.complete ? null : 'resource-pending';
+}
+
+function blockerUnavailableReason(blockers: readonly Oas31OperationExportBlocker[]): ApiChangeUnavailableReason {
+  if (blockers.some((blocker) => blocker.code === 'RESOURCE_PENDING')) return 'resource-pending';
+  if (blockers.some((blocker) => blocker.code === 'RESOURCE_FAILED')) return 'resource-failed';
+  return 'snapshot-unavailable';
+}
+
+function unavailable(
+  snapshotVersion: ApiChangeSnapshotVersion | null,
+  reason: ApiChangeUnavailableReason,
+  blockers?: readonly Oas31OperationExportBlocker[],
+): ApiChangeFingerprintBuildResult {
+  return {
+    status: 'unavailable',
+    snapshotVersion,
+    reason,
+    ...(blockers ? { blockers } : {}),
+  };
+}
+
+function buildOas31ApiOperationFingerprints(
+  swaggerDoc: SwaggerDoc,
+  environment: Oas31ApiChangeEnvironment | undefined,
+): ApiChangeFingerprintBuildResult {
+  if (!environment || environment.status === 'preparing') {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'preparing');
+  }
+  if (environment.status === 'failed') {
+    const reason =
+      environment.errorCode === 'UNSUPPORTED_DIALECT' || environment.errorCode === 'DIALECT_UNSUPPORTED'
+        ? 'dialect-unsupported'
+        : environment.errorCode && RESOURCE_BUDGET_FAILURES.has(environment.errorCode)
+          ? 'resource-budget'
+          : 'resource-failed';
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, reason);
+  }
+  if (!environment.retrievalUri || !environment.snapshot) {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+  }
+
+  const graphReason = graphUnavailableReason(environment.snapshot);
+  if (graphReason) return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, graphReason);
+  if (environment.snapshot.entryRetrievalUri !== environment.retrievalUri) {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+  }
+
+  const canonicalDoc = JSON.parse(stableSerializeJson(swaggerDoc)) as SwaggerDoc;
+  const canonicalPaths = canonicalDoc.paths;
+  if (canonicalPaths !== undefined && !isRecord(canonicalPaths)) {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+  }
+  const canonicalSnapshot = canonicalResourceGraphSnapshot(environment.snapshot);
+  const fingerprints = emptyFingerprintMap();
+
+  for (const path of Object.keys(canonicalPaths ?? {}).sort()) {
+    const pathItem = canonicalPaths![path] as unknown;
+    if (!isRecord(pathItem)) continue;
+    for (const method of OPENAPI_HTTP_METHODS) {
+      if (!isRecord(pathItem[method])) continue;
+      const operationDocument = buildOas31OperationOpenApiDocument(canonicalDoc, path, method, 'path', {
+        retrievalUri: environment.retrievalUri,
+        snapshot: canonicalSnapshot,
+      });
+      if (!operationDocument) {
+        return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+      }
+      if (operationDocument.status === 'unavailable') {
+        return unavailable(
+          OAS31_API_CHANGE_SNAPSHOT_VERSION,
+          blockerUnavailableReason(operationDocument.blockers),
+          operationDocument.blockers,
+        );
+      }
+      fingerprints[apiOperationIdentity(method, path)] = fingerprintOperationDocument(operationDocument.document);
+    }
+  }
+
+  return {
+    status: 'ready',
+    snapshotVersion: OAS31_API_CHANGE_SNAPSHOT_VERSION,
+    fingerprints,
+  };
+}
+
+/**
+ * Build versioned fingerprints for every executable path operation. OAS 3.1
+ * consumes only a fixed, already-loaded graph generation and never owns a
+ * loader or fetch path.
+ */
+export function buildApiChangeFingerprintSnapshot(
+  swaggerDoc: SwaggerDoc,
+  oas31Environment?: Oas31ApiChangeEnvironment,
+): ApiChangeFingerprintBuildResult {
+  if (typeof swaggerDoc.openapi === 'string' && swaggerDoc.openapi.startsWith('3.0.')) {
+    const fingerprints = buildOas30ApiOperationFingerprints(swaggerDoc);
+    return fingerprints
+      ? { status: 'ready', snapshotVersion: OAS30_API_CHANGE_SNAPSHOT_VERSION, fingerprints }
+      : unavailable(OAS30_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+  }
+  if (isOpenApi31Version(swaggerDoc.openapi)) {
+    return buildOas31ApiOperationFingerprints(swaggerDoc, oas31Environment);
+  }
+  return unavailable(null, 'version-unsupported');
+}
+
+/** Compatibility wrapper for call sites that only need the ready fingerprint map. */
+export function buildApiOperationFingerprints(
+  swaggerDoc: SwaggerDoc,
+  oas31Environment?: Oas31ApiChangeEnvironment,
+): ApiOperationFingerprintMap | null {
+  const result = buildApiChangeFingerprintSnapshot(swaggerDoc, oas31Environment);
+  return result.status === 'ready' ? result.fingerprints : null;
 }
 
 function validIdentity(value: unknown): value is ApiDocumentIdentity {
@@ -234,12 +343,17 @@ function serializedByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
 
-export function parseApiChangeBaseline(raw: string | null, identity: ApiDocumentIdentity): ApiChangeBaseline | null {
+export function parseApiChangeBaseline(
+  raw: string | null,
+  identity: ApiDocumentIdentity,
+  snapshotVersion: ApiChangeSnapshotVersion,
+): ApiChangeBaseline | null {
   if (!raw || serializedByteLength(raw) > API_CHANGE_BASELINE_MAX_BYTES) return null;
 
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!isRecord(parsed) || parsed.version !== API_CHANGE_BASELINE_VERSION) return null;
+    if (parsed.snapshotVersion !== snapshotVersion) return null;
     if (!validIdentity(parsed.document) || !sameIdentity(parsed.document, identity)) return null;
     if (!isRecord(parsed.operations)) return null;
 
@@ -260,6 +374,7 @@ export function parseApiChangeBaseline(raw: string | null, identity: ApiDocument
 
     return {
       version: API_CHANGE_BASELINE_VERSION,
+      snapshotVersion,
       document: { ...parsed.document },
       operations,
     };
@@ -275,10 +390,12 @@ export function serializeApiChangeBaseline(baseline: ApiChangeBaseline): string 
 
 export function createApiChangeBaseline(
   identity: ApiDocumentIdentity,
+  snapshotVersion: ApiChangeSnapshotVersion,
   fingerprints: ApiOperationFingerprintMap,
 ): ApiChangeBaseline {
   return {
     version: API_CHANGE_BASELINE_VERSION,
+    snapshotVersion,
     document: { ...identity },
     operations: copyFingerprints(fingerprints),
   };
@@ -301,13 +418,14 @@ export function compareApiChangeBaseline(
 
 export function reconcileApiChangeBaseline(
   identity: ApiDocumentIdentity,
+  snapshotVersion: ApiChangeSnapshotVersion,
   fingerprints: ApiOperationFingerprintMap,
   rawBaseline: string | null,
 ): ApiChangeReconciliation {
-  const existing = parseApiChangeBaseline(rawBaseline, identity);
+  const existing = parseApiChangeBaseline(rawBaseline, identity, snapshotVersion);
   if (!existing) {
     return {
-      baseline: createApiChangeBaseline(identity, fingerprints),
+      baseline: createApiChangeBaseline(identity, snapshotVersion, fingerprints),
       statuses: emptyStatusMap(),
       initialized: true,
     };
@@ -337,9 +455,10 @@ export function acknowledgeApiOperation(
 
 export function acknowledgeAllApiOperations(
   identity: ApiDocumentIdentity,
+  snapshotVersion: ApiChangeSnapshotVersion,
   fingerprints: ApiOperationFingerprintMap,
 ): ApiChangeBaseline {
-  return createApiChangeBaseline(identity, fingerprints);
+  return createApiChangeBaseline(identity, snapshotVersion, fingerprints);
 }
 
 export function summarizeApiChanges(statuses: ApiChangeStatusMap): ApiChangeSummary {

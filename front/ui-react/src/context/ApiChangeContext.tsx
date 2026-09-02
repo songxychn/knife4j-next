@@ -4,17 +4,21 @@ import {
   acknowledgeApiOperation,
   apiOperationIdentity,
   buildApiChangeBaselineStorageKey,
-  buildApiOperationFingerprints,
+  buildApiChangeFingerprintSnapshot,
   compareApiChangeBaseline,
   parseApiChangeBaseline,
   reconcileApiChangeBaseline,
   serializeApiChangeBaseline,
   summarizeApiChanges,
   type ApiChangeBaseline,
+  type ApiChangeFingerprintBuildResult,
+  type ApiChangeSnapshotVersion,
   type ApiChangeStatusMap,
   type ApiChangeSummary,
+  type ApiChangeUnavailableReason,
   type ApiDocumentIdentity,
   type ApiOperationFingerprintMap,
+  type Oas31ApiChangeEnvironment,
 } from '../apiChange/apiChangeTracker';
 import {
   KNIFE4J_STORAGE_KEYS,
@@ -24,6 +28,12 @@ import {
   type Knife4jStorageItemSnapshot,
 } from '../storage/knife4jStorage';
 import { useGroup } from './GroupContext';
+import {
+  useExternalResources,
+  useSchemaEngine,
+  type ExternalResourceContextValue,
+  type SchemaEngineContextValue,
+} from './SchemaEngineContext';
 import { useSettings } from './SettingsContext';
 
 interface ApiChangeTrackerState {
@@ -31,9 +41,11 @@ interface ApiChangeTrackerState {
   scopeKey: string;
   identity: ApiDocumentIdentity | null;
   storageKey: string;
+  snapshotVersion: ApiChangeSnapshotVersion | null;
   fingerprints: ApiOperationFingerprintMap;
   baseline: ApiChangeBaseline | null;
   statuses: ApiChangeStatusMap;
+  unavailableReason: ApiChangeUnavailableReason | null;
 }
 
 interface ApiChangeContextValue {
@@ -42,6 +54,7 @@ interface ApiChangeContextValue {
   scopeKey: string;
   statuses: ApiChangeStatusMap;
   summary: ApiChangeSummary;
+  unavailableReason: ApiChangeUnavailableReason | null;
   acknowledgeOperation: (method: string, path: string) => void;
   acknowledgeAll: () => void;
 }
@@ -50,15 +63,17 @@ function emptyStringRecord<T extends string>(): Record<string, T> {
   return Object.create(null) as Record<string, T>;
 }
 
-function emptyState(scopeKey = ''): ApiChangeTrackerState {
+function emptyState(scopeKey = '', unavailableReason: ApiChangeUnavailableReason | null = null): ApiChangeTrackerState {
   return {
     ready: false,
     scopeKey,
     identity: null,
     storageKey: '',
+    snapshotVersion: null,
     fingerprints: emptyStringRecord<string>(),
     baseline: null,
     statuses: emptyStringRecord<'added' | 'changed'>(),
+    unavailableReason,
   };
 }
 
@@ -70,6 +85,7 @@ const ApiChangeContext = createContext<ApiChangeContextValue>({
   scopeKey: '',
   statuses: emptyStringRecord<'added' | 'changed'>(),
   summary: EMPTY_SUMMARY,
+  unavailableReason: null,
   acknowledgeOperation: () => {},
   acknowledgeAll: () => {},
 });
@@ -104,9 +120,47 @@ function persistBaseline(
   void setKnife4jStorageItem(storage, key, serialized, storage, undefined, expectedSnapshot ?? undefined);
 }
 
+function oas31FingerprintEnvironment(
+  schemaEngine: SchemaEngineContextValue,
+  resources: ExternalResourceContextValue,
+): Oas31ApiChangeEnvironment {
+  const snapshot = resources.snapshot;
+  if (
+    schemaEngine.status === 'loading' ||
+    resources.status === 'discovering' ||
+    resources.status === 'loading' ||
+    (schemaEngine.status === 'inactive' && !snapshot)
+  ) {
+    return { status: 'preparing', retrievalUri: schemaEngine.retrievalUri, snapshot };
+  }
+
+  const failure = resources.registrationError ?? (schemaEngine.status === 'error' ? schemaEngine.error : null);
+  if (failure) {
+    return {
+      status: 'failed',
+      retrievalUri: schemaEngine.retrievalUri,
+      snapshot,
+      ...(failure.code ? { errorCode: failure.code } : {}),
+    };
+  }
+
+  if (
+    schemaEngine.status === 'ready' &&
+    snapshot &&
+    schemaEngine.retrievalUri === snapshot.entryRetrievalUri &&
+    resources.documentScope === snapshot.documentScope
+  ) {
+    return { status: 'ready', retrievalUri: schemaEngine.retrievalUri, snapshot };
+  }
+
+  return { status: 'failed', retrievalUri: schemaEngine.retrievalUri, snapshot };
+}
+
 export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settings } = useSettings();
   const { activeSwaggerGroup, swaggerDoc, loading } = useGroup();
+  const schemaEngine = useSchemaEngine();
+  const externalResources = useExternalResources();
   const [state, setState] = useState<ApiChangeTrackerState>(() => emptyState());
   const stateRef = useRef(state);
 
@@ -114,6 +168,11 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     stateRef.current = nextState;
     setState(nextState);
   }, []);
+
+  const oas31Environment = useMemo(
+    () => oas31FingerprintEnvironment(schemaEngine, externalResources),
+    [externalResources, schemaEngine],
+  );
 
   useEffect(() => {
     if (!settings.enableVersion || loading || !swaggerDoc || !activeSwaggerGroup || typeof window === 'undefined') {
@@ -127,33 +186,40 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       group: activeSwaggerGroup.name,
       apiDocsUrl: activeSwaggerGroup.url,
     };
-    const storageKey = buildApiChangeBaselineStorageKey(identity);
-    let fingerprints: ApiOperationFingerprintMap | null;
+    let fingerprintResult: ApiChangeFingerprintBuildResult | null;
     try {
-      fingerprints = buildApiOperationFingerprints(swaggerDoc);
+      fingerprintResult = buildApiChangeFingerprintSnapshot(swaggerDoc, oas31Environment);
     } catch {
-      fingerprints = null;
+      fingerprintResult = null;
     }
 
-    // The reusable closed-reference snapshot currently supports OAS 3.0.x.
-    // Unsupported or malformed documents stay fully usable without tracking.
-    if (!fingerprints) {
-      commitState(emptyState(storageKey));
+    const snapshotVersion = fingerprintResult?.snapshotVersion ?? null;
+    const storageKey = snapshotVersion ? buildApiChangeBaselineStorageKey(identity, snapshotVersion) : '';
+    if (!fingerprintResult || fingerprintResult.status === 'unavailable') {
+      commitState(emptyState(storageKey, fingerprintResult?.reason ?? 'snapshot-unavailable'));
       return undefined;
     }
+    const { fingerprints } = fingerprintResult;
 
     const storage = browserLocalStorage();
     const refresh = () => {
       const snapshot = readBaselineSnapshot(storage, storageKey);
-      const reconciliation = reconcileApiChangeBaseline(identity, fingerprints!, snapshot?.value ?? null);
+      const reconciliation = reconcileApiChangeBaseline(
+        identity,
+        fingerprintResult.snapshotVersion,
+        fingerprints,
+        snapshot?.value ?? null,
+      );
       const nextState: ApiChangeTrackerState = {
         ready: true,
         scopeKey: storageKey,
         identity,
         storageKey,
-        fingerprints: fingerprints!,
+        snapshotVersion: fingerprintResult.snapshotVersion,
+        fingerprints,
         baseline: reconciliation.baseline,
         statuses: reconciliation.statuses,
+        unavailableReason: null,
       };
       commitState(nextState);
       if (reconciliation.initialized) {
@@ -174,7 +240,7 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [activeSwaggerGroup, commitState, loading, settings.enableVersion, swaggerDoc]);
+  }, [activeSwaggerGroup, commitState, loading, oas31Environment, settings.enableVersion, swaggerDoc]);
 
   const acknowledgeOperation = useCallback(
     (method: string, path: string) => {
@@ -183,6 +249,7 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (
         !current.ready ||
         !current.identity ||
+        !current.snapshotVersion ||
         !current.baseline ||
         !Object.prototype.hasOwnProperty.call(current.statuses, operationKey)
       ) {
@@ -190,6 +257,7 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const identity = current.identity;
+      const snapshotVersion = current.snapshotVersion;
       const storage = browserLocalStorage();
       const nextBaseline = acknowledgeApiOperation(current.baseline, current.fingerprints, method, path);
       const nextState = {
@@ -206,8 +274,8 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         current.storageKey,
         (rawBaseline) => {
           const durableBaseline =
-            parseApiChangeBaseline(rawBaseline, identity) ??
-            acknowledgeAllApiOperations(identity, current.fingerprints);
+            parseApiChangeBaseline(rawBaseline, identity, snapshotVersion) ??
+            acknowledgeAllApiOperations(identity, snapshotVersion, current.fingerprints);
           const mergedBaseline = acknowledgeApiOperation(durableBaseline, current.fingerprints, method, path);
           const serialized = serializeApiChangeBaseline(mergedBaseline);
           if (!serialized) throw new Error('API change baseline exceeds the storage limit');
@@ -217,7 +285,8 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ).then((result) => {
         const latest = stateRef.current;
         if (!result.persisted || latest.scopeKey !== acknowledgedScope || !latest.identity) return;
-        const durableBaseline = parseApiChangeBaseline(result.value, latest.identity);
+        if (!latest.snapshotVersion) return;
+        const durableBaseline = parseApiChangeBaseline(result.value, latest.identity, latest.snapshotVersion);
         if (!durableBaseline) return;
         commitState({
           ...latest,
@@ -231,9 +300,9 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const acknowledgeAll = useCallback(() => {
     const current = stateRef.current;
-    if (!current.ready || !current.identity || !current.baseline) return;
+    if (!current.ready || !current.identity || !current.snapshotVersion || !current.baseline) return;
 
-    const nextBaseline = acknowledgeAllApiOperations(current.identity, current.fingerprints);
+    const nextBaseline = acknowledgeAllApiOperations(current.identity, current.snapshotVersion, current.fingerprints);
     const nextState = {
       ...current,
       baseline: nextBaseline,
@@ -252,6 +321,7 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       scopeKey: state.scopeKey,
       statuses: state.statuses,
       summary,
+      unavailableReason: state.unavailableReason,
       acknowledgeOperation,
       acknowledgeAll,
     }),
