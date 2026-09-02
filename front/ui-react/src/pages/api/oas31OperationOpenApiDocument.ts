@@ -911,6 +911,17 @@ class Oas31OperationBundler {
     return { $ref: uri ?? '#' };
   }
 
+  private declaredSchemaResourceUri(target: ResourceGraphTarget): string | null {
+    const location = this.location(target.ownerRetrievalUri, target.pointer);
+    const source = asRecord(location?.value);
+    if (typeof source?.$id !== 'string') return null;
+    try {
+      return uriWithoutFragment(new URL(source.$id, target.evaluationBaseUri).href);
+    } catch {
+      return null;
+    }
+  }
+
   private containingResource(location: LocatedValue): LocatedResource | null {
     let selected: LocatedResource | null = null;
     this.snapshot.resourceTargets.forEach((target, uri) => {
@@ -920,9 +931,22 @@ class Oas31OperationBundler {
       ) {
         return;
       }
-      if (!selected || pointerTokens(target.pointer)!.length > pointerTokens(selected.target.pointer)!.length) {
-        const targetLocation = this.location(target.ownerRetrievalUri, target.pointer);
-        if (targetLocation) selected = { uri, target, location: targetLocation };
+      const targetLocation = this.location(target.ownerRetrievalUri, target.pointer);
+      if (!targetLocation) return;
+      if (!selected) {
+        selected = { uri, target, location: targetLocation };
+        return;
+      }
+
+      const targetDepth = pointerTokens(target.pointer)!.length;
+      const selectedDepth = pointerTokens(selected.target.pointer)!.length;
+      const declaredResourceUri = this.declaredSchemaResourceUri(target);
+      const preferDeclaredId =
+        targetDepth === selectedDepth &&
+        uri === declaredResourceUri &&
+        selected.uri !== this.declaredSchemaResourceUri(selected.target);
+      if (targetDepth > selectedDepth || preferDeclaredId) {
+        selected = { uri, target, location: targetLocation };
       }
     });
     return selected;

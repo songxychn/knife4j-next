@@ -430,6 +430,122 @@ describe('OAS 3.1 portable single-operation export', () => {
     expect(parts).toHaveProperty('components.parameters.Trace.schema');
   });
 
+  it('prefers a root Schema $id over its retrieval alias without changing dynamic scope', async () => {
+    const retrievalUri = 'https://a.example/schema.json';
+    const canonicalUri = 'https://z.example/canonical.json';
+    const document = {
+      openapi: '3.1.1',
+      info: { title: 'Root Schema id', version: '1.0.0' },
+      paths: {
+        '/tree': {
+          get: {
+            responses: {
+              200: {
+                description: 'Tree',
+                content: { 'application/json': { schema: { $ref: retrievalUri } } },
+              },
+            },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const externalSchema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      $id: canonicalUri,
+      $dynamicAnchor: 'node',
+      type: 'object',
+      required: ['value'],
+      properties: {
+        value: { type: 'string' },
+        child: { $dynamicRef: `${canonicalUri}#node` },
+      },
+      additionalProperties: false,
+    };
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) !== retrievalUri) return new Response('missing', { status: 404 });
+      return new Response(JSON.stringify(externalSchema), {
+        headers: { 'content-type': 'application/schema+json' },
+      });
+    });
+    const loader = new ExternalResourceLoader(document, entryUri, {
+      pageUri: 'https://fixtures.knife4j.example/doc.html',
+      fetchImpl: fetchSpy,
+    });
+    const discovery = loader.discover();
+    const snapshot = await loader.load(
+      discovery.candidates.map((candidate) => ({
+        scope: 'generation' as const,
+        documentScope: discovery.documentScope,
+        resourceKey: candidate.retrievalUriHash,
+      })),
+    );
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect([...snapshot.resourceTargets.keys()]).toEqual(expect.arrayContaining([retrievalUri, canonicalUri]));
+    const requestsBeforeBuild = fetchSpy.mock.calls.length;
+
+    const output = asReady(
+      buildOas31OperationOpenApiDocument(document, '/tree', 'get', 'path', {
+        retrievalUri: entryUri,
+        snapshot,
+      }),
+    ).document;
+    const reversedTargetSnapshot = {
+      ...snapshot,
+      resourceTargets: new Map([...snapshot.resourceTargets.entries()].reverse()),
+    };
+    const reversedOutput = asReady(
+      buildOas31OperationOpenApiDocument(document, '/tree', 'get', 'path', {
+        retrievalUri: entryUri,
+        snapshot: reversedTargetSnapshot,
+      }),
+    ).document;
+
+    expect(fetchSpy).toHaveBeenCalledTimes(requestsBeforeBuild);
+    expect(output).toEqual(reversedOutput);
+    const resources = Object.values(
+      ((output['x-knife4j-schema-resources'] as JsonRecord).resources ?? {}) as JsonRecord,
+    ) as JsonRecord[];
+    expect(resources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          $id: canonicalUri,
+          $dynamicAnchor: 'node',
+          properties: { child: { $dynamicRef: `${canonicalUri}#node` }, value: { type: 'string' } },
+        }),
+      ]),
+    );
+
+    const cases = [
+      { value: { value: 'root', child: { value: 'leaf' } }, valid: true },
+      { value: { value: 'root', child: { value: 1 } }, valid: false },
+    ];
+    const original = createSchemaEngine();
+    await original.registerDocument(document, entryUri);
+    await original.registerDocument(externalSchema, retrievalUri);
+    const originalNode = await original.resolve(`${canonicalUri}#node`);
+    const originalResults = await Promise.all(
+      cases.map(({ value }) => original.evaluate(`${canonicalUri}#node`, value)),
+    );
+    original.dispose();
+
+    const portable = createSchemaEngine();
+    await portable.registerDocument(output, 'https://portable.knife4j.example/root-id.openapi.json');
+    const portableNode = await portable.resolve(`${canonicalUri}#node`);
+    const portableResults = await Promise.all(
+      cases.map(({ value }) => portable.evaluate(`${canonicalUri}#node`, value)),
+    );
+    portable.dispose();
+    loader.dispose();
+
+    expect(portableNode).toMatchObject({
+      canonicalUri: originalNode.canonicalUri,
+      resourceUri: originalNode.resourceUri,
+      dynamicAnchors: originalNode.dynamicAnchors,
+    });
+    expect(originalResults.map((result) => result.valid)).toEqual(cases.map(({ valid }) => valid));
+    expect(portableResults.map((result) => result.valid)).toEqual(cases.map(({ valid }) => valid));
+  });
+
   it('keeps path and read-only webhook exports in their original top-level containers', async () => {
     const document = entryDocument();
     const { snapshot } = await loadedSnapshot(document);
