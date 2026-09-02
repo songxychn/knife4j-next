@@ -29,6 +29,14 @@ const TYPE_COLOR: Record<string, string> = {
   unknown: 'default',
 };
 
+const TYPE_TAG_STYLE: React.CSSProperties = {
+  maxWidth: '100%',
+  marginInlineEnd: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  verticalAlign: 'middle',
+};
+
 interface SchemaFieldRow extends SchemaFieldNode {
   key: string;
   children?: SchemaFieldRow[];
@@ -36,6 +44,7 @@ interface SchemaFieldRow extends SchemaFieldNode {
 
 interface SchemaTypeLinkProps {
   node: SchemaFieldNode;
+  constrainToCell?: boolean;
 }
 
 interface SchemaFieldTableProps {
@@ -69,7 +78,7 @@ function modelPreviewFields(schema: SchemaObject, swaggerDoc: SwaggerDoc): Schem
   }).slice(0, 6);
 }
 
-export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
+export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLinkProps) {
   const { activeGroup, schemas, swaggerDoc } = useGroup();
   const { t } = useTranslation();
   const refName = schemaNodeRefName(node);
@@ -80,14 +89,21 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
   if (!refName || !schema || !swaggerDoc) {
     return (
       <ConstraintTooltip node={node}>
-        <Tag color={color}>{label}</Tag>
+        <Tag
+          color={color}
+          style={constrainToCell ? TYPE_TAG_STYLE : undefined}
+          title={constrainToCell ? label : undefined}
+        >
+          {label}
+        </Tag>
       </ConstraintTooltip>
     );
   }
 
   const previewFields = modelPreviewFields(schema, swaggerDoc);
+  const title = <div style={{ maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{refName}</div>;
   const content = (
-    <div style={{ maxWidth: 420 }}>
+    <div style={{ width: '100%', minWidth: 0 }}>
       {schema.description && (
         <DescriptionText type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           {schema.description}
@@ -99,16 +115,22 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
             key={`${field.name}-${field.refName ?? field.type}`}
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(90px, 1fr) minmax(90px, auto)',
+              gridTemplateColumns: 'minmax(90px, 1fr) minmax(90px, 2fr)',
               gap: 8,
               alignItems: 'center',
+              minWidth: 0,
             }}
           >
-            <Space size={4}>
-              <Text code>{field.name || 'items'}</Text>
+            <Space size={4} style={{ minWidth: 0 }}>
+              <Text code style={{ overflowWrap: 'anywhere' }}>
+                {field.name || 'items'}
+              </Text>
               {field.required && <Badge status="error" />}
             </Space>
-            <Text type="secondary" style={{ textAlign: 'right' }}>
+            <Text
+              type="secondary"
+              style={{ minWidth: 0, textAlign: 'right', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+            >
               {schemaNodeTypeLabel(field)}
             </Text>
           </div>
@@ -122,9 +144,18 @@ export function SchemaTypeLink({ node }: SchemaTypeLinkProps) {
 
   return (
     <ConstraintTooltip node={node}>
-      <Popover title={refName} content={content} placement="right" styles={{ root: { maxWidth: 460 } }}>
+      <Popover
+        title={title}
+        content={content}
+        placement="right"
+        styles={{ root: { width: 460, maxWidth: 'calc(100vw - 24px)' } }}
+      >
         <RouterLink to={target}>
-          <Tag color={color} style={{ cursor: 'pointer' }}>
+          <Tag
+            color={color}
+            style={constrainToCell ? { ...TYPE_TAG_STYLE, cursor: 'pointer' } : { cursor: 'pointer' }}
+            title={constrainToCell ? label : undefined}
+          >
             {label}
           </Tag>
         </RouterLink>
@@ -254,7 +285,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       title: t('schema.col.type'),
       width: columnWidths.type,
       onHeaderCell: () => resizableHeader('type'),
-      render: (_, record) => <SchemaTypeLink node={record} />,
+      render: (_, record) => <SchemaTypeLink node={record} constrainToCell />,
     },
     {
       title: t('schema.col.required'),
@@ -303,6 +334,7 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       pagination={false}
       size="small"
       bordered
+      tableLayout="fixed"
       expandable={{
         childrenColumnName: 'children',
         defaultExpandAllRows: true,
