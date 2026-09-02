@@ -223,7 +223,11 @@ const zhCN = {
   'apiOpenApi.download.started': 'OpenAPI JSON 下载已开始',
   'apiOpenApi.download.failed': 'OpenAPI JSON 下载失败，请稍后重试',
   'apiOpenApi.download.unsupported': '当前浏览器不支持文件下载，请复制 JSON 后手动保存',
-  'apiOpenApi.download.versionUnsupported': '单接口下载首版仅支持 OpenAPI 3.0.x，当前文档仍可查看和复制',
+  'apiOpenApi.download.versionUnsupported': '单接口下载仅支持 OpenAPI 3.0.x 和 3.1.x，当前文档仍可查看和复制',
+  'apiOpenApi.download.oas31Preparing': '正在准备 OAS 3.1 可移植文档，当前内容仍可查看和复制',
+  'apiOpenApi.download.oas31Unavailable': '当前无法生成 OAS 3.1 可移植文档，当前内容仍可查看和复制',
+  'apiOpenApi.download.oas31Blocked': '引用闭包不完整，暂不能下载 OAS 3.1 可移植文档',
+  'apiOpenApi.download.oas31Blocked.desc': '请加载缺失的外部资源或修正文档中的以下引用；预览和复制仍可使用。',
   'apiOpenApi.serialize.failed': '无法生成当前接口的 OpenAPI JSON，请检查接口文档后重试',
 
   // ApiScript (ISSUE-207)

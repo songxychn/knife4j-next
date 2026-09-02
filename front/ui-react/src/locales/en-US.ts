@@ -239,7 +239,15 @@ const enUS = {
   'apiOpenApi.download.failed': 'Failed to download OpenAPI JSON. Please try again.',
   'apiOpenApi.download.unsupported': 'This browser cannot download files. Copy the JSON and save it manually.',
   'apiOpenApi.download.versionUnsupported':
-    'Single-operation downloads currently support OpenAPI 3.0.x only. You can still view and copy this document.',
+    'Single-operation downloads support OpenAPI 3.0.x and 3.1.x. You can still view and copy this document.',
+  'apiOpenApi.download.oas31Preparing':
+    'Preparing the portable OAS 3.1 document. You can still view and copy the current content.',
+  'apiOpenApi.download.oas31Unavailable':
+    'A portable OAS 3.1 document is currently unavailable. You can still view and copy the current content.',
+  'apiOpenApi.download.oas31Blocked':
+    'The reference closure is incomplete, so the portable OAS 3.1 document cannot be downloaded yet.',
+  'apiOpenApi.download.oas31Blocked.desc':
+    'Load the missing external resources or fix the following references. Preview and copy remain available.',
   'apiOpenApi.serialize.failed':
     'Unable to generate OpenAPI JSON for this operation. Check the API document and try again.',
 
