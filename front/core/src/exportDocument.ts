@@ -8,6 +8,7 @@
  */
 
 import { selectRequestBodyExample, selectResponseExamples } from './debug/operationExamples';
+import type { SchemaFieldTruncationReason } from './debug/types';
 
 export interface MdSchemaObject {
   type?: string | string[];
@@ -85,6 +86,7 @@ export interface ExportSchemaField {
   required: boolean;
   description: string;
   truncated: boolean;
+  truncationReason?: SchemaFieldTruncationReason;
   depth: number;
 }
 
@@ -106,6 +108,10 @@ export interface ExportParameter {
   typeDisplay: string;
   compactTypeDisplay: string;
   description: string;
+  /** OAS 3.1 field projection; legacy synchronous builders leave this unset. */
+  schema?: ExportSchema;
+  /** Directionally validated OAS 3.1 example; legacy builders leave this unset. */
+  example?: ExportExample;
 }
 
 export interface ExportExample {

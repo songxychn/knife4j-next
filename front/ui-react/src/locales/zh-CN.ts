@@ -603,7 +603,17 @@ const zhCN = {
   'officeDoc.btn.openapi': '下载 OpenAPI JSON',
   'officeDoc.response': '响应',
   'officeDoc.circularReference': '循环引用',
+  'officeDoc.truncated': '截断',
   'officeDoc.fallbackTitle': 'API 文档',
+  'officeDoc.snapshot.incomplete.title': '这份 OAS 3.1 导出不完整',
+  'officeDoc.snapshot.incomplete.description':
+    '所选文档有 {{count}} 个语义问题。你可以取消，或下载一份明确记录降级范围的不完整文档。',
+  'officeDoc.snapshot.incomplete.confirm': '下载不完整文档',
+  'officeDoc.snapshot.incomplete.cancel': '取消',
+  'officeDoc.snapshot.incomplete.documentTitle': 'OAS 3.1 不完整导出',
+  'officeDoc.snapshot.incomplete.documentSummary': '有 {{count}} 个语义问题无法完整表示。',
+  'officeDoc.snapshot.incomplete.more': '另有 {{count}} 个问题',
+  'officeDoc.snapshot.failed': '无法建立离线文档快照。',
 
   // Tab context menu
   'tab.context.closeCurrent': '关闭当前',

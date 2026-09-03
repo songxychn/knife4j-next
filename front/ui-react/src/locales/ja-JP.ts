@@ -652,7 +652,17 @@ const jaJP = {
   'officeDoc.btn.openapi': 'OpenAPI JSON をダウンロード',
   'officeDoc.response': 'レスポンス',
   'officeDoc.circularReference': '循環参照',
+  'officeDoc.truncated': '打ち切り',
   'officeDoc.fallbackTitle': 'API ドキュメント',
+  'officeDoc.snapshot.incomplete.title': 'この OAS 3.1 エクスポートは不完全です',
+  'officeDoc.snapshot.incomplete.description':
+    '選択したドキュメントに {{count}} 件のセマンティックな問題があります。キャンセルするか、縮退範囲を明記した不完全なドキュメントをダウンロードしてください。',
+  'officeDoc.snapshot.incomplete.confirm': '不完全なドキュメントをダウンロード',
+  'officeDoc.snapshot.incomplete.cancel': 'キャンセル',
+  'officeDoc.snapshot.incomplete.documentTitle': '不完全な OAS 3.1 エクスポート',
+  'officeDoc.snapshot.incomplete.documentSummary': '{{count}} 件のセマンティックな問題を完全には表現できませんでした。',
+  'officeDoc.snapshot.incomplete.more': 'ほか {{count}} 件',
+  'officeDoc.snapshot.failed': 'オフラインドキュメントのスナップショットを作成できませんでした。',
 
   // Tab context menu
   'tab.context.closeCurrent': '現在のタブを閉じる',

@@ -2,6 +2,13 @@ import type { JsonValue } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 import {
+  asOpenApiRecord as asRecord,
+  followLocalReference,
+  locateOperationRecord,
+  pointerReference,
+  type OpenApiRecord,
+} from './openApiDocumentPointer';
+import {
   explicitSchemaExampleWithoutSchema,
   generateSchemaExample,
   type ExplicitSchemaExample,
@@ -9,13 +16,6 @@ import {
   type SchemaExampleResult,
   type SchemaExampleSearchLimits,
 } from './schemaExampleGeneration';
-
-type OpenApiRecord = Record<string, unknown>;
-
-interface LocatedRecord {
-  readonly value: OpenApiRecord;
-  readonly tokens: readonly string[];
-}
 
 export interface OperationSchemaExampleTarget {
   readonly key: string;
@@ -48,10 +48,6 @@ export interface GenerateOperationSchemaExamplesOptions {
   readonly limits?: SchemaExampleSearchLimits;
 }
 
-function asRecord(value: unknown): OpenApiRecord | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as OpenApiRecord) : null;
-}
-
 function asJsonValue(value: unknown): JsonValue | undefined {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
@@ -68,70 +64,6 @@ function asJsonValue(value: unknown): JsonValue | undefined {
     entries.push([key, jsonItem]);
   }
   return Object.fromEntries(entries);
-}
-
-function decodePointerToken(value: string): string {
-  return value.replace(/~1/g, '/').replace(/~0/g, '~');
-}
-
-function encodePointerToken(value: string): string {
-  return value.replace(/~/g, '~0').replace(/\//g, '~1');
-}
-
-function localPointerTokens(reference: string): string[] | null {
-  if (!reference.startsWith('#')) return null;
-  let pointer: string;
-  try {
-    pointer = decodeURIComponent(reference.slice(1));
-  } catch {
-    return null;
-  }
-  if (!pointer.startsWith('/')) return null;
-  return pointer.slice(1).split('/').map(decodePointerToken);
-}
-
-function valueAtPointer(document: SwaggerDoc, tokens: readonly string[]): unknown {
-  let current: unknown = document;
-  for (const token of tokens) {
-    const record = asRecord(current);
-    if (!record || !Object.prototype.hasOwnProperty.call(record, token)) return undefined;
-    current = record[token];
-  }
-  return current;
-}
-
-function followLocalReference(
-  document: SwaggerDoc,
-  initialValue: unknown,
-  initialTokens: readonly string[],
-): LocatedRecord | null {
-  let value = asRecord(initialValue);
-  let tokens = [...initialTokens];
-  const seen = new Set<string>();
-  for (let depth = 0; value && typeof value.$ref === 'string' && depth < 12; depth += 1) {
-    if (seen.has(value.$ref)) return null;
-    seen.add(value.$ref);
-    const targetTokens = localPointerTokens(value.$ref);
-    if (!targetTokens) return null;
-    value = asRecord(valueAtPointer(document, targetTokens));
-    tokens = targetTokens;
-  }
-  if (!value || typeof value.$ref === 'string') return null;
-  return { value, tokens };
-}
-
-function pointerReference(tokens: readonly string[]): string {
-  return `#/${tokens.map((token) => encodeURIComponent(encodePointerToken(token))).join('/')}`;
-}
-
-function locatedOperation(document: SwaggerDoc, operation: MenuOperation): LocatedRecord | null {
-  const source = operation.source === 'webhook' ? 'webhooks' : 'paths';
-  const sourceItems = source === 'webhooks' ? document.webhooks : document.paths;
-  const pathItem = followLocalReference(document, sourceItems?.[operation.path], [source, operation.path]);
-  if (!pathItem) return null;
-  const method = operation.method.toLowerCase();
-  const operationValue = asRecord(pathItem.value[method]);
-  return operationValue ? { value: operationValue, tokens: [...pathItem.tokens, method] } : null;
 }
 
 function explicitExamples(mediaObject: OpenApiRecord, document: SwaggerDoc): ExplicitSchemaExample[] {
@@ -188,7 +120,7 @@ export function locateRequestSchemaExampleTargets(
   document: SwaggerDoc,
   operation: MenuOperation,
 ): OperationSchemaExampleTarget[] {
-  const located = locatedOperation(document, operation);
+  const located = locateOperationRecord(document, operation);
   if (!located || !Object.prototype.hasOwnProperty.call(located.value, 'requestBody')) return [];
   const requestBody = followLocalReference(document, located.value.requestBody, [...located.tokens, 'requestBody']);
   if (!requestBody) return [];
@@ -199,7 +131,7 @@ export function locateResponseSchemaExampleTargets(
   document: SwaggerDoc,
   operation: MenuOperation,
 ): ResponseSchemaExampleTarget[] {
-  const located = locatedOperation(document, operation);
+  const located = locateOperationRecord(document, operation);
   const responses = asRecord(located?.value.responses);
   if (!located || !responses) return [];
   const targets: ResponseSchemaExampleTarget[] = [];

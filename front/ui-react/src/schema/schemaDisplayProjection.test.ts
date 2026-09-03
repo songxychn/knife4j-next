@@ -224,6 +224,7 @@ describe('SchemaDisplayProjector', () => {
       type: 'string',
       refName: 'Value',
       truncated: true,
+      truncationReason: 'projection-loss',
     });
     expect(result.diagnostics.filter(({ keyword }) => keyword === 'if')).toHaveLength(1);
   });
@@ -246,7 +247,12 @@ describe('SchemaDisplayProjector', () => {
     const result = await projector.project(componentSchemaReference('Tree'));
     const child = result.fields.find((field) => field.name === 'child');
 
-    expect(child).toMatchObject({ type: 'object', refName: 'Tree', truncated: true });
+    expect(child).toMatchObject({
+      type: 'object',
+      refName: 'Tree',
+      truncated: true,
+      truncationReason: 'circular-reference',
+    });
     expect(result.diagnostics).toContainEqual(
       expect.objectContaining({ code: 'CIRCULAR_REFERENCE', severity: 'info', keyword: '$ref' }),
     );
@@ -254,7 +260,7 @@ describe('SchemaDisplayProjector', () => {
     const activeSession = sessions[sessions.length - 1];
     const shallowProjector = createSchemaDisplayProjector(activeSession, { maxDepth: 1 });
     const shallow = await shallowProjector.project(componentSchemaReference('Deep'));
-    expect(shallow.fields[0]).toMatchObject({ name: 'level1', truncated: true });
+    expect(shallow.fields[0]).toMatchObject({ name: 'level1', truncated: true, truncationReason: 'max-depth' });
     expect(shallow.diagnostics).toContainEqual(expect.objectContaining({ code: 'MAX_DEPTH', severity: 'info' }));
   });
 
@@ -297,8 +303,14 @@ describe('SchemaDisplayProjector', () => {
         '$ref',
       ]),
     );
-    expect(result.fields.find((field) => field.name === 'dynamic')).toMatchObject({ truncated: true });
-    expect(result.fields.find((field) => field.name === 'external')).toMatchObject({ truncated: true });
+    expect(result.fields.find((field) => field.name === 'dynamic')).toMatchObject({
+      truncated: true,
+      truncationReason: 'projection-loss',
+    });
+    expect(result.fields.find((field) => field.name === 'external')).toMatchObject({
+      truncated: true,
+      truncationReason: 'reference-unavailable',
+    });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
