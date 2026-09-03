@@ -2,6 +2,10 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { addUriSchemePlugin } from '@hyperjump/browser';
 import officialSubset from './fixtures/official-2020-12-subset.json';
 import springdocDocument from './fixtures/springdoc-openapi-3.1.json';
+import boot3MvcSpringdocDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/boot3-mvc-springdoc-2.8.9.json';
+import boot3WebfluxSpringdocDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/boot3-webflux-springdoc-2.8.9.json';
+import boot4MvcSpringdocDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/boot4-mvc-springdoc-3.0.3.json';
+import browserSupplementDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/browser-supplement-3.1.2.json';
 import { HyperjumpSchemaEngine, JSON_SCHEMA_2020_12, SchemaEngineError, type SchemaEngine } from '../src';
 
 const engines: SchemaEngine[] = [];
@@ -176,6 +180,71 @@ describe('resource graph and evaluation semantics', () => {
 });
 
 describe('OpenAPI 3.1 and resource policy', () => {
+  test('registers and evaluates the real Springdoc 2.8.9 and 3.0.3 matrix snapshots', async () => {
+    const engine = createEngine();
+    const snapshots = [
+      ['boot3-mvc', boot3MvcSpringdocDocument],
+      ['boot3-webflux', boot3WebfluxSpringdocDocument],
+      ['boot4-mvc', boot4MvcSpringdocDocument],
+    ] as const;
+
+    for (const [name, document] of snapshots) {
+      const documentUri = `https://fixtures.knife4j.example/springdoc/${name}.json`;
+      await engine.registerDocument(document, documentUri);
+
+      await expect(engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).resolves.toMatchObject({
+        valid: true,
+      });
+      await expect(
+        engine.evaluate(`${documentUri}#/components/schemas/Oas31MatrixRequest`, {
+          nullableName: null,
+          metadata: {},
+          mode: 'stable',
+          tuple: ['first', 2],
+        }),
+      ).resolves.toMatchObject({ valid: true });
+      await expect(
+        engine.evaluate(`${documentUri}#/components/schemas/Oas31MatrixRequest`, {
+          mode: 'changed',
+          tuple: ['only-one'],
+        }),
+      ).resolves.toMatchObject({ valid: false });
+
+      const response = await engine.resolve(`${documentUri}#/components/schemas/Oas31MatrixResponse`);
+      expect(response.schema).toMatchObject({
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'integer', format: 'int64' },
+          serverValue: { readOnly: true },
+          clientSecret: { writeOnly: true },
+        },
+      });
+    }
+  });
+
+  test('validates the standards-only supplement and keeps its external schema registry-only', async () => {
+    const engine = createEngine();
+    const documentUri = 'https://fixtures.knife4j.example/springdoc/browser-supplement.json';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch must not be called'));
+    await engine.registerDocument(browserSupplementDocument, documentUri);
+
+    await expect(
+      engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', browserSupplementDocument),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(
+      engine.evaluate(`${documentUri}#/components/schemas/TypedTuple`, ['stable', 1]),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(
+      engine.evaluate(`${documentUri}#/components/schemas/TypedTuple`, ['stable', 'one']),
+    ).resolves.toMatchObject({ valid: false });
+    await expect(engine.evaluate(`${documentUri}#/components/schemas/ExternalPayload`, {})).rejects.toMatchObject({
+      code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
+      details: { resourceUri: 'https://unapproved.knife4j.example/schema.json' },
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test('validates a fixed Springdoc-style document and its component schemas', async () => {
     const engine = createEngine();
     const documentUri = 'https://fixtures.knife4j.example/springdoc.openapi.json';

@@ -1,0 +1,126 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "OpenAPI definition", "version": "v0" },
+  "servers": [{ "url": "/", "description": "Generated server url" }],
+  "paths": {
+    "/oas31/raw-binary": {
+      "post": {
+        "tags": ["oas-31-matrix-controller"],
+        "summary": "Raw binary requestBody compatibility",
+        "operationId": "rawBinary",
+        "requestBody": {
+          "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Oas31MatrixResponse" } } }
+          }
+        }
+      }
+    },
+    "/oas31/multipart": {
+      "post": {
+        "tags": ["oas-31-matrix-controller"],
+        "summary": "Multipart single and multiple file compatibility",
+        "operationId": "multipart",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "files": { "type": "array", "items": { "type": "string", "format": "binary" } }
+                },
+                "required": ["file", "files"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Oas31MatrixResponse" } } }
+          }
+        }
+      }
+    },
+    "/oas31/json": {
+      "post": {
+        "tags": ["oas-31-matrix-controller"],
+        "summary": "JSON requestBody compatibility",
+        "operationId": "json",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Oas31MatrixRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Oas31MatrixResponse" } } }
+          }
+        }
+      }
+    },
+    "/oas31/search": {
+      "get": {
+        "tags": ["oas-31-matrix-controller"],
+        "summary": "GET requestBody compatibility",
+        "operationId": "search",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Oas31MatrixRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Matrix response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Oas31MatrixResponse" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Oas31MatrixResponse": {
+        "type": "object",
+        "description": "OAS 3.1 response matrix",
+        "properties": {
+          "id": { "type": "integer", "format": "int64", "description": "Response identifier", "example": 1 },
+          "serverValue": {
+            "type": "string",
+            "description": "Visible only in responses",
+            "example": "server",
+            "readOnly": true
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "Visible only in requests",
+            "example": "client",
+            "writeOnly": true
+          }
+        },
+        "required": ["id"]
+      },
+      "Oas31MatrixRequest": {
+        "type": "object",
+        "description": "OAS 3.1 request matrix",
+        "properties": {
+          "nullableName": { "type": ["string", "null"], "description": "Nullable string", "examples": ["matrix"] },
+          "metadata": { "type": "object", "description": "Intentionally generic object" },
+          "mode": { "type": "string", "const": "stable", "description": "Constant mode", "examples": ["stable"] },
+          "tuple": {
+            "type": "array",
+            "description": "Tuple value",
+            "items": { "type": "object" },
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [{}, {}]
+          }
+        }
+      }
+    }
+  }
+}

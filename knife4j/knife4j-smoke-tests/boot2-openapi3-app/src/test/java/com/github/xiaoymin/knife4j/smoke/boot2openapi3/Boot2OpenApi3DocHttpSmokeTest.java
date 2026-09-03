@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.smoke.boot2openapi3;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import org.junit.After;
 import org.junit.Assert;
@@ -45,6 +46,8 @@ import java.nio.charset.StandardCharsets;
  * (#573 / #849) on the Spring Boot 2 + javax servlet combination.
  */
 public class Boot2OpenApi3DocHttpSmokeTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private ConfigurableApplicationContext context;
 
@@ -75,7 +78,8 @@ public class Boot2OpenApi3DocHttpSmokeTest {
 
         HttpResponse apiDocs = get(port, "/v3/api-docs");
         Assert.assertEquals(200, apiDocs.statusCode);
-        Assert.assertTrue(apiDocs.body.contains("\"openapi\""));
+        Assert.assertEquals("Boot 2 + springdoc 1.8.0 remains on the existing OAS 3.0 contract",
+                "3.0.1", OBJECT_MAPPER.readTree(apiDocs.body).path("openapi").asText());
         Assert.assertTrue(apiDocs.body.contains("/hello"));
     }
 

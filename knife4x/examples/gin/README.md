@@ -2,6 +2,9 @@
 
 本示例让 Gin 作为业务 `http.Handler`，再由 Knife4x 的框架无关 Handler 同时提供文档资源。
 它只消费现成的 OpenAPI 3 文档，不使用 `swag` 或 `gin-swagger` 生成 spec。
+示例内嵌的固定文档与 React 验收共用同一份 Springdoc 2.8.9 OpenAPI 3.1
+快照，覆盖 nullable、const、tuple、GET/JSON/binary/multipart requestBody
+以及请求/响应 Schema 引用。
 
 在本目录运行：
 
@@ -13,6 +16,7 @@ go run .
 
 - Knife4x：<http://localhost:8080/doc.html>
 - OpenAPI 3 fixture：<http://localhost:8080/openapi.json>
+- OAS 3.1 matrix API：<http://localhost:8080/oas31/json>
 - 业务接口：<http://localhost:8080/api/ping>
 
 子路径部署：
