@@ -229,6 +229,10 @@ function blockerUnavailableReason(blockers: readonly Oas31OperationExportBlocker
   return 'snapshot-unavailable';
 }
 
+function operationNotFound(blockers: readonly Oas31OperationExportBlocker[]): boolean {
+  return blockers.length === 1 && blockers[0].code === 'OPERATION_NOT_FOUND';
+}
+
 function unavailable(
   snapshotVersion: ApiChangeSnapshotVersion | null,
   reason: ApiChangeUnavailableReason,
@@ -294,8 +298,9 @@ function buildOas31ApiOperationFingerprints(
     .sort()) {
     const pathItem = canonicalPaths![path] as unknown;
     if (!isRecord(pathItem)) continue;
+    const referencesPathItem = typeof pathItem.$ref === 'string';
     for (const method of OPENAPI_HTTP_METHODS) {
-      if (!isRecord(pathItem[method])) continue;
+      if (!referencesPathItem && !isRecord(pathItem[method])) continue;
       const operationDocument = buildOas31OperationOpenApiDocument(canonicalDoc, path, method, 'path', {
         retrievalUri: environment.retrievalUri,
         snapshot: canonicalSnapshot,
@@ -304,6 +309,7 @@ function buildOas31ApiOperationFingerprints(
         return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
       }
       if (operationDocument.status === 'unavailable') {
+        if (operationNotFound(operationDocument.blockers)) continue;
         return unavailable(
           OAS31_API_CHANGE_SNAPSHOT_VERSION,
           blockerUnavailableReason(operationDocument.blockers),

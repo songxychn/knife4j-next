@@ -88,6 +88,7 @@ function fingerprints(document = apiDocument()) {
 const OAS31_ENTRY_URI = 'https://changes.knife4j.example/openapi.json';
 const OAS31_TREE_URI = 'https://changes.knife4j.example/schemas/tree.json';
 const OAS31_OTHER_URI = 'https://changes.knife4j.example/schemas/other.json';
+const OAS31_PATH_ITEM_URI = 'https://changes.knife4j.example/path-items/shared.json';
 
 function oas31Document(): SwaggerDoc {
   return {
@@ -333,6 +334,63 @@ describe('OAS 3.1 API change fingerprints', () => {
     const current = await buildOas31Fingerprints(document);
     expect(current).not.toHaveProperty(apiOperationIdentity('GET', 'x-vendor'));
     expect(Object.keys(current)).toHaveLength(3);
+  });
+
+  it('fingerprints operations reached through local and external Path Item references', async () => {
+    const document = {
+      openapi: '3.1.0',
+      info: { title: 'Referenced path items', version: '1.0.0' },
+      paths: {
+        '/local-ref': { $ref: '#/components/pathItems/Local' },
+        '/external-ref': { $ref: './path-items/shared.json' },
+      },
+      components: {
+        pathItems: {
+          Local: {
+            get: {
+              responses: { 200: { description: 'Local response' } },
+            },
+          },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const externalDocuments = {
+      [OAS31_PATH_ITEM_URI]: {
+        post: {
+          responses: { 201: { description: 'External response' } },
+        },
+      },
+    };
+
+    const original = await buildOas31Fingerprints(document, externalDocuments);
+    expect(Object.keys(original).sort()).toEqual(
+      [apiOperationIdentity('GET', '/local-ref'), apiOperationIdentity('POST', '/external-ref')].sort(),
+    );
+
+    const localChanged = cloneJson(document);
+    const localPathItem = (
+      localChanged.components as {
+        pathItems: { Local: { get: { responses: Record<string, { description: string }> } } };
+      }
+    ).pathItems.Local;
+    localPathItem.get.responses[200].description = 'Changed local response';
+    const localFingerprints = await buildOas31Fingerprints(localChanged, externalDocuments);
+    expect(localFingerprints[apiOperationIdentity('GET', '/local-ref')]).not.toBe(
+      original[apiOperationIdentity('GET', '/local-ref')],
+    );
+    expect(localFingerprints[apiOperationIdentity('POST', '/external-ref')]).toBe(
+      original[apiOperationIdentity('POST', '/external-ref')],
+    );
+
+    const externalChanged = cloneJson(externalDocuments);
+    externalChanged[OAS31_PATH_ITEM_URI].post.responses[201].description = 'Changed external response';
+    const externalFingerprints = await buildOas31Fingerprints(document, externalChanged);
+    expect(externalFingerprints[apiOperationIdentity('GET', '/local-ref')]).toBe(
+      original[apiOperationIdentity('GET', '/local-ref')],
+    );
+    expect(externalFingerprints[apiOperationIdentity('POST', '/external-ref')]).not.toBe(
+      original[apiOperationIdentity('POST', '/external-ref')],
+    );
   });
 
   it('classifies blocking document diagnostics before initializing or updating an OAS 3.1 baseline', async () => {
