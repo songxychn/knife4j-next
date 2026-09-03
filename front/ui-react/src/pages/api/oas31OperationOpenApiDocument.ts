@@ -358,8 +358,12 @@ class Oas31OperationBundler {
     const resolvedPathItem = this.resolvePathItem(rawPathItem, new Set());
     const normalizedMethod = method.toLowerCase();
     const operation = resolvedPathItem?.fields.get(normalizedMethod);
-    if (!resolvedPathItem || !operation || !asRecord(operation.value)) {
+    if (!resolvedPathItem || !operation) {
       this.block('OPERATION_NOT_FOUND', appendPointer(rawPathItem.pointer, normalizedMethod));
+      return this.unavailable();
+    }
+    if (!asRecord(operation.value)) {
+      this.block('REFERENCE_TARGET_INVALID', operation.pointer);
       return this.unavailable();
     }
     this.topOperationIdentity = this.locationKey(operation);

@@ -393,6 +393,34 @@ describe('OAS 3.1 API change fingerprints', () => {
     );
   });
 
+  it('fails closed when a referenced Path Item contains a non-object operation', async () => {
+    const document = {
+      openapi: '3.1.0',
+      info: { title: 'Invalid referenced path item', version: '1.0.0' },
+      paths: {
+        '/invalid': { $ref: './path-items/shared.json' },
+      },
+    } as unknown as SwaggerDoc;
+    const { snapshot } = await oas31Snapshot(document, {
+      [OAS31_PATH_ITEM_URI]: { get: 'invalid-operation' },
+    });
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+
+    expect(
+      buildApiChangeFingerprintSnapshot(document, {
+        status: 'ready',
+        retrievalUri: OAS31_ENTRY_URI,
+        snapshot,
+        documentDiagnostics: collectOas31DocumentDiagnostics(document),
+      }),
+    ).toMatchObject({
+      status: 'unavailable',
+      snapshotVersion: OAS31_API_CHANGE_SNAPSHOT_VERSION,
+      reason: 'snapshot-unavailable',
+      blockers: [{ code: 'REFERENCE_TARGET_INVALID', sourcePointer: '#/get' }],
+    });
+  });
+
   it('classifies blocking document diagnostics before initializing or updating an OAS 3.1 baseline', async () => {
     const document = oas31Document();
     const { snapshot } = await oas31Snapshot(document);
