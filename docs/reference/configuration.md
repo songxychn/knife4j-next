@@ -96,7 +96,7 @@ public OpenAPI customOpenAPI() {
 
 > `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
 
-> `enableVersion` 在 React UI 中使用浏览器本地基线比较当前 OpenAPI 3.0.x 或 3.1.x 文档。首次开启或缓存 schema 升级时只建立新基线；后续新增接口显示 `NEW`，Operation 或其可达组件/Schema 资源语义变化时显示变化标记。3.0 与 3.1 使用独立基线；3.1 只基于已加载的完整资源图计算，不会在指纹阶段联网。外部资源未授权、加载/校验失败、超出安全预算或使用不支持的 Schema dialect 时会暂停跟踪并保留上一份完整基线。当前不支持 OpenAPI 3.2。
+> `enableVersion` 在 React UI 中使用浏览器本地基线比较当前 OpenAPI 3.0.x 或 3.1.x 文档。首次开启或缓存 schema 升级时只建立新基线；后续新增接口显示 `NEW`，Operation 或其可达组件/Schema 资源语义变化时显示变化标记。3.0 与 3.1 使用独立基线；3.1 只基于已加载的完整资源图计算，不会在指纹阶段联网。文档存在结构/本地引用诊断、外部资源未授权、加载/校验失败、超出安全预算或使用不支持的 Schema dialect 时会暂停跟踪并保留上一份完整基线。当前不支持 OpenAPI 3.2。
 
 > 各配置项的功能说明和示例见 [功能详解](../guide/features#功能详解)。
 

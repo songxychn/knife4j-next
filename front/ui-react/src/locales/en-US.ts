@@ -50,6 +50,8 @@ const enUS = {
     'API change tracking is paused because the resource graph exceeded its safety budget. The previous baseline is kept.',
   'sidebar.apiChange.unavailable.dialectUnsupported':
     'API change tracking is paused because a Schema dialect is unsupported. The previous baseline is kept.',
+  'sidebar.apiChange.unavailable.documentInvalid':
+    'API change tracking is paused because the OpenAPI document has structural or local-reference issues. The previous baseline is kept.',
   'sidebar.apiChange.unavailable.resourceFailed':
     'API change tracking is paused because an external resource failed to load or validate. The previous baseline is kept.',
   'sidebar.apiChange.unavailable.snapshot':

@@ -1,4 +1,4 @@
-import { isOpenApi31Version, OPENAPI_HTTP_METHODS } from 'knife4j-core';
+import { isOpenApi31Version, OPENAPI_HTTP_METHODS, type Oas31DocumentDiagnostic } from 'knife4j-core';
 import { buildOperationOpenApiDocument } from '../pages/api/operationOpenApiDocument';
 import {
   buildOas31OperationOpenApiDocument,
@@ -23,6 +23,12 @@ const RESOURCE_BUDGET_FAILURES = new Set([
   'GRAPH_DEPTH_LIMIT',
   'GRAPH_NODE_LIMIT',
 ]);
+const RESOURCE_GRAPH_HANDLED_DOCUMENT_DIAGNOSTICS = new Set<Oas31DocumentDiagnostic['code']>([
+  'external-ref',
+  'anchor-ref',
+  'dynamic-ref',
+  'schema-base',
+]);
 
 export const API_CHANGE_BASELINE_VERSION = 2;
 export const API_CHANGE_BASELINE_MAX_BYTES = 1024 * 1024;
@@ -37,6 +43,7 @@ export type ApiChangeUnavailableReason =
   | 'resource-pending'
   | 'resource-budget'
   | 'dialect-unsupported'
+  | 'document-invalid'
   | 'resource-failed'
   | 'snapshot-unavailable'
   | 'version-unsupported';
@@ -45,6 +52,7 @@ export interface Oas31ApiChangeEnvironment {
   readonly status: 'preparing' | 'ready' | 'failed';
   readonly retrievalUri: string | null;
   readonly snapshot: ResourceGraphSnapshot | null;
+  readonly documentDiagnostics: readonly Oas31DocumentDiagnostic[];
   readonly errorCode?: string;
 }
 
@@ -238,7 +246,20 @@ function buildOas31ApiOperationFingerprints(
   swaggerDoc: SwaggerDoc,
   environment: Oas31ApiChangeEnvironment | undefined,
 ): ApiChangeFingerprintBuildResult {
-  if (!environment || environment.status === 'preparing') {
+  if (!environment) {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'preparing');
+  }
+  if (environment.documentDiagnostics.some((diagnostic) => diagnostic.code === 'unsupported-dialect')) {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'dialect-unsupported');
+  }
+  if (
+    environment.documentDiagnostics.some(
+      (diagnostic) => !RESOURCE_GRAPH_HANDLED_DOCUMENT_DIAGNOSTICS.has(diagnostic.code),
+    )
+  ) {
+    return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'document-invalid');
+  }
+  if (environment.status === 'preparing') {
     return unavailable(OAS31_API_CHANGE_SNAPSHOT_VERSION, 'preparing');
   }
   if (environment.status === 'failed') {
@@ -268,7 +289,9 @@ function buildOas31ApiOperationFingerprints(
   const canonicalSnapshot = canonicalResourceGraphSnapshot(environment.snapshot);
   const fingerprints = emptyFingerprintMap();
 
-  for (const path of Object.keys(canonicalPaths ?? {}).sort()) {
+  for (const path of Object.keys(canonicalPaths ?? {})
+    .filter((candidate) => candidate.startsWith('/'))
+    .sort()) {
     const pathItem = canonicalPaths![path] as unknown;
     if (!isRecord(pathItem)) continue;
     for (const method of OPENAPI_HTTP_METHODS) {

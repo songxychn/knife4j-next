@@ -36,6 +36,7 @@ const API_CHANGE_UNAVAILABLE_KEYS: Record<ApiChangeUnavailableReason, string> = 
   'resource-pending': 'sidebar.apiChange.unavailable.resourcePending',
   'resource-budget': 'sidebar.apiChange.unavailable.resourceBudget',
   'dialect-unsupported': 'sidebar.apiChange.unavailable.dialectUnsupported',
+  'document-invalid': 'sidebar.apiChange.unavailable.documentInvalid',
   'resource-failed': 'sidebar.apiChange.unavailable.resourceFailed',
   'snapshot-unavailable': 'sidebar.apiChange.unavailable.snapshot',
   'version-unsupported': 'sidebar.apiChange.unavailable.version',

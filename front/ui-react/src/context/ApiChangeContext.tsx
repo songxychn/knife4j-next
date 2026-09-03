@@ -123,6 +123,7 @@ function persistBaseline(
 function oas31FingerprintEnvironment(
   schemaEngine: SchemaEngineContextValue,
   resources: ExternalResourceContextValue,
+  documentDiagnostics: Oas31ApiChangeEnvironment['documentDiagnostics'],
 ): Oas31ApiChangeEnvironment {
   const snapshot = resources.snapshot;
   if (
@@ -131,7 +132,7 @@ function oas31FingerprintEnvironment(
     resources.status === 'loading' ||
     (schemaEngine.status === 'inactive' && !snapshot)
   ) {
-    return { status: 'preparing', retrievalUri: schemaEngine.retrievalUri, snapshot };
+    return { status: 'preparing', retrievalUri: schemaEngine.retrievalUri, snapshot, documentDiagnostics };
   }
 
   const failure = resources.registrationError ?? (schemaEngine.status === 'error' ? schemaEngine.error : null);
@@ -140,6 +141,7 @@ function oas31FingerprintEnvironment(
       status: 'failed',
       retrievalUri: schemaEngine.retrievalUri,
       snapshot,
+      documentDiagnostics,
       ...(failure.code ? { errorCode: failure.code } : {}),
     };
   }
@@ -150,15 +152,15 @@ function oas31FingerprintEnvironment(
     schemaEngine.retrievalUri === snapshot.entryRetrievalUri &&
     resources.documentScope === snapshot.documentScope
   ) {
-    return { status: 'ready', retrievalUri: schemaEngine.retrievalUri, snapshot };
+    return { status: 'ready', retrievalUri: schemaEngine.retrievalUri, snapshot, documentDiagnostics };
   }
 
-  return { status: 'failed', retrievalUri: schemaEngine.retrievalUri, snapshot };
+  return { status: 'failed', retrievalUri: schemaEngine.retrievalUri, snapshot, documentDiagnostics };
 }
 
 export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settings } = useSettings();
-  const { activeSwaggerGroup, swaggerDoc, loading } = useGroup();
+  const { activeSwaggerGroup, swaggerDoc, loading, documentDiagnostics } = useGroup();
   const schemaEngine = useSchemaEngine();
   const externalResources = useExternalResources();
   const [state, setState] = useState<ApiChangeTrackerState>(() => emptyState());
@@ -170,8 +172,8 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   const oas31Environment = useMemo(
-    () => oas31FingerprintEnvironment(schemaEngine, externalResources),
-    [externalResources, schemaEngine],
+    () => oas31FingerprintEnvironment(schemaEngine, externalResources, documentDiagnostics),
+    [documentDiagnostics, externalResources, schemaEngine],
   );
 
   useEffect(() => {

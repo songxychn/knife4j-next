@@ -1,3 +1,4 @@
+import { collectOas31DocumentDiagnostics } from 'knife4j-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   ExternalResourceLoader,
@@ -239,6 +240,7 @@ async function buildOas31Fingerprints(
     status: 'ready',
     retrievalUri: OAS31_ENTRY_URI,
     snapshot,
+    documentDiagnostics: [],
   });
   expect(fetchSpy).toHaveBeenCalledTimes(requestsBeforeFingerprint);
   return readyOas31Fingerprints(result);
@@ -320,6 +322,83 @@ describe('API change fingerprints', () => {
 });
 
 describe('OAS 3.1 API change fingerprints', () => {
+  it('ignores Paths specification extensions even when they contain HTTP method-like fields', async () => {
+    const document = oas31Document();
+    (document.paths as Record<string, unknown>)['x-vendor'] = {
+      get: {
+        responses: { 200: { description: 'Not an executable path operation' } },
+      },
+    };
+
+    const current = await buildOas31Fingerprints(document);
+    expect(current).not.toHaveProperty(apiOperationIdentity('GET', 'x-vendor'));
+    expect(Object.keys(current)).toHaveLength(3);
+  });
+
+  it('classifies blocking document diagnostics before initializing or updating an OAS 3.1 baseline', async () => {
+    const document = oas31Document();
+    const { snapshot } = await oas31Snapshot(document);
+
+    expect(
+      buildApiChangeFingerprintSnapshot(document, {
+        status: 'ready',
+        retrievalUri: OAS31_ENTRY_URI,
+        snapshot,
+        documentDiagnostics: [
+          {
+            code: 'missing-required-field',
+            path: '#/paths/~1tree/get/responses',
+            reason: 'Operation Object requires responses',
+          },
+        ],
+      }),
+    ).toEqual({
+      status: 'unavailable',
+      snapshotVersion: OAS31_API_CHANGE_SNAPSHOT_VERSION,
+      reason: 'document-invalid',
+    });
+
+    expect(
+      buildApiChangeFingerprintSnapshot(document, {
+        status: 'ready',
+        retrievalUri: OAS31_ENTRY_URI,
+        snapshot,
+        documentDiagnostics: [
+          {
+            code: 'unsupported-dialect',
+            path: '#/jsonSchemaDialect',
+            reason: 'Unsupported Schema dialect',
+          },
+        ],
+      }),
+    ).toEqual({
+      status: 'unavailable',
+      snapshotVersion: OAS31_API_CHANGE_SNAPSHOT_VERSION,
+      reason: 'dialect-unsupported',
+    });
+  });
+
+  it('lets the loaded resource graph handle external-ref and schema-base compatibility notices', async () => {
+    const document = oas31Document();
+    const documentDiagnostics = collectOas31DocumentDiagnostics(document);
+    expect(documentDiagnostics.map((diagnostic) => diagnostic.code)).toEqual(
+      expect.arrayContaining(['external-ref', 'schema-base']),
+    );
+    const { snapshot } = await oas31Snapshot(document);
+
+    expect(
+      buildApiChangeFingerprintSnapshot(document, {
+        status: 'ready',
+        retrievalUri: OAS31_ENTRY_URI,
+        snapshot,
+        documentDiagnostics,
+      }),
+    ).toMatchObject({
+      status: 'ready',
+      snapshotVersion: OAS31_API_CHANGE_SNAPSHOT_VERSION,
+    });
+  });
+
   it('uses the portable semantic closure without fetching and ignores JSON key order, patch version, and metadata', async () => {
     const originalDocument = oas31Document();
     const originalExternal = oas31ExternalDocuments();
@@ -429,6 +508,7 @@ describe('OAS 3.1 API change fingerprints', () => {
       status: 'ready',
       retrievalUri: OAS31_ENTRY_URI,
       snapshot: pendingLoader.currentSnapshot(),
+      documentDiagnostics: [],
     });
     pendingLoader.dispose();
     expect(unavailableResult).toMatchObject({ status: 'unavailable', reason: 'resource-pending' });
@@ -458,6 +538,7 @@ describe('OAS 3.1 API change fingerprints', () => {
         status: 'ready',
         retrievalUri: OAS31_ENTRY_URI,
         snapshot: pendingSnapshot,
+        documentDiagnostics: [],
       }),
     ).toMatchObject({ status: 'unavailable', reason: 'resource-pending' });
     pendingLoader.dispose();
@@ -470,6 +551,7 @@ describe('OAS 3.1 API change fingerprints', () => {
         status: 'ready',
         retrievalUri: OAS31_ENTRY_URI,
         snapshot: budgetSnapshot,
+        documentDiagnostics: [],
       }),
     ).toMatchObject({ status: 'unavailable', reason: 'resource-budget' });
 
@@ -480,6 +562,7 @@ describe('OAS 3.1 API change fingerprints', () => {
         status: 'failed',
         retrievalUri: OAS31_ENTRY_URI,
         snapshot: null,
+        documentDiagnostics: [],
         errorCode: 'DIALECT_UNSUPPORTED',
       }),
     ).toMatchObject({ status: 'unavailable', reason: 'dialect-unsupported' });
@@ -489,6 +572,7 @@ describe('OAS 3.1 API change fingerprints', () => {
         status: 'failed',
         retrievalUri: OAS31_ENTRY_URI,
         snapshot: null,
+        documentDiagnostics: [],
         errorCode: 'UNSUPPORTED_DIALECT',
       }),
     ).toMatchObject({ status: 'unavailable', reason: 'dialect-unsupported' });
@@ -497,6 +581,7 @@ describe('OAS 3.1 API change fingerprints', () => {
         status: 'failed',
         retrievalUri: OAS31_ENTRY_URI,
         snapshot: null,
+        documentDiagnostics: [],
         errorCode: 'RESOURCE_TOO_LARGE',
       }),
     ).toMatchObject({ status: 'unavailable', reason: 'resource-budget' });
@@ -505,6 +590,7 @@ describe('OAS 3.1 API change fingerprints', () => {
         status: 'failed',
         retrievalUri: OAS31_ENTRY_URI,
         snapshot: null,
+        documentDiagnostics: [],
         errorCode: 'REGISTRATION_FAILED',
       }),
     ).toMatchObject({ status: 'unavailable', reason: 'resource-failed' });

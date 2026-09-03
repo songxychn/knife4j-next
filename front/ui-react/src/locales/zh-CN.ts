@@ -46,6 +46,8 @@ const zhCN = {
   'sidebar.apiChange.unavailable.resourcePending': '接口变化跟踪已暂停：请先授权并加载完整的外部资源。',
   'sidebar.apiChange.unavailable.resourceBudget': '接口变化跟踪已暂停：资源图超出安全预算，已保留原基线。',
   'sidebar.apiChange.unavailable.dialectUnsupported': '接口变化跟踪已暂停：存在不支持的 Schema dialect，已保留原基线。',
+  'sidebar.apiChange.unavailable.documentInvalid':
+    '接口变化跟踪已暂停：OpenAPI 文档存在结构或本地引用问题，已保留原基线。',
   'sidebar.apiChange.unavailable.resourceFailed': '接口变化跟踪已暂停：外部资源加载或校验失败，已保留原基线。',
   'sidebar.apiChange.unavailable.snapshot': '接口变化跟踪已暂停：无法构造完整的 Operation 语义闭包。',
   'sidebar.apiChange.unavailable.version': '接口变化跟踪仅支持 OpenAPI 3.0.x 和 3.1.x。',

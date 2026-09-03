@@ -53,6 +53,8 @@ const jaJP = {
     'リソースグラフが安全上限を超えたため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
   'sidebar.apiChange.unavailable.dialectUnsupported':
     '未対応の Schema dialect があるため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
+  'sidebar.apiChange.unavailable.documentInvalid':
+    'OpenAPI ドキュメントに構造またはローカル参照の問題があるため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
   'sidebar.apiChange.unavailable.resourceFailed':
     '外部リソースの読み込みまたは検証に失敗したため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
   'sidebar.apiChange.unavailable.snapshot':
