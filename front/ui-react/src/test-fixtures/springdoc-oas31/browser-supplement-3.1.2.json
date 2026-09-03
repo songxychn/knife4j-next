@@ -151,6 +151,15 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/MatrixEvent"
+            },
+            "example": {
+              "payload": {
+                "metadata": {
+                  "source": "springdoc"
+                },
+                "tuple": ["stable", 1],
+                "mode": "stable"
+              }
             }
           }
         }

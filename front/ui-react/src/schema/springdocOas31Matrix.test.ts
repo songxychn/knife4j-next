@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { buildOperationDebugModel } from 'knife4j-core';
+import { buildOperationDebugModel, dereferenceReferenceObject } from 'knife4j-core';
 import { parseMenuTags } from '../api/knife4jClient';
 import boot3MvcSpringdocDocument from '../test-fixtures/springdoc-oas31/boot3-mvc-springdoc-2.8.9.json';
 import browserSupplementDocument from '../test-fixtures/springdoc-oas31/browser-supplement-3.1.2.json';
@@ -44,6 +44,16 @@ describe('Springdoc OpenAPI 3.1 acceptance matrix', () => {
       path: '/oas31/search',
       method: 'get',
     });
+    expect(getBody.queryParams).toEqual([
+      expect.objectContaining({
+        name: 'limit',
+        in: 'query',
+        required: false,
+        description: 'Optional result limit',
+        type: 'integer',
+        format: 'int32',
+      }),
+    ]);
     expect(getBody.bodyRequired).toBe(true);
     expect(getBody.bodyContents).toEqual([
       expect.objectContaining({ mediaType: 'application/json', category: 'json' }),
@@ -193,8 +203,12 @@ describe('Springdoc OpenAPI 3.1 acceptance matrix', () => {
     expect(apiDoc.regions[1].fields.map(({ name }) => name)).toEqual(['id', 'serverValue']);
   });
 
-  test('keeps standards-only webhooks read-only and denies an ungranted external schema without fetching', async () => {
+  test('consumes standards-only references, keeps webhooks read-only, and denies external loading', async () => {
     const operations = parseMenuTags(supplementDocument).flatMap((tag) => tag.operations);
+    const referenceOperation = operations.find(
+      ({ path, method, source }) => path === '/supplement/reference' && method === 'post' && source === 'path',
+    );
+    if (!referenceOperation) throw new Error('expected the standards-only Reference Object operation');
     const webhook = operations.find(({ source }) => source === 'webhook');
     expect(webhook).toMatchObject({
       path: 'matrix.changed',
@@ -202,6 +216,52 @@ describe('Springdoc OpenAPI 3.1 acceptance matrix', () => {
       source: 'webhook',
     });
     expect(visibleOperationModeKeys(webhook?.source, true, true)).toEqual(['doc', 'openapi']);
+
+    const referenceDebugModel = buildOperationDebugModel({
+      doc: supplementDocument as Parameters<typeof buildOperationDebugModel>[0]['doc'],
+      path: referenceOperation.path,
+      method: referenceOperation.method,
+    });
+    expect(referenceDebugModel.bodyRequired).toBe(true);
+    expect(referenceDebugModel.bodyContents).toEqual([
+      expect.objectContaining({ mediaType: 'application/json', category: 'json' }),
+    ]);
+
+    const rawReferencePathItem = supplementDocument.paths?.['/supplement/reference'] as unknown as Record<
+      string,
+      unknown
+    >;
+    const rawReferenceOperation = rawReferencePathItem.post as Record<string, unknown>;
+    const rawRequestBody = rawReferenceOperation.requestBody as Record<string, unknown>;
+    expect(rawRequestBody).toMatchObject({
+      $ref: '#/components/requestBodies/MatrixInput',
+      summary: 'Referenced matrix input',
+      description: 'Reference Object siblings are legal in OpenAPI 3.1.',
+    });
+    const requestBody = dereferenceReferenceObject(
+      rawRequestBody,
+      supplementDocument as unknown as Record<string, unknown>,
+    );
+    expect(requestBody).toMatchObject({
+      required: true,
+      description: 'Reference Object siblings are legal in OpenAPI 3.1.',
+    });
+    expect(requestBody).not.toHaveProperty('summary');
+    const rawResponses = rawReferenceOperation.responses as Record<string, unknown>;
+    const rawAcceptedResponse = rawResponses['202'] as Record<string, unknown>;
+    expect(rawAcceptedResponse).toMatchObject({
+      $ref: '#/components/responses/Accepted',
+      summary: 'Referenced accepted response',
+      description: 'The response remains a Reference Object.',
+    });
+    const response = dereferenceReferenceObject(
+      rawAcceptedResponse,
+      supplementDocument as unknown as Record<string, unknown>,
+    );
+    expect(response).toMatchObject({
+      description: 'The response remains a Reference Object.',
+    });
+    expect(response).not.toHaveProperty('summary');
 
     const fetchImpl = vi.fn(async () => {
       throw new Error('ungranted resources must not be fetched');
@@ -239,6 +299,64 @@ describe('Springdoc OpenAPI 3.1 acceptance matrix', () => {
       'https://docs.knife4j.example/v3/browser-supplement.json',
     );
     sessions.push(session);
+    const referenceExamples = await generateOperationSchemaExamples(supplementDocument, referenceOperation, session);
+    expect(referenceExamples.request).toMatchObject({
+      mediaType: 'application/json',
+      result: {
+        status: 'value',
+        validation: 'valid',
+        value: {
+          metadata: { source: 'springdoc' },
+          tuple: ['stable', 1],
+          mode: 'stable',
+        },
+      },
+    });
+    expect(referenceExamples.responses).toEqual([
+      expect.objectContaining({
+        statusCode: '202',
+        mediaType: 'application/json',
+        result: expect.objectContaining({ status: 'value', validation: 'valid' }),
+      }),
+    ]);
+
+    const referenceProjection = await projectApiDocSchemaRegions(
+      [
+        {
+          key: REQUEST_BODY_REGION_KEY,
+          schema: { $ref: '#/components/schemas/MatrixInput' },
+          mode: 'request',
+        },
+        {
+          key: responseSchemaRegionKey('202'),
+          schema: { $ref: '#/components/schemas/MatrixEvent' },
+          mode: 'response',
+        },
+      ],
+      createSchemaDisplayProjector(session),
+    );
+    expect(referenceProjection.failures).toEqual([]);
+    expect(referenceProjection.regions[0].fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'metadata',
+          type: 'object',
+          children: [expect.objectContaining({ name: 'source', type: 'string', example: 'springdoc' })],
+        }),
+        expect.objectContaining({
+          name: 'tuple',
+          type: 'array',
+          children: expect.arrayContaining([
+            expect.objectContaining({ name: '[0]', type: 'string' }),
+            expect.objectContaining({ name: '[1]', type: 'integer' }),
+          ]),
+        }),
+        expect.objectContaining({ name: 'mode', constValue: 'stable', example: 'stable' }),
+      ]),
+    );
+    expect(referenceProjection.regions[1].fields).toEqual([
+      expect.objectContaining({ name: 'payload', type: 'object' }),
+    ]);
     await expect(session.evaluate('#/components/schemas/TypedTuple', ['stable', 1])).resolves.toMatchObject({
       valid: true,
     });

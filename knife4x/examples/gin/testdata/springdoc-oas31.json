@@ -92,6 +92,15 @@
         "tags": ["oas-31-matrix-controller"],
         "summary": "GET requestBody compatibility",
         "operationId": "Oas31MatrixController_search",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Optional result limit",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32" }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,6 +43,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -124,7 +126,7 @@ public class Boot3JakartaDocHttpSmokeTest {
         Assert.assertFalse(document.path("paths").path("/oas31/raw-binary").path("post").isMissingNode());
         Assert.assertFalse(document.path("paths").path("/oas31/multipart").path("post").isMissingNode());
         assertOas31MatrixContract(document, true);
-        assertMatchesOas31Fixture(document, "boot3-mvc-springdoc-2.8.9.json");
+        assertMatchesOas31Fixture(document, "boot3-mvc-springdoc-2.8.9.json", port);
     }
 
     @Test
@@ -383,6 +385,14 @@ public class Boot3JakartaDocHttpSmokeTest {
         Assert.assertTrue(responseSchema.path("properties").path("serverValue").path("readOnly").asBoolean());
         Assert.assertTrue(responseSchema.path("properties").path("clientSecret").path("writeOnly").asBoolean());
 
+        JsonNode queryParameters = document.path("paths").path("/oas31/search").path("get").path("parameters");
+        Assert.assertEquals(1, queryParameters.size());
+        Assert.assertEquals("limit", queryParameters.path(0).path("name").asText());
+        Assert.assertEquals("query", queryParameters.path(0).path("in").asText());
+        Assert.assertFalse(queryParameters.path(0).path("required").asBoolean());
+        Assert.assertEquals("integer", queryParameters.path(0).path("schema").path("type").asText());
+        Assert.assertEquals("int32", queryParameters.path(0).path("schema").path("format").asText());
+
         JsonNode getBody = document.path("paths").path("/oas31/search").path("get").path("requestBody");
         Assert.assertEquals("#/components/schemas/Oas31MatrixRequest",
                 getBody.path("content").path("application/json").path("schema").path("$ref").asText());
@@ -419,10 +429,13 @@ public class Boot3JakartaDocHttpSmokeTest {
         Assert.assertEquals("binary", multipart.path("files").path("items").path("format").asText());
     }
 
-    private void assertMatchesOas31Fixture(JsonNode document, String fixtureName) throws IOException {
+    private void assertMatchesOas31Fixture(JsonNode document, String fixtureName, int port) throws IOException {
         JsonNode normalized = document.deepCopy();
         JsonNode firstServer = normalized.path("servers").path(0);
         Assert.assertTrue("springdoc matrix should expose its generated server URL", firstServer.isObject());
+        Assert.assertTrue("springdoc matrix server URL should be textual", firstServer.path("url").isTextual());
+        Assert.assertEquals("springdoc matrix should describe the exact current-origin request",
+                "http://localhost:" + port, firstServer.path("url").asText());
         ((ObjectNode) firstServer).put("url", "/");
 
         Path fixture = findRepositoryRoot()
@@ -542,7 +555,9 @@ public class Boot3JakartaDocHttpSmokeTest {
         @Operation(summary = "GET requestBody compatibility")
         @ApiResponse(responseCode = "200", description = "Matrix response", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = Oas31MatrixResponse.class)))
         @GetMapping(path = "/oas31/search", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-        public Oas31MatrixResponse search(@RequestBody Oas31MatrixRequest request) {
+        public Oas31MatrixResponse search(
+                                          @Parameter(description = "Optional result limit") @RequestParam(name = "limit", required = false) Integer limit,
+                                          @RequestBody Oas31MatrixRequest request) {
             return new Oas31MatrixResponse();
         }
 

@@ -17,6 +17,8 @@ review the complete snapshot diff explicitly.
 Springdoc 2.8.9 emits a generic Java `Object` as `type: object`, while
 Springdoc 3.0.3 leaves that schema typeless. Both versions expose positional
 `prefixItems`, but do not retain the Java annotation's nested tuple types. The
-standards-valid `browser-supplement-3.1.2.json` fixture covers that
+real snapshots also keep the generated optional `limit` query Parameter Object
+next to a GET request body. The standards-valid
+`browser-supplement-3.1.2.json` fixture covers that
 non-expressible typed tuple, Reference Object siblings, webhooks, and a denied
 external resource without attributing those shapes to generated output.
