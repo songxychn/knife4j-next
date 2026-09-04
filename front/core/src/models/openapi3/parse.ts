@@ -176,6 +176,9 @@ export class OpenAPIParser extends BaseCommonParser {
     if (!paths) return;
     //console.log(paths)
     for (const key in paths) {
+      if (!key.startsWith('/')) {
+        continue;
+      }
       const pathItem = paths[key];
       // 判断非空
       if (lodash.isEmpty(pathItem)) {

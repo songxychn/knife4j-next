@@ -54,7 +54,8 @@ export function buildHomeStats(swaggerDoc: SwaggerDoc | null | undefined, menuTa
   let deprecatedCount = 0;
   let pathCount = 0;
 
-  for (const pathItem of Object.values(swaggerDoc.paths ?? {})) {
+  for (const [path, pathItem] of Object.entries(swaggerDoc.paths ?? {})) {
+    if (!path.startsWith('/')) continue;
     let pathHasOp = false;
     for (const method of HOME_HTTP_METHODS) {
       const operation = isOpenApi31Version(swaggerDoc.openapi)

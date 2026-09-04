@@ -416,6 +416,7 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
   });
 
   Object.entries(isRecord(doc.paths) ? doc.paths : {}).forEach(([path, rawPathItem]) => {
+    if (!path.startsWith('/')) return;
     OPENAPI_HTTP_METHODS.forEach((method) => {
       const op = resolveMenuOperation(doc, rawPathItem, method);
       if (!op) return;

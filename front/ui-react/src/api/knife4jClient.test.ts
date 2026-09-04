@@ -559,6 +559,25 @@ describe('knife4jClient', () => {
     expect(menuTags.flatMap((tag) => tag.operations)).toHaveLength(2);
   });
 
+  it.each(['3.0.4', '3.1.2'])('ignores Paths specification extensions in OpenAPI %s menus', (openapi) => {
+    const doc = {
+      openapi,
+      info: { title: 'Paths extensions', version: '1.0.0' },
+      paths: {
+        'x-vendor': {
+          get: { summary: 'Extension payload, not an operation' },
+        },
+        '/pets': {
+          get: { tags: ['pets'], summary: 'List pets' },
+        },
+      },
+    } as SwaggerDoc;
+
+    expect(parseMenuTags(doc).flatMap((tag) => tag.operations.map(({ path, method }) => ({ path, method })))).toEqual([
+      { path: '/pets', method: 'get' },
+    ]);
+  });
+
   it('keeps non-conflicting Path Item siblings and applies operation parameter overrides', () => {
     const doc = {
       openapi: '3.1.2',

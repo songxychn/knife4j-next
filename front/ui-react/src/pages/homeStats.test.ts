@@ -74,6 +74,27 @@ describe('homeStats', () => {
     expect(stats.counts).toMatchObject({ trace: 1, post: 1 });
   });
 
+  it.each(['3.0.4', '3.1.2'])('ignores Paths specification extensions in OpenAPI %s totals', (openapi) => {
+    const doc = {
+      openapi,
+      info: { title: 'Paths extensions', version: '1.0.0' },
+      paths: {
+        'x-vendor': {
+          get: { summary: 'Extension payload, not an operation', deprecated: true },
+        },
+        '/pets': {
+          get: { tags: ['pets'], summary: 'List pets' },
+        },
+      },
+    } as SwaggerDoc;
+
+    const stats = buildHomeStats(doc, parseMenuTags(doc));
+
+    expect(stats).toMatchObject({ total: 1, pathCount: 1, deprecatedCount: 0 });
+    expect(stats.counts).toMatchObject({ get: 1 });
+    expect(stats.topTags).toEqual([{ tag: 'pets', count: 1, deprecated: 0 }]);
+  });
+
   it('keeps OpenAPI 3.0 home counts based on the raw Path Item', () => {
     const doc = {
       openapi: '3.0.4',
