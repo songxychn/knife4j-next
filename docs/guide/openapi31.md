@@ -12,17 +12,14 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 
 ## 支持范围
 
-OpenAPI 的功能集由 `major.minor` 定义。当前正式发布的 `3.1.0`、`3.1.1`、`3.1.2` 因此使用同一套
-**OpenAPI 3.1 feature set**，不按 patch 版本拆分能力。已有 OpenAPI 3.0.x 路径继续保留，OpenAPI 3.2.x 不在当前范围。
-未来新的 3.1 patch 不会在未验证时自动获得承诺；当前离线导出的显式白名单限制由
-[#739](https://github.com/songxychn/knife4j-next/issues/739) 跟踪。
+OpenAPI 的功能集由 `major.minor` 定义。`3.1.x` 因此使用同一套 **OpenAPI 3.1 feature set**，不按 patch 版本拆分能力，
+离线导出也复用统一版本判断，不维护私有 patch 白名单。已有 OpenAPI 3.0.x 路径继续保留，OpenAPI 3.2.x 不在当前范围。
 
 | 文档版本 | UI | 状态 | 说明 |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | 兼容维护 | 由 openapi2 starter 提供，不扩展 OAS 3.1 能力 |
 | OpenAPI 3.0.x | React | 支持 | 沿用既有解析、调试、导出与变化提示路径 |
-| OpenAPI 3.1.0 / 3.1.1 / 3.1.2 | React | 支持 | 当前正式发布的 3.1 patch 使用同一契约，并遵守下列产品边界 |
-| 未来 OpenAPI 3.1 patch | React | 待验证 | 不自动承诺；离线导出会拒绝未进入白名单的 patch，见 [#739](https://github.com/songxychn/knife4j-next/issues/739) |
+| OpenAPI 3.1.x | React | 支持 | 使用同一 feature set，并遵守下列产品边界 |
 | OpenAPI 3.2.x | React | 不支持 | 不猜测或降级成 3.1 处理 |
 
 ### springdoc 生成矩阵
@@ -47,9 +44,9 @@ Boot 2 / springdoc 1.8.0 仍生成 OAS 3.0，不能仅修改文档中的 `openap
 
 ## 产品能力矩阵
 
-除非某行另有说明，下表的“支持”指当前正式发布的 `3.1.0`、`3.1.1` 与 `3.1.2`。
+除非某行另有说明，下表的“支持”指整个 OpenAPI 3.1.x feature set。
 
-| 能力 | OAS 3.1.0–3.1.2 行为 | 关键边界 | 已合并证据 |
+| 能力 | OAS 3.1.x 行为 | 关键边界 | 已合并证据 |
 | --- | --- | --- | --- |
 | 单文档与多文档加载 | 入口文档与受控跨文档资源使用同一 3.1 解析会话 | 3.2 文档拒绝进入 3.1 工作流 | [#682](https://github.com/songxychn/knife4j-next/pull/682)、[#689](https://github.com/songxychn/knife4j-next/pull/689)、[#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | 文档对象与 Webhook | 支持 `paths`、`components`、`webhooks` 与 3.1 Reference Object；三者至少声明一个 | Webhook 是入站契约，不等同于普通 Path 请求 | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
@@ -62,7 +59,7 @@ Boot 2 / springdoc 1.8.0 仍生成 OAS 3.0，不能仅修改文档中的 `openap
 | 响应诊断 | 按精确状态码、范围或 `default` 以及媒体类型匹配 JSON 响应 Schema | 非阻断；不验证响应 Header、Cookie、SSE 或二进制内容 | [#713](https://github.com/songxychn/knife4j-next/pull/713) |
 | 单接口导出 | 完整资源图下导出可移植的单接口 OpenAPI JSON；支持 Path 与 Webhook 操作 | 不导出 YAML、ZIP、多文件包或整服务闭包 | [#732](https://github.com/songxychn/knife4j-next/pull/732)、[#733](https://github.com/songxychn/knife4j-next/pull/733) |
 | 接口变化提示 | 为完整资源图生成 3.1 语义指纹，与 3.0 基线隔离 | 只跟踪 `paths` 操作，不跟踪 Webhook 或字段级 diff | [#736](https://github.com/songxychn/knife4j-next/pull/736) |
-| 离线文档 | HTML、Markdown、DOC、DOCX 使用同一不可变 3.1 快照 | 仅允许 3.1.0 / 3.1.1 / 3.1.2；未来 patch 见 [#739](https://github.com/songxychn/knife4j-next/issues/739)。资源缺失或诊断未处理时取消，或由用户明确选择降级导出 | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
+| 离线文档 | HTML、Markdown、DOC、DOCX 使用同一不可变 3.1 快照 | 快照入口复用统一 3.1.x 版本判断；资源缺失或诊断未处理时取消，或由用户明确选择降级导出 | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
 
 真实 springdoc 到浏览器的总体验收见 [#737](https://github.com/songxychn/knife4j-next/pull/737)。
 

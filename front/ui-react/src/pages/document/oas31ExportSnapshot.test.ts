@@ -189,37 +189,40 @@ describe('OAS 3.1 offline export snapshot', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  test.each(['3.1.0', '3.1.1', '3.1.2'])('accepts the whole declared %s patch line', async (openapi) => {
-    const document: SwaggerDoc = {
-      openapi,
-      info: { title: 'Patch line', version: '1' },
-      paths: {
-        '/ping': {
-          post: {
-            requestBody: {
-              content: { 'application/json': { schema: { type: 'string' }, example: 'ping' } },
-            },
-            responses: {
-              '200': {
-                description: 'ok',
-                content: { 'application/json': { schema: { type: 'string' }, example: 'pong' } },
+  test.each(['3.1.0', '3.1.1', '3.1.2', '3.1.3', '3.1.999', '3.1.3-rc.1'])(
+    'accepts the shared OAS 3.1.x feature set for %s',
+    async (openapi) => {
+      const document: SwaggerDoc = {
+        openapi,
+        info: { title: 'Patch line', version: '1' },
+        paths: {
+          '/ping': {
+            post: {
+              requestBody: {
+                content: { 'application/json': { schema: { type: 'string' }, example: 'ping' } },
+              },
+              responses: {
+                '200': {
+                  description: 'ok',
+                  content: { 'application/json': { schema: { type: 'string' }, example: 'pong' } },
+                },
               },
             },
           },
         },
-      },
-    };
-    const session = await openSession(document, false);
-    const snapshot = await buildOas31ExportSnapshot(document, parseMenuTags(document), session);
-    expect(snapshot.document.title).toBe('Patch line');
-    expect(snapshot.complete).toBe(true);
-  });
+      };
+      const session = await openSession(document, false);
+      const snapshot = await buildOas31ExportSnapshot(document, parseMenuTags(document), session);
+      expect(snapshot.document.title).toBe('Patch line');
+      expect(snapshot.complete).toBe(true);
+    },
+  );
 
-  test.each(['3.1.3', '3.1.999'])('rejects the unfrozen %s patch version', async (openapi) => {
+  test.each(['3.2.0', '3.1', '3.1.x'])('rejects the unsupported or malformed %s version', async (openapi) => {
     const document = documentFixture(openapi);
-    const session = await openSession(document);
+    const session = await openSession(documentFixture(), false);
     await expect(buildOas31ExportSnapshot(document, parseMenuTags(document), session)).rejects.toThrow(
-      'supports only OpenAPI 3.1.0, 3.1.1, and 3.1.2',
+      'requires a valid OpenAPI 3.1.x version',
     );
   });
 
