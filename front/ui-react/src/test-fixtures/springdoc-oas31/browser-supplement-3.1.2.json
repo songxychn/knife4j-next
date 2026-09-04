@@ -1,0 +1,169 @@
+{
+  "openapi": "3.1.2",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "info": {
+    "title": "Knife4j OpenAPI 3.1 browser supplement",
+    "summary": "Contracts that Springdoc cannot express faithfully",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/supplement/reference": {
+      "post": {
+        "tags": ["matrix"],
+        "summary": "Reference Object request and response",
+        "operationId": "supplementReference",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/MatrixInput",
+          "summary": "Referenced matrix input",
+          "description": "Reference Object siblings are legal in OpenAPI 3.1."
+        },
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Accepted",
+            "summary": "Referenced accepted response",
+            "description": "The response remains a Reference Object."
+          }
+        }
+      }
+    },
+    "/supplement/tuple": {
+      "post": {
+        "tags": ["matrix"],
+        "summary": "Typed tuple request",
+        "operationId": "typedTuple",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypedTuple"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted"
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "matrix.changed": {
+      "post": {
+        "tags": ["webhooks"],
+        "summary": "Matrix changed",
+        "operationId": "matrixChanged",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrixEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Webhook accepted"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TypelessMetadata": {
+        "description": "A typeless object-shaped schema",
+        "properties": {
+          "source": {
+            "type": "string",
+            "examples": ["springdoc"]
+          }
+        }
+      },
+      "TypedTuple": {
+        "type": "array",
+        "description": "A closed two-item tuple",
+        "prefixItems": [
+          {
+            "type": "string",
+            "title": "label"
+          },
+          {
+            "type": "integer",
+            "title": "count"
+          }
+        ],
+        "items": false,
+        "minItems": 2,
+        "maxItems": 2,
+        "examples": [["stable", 1]]
+      },
+      "MatrixInput": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "$ref": "#/components/schemas/TypelessMetadata"
+          },
+          "tuple": {
+            "$ref": "#/components/schemas/TypedTuple"
+          },
+          "mode": {
+            "type": "string",
+            "const": "stable",
+            "examples": ["stable"]
+          }
+        },
+        "required": ["tuple", "mode"]
+      },
+      "MatrixEvent": {
+        "type": "object",
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/MatrixInput"
+          }
+        },
+        "required": ["payload"]
+      },
+      "ExternalPayload": {
+        "$ref": "https://unapproved.knife4j.example/schema.json"
+      }
+    },
+    "requestBodies": {
+      "MatrixInput": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/MatrixInput"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Accepted": {
+        "description": "Accepted matrix input",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/MatrixEvent"
+            },
+            "example": {
+              "payload": {
+                "metadata": {
+                  "source": "springdoc"
+                },
+                "tuple": ["stable", 1],
+                "mode": "stable"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

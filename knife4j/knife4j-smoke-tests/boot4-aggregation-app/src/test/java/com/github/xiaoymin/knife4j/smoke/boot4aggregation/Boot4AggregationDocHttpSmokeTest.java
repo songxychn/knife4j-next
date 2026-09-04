@@ -83,9 +83,11 @@ public class Boot4AggregationDocHttpSmokeTest {
         String swaggerInstanceUrl = extractSwaggerInstanceUrl(swaggerConfigBody);
         HttpResponse swaggerInstance = get(port, swaggerInstanceUrl);
         Assert.assertEquals(200, swaggerInstance.statusCode);
-        Assert.assertTrue(swaggerInstance.body.contains("\"openapi\": \"3.0.3\""));
+        Assert.assertTrue(swaggerInstance.body.contains("\"openapi\": \"3.1.0\""));
         Assert.assertTrue(swaggerInstance.body.contains("Aggregated User Service"));
         Assert.assertTrue(swaggerInstance.body.contains("/users"));
+        Assert.assertTrue(swaggerInstance.body.contains("\"type\": ["));
+        Assert.assertTrue(swaggerInstance.body.contains("\"const\": \"user\""));
     }
 
     private String extractSwaggerInstanceUrl(String swaggerConfigBody) {
