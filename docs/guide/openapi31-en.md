@@ -14,17 +14,15 @@ This document does not change any starter, default setting, or release version.
 
 ## Supported versions
 
-OpenAPI defines its feature set at the `major.minor` level. The currently published `3.1.0`, `3.1.1`, and `3.1.2`
-therefore share one **OpenAPI 3.1 feature set** without patch-specific capability forks. Existing OpenAPI 3.0.x behavior remains available;
-OpenAPI 3.2.x is out of scope. A future 3.1 patch is not promised before verification; the explicit offline-export allowlist is tracked by
-[#739](https://github.com/songxychn/knife4j-next/issues/739).
+OpenAPI defines its feature set at the `major.minor` level. `3.1.x` therefore shares one **OpenAPI 3.1 feature set** without
+patch-specific capability forks, and offline export reuses the shared version predicate instead of a private patch allowlist.
+Existing OpenAPI 3.0.x behavior remains available; OpenAPI 3.2.x is out of scope.
 
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | Provided by the openapi2 starters; no OAS 3.1 expansion |
 | OpenAPI 3.0.x | React | Supported | Existing parsing, debugging, export, and change-tracking paths remain |
-| OpenAPI 3.1.0 / 3.1.1 / 3.1.2 | React | Supported | The currently published 3.1 patches share one contract, subject to the boundaries below |
-| Future OpenAPI 3.1 patch | React | Pending verification | Not promised automatically; offline export rejects a patch outside its allowlist, tracked by [#739](https://github.com/songxychn/knife4j-next/issues/739) |
+| OpenAPI 3.1.x | React | Supported | Shares one feature set, subject to the boundaries below |
 | OpenAPI 3.2.x | React | Unsupported | Never guessed or treated as 3.1 |
 
 ### springdoc generation matrix
@@ -49,9 +47,9 @@ See the complete starter combinations in the [compatibility matrix](../reference
 
 ## Product capability matrix
 
-Unless a row says otherwise, “supported” below means the currently published `3.1.0`, `3.1.1`, and `3.1.2`.
+Unless a row says otherwise, “supported” below means the complete OpenAPI 3.1.x feature set.
 
-| Capability | OAS 3.1.0–3.1.2 behavior | Boundary | Merged evidence |
+| Capability | OAS 3.1.x behavior | Boundary | Merged evidence |
 | --- | --- | --- | --- |
 | Single and multi-document loading | The entry document and controlled cross-document resources share one 3.1 parsing session | A 3.2 document does not enter the 3.1 workflow | [#682](https://github.com/songxychn/knife4j-next/pull/682), [#689](https://github.com/songxychn/knife4j-next/pull/689), [#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | Document objects and Webhooks | Supports `paths`, `components`, `webhooks`, and 3.1 Reference Objects; at least one of the three fields must be declared | A Webhook is an inbound contract, not a regular Path request | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
@@ -64,7 +62,7 @@ Unless a row says otherwise, “supported” below means the currently published
 | Response diagnostics | Matches JSON responses by exact/range/`default` status and media type | Non-blocking; no response Header, Cookie, SSE, or binary validation | [#713](https://github.com/songxychn/knife4j-next/pull/713) |
 | Single-operation export | Exports a portable OpenAPI JSON closure for Path or Webhook operations when the resource graph is complete | No YAML, ZIP, multi-file, or whole-service closure export | [#732](https://github.com/songxychn/knife4j-next/pull/732), [#733](https://github.com/songxychn/knife4j-next/pull/733) |
 | Change tracking | Creates a 3.1 semantic fingerprint for a complete resource graph, isolated from 3.0 baselines | Tracks `paths` only, not Webhooks or field-level diffs | [#736](https://github.com/songxychn/knife4j-next/pull/736) |
-| Offline documents | HTML, Markdown, DOC, and DOCX share one immutable 3.1 snapshot | Only 3.1.0 / 3.1.1 / 3.1.2 are accepted; see [#739](https://github.com/songxychn/knife4j-next/issues/739) for future patches. Missing resources or unresolved diagnostics require cancel or explicit degraded export | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
+| Offline documents | HTML, Markdown, DOC, and DOCX share one immutable 3.1 snapshot | The snapshot entry reuses the shared 3.1.x version predicate; missing resources or unresolved diagnostics require cancel or explicit degraded export | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
 
 The complete springdoc-to-browser acceptance matrix is recorded in [#737](https://github.com/songxychn/knife4j-next/pull/737).
 

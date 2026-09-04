@@ -24,7 +24,7 @@ import invalidDocument from './fixtures/openapi31/document-objects-invalid.json'
 
 describe('OAS 3.1 document primitives', () => {
   test('recognizes every 3.1 patch version without branching capabilities', () => {
-    expect(['3.1.0', '3.1.1', '3.1.2'].every(isOpenApi31Version)).toBe(true);
+    expect(['3.1.0', '3.1.1', '3.1.2', '3.1.3', '3.1.999'].every(isOpenApi31Version)).toBe(true);
     expect(isOpenApi31Version('3.1')).toBe(false);
     expect(isOpenApi31Version('3.2.0')).toBe(false);
     expect(isOpenApi31Version('03.1.2')).toBe(false);

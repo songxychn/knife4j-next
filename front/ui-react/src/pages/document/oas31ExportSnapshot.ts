@@ -43,7 +43,6 @@ const DEFAULT_MAX_OPERATIONS = 500;
 const DEFAULT_MAX_PROJECTED_FIELDS = 20_000;
 const DEFAULT_MAX_DIAGNOSTICS = 200;
 const PROJECTION_CONCURRENCY = 4;
-const SUPPORTED_OAS31_EXPORT_VERSIONS = new Set(['3.1.0', '3.1.1', '3.1.2']);
 
 export interface Oas31ExportSnapshotLimits {
   readonly maxOperations?: number;
@@ -578,8 +577,8 @@ export async function buildOas31ExportSnapshot(
   session: SchemaDocumentSession,
   options: BuildOas31ExportSnapshotOptions = {},
 ): Promise<OfflineDocumentSnapshot> {
-  if (!isOpenApi31Version(document.openapi) || !SUPPORTED_OAS31_EXPORT_VERSIONS.has(document.openapi ?? '')) {
-    throw new TypeError('OAS 3.1 offline export snapshot supports only OpenAPI 3.1.0, 3.1.1, and 3.1.2.');
+  if (!isOpenApi31Version(document.openapi)) {
+    throw new TypeError('OAS 3.1 offline export snapshot requires a valid OpenAPI 3.1.x version.');
   }
   throwIfAborted(options.signal);
   const limits = effectiveLimits(options.limits);
