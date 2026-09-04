@@ -82,8 +82,9 @@ jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
 JSON Schema 2020-12 的 Core、Applicator、Validation、Unevaluated、Meta-Data、Format Annotation 与
 Content 标准词汇按方言处理。`format` 默认是注解，不因浏览器里出现一个格式字符串就自动产生网络、文件或证书能力。
 
-未知扩展关键字和自定义词汇会保留在原始文档、复制和导出结果中，并产生可定位诊断；Knife4j 不猜测其验证、示例生成或字段树语义。
-文档显式选择不受支持的 `$schema`，或通过 `$vocabulary` 要求未知词汇时，SchemaEngine 不会静默回退到近似方言。
+未知扩展关键字和自定义词汇载荷会原样保留在文档、复制和导出结果中，但不会被解释、验证或保证逐关键字诊断。
+文档显式选择不受支持的 `$schema`，或在 Schema 资源根声明自定义 `$vocabulary` 时，SchemaEngine 会给出资源级的不受支持方言诊断，
+并阻止依赖完整 Schema 语义的动作；它不会静默回退到近似方言。
 
 ## 外部 Schema 资源
 

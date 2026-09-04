@@ -84,9 +84,10 @@ SchemaEngine currently evaluates validation semantics only for these known diale
 The standard JSON Schema 2020-12 Core, Applicator, Validation, Unevaluated, Meta-Data, Format Annotation, and Content
 vocabularies follow their dialect semantics. `format` is an annotation by default; a format string does not grant network, file, or certificate access.
 
-Unknown extension keywords and custom vocabulary data remain intact in the source, copy, and export surfaces and receive a locatable diagnostic.
-Knife4j does not guess their validation, example-generation, or field-tree meaning. An unsupported `$schema` or a required unknown
-`$vocabulary` is not silently approximated as a known dialect.
+Unknown extension keywords and custom-vocabulary payloads remain intact in the document, copy, and export surfaces, but are not interpreted,
+validated, or guaranteed an individual keyword diagnostic. When a document selects an unsupported `$schema` or declares a custom
+`$vocabulary` at a Schema resource root, SchemaEngine emits a resource-level unsupported-dialect diagnostic and blocks actions that require
+complete Schema semantics. It never silently approximates the declaration as a known dialect.
 
 ## External Schema resources
 
