@@ -265,6 +265,175 @@ describe('OpenAPI 3.1 and resource policy', () => {
     expect(pet.schema).not.toHaveProperty('openapi');
   });
 
+  test('keeps reserved Schema keywords opaque outside known Schema locations', async () => {
+    const engine = createEngine();
+    const documentUri = 'https://fixtures.knife4j.example/opaque.openapi.json';
+    const opaquePayload = (name: string) => ({
+      $id: `https://opaque.knife4j.example/${name}`,
+      $anchor: 'display only',
+      $dynamicAnchor: 'display only',
+      $schema: 'https://dialects.knife4j.example/opaque',
+      $vocabulary: { 'https://vocabularies.knife4j.example/opaque': true },
+      knife4jOpaqueControl$id: 'ordinary business field',
+      nested: { $id: 'order#display-only' },
+    });
+    const schemaExample = opaquePayload('schema-example');
+    const schemaExtension = opaquePayload('schema-extension');
+    const unknownKeyword = opaquePayload('unknown-keyword');
+    const componentExample = opaquePayload('component-example');
+    const documentExtension = opaquePayload('document-extension');
+    const constValue = opaquePayload('const-value');
+    const portableUnknownKeyword = opaquePayload('portable-unknown-keyword');
+    const portableResourceUri = 'https://schemas.knife4j.example/opaque-resource';
+    const document = {
+      openapi: '3.1.1',
+      info: { title: 'Opaque payloads', version: '1.0.0' },
+      components: {
+        schemas: {
+          Order: {
+            type: 'object',
+            example: schemaExample,
+            'x-domain-metadata': schemaExtension,
+            domainMetadata: unknownKeyword,
+          },
+          Literal: { const: constValue },
+          ControlNamedProperties: {
+            type: 'object',
+            properties: {
+              $id: { $anchor: 'businessId', type: 'string' },
+            },
+          },
+        },
+        examples: {
+          Order: { value: componentExample },
+        },
+      },
+      'x-domain-metadata': documentExtension,
+      'x-knife4j-schema-resources': {
+        version: 1,
+        resources: {
+          opaque: {
+            $schema: 'https://spec.openapis.org/oas/3.1/dialect/base',
+            $id: portableResourceUri,
+            type: 'object',
+            components: { schemas: { DisplayOnly: portableUnknownKeyword } },
+          },
+        },
+      },
+    };
+
+    await engine.registerDocument(document, documentUri);
+
+    const order = await engine.resolve(`${documentUri}#/components/schemas/Order`);
+    expect(order.schema).toMatchObject({
+      example: schemaExample,
+      'x-domain-metadata': schemaExtension,
+      domainMetadata: unknownKeyword,
+    });
+    await expect(engine.evaluate(`${documentUri}#/components/schemas/Order`, {})).resolves.toMatchObject({
+      valid: true,
+    });
+    await expect(engine.evaluate(`${documentUri}#/components/schemas/Literal`, constValue)).resolves.toMatchObject({
+      valid: true,
+    });
+    await expect(
+      engine.evaluate(`${documentUri}#/components/schemas/Literal`, { ...constValue, $id: 'different' }),
+    ).resolves.toMatchObject({ valid: false });
+    await expect(engine.resolve(`${documentUri}#businessId`)).resolves.toMatchObject({
+      schema: { type: 'string' },
+    });
+    await expect(
+      engine.evaluate(`${documentUri}#/components/schemas/ControlNamedProperties`, { $id: 'value' }),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(engine.resolve(portableResourceUri)).resolves.toMatchObject({
+      schema: { components: { schemas: { DisplayOnly: portableUnknownKeyword } } },
+    });
+
+    for (const payload of [
+      schemaExample,
+      schemaExtension,
+      unknownKeyword,
+      componentExample,
+      documentExtension,
+      portableUnknownKeyword,
+    ]) {
+      await expect(engine.resolve(payload.$id)).rejects.toMatchObject({
+        code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
+      });
+    }
+  });
+
+  test('keeps declaration diagnostics for actual OAS Schema positions', async () => {
+    const engine = createEngine();
+    const documentUri = 'https://fixtures.knife4j.example/declarations.openapi.json';
+    const document = (parts: Record<string, unknown>) => ({
+      openapi: '3.1.1',
+      info: { title: 'Schema declarations', version: '1.0.0' },
+      ...parts,
+    });
+
+    await expect(
+      engine.registerDocument(
+        document({ components: { schemas: { Invalid: { $id: 'schema#fragment' } } } }),
+        `${documentUri}?case=id`,
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_DOCUMENT' });
+
+    await expect(
+      engine.registerDocument(
+        document({
+          paths: {
+            '/orders': {
+              post: {
+                requestBody: {
+                  content: { 'application/json': { schema: { $anchor: 'contains space' } } },
+                },
+                responses: { '204': { description: 'No content' } },
+              },
+            },
+          },
+        }),
+        `${documentUri}?case=anchor`,
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_DOCUMENT' });
+
+    await expect(
+      engine.registerDocument(
+        document({
+          paths: {
+            '/orders': {
+              parameters: [
+                {
+                  name: 'filter',
+                  in: 'query',
+                  schema: {
+                    $id: 'https://schemas.knife4j.example/custom-vocabulary',
+                    $vocabulary: { 'https://vocabularies.knife4j.example/custom': true },
+                  },
+                },
+              ],
+            },
+          },
+        }),
+        `${documentUri}?case=vocabulary`,
+      ),
+    ).rejects.toMatchObject({ code: 'UNSUPPORTED_DIALECT' });
+
+    const sharedResource = 'https://schemas.knife4j.example/shared';
+    await expect(
+      engine.registerDocument(
+        document({
+          components: { schemas: { First: { $id: sharedResource } } },
+          'x-knife4j-schema-resources': {
+            version: 1,
+            resources: { second: { $id: sharedResource } },
+          },
+        }),
+        `${documentUri}?case=conflict`,
+      ),
+    ).rejects.toMatchObject({ code: 'RESOURCE_URI_CONFLICT' });
+  });
+
   test('rejects custom OpenAPI dialects explicitly', async () => {
     const engine = createEngine();
     await expect(

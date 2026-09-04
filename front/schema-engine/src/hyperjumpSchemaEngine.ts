@@ -42,6 +42,36 @@ const OPENAPI_31_SCHEMA_DRAFT_2020_12 = 'https://spec.openapis.org/oas/3.1/schem
 const OAS_31_VERSION = /^3\.1\.\d+(?:-.+)?$/;
 const ANCHOR_NAME = /^[A-Za-z_][-A-Za-z0-9._]*$/;
 const NETWORK_SCHEMES = new Set(['http:', 'https:', 'file:']);
+const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const SCHEMA_SINGLE_KEYWORDS = [
+  'not',
+  'if',
+  'then',
+  'else',
+  'contains',
+  'propertyNames',
+  'additionalProperties',
+  'unevaluatedProperties',
+  'unevaluatedItems',
+  'contentSchema',
+  'items',
+] as const;
+const SCHEMA_ARRAY_KEYWORDS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const;
+const SCHEMA_MAP_KEYWORDS = ['properties', 'patternProperties', 'dependentSchemas', '$defs', 'definitions'] as const;
+const KNIFE4J_SCHEMA_RESOURCES_FIELD = /^x-knife4j-schema-resources(?:-(?:[2-9]|[1-9]\d+))?$/;
+const PORTABLE_SCHEMA_RESOURCES_VERSION = 1;
+const SPARSE_OPENAPI_RESOURCE_KEYS = new Set(['$schema', '$id', 'paths', 'webhooks', 'components']);
+const HYPERJUMP_SCHEMA_CONTROL_KEYS = new Set([
+  '$id',
+  '$schema',
+  '$anchor',
+  '$dynamicAnchor',
+  '$vocabulary',
+  '$ref',
+  '$dynamicRef',
+  '$recursiveAnchor',
+  '$recursiveRef',
+]);
 
 const lockDownExternalResourceLoading = (): void => {
   removeUriSchemePlugin('http');
@@ -61,6 +91,9 @@ interface RegisteredDocument {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
+const owns = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
+const childPointer = (pointer: string, key: string | number): string =>
+  `${pointer}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`;
 
 function normalizeAbsoluteUri(uri: string, allowFragment: boolean): string {
   if (typeof uri !== 'string' || uri.length === 0) {
@@ -83,7 +116,109 @@ function withoutFragment(uri: string): string {
 
 const normalizeDialect = (dialect: string): string => (dialect.endsWith('#') ? dialect.slice(0, -1) : dialect);
 
-function inspectResourceDeclarations(document: unknown, retrievalUri: string): void {
+interface PreparedDocument {
+  readonly value: unknown;
+  readonly unmaskSchemaObject: (value: Record<string, unknown>) => void;
+  readonly hasMaskedControl: (value: Record<string, unknown>, key: string) => boolean;
+  readonly restoreRegisteredDocument: (document: SchemaDocument) => void;
+}
+
+/**
+ * Hyperjump indexes identifiers by recursively inspecting every object, even
+ * literal annotation data. Mask control names while it builds the resource
+ * index, expose them only on known Schema Objects, then restore opaque values
+ * before compilation or public reads.
+ */
+function prepareDocumentForHyperjump(document: unknown): PreparedDocument {
+  const keys = new Set<string>();
+  const collectKeys = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(collectKeys);
+      return;
+    }
+    if (!isRecord(value)) return;
+    Object.entries(value).forEach(([key, child]) => {
+      keys.add(key);
+      collectKeys(child);
+    });
+  };
+  collectKeys(document);
+
+  let maskPrefix = 'knife4jOpaqueControl';
+  while ([...keys].some((key) => key.startsWith(maskPrefix))) maskPrefix = `_${maskPrefix}`;
+  const maskedKey = (key: string): string => `${maskPrefix}${key}`;
+  const maskControls = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(maskControls);
+    if (!isRecord(value)) return value;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [
+        HYPERJUMP_SCHEMA_CONTROL_KEYS.has(key) ? maskedKey(key) : key,
+        maskControls(child),
+      ]),
+    );
+  };
+
+  const unmaskSchemaObject = (value: Record<string, unknown>): void => {
+    for (const key of HYPERJUMP_SCHEMA_CONTROL_KEYS) {
+      const masked = maskedKey(key);
+      if (!owns(value, masked)) continue;
+      value[key] = value[masked];
+      delete value[masked];
+    }
+  };
+
+  const restoreControls = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(restoreControls);
+      return;
+    }
+    if (!isRecord(value)) return;
+    Object.entries(value).forEach(([key, child]) => {
+      restoreControls(child);
+      if (!key.startsWith(maskPrefix)) return;
+      value[key.slice(maskPrefix.length)] = child;
+      delete value[key];
+    });
+  };
+  const restorePointer = (pointer: string): string =>
+    pointer
+      .split('/')
+      .map((token) => (token.startsWith(maskPrefix) ? token.slice(maskPrefix.length) : token))
+      .join('/');
+  const restoreDynamicAnchorUri = (uri: string): string => {
+    const fragmentIndex = uri.indexOf('#');
+    if (fragmentIndex < 0) return uri;
+    const pointer = decodeURI(uri.slice(fragmentIndex + 1));
+    return `${uri.slice(0, fragmentIndex + 1)}${encodeURI(restorePointer(pointer))}`;
+  };
+
+  return {
+    value: maskControls(document),
+    unmaskSchemaObject,
+    hasMaskedControl: (value, key) => owns(value, maskedKey(key)),
+    restoreRegisteredDocument: (registered) => {
+      const documents = new Set<SchemaDocument>([
+        registered,
+        ...Object.values(registered.embedded ?? {}).map((entry) => entry as SchemaDocument),
+      ]);
+      documents.forEach((entry) => {
+        restoreControls(entry.root);
+        Object.entries(entry.anchors).forEach(([anchor, pointer]) => {
+          entry.anchors[anchor] = restorePointer(pointer);
+        });
+        Object.entries(entry.dynamicAnchors).forEach(([anchor, uri]) => {
+          entry.dynamicAnchors[anchor] = restoreDynamicAnchorUri(uri);
+        });
+      });
+    },
+  };
+}
+
+function inspectResourceDeclarations(
+  document: unknown,
+  retrievalUri: string,
+  prepared: Pick<PreparedDocument, 'unmaskSchemaObject' | 'hasMaskedControl'>,
+): void {
   const declared = new Map<string, string>([[withoutFragment(retrievalUri), '# (retrieval URI)']]);
   const anchors = new Map<string, Map<string, string>>();
 
@@ -110,14 +245,12 @@ function inspectResourceDeclarations(document: unknown, retrievalUri: string): v
     anchors.set(resourceUri, resourceAnchors);
   };
 
-  const visit = (value: unknown, baseUri: string, path: string): void => {
-    if (!isRecord(value)) {
-      if (Array.isArray(value)) value.forEach((item, index) => visit(item, baseUri, `${path}/${index}`));
-      return;
-    }
+  const visitSchema = (value: unknown, baseUri: string, path: string, resourceRoot = false): string => {
+    if (!isRecord(value)) return baseUri;
+    prepared.unmaskSchemaObject(value);
 
     let resourceBase = baseUri;
-    const declaresResource = path === '#' || typeof value.$id === 'string';
+    const declaresResource = resourceRoot || typeof value.$id === 'string';
     if (typeof value.$id === 'string') {
       let resolved: string;
       try {
@@ -141,7 +274,7 @@ function inspectResourceDeclarations(document: unknown, retrievalUri: string): v
       }
       resourceBase = withoutFragment(resolved);
       const previousPath = declared.get(resourceBase);
-      const rootIdentifierMatchesRetrieval = path === '#' && resourceBase === withoutFragment(retrievalUri);
+      const rootIdentifierMatchesRetrieval = resourceRoot && resourceBase === withoutFragment(retrievalUri);
       if (previousPath !== undefined && !rootIdentifierMatchesRetrieval) {
         throw new SchemaEngineError(
           'RESOURCE_URI_CONFLICT',
@@ -174,13 +307,187 @@ function inspectResourceDeclarations(document: unknown, retrievalUri: string): v
       addAnchor(resourceBase, value.$dynamicAnchor, `${path}/$dynamicAnchor`);
     }
 
-    for (const [key, child] of Object.entries(value)) {
-      if (key === '$id') continue;
-      visit(child, resourceBase, `${path}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`);
+    for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
+      if (owns(value, keyword)) visitSchema(value[keyword], resourceBase, childPointer(path, keyword));
+    }
+    for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
+      const schemas = value[keyword];
+      if (!Array.isArray(schemas)) continue;
+      schemas.forEach((schema, index) =>
+        visitSchema(schema, resourceBase, childPointer(childPointer(path, keyword), index)),
+      );
+    }
+    for (const keyword of SCHEMA_MAP_KEYWORDS) {
+      const schemas = value[keyword];
+      if (!isRecord(schemas)) continue;
+      Object.entries(schemas).forEach(([name, schema]) =>
+        visitSchema(schema, resourceBase, childPointer(childPointer(path, keyword), name)),
+      );
+    }
+    return resourceBase;
+  };
+
+  const visitMediaType = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value)) return;
+    if (owns(value, 'schema')) visitSchema(value.schema, baseUri, childPointer(path, 'schema'));
+    if (!isRecord(value.encoding)) return;
+    Object.entries(value.encoding).forEach(([name, encoding]) => {
+      if (!isRecord(encoding) || !isRecord(encoding.headers)) return;
+      Object.entries(encoding.headers).forEach(([headerName, header]) =>
+        visitHeader(
+          header,
+          childPointer(childPointer(childPointer(childPointer(path, 'encoding'), name), 'headers'), headerName),
+          baseUri,
+        ),
+      );
+    });
+  };
+
+  const visitContent = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value)) return;
+    Object.entries(value).forEach(([mediaType, media]) =>
+      visitMediaType(media, childPointer(path, mediaType), baseUri),
+    );
+  };
+
+  const visitParameter = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value) || typeof value.$ref === 'string' || prepared.hasMaskedControl(value, '$ref')) return;
+    if (owns(value, 'schema')) visitSchema(value.schema, baseUri, childPointer(path, 'schema'));
+    if (owns(value, 'content')) visitContent(value.content, childPointer(path, 'content'), baseUri);
+  };
+
+  function visitHeader(value: unknown, path: string, baseUri: string): void {
+    if (!isRecord(value) || typeof value.$ref === 'string' || prepared.hasMaskedControl(value, '$ref')) return;
+    if (owns(value, 'schema')) visitSchema(value.schema, baseUri, childPointer(path, 'schema'));
+    if (owns(value, 'content')) visitContent(value.content, childPointer(path, 'content'), baseUri);
+  }
+
+  const visitRequestBody = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value) || typeof value.$ref === 'string' || prepared.hasMaskedControl(value, '$ref')) return;
+    if (owns(value, 'content')) visitContent(value.content, childPointer(path, 'content'), baseUri);
+  };
+
+  const visitResponse = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value) || typeof value.$ref === 'string' || prepared.hasMaskedControl(value, '$ref')) return;
+    if (isRecord(value.headers)) {
+      Object.entries(value.headers).forEach(([name, header]) =>
+        visitHeader(header, childPointer(childPointer(path, 'headers'), name), baseUri),
+      );
+    }
+    if (owns(value, 'content')) visitContent(value.content, childPointer(path, 'content'), baseUri);
+  };
+
+  const visitCallback = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value) || typeof value.$ref === 'string' || prepared.hasMaskedControl(value, '$ref')) return;
+    Object.entries(value).forEach(([expression, pathItem]) => {
+      if (expression.startsWith('x-')) return;
+      visitPathItem(pathItem, childPointer(path, expression), baseUri);
+    });
+  };
+
+  const visitOperation = (value: unknown, path: string, baseUri: string): void => {
+    if (!isRecord(value)) return;
+    if (Array.isArray(value.parameters)) {
+      value.parameters.forEach((parameter, index) =>
+        visitParameter(parameter, childPointer(childPointer(path, 'parameters'), index), baseUri),
+      );
+    }
+    if (owns(value, 'requestBody')) visitRequestBody(value.requestBody, childPointer(path, 'requestBody'), baseUri);
+    if (isRecord(value.responses)) {
+      Object.entries(value.responses).forEach(([status, response]) =>
+        visitResponse(response, childPointer(childPointer(path, 'responses'), status), baseUri),
+      );
+    }
+    if (isRecord(value.callbacks)) {
+      Object.entries(value.callbacks).forEach(([name, callback]) =>
+        visitCallback(callback, childPointer(childPointer(path, 'callbacks'), name), baseUri),
+      );
     }
   };
 
-  visit(document, retrievalUri, '#');
+  function visitPathItem(value: unknown, path: string, baseUri: string): void {
+    if (!isRecord(value)) return;
+    if (Array.isArray(value.parameters)) {
+      value.parameters.forEach((parameter, index) =>
+        visitParameter(parameter, childPointer(childPointer(path, 'parameters'), index), baseUri),
+      );
+    }
+    for (const method of HTTP_METHODS) {
+      if (owns(value, method)) visitOperation(value[method], childPointer(path, method), baseUri);
+    }
+  }
+
+  const visitComponentMap = (
+    components: Record<string, unknown>,
+    key: string,
+    path: string,
+    baseUri: string,
+    visitor: (value: unknown, path: string, baseUri: string) => void,
+  ): void => {
+    const entries = components[key];
+    if (!isRecord(entries)) return;
+    Object.entries(entries).forEach(([name, value]) =>
+      visitor(value, childPointer(childPointer(path, key), name), baseUri),
+    );
+  };
+
+  const visitOpenApiStructure = (value: Record<string, unknown>, rootPath: string, baseUri: string): void => {
+    if (isRecord(value.paths)) {
+      Object.entries(value.paths).forEach(([path, pathItem]) =>
+        visitPathItem(pathItem, childPointer(childPointer(rootPath, 'paths'), path), baseUri),
+      );
+    }
+    if (isRecord(value.webhooks)) {
+      Object.entries(value.webhooks).forEach(([name, pathItem]) =>
+        visitPathItem(pathItem, childPointer(childPointer(rootPath, 'webhooks'), name), baseUri),
+      );
+    }
+    if (!isRecord(value.components)) return;
+    const components = value.components;
+    const path = childPointer(rootPath, 'components');
+    visitComponentMap(components, 'schemas', path, baseUri, (schema, schemaPath, schemaBaseUri) =>
+      visitSchema(schema, schemaBaseUri, schemaPath),
+    );
+    visitComponentMap(components, 'parameters', path, baseUri, visitParameter);
+    visitComponentMap(components, 'headers', path, baseUri, visitHeader);
+    visitComponentMap(components, 'requestBodies', path, baseUri, visitRequestBody);
+    visitComponentMap(components, 'responses', path, baseUri, visitResponse);
+    visitComponentMap(components, 'callbacks', path, baseUri, visitCallback);
+    visitComponentMap(components, 'pathItems', path, baseUri, visitPathItem);
+  };
+
+  const isSparsePortableOpenApiResource = (value: Record<string, unknown>): boolean =>
+    typeof value.$schema === 'string' &&
+    normalizeDialect(value.$schema) === OPENAPI_31_BASE_DIALECT &&
+    typeof value.$id === 'string' &&
+    (owns(value, 'paths') || owns(value, 'webhooks') || owns(value, 'components')) &&
+    Object.keys(value).every((key) => SPARSE_OPENAPI_RESOURCE_KEYS.has(key));
+
+  const visitOpenApiDocument = (value: Record<string, unknown>): void => {
+    for (const [key, container] of Object.entries(value)) {
+      if (
+        !KNIFE4J_SCHEMA_RESOURCES_FIELD.test(key) ||
+        !isRecord(container) ||
+        container.version !== PORTABLE_SCHEMA_RESOURCES_VERSION ||
+        !isRecord(container.resources)
+      ) {
+        continue;
+      }
+      Object.entries(container.resources).forEach(([name, schema]) => {
+        const resourcePath = childPointer(childPointer(childPointer('#', key), 'resources'), name);
+        const resourceBase = visitSchema(schema, retrievalUri, resourcePath);
+        // Portable exports use sparse, OAS-shaped Schema resources to preserve
+        // original JSON Pointer identities without making opaque values schemas.
+        if (isRecord(schema) && isSparsePortableOpenApiResource(schema)) {
+          visitOpenApiStructure(schema, resourcePath, resourceBase);
+        }
+      });
+    }
+    visitOpenApiStructure(value, '#', retrievalUri);
+  };
+
+  if (isRecord(document) && typeof document.openapi === 'string') visitOpenApiDocument(document);
+  else visitSchema(document, retrievalUri, '#', true);
 }
 
 function contextDialectFor(document: unknown): string {
@@ -371,12 +678,13 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       throw new SchemaEngineError('INVALID_DOCUMENT', 'A schema document must be an object or a boolean schema.');
     }
     const contextDialect = contextDialectFor(document);
-    inspectResourceDeclarations(document, normalizedRetrievalUri);
+    const prepared = prepareDocumentForHyperjump(document);
+    inspectResourceDeclarations(prepared.value, normalizedRetrievalUri, prepared);
 
     let preview: SchemaDocument;
     try {
       preview = buildSchemaDocument(
-        structuredClone(document) as SchemaObject | boolean,
+        structuredClone(prepared.value) as SchemaObject | boolean,
         normalizedRetrievalUri,
         contextDialect,
       );
@@ -427,8 +735,15 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     activeOwner = this.owner;
     let registered = false;
     try {
-      registerSchema(document as SchemaObject | boolean, normalizedRetrievalUri, contextDialect);
+      registerSchema(prepared.value as SchemaObject | boolean, normalizedRetrievalUri, contextDialect);
       registered = true;
+      const registeredRoot = await getSchema(normalizedRetrievalUri);
+      prepared.restoreRegisteredDocument(registeredRoot.document);
+      if (this.disposed) {
+        unregisterSchema(normalizedRetrievalUri);
+        registered = false;
+        return;
+      }
       const registration: RegisteredDocument = {
         retrievalUri: normalizedRetrievalUri,
         resourceUris,
@@ -552,7 +867,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     for (const retrievalUri of [...this.documents.keys()]) this.unregisterDocument(retrievalUri);
     this.disposed = true;
     this.compiled.clear();
-    if (activeOwner === this.owner) activeOwner = undefined;
+    if (activeOwner === this.owner && this.pendingRetrievalUris.size === 0) activeOwner = undefined;
   }
 
   private async getResource(schemaUri: string): Promise<Browser<SchemaDocument>> {
