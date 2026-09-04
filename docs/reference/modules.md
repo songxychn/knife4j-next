@@ -35,19 +35,23 @@ Go 服务不使用 Maven starter，请直接查看 [Knife4x Go 接入](/knife4x/
 
 ### Starter（WebMvc）
 
-| 模块 | 适用 Boot 版本 | 依赖的 springdoc | 依赖的 UI |
-| --- | --- | --- | --- |
-| `knife4j-openapi2-spring-boot-starter` | 2.x | —（用 Springfox） | `knife4j-openapi2-ui`（Vue 3） |
-| `knife4j-openapi3-spring-boot-starter` | 2.x | `springdoc-openapi-ui 1.8.0` | `knife4j-openapi3-ui`（React） |
-| `knife4j-openapi3-jakarta-spring-boot-starter` | 3.x | `springdoc-openapi-starter-webmvc-ui 2.8.9` | `knife4j-openapi3-ui`（React） |
-| `knife4j-openapi3-boot4-spring-boot-starter` | 4.x | `springdoc-openapi-starter-webmvc-ui 3.0.3` | `knife4j-openapi3-ui`（React） |
+| 模块 | 适用 Boot 版本 | 依赖的 springdoc | OpenAPI 输出 | 依赖的 UI |
+| --- | --- | --- | --- | --- |
+| `knife4j-openapi2-spring-boot-starter` | 2.x | —（用 Springfox） | 2.0 | `knife4j-openapi2-ui`（Vue 3） |
+| `knife4j-openapi3-spring-boot-starter` | 2.x | `springdoc-openapi-ui 1.8.0` | 3.0.x | `knife4j-openapi3-ui`（React） |
+| `knife4j-openapi3-jakarta-spring-boot-starter` | 3.x | `springdoc-openapi-starter-webmvc-ui 2.8.9` | 显式开启 3.1.x | `knife4j-openapi3-ui`（React） |
+| `knife4j-openapi3-boot4-spring-boot-starter` | 4.x | `springdoc-openapi-starter-webmvc-ui 3.0.3` | 默认或显式 3.1.x | `knife4j-openapi3-ui`（React） |
 
 ### Starter（WebFlux）
 
-| 模块 | 适用 Boot 版本 | 说明 |
-| --- | --- | --- |
-| `knife4j-openapi3-webflux-spring-boot-starter` | 2.x | 纯依赖编排，无后端增强 |
-| `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | 3.x | 纯依赖编排，无后端增强 |
+| 模块 | 适用 Boot 版本 | OpenAPI 输出 | 说明 |
+| --- | --- | --- | --- |
+| `knife4j-openapi3-webflux-spring-boot-starter` | 2.x | 3.0.x | 纯依赖编排，无后端增强 |
+| `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | 3.x | 显式开启 3.1.x | 纯依赖编排，无后端增强 |
+
+Boot 3 的 OAS 3.1 输出需要设置 `springdoc.api-docs.version=OPENAPI_3_1`；Boot 4 默认与显式
+3.1 配置均已通过真实文档验证。生成矩阵、UI 能力与迁移示例见
+[OpenAPI 3.1 支持与迁移](../guide/openapi31)。
 
 ### Starter（Gateway & 聚合）
 

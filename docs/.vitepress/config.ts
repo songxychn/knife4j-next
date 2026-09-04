@@ -42,6 +42,7 @@ export default defineConfig({
     nav: [
       { text: '快速开始', link: '/guide/getting-started' },
       { text: '功能', link: '/guide/features' },
+      { text: 'OpenAPI 3.1', link: '/guide/openapi31' },
       { text: '迁移', link: '/guide/migration' },
       { text: 'Knife4x', link: '/knife4x/' },
       { text: '配置参考', link: '/reference/configuration' },
@@ -60,6 +61,8 @@ export default defineConfig({
         items: [
           { text: '产品介绍', link: '/guide/introduction' },
           { text: '功能概览', link: '/guide/features' },
+          { text: 'OpenAPI 3.1 支持与迁移', link: '/guide/openapi31' },
+          { text: 'OpenAPI 3.1 (English)', link: '/guide/openapi31-en' },
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '在线 Demo', link: '/guide/demo' },
           { text: '从 upstream 迁移', link: '/guide/migration' },
