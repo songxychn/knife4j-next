@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -49,6 +52,7 @@ func TestGinExample(t *testing.T) {
 
 			spec := request(t, handler, test.specPath, http.StatusOK)
 			var document struct {
+				OpenAPI string `json:"openapi"`
 				Servers []struct {
 					URL string `json:"url"`
 				} `json:"servers"`
@@ -57,11 +61,31 @@ func TestGinExample(t *testing.T) {
 			if err := json.Unmarshal(spec, &document); err != nil {
 				t.Fatalf("decode OpenAPI fixture: %v", err)
 			}
+			if document.OpenAPI != "3.1.0" {
+				t.Fatalf("OpenAPI version = %q, want 3.1.0", document.OpenAPI)
+			}
 			if len(document.Servers) != 1 || document.Servers[0].URL != "/" {
 				t.Fatalf("OpenAPI servers = %#v, want root server", document.Servers)
 			}
-			if _, ok := document.Paths["/api/ping"]; !ok {
-				t.Fatal("OpenAPI fixture does not describe /api/ping")
+			if _, ok := document.Paths["/oas31/multipart"]; !ok {
+				t.Fatal("OpenAPI fixture does not describe the Springdoc multipart matrix")
+			}
+
+			var matrixResponse struct {
+				ID          int    `json:"id"`
+				ServerValue string `json:"serverValue"`
+			}
+			if err := json.Unmarshal(requestWithMethod(
+				t,
+				handler,
+				http.MethodPost,
+				"/oas31/json",
+				http.StatusOK,
+			), &matrixResponse); err != nil {
+				t.Fatalf("decode matrix response: %v", err)
+			}
+			if matrixResponse.ID != 1 || matrixResponse.ServerValue != "server" {
+				t.Fatalf("matrix response = %#v", matrixResponse)
 			}
 
 			var ping map[string]string
@@ -83,13 +107,46 @@ func TestGinExample(t *testing.T) {
 	}
 }
 
+func TestOpenAPIFixtureMatchesCanonicalSpringdocSnapshot(t *testing.T) {
+	canonicalPath := filepath.Join(
+		"..",
+		"..",
+		"..",
+		"front",
+		"ui-react",
+		"src",
+		"test-fixtures",
+		"springdoc-oas31",
+		"boot3-mvc-springdoc-2.8.9.json",
+	)
+	canonical, err := os.ReadFile(canonicalPath)
+	if err != nil {
+		t.Fatalf("read canonical Springdoc snapshot: %v", err)
+	}
+	var embeddedDocument any
+	if err := json.Unmarshal(openAPISpec, &embeddedDocument); err != nil {
+		t.Fatalf("decode embedded Springdoc snapshot: %v", err)
+	}
+	var canonicalDocument any
+	if err := json.Unmarshal(canonical, &canonicalDocument); err != nil {
+		t.Fatalf("decode canonical Springdoc snapshot: %v", err)
+	}
+	if !reflect.DeepEqual(embeddedDocument, canonicalDocument) {
+		t.Fatal("embedded Knife4x fixture differs from the canonical Springdoc snapshot")
+	}
+}
+
 func request(t *testing.T, handler http.Handler, target string, wantStatus int) []byte {
 	t.Helper()
+	return requestWithMethod(t, handler, http.MethodGet, target, wantStatus)
+}
 
+func requestWithMethod(t *testing.T, handler http.Handler, method, target string, wantStatus int) []byte {
+	t.Helper()
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, target, nil))
+	handler.ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
 	if recorder.Code != wantStatus {
-		t.Fatalf("GET %s status = %d, want %d", target, recorder.Code, wantStatus)
+		t.Fatalf("%s %s status = %d, want %d", method, target, recorder.Code, wantStatus)
 	}
 	return recorder.Body.Bytes()
 }

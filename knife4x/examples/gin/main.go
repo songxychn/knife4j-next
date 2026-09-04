@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"log"
 	"net/http"
@@ -10,43 +11,8 @@ import (
 	knife4x "github.com/songxychn/knife4j-next/knife4x/go"
 )
 
-const openAPISpec = `{
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Knife4x Gin Example",
-    "version": "1.0.0"
-  },
-  "servers": [
-    {
-      "url": "/"
-    }
-  ],
-  "paths": {
-    "/api/ping": {
-      "get": {
-        "summary": "Ping",
-        "operationId": "ping",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}`
+//go:embed testdata/springdoc-oas31.json
+var openAPISpec []byte
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
@@ -73,8 +39,15 @@ func newHandler(basePath string) (http.Handler, error) {
 
 	prefix := strings.TrimRight(basePath, "/")
 	router.GET(prefix+"/openapi.json", func(c *gin.Context) {
-		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(openAPISpec))
+		c.Data(http.StatusOK, "application/json; charset=utf-8", openAPISpec)
 	})
+	matrixResponse := func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"id": 1, "serverValue": "server"})
+	}
+	router.GET("/oas31/search", matrixResponse)
+	router.POST("/oas31/json", matrixResponse)
+	router.POST("/oas31/raw-binary", matrixResponse)
+	router.POST("/oas31/multipart", matrixResponse)
 	router.GET("/api/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
