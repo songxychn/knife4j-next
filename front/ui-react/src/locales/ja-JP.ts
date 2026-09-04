@@ -46,6 +46,20 @@ const jaJP = {
   'sidebar.apiChange.tagChanged': '~{{count}}',
   'sidebar.apiChange.unread': '未確認の API：{{count}} 件',
   'sidebar.apiChange.markAllRead': 'すべて既読',
+  'sidebar.apiChange.unavailable.preparing': 'OAS 3.1 の API 変更ベースラインを準備しています…',
+  'sidebar.apiChange.unavailable.resourcePending':
+    '外部リソースをすべて許可して読み込むまで、API 変更追跡を一時停止します。',
+  'sidebar.apiChange.unavailable.resourceBudget':
+    'リソースグラフが安全上限を超えたため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
+  'sidebar.apiChange.unavailable.dialectUnsupported':
+    '未対応の Schema dialect があるため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
+  'sidebar.apiChange.unavailable.documentInvalid':
+    'OpenAPI ドキュメントに構造またはローカル参照の問題があるため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
+  'sidebar.apiChange.unavailable.resourceFailed':
+    '外部リソースの読み込みまたは検証に失敗したため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
+  'sidebar.apiChange.unavailable.snapshot':
+    'Operation の完全な意味的クロージャを構築できないため、API 変更追跡を一時停止します。',
+  'sidebar.apiChange.unavailable.version': 'API 変更追跡は OpenAPI 3.0.x と 3.1.x のみ対応しています。',
   'markdownDoc.menu.group': 'Markdown ドキュメント',
   markdownDocLoading: 'ドキュメントを読み込み中…',
   markdownDocNotFound: 'ドキュメントが見つかりません',
@@ -685,7 +699,7 @@ const jaJP = {
   'settings.enableRequestHistory':
     'リクエスト履歴を有効化（デバッグ画面で API ごとに直近のリクエストを記録し、フォームへ適用可能）',
   'settings.enableResponseCode': 'レスポンスステータス概要（ステータスコード、説明、Schema、Media Type）を表示',
-  'settings.enableVersion': '新規・変更された API を通知（OpenAPI 3.0）',
+  'settings.enableVersion': '新規・変更された API を通知（OpenAPI 3.0/3.1）',
   'settings.enableDynamicParameter':
     '動的フォームパラメータを有効化（urlencoded / multipart Body にドキュメント未定義のテキストフィールドを追加）',
   'settings.enableFilterMultipartApis':

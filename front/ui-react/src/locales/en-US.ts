@@ -43,6 +43,20 @@ const enUS = {
   'sidebar.apiChange.tagChanged': '~{{count}}',
   'sidebar.apiChange.unread': '{{count}} API(s) to review',
   'sidebar.apiChange.markAllRead': 'Mark all read',
+  'sidebar.apiChange.unavailable.preparing': 'Preparing the OAS 3.1 API change baseline…',
+  'sidebar.apiChange.unavailable.resourcePending':
+    'API change tracking is paused until all external resources are authorized and loaded.',
+  'sidebar.apiChange.unavailable.resourceBudget':
+    'API change tracking is paused because the resource graph exceeded its safety budget. The previous baseline is kept.',
+  'sidebar.apiChange.unavailable.dialectUnsupported':
+    'API change tracking is paused because a Schema dialect is unsupported. The previous baseline is kept.',
+  'sidebar.apiChange.unavailable.documentInvalid':
+    'API change tracking is paused because the OpenAPI document has structural or local-reference issues. The previous baseline is kept.',
+  'sidebar.apiChange.unavailable.resourceFailed':
+    'API change tracking is paused because an external resource failed to load or validate. The previous baseline is kept.',
+  'sidebar.apiChange.unavailable.snapshot':
+    'API change tracking is paused because a complete Operation semantic closure could not be built.',
+  'sidebar.apiChange.unavailable.version': 'API change tracking supports OpenAPI 3.0.x and 3.1.x only.',
   'markdownDoc.menu.group': 'Markdown Docs',
   markdownDocLoading: 'Loading document…',
   markdownDocNotFound: 'Document not found',
@@ -675,7 +689,7 @@ const enUS = {
   'settings.enableRequestHistory':
     'Enable request history (Debug panel keeps recent requests per operation; apply to form)',
   'settings.enableResponseCode': 'Show the response status overview (status code, description, Schema, and Media Type)',
-  'settings.enableVersion': 'Highlight new and changed APIs (OpenAPI 3.0)',
+  'settings.enableVersion': 'Highlight new and changed APIs (OpenAPI 3.0/3.1)',
   'settings.enableDynamicParameter':
     'Enable dynamic form parameters (add undeclared text fields to urlencoded / multipart bodies)',
   'settings.enableFilterMultipartApis':

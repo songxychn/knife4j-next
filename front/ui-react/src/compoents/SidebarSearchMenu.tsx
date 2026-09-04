@@ -6,6 +6,7 @@ import {
   ControlOutlined,
   DatabaseOutlined,
   FileMarkdownOutlined,
+  InfoCircleOutlined,
   LoginOutlined,
   SearchOutlined,
   SafetyCertificateOutlined,
@@ -15,7 +16,11 @@ import { ApiItem, useGroup } from '../context/GroupContext';
 import { useGlobalParam } from '../context/GlobalParamContext';
 import { useSettings } from '../context/SettingsContext';
 import { useApiChanges } from '../context/ApiChangeContext';
-import { apiOperationIdentity, type ApiChangeStatus } from '../apiChange/apiChangeTracker';
+import {
+  apiOperationIdentity,
+  type ApiChangeStatus,
+  type ApiChangeUnavailableReason,
+} from '../apiChange/apiChangeTracker';
 import Markdown from '../components/Markdown';
 
 const METHOD_COLORS: Record<string, string> = {
@@ -24,6 +29,17 @@ const METHOD_COLORS: Record<string, string> = {
   PUT: '#fca130',
   DELETE: '#f93e3e',
   PATCH: '#50e3c2',
+};
+
+const API_CHANGE_UNAVAILABLE_KEYS: Record<ApiChangeUnavailableReason, string> = {
+  preparing: 'sidebar.apiChange.unavailable.preparing',
+  'resource-pending': 'sidebar.apiChange.unavailable.resourcePending',
+  'resource-budget': 'sidebar.apiChange.unavailable.resourceBudget',
+  'dialect-unsupported': 'sidebar.apiChange.unavailable.dialectUnsupported',
+  'document-invalid': 'sidebar.apiChange.unavailable.documentInvalid',
+  'resource-failed': 'sidebar.apiChange.unavailable.resourceFailed',
+  'snapshot-unavailable': 'sidebar.apiChange.unavailable.snapshot',
+  'version-unsupported': 'sidebar.apiChange.unavailable.version',
 };
 
 function methodTag(method: string) {
@@ -316,6 +332,26 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 
   return (
     <>
+      {!collapsed && apiChanges.enabled && apiChanges.unavailableReason && (
+        <div
+          className="knife4j-api-change-status"
+          role="status"
+          aria-live="polite"
+          data-api-change-state={apiChanges.unavailableReason}
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 6,
+            padding: '6px 8px 0',
+            color: apiChanges.unavailableReason === 'preparing' ? 'rgba(255,255,255,0.7)' : '#ffd666',
+            fontSize: 12,
+            lineHeight: 1.4,
+          }}
+        >
+          <InfoCircleOutlined style={{ marginTop: 2, flex: '0 0 auto' }} />
+          <span>{t(API_CHANGE_UNAVAILABLE_KEYS[apiChanges.unavailableReason])}</span>
+        </div>
+      )}
       {!collapsed && apiChanges.enabled && apiChanges.summary.total > 0 && (
         <div
           style={{

@@ -1,5 +1,5 @@
 import { parseAllDocuments } from 'yaml';
-import { sha256Hex, stableSerializeJson } from '../apiChange/apiChangeTracker';
+import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
 import {
   fetchExternalResource,
   isRetryableResourceError,
