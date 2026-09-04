@@ -266,7 +266,7 @@ describe('OpenAPI 3.1 and resource policy', () => {
   });
 
   test('keeps reserved Schema keywords opaque outside known Schema locations', async () => {
-    const engine = createEngine();
+    const engine = createEngine({ limits: { maxReferencesPerDocument: 1 } });
     const documentUri = 'https://fixtures.knife4j.example/opaque.openapi.json';
     const opaquePayload = (name: string) => ({
       $id: `https://opaque.knife4j.example/${name}`,
@@ -274,6 +274,8 @@ describe('OpenAPI 3.1 and resource policy', () => {
       $dynamicAnchor: 'display only',
       $schema: 'https://dialects.knife4j.example/opaque',
       $vocabulary: { 'https://vocabularies.knife4j.example/opaque': true },
+      $ref: `https://opaque.knife4j.example/${name}-reference`,
+      $dynamicRef: `https://opaque.knife4j.example/${name}-dynamic-reference`,
       knife4jOpaqueControl$id: 'ordinary business field',
       nested: { $id: 'order#display-only' },
     });
@@ -284,6 +286,8 @@ describe('OpenAPI 3.1 and resource policy', () => {
     const documentExtension = opaquePayload('document-extension');
     const constValue = opaquePayload('const-value');
     const portableUnknownKeyword = opaquePayload('portable-unknown-keyword');
+    const pathExtensionPayload = opaquePayload('path-extension');
+    const responseExtensionPayload = opaquePayload('response-extension');
     const portableResourceUri = 'https://schemas.knife4j.example/opaque-resource';
     const document = {
       openapi: '3.1.1',
@@ -308,6 +312,28 @@ describe('OpenAPI 3.1 and resource policy', () => {
           Order: { value: componentExample },
         },
       },
+      paths: {
+        '/orders': {
+          get: {
+            responses: {
+              200: { description: 'ok' },
+              'x-domain-metadata': {
+                content: { 'application/json': { schema: responseExtensionPayload } },
+              },
+            },
+          },
+        },
+        'x-domain-metadata': {
+          get: {
+            responses: {
+              default: {
+                description: 'display only',
+                content: { 'application/json': { schema: pathExtensionPayload } },
+              },
+            },
+          },
+        },
+      },
       'x-domain-metadata': documentExtension,
       'x-knife4j-schema-resources': {
         version: 1,
@@ -322,6 +348,9 @@ describe('OpenAPI 3.1 and resource policy', () => {
       },
     };
 
+    await expect(engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).resolves.toMatchObject({
+      valid: true,
+    });
     await engine.registerDocument(document, documentUri);
 
     const order = await engine.resolve(`${documentUri}#/components/schemas/Order`);
@@ -348,6 +377,14 @@ describe('OpenAPI 3.1 and resource policy', () => {
     await expect(engine.resolve(portableResourceUri)).resolves.toMatchObject({
       schema: { components: { schemas: { DisplayOnly: portableUnknownKeyword } } },
     });
+    await expect(engine.resolve(documentUri)).resolves.toMatchObject({
+      schema: {
+        paths: {
+          '/orders': { get: { responses: { 'x-domain-metadata': expect.any(Object) } } },
+          'x-domain-metadata': expect.any(Object),
+        },
+      },
+    });
 
     for (const payload of [
       schemaExample,
@@ -356,6 +393,8 @@ describe('OpenAPI 3.1 and resource policy', () => {
       componentExample,
       documentExtension,
       portableUnknownKeyword,
+      pathExtensionPayload,
+      responseExtensionPayload,
     ]) {
       await expect(engine.resolve(payload.$id)).rejects.toMatchObject({
         code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
@@ -568,6 +607,22 @@ describe('OpenAPI 3.1 and resource policy', () => {
 });
 
 describe('resource budgets and cancellation', () => {
+  test('counts the reference budget only at known Schema positions', async () => {
+    const engine = createEngine({ limits: { maxReferencesPerDocument: 1 } });
+    await expect(
+      engine.registerDocument(
+        {
+          $schema: JSON_SCHEMA_2020_12,
+          allOf: [{ $ref: '#' }, { $dynamicRef: '#' }],
+        },
+        'https://fixtures.knife4j.example/reference-budget',
+      ),
+    ).rejects.toMatchObject({
+      code: 'SCHEMA_BUDGET_EXCEEDED',
+      details: { limit: 1, actual: 2 },
+    });
+  });
+
   test('rejects schemas and instances before they exceed structural budgets', async () => {
     const schemaLimited = createEngine({ limits: { maxSchemaNodes: 5 } });
     await expect(

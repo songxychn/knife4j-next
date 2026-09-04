@@ -43,6 +43,7 @@ const OAS_31_VERSION = /^3\.1\.\d+(?:-.+)?$/;
 const ANCHOR_NAME = /^[A-Za-z_][-A-Za-z0-9._]*$/;
 const NETWORK_SCHEMES = new Set(['http:', 'https:', 'file:']);
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const RESPONSE_KEY = /^(?:default|[1-5](?:\d{2}|XX))$/;
 const SCHEMA_SINGLE_KEYWORDS = [
   'not',
   'if',
@@ -394,9 +395,10 @@ function inspectResourceDeclarations(
     }
     if (owns(value, 'requestBody')) visitRequestBody(value.requestBody, childPointer(path, 'requestBody'), baseUri);
     if (isRecord(value.responses)) {
-      Object.entries(value.responses).forEach(([status, response]) =>
-        visitResponse(response, childPointer(childPointer(path, 'responses'), status), baseUri),
-      );
+      Object.entries(value.responses).forEach(([status, response]) => {
+        if (!RESPONSE_KEY.test(status)) return;
+        visitResponse(response, childPointer(childPointer(path, 'responses'), status), baseUri);
+      });
     }
     if (isRecord(value.callbacks)) {
       Object.entries(value.callbacks).forEach(([name, callback]) =>
@@ -433,9 +435,10 @@ function inspectResourceDeclarations(
 
   const visitOpenApiStructure = (value: Record<string, unknown>, rootPath: string, baseUri: string): void => {
     if (isRecord(value.paths)) {
-      Object.entries(value.paths).forEach(([path, pathItem]) =>
-        visitPathItem(pathItem, childPointer(childPointer(rootPath, 'paths'), path), baseUri),
-      );
+      Object.entries(value.paths).forEach(([path, pathItem]) => {
+        if (!path.startsWith('/')) return;
+        visitPathItem(pathItem, childPointer(childPointer(rootPath, 'paths'), path), baseUri);
+      });
     }
     if (isRecord(value.webhooks)) {
       Object.entries(value.webhooks).forEach(([name, pathItem]) =>
@@ -672,7 +675,6 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       kind: 'schema',
       maxNodes: this.limits.maxSchemaNodes,
       maxDepth: this.limits.maxSchemaDepth,
-      maxReferences: this.limits.maxReferencesPerDocument,
     });
     if (typeof document !== 'boolean' && !isRecord(document)) {
       throw new SchemaEngineError('INVALID_DOCUMENT', 'A schema document must be an object or a boolean schema.');
@@ -680,6 +682,12 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     const contextDialect = contextDialectFor(document);
     const prepared = prepareDocumentForHyperjump(document);
     inspectResourceDeclarations(prepared.value, normalizedRetrievalUri, prepared);
+    inspectJsonValue(prepared.value, {
+      kind: 'schema',
+      maxNodes: this.limits.maxSchemaNodes,
+      maxDepth: this.limits.maxSchemaDepth,
+      maxReferences: this.limits.maxReferencesPerDocument,
+    });
 
     let preview: SchemaDocument;
     try {
