@@ -57,6 +57,29 @@ test('only parses standard HTTP operation fields from a Path Item', () => {
   expect(instance.paths[0]).toMatchObject({ url: '/trace', methodType: 'trace', summary: 'Trace endpoint' });
 });
 
+test.each(['3.0.4', '3.1.2'])('ignores Paths specification extensions for OpenAPI %s', (openapi) => {
+  const parser = new SpecParserFactory().getParser(SpecType.OpenAPI);
+  const instance = parser.parse(
+    {
+      openapi,
+      info: { title: 'Paths extensions', version: '1.0.0' },
+      paths: {
+        'x-vendor': {
+          get: { summary: 'Extension payload, not an operation', responses: { 200: { description: 'Ignored' } } },
+        },
+        '/pets': {
+          get: { summary: 'List pets', responses: { 200: { description: 'OK' } } },
+        },
+      },
+    },
+    {},
+  );
+
+  expect(instance.paths.map(({ url, methodType }) => ({ url, methodType }))).toEqual([
+    { url: '/pets', methodType: 'get' },
+  ]);
+});
+
 test('resolves Path Item references and inherited component parameters without guessing conflicts', () => {
   const parser = new SpecParserFactory().getParser(SpecType.OpenAPI);
   const instance = parser.parse(referencedPathDocument, {});
