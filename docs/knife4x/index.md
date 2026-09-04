@@ -9,6 +9,12 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试�
 当前已发布 Go `v0.5.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
+::: info OpenAPI 3.1 与发布版本
+当前 `master` 的共享 React UI 已具备 OpenAPI 3.1.x 的加载、Schema、调试诊断、导出与变化提示契约，
+详见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。下方 `v0.5.0` 小节是已发布版本的历史记录；
+不要据此推断 `v0.5.0` 已包含后续 OAS 3.1 提交，实际制品能力以 Go 发布说明为准。
+:::
+
 ## 安装
 
 Go module 需要 Go 1.22 或更高版本：

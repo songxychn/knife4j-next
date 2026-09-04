@@ -46,6 +46,20 @@ public OpenAPI customOpenAPI() {
 
 也可以在启动类上使用 `@OpenAPIDefinition(info = @Info(...))`。`knife4j.openapi.*` 只保留给 openapi2 starter 的自动 Docket 注册使用。
 
+### 生成 OpenAPI 3.1 文档
+
+`springdoc.api-docs.version` 是 springdoc 配置，不是 `knife4j.*` 配置。Boot 3 / springdoc 2.8.9 项目需要显式开启：
+
+```yaml
+springdoc:
+  api-docs:
+    version: OPENAPI_3_1
+```
+
+Boot 4 / springdoc 3.0.3 的默认与显式 `OPENAPI_3_1` 路径都已经验证；显式配置有助于让意图不受依赖默认值变化影响。
+Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字符串。完整生成矩阵、JSON Schema 方言、
+外部资源授权和迁移示例见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。
+
 ::: warning 反向代理 / 网关放行
 当应用部署在网关或反向代理之后时，请确保 `/knife4j/config`（与 `/doc.html`、`/v3/api-docs/**`、`/swagger-ui/**`、`/webjars/**` 一起）能透传到后端。常见情况：
 

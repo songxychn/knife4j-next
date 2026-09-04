@@ -29,7 +29,10 @@ title: 发布说明
 
 **OpenAPI 文档（React UI）**
 
-- OpenAPI 3.0.x 接口页支持下载当前 operation 的闭合 OpenAPI 文档，保留必要的 Path Item 参数、安全要求与可达组件；OpenAPI 3.1/3.2 不在本版本支持范围内（PR #666，issue #658）。
+- `5.4.0` 的单接口下载覆盖 OpenAPI 3.0.x，闭合文档保留必要的 Path Item 参数、安全要求与可达组件（PR #666，issue #658）。
+
+> 这条限制只描述已发布的 `5.4.0`。当前 `master` 的 OpenAPI 3.1.x 支持矩阵见
+> [OpenAPI 3.1 支持与迁移](/guide/openapi31)，最终制品范围以对应版本发布说明为准。
 
 ### 5.3.3
 

@@ -32,6 +32,10 @@ features:
     details: knife4j-openapi3-ui webjar 已集成 React 前端，支持国际化、类型感知参数输入、OAuth2 四种 flow 的基础鉴权调试、响应复制/下载等。
     link: /release-notes/
     linkText: 发布说明
+  - title: OpenAPI 3.1 契约
+    details: 当前源码统一覆盖 OpenAPI 3.1.x、JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付，并明确浏览器安全边界。
+    link: /guide/openapi31
+    linkText: 支持与迁移
   - title: Gateway 与多服务聚合
     details: Gateway starter 覆盖 Boot 3.x WebFlux / Server Web MVC 与 Boot 4.x WebFlux，支持 DISCOVER / MANUAL 两种策略；aggregation starter 覆盖 Boot 2.x、3.x、4.x，提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
     link: /guide/gateway
@@ -91,6 +95,9 @@ knife4j:
 
 ## 5.4.0 版本亮点 <Badge type="tip" text="最新" />
 
+以下内容是已发布 `5.4.0` 的历史范围；当前源码后续增加的 OpenAPI 3.1 能力见
+[OpenAPI 3.1 支持与迁移](/guide/openapi31)，最终制品范围以未来发布说明为准。
+
 - 🧭 页签左右关闭、响应状态概要与接口新增/变化标记
 - 🧹 边界清晰、可跨页签协调的 Knife4j 本地数据清理
 - 📦 下载当前接口的闭合 OpenAPI 3.0.x 文档
@@ -108,6 +115,7 @@ knife4j:
 - [产品介绍](/guide/introduction)：这个 fork 的定位、与 upstream 的对照表
 - [快速开始](/guide/getting-started)：Spring Boot 2.x / 3.x / 4.x 完整接入
 - [迁移指引](/guide/migration)：从 `com.github.xiaoymin` 切到 `com.baizhukui`
+- [OpenAPI 3.1 支持与迁移](/guide/openapi31)：3.1.x 矩阵、JSON Schema 方言、安全边界、迁移示例与有效夹具
 - [Demo 预览](/guide/demo)：`knife4j-demo-openapi3`（OpenAPI 3）与 `knife4j-demo-openapi2`（OpenAPI 2）两条线的本地跑 / Docker Compose
 - [常见问题](/guide/faq)：doc.html 404、生产环境禁用、Nginx 反向代理、React 配置不生效
 

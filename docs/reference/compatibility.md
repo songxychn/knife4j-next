@@ -19,6 +19,11 @@ title: 兼容矩阵
 | springdoc-openapi | `1.8.0`（Boot 2.x）；`2.8.9`（Boot 3.x Jakarta）；`3.0.3`（Boot 4.x） |
 | 前端 UI | React（openapi3 starter，打包 `front/ui-react`）；Vue 3（openapi2 starter，打包本仓库 `front/vue3`） |
 
+::: info 发布版本与源码能力
+上表的 `5.4.0` 是当前已发布依赖基线；OpenAPI 3.1 的完整能力矩阵描述当前 `master` 源码，
+不代表 `5.4.0` 已包含后续提交。使用已发布制品时仍应核对[发布说明](../release-notes/)。
+:::
+
 ## Starter 兼容矩阵
 
 以下矩阵基于 `knife4j-smoke-tests` 模块的自动化验证结果。✅ = smoke test 已通过；⚠️ = 依赖层面可用但无自动测试；❌ = 不兼容。
@@ -46,6 +51,19 @@ title: 兼容矩阵
 
 - WebFlux starter 是**纯依赖编排**，不含后端增强能力（`@ApiOperationSupport`、`knife4j.setting.*` 等）。
 - 详见 [WebFlux 接入](../guide/webflux)。
+
+### springdoc / OpenAPI 文档版本
+
+| Spring Boot | springdoc | Web 栈 | 已验证 OpenAPI 输出 | 配置要求 |
+| --- | --- | --- | --- | --- |
+| Boot 2.x | `1.8.0` | WebMVC / WebFlux | 3.0.x | 保持 springdoc 1.x 输出，不支持生成 3.1 |
+| Boot 3.x | `2.8.9` | WebMVC / WebFlux | 3.1.x | 显式设置 `springdoc.api-docs.version=OPENAPI_3_1` |
+| Boot 4.x | `3.0.3` | WebMVC | 3.1.x | 默认和显式 `OPENAPI_3_1` 均已验证 |
+
+Boot 3 与 Boot 4 的 3.1 路径都经过真实 springdoc `/v3/api-docs`、Java smoke、React 与
+SchemaEngine 验证；Boot 2 的 springdoc 1.8.0 继续输出 3.0 文档。配置、产品能力和迁移边界见
+[OpenAPI 3.1 支持与迁移](../guide/openapi31)，端到端证据见
+[#737](https://github.com/songxychn/knife4j-next/pull/737)。
 
 ### Gateway & 聚合
 
