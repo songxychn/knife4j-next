@@ -33,7 +33,7 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 当前源码统一覆盖 OpenAPI 3.1.x、JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付，并明确浏览器安全边界。
+    details: 当前源码对正式发布的 OpenAPI 3.1.0 / 3.1.1 / 3.1.2 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: Gateway 与多服务聚合

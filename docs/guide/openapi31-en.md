@@ -14,14 +14,17 @@ This document does not change any starter, default setting, or release version.
 
 ## Supported versions
 
-OpenAPI defines its feature set at the `major.minor` level. Knife4j Next therefore applies one contract to all
-**OpenAPI 3.1.x** patch versions. Existing OpenAPI 3.0.x behavior remains available; OpenAPI 3.2.x is out of scope.
+OpenAPI defines its feature set at the `major.minor` level. The currently published `3.1.0`, `3.1.1`, and `3.1.2`
+therefore share one **OpenAPI 3.1 feature set** without patch-specific capability forks. Existing OpenAPI 3.0.x behavior remains available;
+OpenAPI 3.2.x is out of scope. A future 3.1 patch is not promised before verification; the explicit offline-export allowlist is tracked by
+[#739](https://github.com/songxychn/knife4j-next/issues/739).
 
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | Provided by the openapi2 starters; no OAS 3.1 expansion |
 | OpenAPI 3.0.x | React | Supported | Existing parsing, debugging, export, and change-tracking paths remain |
-| OpenAPI 3.1.x | React | Supported | One contract for every 3.1 patch version, subject to the boundaries below |
+| OpenAPI 3.1.0 / 3.1.1 / 3.1.2 | React | Supported | The currently published 3.1 patches share one contract, subject to the boundaries below |
+| Future OpenAPI 3.1 patch | React | Pending verification | Not promised automatically; offline export rejects a patch outside its allowlist, tracked by [#739](https://github.com/songxychn/knife4j-next/issues/739) |
 | OpenAPI 3.2.x | React | Unsupported | Never guessed or treated as 3.1 |
 
 ### springdoc generation matrix
@@ -46,20 +49,22 @@ See the complete starter combinations in the [compatibility matrix](../reference
 
 ## Product capability matrix
 
-| Capability | OAS 3.1.x behavior | Boundary | Merged evidence |
+Unless a row says otherwise, “supported” below means the currently published `3.1.0`, `3.1.1`, and `3.1.2`.
+
+| Capability | OAS 3.1.0–3.1.2 behavior | Boundary | Merged evidence |
 | --- | --- | --- | --- |
 | Single and multi-document loading | The entry document and controlled cross-document resources share one 3.1 parsing session | A 3.2 document does not enter the 3.1 workflow | [#682](https://github.com/songxychn/knife4j-next/pull/682), [#689](https://github.com/songxychn/knife4j-next/pull/689), [#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | Document objects and Webhooks | Supports `paths`, `components`, `webhooks`, and 3.1 Reference Objects; at least one of the three fields must be declared | A Webhook is an inbound contract, not a regular Path request | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
 | Schema dialect | OAS 3.1 Base Dialect and the standard JSON Schema Draft 2020-12 vocabularies | Arbitrary custom dialects are not assigned invented semantics | [#687](https://github.com/songxychn/knife4j-next/pull/687), [#689](https://github.com/songxychn/knife4j-next/pull/689) |
-| Field tree and models | Handles union types, boolean schemas, `const`, conditional/composition keywords, and dynamic references | Custom vocabulary data is preserved but not evaluated | [#692](https://github.com/songxychn/knife4j-next/pull/692), [#694](https://github.com/songxychn/knife4j-next/pull/694) |
+| Field tree and models | Handles union types, boolean schemas, `const`, conditional/composition keywords, and dynamic references | Custom vocabularies are not executed; see [#740](https://github.com/songxychn/knife4j-next/issues/740) for the reserved-key pre-scan limitation in opaque payloads | [#692](https://github.com/songxychn/knife4j-next/pull/692), [#694](https://github.com/songxychn/knife4j-next/pull/694) |
 | Examples | Keeps authored examples and diagnoses mismatches; can generate a deterministic, budgeted fallback | Not a general JSON Schema solver | [#715](https://github.com/songxychn/knife4j-next/pull/715) |
-| Parameter debugging | Validates Path, Query, Header, and Cookie logical instances before `style` / `explode` serialization | A parameter uses either `schema` or one `content` media type | [#716](https://github.com/songxychn/knife4j-next/pull/716) |
+| Parameter debugging | Validates Path, Query, Header, and Cookie logical instances before `style` / `explode` serialization | A parameter uses either `schema` or one `content` media type; Cookie reaches preview / cURL only and is blocked before a real browser request | [#716](https://github.com/songxychn/knife4j-next/pull/716) |
 | urlencoded / multipart bodies | Handles structured fields, `encoding`, JSON parts, and file metadata checks | Never reads or validates uploaded file bytes | [#728](https://github.com/songxychn/knife4j-next/pull/728), [#730](https://github.com/songxychn/knife4j-next/pull/730) |
 | Request diagnostics | Schema diagnostics block first; the user may explicitly send the same snapshot for a negative test | Does not bypass browser, security, or resource policy | [#696](https://github.com/songxychn/knife4j-next/pull/696), [#716](https://github.com/songxychn/knife4j-next/pull/716), [#728](https://github.com/songxychn/knife4j-next/pull/728) |
 | Response diagnostics | Matches JSON responses by exact/range/`default` status and media type | Non-blocking; no response Header, Cookie, SSE, or binary validation | [#713](https://github.com/songxychn/knife4j-next/pull/713) |
 | Single-operation export | Exports a portable OpenAPI JSON closure for Path or Webhook operations when the resource graph is complete | No YAML, ZIP, multi-file, or whole-service closure export | [#732](https://github.com/songxychn/knife4j-next/pull/732), [#733](https://github.com/songxychn/knife4j-next/pull/733) |
 | Change tracking | Creates a 3.1 semantic fingerprint for a complete resource graph, isolated from 3.0 baselines | Tracks `paths` only, not Webhooks or field-level diffs | [#736](https://github.com/songxychn/knife4j-next/pull/736) |
-| Offline documents | HTML, Markdown, DOC, and DOCX share one immutable 3.1 snapshot | Missing resources or unresolved diagnostics require cancel or explicit degraded export | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
+| Offline documents | HTML, Markdown, DOC, and DOCX share one immutable 3.1 snapshot | Only 3.1.0 / 3.1.1 / 3.1.2 are accepted; see [#739](https://github.com/songxychn/knife4j-next/issues/739) for future patches. Missing resources or unresolved diagnostics require cancel or explicit degraded export | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
 
 The complete springdoc-to-browser acceptance matrix is recorded in [#737](https://github.com/songxychn/knife4j-next/pull/737).
 
@@ -84,10 +89,15 @@ SchemaEngine currently evaluates validation semantics only for these known diale
 The standard JSON Schema 2020-12 Core, Applicator, Validation, Unevaluated, Meta-Data, Format Annotation, and Content
 vocabularies follow their dialect semantics. `format` is an annotation by default; a format string does not grant network, file, or certificate access.
 
-Unknown extension keywords and custom-vocabulary payloads remain intact in the document, copy, and export surfaces, but are not interpreted,
-validated, or guaranteed an individual keyword diagnostic. When a document selects an unsupported `$schema` or declares a custom
-`$vocabulary` at a Schema resource root, SchemaEngine emits a resource-level unsupported-dialect diagnostic and blocks actions that require
-complete Schema semantics. It never silently approximates the declaration as a known dialect.
+Unknown extension keywords and custom-vocabulary payloads remain intact in the source document. When the SchemaEngine session succeeds,
+copy and portable-export surfaces retain them as well, but Knife4j defines no validation, example-generation, or field-tree semantics for them.
+
+The current resource-declaration safety pre-scan still recursively inspects arbitrary object payloads. `$id`, `$anchor`, or `$dynamicAnchor` in ordinary
+data under an unknown keyword, example, or extension can be mistaken for Schema control data. An encountered `$id` also marks that object as a resource
+root and causes sibling `$schema` / `$vocabulary` declarations to be checked, which can fail the session. This is the known limitation tracked by
+[#740](https://github.com/songxychn/knife4j-next/issues/740). A real Schema resource root that selects
+an unsupported `$schema` or declares a custom `$vocabulary` also receives a resource-level unsupported-dialect diagnostic and blocks actions that
+require complete Schema semantics. Neither case falls back to an approximate dialect or executes the custom vocabulary.
 
 ## External Schema resources
 
@@ -127,7 +137,7 @@ The server must return `200`, UTF-8, and a JSON or YAML media type. A cross-orig
 | Explicit retry | Once per resource |
 | YAML aliases | 100 |
 
-Authorization, CORS, media-type, parsing, redirect, timeout, and budget failures become same-origin, redacted diagnostics.
+Authorization, CORS, media-type, parsing, redirect, timeout, and budget failures become structured, redacted resource diagnostics.
 Actions that require a complete closure stay unavailable instead of silently emitting a broken result; already loaded documentation and diagnostics remain visible.
 
 ## Browser debugging boundaries
@@ -139,6 +149,7 @@ An OpenAPI contract can describe behavior that browser JavaScript cannot safely 
 | `TRACE` | Displayed as an OAS 3.1 Path Item operation | Fetch cannot send it |
 | `CONNECT` / `TRACK` | Displayed only if compatibility input reaches the debugger | Fetch cannot send them; they are not OAS 3.1 Path Item fixed fields |
 | `GET` / `HEAD` request body | Schema, examples, and cURL can be shown | Fetch cannot send a body |
+| Explicit Cookie parameter | Schema validation, serialized preview, and cURL can be shown | Browser scripts cannot set the `Cookie` header, so the real request is blocked first |
 | Webhook | Display, field tree, offline docs, and single-operation export are available with a complete closure | Describes an inbound callback; the docs page does not initiate it |
 | `mutualTLS` | Security scheme is recognized and displayed | UI never stores or injects a client certificate; configure the browser, OS, or trusted proxy |
 | Cross-origin Schema | An authorized resource can participate in parsing | CORS and the credential-free policy still apply |
