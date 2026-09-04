@@ -66,7 +66,7 @@ OpenAPI 3.1 按“文档加载 → SchemaEngine → 展示与调试 → 受控�
 | --- | --- | --- |
 | OpenAPI 3.1.x | ✅ | 各 patch 使用同一 feature set 与安全边界；离线导出复用统一版本判断 |
 | JSON Schema Draft 2020-12 | ✅ | OAS Base Dialect、标准词汇、字段树、示例与请求/响应诊断 |
-| 未知关键字 opaque 载荷 | ⚠️ | 资源声明预扫描仍可能解释载荷内保留名，等待 [#740](https://github.com/songxychn/knife4j-next/issues/740) 收敛 |
+| 未知关键字 opaque 载荷 | ✅ | 资源声明预扫描只进入已知 Schema 位置；普通载荷内保留名不参与资源或 anchor 注册（[#743](https://github.com/songxychn/knife4j-next/pull/743)） |
 | 外部 Schema 资源 | ✅ | 默认拒绝、精确 URI 授权、无凭据请求、固定预算、可撤销 |
 | 可移植交付 | ✅ | 单接口 JSON 闭包、变化指纹、HTML / Markdown / DOC / DOCX 离线快照 |
 | springdoc 端到端 | ✅ | Boot 3 WebMVC/WebFlux 显式 3.1；Boot 4 WebMVC 默认/显式 3.1；Boot 2 保持 3.0 |
@@ -74,7 +74,8 @@ OpenAPI 3.1 按“文档加载 → SchemaEngine → 展示与调试 → 受控�
 
 支持矩阵、浏览器限制、迁移示例和最小有效夹具统一收录在
 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。这一里程碑是当前源码状态，不修改现有发布版本号。
-在 [#740](https://github.com/songxychn/knife4j-next/issues/740) 完成前，父路线图 #699 保持阻塞，不对 arbitrary custom vocabulary 作扩张承诺。
+父路线图 [#699](https://github.com/songxychn/knife4j-next/issues/699) 所列实现、端到端与文档子项已收敛；
+这不承诺 arbitrary custom vocabulary 的执行语义，也不将 OpenAPI 3.2 作为 3.1 处理。
 
 ---
 

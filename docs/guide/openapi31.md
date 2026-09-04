@@ -51,7 +51,7 @@ Boot 2 / springdoc 1.8.0 仍生成 OAS 3.0，不能仅修改文档中的 `openap
 | 单文档与多文档加载 | 入口文档与受控跨文档资源使用同一 3.1 解析会话 | 3.2 文档拒绝进入 3.1 工作流 | [#682](https://github.com/songxychn/knife4j-next/pull/682)、[#689](https://github.com/songxychn/knife4j-next/pull/689)、[#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | 文档对象与 Webhook | 支持 `paths`、`components`、`webhooks` 与 3.1 Reference Object；三者至少声明一个 | Webhook 是入站契约，不等同于普通 Path 请求 | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
 | Schema 方言 | 使用 OAS 3.1 Base Dialect 与 JSON Schema Draft 2020-12 标准词汇 | 不把任意自定义方言解释为标准语义 | [#687](https://github.com/songxychn/knife4j-next/pull/687)、[#689](https://github.com/songxychn/knife4j-next/pull/689) |
-| 字段树与模型 | 支持 3.1 类型联合、布尔 Schema、`const`、条件与组合关键字、动态引用等 | 不执行自定义词汇；未知载荷内保留名的预扫描限制见 [#740](https://github.com/songxychn/knife4j-next/issues/740) | [#692](https://github.com/songxychn/knife4j-next/pull/692)、[#694](https://github.com/songxychn/knife4j-next/pull/694) |
+| 字段树与模型 | 支持 3.1 类型联合、布尔 Schema、`const`、条件与组合关键字、动态引用等 | 不执行自定义词汇；未知关键字、example 与 extension 的普通载荷保持 opaque，Schema 保留名不参与资源声明预扫描 | [#692](https://github.com/songxychn/knife4j-next/pull/692)、[#694](https://github.com/songxychn/knife4j-next/pull/694)、[#743](https://github.com/songxychn/knife4j-next/pull/743) |
 | 示例 | 保留作者示例并报告不一致；无作者示例时可在预算内生成确定性候选 | 不是通用 JSON Schema 求解器 | [#715](https://github.com/songxychn/knife4j-next/pull/715) |
 | 参数调试 | Path、Query、Header、Cookie 按 3.1 Schema 验证，再按 `style` / `explode` 序列化 | 一个参数使用 `schema` 或一个 `content` 媒体类型；Cookie 只进入预览 / cURL，浏览器真实发送前会阻断 | [#716](https://github.com/songxychn/knife4j-next/pull/716) |
 | urlencoded / multipart Body | 支持结构化字段、`encoding`、JSON part 与文件元数据检查 | 不读取或验证上传文件内容 | [#728](https://github.com/songxychn/knife4j-next/pull/728)、[#730](https://github.com/songxychn/knife4j-next/pull/730) |
@@ -87,10 +87,14 @@ Content 标准词汇按方言处理。`format` 默认是注解，不因浏览器
 未知扩展关键字和自定义词汇载荷会保留在原始文档中；SchemaEngine 会话成功时，复制与可移植导出也保留这些值，
 但 Knife4j 不为它们定义验证、示例生成或字段树语义。
 
-当前资源声明安全预扫描仍会递归检查任意对象载荷。未知关键字、example 或 extension 的普通数据里的 `$id`、`$anchor`、
-`$dynamicAnchor` 可能被误当成 Schema 控制关键字；其中 `$id` 还会把该对象标成资源根并继续检查同级 `$schema` / `$vocabulary`，从而使会话失败。
-这是 [#740](https://github.com/songxychn/knife4j-next/issues/740) 跟踪的已知限制。真正的 Schema 资源根显式选择不受支持的 `$schema` 或声明自定义 `$vocabulary` 时，也会给出资源级不受支持方言诊断，
-并阻止依赖完整 Schema 语义的动作。两种情况都不会回退到近似方言或执行自定义词汇。
+资源声明安全预扫描只进入已知会承载 Schema 的位置：独立 JSON Schema 根、OAS Schema Object、
+Draft 2020-12 已知 subschema applicator，以及带版本标记的 Knife4j 可移植资源容器。未知关键字、example 或 extension
+的普通数据保持 opaque；其中的 `$id`、`$anchor`、`$dynamicAnchor`、`$schema`、`$vocabulary`、`$ref` 与
+`$dynamicRef` 会原样保留，但不参与资源身份、anchor、方言、vocabulary 或引用预算预扫描。
+
+真正的 Schema 资源根显式选择不受支持的 `$schema` 或声明自定义 `$vocabulary` 时，仍会给出资源级不受支持方言诊断，
+并阻止依赖完整 Schema 语义的动作；该诊断不会回退到近似方言或执行自定义词汇。预扫描边界的实现与回归证据见
+[#743](https://github.com/songxychn/knife4j-next/pull/743)。
 
 ## 外部 Schema 资源
 
