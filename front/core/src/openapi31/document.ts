@@ -357,15 +357,17 @@ function resolveReferenceMap(
 ): Record<string, unknown> | undefined {
   if (!isRecord(value)) return undefined;
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => {
-      // The raw document remains untouched for diagnostics/export. The
-      // consumer projection replaces malformed map entries with inert objects
-      // so a safe warning never turns into a rendering exception.
-      if (!isRecord(entry)) return [key, {}];
-      const resolved = dereferenceOasReferenceObject(entry, document, 20, targetKind);
-      if (typeof resolved.$ref === 'string') return [key, {}];
-      return [key, project ? project(resolved) : resolved];
-    }),
+    Object.entries(value)
+      .filter(([key]) => targetKind !== 'response' || !key.startsWith('x-'))
+      .map(([key, entry]) => {
+        // The raw document remains untouched for diagnostics/export. The
+        // consumer projection replaces malformed map entries with inert objects
+        // so a safe warning never turns into a rendering exception.
+        if (!isRecord(entry)) return [key, {}];
+        const resolved = dereferenceOasReferenceObject(entry, document, 20, targetKind);
+        if (typeof resolved.$ref === 'string') return [key, {}];
+        return [key, project ? project(resolved) : resolved];
+      }),
   );
 }
 

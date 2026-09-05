@@ -10,6 +10,7 @@ import {
   validateRequired,
 } from '../../debug/requestBuilder';
 import type { DebugFormValues, GlobalParamValues, OperationDebugModel } from '../../debug/types';
+import { buildOperationDebugModel } from '../../debug/operationDebugModel';
 
 // ─── replacePathParams ────────────────────────────────
 
@@ -1433,6 +1434,109 @@ describe('OAS 3.1 parameter request snapshots', () => {
     bodyContents: [],
     bodyRequired: false,
   };
+
+  test.each(['3.1.0', '3.1.1', '3.1.2'])('keeps If-Match intact in the %s request and Fetch headers', (openapi) => {
+    const doc = {
+      openapi,
+      info: { title: 'Header serialization', version: '1' },
+      paths: {
+        '/items': {
+          get: {
+            parameters: [{ name: 'If-Match', in: 'header', schema: { type: 'string' } }],
+            responses: { '204': { description: 'done' } },
+          },
+        },
+      },
+    };
+    const debugModel = buildOperationDebugModel({ doc, path: '/items', method: 'get' });
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items',
+      method: 'get',
+      debugModel,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        oas31ParameterValues: { 'header:If-Match': '"etag-v1"' },
+      },
+    });
+    expect(built.headers['If-Match']).toBe('"etag-v1"');
+    expect(new Request(built.url, { headers: built.headers }).headers.get('If-Match')).toBe('"etag-v1"');
+    expect(buildCurl(built)).toContain('If-Match: "etag-v1"');
+  });
+
+  test.each(['3.1.0', '3.1.1', '3.1.2'])('diagnoses required tags omitted from the %s wire request', (openapi) => {
+    const doc = {
+      openapi,
+      info: { title: 'Required parameter presence', version: '1' },
+      paths: {
+        '/items': {
+          get: {
+            parameters: [
+              { name: 'tags', in: 'query', required: true, schema: { type: 'array', items: { type: 'string' } } },
+            ],
+            responses: { '204': { description: 'done' } },
+          },
+        },
+      },
+    };
+    const debugModel = buildOperationDebugModel({ doc, path: '/items', method: 'get' });
+    const formValues: DebugFormValues = {
+      pathParams: {},
+      queryParams: { tags: 'legacy' },
+      headerParams: {},
+      cookieParams: {},
+      oas31ParameterValues: { 'query:tags': '[]' },
+    };
+    const built = buildRequest({
+      baseUrl: 'https://api.example.test',
+      path: '/items',
+      method: 'get',
+      debugModel,
+      formValues,
+    });
+    expect(built.url).toBe('https://api.example.test/items');
+    expect(built.parameterInputDiagnostics).toBeUndefined();
+    expect(built.parameterInstances).toEqual([expect.objectContaining({ key: 'query:tags', instance: [] })]);
+    expect(validateRequired(debugModel, formValues)).toEqual([expect.objectContaining({ key: 'query:tags' })]);
+  });
+
+  test.each([
+    ['query', 'form', true, '[]', 'array'],
+    ['query', 'form', false, '[]', 'array'],
+    ['query', 'form', true, '{}', 'object'],
+    ['query', 'deepObject', true, '{"missing":null}', 'object'],
+    ['header', 'simple', false, '[]', 'array'],
+    ['cookie', 'form', true, '{}', 'object'],
+    ['path', 'simple', false, '[]', 'array'],
+  ] as const)('checks serialized required presence for %s/%s/%s %s', (in_, style, explode, raw, type) => {
+    const param = {
+      name: 'value',
+      in: in_,
+      required: true,
+      type,
+      schema: { type },
+      parameterSerialization: { kind: 'schema' as const, style, explode, allowReserved: false },
+    };
+    const debugModel: OperationDebugModel = {
+      pathParams: in_ === 'path' ? [param] : [],
+      queryParams: in_ === 'query' ? [param] : [],
+      headerParams: in_ === 'header' ? [param] : [],
+      cookieParams: in_ === 'cookie' ? [param] : [],
+      bodyContents: [],
+      bodyRequired: false,
+    };
+    const formValues: DebugFormValues = {
+      pathParams: {},
+      queryParams: {},
+      headerParams: {},
+      cookieParams: {},
+      oas31ParameterValues: { [`${in_}:value`]: raw },
+    };
+    expect(validateRequired(debugModel, formValues)).toEqual([expect.objectContaining({ key: `${in_}:value` })]);
+  });
 
   test('uses one serialized result for URL preview, headers, query data, and cURL', () => {
     const built = buildRequest({

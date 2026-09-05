@@ -222,6 +222,12 @@ function inspectResourceDeclarations(
 ): void {
   const declared = new Map<string, string>([[withoutFragment(retrievalUri), '# (retrieval URI)']]);
   const anchors = new Map<string, Map<string, string>>();
+  const defaultSchemaDialect =
+    isRecord(document) && typeof document.openapi === 'string'
+      ? typeof document.jsonSchemaDialect === 'string'
+        ? normalizeDialect(document.jsonSchemaDialect)
+        : OPENAPI_31_BASE_DIALECT
+      : JSON_SCHEMA_2020_12;
 
   const addAnchor = (resourceUri: string, name: string, path: string): void => {
     if (!ANCHOR_NAME.test(name)) {
@@ -246,12 +252,19 @@ function inspectResourceDeclarations(
     anchors.set(resourceUri, resourceAnchors);
   };
 
-  const visitSchema = (value: unknown, baseUri: string, path: string, resourceRoot = false): string => {
+  const visitSchema = (
+    value: unknown,
+    baseUri: string,
+    path: string,
+    resourceRoot = false,
+    inheritedDialect = defaultSchemaDialect,
+  ): string => {
     if (!isRecord(value)) return baseUri;
     prepared.unmaskSchemaObject(value);
 
     let resourceBase = baseUri;
     const declaresResource = resourceRoot || typeof value.$id === 'string';
+    const schemaDialect = typeof value.$schema === 'string' ? normalizeDialect(value.$schema) : inheritedDialect;
     if (typeof value.$id === 'string') {
       let resolved: string;
       try {
@@ -301,6 +314,11 @@ function inspectResourceDeclarations(
             uri: value.$schema,
           });
         }
+      } else {
+        // Hyperjump otherwise inherits the OAS document meta-schema when an
+        // embedded $id creates a resource. Materialize the Schema dialect on
+        // this private registration copy, including document-level overrides.
+        value.$schema = schemaDialect;
       }
     }
     if (typeof value.$anchor === 'string') addAnchor(resourceBase, value.$anchor, `${path}/$anchor`);
@@ -309,20 +327,21 @@ function inspectResourceDeclarations(
     }
 
     for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
-      if (owns(value, keyword)) visitSchema(value[keyword], resourceBase, childPointer(path, keyword));
+      if (owns(value, keyword))
+        visitSchema(value[keyword], resourceBase, childPointer(path, keyword), false, schemaDialect);
     }
     for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
       const schemas = value[keyword];
       if (!Array.isArray(schemas)) continue;
       schemas.forEach((schema, index) =>
-        visitSchema(schema, resourceBase, childPointer(childPointer(path, keyword), index)),
+        visitSchema(schema, resourceBase, childPointer(childPointer(path, keyword), index), false, schemaDialect),
       );
     }
     for (const keyword of SCHEMA_MAP_KEYWORDS) {
       const schemas = value[keyword];
       if (!isRecord(schemas)) continue;
       Object.entries(schemas).forEach(([name, schema]) =>
-        visitSchema(schema, resourceBase, childPointer(childPointer(path, keyword), name)),
+        visitSchema(schema, resourceBase, childPointer(childPointer(path, keyword), name), false, schemaDialect),
       );
     }
     return resourceBase;

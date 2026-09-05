@@ -23,6 +23,24 @@ import document312 from './fixtures/openapi31/document-objects-3.1.2.json';
 import invalidDocument from './fixtures/openapi31/document-objects-invalid.json';
 
 describe('OAS 3.1 document primitives', () => {
+  test('keeps Responses extensions opaque without dropping named response headers', () => {
+    const pathItem = {
+      get: {
+        responses: {
+          '200': { description: 'ok', headers: { 'x-request-id': { schema: { type: 'string' } } } },
+          'x-business-data': { description: 'not a response', $ref: 'https://opaque.example.test/data.json' },
+        },
+      },
+    };
+    const document = { openapi: '3.1.2', info: { title: 'Opaque responses', version: '1' }, paths: { '/': pathItem } };
+    const operation = resolvePathItemOperation(pathItem, 'get', document);
+    expect(Object.keys(operation?.operation.responses ?? {})).toEqual(['200']);
+    expect(operation?.operation.responses).toMatchObject({
+      '200': { headers: { 'x-request-id': { schema: { type: 'string' } } } },
+    });
+    expect(document.paths['/'].get.responses['x-business-data'].$ref).toBe('https://opaque.example.test/data.json');
+  });
+
   test('recognizes every 3.1 patch version without branching capabilities', () => {
     expect(['3.1.0', '3.1.1', '3.1.2', '3.1.3', '3.1.999'].every(isOpenApi31Version)).toBe(true);
     expect(isOpenApi31Version('3.1')).toBe(false);

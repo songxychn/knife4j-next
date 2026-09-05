@@ -414,6 +414,8 @@ export interface BuiltRequest {
   jsonFields?: string[];
   /** Parsed logical parameter instances used by the document-level Schema session. */
   parameterInstances?: BuiltParameterInstance[];
+  /** Presence of edited OAS 3.1 parameters in the final serialized request. */
+  parameterPresence?: Readonly<Record<string, boolean>>;
   /** Input syntax failures; the request contains a stable raw fallback for explicit override. */
   parameterInputDiagnostics?: ParameterInputDiagnostic[];
   /** OAS 3.1 cookie pairs were serialized into the forbidden browser `Cookie` request header. */
