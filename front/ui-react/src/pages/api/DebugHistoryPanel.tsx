@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Button, Empty, Modal, Segmented, Space, Tag, Tooltip, Typography, message } from 'antd';
+import { Alert, Button, Empty, Modal, Segmented, Space, Tag, Tooltip, Typography, message } from 'antd';
 import {
   ClearOutlined,
   CopyOutlined,
@@ -346,6 +346,9 @@ export default function DebugHistoryPanel({
           </SnapshotBlock>
 
           <SnapshotBlock title={t('apiDebug.history.requestHeaders')}>
+            {selected.formSnapshot?.cookieParameterSource === 'browser-session' && (
+              <Alert type="info" showIcon message={t('apiDebug.cookie.sessionPreview')} style={{ marginBottom: 8 }} />
+            )}
             <KvList data={selected.headers} maskedKeys={selected.maskedHeaders} />
           </SnapshotBlock>
 

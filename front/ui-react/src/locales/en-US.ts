@@ -464,8 +464,21 @@ const enUS = {
     'The browser Fetch API cannot send a request body with {{method}}. Use the generated cURL command or change the operation method.',
   'apiDebug.method.browserUnsupported':
     'The browser Fetch API forbids {{method}} requests. Use the generated cURL command or another non-browser client.',
+  'apiDebug.cookie.source': 'Cookie parameter source',
+  'apiDebug.cookie.source.session': 'Browser session',
+  'apiDebug.cookie.source.explicit': 'Manual Cookies',
+  'apiDebug.cookie.configureSession': 'Configure login session',
+  'apiDebug.cookie.sessionValue': 'Managed by the browser (not validated)',
+  'apiDebug.cookie.sessionTip':
+    'Reuse the session stored by the browser after login. The frontend cannot verify Cookie presence or validate its Schema. Manual values are preserved when switching sources.',
+  'apiDebug.cookie.explicitTip':
+    'Manual Cookies are available in the request preview and cURL; the browser cannot send these values directly. Choose Browser session to debug after login.',
+  'apiDebug.cookie.sessionPreview':
+    'Cookies are selected by the browser according to its session and credentials policy. Their actual values cannot be read and are absent from the header preview.',
+  'apiDebug.cookie.sessionCurl':
+    'This cURL does not include the browser login session. Configure Cookies before running it.',
   'apiDebug.cookie.browserUnsupported':
-    'The browser Fetch API forbids scripts from setting the Cookie request header. This request was not sent; use the browser Cookie session or copy the equivalent cURL command from Preview.',
+    'The browser Fetch API forbids scripts from setting the Cookie request header. This request was not sent. Choose Browser session and remove manual Cookies from headers or authentication to debug after login; manual requests can be executed using cURL.',
   'apiDebug.body.file.placeholder': 'File path or leave empty to select file',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
@@ -630,8 +643,12 @@ const enUS = {
     'Reset Cookie session settings for the current group? Request parameters and authentication settings will not be affected.',
   'cookieSession.msg.reset': 'Cookie session settings reset',
   'globalParam.cookie.title': 'Cookie Session',
+  'cookieSession.scope':
+    'Group {{group}} stores login/logout requests and credentials mode. Actual Cookies follow browser sharing rules and are not isolated by group or port.',
+  'cookieSession.browserPolicy':
+    'Cross-origin debugging requires include and server CORS support for credentials. Cookies remain subject to SameSite, Secure, domain/path, and browser policies.',
   'globalParam.cookie.tip':
-    'The browser stores Set-Cookie responses. Knife4j does not read or manually set Cookie values.',
+    'The browser accepts Set-Cookie responses according to its policies. Knife4j does not read or manually set Cookie values.',
   'globalParam.cookie.credentials': 'Cookie credentials mode',
   'globalParam.cookie.sameOrigin': 'Same origin only',
   'globalParam.cookie.include': 'Include cross-origin Cookies',

@@ -135,7 +135,12 @@ function CookieSessionInner() {
           type="info"
           showIcon
           message={t('globalParam.cookie.tip')}
-          description={t('globalParam.scope.currentGroupOnly', { group: currentGroupName })}
+          description={
+            <Space direction="vertical" size={4}>
+              <span>{t('cookieSession.scope', { group: currentGroupName })}</span>
+              <span>{t('cookieSession.browserPolicy')}</span>
+            </Space>
+          }
           style={{ marginBottom: 16 }}
         />
         <Form<CookieSessionConfig>

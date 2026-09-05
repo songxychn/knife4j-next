@@ -59,6 +59,17 @@ function makeState(): DebugCacheState {
 }
 
 describe('debugCache', () => {
+  it('persists Cookie source per operation while preserving manual values and old cache semantics', () => {
+    const storage = new MemoryStorage();
+    const saved = { ...makeState(), cookieParameterSource: 'browser-session' as const };
+    writeDebugCache('group-a|operation', saved, storage);
+    writeDebugCache('group-b|operation', makeState(), storage);
+    expect(readDebugCache('group-a|operation', storage)).toEqual(saved);
+    expect(readDebugCache('group-b|operation', storage)?.cookieParameterSource).toBeUndefined();
+    storage.setItem(debugCacheStorageKey('invalid'), JSON.stringify({ ...saved, cookieParameterSource: 'auto' }));
+    expect(readDebugCache('invalid', storage)?.cookieParameterSource).toBeUndefined();
+  });
+
   it('round-trips the debug cache under an encoded per-operation key', () => {
     const storage = new MemoryStorage();
     const cacheKey = 'default|用户|创建用户|POST|/users/{id}';
