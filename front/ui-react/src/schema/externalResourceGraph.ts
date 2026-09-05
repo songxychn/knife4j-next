@@ -1604,7 +1604,7 @@ function portableOperationPathItem(document: unknown, pointer: string): IndexedT
   return { value: pathItem, pointer: pointer.slice(0, pointer.lastIndexOf('/')) };
 }
 
-function normalizedAnchorUri(uri: string): string {
+export function normalizedAnchorUri(uri: string): string {
   const fragmentIndex = uri.indexOf('#');
   if (fragmentIndex < 0) return uri;
   try {

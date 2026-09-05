@@ -17,6 +17,18 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
   const { t } = useTranslation();
   if (result.status === 'value' && result.validation === 'valid') return null;
 
+  if (result.diagnostics.some((diagnostic) => diagnostic.code === 'EXAMPLE_REFERENCE_UNAVAILABLE')) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message={t('schema.example.referenceUnavailable.title')}
+        description={t('schema.example.referenceUnavailable.description')}
+        style={style}
+      />
+    );
+  }
+
   if (result.status === 'value' && result.validation === 'invalid') {
     const issue = result.diagnostics.flatMap((diagnostic) => diagnostic.issues ?? [])[0];
     return (

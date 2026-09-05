@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSchemaEngine } from 'knife4j-schema-engine';
 import { parseLocalJsonPointer, resolveJsonPointerTokens } from 'knife4j-core';
+import { apiOperationIdentity, buildApiChangeFingerprintSnapshot } from '../../apiChange/apiChangeTracker';
 import { ExternalResourceLoader, type ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import type { SwaggerDoc } from '../../types/swagger';
 import { buildOas31OperationOpenApiDocument } from './oas31OperationOpenApiDocument';
@@ -336,6 +337,118 @@ afterEach(() => {
 });
 
 describe('OAS 3.1 portable single-operation export', () => {
+  it.each(
+    ['3.1.0', '3.1.1', '3.1.2'].flatMap((version) => [
+      { version, external: false },
+      { version, external: true },
+    ]),
+  )(
+    'exports encoded anchors without changing retrieval identity ($version, external: $external)',
+    async ({ version, external }) => {
+      const resourceUri = 'https://schemas.knife4j.example/%66oo.json?source=%61';
+      const anchorUri = `${external ? resourceUri : entryUri}#%66oo`;
+      const anchorSchema = { $anchor: 'foo', type: 'string' };
+      const resource = {
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: resourceUri,
+        $defs: { Value: anchorSchema },
+      };
+      const document = {
+        openapi: version,
+        info: { title: 'Encoded anchor export', version: '1' },
+        paths: {
+          '/value': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'Value',
+                  content: { 'application/json': { schema: { $ref: external ? anchorUri : '#%66oo' } } },
+                },
+              },
+            },
+          },
+        },
+        ...(!external ? { components: { schemas: { Value: anchorSchema } } } : {}),
+      } as SwaggerDoc;
+      const sourceBefore = JSON.stringify(document);
+      const networkFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Unexpected network request'));
+      const resourceFetch = vi.fn(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe(resourceUri);
+        return new Response(JSON.stringify(resource), { headers: { 'content-type': 'application/schema+json' } });
+      });
+      const loader = new ExternalResourceLoader(document, entryUri, { fetchImpl: resourceFetch });
+      const discovery = loader.discover();
+      const snapshot = external
+        ? await loader.load(
+            discovery.candidates.map((candidate) => ({
+              scope: 'generation' as const,
+              documentScope: discovery.documentScope,
+              resourceKey: candidate.retrievalUriHash,
+            })),
+          )
+        : loader.currentSnapshot();
+      expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+      expect(snapshot.edges).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            resolvedUri: anchorUri,
+            targetRetrievalUri: external ? resourceUri : entryUri,
+          }),
+        ]),
+      );
+      const original = createSchemaEngine();
+      let originalResults: boolean[];
+      try {
+        expect((await original.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+        await original.registerDocument(document, entryUri);
+        if (external) await original.registerDocument(resource, resourceUri);
+        originalResults = await Promise.all(
+          ['ok', 1].map(async (value) => (await original.evaluate(anchorUri, value)).valid),
+        );
+      } finally {
+        original.dispose();
+      }
+      const output = asReady(
+        buildOas31OperationOpenApiDocument(document, '/value', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot,
+        }),
+      ).document;
+      expect(absoluteSchemaReferenceUris(output)).toContain(anchorUri);
+      const fingerprints = buildApiChangeFingerprintSnapshot(document, {
+        status: 'ready',
+        retrievalUri: entryUri,
+        snapshot,
+        documentDiagnostics: [],
+      });
+      expect(fingerprints).toMatchObject({
+        status: 'ready',
+        fingerprints: { [apiOperationIdentity('GET', '/value')]: expect.any(String) },
+      });
+      const portableUri = 'https://portable.knife4j.example/encoded-anchor.json';
+      await expectPortableReload(output, portableUri);
+      const portable = createSchemaEngine();
+      try {
+        await portable.registerDocument(output, portableUri);
+        const operation = ((output.paths as JsonRecord)['/value'] as JsonRecord).get as JsonRecord;
+        const response = (operation.responses as JsonRecord)['200'] as JsonRecord;
+        const schema = ((response.content as JsonRecord)['application/json'] as JsonRecord).schema as JsonRecord;
+        const results = await Promise.all(
+          ['ok', 1].map(async (value) => (await portable.evaluate(String(schema.$ref), value)).valid),
+        );
+        expect(originalResults).toEqual([true, false]);
+        expect(results).toEqual(originalResults);
+        expect((await portable.evaluate(anchorUri, 'ok')).valid).toBe(true);
+      } finally {
+        portable.dispose();
+        loader.dispose();
+      }
+      expect(JSON.stringify(document)).toBe(sourceBefore);
+      expect(resourceFetch).toHaveBeenCalledTimes(external ? 1 : 0);
+      expect(networkFetch).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(
     ['3.1.0', '3.1.1', '3.1.2'].flatMap((version) => [
       { version, servers: undefined },

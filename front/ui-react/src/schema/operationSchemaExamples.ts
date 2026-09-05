@@ -24,6 +24,7 @@ export interface OperationSchemaExampleTarget {
   readonly schemaReference?: string;
   readonly schema?: JsonValue;
   readonly explicit: readonly ExplicitSchemaExample[];
+  readonly explicitReferenceUnavailable?: true;
 }
 
 export interface ResponseSchemaExampleTarget extends OperationSchemaExampleTarget {
@@ -67,18 +68,23 @@ function asJsonValue(value: unknown): JsonValue | undefined {
   return Object.fromEntries(entries);
 }
 
+interface ExplicitExampleSelection {
+  readonly values: readonly ExplicitSchemaExample[];
+  readonly referenceUnavailable?: true;
+}
+
 function explicitExamples(
   mediaObject: OpenApiRecord,
   document: SwaggerDoc,
   location?: RegisteredObjectLocation,
   session?: SchemaDocumentSession,
-): ExplicitSchemaExample[] {
+): ExplicitExampleSelection {
   if (Object.prototype.hasOwnProperty.call(mediaObject, 'example')) {
     const value = asJsonValue(mediaObject.example);
-    if (value !== undefined) return [{ source: 'media-example', value }];
+    if (value !== undefined) return { values: [{ source: 'media-example', value }] };
   }
   const examples = asRecord(mediaObject.examples);
-  if (!examples) return [];
+  if (!examples) return { values: [] };
   for (const name in examples) {
     if (!Object.prototype.hasOwnProperty.call(examples, name)) continue;
     const rawExample = examples[name];
@@ -91,11 +97,16 @@ function explicitExamples(
             session,
           )?.value
         : (followLocalReference(document, rawExample, ['components', 'examples', name])?.value ?? record);
+    // A loaded graph need not make every referenced OAS object consumable by
+    // the Schema session. Do not silently replace authored data with a sample.
+    if (!example && location && typeof record?.$ref === 'string') {
+      return { values: [], referenceUnavailable: true };
+    }
     if (!example || !Object.prototype.hasOwnProperty.call(example, 'value')) continue;
     const value = asJsonValue(example.value);
-    if (value !== undefined) return [{ source: 'example-object', value }];
+    if (value !== undefined) return { values: [{ source: 'example-object', value }] };
   }
-  return [];
+  return { values: [] };
 }
 
 function mediaTargets(
@@ -116,17 +127,19 @@ function mediaTargets(
     const schemaReference = Object.prototype.hasOwnProperty.call(media, 'schema')
       ? `${location?.retrievalUri ?? ''}${pointerReference([...contentTokens, mediaType, 'schema'])}`
       : undefined;
+    const explicit = explicitExamples(
+      media,
+      document,
+      location ? { ...location, value: media, tokens: [...contentTokens, mediaType] } : undefined,
+      session,
+    );
     targets.push({
       key: `${keyPrefix}:${mediaType}`,
       mediaType,
       ...(schemaReference === undefined ? {} : { schemaReference }),
       ...(schema === undefined ? {} : { schema }),
-      explicit: explicitExamples(
-        media,
-        document,
-        location ? { ...location, value: media, tokens: [...contentTokens, mediaType] } : undefined,
-        session,
-      ),
+      explicit: explicit.values,
+      ...(explicit.referenceUnavailable ? { explicitReferenceUnavailable: true } : {}),
     });
   }
   return targets;
@@ -180,12 +193,21 @@ function noSchemaResult(target: OperationSchemaExampleTarget): SchemaExampleResu
   };
 }
 
+function unavailableExampleReference(): SchemaExampleResult {
+  return {
+    status: 'none',
+    reason: 'evaluation-unavailable',
+    diagnostics: [{ code: 'EXAMPLE_REFERENCE_UNAVAILABLE' }],
+  };
+}
+
 export async function generateOperationSchemaExample(
   session: SchemaDocumentSession,
   target: OperationSchemaExampleTarget,
   direction: SchemaExampleDirection,
   options: GenerateOperationSchemaExamplesOptions = {},
 ): Promise<SchemaExampleResult> {
+  if (target.explicitReferenceUnavailable) return unavailableExampleReference();
   if (!target.schemaReference) return noSchemaResult(target);
   return generateSchemaExample(session, target.schemaReference, {
     direction,
@@ -223,6 +245,7 @@ export function unavailableOperationSchemaExample(
   target: OperationSchemaExampleTarget,
   message?: string,
 ): SchemaExampleResult {
+  if (target.explicitReferenceUnavailable) return unavailableExampleReference();
   const explicit = target.explicit[0];
   if (explicit) {
     return {

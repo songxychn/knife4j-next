@@ -8,6 +8,7 @@ import {
 import {
   PORTABLE_SCHEMA_RESOURCES_EXTENSION,
   PORTABLE_SCHEMA_RESOURCES_VERSION,
+  normalizedAnchorUri,
   safeResourceDisplay,
   type ResourceGraphEdge,
   type ResourceGraphSnapshot,
@@ -550,7 +551,7 @@ class Oas31OperationBundler {
   }
 
   private targetLocationQuiet(edge: ResourceGraphEdge, implicitDocumentUri?: string): LocatedValue | null {
-    const anchor = this.snapshot.anchorTargets.get(edge.resolvedUri);
+    const anchor = this.snapshot.anchorTargets.get(normalizedAnchorUri(edge.resolvedUri));
     if (anchor) {
       return this.location(anchor.ownerRetrievalUri, anchor.pointer, implicitDocumentUri ?? anchor.ownerRetrievalUri);
     }
@@ -1178,7 +1179,7 @@ class Oas31OperationBundler {
               if (
                 portableTarget &&
                 edge.kind !== 'schema-dynamic-ref' &&
-                !this.snapshot.anchorTargets.has(edge.resolvedUri)
+                !this.snapshot.anchorTargets.has(normalizedAnchorUri(edge.resolvedUri))
               ) {
                 return portableTarget;
               }

@@ -343,7 +343,7 @@ function recordExampleResult(
       value: formatSchemaExampleValue(result.value, selection.mediaType),
     };
   }
-  if (target?.schemaReference) {
+  if (target?.schemaReference || target?.explicitReferenceUnavailable) {
     issues.add({
       code: result.diagnostics[0]?.code ?? 'EXAMPLE_UNAVAILABLE',
       severity: 'warning',
