@@ -728,6 +728,8 @@ function ParamInput({ param, value, onChange, hasError }: ParamInputProps) {
         value={enumParamSelectValue(param, value)}
         onChange={(next) => onChange(serializeEnumParamSelection(param, next))}
         allowClear
+        showSearch
+        optionFilterProp="label"
         status={status}
         placeholder={t('apiDebug.enum.placeholder')}
         options={enumParamSelectOptions(param)}
@@ -861,6 +863,8 @@ function SchemaFieldInput({ field, value, onChange }: SchemaFieldInputProps) {
         value={value || undefined}
         onChange={onChange}
         allowClear
+        showSearch
+        optionFilterProp="label"
         options={field.enum.map((item) => ({
           value: String(item),
           label: String(item),
