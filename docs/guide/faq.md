@@ -22,17 +22,18 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容，本 fork 保持兼容。使用时需要注意以下边界：
 
-1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.4.0`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.5.0`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
 2. 新 React 前端覆盖范围：upstream Vue2 前端上有的 UI 功能（Postman 导出、afterScript 等）在本 fork 的新 React 前端中尚未全部覆盖；OAuth2、接口变化提示、离线导出、自定义 Markdown 文档、自定义 Footer 等能力则已在 React UI 中补齐或重做。这些历史功能在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中继续保留。详见下文 [React 配置不生效](#react-setting-not-effective)。
 3. Spring Security 注解展示：upstream 与本 fork 的实现都只位于 `knife4j-openapi2-spring-boot-starter`（OAS2 / Springfox）；OAS3 / springdoc 系列 starter 不会自动追加这些注解。详见 [Spring Security 注解展示](./features#spring-security-注解展示)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-下表按**已发布版本**记录历史范围，不代表当前 `master` 的全部能力。当前源码的 OpenAPI 3.1 契约见
+下表按版本记录发布范围。Java `5.5.0` 的 OpenAPI 3.1 契约及其限制见
 [OpenAPI 3.1 支持与迁移](./openapi31)。
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.5.0` | 次版本：OAS 3.1 / JSON Schema 2020-12、受控跨文档资源、示例与调试诊断、可移植/离线导出和变化提示；修复长类型名展示与聚合 Host 端口 | — |
 | `5.4.0` | 次版本：页签左右关闭、响应状态概要、本地数据安全清理、单接口 OpenAPI 3.0.x 下载与接口变化提示 | — |
 | `5.3.3` | 补丁修复：开启动态参数后，urlencoded / multipart Body 支持添加文档未声明的文本字段 | — |
 | `5.3.2` | 补丁修复：恢复 OAS3 离线 HTML、DOC、DOCX 与整篇 Markdown 中的请求示例和响应示例 | — |
