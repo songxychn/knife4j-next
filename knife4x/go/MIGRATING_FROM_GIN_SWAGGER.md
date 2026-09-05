@@ -22,7 +22,7 @@ go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.0
 ```
 
 从 `v0.5.0` 升级不需要修改 `Config`、`NewHandler` 或挂载路径。OAS 3.1 支持从
-`v0.7.0` 纳入 Go 发布；请让生成器输出有效的 3.1 文档，不要只替换版本字符串。
+`v0.6.0` 纳入 Go 发布；请让生成器输出有效的 3.1 文档，不要只替换版本字符串。
 外部资源仍需按精确 URI 授权，未知方言与浏览器调试限制见
 [OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md)。
 
