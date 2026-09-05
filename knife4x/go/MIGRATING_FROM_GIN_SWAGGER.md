@@ -15,10 +15,10 @@ Knife4x 替换的是嵌入式文档与调试 UI，不替代 OpenAPI 生成器。
 只有 `openapi: 3.0.x` 或 `openapi: 3.1.x` JSON 可以继续；入口不接受 YAML 或 OAS 3.2。
 若文档使用 `swagger: "2.0"`，请先升级生成器或转换 spec；OAS2 不能直接迁移到 Knife4x。
 
-Knife4x Go 当前公开版本为 `v0.6.0`：
+Knife4x Go 当前公开版本为 `v0.7.0`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.6.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.0
 ```
 
 从 `v0.5.0` 升级不需要修改 `Config`、`NewHandler` 或挂载路径。OAS 3.1 支持从

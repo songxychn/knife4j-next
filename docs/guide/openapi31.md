@@ -7,7 +7,7 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 
 [English contract](./openapi31-en) · [下载最小 JSON](/examples/openapi-3.1-minimal.json) · [下载最小 YAML](/examples/openapi-3.1-minimal.yaml)
 
-本文描述 Java `5.5.0` 的 OpenAPI 3.1 契约，具体能力与版本归属见
+本文描述 Java `5.6.0` 的 OpenAPI 3.1 契约，具体能力与版本归属见
 [发布说明](../release-notes/)和 [版本参考](../reference/version-ref)。Knife4x Go 使用独立版本，
 请查阅 [Go 发布说明](../knife4x/)。本文不改变任何 starter 或默认配置。
 

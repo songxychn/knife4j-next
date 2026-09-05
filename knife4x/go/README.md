@@ -9,15 +9,15 @@ github.com/songxychn/knife4j-next/knife4x/go
 Knife4x 只消费 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2 或 OAS 3.2。核心只依赖
 标准库 `net/http`；Gin 只是可运行的组合示例，不是库依赖。
 
-当前公开版本为 `v0.6.0`，对应仓库 tag `knife4x/go/v0.6.0`：
+当前公开版本为 `v0.7.0`，对应仓库 tag `knife4x/go/v0.7.0`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.6.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.0
 ```
 
-`v0.6.0` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
-新增 OAS 3.1 与 JSON Schema 2020-12 字段树、示例、参数和请求体校验、响应诊断、
-受控跨文档资源加载、单接口可移植 JSON 与离线文档导出，以及接口变化提示；同时修复长 FQN 类型展示。
+`v0.7.0` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
+新增浏览器登录会话调试、枚举输入过滤和目录分组吸顶，并修复 Schema 根节点标签。
+OAS 3.1、JSON Schema 2020-12、受控资源加载、调试诊断、导出与变化提示从 `v0.6.0` 起提供；
 OAS 3.0.x 继续沿用既有路径。版本明细见 [Go 版本说明](../../docs/knife4x/index.md)。
 
 外部资源默认拒绝，须对已发现的精确 URI 授权；SchemaEngine 只使用已登记的资源，不自行联网。

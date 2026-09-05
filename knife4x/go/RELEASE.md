@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.6.0` |
-| 当前 tag | `knife4x/go/v0.6.0` |
+| 当前版本 | `v0.7.0` |
+| 当前 tag | `knife4x/go/v0.7.0` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -19,11 +19,11 @@ workflow 的自动 tag 触发器只接收根级 `v*` tag，不接收 `knife4x/go
 由 Java Release 完成公开制品核验后调用，不由 Go tag 触发。
 `./tools/test-knife4x-go.sh` 会以无副作用断言保护这条边界。
 
-## v0.6.0 发布范围
+## v0.7.0 发布范围
 
-相较于 `knife4x/go/v0.5.0`，本次将已合入的共享 React UI OAS 3.1、JSON Schema
-2020-12、受控资源图、示例、调试诊断、导出、接口变化提示与 FQN 展示修复纳入 Go 发布。
-具体变更与已合并 PR 见 [Go 版本说明](../../docs/knife4x/index.md)。
+相较于 `knife4x/go/v0.6.0`，本次发布已合入的共享 React UI 浏览器登录会话调试、
+枚举下拉过滤、接口目录分组吸顶，以及 Schema 根节点标签修复（PR #757、#761、#762、#763）。
+具体变更见 [Go 版本说明](../../docs/knife4x/index.md)。
 
 Go 1.22 基线、module、`Config`、`NewHandler` 与路由语义保持不变。入口只消费已有的
 OpenAPI 3.0.x / 3.1.x JSON；OAS 3.2、未知方言与自定义词汇执行、Cookie jar 写入、
@@ -64,8 +64,8 @@ test -s knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-grep -Fq 'knife4x/go/v0.6.0' knife4x/README.md knife4x/go/README.md
-grep -Fq 'go@v0.6.0' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
+grep -Fq 'knife4x/go/v0.7.0' knife4x/README.md knife4x/go/README.md
+grep -Fq 'go@v0.7.0' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 grep -Fq 'OAS2 不能直接迁移' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 test -z "$(git status --porcelain)"
 ```
@@ -75,11 +75,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.6.0 -m "Knife4x Go v0.6.0"
-git push origin knife4x/go/v0.6.0
+git tag -a knife4x/go/v0.7.0 -m "Knife4x Go v0.7.0"
+git push origin knife4x/go/v0.7.0
 ```
 
-不要同时创建根级 `v0.6.0` tag，不要运行 Java Maven Release，不要为本次发布新增
+不要同时创建根级 `v0.7.0` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -89,7 +89,7 @@ proxy 记录的 origin hash 与 annotated tag 指向的 commit 一致，且 ref 
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.6.0
+version=v0.7.0
 tag="knife4x/go/${version}"
 tag_commit="$(git rev-list -n 1 "$tag")"
 proxy_info="$(curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info")"
@@ -105,7 +105,7 @@ test "$proxy_ref" = "refs/tags/$tag"
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.6.0
+version=v0.7.0
 sum_response="$(curl -fsS "https://sum.golang.org/lookup/${module}@${version}")"
 printf '%s\n' "$sum_response"
 printf '%s\n' "$sum_response" | grep -F "${module} ${version} h1:"
@@ -120,7 +120,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.6.0
+version=v0.7.0
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -177,7 +177,7 @@ test -s "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer
-编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.6.0` 发布完成。
+编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.7.0` 发布完成。
 
 ## 补丁原则
 

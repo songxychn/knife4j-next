@@ -8,7 +8,7 @@ lang: en-US
 
 [中文契约](./openapi31) · [Download minimal JSON](/examples/openapi-3.1-minimal.json) · [Download minimal YAML](/examples/openapi-3.1-minimal.yaml)
 
-This page describes the OpenAPI 3.1 contract of Java `5.5.0`. See the
+This page describes the OpenAPI 3.1 contract of Java `5.6.0`. See the
 [release notes](../release-notes/) and [version reference](../reference/version-ref) for version-specific capabilities.
 Knife4x Go is versioned independently; see the [Go release notes](../knife4x/).
 This document does not change any starter or default setting.

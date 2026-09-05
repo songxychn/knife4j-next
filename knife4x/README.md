@@ -16,12 +16,13 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Go 当前公开版本为 `v0.6.0`，对应仓库 tag `knife4x/go/v0.6.0`；首个公开版本为
+Go 当前公开版本为 `v0.7.0`，对应仓库 tag `knife4x/go/v0.7.0`；首个公开版本为
 `v0.1.0`。tag 发布前可从仓库 checkout 直接运行 [Gin example](examples/gin/README.md)；
 发布状态与完整验收步骤见 [Go 发布清单](go/RELEASE.md)。
 
-`v0.6.0` 在保持 Go Handler API 与路由语义的基础上，将共享 React UI 的 OAS 3.1、
-JSON Schema 2020-12、受控资源图、调试诊断与导出能力纳入 Go 发布。
+`v0.7.0` 保持 Go Handler API 与路由语义，新增共享 React UI 的浏览器登录会话调试、
+枚举过滤和目录分组吸顶，并修复 Schema 根节点标签。OAS 3.1、JSON Schema 2020-12、
+受控资源图、调试诊断与导出能力从 `v0.6.0` 起提供。
 具体能力和限制见 [Go 版本说明](../docs/knife4x/index.md)；`v0.5.0` 的历史说明不包含这些后续改动。
 
 ## 快速开始

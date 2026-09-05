@@ -8,7 +8,8 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
-| `5.5.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，OAS 3.1 / JSON Schema 2020-12、受控资源、调试诊断与导出 |
+| `5.6.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，浏览器登录会话调试、枚举过滤与目录吸顶 |
+| `5.5.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | OAS 3.1 / JSON Schema 2020-12、受控资源、调试诊断与导出 |
 | `5.4.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 接口工作区、本地数据清理与单接口 OpenAPI 3.0.x 下载 |
 | `5.3.3` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 动态表单参数补丁 |
 | `5.3.2` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 离线文档请求与响应示例补丁 |
@@ -41,11 +42,11 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.5.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.5.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.5.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.5.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.5.0`。
+> `5.6.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.6.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.6.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.6.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.6.0`。
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.5.0` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.6.0` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -96,7 +97,7 @@ title: 版本对照
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.5.0` | 当前版本：包含已合并兼容/安全修复、Boot 3.4/3.5/4.0 兼容及 OAS 3.1 支持 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.6.0` | 当前版本：包含已合并兼容/安全修复、Boot 3.4/3.5/4.0 兼容及 OAS 3.1 支持 |
 | `4.5.0` | `5.4.0` | React UI 工作区与本地数据治理能力 |
 | `4.5.0` | `5.3.3` | React UI 动态表单参数补丁 |
 | `4.5.0` | `5.3.2` | React UI 离线文档请求与响应示例补丁 |

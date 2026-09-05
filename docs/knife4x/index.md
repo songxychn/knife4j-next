@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.6.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前已发布 Go `v0.7.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 与发布版本
@@ -20,8 +20,19 @@ Go `v0.6.0` 将共享 React UI 的 OpenAPI 3.1.x 加载、Schema、调试诊断�
 Go module 需要 Go 1.22 或更高版本：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.6.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.0
 ```
+
+## v0.7.0
+
+Go 1.22 基线、module 路径、`Config`、`NewHandler` 与路由语义保持不变。
+相较于 `v0.6.0`，共享 React UI 新增：
+
+- OAS 3.1 浏览器登录会话调试：可复用浏览器会话，旧缓存保持手填模式；默认同源，跨 origin 需显式 `include`、服务端凭据 CORS 与浏览器策略允许。Cookie 值不写入预览或历史，cURL 需另行配置会话，手填 Cookie 真实发送仍阻断（PR #763）。
+- 枚举下拉框输入过滤（PR #757）与接口目录当前分组标题吸顶（PR #762）。
+- Schema 根节点与真实 `items` 字段的标签区分（PR #761）。
+
+完整会话语义与限制见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。
 
 ## v0.6.0
 
