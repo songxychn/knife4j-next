@@ -5,7 +5,7 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调�
 
 ## 定位
 
-- 只消费标准 OpenAPI 3 JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2
+- 只消费标准 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2 或 OAS 3.2
 - Go 核心只依赖标准库 `net/http`，不绑定 Gin、Echo、Chi 等 Web 框架
 - 与 Java 线 `knife4j-next` 同仓并共用 `front/ui-react` 与 `front/core`，但 module、版本和发布流程独立于 Java `5.x`
 - 宿主壳只负责嵌入静态 UI、注入配置和挂载路由，不复制前端业务逻辑
@@ -16,9 +16,13 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Go 当前公开版本为 `v0.5.0`，对应仓库 tag `knife4x/go/v0.5.0`；首个公开版本为
+Go 当前公开版本为 `v0.6.0`，对应仓库 tag `knife4x/go/v0.6.0`；首个公开版本为
 `v0.1.0`。tag 发布前可从仓库 checkout 直接运行 [Gin example](examples/gin/README.md)；
 发布状态与完整验收步骤见 [Go 发布清单](go/RELEASE.md)。
+
+`v0.6.0` 在保持 Go Handler API 与路由语义的基础上，将共享 React UI 的 OAS 3.1、
+JSON Schema 2020-12、受控资源图、调试诊断与导出能力纳入 Go 发布。
+具体能力和限制见 [Go 版本说明](../docs/knife4x/index.md)；`v0.5.0` 的历史说明不包含这些后续改动。
 
 ## 快速开始
 
@@ -43,7 +47,7 @@ go run . -base-path /internal
 
 从 `gin-swagger` 切换前，请先阅读
 [迁移说明](go/MIGRATING_FROM_GIN_SWAGGER.md)：Knife4x 只接受 JSON 顶层
-`openapi: 3.x` 的文档，不能直接加载 Swagger 2 / OAS2。
+`openapi: 3.0.x` 或 `openapi: 3.1.x` 的文档，不能直接加载 Swagger 2 / OAS2。
 
 ## 当前目录
 

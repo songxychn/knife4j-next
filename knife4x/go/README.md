@@ -6,14 +6,26 @@ Go module：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Knife4x 只消费 OpenAPI 3 JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2。核心只依赖
+Knife4x 只消费 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2 或 OAS 3.2。核心只依赖
 标准库 `net/http`；Gin 只是可运行的组合示例，不是库依赖。
 
-当前公开版本为 `v0.5.0`，对应仓库 tag `knife4x/go/v0.5.0`：
+当前公开版本为 `v0.6.0`，对应仓库 tag `knife4x/go/v0.6.0`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.5.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.6.0
 ```
+
+`v0.6.0` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
+新增 OAS 3.1 与 JSON Schema 2020-12 字段树、示例、参数和请求体校验、响应诊断、
+受控跨文档资源加载、单接口可移植 JSON 与离线文档导出，以及接口变化提示；同时修复长 FQN 类型展示。
+OAS 3.0.x 继续沿用既有路径。版本明细见 [Go 版本说明](../../docs/knife4x/index.md)。
+
+外部资源默认拒绝，须对已发现的精确 URI 授权；SchemaEngine 只使用已登记的资源，不自行联网。
+不执行未知方言或自定义词汇，不提供 Cookie jar 写入、主动 Webhook 调用或客户端证书注入。
+显式 Cookie 参数可预览或生成 cURL，浏览器真实发送前会阻断；完整边界见
+[OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md)。
+
+### v0.5.0（历史版本）
 
 `v0.5.0` 保持 `Config`、`NewHandler` 与路由语义不变，内嵌 React UI 新增页签左右
 关闭、响应状态概要、Knife4j 本地数据安全清理、单接口 OpenAPI 3.0.x 下载，以及按
@@ -60,7 +72,7 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 }
 ```
 
-把顶层为 `openapi: 3.x` 的 JSON 保存为当前目录的 `openapi.json`。启动后打开
+把顶层为 `openapi: 3.0.x` 或 `openapi: 3.1.x` 的 JSON 保存为当前目录的 `openapi.json`。启动后打开
 <http://localhost:8080/doc.html>。
 
 `Config` 只有两个字段：
