@@ -54,7 +54,7 @@ Unless a row says otherwise, “supported” below means the complete OpenAPI 3.
 | Single and multi-document loading | The entry document and controlled cross-document resources share one 3.1 parsing session | A 3.2 document does not enter the 3.1 workflow | [#682](https://github.com/songxychn/knife4j-next/pull/682), [#689](https://github.com/songxychn/knife4j-next/pull/689), [#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | Document objects and Webhooks | Supports `paths`, `components`, `webhooks`, and 3.1 Reference Objects; at least one of the three fields must be declared | A Webhook is an inbound contract, not a regular Path request | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
 | Schema dialect | OAS 3.1 Base Dialect and the standard JSON Schema Draft 2020-12 vocabularies | Arbitrary custom dialects are not assigned invented semantics | [#687](https://github.com/songxychn/knife4j-next/pull/687), [#689](https://github.com/songxychn/knife4j-next/pull/689) |
-| Field tree and models | Handles union types, boolean schemas, `const`, conditional/composition keywords, and dynamic references | Custom vocabularies are not executed; see [#740](https://github.com/songxychn/knife4j-next/issues/740) for the reserved-key pre-scan limitation in opaque payloads | [#692](https://github.com/songxychn/knife4j-next/pull/692), [#694](https://github.com/songxychn/knife4j-next/pull/694) |
+| Field tree and models | Handles union types, boolean schemas, `const`, conditional/composition keywords, and dynamic references | Custom vocabularies are not executed; ordinary unknown-keyword, example, and extension payloads remain opaque, so Schema control names do not enter resource-declaration pre-scan | [#692](https://github.com/songxychn/knife4j-next/pull/692), [#694](https://github.com/songxychn/knife4j-next/pull/694), [#743](https://github.com/songxychn/knife4j-next/pull/743) |
 | Examples | Keeps authored examples and diagnoses mismatches; can generate a deterministic, budgeted fallback | Not a general JSON Schema solver | [#715](https://github.com/songxychn/knife4j-next/pull/715) |
 | Parameter debugging | Validates Path, Query, Header, and Cookie logical instances before `style` / `explode` serialization | A parameter uses either `schema` or one `content` media type; Cookie reaches preview / cURL only and is blocked before a real browser request | [#716](https://github.com/songxychn/knife4j-next/pull/716) |
 | urlencoded / multipart bodies | Handles structured fields, `encoding`, JSON parts, and file metadata checks | Never reads or validates uploaded file bytes | [#728](https://github.com/songxychn/knife4j-next/pull/728), [#730](https://github.com/songxychn/knife4j-next/pull/730) |
@@ -90,12 +90,14 @@ vocabularies follow their dialect semantics. `format` is an annotation by defaul
 Unknown extension keywords and custom-vocabulary payloads remain intact in the source document. When the SchemaEngine session succeeds,
 copy and portable-export surfaces retain them as well, but Knife4j defines no validation, example-generation, or field-tree semantics for them.
 
-The current resource-declaration safety pre-scan still recursively inspects arbitrary object payloads. `$id`, `$anchor`, or `$dynamicAnchor` in ordinary
-data under an unknown keyword, example, or extension can be mistaken for Schema control data. An encountered `$id` also marks that object as a resource
-root and causes sibling `$schema` / `$vocabulary` declarations to be checked, which can fail the session. This is the known limitation tracked by
-[#740](https://github.com/songxychn/knife4j-next/issues/740). A real Schema resource root that selects
-an unsupported `$schema` or declares a custom `$vocabulary` also receives a resource-level unsupported-dialect diagnostic and blocks actions that
-require complete Schema semantics. Neither case falls back to an approximate dialect or executes the custom vocabulary.
+Resource-declaration safety pre-scan enters only known Schema-bearing locations: standalone JSON Schema roots, OAS Schema Objects,
+known Draft 2020-12 subschema applicators, and versioned Knife4j portable-resource containers. Ordinary data under an unknown keyword,
+example, or extension remains opaque. Its `$id`, `$anchor`, `$dynamicAnchor`, `$schema`, `$vocabulary`, `$ref`, and `$dynamicRef` values
+remain intact but do not participate in resource-identity, anchor, dialect, vocabulary, or reference-budget pre-scan.
+
+A real Schema resource root that selects an unsupported `$schema` or declares a custom `$vocabulary` still receives a resource-level
+unsupported-dialect diagnostic and blocks actions that require complete Schema semantics. That diagnostic never falls back to an approximate
+dialect or executes the custom vocabulary. The implementation and regression evidence for this pre-scan boundary is [#743](https://github.com/songxychn/knife4j-next/pull/743).
 
 ## External Schema resources
 
