@@ -43,7 +43,8 @@ mkdir -p \
   "$fixture_root/tools" \
   "$fixture_root/knife4j/api" \
   "$fixture_root/knife4j/bom" \
-  "$fixture_root/knife4j/knife4j-test-ui"
+  "$fixture_root/knife4j/knife4j-test-ui" \
+  "$fixture_root/knife4j/knife4j-other-ui"
 
 printf '%s\n' \
   '<project>' \
@@ -55,7 +56,8 @@ printf '%s\n' \
 printf '%s\n' '<project>' '<artifactId>api</artifactId>' '</project>' > "$fixture_root/knife4j/api/pom.xml"
 printf '%s\n' '<project>' '<artifactId>bom</artifactId>' '<packaging>pom</packaging>' '</project>' > "$fixture_root/knife4j/bom/pom.xml"
 printf '%s\n' '<project>' '<artifactId>knife4j-test-ui</artifactId>' '</project>' > "$fixture_root/knife4j/knife4j-test-ui/pom.xml"
-printf '%s\n' api bom knife4j-test-ui > "$fixture_root/tools/release-modules.txt"
+printf '%s\n' '<project>' '<artifactId>knife4j-other-ui</artifactId>' '</project>' > "$fixture_root/knife4j/knife4j-other-ui/pom.xml"
+printf '%s\n' api bom knife4j-test-ui knife4j-other-ui > "$fixture_root/tools/release-modules.txt"
 [ ! -e "$fixture_root/tools/verify-maven-central.sh" ] || \
   fail "legacy release fixture must not contain the current Central verifier"
 
@@ -65,29 +67,43 @@ mkdir -p "$jar_payload/META-INF/resources"
 printf '<!doctype html>\n' > "$jar_payload/META-INF/resources/doc.html"
 jar cf "$valid_jar" -C "$jar_payload" .
 
+# Record requested waits without making the offline suite wait for real time.
+mkdir -p "$tmp_root/mock-bin"
+printf '%s\n' '#!/usr/bin/env bash' \
+  'printf "%s\n" "$1" >> "${MOCK_SLEEP_LOG:?}"' > "$tmp_root/mock-bin/sleep"
+chmod +x "$tmp_root/mock-bin/sleep"
+
 verifier_status=0
 verifier_log=""
 verifier_requests=""
+verifier_sleeps=""
 
 run_verifier() {
   local name="$1"
   local plan_content="$2"
   local attempts="$3"
   local invalid_jar_pattern="${4:-}"
+  local retry_interval="${5:-60}"
+  local network_retry_interval="${6-}"
   local case_root="$tmp_root/$name"
   local plan_file="$case_root/plan"
 
   mkdir -p "$case_root/state"
-  printf '%s' "$plan_content" > "$plan_file"
+  printf '%s\n' "$plan_content" > "$plan_file"
   verifier_log="$case_root/output.log"
   verifier_requests="$case_root/state/requests.log"
+  verifier_sleeps="$case_root/sleeps.log"
+  : > "$verifier_sleeps"
 
   set +e
   env \
+    PATH="$tmp_root/mock-bin:$PATH" \
+    MOCK_SLEEP_LOG="$verifier_sleeps" \
     VERIFY_MAVEN_REPO_ROOT="$fixture_root" \
     MAVEN_CENTRAL_BASE_URL="https://central.example/maven2" \
     MAVEN_CENTRAL_MAX_ATTEMPTS="$attempts" \
-    MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS=0 \
+    MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS="$retry_interval" \
+    MAVEN_CENTRAL_NETWORK_RETRY_INTERVAL_SECONDS="$network_retry_interval" \
     MAVEN_CENTRAL_CONNECT_TIMEOUT_SECONDS=1 \
     MAVEN_CENTRAL_REQUEST_TIMEOUT_SECONDS=1 \
     MAVEN_CENTRAL_CURL_BIN="$mock_curl" \
@@ -100,12 +116,35 @@ run_verifier() {
   set -e
 }
 
+assert_request_count() {
+  local filename="$1"
+  local kind="$2"
+  local expected="$3"
+  local actual
+  actual="$(awk -F '\t' -v filename="$filename" -v kind="$kind" '
+    { count = split($2, parts, "/") }
+    parts[count] == filename && $3 == kind { matches++ }
+    END { print matches + 0 }
+  ' "$verifier_requests")"
+  [ "$actual" -eq "$expected" ] || \
+    fail "$filename $kind requests: expected $expected, got $actual"
+}
+
+assert_sleeps() {
+  local expected="$1"
+  local actual
+  actual="$(paste -sd, "$verifier_sleeps")"
+  [ "$actual" = "$expected" ] || fail "retry waits: expected '$expected', got '$actual'"
+}
+
 run_verifier all-available "" 1
 [ "$verifier_status" -eq 0 ] || fail "all available case should pass"
 assert_contains "$verifier_log" "Maven Central artifacts OK"
 assert_contains "$verifier_requests" "https://central.example/maven2/com/example/bom/1.2.3/bom-1.2.3.pom"
 assert_not_contains "$verifier_requests" 'com\/example'
 assert_not_contains "$verifier_requests" "bom-1.2.3.jar"
+assert_contains "$verifier_log" "24 exact files, 2 UI JARs readable"
+assert_sleeps ""
 
 run_verifier delayed $'api-1.2.3.jar|1|404|22|not found\n' 2
 [ "$verifier_status" -eq 0 ] || fail "404 then available case should pass"
@@ -132,6 +171,126 @@ assert_contains "$verifier_log" "operation timed out"
 run_verifier unreadable-ui "" 1 "knife4j-test-ui-1.2.3.jar"
 [ "$verifier_status" -ne 0 ] || fail "unreadable UI JAR should fail"
 assert_contains "$verifier_log" "downloaded UI JAR is unreadable"
+
+run_verifier transient-network $'api-1.2.3.jar|1|000|35|Recv failure: Connection reset by peer\n' 2
+[ "$verifier_status" -eq 0 ] || fail "transient TLS reset should recover"
+assert_sleeps "2"
+assert_contains "$verifier_log" "curl 35"
+assert_contains "$verifier_log" "Recv failure: Connection reset by peer"
+assert_contains "$verifier_log" "network/transfer failures"
+assert_not_contains "$verifier_log" "Central not ready"
+assert_request_count api-1.2.3.jar probe 2
+assert_request_count parent-1.2.3.pom probe 1
+assert_request_count api-1.2.3.jar.asc probe 1
+[ "$(wc -l < "$verifier_requests")" -eq 27 ] || \
+  fail "one transient failure should need 24 probes + 1 retry + 2 UI downloads"
+
+# If an already successful URL is checked again, it fails from its second call.
+run_verifier rotating-network $'api-1.2.3.jar|1|000|35|reset\nbom-1.2.3.pom|99|000|35|reset|probe|2\n' 3
+[ "$verifier_status" -eq 0 ] || fail "successful URLs must survive rotating network failures"
+assert_sleeps "2"
+assert_request_count bom-1.2.3.pom probe 1
+assert_request_count api-1.2.3.jar probe 2
+
+run_verifier persistent-network $'api-1.2.3.jar|99|000|35|reset\n' 3
+[ "$verifier_status" -ne 0 ] || fail "persistent TLS failure must remain bounded and fail"
+assert_sleeps "2,2"
+assert_request_count api-1.2.3.jar probe 3
+assert_request_count parent-1.2.3.pom probe 1
+assert_request_count knife4j-test-ui-1.2.3.jar download 0
+assert_contains "$verifier_log" "timed out after 3 attempt(s)"
+
+run_verifier early-diagnostics $'api-1.2.3.jar|1|404|22|not found\n' 2
+[ "$verifier_status" -eq 0 ] || fail "delayed publication should still recover"
+assert_sleeps "60"
+assert_contains "$verifier_log" "HTTP 404"
+assert_request_count api-1.2.3.jar probe 2
+assert_request_count api-1.2.3.jar.asc probe 1
+diagnostic_line="$(awk '/HTTP 404/ { print NR; exit }' "$verifier_log")"
+retry_line="$(awk '/retrying in/ { print NR; exit }' "$verifier_log")"
+[ "$diagnostic_line" -lt "$retry_line" ] || fail "failure details must precede the first wait"
+
+run_verifier mixed-errors $'api-1.2.3.jar|1|000|35|reset\nbom-1.2.3.pom|1|404|22|not found\n' 2
+[ "$verifier_status" -eq 0 ] || fail "mixed network and publication failures should recover"
+assert_sleeps "60"
+assert_contains "$verifier_log" "curl 35"
+assert_contains "$verifier_log" "HTTP 404"
+assert_request_count parent-1.2.3.pom probe 1
+
+run_verifier http-error $'api-1.2.3.jar|1|503|22|unavailable\n' 2
+[ "$verifier_status" -eq 0 ] || fail "HTTP response failures should retain the normal interval"
+assert_sleeps "60"
+assert_contains "$verifier_log" "HTTP 503"
+
+for code in 5 6 7 16 52 55 92; do
+  run_verifier "network-code-$code" "$(printf 'api-1.2.3.jar|1|000|%s|transport failure\n' "$code")" 2
+  [ "$verifier_status" -eq 0 ] || fail "curl $code should recover through network retries"
+  assert_sleeps "2"
+  assert_contains "$verifier_log" "curl $code"
+done
+
+for code in 23 47 60; do
+  run_verifier "non-network-code-$code" "$(printf 'api-1.2.3.jar|1|000|%s|non-transport failure\n' "$code")" 2
+  [ "$verifier_status" -eq 0 ] || fail "curl $code should preserve the normal retry path"
+  assert_sleeps "60"
+  assert_not_contains "$verifier_log" "network/transfer failures"
+done
+
+run_verifier custom-network-interval $'api-1.2.3.jar|1|000|28|timeout\n' 2 "" 60 1
+[ "$verifier_status" -eq 0 ] || fail "custom network retry interval should recover"
+assert_sleeps "1"
+
+run_verifier zero-network-interval $'api-1.2.3.jar|1|000|35|reset\n' 2 "" 0 0
+[ "$verifier_status" -eq 0 ] || fail "zero retry interval should be supported"
+assert_sleeps ""
+
+run_verifier legacy-zero-interval $'api-1.2.3.jar|1|000|35|reset\n' 2 "" 0
+[ "$verifier_status" -eq 0 ] || fail "existing callers setting only the normal interval to zero must not wait"
+assert_sleeps ""
+
+run_verifier tighter-normal-interval $'api-1.2.3.jar|1|000|35|reset\n' 2 "" 1 5
+[ "$verifier_status" -eq 0 ] || fail "network retry must not exceed the normal interval"
+assert_sleeps "1"
+
+run_verifier ui-download-network $'knife4j-other-ui-1.2.3.jar|1|000|56|receive failed|download\n' 2
+[ "$verifier_status" -eq 0 ] || fail "UI download network failure should recover"
+assert_sleeps "2"
+assert_request_count knife4j-test-ui-1.2.3.jar download 1
+assert_request_count knife4j-other-ui-1.2.3.jar download 2
+assert_request_count knife4j-other-ui-1.2.3.jar probe 1
+assert_contains "$verifier_log" "(readability)"
+assert_contains "$verifier_log" "curl 56"
+
+run_verifier ui-download-partial $'knife4j-other-ui-1.2.3.jar|1|200|18|partial transfer|download\n' 2
+[ "$verifier_status" -eq 0 ] || fail "partial 200 UI transfer must be retried, not accepted"
+assert_sleeps "2"
+assert_request_count knife4j-other-ui-1.2.3.jar download 2
+assert_contains "$verifier_log" "HTTP 200 (curl 18)"
+
+run_verifier ui-download-missing $'knife4j-other-ui-1.2.3.jar|99|404|22|not found|download\n' 2
+[ "$verifier_status" -ne 0 ] || fail "successful Range GET cannot replace a full UI download"
+assert_sleeps "60"
+assert_request_count knife4j-test-ui-1.2.3.jar download 1
+assert_request_count knife4j-other-ui-1.2.3.jar download 2
+assert_request_count knife4j-other-ui-1.2.3.jar probe 1
+
+run_verifier cached-ui-not-unreadable "" 2 "knife4j-other-ui-1.2.3.jar"
+[ "$verifier_status" -ne 0 ] || fail "unreadable UI archives must never enter the success cache"
+assert_sleeps "60"
+assert_request_count knife4j-test-ui-1.2.3.jar download 1
+assert_request_count knife4j-other-ui-1.2.3.jar download 2
+assert_contains "$verifier_log" "downloaded UI JAR is unreadable"
+
+run_verifier new-process-no-cache $'parent-1.2.3.pom.asc|99|404|22|signature missing\n' 1
+[ "$verifier_status" -ne 0 ] || fail "each invocation must independently verify all exact files"
+assert_request_count parent-1.2.3.pom.asc probe 1
+assert_request_count api-1.2.3.jar probe 1
+assert_contains "$verifier_log" "parent-1.2.3.pom.asc"
+
+run_verifier invalid-network-interval "" 1 "" 60 invalid
+[ "$verifier_status" -ne 0 ] || fail "invalid retry interval must fail before requesting artifacts"
+assert_contains "$verifier_log" "MAVEN_CENTRAL_NETWORK_RETRY_INTERVAL_SECONDS must be a non-negative integer"
+[ ! -e "$verifier_requests" ] || fail "invalid configuration must not send requests"
 
 make_context_repo() {
   local name="$1"

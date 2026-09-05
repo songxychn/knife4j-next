@@ -41,7 +41,17 @@ Spring Boot 配置 key 或关键公开入口漂移会失败。japicmp 按单模�
 - `verify-maven-central.sh`：按精确 URL 有界轮询公共 POM/JAR、签名和 SHA-1，并检查 UI JAR 可读取。
 - `extract-release-note.sh`、`verify-github-release.sh`：生成并核对幂等 GitHub Release。
 
-`verify-maven-central.sh` 默认最多检查 31 次、每次间隔 60 秒；测试或故障排查可通过 `MAVEN_CENTRAL_MAX_ATTEMPTS`、`MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS` 和 `MAVEN_CENTRAL_BASE_URL` 收紧边界。
+`verify-maven-central.sh` 默认最多检查 31 轮，每轮只重试尚未通过的精确 URL 或 UI JAR
+可读性检查。成功记录只保留在本次进程内，不跨版本、进程或 job 复用；新一次执行仍须
+检查完整清单，URL 探测成功不能替代 UI JAR 的完整下载和归档检查。
+
+仅剩网络传输错误（例如连接重置、DNS / 连接失败、超时或不完整传输）时，默认 2 秒后
+重试；404、其他 HTTP 错误、证书验证失败或不可读归档等使用原有的 60 秒间隔，混合错误
+也使用该常规间隔。每轮立即输出失败文件及具体原因，全部失败路径仍受总轮数和请求超时限制。
+测试或故障排查可配置 `MAVEN_CENTRAL_MAX_ATTEMPTS`、`MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS`、
+`MAVEN_CENTRAL_NETWORK_RETRY_INTERVAL_SECONDS` 和 `MAVEN_CENTRAL_BASE_URL`；两种间隔均允许
+设为 `0`；网络等待取两种间隔的较小值，因此原有只设置常规间隔为 `0` 的调用仍不会等待。
+这些设置不会改变制品完整性要求，本优化不会重发 Maven 制品或触发 Demo / Release。
 
 ## 任务看板
 
