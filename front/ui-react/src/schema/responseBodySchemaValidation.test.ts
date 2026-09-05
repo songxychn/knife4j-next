@@ -85,6 +85,77 @@ describe('response schema selection', () => {
     expect(responseSchemaMediaTypeKey({ 'application/*+json': {} }, 'application/problem+json')).toBeNull();
   });
 
+  test('matches profiles without discarding parameters or their case-sensitive values', () => {
+    const objectProfile = 'application/ld+json; profile="https://profiles.example.test/Object"';
+    const arrayProfile = 'application/ld+json; profile="https://profiles.example.test/Array"';
+    const content = { [objectProfile]: {}, [arrayProfile]: {} };
+    expect(responseSchemaMediaTypeKey(content, arrayProfile)).toBe(arrayProfile);
+    expect(responseSchemaMediaTypeKey(content, 'application/ld+json')).toBeNull();
+    expect(responseSchemaMediaTypeKey(content, arrayProfile.replace('/Array', '/array'))).toBeNull();
+  });
+
+  test('ranks matching parameters within the same media range and compares quoted charset values', () => {
+    const profile = 'application/ld+json; profile="https://profiles.example.test/array"';
+    const utf8Profile = `${profile}; charset="UTF-8"`;
+    const content = { 'application/ld+json': {}, [profile]: {}, [utf8Profile]: {} };
+    expect(
+      responseSchemaMediaTypeKey(
+        content,
+        'Application/LD+Json; CHARSET=utf-8; PROFILE="https://profiles.example.test/array"',
+      ),
+    ).toBe(utf8Profile);
+    expect(responseSchemaMediaTypeKey(content, `${profile}; charset=utf-16`)).toBe(profile);
+    expect(
+      responseSchemaMediaTypeKey(content, 'application/ld+json; profile="https://profiles.example.test/other"'),
+    ).toBe('application/ld+json');
+    expect(
+      responseSchemaMediaTypeKey(
+        { 'application/*; charset=utf-8': {}, 'application/ld+json': {} },
+        `${profile}; charset=utf-8`,
+      ),
+    ).toBe('application/ld+json');
+  });
+
+  test('parses quoted parameter delimiters and quoted-pair escapes', () => {
+    const profile = 'application/ld+json; profile="https://profiles.example.test/array;version=1"';
+    const escaped = 'application/ld+json; PROFILE="https:\\/\\/profiles.example.test/array;version=1"';
+    expect(responseSchemaMediaTypeKey({ 'application/ld+json': {}, [profile]: {} }, escaped)).toBe(profile);
+    expect(responseSchemaMediaTypeKey({ [profile]: {} }, profile.replace('version=1', 'version=2'))).toBeNull();
+  });
+
+  test.each(['3.1.0', '3.1.1', '3.1.2'])(
+    'evaluates the actual JSON-LD profile through a %s document session',
+    async (openapi) => {
+      const objectProfile = 'application/ld+json; profile="https://profiles.example.test/object"';
+      const arrayProfile = 'application/ld+json; profile="https://profiles.example.test/array"';
+      const { document, operation } = documentWithResponses({
+        200: {
+          description: 'profiled JSON-LD',
+          content: {
+            [objectProfile]: { schema: { type: 'object' } },
+            [arrayProfile]: { schema: { type: 'array' } },
+          },
+        },
+      });
+      document.openapi = openapi;
+      const session = await createSchemaDocumentSession(
+        document,
+        'https://fixtures.knife4j.example/profiled-responses.json',
+      );
+      sessions.push(session);
+      const prepared = prepareResponseBodySchemaEvaluation({
+        document,
+        operation,
+        statusCode: 200,
+        contentType: arrayProfile,
+        body: '[]',
+      });
+      expect(prepared).toMatchObject({ status: 'ready', mediaType: arrayProfile });
+      if (prepared.status !== 'ready') throw new Error('expected a prepared array response');
+      await expect(evaluateResponseBodySchema(session, prepared)).resolves.toEqual({ status: 'valid' });
+    },
+  );
+
   test('locates exact, range, and default response schemas', () => {
     const { document, operation } = documentWithResponses({
       200: { content: { 'application/json': { schema: { const: 'exact' } } } },

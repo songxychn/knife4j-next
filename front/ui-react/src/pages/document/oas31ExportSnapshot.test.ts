@@ -3,6 +3,7 @@ import { parseMenuTags } from '../../api/knife4jClient';
 import { createSchemaDocumentSession, type SchemaDocumentSession } from '../../schema/schemaDocumentSession';
 import type { SwaggerDoc } from '../../types/swagger';
 import { buildOas31ExportSnapshot, Oas31ExportBudgetError } from './oas31ExportSnapshot';
+import { createSchemaEngine } from 'knife4j-schema-engine';
 
 const ENTRY_URI = 'https://docs.knife4j.example/v3/api-docs';
 const RESOURCE_URI = 'https://schemas.knife4j.example/payload.json';
@@ -125,6 +126,89 @@ afterEach(() => {
 });
 
 describe('OAS 3.1 offline export snapshot', () => {
+  test.each(['3.1.0', '3.1.1', '3.1.2'])('keeps an authorized external Response complete for %s', async (openapi) => {
+    const responseUri = 'https://responses.example.test/openapi.json';
+    const document: SwaggerDoc = {
+      openapi,
+      info: { title: 'External responses', version: '1' },
+      paths: {
+        '/result': {
+          get: {
+            responses: {
+              '200': { $ref: `${responseUri}#/components/responses/Result`, description: 'Entry override' },
+            },
+          },
+        },
+      },
+    };
+    const resource: SwaggerDoc = {
+      openapi,
+      info: { title: 'Response resource', version: '1' },
+      paths: {},
+      components: {
+        responses: {
+          Result: {
+            description: 'External response',
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/Payload' }, example: { id: 'result-id' } },
+            },
+          },
+        },
+        schemas: { Payload: { type: 'object', required: ['id'], properties: { id: { const: 'result-id' } } } },
+      },
+    };
+    const validator = createSchemaEngine();
+    try {
+      expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+      expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', resource)).valid).toBe(true);
+    } finally {
+      validator.dispose();
+    }
+    const session = await createSchemaDocumentSession(document, ENTRY_URI, {
+      resourceDocuments: [{ document: resource, retrievalUri: responseUri }],
+    });
+    sessions.push(session);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('No fetch is allowed'));
+    const result = await buildOas31ExportSnapshot(document, parseMenuTags(document), session);
+    const response = result.document.tags[0].operations[0].responses[0];
+    expect(response.description).toBe('Entry override');
+    expect(JSON.stringify(response.schema)).toContain('id');
+    expect(JSON.stringify(response.example)).toContain('result-id');
+    expect(result.complete).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('marks an unavailable Response reference incomplete but not a valid bodyless response', async () => {
+    const document: SwaggerDoc = {
+      openapi: '3.1.2',
+      info: { title: 'Missing response', version: '1' },
+      paths: {
+        '/result': {
+          get: {
+            responses: {
+              '200': { $ref: 'https://missing.example.test/openapi.json#/components/responses/Result' },
+              '204': { description: 'No content' },
+              'x-business-data': { description: 'Not an HTTP response' },
+            },
+          },
+        },
+      },
+    };
+    const session = await createSchemaDocumentSession(document, ENTRY_URI);
+    sessions.push(session);
+    const result = await buildOas31ExportSnapshot(document, parseMenuTags(document), session);
+    expect(result.complete).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: 'RESPONSE_REFERENCE_UNAVAILABLE', region: 'response 200' }),
+    );
+    expect(result.document.tags[0].operations[0].responses.map((response) => response.statusCode)).toEqual([
+      '200',
+      '204',
+    ]);
+    expect(result.issues.some((issue) => issue.region === 'response 204')).toBe(false);
+  });
+
   test('projects every format-neutral operation through the registered session', async () => {
     const document = documentFixture();
     const session = await openSession(document);

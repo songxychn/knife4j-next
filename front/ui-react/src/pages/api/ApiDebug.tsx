@@ -140,7 +140,12 @@ import {
 import { materializeMultipartBody } from './formBodyRequest';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
-import { buildInitialParamEnabled, collectOas31ParameterValues, isNullableOas31Parameter } from './oas31ParameterForm';
+import {
+  buildInitialParamEnabled,
+  collectOas31ParameterValues,
+  isNullableOas31Parameter,
+  isOas31RequiredParameterError,
+} from './oas31ParameterForm';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
@@ -196,6 +201,7 @@ type FormBodyRequestSchemaDiagnosticIssue = FormBodyDiagnostic & {
 
 type RequestSchemaDiagnosticIssue =
   | { readonly kind: 'invalid-json'; readonly target: 'body' }
+  | (ValidationError & { readonly kind: 'required-parameter'; readonly target: 'parameter' })
   | FormBodyRequestSchemaDiagnosticIssue
   | ParameterInputRequestSchemaDiagnosticIssue
   | {
@@ -2747,14 +2753,18 @@ export default function ApiDebug() {
     const { formValues, built } = previewResult.value;
 
     // required 校验 — 用 core 侧统一校验，并携带定位 key
-    const errors = validateRequired(debugModel, formValues);
+    const errors = validateRequired(debugModel, formValues, built.parameterPresence);
+    const requiredParameterErrors = isOas31SchemaDocument(swaggerDoc)
+      ? errors.filter((error) => isOas31RequiredParameterError(debugModel, error))
+      : [];
+    const blockingRequiredErrors = errors.filter((error) => !requiredParameterErrors.includes(error));
     setValidationErrors(errors);
-    if (errors.length > 0) {
+    if (blockingRequiredErrors.length > 0) {
       // 定位到第一个错误所在 Tab
-      const first = errors[0];
+      const first = blockingRequiredErrors[0];
       const nextTab = first.in === 'body' ? 'body' : first.in;
       setActiveTab(nextTab);
-      setError(errors.map((e) => e.message).join('\n'));
+      setError(blockingRequiredErrors.map((e) => e.message).join('\n'));
       return;
     }
 
@@ -2824,6 +2834,11 @@ export default function ApiDebug() {
             : { ...issue, kind: 'unsafe-number', target: 'parameter' },
         ) ?? [];
       diagnosticIssues.push(
+        ...requiredParameterErrors.map((issue): RequestSchemaDiagnosticIssue => ({
+          ...issue,
+          kind: 'required-parameter',
+          target: 'parameter',
+        })),
         ...(built.formBodyPlan?.diagnostics.map((issue): FormBodyRequestSchemaDiagnosticIssue => ({
           ...issue,
           kind: 'form-body',
@@ -3278,6 +3293,7 @@ export default function ApiDebug() {
         statusCode: res.status,
         contentType: blobContentType,
         body: rawText,
+        session: currentSchemaEngineRef.current.status === 'ready' ? currentSchemaEngineRef.current.session : undefined,
       });
       if (responseSchemaPreparation.status === 'invalid-json') {
         setResponseSchemaDiagnostic({ status: 'invalid-json' });
@@ -3731,6 +3747,14 @@ export default function ApiDebug() {
               <ul style={{ margin: 0, paddingInlineStart: 20 }}>
                 {pendingSchemaOverride.issues.map((issue, index) => {
                   const location = issue.target === 'body' ? 'requestBody' : `${issue.in}:${issue.name}`;
+                  if (issue.kind === 'required-parameter') {
+                    return (
+                      <li key={`required:${location}:${index}`} style={{ marginBottom: 6 }}>
+                        <Text code>{location}</Text>{' '}
+                        <Text>{t('apiDebug.schemaValidation.issue', { keyword: 'required' })}</Text>
+                      </li>
+                    );
+                  }
                   if (issue.kind === 'invalid-json') {
                     return (
                       <li key={`${issue.target}:${location}:json:${index}`} style={{ marginBottom: 6 }}>

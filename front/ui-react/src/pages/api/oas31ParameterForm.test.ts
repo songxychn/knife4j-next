@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import type { DebugParam, OperationDebugModel } from 'knife4j-core';
-import { buildInitialParamEnabled, collectOas31ParameterValues, isNullableOas31Parameter } from './oas31ParameterForm';
+import {
+  buildInitialParamEnabled,
+  collectOas31ParameterValues,
+  isNullableOas31Parameter,
+  isOas31RequiredParameterError,
+} from './oas31ParameterForm';
 
 function parameter(name: string, options: Partial<DebugParam> = {}): DebugParam {
   return {
@@ -25,6 +30,15 @@ function model(parameters: DebugParam[]): OperationDebugModel {
 }
 
 describe('OAS 3.1 parameter form snapshots', () => {
+  test('allows explicit required-parameter overrides without loosening legacy or body required checks', () => {
+    const current = model([
+      parameter('tags', { required: true }),
+      parameter('legacy', { required: true, parameterSerialization: undefined }),
+    ]);
+    expect(isOas31RequiredParameterError(current, { name: 'tags', in: 'query', message: 'required' })).toBe(true);
+    expect(isOas31RequiredParameterError(current, { name: 'legacy', in: 'query', message: 'required' })).toBe(false);
+    expect(isOas31RequiredParameterError(current, { name: 'tags', in: 'body', message: 'required' })).toBe(false);
+  });
   test('starts empty optional 3.1 parameters disabled while preserving legacy and required defaults', () => {
     const current = model([
       parameter('optional'),

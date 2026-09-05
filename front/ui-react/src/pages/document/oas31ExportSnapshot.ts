@@ -31,6 +31,7 @@ import {
   type OperationParameterSchemaTarget,
 } from '../../schema/parameterSchemaValidation';
 import { generateSchemaExample } from '../../schema/schemaExampleGeneration';
+import { locateOperationResponses } from '../../schema/registeredResponse';
 import { prepareApiDocSchemaFields, type ApiDocSchemaAccessMode } from '../api/apiDocSchemaProjection';
 import type { MenuOperation, MenuTag, OperationObject, ParameterObject, SwaggerDoc } from '../../types/swagger';
 import {
@@ -471,7 +472,10 @@ async function buildOperation(
   const fallback = legacyOperationBuilder(context.document, operation, numberPath);
   const requestTarget = preferredTarget(locateRequestSchemaExampleTargets(context.document, operation));
   const responseTargets = new Map(
-    locateResponseSchemaExampleTargets(context.document, operation).map((target) => [target.statusCode, target]),
+    locateResponseSchemaExampleTargets(context.document, operation, context.session).map((target) => [
+      target.statusCode,
+      target,
+    ]),
   );
 
   const parameters = await buildParameters(context, operation, fallback);
@@ -516,7 +520,16 @@ async function buildOperation(
 
   const exampleResponses = new Map((examples?.responses ?? []).map((response) => [response.statusCode, response]));
   const responses: ExportResponse[] = [];
-  for (const [statusCode, response] of Object.entries(operation.operation.responses ?? {})) {
+  for (const { statusCode, location } of locateOperationResponses(context.document, operation, context.session)) {
+    if (!location) {
+      context.issues.add({
+        code: 'RESPONSE_REFERENCE_UNAVAILABLE',
+        severity: 'warning',
+        operation: operationLabel(operation),
+        region: `response ${statusCode}`,
+      });
+    }
+    const response = location?.value ?? {};
     const target = responseTargets.get(statusCode);
     const schema = target?.schemaReference
       ? await projectSchema(context, {
@@ -530,7 +543,7 @@ async function buildOperation(
       : undefined;
     responses.push({
       statusCode,
-      description: response.description ?? '',
+      description: typeof response.description === 'string' ? response.description : '',
       schema,
       example:
         recordExampleResult(

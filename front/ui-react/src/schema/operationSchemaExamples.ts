@@ -1,6 +1,7 @@
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
+import { followRegisteredObject, locateOperationResponses, type RegisteredObjectLocation } from './registeredResponse';
 import {
   asOpenApiRecord as asRecord,
   followLocalReference,
@@ -66,7 +67,12 @@ function asJsonValue(value: unknown): JsonValue | undefined {
   return Object.fromEntries(entries);
 }
 
-function explicitExamples(mediaObject: OpenApiRecord, document: SwaggerDoc): ExplicitSchemaExample[] {
+function explicitExamples(
+  mediaObject: OpenApiRecord,
+  document: SwaggerDoc,
+  location?: RegisteredObjectLocation,
+  session?: SchemaDocumentSession,
+): ExplicitSchemaExample[] {
   if (Object.prototype.hasOwnProperty.call(mediaObject, 'example')) {
     const value = asJsonValue(mediaObject.example);
     if (value !== undefined) return [{ source: 'media-example', value }];
@@ -76,8 +82,15 @@ function explicitExamples(mediaObject: OpenApiRecord, document: SwaggerDoc): Exp
   for (const name in examples) {
     if (!Object.prototype.hasOwnProperty.call(examples, name)) continue;
     const rawExample = examples[name];
+    const record = asRecord(rawExample);
     const example =
-      followLocalReference(document, rawExample, ['components', 'examples', name])?.value ?? asRecord(rawExample);
+      location && record
+        ? followRegisteredObject(
+            { ...location, value: record, tokens: [...location.tokens, 'examples', name] },
+            'example',
+            session,
+          )?.value
+        : (followLocalReference(document, rawExample, ['components', 'examples', name])?.value ?? record);
     if (!example || !Object.prototype.hasOwnProperty.call(example, 'value')) continue;
     const value = asJsonValue(example.value);
     if (value !== undefined) return [{ source: 'example-object', value }];
@@ -90,6 +103,8 @@ function mediaTargets(
   contentValue: unknown,
   contentTokens: readonly string[],
   keyPrefix: string,
+  location?: RegisteredObjectLocation,
+  session?: SchemaDocumentSession,
 ): OperationSchemaExampleTarget[] {
   const content = asRecord(contentValue);
   if (!content) return [];
@@ -99,14 +114,19 @@ function mediaTargets(
     if (!media) continue;
     const schema = asJsonValue(media.schema);
     const schemaReference = Object.prototype.hasOwnProperty.call(media, 'schema')
-      ? pointerReference([...contentTokens, mediaType, 'schema'])
+      ? `${location?.retrievalUri ?? ''}${pointerReference([...contentTokens, mediaType, 'schema'])}`
       : undefined;
     targets.push({
       key: `${keyPrefix}:${mediaType}`,
       mediaType,
       ...(schemaReference === undefined ? {} : { schemaReference }),
       ...(schema === undefined ? {} : { schema }),
-      explicit: explicitExamples(media, document),
+      explicit: explicitExamples(
+        media,
+        document,
+        location ? { ...location, value: media, tokens: [...contentTokens, mediaType] } : undefined,
+        session,
+      ),
     });
   }
   return targets;
@@ -130,16 +150,20 @@ export function locateRequestSchemaExampleTargets(
 export function locateResponseSchemaExampleTargets(
   document: SwaggerDoc,
   operation: MenuOperation,
+  session?: SchemaDocumentSession,
 ): ResponseSchemaExampleTarget[] {
-  const located = locateOperationRecord(document, operation);
-  const responses = asRecord(located?.value.responses);
-  if (!located || !responses) return [];
   const targets: ResponseSchemaExampleTarget[] = [];
-  for (const [statusCode, rawResponse] of Object.entries(responses)) {
-    const response = followLocalReference(document, rawResponse, [...located.tokens, 'responses', statusCode]);
+  for (const { statusCode, location: response } of locateOperationResponses(document, operation, session)) {
     if (!response) continue;
     const selected = preferredTarget(
-      mediaTargets(document, response.value.content, [...response.tokens, 'content'], `response:${statusCode}`),
+      mediaTargets(
+        response.document,
+        response.value.content,
+        [...response.tokens, 'content'],
+        `response:${statusCode}`,
+        response,
+        session,
+      ),
     );
     if (selected) targets.push({ ...selected, statusCode });
   }
@@ -185,7 +209,7 @@ export async function generateOperationSchemaExamples(
       }
     : undefined;
   const responses: SelectedResponseSchemaExample[] = [];
-  for (const target of locateResponseSchemaExampleTargets(document, operation)) {
+  for (const target of locateResponseSchemaExampleTargets(document, operation, session)) {
     responses.push({
       statusCode: target.statusCode,
       mediaType: target.mediaType,

@@ -3,7 +3,6 @@ import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import {
   asOpenApiRecord,
   followLocalReference,
-  pointerReference,
   type LocatedRecord,
   type OpenApiRecord,
 } from './openApiDocumentPointer';
@@ -11,6 +10,7 @@ import { isJsonCompatibleMediaType } from './requestBodySchemaValidation';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 import { isOas31SchemaDocument } from './schemaDocumentSession';
 import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
+import { locateOperationResponses, registeredObjectReference } from './registeredResponse';
 
 export type ResponseBodySchemaPreparation =
   | {
@@ -57,6 +57,8 @@ export type ResponseBodySchemaDiagnostic =
 export interface PrepareResponseBodySchemaEvaluationOptions {
   readonly document: SwaggerDoc | null;
   readonly operation: MenuOperation | undefined;
+  /** The active immutable resource registry, when available. */
+  readonly session?: SchemaDocumentSession;
   readonly statusCode: number;
   /** The Content-Type actually returned by the server. */
   readonly contentType: string;
@@ -87,18 +89,79 @@ const REFERENCE_ERROR_CODES = new Set([
   'EXTERNAL_RESOURCE_LOADING_DISABLED',
 ]);
 
-function mediaTypeEssence(value: string): string {
-  return value.split(';', 1)[0].trim().toLowerCase();
+interface ParsedMediaType {
+  readonly type: string;
+  readonly subtype: string;
+  readonly parameters: ReadonlyMap<string, string>;
 }
 
-function mediaRangeSpecificity(candidate: string, actual: string): number {
-  const candidateParts = mediaTypeEssence(candidate).split('/');
-  const actualParts = mediaTypeEssence(actual).split('/');
-  if (candidateParts.length !== 2 || actualParts.length !== 2) return -1;
+const MEDIA_TYPE_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u;
 
-  const [candidateType, candidateSubtype] = candidateParts;
-  const [actualType, actualSubtype] = actualParts;
-  if (!candidateType || !candidateSubtype || !actualType || !actualSubtype) return -1;
+/** HTTP parameter separators do not split a quoted-string or its quoted-pairs. */
+function parseMediaType(value: string): ParsedMediaType | null {
+  const segments: string[] = [];
+  let quoted = false;
+  let escaped = false;
+  let start = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    const code = character.charCodeAt(0);
+    if ((code < 32 && code !== 9) || code === 127 || code > 255) return null;
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') quoted = false;
+    } else if (character === '"') quoted = true;
+    else if (character === ';') {
+      segments.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  if (quoted || escaped) return null;
+  segments.push(value.slice(start).trim());
+
+  const [essence, ...parameterSegments] = segments;
+  const parts = essence.split('/');
+  if (parts.length !== 2 || !parts.every((part) => MEDIA_TYPE_TOKEN.test(part))) return null;
+  const parameters = new Map<string, string>();
+  for (const segment of parameterSegments) {
+    // RFC 9110 permits an empty parameter after a semicolon.
+    if (segment === '') continue;
+    const separator = segment.indexOf('=');
+    if (separator < 0) return null;
+    const name = segment.slice(0, separator).toLowerCase();
+    const rawValue = segment.slice(separator + 1);
+    if (!MEDIA_TYPE_TOKEN.test(name) || parameters.has(name)) return null;
+
+    let parameterValue: string;
+    if (MEDIA_TYPE_TOKEN.test(rawValue)) parameterValue = rawValue;
+    else {
+      if (!rawValue.startsWith('"') || !rawValue.endsWith('"')) return null;
+      parameterValue = '';
+      for (let index = 1; index < rawValue.length - 1; index += 1) {
+        let character = rawValue[index];
+        if (character === '\\') {
+          index += 1;
+          if (index >= rawValue.length - 1) return null;
+          character = rawValue[index];
+        } else if (character === '"') return null;
+        parameterValue += character;
+      }
+    }
+    // Charset names are case-insensitive. Other values (including profile URIs)
+    // retain their case; their media type can assign case-sensitive semantics.
+    parameters.set(name, name === 'charset' ? parameterValue.toLowerCase() : parameterValue);
+  }
+  return { type: parts[0].toLowerCase(), subtype: parts[1].toLowerCase(), parameters };
+}
+
+function mediaRangeSpecificity(candidate: ParsedMediaType, actual: ParsedMediaType): number {
+  for (const [name, value] of candidate.parameters) {
+    if (actual.parameters.get(name) !== value) return -1;
+  }
+
+  const { type: candidateType, subtype: candidateSubtype } = candidate;
+  const { type: actualType, subtype: actualSubtype } = actual;
   if (candidateType === '*' && candidateSubtype === '*') return 0;
   if (candidateType !== '*' && candidateSubtype === '*' && candidateType === actualType) return 1;
   if (candidateType.includes('*') || candidateSubtype.includes('*')) return -1;
@@ -107,13 +170,23 @@ function mediaRangeSpecificity(candidate: string, actual: string): number {
 
 /** Select the most specific OAS media type/range for an actual response Content-Type. */
 export function responseSchemaMediaTypeKey(content: OpenApiRecord, actualContentType: string): string | null {
+  const actual = parseMediaType(actualContentType);
+  if (!actual || actual.type.includes('*') || actual.subtype.includes('*')) return null;
   let selected: string | null = null;
   let selectedSpecificity = -1;
+  let selectedParameterCount = -1;
   for (const candidate of Object.keys(content)) {
-    const specificity = mediaRangeSpecificity(candidate, actualContentType);
-    if (specificity > selectedSpecificity) {
+    const parsed = parseMediaType(candidate);
+    if (!parsed) continue;
+    const specificity = mediaRangeSpecificity(parsed, actual);
+    if (specificity < 0) continue;
+    if (
+      specificity > selectedSpecificity ||
+      (specificity === selectedSpecificity && parsed.parameters.size > selectedParameterCount)
+    ) {
       selected = candidate;
       selectedSpecificity = specificity;
+      selectedParameterCount = parsed.parameters.size;
     }
   }
   return selected;
@@ -149,6 +222,7 @@ function locateResponseBodySchema(
   operation: MenuOperation,
   statusCode: number,
   contentType: string,
+  session?: SchemaDocumentSession,
 ): LocatedSchema {
   const locatedOperation = locateOpenApiOperation(document, operation);
   if (!locatedOperation) return { status: 'unavailable' };
@@ -162,8 +236,9 @@ function locateResponseBodySchema(
   const responseKey = responseSchemaStatusKey(responses, statusCode);
   if (!responseKey) return { status: 'none', reason: 'no-response' };
 
-  const responseTokens = [...locatedOperation.tokens, 'responses', responseKey];
-  const response = followLocalReference(document, responses[responseKey], responseTokens);
+  const response = locateOperationResponses(document, operation, session).find(
+    (candidate) => candidate.statusCode === responseKey,
+  )?.location;
   if (!response) return { status: 'unavailable' };
 
   const content = asOpenApiRecord(response.value.content);
@@ -178,7 +253,7 @@ function locateResponseBodySchema(
 
   return {
     status: 'found',
-    reference: pointerReference([...response.tokens, 'content', mediaType, 'schema']),
+    reference: registeredObjectReference(response, ['content', mediaType, 'schema']),
     responseKey,
     mediaType,
   };
@@ -187,12 +262,12 @@ function locateResponseBodySchema(
 export function prepareResponseBodySchemaEvaluation(
   options: PrepareResponseBodySchemaEvaluationOptions,
 ): ResponseBodySchemaPreparation {
-  const { document, operation, statusCode, contentType, body } = options;
+  const { document, operation, statusCode, contentType, body, session } = options;
   if (!isOas31SchemaDocument(document) || !operation) return { status: 'skipped', reason: 'version' };
   if (!isJsonCompatibleMediaType(contentType)) return { status: 'skipped', reason: 'content-type' };
   if (body.trim() === '') return { status: 'skipped', reason: 'empty-body' };
 
-  const located = locateResponseBodySchema(document, operation, statusCode, contentType);
+  const located = locateResponseBodySchema(document, operation, statusCode, contentType, session);
   if (located.status !== 'found') {
     return located.status === 'none' ? { status: 'skipped', reason: located.reason } : located;
   }
