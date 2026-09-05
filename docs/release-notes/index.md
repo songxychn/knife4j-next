@@ -12,7 +12,20 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.5.0 <Badge type="tip" text="最新" />
+### 5.6.0 <Badge type="tip" text="最新" />
+
+`5.6.0` 是基于 `5.5.0` 的向后兼容次版本，新增浏览器登录会话调试与目录交互能力，保持 Java 依赖矩阵和现有 OpenAPI 支持范围。
+
+**接口调试与文档体验（React UI）**
+
+- OAS 3.1 调试新增“浏览器会话”Cookie 来源，可复用登录请求建立的浏览器会话；旧缓存仍按手填模式恢复，默认同源，跨 origin 需显式选择 `include` 并满足服务端 CORS 和浏览器 Cookie 策略。浏览器 Cookie 值不进入预览或历史，cURL 提示需另行配置会话，手填 Cookie 真实发送仍阻断（PR #763，issue #718）。
+- 枚举下拉框支持输入过滤，便于在较多候选值中定位选项（PR #757，issue #747）。
+- 滚动接口目录时吸顶当前分组标题，保持长目录中的分组上下文（PR #762，issue #746）。
+- 区分 Schema 根节点与真实 `items` 字段，避免根节点名称造成误解（PR #761，issue #748）。
+
+支持范围与浏览器会话限制见 [OpenAPI 3.1 支持与迁移](https://knife4jnext.com/guide/openapi31)。本版本不改变 Maven 坐标、Java 依赖基线或 OAS2 兼容维护策略。
+
+### 5.5.0
 
 `5.5.0` 是基于 `5.4.0` 的向后兼容次版本，重点发布 OpenAPI 3.1.x 的文档消费、JSON Schema 2020-12、受控跨文档资源、调试诊断与导出能力，并保持现有 OpenAPI 3.0.x、OAS2 兼容维护线和 Java 依赖矩阵。
 

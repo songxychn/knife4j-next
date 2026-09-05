@@ -8,7 +8,7 @@ title: 路线图
 
 ---
 
-## 当前阶段：5.5.0 与 OpenAPI 3.1
+## 当前阶段：5.6.0 与 OpenAPI 3.1
 
 ### 已完成 ✅
 
@@ -73,7 +73,7 @@ OpenAPI 3.1 按“文档加载 → SchemaEngine → 展示与调试 → 受控�
 | OpenAPI 3.2.x | — | 非当前目标，不按 3.1 猜测处理 |
 
 支持矩阵、浏览器限制、迁移示例和最小有效夹具统一收录在
-[OpenAPI 3.1 支持与迁移](../guide/openapi31)。这一里程碑纳入 Java `5.5.0`，Knife4x Go 版本单独发布。
+[OpenAPI 3.1 支持与迁移](../guide/openapi31)。这一里程碑从 Java `5.5.0` 起提供，Knife4x Go 版本单独发布。
 父路线图 [#699](https://github.com/songxychn/knife4j-next/issues/699) 所列实现、端到端与文档子项已收敛；
 这不承诺 arbitrary custom vocabulary 的执行语义，也不将 OpenAPI 3.2 作为 3.1 处理。
 
