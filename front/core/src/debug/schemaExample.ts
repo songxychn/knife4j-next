@@ -498,8 +498,8 @@ export const buildSchemaFieldTree: BuildSchemaFieldTreeFn = (schema, ctx) => {
 };
 
 function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCtx): SchemaFieldNode[] {
-  if (schema === true) return [{ name: '', type: 'unknown', required: false, booleanSchema: true }];
-  if (schema === false) return [{ name: '', type: 'never', required: false, booleanSchema: false }];
+  if (schema === true) return [{ name: '', isRoot: true, type: 'unknown', required: false, booleanSchema: true }];
+  if (schema === false) return [{ name: '', isRoot: true, type: 'never', required: false, booleanSchema: false }];
   if (!schema) return [];
   if (ctx.depth >= ctx.maxDepth) return [];
 
@@ -507,10 +507,10 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
   if (resolved === undefined) return [];
   if (truncated) return [];
   if (resolved === true) {
-    return [{ name: '', type: 'unknown', required: false, booleanSchema: true, refName: refToName(ref) }];
+    return [{ name: '', isRoot: true, type: 'unknown', required: false, booleanSchema: true, refName: refToName(ref) }];
   }
   if (resolved === false) {
-    return [{ name: '', type: 'never', required: false, booleanSchema: false, refName: refToName(ref) }];
+    return [{ name: '', isRoot: true, type: 'never', required: false, booleanSchema: false, refName: refToName(ref) }];
   }
 
   const composition = getComposition(resolved);
@@ -530,6 +530,7 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
   if (type === 'array') {
     const arrayNode: SchemaFieldNode = {
       name: '',
+      isRoot: true,
       type: 'array',
       types,
       format: typeof resolved.format === 'string' ? resolved.format : undefined,
@@ -555,6 +556,7 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
   return [
     {
       name: '',
+      isRoot: true,
       type,
       types,
       format: typeof resolved.format === 'string' ? resolved.format : undefined,

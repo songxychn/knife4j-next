@@ -499,6 +499,34 @@ describe('buildSchemaFieldTree', () => {
   });
 
   // 10. primitive 顶层
+  test('distinguishes anonymous roots from array items and empty-string properties', () => {
+    const doc = {
+      openapi: '3.0.3',
+      info: { title: 'Root names', version: '1.0.0' },
+      paths: {},
+      components: { schemas: { File: { type: 'string', format: 'binary' } } },
+    };
+    const root = buildSchemaFieldTree({ $ref: '#/components/schemas/File' }, { doc });
+    expect(root[0]).toMatchObject({ name: '', isRoot: true, type: 'string', format: 'binary' });
+    const array = buildSchemaFieldTree({ type: 'array', items: { $ref: '#/components/schemas/File' } }, { doc });
+    expect(array[0].isRoot).toBe(true);
+    expect(array[0].children?.[0]).toMatchObject({ name: 'items', type: 'string', format: 'binary' });
+    expect(array[0].children?.[0].isRoot).toBeUndefined();
+    const fields = buildSchemaFieldTree(
+      { type: 'object', properties: { '': { $ref: '#/components/schemas/File' }, items: { type: 'string' } } },
+      { doc },
+    );
+    expect(fields.map((field) => field.name)).toEqual(['', 'items']);
+    expect(fields.every((field) => field.isRoot === undefined)).toBe(true);
+  });
+
+  test.each([true, false])('marks inline and referenced boolean roots (%s)', (schema) => {
+    const doc = { openapi: '3.1.1', components: { schemas: { Value: schema } } };
+    for (const value of [schema, { $ref: '#/components/schemas/Value' }]) {
+      expect(buildSchemaFieldTree(value, { doc })[0]).toMatchObject({ name: '', isRoot: true, booleanSchema: schema });
+    }
+  });
+
   test('returns single node for top-level primitive schema', () => {
     const result = buildSchemaFieldTree({ type: 'string', format: 'email' }, ctx());
     expect(result).toHaveLength(1);

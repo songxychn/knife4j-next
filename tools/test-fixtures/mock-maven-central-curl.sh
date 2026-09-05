@@ -7,6 +7,7 @@ set -euo pipefail
 
 output_file="/dev/null"
 is_head=false
+request_kind=probe
 url=""
 
 while [ "$#" -gt 0 ]; do
@@ -41,10 +42,14 @@ if [ -z "$url" ]; then
   exit 2
 fi
 
-mkdir -p "$MOCK_CURL_STATE_DIR"
-printf '%s\t%s\n' "$is_head" "$url" >> "$MOCK_CURL_STATE_DIR/requests.log"
+if [ "$is_head" = false ] && [ "$output_file" != "/dev/null" ]; then
+  request_kind=download
+fi
 
-key="$(printf '%s' "$url" | cksum | awk '{print $1}')"
+mkdir -p "$MOCK_CURL_STATE_DIR"
+printf '%s\t%s\t%s\n' "$is_head" "$url" "$request_kind" >> "$MOCK_CURL_STATE_DIR/requests.log"
+
+key="$(printf '%s' "$request_kind:$url" | cksum | awk '{print $1}')"
 count_file="$MOCK_CURL_STATE_DIR/$key.count"
 count=0
 if [ -f "$count_file" ]; then
@@ -53,11 +58,13 @@ fi
 count=$((count + 1))
 printf '%s\n' "$count" > "$count_file"
 
-while IFS='|' read -r pattern failure_count http_code exit_status message; do
+while IFS='|' read -r pattern failure_count http_code exit_status message kind first_failure; do
   if [ -z "$pattern" ]; then
     continue
   fi
-  if [[ "$url" == *"$pattern"* ]] && [ "$count" -le "$failure_count" ]; then
+  if [ "${url##*/}" = "$pattern" ] && \
+    { [ "${kind:-any}" = any ] || [ "$kind" = "$request_kind" ]; } && \
+    [ "$count" -ge "${first_failure:-1}" ] && [ "$count" -le "$failure_count" ]; then
     printf '%s' "$http_code"
     if [ -n "$message" ]; then
       printf '%s\n' "$message" >&2

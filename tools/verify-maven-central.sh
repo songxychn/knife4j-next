@@ -19,6 +19,7 @@ parent_pom="${VERIFY_MAVEN_PARENT_POM:-$repo_root/knife4j/pom.xml}"
 base_url="${MAVEN_CENTRAL_BASE_URL:-https://repo.maven.apache.org/maven2}"
 max_attempts="${MAVEN_CENTRAL_MAX_ATTEMPTS:-31}"
 retry_interval="${MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS:-60}"
+network_retry_interval="${MAVEN_CENTRAL_NETWORK_RETRY_INTERVAL_SECONDS:-2}"
 connect_timeout="${MAVEN_CENTRAL_CONNECT_TIMEOUT_SECONDS:-10}"
 request_timeout="${MAVEN_CENTRAL_REQUEST_TIMEOUT_SECONDS:-30}"
 curl_bin="${MAVEN_CENTRAL_CURL_BIN:-curl}"
@@ -45,6 +46,7 @@ require_positive_integer() {
 
 require_positive_integer "MAVEN_CENTRAL_MAX_ATTEMPTS" "$max_attempts"
 require_non_negative_integer "MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS" "$retry_interval"
+require_non_negative_integer "MAVEN_CENTRAL_NETWORK_RETRY_INTERVAL_SECONDS" "$network_retry_interval"
 require_positive_integer "MAVEN_CENTRAL_CONNECT_TIMEOUT_SECONDS" "$connect_timeout"
 require_positive_integer "MAVEN_CENTRAL_REQUEST_TIMEOUT_SECONDS" "$request_timeout"
 
@@ -154,13 +156,38 @@ done
 temporary_dir="$(mktemp -d)"
 trap 'rm -rf "$temporary_dir"' EXIT
 probe_error=""
+probe_network_error=false
+
+record_curl_failure() {
+  local http_code="$1"
+  local curl_status="$2"
+  local error_file="$3"
+  local error_text=""
+
+  # Keep HTTP errors, certificate validation and local/configuration failures on
+  # the normal interval. Only transport failures qualify for the shorter wait.
+  case "$curl_status" in
+    5|6|7|16|18|28|35|52|55|56|92) probe_network_error=true ;;
+  esac
+  if [ -s "$error_file" ]; then
+    error_text="$(tr '\n' ' ' < "$error_file" | sed 's/[[:space:]]*$//')"
+  fi
+  if [ -n "$http_code" ] && [ "$http_code" != "000" ]; then
+    probe_error="HTTP $http_code (curl $curl_status)"
+  else
+    probe_error="curl $curl_status"
+  fi
+  if [ -n "$error_text" ]; then
+    probe_error="$probe_error: $error_text"
+  fi
+}
 
 probe_url() {
   local url="$1"
   local error_file="$temporary_dir/curl-error"
   local http_code=""
   local curl_status=0
-  local error_text=""
+  probe_network_error=false
 
   if http_code="$("$curl_bin" \
     --fail \
@@ -183,17 +210,7 @@ probe_url() {
     curl_status=$?
   fi
 
-  if [ -s "$error_file" ]; then
-    error_text="$(tr '\n' ' ' < "$error_file" | sed 's/[[:space:]]*$//')"
-  fi
-  if [ -n "$http_code" ] && [ "$http_code" != "000" ]; then
-    probe_error="HTTP $http_code (curl $curl_status)"
-  else
-    probe_error="curl $curl_status"
-  fi
-  if [ -n "$error_text" ]; then
-    probe_error="$probe_error: $error_text"
-  fi
+  record_curl_failure "$http_code" "$curl_status" "$error_file"
   return 1
 }
 
@@ -204,7 +221,7 @@ download_and_inspect_ui() {
   local error_file="$temporary_dir/curl-error"
   local http_code=""
   local curl_status=0
-  local error_text=""
+  probe_network_error=false
 
   if http_code="$("$curl_bin" \
     --fail \
@@ -230,40 +247,51 @@ download_and_inspect_ui() {
     curl_status=$?
   fi
 
-  if [ -s "$error_file" ]; then
-    error_text="$(tr '\n' ' ' < "$error_file" | sed 's/[[:space:]]*$//')"
-  fi
-  if [ -n "$http_code" ] && [ "$http_code" != "000" ]; then
-    probe_error="HTTP $http_code (curl $curl_status)"
-  else
-    probe_error="curl $curl_status"
-  fi
-  if [ -n "$error_text" ]; then
-    probe_error="$probe_error: $error_text"
-  fi
+  record_curl_failure "$http_code" "$curl_status" "$error_file"
   return 1
 }
 
+# This evidence is local to this invocation/version/URL, never persisted or
+# shared between jobs. A successful probe does not verify UI JAR readability.
+verified_files=()
+verified_ui=()
 attempt=1
 while [ "$attempt" -le "$max_attempts" ]; do
   missing_modules=()
   missing_files=()
   missing_errors=()
+  only_network_errors=true
 
   for index in "${!expected_urls[@]}"; do
-    if ! probe_url "${expected_urls[$index]}"; then
+    if [ "${verified_files[$index]:-false}" = true ]; then
+      continue
+    fi
+    if probe_url "${expected_urls[$index]}"; then
+      verified_files[$index]=true
+    else
       missing_modules+=("${expected_modules[$index]}")
       missing_files+=("${expected_files[$index]}")
       missing_errors+=("$probe_error")
+      if [ "$probe_network_error" != true ]; then
+        only_network_errors=false
+      fi
     fi
   done
 
   if [ "${#missing_files[@]}" -eq 0 ]; then
     for index in "${!ui_urls[@]}"; do
-      if ! download_and_inspect_ui "${ui_modules[$index]}" "${ui_files[$index]}" "${ui_urls[$index]}"; then
+      if [ "${verified_ui[$index]:-false}" = true ]; then
+        continue
+      fi
+      if download_and_inspect_ui "${ui_modules[$index]}" "${ui_files[$index]}" "${ui_urls[$index]}"; then
+        verified_ui[$index]=true
+      else
         missing_modules+=("${ui_modules[$index]}")
         missing_files+=("${ui_files[$index]} (readability)")
         missing_errors+=("$probe_error")
+        if [ "$probe_network_error" != true ]; then
+          only_network_errors=false
+        fi
       fi
     done
   fi
@@ -273,22 +301,33 @@ while [ "$attempt" -le "$max_attempts" ]; do
     exit 0
   fi
 
+  wait_seconds="$retry_interval"
+  failure_kind="artifacts unavailable or unreadable"
+  if [ "$only_network_errors" = true ]; then
+    # Preserve an existing caller's tighter normal interval (including zero).
+    if [ "$network_retry_interval" -lt "$wait_seconds" ]; then
+      wait_seconds="$network_retry_interval"
+    fi
+    failure_kind="network/transfer failures"
+  fi
+  echo "Maven Central verification incomplete (attempt $attempt/$max_attempts): ${#missing_files[@]} file(s); $failure_kind." >&2
+  for index in "${!missing_files[@]}"; do
+    printf '  - %s: %s (%s)\n' \
+      "${missing_modules[$index]}" \
+      "${missing_files[$index]}" \
+      "${missing_errors[$index]}" >&2
+  done
+
   if [ "$attempt" -eq "$max_attempts" ]; then
     echo "::error::Maven Central verification timed out after $attempt attempt(s)." >&2
     failed_modules="$(printf '%s\n' "${missing_modules[@]}" | sort -u | paste -sd, -)"
     echo "::error::Unavailable modules/artifacts: $failed_modules" >&2
-    for index in "${!missing_files[@]}"; do
-      printf '  - %s: %s (%s)\n' \
-        "${missing_modules[$index]}" \
-        "${missing_files[$index]}" \
-        "${missing_errors[$index]}" >&2
-    done
     exit 1
   fi
 
-  echo "Maven Central not ready (attempt $attempt/$max_attempts): ${#missing_files[@]} file(s) unavailable; retrying in ${retry_interval}s." >&2
-  if [ "$retry_interval" -gt 0 ]; then
-    sleep "$retry_interval"
+  echo "Maven Central: retrying in ${wait_seconds}s (pending files only)." >&2
+  if [ "$wait_seconds" -gt 0 ]; then
+    sleep "$wait_seconds"
   fi
   attempt=$((attempt + 1))
 done

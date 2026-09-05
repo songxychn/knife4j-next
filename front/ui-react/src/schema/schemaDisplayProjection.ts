@@ -303,7 +303,7 @@ function rootFields(node: SchemaFieldNode): SchemaFieldNode[] {
   if (node.type === 'object' || composition) {
     return node.children ?? [];
   }
-  return [node];
+  return [{ ...node, isRoot: true }];
 }
 
 export function createSchemaDisplayProjector(
