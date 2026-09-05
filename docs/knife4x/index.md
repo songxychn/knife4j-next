@@ -6,13 +6,13 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.5.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前已发布 Go `v0.6.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 与发布版本
-当前 `master` 的共享 React UI 已对 OpenAPI 3.1.x 提供加载、Schema、调试诊断、导出与变化提示契约，
-详见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。下方 `v0.5.0` 小节是已发布版本的历史记录；
-不要据此推断 `v0.5.0` 已包含后续 OAS 3.1 提交，实际制品能力以 Go 发布说明为准。
+Go `v0.6.0` 将共享 React UI 的 OpenAPI 3.1.x 加载、Schema、调试诊断、导出与变化提示纳入发布，
+完整边界见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。入口仍只接受 OpenAPI 3.0.x / 3.1.x JSON，
+不支持 YAML 入口或 OAS 3.2；下方 `v0.5.0` 及更早小节保留各自历史范围，不包含这些后续 OAS 3.1 改动。
 :::
 
 ## 安装
@@ -20,8 +20,33 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试�
 Go module 需要 Go 1.22 或更高版本：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.5.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.6.0
 ```
+
+## v0.6.0
+
+Go 1.22 基线、module 路径、`Config`、`NewHandler` 与路由语义保持不变。
+内嵌 React UI 新增以下能力，已有 OAS 3.0.x 路径继续保留：
+
+- OAS 3.1 与 JSON Schema 2020-12 字段树和模型，保留作者示例，并在预算内生成经校验的候选示例。
+- 参数与 JSON、urlencoded、multipart 请求体的 Schema 校验和编码，以及非阻断的 JSON 响应诊断。
+- 对已发现的精确 URI 授权后加载跨文档资源，以同一不可变资源图支持解析、诊断、导出和变化提示。
+- 在完整资源图下导出可移植的单接口 OpenAPI JSON；HTML、Markdown、DOC、DOCX 使用同一离线快照；`paths` 操作的变化指纹与 OAS 3.0 基线隔离。
+- 修复长 FQN 类型挤压字段列及悬浮预览溢出，并补齐资源消费、编码锚点导出和示例缺失诊断。
+
+外部资源默认拒绝，SchemaEngine 只使用已登记的资源，不自行联网；不执行未知方言或自定义词汇。
+显式 Cookie 参数仅支持预览和 cURL，浏览器真实发送前阻断；不提供 Cookie jar 写入、主动 Webhook 调用
+或 `mutualTLS` 客户端证书注入。完整能力与浏览器限制见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。
+
+已合并改动包括示例 [#715](https://github.com/songxychn/knife4j-next/pull/715)、
+资源图 [#727](https://github.com/songxychn/knife4j-next/pull/727)、
+表单 [#728](https://github.com/songxychn/knife4j-next/pull/728) / [#730](https://github.com/songxychn/knife4j-next/pull/730)、
+单接口导出 [#732](https://github.com/songxychn/knife4j-next/pull/732) / [#733](https://github.com/songxychn/knife4j-next/pull/733)、
+离线导出 [#734](https://github.com/songxychn/knife4j-next/pull/734)、
+变化提示 [#736](https://github.com/songxychn/knife4j-next/pull/736)、
+FQN 展示 [#731](https://github.com/songxychn/knife4j-next/pull/731)，以及
+Schema 预扫描 [#743](https://github.com/songxychn/knife4j-next/pull/743) 和
+后续语义修复 [#750](https://github.com/songxychn/knife4j-next/pull/750)。
 
 ## v0.5.0
 
@@ -106,7 +131,7 @@ func main() {
 
 ## 使用边界
 
-- 只消费已有的 OpenAPI 3 JSON，不生成 spec，不支持 OAS2 / Swagger 2。
+- 只消费已有的 OpenAPI 3.0.x / 3.1.x JSON，不生成 spec，不支持 OAS2 / Swagger 2 或 OAS 3.2。
 - 只提供 `{BasePath}/doc.html` 入口，不为 `/` 或 `index.html` 增加重定向或 SPA fallback。
 - Go 核心只依赖标准库 `net/http`；Gin 是可运行示例，不是库依赖。
 - Go Handler 将配置注入 UI，Knife4x 不请求 Java 的 `/knife4j/config`。

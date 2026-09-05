@@ -12,14 +12,19 @@ Knife4x 替换的是嵌入式文档与调试 UI，不替代 OpenAPI 生成器。
 }
 ```
 
-只有 `openapi: 3.x` JSON 可以继续。若文档使用 `swagger: "2.0"`，请先升级生成器或转换
-spec；OAS2 不能直接迁移到 Knife4x。
+只有 `openapi: 3.0.x` 或 `openapi: 3.1.x` JSON 可以继续；入口不接受 YAML 或 OAS 3.2。
+若文档使用 `swagger: "2.0"`，请先升级生成器或转换 spec；OAS2 不能直接迁移到 Knife4x。
 
-Knife4x Go 当前公开版本为 `v0.5.0`：
+Knife4x Go 当前公开版本为 `v0.6.0`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.5.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.6.0
 ```
+
+从 `v0.5.0` 升级不需要修改 `Config`、`NewHandler` 或挂载路径。OAS 3.1 支持从
+`v0.6.0` 纳入 Go 发布；请让生成器输出有效的 3.1 文档，不要只替换版本字符串。
+外部资源仍需按精确 URI 授权，未知方言与浏览器调试限制见
+[OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md)。
 
 ## 替换挂载代码
 
@@ -72,7 +77,7 @@ handler, err := knife4x.NewHandler(knife4x.Config{
 
 ## 核对清单
 
-- spec 顶层是 `openapi: 3.x`
+- spec 为 JSON，顶层是 `openapi: 3.0.x` 或 `openapi: 3.1.x`
 - 宿主实际提供 `SpecURL` 指向的文档
 - 根路径打开 `/doc.html`，或在子路径打开 `${BasePath}/doc.html`
 - Try-it 请求命中预期业务 URL
