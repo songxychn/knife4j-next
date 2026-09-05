@@ -1,10 +1,13 @@
 import type { BuiltRequest } from 'knife4j-core';
 import type { DebugResponsePayload, SseEvent } from './ResponsePanel';
+import type { CookieParameterSource } from './cookieParameterSource';
 
 export interface DebugSessionState {
   response: DebugResponsePayload | null;
   error: string | null;
   builtRequest: BuiltRequest | null;
+  /** Source of the sent request, independent of subsequent form edits. */
+  builtRequestCookieSource?: CookieParameterSource;
   sseEvents: SseEvent[] | null;
 }
 

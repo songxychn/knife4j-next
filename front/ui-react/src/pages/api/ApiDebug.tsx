@@ -2069,6 +2069,7 @@ export default function ApiDebug() {
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
+  const [builtRequestCookieSource, setBuiltRequestCookieSource] = useState<CookieParameterSource>('explicit');
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
   const [sseStreaming, setSseStreaming] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
@@ -2165,6 +2166,7 @@ export default function ApiDebug() {
     setCustomHeaders(initial.customHeaders);
     setCustomCookies(initial.customCookies);
     setBuiltRequest(null);
+    setBuiltRequestCookieSource('explicit');
     setSseEvents(null);
     setSseStreaming(false);
     setResponseProgress(null);
@@ -2193,6 +2195,7 @@ export default function ApiDebug() {
     setResponse(cachedSession?.response ?? null);
     setError(cachedSession?.error ?? null);
     setBuiltRequest(cachedSession?.builtRequest ?? null);
+    setBuiltRequestCookieSource(cachedSession?.builtRequestCookieSource ?? 'explicit');
     setSseEvents(cachedSession?.sseEvents ?? null);
     setHydratedDebugCacheKey(debugCacheKey);
   }, [debugCacheKey, debugModel, initialBodyDefaults, initialDebugState, settings.enableRequestCache]);
@@ -2207,9 +2210,10 @@ export default function ApiDebug() {
       response,
       error,
       builtRequest,
+      builtRequestCookieSource,
       sseEvents,
     });
-  }, [builtRequest, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
+  }, [builtRequest, builtRequestCookieSource, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
 
   useEffect(() => {
     if (!settings.enableRequestCache || debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) {
@@ -2297,7 +2301,7 @@ export default function ApiDebug() {
     if (!hasPlaceholders) return path;
     const legacyPath = replacePathParams(path, pathParamValues);
     try {
-      const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled);
+      const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled, effectiveCookieSource);
       const serializedPath = serializeOas31Parameters(debugModel, oas31Values).path;
       return replaceSerializedPathParams(legacyPath, serializedPath);
     } catch {
@@ -2305,7 +2309,7 @@ export default function ApiDebug() {
       // Keep the editable URL field usable while the value is incomplete.
       return legacyPath;
     }
-  }, [path, debugModel, paramEnabled, paramValues]);
+  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource]);
 
   /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
   const handlePathInputChange = (newPath: string) => {
@@ -3080,6 +3084,7 @@ export default function ApiDebug() {
     setSseEvents(null);
     setSseStreaming(false);
     setBuiltRequest(built);
+    setBuiltRequestCookieSource(requestCookieSource);
     const start = Date.now();
     let abortController: AbortController | null = null;
     /** Accumulated SSE payloads for history (mirrors UI events, independent of React state). */
@@ -3999,6 +4004,7 @@ export default function ApiDebug() {
             response={response}
             error={error}
             builtRequest={builtRequest}
+            builtRequestCookieSource={builtRequestCookieSource}
             operation={operation}
             swaggerDoc={swaggerDoc}
             sseEvents={sseEvents}

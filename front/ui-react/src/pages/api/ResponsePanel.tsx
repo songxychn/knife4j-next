@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { copyToClipboard } from '../../utils/clipboard';
 import { buildSchemaDescriptionMap, annotateJsonWithDescriptions } from '../../utils/schemaDescription';
 import type { BuiltRequest } from 'knife4j-core';
-import { buildCurl } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
+import type { CookieParameterSource } from './cookieParameterSource';
+import { buildPreviewCurl } from './requestPreviewBuild';
 import CodeBlock from './CodeBlock';
 import { formatSseEventTime } from './sseEventTime';
 import { formatByteSize } from './responseBodyProgress';
@@ -59,6 +60,8 @@ interface ResponsePanelProps {
   error: string | null;
   /** built request for generating cURL command */
   builtRequest: BuiltRequest | null;
+  /** Cookie source captured when this request was sent. */
+  builtRequestCookieSource?: CookieParameterSource;
   /** current operation (for extracting response schema descriptions) */
   operation?: MenuOperation;
   /** full swagger doc (for $ref resolution) */
@@ -183,6 +186,7 @@ export default function ResponsePanel({
   response,
   error,
   builtRequest,
+  builtRequestCookieSource = 'explicit',
   operation,
   swaggerDoc,
   sseEvents,
@@ -219,7 +223,7 @@ export default function ResponsePanel({
 
   const handleCopyCurl = () => {
     if (!builtRequest) return;
-    const curl = buildCurl(builtRequest);
+    const curl = buildPreviewCurl(builtRequest, builtRequestCookieSource, t('apiDebug.cookie.sessionCurl'));
     copyToClipboard(
       curl,
       () => message.success(t('apiDebug.response.copied')),

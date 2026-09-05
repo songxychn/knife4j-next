@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildRequest,
+  replaceSerializedPathParams,
+  serializeOas31Parameters,
   validateRequired,
   type DebugFormValues,
   type DebugParam,
@@ -40,6 +42,32 @@ function model(parameters: DebugParam[]): OperationDebugModel {
 }
 
 describe('OAS 3.1 parameter form snapshots', () => {
+  test('keeps path display usable when browser-session mode ignores an unserializable saved Cookie', () => {
+    const current = model([]);
+    current.pathParams = [
+      parameter('id', {
+        in: 'path',
+        required: true,
+        parameterSerialization: { kind: 'schema', style: 'simple', explode: false, allowReserved: false },
+      }),
+    ];
+    current.cookieParams = [
+      parameter('session', { in: 'cookie', type: 'array', schema: { type: 'array', items: { type: 'string' } } }),
+    ];
+    const values = { 'path:id': 'abc', 'cookie:session': '[{"nested":true}]' };
+    expect(() => serializeOas31Parameters(current, collectOas31ParameterValues(current, values, {}))).toThrow(
+      'Nested array or object parameter values do not have a defined OAS serialization.',
+    );
+    const serialized = serializeOas31Parameters(
+      current,
+      collectOas31ParameterValues(current, values, {}, 'browser-session'),
+    );
+    expect(replaceSerializedPathParams('/resource/{id}', serialized.path)).toBe('/resource/abc');
+    expect(serialized.cookies).toEqual([]);
+    expect(serialized.instances.map((instance) => instance.key)).toEqual(['path:id']);
+    expect(values['cookie:session']).toBe('[{"nested":true}]');
+  });
+
   test('constructs a browser-session request without inventing Cookie presence or validating saved Cookie text', () => {
     const current = model([parameter('query')]);
     current.cookieParams = [
