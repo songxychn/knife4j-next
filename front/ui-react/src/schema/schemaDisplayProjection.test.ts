@@ -33,6 +33,32 @@ describe('componentSchemaReference', () => {
 });
 
 describe('SchemaDisplayProjector', () => {
+  test('marks only anonymous roots across 3.1 references, arrays, and boolean schemas', async () => {
+    const schemas = {
+      Binary: { contentMediaType: 'application/zip', description: 'ZIP 文件流' },
+      Text: { type: ['string', 'null'] },
+      Allowed: true,
+      Denied: false,
+      Array: { type: 'array', items: { $ref: '#/components/schemas/Text' } },
+      Object: { type: 'object', properties: { '': { $ref: '#/components/schemas/Text' }, items: true } },
+    };
+    const projector = await projectorFor(schemas);
+    for (const name of ['Binary', 'Text', 'Allowed', 'Denied', 'Array']) {
+      const result = await projector.project(componentSchemaReference(name));
+      expect(result.fields[0]).toMatchObject({ name: '', isRoot: true });
+      expect(result.fields[0].children?.every((field) => field.isRoot === undefined) ?? true).toBe(true);
+    }
+    const inline = await projector.projectValue(schemas.Binary);
+    expect(inline.fields[0]).toMatchObject({
+      isRoot: true,
+      contentMediaType: 'application/zip',
+      description: 'ZIP 文件流',
+    });
+    const object = await projector.project(componentSchemaReference('Object'));
+    expect(object.fields.map((field) => field.name)).toEqual(['', 'items']);
+    expect(object.fields.every((field) => field.isRoot === undefined)).toBe(true);
+  });
+
   test('resolves local pointers, anchors, embedded resources, and $defs through the document session', async () => {
     const projector = await projectorFor({
       Catalog: {

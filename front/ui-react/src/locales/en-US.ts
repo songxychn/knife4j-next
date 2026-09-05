@@ -109,6 +109,7 @@ const enUS = {
   'schema.required.no': 'No',
   'schema.fields': 'fields',
   'schema.noFields': 'No fields',
+  'schema.rootNode': '(root)',
   'schema.empty': 'No data models',
   'schema.search.placeholder': 'Search model name/description...',
   'schema.disabled.title': 'Data Models Disabled',

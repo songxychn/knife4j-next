@@ -78,6 +78,10 @@ function modelPreviewFields(schema: SchemaObject, swaggerDoc: SwaggerDoc): Schem
   }).slice(0, 6);
 }
 
+function fieldDisplayName(field: SchemaFieldNode, rootLabel: string): string {
+  return field.isRoot ? rootLabel : field.name === '' ? '""' : field.name;
+}
+
 export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLinkProps) {
   const { activeGroup, schemas, swaggerDoc } = useGroup();
   const { t } = useTranslation();
@@ -123,7 +127,7 @@ export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLink
           >
             <Space size={4} style={{ minWidth: 0 }}>
               <Text code style={{ overflowWrap: 'anywhere' }}>
-                {field.name || 'items'}
+                {fieldDisplayName(field, t('schema.rootNode'))}
               </Text>
               {field.required && <Badge status="error" />}
             </Space>
@@ -267,17 +271,17 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       dataIndex: 'name',
       width: columnWidths.fieldName,
       onHeaderCell: () => resizableHeader('fieldName'),
-      render: (value) => (
+      render: (_, record) => (
         <Text
           code
-          title={value || 'items'}
+          title={fieldDisplayName(record, t('schema.rootNode'))}
           style={{
             whiteSpace: 'normal',
             overflowWrap: 'anywhere',
             lineHeight: '20px',
           }}
         >
-          {value || 'items'}
+          {fieldDisplayName(record, t('schema.rootNode'))}
         </Text>
       ),
     },

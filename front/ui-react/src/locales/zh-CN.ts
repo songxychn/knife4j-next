@@ -103,6 +103,7 @@ const zhCN = {
   'schema.required.no': '否',
   'schema.fields': '字段',
   'schema.noFields': '无字段',
+  'schema.rootNode': '（根节点）',
   'schema.empty': '暂无数据模型',
   'schema.search.placeholder': '搜索模型名/说明...',
   'schema.disabled.title': '数据模型已禁用',
