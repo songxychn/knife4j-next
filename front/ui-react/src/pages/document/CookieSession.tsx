@@ -52,7 +52,9 @@ function CookieSessionInner() {
   }, [cookieForm, cookieSession, groupId]);
 
   const readCookieConfig = async (): Promise<CookieSessionConfig> => {
-    const values = await cookieForm.validateFields();
+    await cookieForm.validateFields();
+    // Collapsed request panels may not be mounted yet; retain their saved form values.
+    const values: CookieSessionConfig = cookieForm.getFieldsValue(true);
     const next = {
       credentials: values.credentials,
       login: optionalRequest(values.login),
