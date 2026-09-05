@@ -472,8 +472,10 @@ export type SchemaFieldTruncationReason =
 
 /** 字段树节点（用于文档展示） */
 export interface SchemaFieldNode {
-  /** 字段名；根节点或 array 元素可能为空字符串 */
+  /** 字段名；根节点及合法的空字符串属性名均可能为空字符串。 */
   name: string;
+  /** 表示整个 Schema 的匿名根节点，供展示层与空字符串属性名区分。 */
+  isRoot?: boolean;
   /** 归一化后的类型：string / integer / number / boolean / array / object / unknown */
   type: string;
   /** OAS 3.1 type 数组的完整声明，例如 `['string', 'null']`。 */

@@ -112,6 +112,7 @@ const jaJP = {
   'schema.required.no': 'いいえ',
   'schema.fields': 'フィールド',
   'schema.noFields': 'フィールドがありません',
+  'schema.rootNode': '（ルート）',
   'schema.empty': 'データモデルがありません',
   'schema.search.placeholder': 'モデル名・説明で検索...',
   'schema.disabled.title': 'データモデルは無効です',
