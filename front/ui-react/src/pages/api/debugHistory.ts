@@ -1,4 +1,5 @@
 import type { FormBodyEncodingPlan } from 'knife4j-core';
+import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 import {
   KNIFE4J_STORAGE_PREFIXES,
   getKnife4jStorageItemSnapshot,
@@ -40,6 +41,7 @@ export interface DebugHistoryFormSnapshot {
   customBodyParams: DebugHistoryCustomParamRow[];
   customHeaders: DebugHistoryCustomParamRow[];
   customCookies: DebugHistoryCustomParamRow[];
+  cookieParameterSource?: CookieParameterSource;
   /** File field name → staged file names (File contents are never persisted). */
   fileFieldNames?: Record<string, string[]>;
   hasFileFields?: boolean;
@@ -57,7 +59,7 @@ export interface DebugHistoryEntry {
   path: string;
   baseUrl: string;
   resolvedUrl: string;
-  /** Actual request headers. `maskedHeaders` controls display only. */
+  /** Script-supplied headers; browser-managed Cookie values are unavailable. `maskedHeaders` controls display only. */
   headers: Record<string, string>;
   query?: Record<string, string>;
   maskedHeaders?: string[];
@@ -453,6 +455,9 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     customBodyParams: readCustomRows(value.customBodyParams),
     customHeaders: readCustomRows(value.customHeaders),
     customCookies: readCustomRows(value.customCookies),
+    ...(readCookieParameterSource(value.cookieParameterSource)
+      ? { cookieParameterSource: readCookieParameterSource(value.cookieParameterSource) }
+      : {}),
     fileFieldNames,
     hasFileFields:
       readBoolean(value.hasFileFields) ?? Boolean(fileFieldNames && Object.keys(fileFieldNames).length > 0),

@@ -54,7 +54,7 @@ Boot 2 / springdoc 1.8.0 仍生成 OAS 3.0，不能仅修改文档中的 `openap
 | Schema 方言 | 使用 OAS 3.1 Base Dialect 与 JSON Schema Draft 2020-12 标准词汇 | 不把任意自定义方言解释为标准语义 | [#687](https://github.com/songxychn/knife4j-next/pull/687)、[#689](https://github.com/songxychn/knife4j-next/pull/689) |
 | 字段树与模型 | 支持 3.1 类型联合、布尔 Schema、`const`、条件与组合关键字、动态引用等 | 不执行自定义词汇；未知关键字、example 与 extension 的普通载荷保持 opaque，Schema 保留名不参与资源声明预扫描 | [#692](https://github.com/songxychn/knife4j-next/pull/692)、[#694](https://github.com/songxychn/knife4j-next/pull/694)、[#743](https://github.com/songxychn/knife4j-next/pull/743) |
 | 示例 | 保留作者示例并报告不一致；无作者示例时可在预算内生成确定性候选 | 不是通用 JSON Schema 求解器 | [#715](https://github.com/songxychn/knife4j-next/pull/715) |
-| 参数调试 | Path、Query、Header、Cookie 按 3.1 Schema 验证，再按 `style` / `explode` 序列化 | 一个参数使用 `schema` 或一个 `content` 媒体类型；Cookie 只进入预览 / cURL，浏览器真实发送前会阻断 | [#716](https://github.com/songxychn/knife4j-next/pull/716) |
+| 参数调试 | 手填 Path、Query、Header、Cookie 按 3.1 Schema 验证，再按 `style` / `explode` 序列化 | 一个参数使用 `schema` 或一个 `content` 媒体类型；手填 Cookie 只进入预览 / cURL，浏览器会话来源的 Cookie 由浏览器携带、前端无法校验 | [#716](https://github.com/songxychn/knife4j-next/pull/716) |
 | urlencoded / multipart Body | 支持结构化字段、`encoding`、JSON part 与文件元数据检查 | 不读取或验证上传文件内容 | [#728](https://github.com/songxychn/knife4j-next/pull/728)、[#730](https://github.com/songxychn/knife4j-next/pull/730) |
 | 请求诊断 | Schema 诊断先阻止发送；同一快照可由用户显式选择“仍然发送”做负向测试 | 不绕过浏览器、安全或资源策略 | [#696](https://github.com/songxychn/knife4j-next/pull/696)、[#716](https://github.com/songxychn/knife4j-next/pull/716)、[#728](https://github.com/songxychn/knife4j-next/pull/728) |
 | 响应诊断 | 按精确状态码、范围或 `default` 以及媒体类型匹配 JSON 响应 Schema | 非阻断；不验证响应 Header、Cookie、SSE 或二进制内容 | [#713](https://github.com/songxychn/knife4j-next/pull/713) |
@@ -63,6 +63,22 @@ Boot 2 / springdoc 1.8.0 仍生成 OAS 3.0，不能仅修改文档中的 `openap
 | 离线文档 | HTML、Markdown、DOC、DOCX 使用同一不可变 3.1 快照 | 快照入口复用统一 3.1.x 版本判断；资源缺失或诊断未处理时取消，或由用户明确选择降级导出 | [#734](https://github.com/songxychn/knife4j-next/pull/734) |
 
 真实 springdoc 到浏览器的总体验收见 [#737](https://github.com/songxychn/knife4j-next/pull/737)。
+
+## 登录后带 Cookie 调试
+
+在“Cookie 会话”页面配置并发送登录请求，服务端响应的 `Set-Cookie` 由浏览器按策略接收，
+包括前端无法读取的 HttpOnly Cookie。返回接口调试页后，在 Cookie 页签选择“浏览器会话”，
+即可复用浏览器登录会话，无须复制或填写 Cookie 值。
+
+- 新建 OAS 3.1 调试表单默认使用浏览器会话；旧缓存或历史未记录来源时，按原来的手填模式恢复。
+- 文档中的 Cookie 必填声明仍会显示，但值标为“由浏览器携带（前端未校验）”。前端既不因无法读取 Cookie 而阻断，也不宣称它存在或已通过 Schema 校验；服务端仍按实际会话处理请求。
+- 默认只携带同源会话。API 跨 origin 时，需要选择 `include`，并由服务端配置允许该页面 origin 和凭据的 CORS；这不会绕过 SameSite、Secure、domain/path 或浏览器 Cookie 策略。跨 origin 不一定跨 site。
+- 预览和历史不包含浏览器实际 Cookie 值；生成的 cURL 带有缺少浏览器会话的说明，独立执行前需要自行配置 Cookie。
+- 切换为“手填 Cookie”后可继续编辑原有值并生成 cURL，手填 Cookie 的浏览器发送仍被阻断。请求头或鉴权配置中残留的显式 Cookie 也会阻断，应先移除这些手填配置。
+
+按分组保存的是登录/退出请求与携带策略，实际 Cookie 按浏览器规则共享，不按 Knife4j 分组或端口隔离。
+重置会话配置不会删除浏览器 Cookie；退出会话需要由已配置的服务端退出接口处理。
+登录或退出请求的 HTTP 成功提示，仅说明请求成功执行，不代表前端已确认 Cookie 保存、删除或业务登录状态。
 
 ## JSON Schema 方言与词汇
 

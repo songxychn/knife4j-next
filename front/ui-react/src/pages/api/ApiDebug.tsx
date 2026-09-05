@@ -33,7 +33,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import type {
   BodyContent,
   BuiltRequest,
@@ -51,7 +51,6 @@ import type {
 } from 'knife4j-core';
 import {
   OPENAPI_HTTP_METHODS,
-  buildCurl,
   buildOperationDebugModel,
   buildRequest as coreBuildRequest,
   replacePathParams,
@@ -117,6 +116,7 @@ import {
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
 import {
   buildRequestPreviewSafely,
+  buildPreviewCurl,
   type RequestPreviewBuild,
   type RequestPreviewBuildResult,
 } from './requestPreviewBuild';
@@ -143,9 +143,16 @@ import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDe
 import {
   buildInitialParamEnabled,
   collectOas31ParameterValues,
+  filterRequiredErrorsForCookieSource,
+  isBrowserSessionParameter,
   isNullableOas31Parameter,
   isOas31RequiredParameterError,
 } from './oas31ParameterForm';
+import {
+  effectiveCookieParameterSource,
+  hasExplicitCookieHeader,
+  type CookieParameterSource,
+} from './cookieParameterSource';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
@@ -1597,7 +1604,7 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   if (!result.ok) {
     return <Alert type="error" showIcon message={t('apiDebug.error.title')} description={result.error} />;
   }
-  const { built, curl } = result.value;
+  const { built, curl, cookieParameterSource } = result.value;
   const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
   const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/form-data');
   const previewBody = multipartPlan ? formatMultipartPlanBody(multipartPlan) : built.body;
@@ -1780,6 +1787,15 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
 
       {/* Curl */}
       <div>
+        {cookieParameterSource === 'browser-session' && (
+          <Alert
+            type="info"
+            showIcon
+            message={t('apiDebug.cookie.sessionPreview')}
+            description={t('apiDebug.cookie.sessionCurl')}
+            style={{ marginBottom: 8 }}
+          />
+        )}
         <Space style={{ marginBottom: 4 }}>
           <Text strong>{t('apiDebug.preview.curl')}</Text>
           <Button size="small" onClick={() => onCopyText(curl)}>
@@ -1805,6 +1821,7 @@ const previewBoxStyle: React.CSSProperties = {
 };
 
 interface InitialDebugState {
+  cookieParameterSource: CookieParameterSource;
   baseUrl: string;
   method: string;
   path: string;
@@ -1844,6 +1861,7 @@ function buildInitialDebugState(
 
   const firstBody = debugModel.bodyContents[0];
   return {
+    cookieParameterSource: isOas31SchemaDocument(swaggerDoc) ? 'browser-session' : 'explicit',
     baseUrl,
     method: operation.method.toUpperCase(),
     path: operation.path,
@@ -1913,6 +1931,7 @@ function restoreInitialDebugStateFromCache(
 
   return {
     ...initial,
+    cookieParameterSource: cached.cookieParameterSource ?? 'explicit',
     baseUrl: cached.baseUrl || initial.baseUrl,
     method: DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
     path: cached.path || initial.path,
@@ -1942,6 +1961,7 @@ export default function ApiDebug() {
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { activeSwaggerGroup, routeGroupReady } = useGroup();
   const { settings } = useSettings();
+  const { effectiveParams, cookieSession } = useGlobalParam();
   const schemaEngine = useSchemaEngine();
   const groupContextPath = activeSwaggerGroup?.contextPath;
   const operationMethod = operation?.method;
@@ -1990,6 +2010,7 @@ export default function ApiDebug() {
   const [customBodyParams, setCustomBodyParams] = useState<CustomParamRow[]>([]);
   const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
   const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
+  const [cookieParameterSource, setCookieParameterSource] = useState<CookieParameterSource>('explicit');
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
     return buildOperationDebugModel({
@@ -2000,6 +2021,7 @@ export default function ApiDebug() {
     });
   }, [operation, swaggerDoc]);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  const effectiveCookieSource = effectiveCookieParameterSource(isOas31, cookieParameterSource);
   const synchronousBodyDefaults = useMemo(
     () =>
       !isOas31 && swaggerDoc && operation && debugModel
@@ -2047,6 +2069,7 @@ export default function ApiDebug() {
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [builtRequest, setBuiltRequest] = useState<BuiltRequest | null>(null);
+  const [builtRequestCookieSource, setBuiltRequestCookieSource] = useState<CookieParameterSource>('explicit');
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
   const [sseStreaming, setSseStreaming] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
@@ -2097,7 +2120,7 @@ export default function ApiDebug() {
     currentSchemaEngineRef.current = schemaEngine;
   }, [schemaEngine]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     schemaValidationRevisionRef.current += 1;
     schemaValidationAbortRef.current?.abort();
     schemaValidationAbortRef.current = null;
@@ -2106,7 +2129,7 @@ export default function ApiDebug() {
     responseSchemaValidationAbortRef.current?.abort();
     responseSchemaValidationAbortRef.current = null;
     setResponseSchemaDiagnostic(null);
-  }, [debugCacheKey, schemaEngine]);
+  }, [debugCacheKey, schemaEngine, effectiveCookieSource, cookieSession.credentials]);
 
   useEffect(
     () => () => {
@@ -2125,6 +2148,7 @@ export default function ApiDebug() {
   }, [debugCacheKey, settings.enableRequestHistory]);
 
   const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
+    setCookieParameterSource(initial.cookieParameterSource);
     setBaseUrl(initial.baseUrl);
     setMethod(initial.method);
     setPath(initial.path);
@@ -2142,6 +2166,7 @@ export default function ApiDebug() {
     setCustomHeaders(initial.customHeaders);
     setCustomCookies(initial.customCookies);
     setBuiltRequest(null);
+    setBuiltRequestCookieSource('explicit');
     setSseEvents(null);
     setSseStreaming(false);
     setResponseProgress(null);
@@ -2170,6 +2195,7 @@ export default function ApiDebug() {
     setResponse(cachedSession?.response ?? null);
     setError(cachedSession?.error ?? null);
     setBuiltRequest(cachedSession?.builtRequest ?? null);
+    setBuiltRequestCookieSource(cachedSession?.builtRequestCookieSource ?? 'explicit');
     setSseEvents(cachedSession?.sseEvents ?? null);
     setHydratedDebugCacheKey(debugCacheKey);
   }, [debugCacheKey, debugModel, initialBodyDefaults, initialDebugState, settings.enableRequestCache]);
@@ -2184,9 +2210,10 @@ export default function ApiDebug() {
       response,
       error,
       builtRequest,
+      builtRequestCookieSource,
       sseEvents,
     });
-  }, [builtRequest, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
+  }, [builtRequest, builtRequestCookieSource, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
 
   useEffect(() => {
     if (!settings.enableRequestCache || debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) {
@@ -2198,6 +2225,7 @@ export default function ApiDebug() {
     }
     writeDebugCache(debugCacheKey, {
       version: DEBUG_CACHE_VERSION,
+      cookieParameterSource: effectiveCookieSource,
       baseUrl,
       method,
       path,
@@ -2220,6 +2248,7 @@ export default function ApiDebug() {
     customCookies,
     customHeaders,
     customQueryParams,
+    effectiveCookieSource,
     debugCacheKey,
     formFields,
     formPartHeaders,
@@ -2272,7 +2301,7 @@ export default function ApiDebug() {
     if (!hasPlaceholders) return path;
     const legacyPath = replacePathParams(path, pathParamValues);
     try {
-      const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled);
+      const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled, effectiveCookieSource);
       const serializedPath = serializeOas31Parameters(debugModel, oas31Values).path;
       return replaceSerializedPathParams(legacyPath, serializedPath);
     } catch {
@@ -2280,7 +2309,7 @@ export default function ApiDebug() {
       // Keep the editable URL field usable while the value is incomplete.
       return legacyPath;
     }
-  }, [path, debugModel, paramEnabled, paramValues]);
+  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource]);
 
   /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
   const handlePathInputChange = (newPath: string) => {
@@ -2338,7 +2367,6 @@ export default function ApiDebug() {
   }, [operation]);
 
   // ── 从 GlobalParamContext 转换为应用级与当前分组参数 ──
-  const { effectiveParams, cookieSession } = useGlobalParam();
   const applicationParamValues = useMemo(
     () => globalParamValuesForScope(effectiveParams, 'application'),
     [effectiveParams],
@@ -2361,11 +2389,12 @@ export default function ApiDebug() {
   };
 
   const paramColumnsFor = (params: DebugParam[]): ColumnsType<DebugParam> => {
+    const browserSession = params.some((parameter) => isBrowserSessionParameter(parameter, effectiveCookieSource));
     const paramKeys = params.map(paramKey);
     const selection = resolveApiDebugParamSelection(paramKeys, paramEnabled);
     const selectAllLabel = t(selection.checked ? 'apiDebug.params.deselectAll' : 'apiDebug.params.selectAll');
 
-    return [
+    const columns: ColumnsType<DebugParam> = [
       {
         title: (
           <Tooltip title={selectAllLabel}>
@@ -2424,14 +2453,17 @@ export default function ApiDebug() {
         dataIndex: 'value',
         key: 'value',
         width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.value,
-        render: (_value: string, record: DebugParam) => (
-          <ParamInput
-            param={record}
-            value={paramValues[paramKey(record)] ?? ''}
-            onChange={(next) => updateValue(record, next)}
-            hasError={errorKeys.has(paramKey(record))}
-          />
-        ),
+        render: (_value: string, record: DebugParam) =>
+          isBrowserSessionParameter(record, effectiveCookieSource) ? (
+            <Text type="secondary">{t('apiDebug.cookie.sessionValue')}</Text>
+          ) : (
+            <ParamInput
+              param={record}
+              value={paramValues[paramKey(record)] ?? ''}
+              onChange={(next) => updateValue(record, next)}
+              hasError={errorKeys.has(paramKey(record))}
+            />
+          ),
       },
       {
         title: t('apiDebug.col.description'),
@@ -2470,6 +2502,7 @@ export default function ApiDebug() {
         ),
       },
     ];
+    return browserSession ? columns.filter((column) => column.key !== 'enabled') : columns;
   };
 
   if (docLoading || !authReady || !routeGroupReady) {
@@ -2558,7 +2591,12 @@ export default function ApiDebug() {
           )
         : undefined;
     const formFieldNamesToIncludeWhenEmpty = structuredForm?.formFieldNamesToIncludeWhenEmpty ?? [];
-    const oas31ParameterValues = collectOas31ParameterValues(debugModel, paramValues, paramEnabled);
+    const oas31ParameterValues = collectOas31ParameterValues(
+      debugModel,
+      paramValues,
+      paramEnabled,
+      effectiveCookieSource,
+    );
     const fileSnapshot =
       category === 'multipart'
         ? Object.fromEntries(Object.entries(fileFieldsRef.current).map(([name, files]) => [name, [...files]]))
@@ -2571,7 +2609,7 @@ export default function ApiDebug() {
       pathParams: collectForIn(debugModel.pathParams),
       queryParams: { ...extraQueryParams, ...specQueryParams },
       headerParams: { ...extraHeaders, ...specHeaders },
-      cookieParams: { ...extraCookieParams, ...specCookieParams },
+      cookieParams: effectiveCookieSource === 'browser-session' ? {} : { ...extraCookieParams, ...specCookieParams },
       ...(Object.keys(oas31ParameterValues).length > 0 ? { oas31ParameterValues } : {}),
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
@@ -2605,8 +2643,14 @@ export default function ApiDebug() {
         contextPath: groupContextPath,
       },
     );
-    const curl = buildCurl(built);
-    return { formValues, built, curl };
+    const curl = buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'));
+    return {
+      formValues,
+      built,
+      curl,
+      cookieParameterSource: effectiveCookieSource,
+      credentials: cookieSession.credentials,
+    };
   };
 
   const buildHistoryFormSnapshot = (): DebugHistoryFormSnapshot => {
@@ -2622,6 +2666,7 @@ export default function ApiDebug() {
       baseUrl,
       method,
       path,
+      cookieParameterSource: effectiveCookieSource,
       paramValues: { ...paramValues },
       paramEnabled: { ...paramEnabled },
       selectedContentType,
@@ -2670,6 +2715,7 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     const snap = entry.formSnapshot;
     if (snap) {
+      setCookieParameterSource(snap.cookieParameterSource ?? 'explicit');
       setBaseUrl(snap.baseUrl);
       setMethod(snap.method);
       setPath(snap.path);
@@ -2723,6 +2769,7 @@ export default function ApiDebug() {
     }
 
     setBaseUrl(entry.baseUrl);
+    setCookieParameterSource('explicit');
     setMethod(entry.method);
     setPath(entry.path);
     if (entry.body !== undefined) setBody(entry.body);
@@ -2754,10 +2801,19 @@ export default function ApiDebug() {
       setError(previewResult.error);
       return;
     }
-    const { formValues, built } = previewResult.value;
+    const {
+      formValues,
+      built,
+      cookieParameterSource: requestCookieSource = 'explicit',
+      credentials = 'same-origin',
+    } = previewResult.value;
 
     // required 校验 — 用 core 侧统一校验，并携带定位 key
-    const errors = validateRequired(debugModel, formValues, built.parameterPresence);
+    const errors = filterRequiredErrorsForCookieSource(
+      debugModel,
+      validateRequired(debugModel, formValues, built.parameterPresence),
+      requestCookieSource,
+    );
     const requiredParameterErrors = isOas31SchemaDocument(swaggerDoc)
       ? errors.filter((error) => isOas31RequiredParameterError(debugModel, error))
       : [];
@@ -2793,7 +2849,7 @@ export default function ApiDebug() {
     const browserConstraint = browserRequestConstraint(
       built.method,
       hasBodyInput,
-      built.hasExplicitCookieParameters === true,
+      built.hasExplicitCookieParameters === true || (isOas31 && hasExplicitCookieHeader(built.headers)),
     );
     if (browserConstraint === 'unsupported-method') {
       setActiveTab('preview');
@@ -3006,7 +3062,7 @@ export default function ApiDebug() {
         contentType: built.contentType || getEffectiveContentType(),
         groupName: group,
         operationId: operaterId,
-        formSnapshot: buildHistoryFormSnapshot(),
+        formSnapshot: { ...buildHistoryFormSnapshot(), cookieParameterSource: requestCookieSource },
       });
       pendingHistoryId = pending.id;
       pendingHistoryIdRef.current = pending.id;
@@ -3028,6 +3084,7 @@ export default function ApiDebug() {
     setSseEvents(null);
     setSseStreaming(false);
     setBuiltRequest(built);
+    setBuiltRequestCookieSource(requestCookieSource);
     const start = Date.now();
     let abortController: AbortController | null = null;
     /** Accumulated SSE payloads for history (mirrors UI events, independent of React state). */
@@ -3039,7 +3096,7 @@ export default function ApiDebug() {
       const init: RequestInit = {
         method: built.method,
         headers: built.headers,
-        credentials: cookieSession.credentials,
+        credentials,
         signal: abortController.signal,
       };
 
@@ -3596,6 +3653,45 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {isOas31 && (
+            <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }}>
+              <Space wrap>
+                <Text strong>{t('apiDebug.cookie.source')}</Text>
+                <Radio.Group
+                  value={effectiveCookieSource}
+                  optionType="button"
+                  options={[
+                    { value: 'browser-session', label: t('apiDebug.cookie.source.session') },
+                    { value: 'explicit', label: t('apiDebug.cookie.source.explicit') },
+                  ]}
+                  onChange={(event) => {
+                    setCookieParameterSource(event.target.value as CookieParameterSource);
+                    setValidationErrors([]);
+                    setError(null);
+                  }}
+                />
+                <Link to={`/${encodeURIComponent(group ?? '')}/cookieSession`}>
+                  {t('apiDebug.cookie.configureSession')}
+                </Link>
+                <Tag>
+                  {t(
+                    cookieSession.credentials === 'include'
+                      ? 'globalParam.cookie.include'
+                      : 'globalParam.cookie.sameOrigin',
+                  )}
+                </Tag>
+              </Space>
+              <Alert
+                type="info"
+                showIcon
+                message={t(
+                  effectiveCookieSource === 'browser-session'
+                    ? 'apiDebug.cookie.sessionTip'
+                    : 'apiDebug.cookie.explicitTip',
+                )}
+              />
+            </Space>
+          )}
           <Table
             size="small"
             dataSource={cookieParams}
@@ -3606,14 +3702,16 @@ export default function ApiDebug() {
             scroll={PARAM_TABLE_SCROLL}
             locale={{ emptyText: t('apiDebug.noCookieParams') }}
           />
-          <CustomParamsSection
-            title={t('apiDebug.customCookie.title')}
-            addLabel={t('apiDebug.customParams.add')}
-            namePlaceholder={t('apiDebug.customCookie.namePlaceholder')}
-            valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
-            rows={customCookies}
-            onChange={setCustomCookies}
-          />
+          {effectiveCookieSource !== 'browser-session' && (
+            <CustomParamsSection
+              title={t('apiDebug.customCookie.title')}
+              addLabel={t('apiDebug.customParams.add')}
+              namePlaceholder={t('apiDebug.customCookie.namePlaceholder')}
+              valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
+              rows={customCookies}
+              onChange={setCustomCookies}
+            />
+          )}
         </>
       ),
     },
@@ -3906,6 +4004,7 @@ export default function ApiDebug() {
             response={response}
             error={error}
             builtRequest={builtRequest}
+            builtRequestCookieSource={builtRequestCookieSource}
             operation={operation}
             swaggerDoc={swaggerDoc}
             sseEvents={sseEvents}

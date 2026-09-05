@@ -472,8 +472,21 @@ const jaJP = {
     'ブラウザーの Fetch API は {{method}} リクエストにボディを送信できません。生成された cURL を使用するか、操作メソッドを変更してください。',
   'apiDebug.method.browserUnsupported':
     'ブラウザーの Fetch API は {{method}} リクエストを禁止しています。生成された cURL またはブラウザー以外のクライアントを使用してください。',
+  'apiDebug.cookie.source': 'Cookie パラメータの取得元',
+  'apiDebug.cookie.source.session': 'ブラウザーセッション',
+  'apiDebug.cookie.source.explicit': 'Cookie を手入力',
+  'apiDebug.cookie.configureSession': 'ログインセッションを設定',
+  'apiDebug.cookie.sessionValue': 'ブラウザーが付与（フロントエンドでは未検証）',
+  'apiDebug.cookie.sessionTip':
+    'ログイン後にブラウザーが保存したセッションを再利用します。フロントエンドでは Cookie の存在や Schema を検証できません。取得元を切り替えても手入力値は保持されます。',
+  'apiDebug.cookie.explicitTip':
+    '手入力の Cookie はプレビューと cURL に使用できますが、ブラウザーから直接送信できません。ログイン後のデバッグにはブラウザーセッションを選択してください。',
+  'apiDebug.cookie.sessionPreview':
+    'Cookie はブラウザーのセッションと認証情報ポリシーに従って付与されます。実際の値は読み取れず、ヘッダープレビューには含まれません。',
+  'apiDebug.cookie.sessionCurl':
+    'この cURL にはブラウザーのログインセッションが含まれません。実行前に Cookie を設定してください。',
   'apiDebug.cookie.browserUnsupported':
-    'ブラウザーの Fetch API ではスクリプトから Cookie リクエストヘッダーを設定できないため、送信しませんでした。Cookie セッションを使用するか、プレビューの同等な cURL を使用してください。',
+    'ブラウザーの Fetch API では Cookie ヘッダーを手動設定できないため送信しませんでした。ログイン後はブラウザーセッションを選び、ヘッダーや認証設定の手入力 Cookie を削除してください。手入力の要求は cURL で実行できます。',
   'apiDebug.body.file.placeholder': 'ファイルパスを入力するか、空欄のままでファイル選択',
   'apiDebug.body.raw': 'Raw',
   'apiDebug.body.contentType': 'Content-Type',
@@ -633,13 +646,17 @@ const jaJP = {
   'globalParam.request.prefixTip':
     'JSONPath の抽出結果の前に追加します。たとえば「Bearer 」を指定すると「Bearer <token>」になります。',
   'cookieSession.pageTitle': 'Cookie セッション',
+  'cookieSession.scope':
+    'グループ {{group}} ごとにログイン・ログアウト要求と認証情報モードを保存します。実際の Cookie はブラウザーの規則で共有され、グループやポートでは分離されません。',
+  'cookieSession.browserPolicy':
+    'クロスオリジンのデバッグには include と認証情報を許可するサーバーの CORS 設定が必要です。Cookie は SameSite、Secure、domain/path とブラウザーのポリシーにも従います。',
   'cookieSession.btn.reset': 'Cookie セッション設定をリセット',
   'cookieSession.confirm.reset':
     '現在のグループの Cookie セッション設定をリセットしますか？リクエストパラメータと認証設定には影響しません。',
   'cookieSession.msg.reset': 'Cookie セッション設定をリセットしました',
   'globalParam.cookie.title': 'Cookie セッション',
   'globalParam.cookie.tip':
-    'Set-Cookie レスポンスはブラウザーが保存します。Knife4j は Cookie 値を読み取り、または手動設定しません。',
+    'Set-Cookie レスポンスはブラウザーのポリシーに従って受け入れられます。Knife4j は Cookie 値を読み取り、または手動設定しません。',
   'globalParam.cookie.credentials': 'Cookie の送信方法',
   'globalParam.cookie.sameOrigin': '同一オリジンのみ',
   'globalParam.cookie.include': 'クロスオリジン Cookie を含める',

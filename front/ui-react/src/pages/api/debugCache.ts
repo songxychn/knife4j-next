@@ -4,6 +4,7 @@ import {
   removeKnife4jStorageItem,
   setKnife4jStorageItem,
 } from '../../storage/knife4jStorage';
+import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 
 export const DEBUG_CACHE_VERSION = 1;
 
@@ -31,6 +32,7 @@ export interface DebugCacheState {
   customBodyParams: DebugCacheCustomParamRow[];
   customHeaders: DebugCacheCustomParamRow[];
   customCookies: DebugCacheCustomParamRow[];
+  cookieParameterSource?: CookieParameterSource;
 }
 
 export interface DebugCacheStorage {
@@ -120,6 +122,9 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
     customBodyParams: readCustomRows(value.customBodyParams),
     customHeaders: readCustomRows(value.customHeaders),
     customCookies: readCustomRows(value.customCookies),
+    ...(readCookieParameterSource(value.cookieParameterSource)
+      ? { cookieParameterSource: readCookieParameterSource(value.cookieParameterSource) }
+      : {}),
   };
 }
 

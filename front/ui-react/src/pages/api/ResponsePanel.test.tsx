@@ -48,9 +48,13 @@ vi.mock('react-i18next', () => ({
 }));
 vi.mock('knife4j-core', () => ({ buildCurl: vi.fn(() => 'curl fixture') }));
 vi.mock('./CodeBlock', () => ({ default: 'CodeBlock' }));
+vi.mock('../../utils/clipboard', () => ({ copyToClipboard: vi.fn() }));
 
 import ResponsePanel, { ResponseSchemaDiagnosticAlert } from './ResponsePanel';
 import type { DebugResponsePayload } from './ResponsePanel';
+import { copyToClipboard } from '../../utils/clipboard';
+import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
+import type { CookieParameterSource } from './cookieParameterSource';
 
 interface TestElement {
   readonly type: unknown;
@@ -133,6 +137,49 @@ describe('ResponseSchemaDiagnosticAlert', () => {
 });
 
 describe('ResponsePanel diagnostic integration', () => {
+  test.each([
+    ['browser-session', '# apiDebug.cookie.sessionCurl\ncurl fixture'],
+    ['explicit', 'curl fixture'],
+    [undefined, 'curl fixture'],
+  ] as const)('copies cURL using the restored response source %s', (source, expectedCurl) => {
+    vi.mocked(copyToClipboard).mockClear();
+    const key = 'response-curl-source';
+    const builtRequestCookieSource: CookieParameterSource | undefined = source;
+    writeDebugSessionState(key, {
+      response: {
+        status: 200,
+        statusText: 'OK',
+        method: 'GET',
+        duration: 12,
+        contentType: 'application/json',
+        size: 2,
+        headers: {},
+        rawText: '{}',
+        kind: 'json',
+      },
+      error: null,
+      builtRequest: {
+        url: 'https://fixture.test/protected',
+        method: 'GET',
+        headers: {},
+        query: {},
+        contentType: '',
+      },
+      builtRequestCookieSource,
+      sseEvents: null,
+    });
+    const restored = readDebugSessionState(key)!;
+    const tree = ResponsePanel(restored) as unknown as TestElement;
+    const copyButton = findElement(
+      tree,
+      (element) => element.type === 'Button' && element.props.children === 'apiDebug.response.copyCurl',
+    );
+    expect(copyButton).not.toBeNull();
+    (copyButton!.props.onClick as () => void)();
+    expect(copyToClipboard).toHaveBeenCalledWith(expectedCurl, expect.any(Function), expect.any(Function));
+    removeDebugSessionState(key);
+  });
+
   test('keeps a successful response body, raw content, headers, and actions accessible beside diagnostics', () => {
     const response: DebugResponsePayload = {
       status: 200,

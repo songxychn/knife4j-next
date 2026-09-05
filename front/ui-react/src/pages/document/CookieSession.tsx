@@ -52,7 +52,9 @@ function CookieSessionInner() {
   }, [cookieForm, cookieSession, groupId]);
 
   const readCookieConfig = async (): Promise<CookieSessionConfig> => {
-    const values = await cookieForm.validateFields();
+    await cookieForm.validateFields();
+    // Collapsed request panels may not be mounted yet; retain their saved form values.
+    const values: CookieSessionConfig = cookieForm.getFieldsValue(true);
     const next = {
       credentials: values.credentials,
       login: optionalRequest(values.login),
@@ -135,7 +137,12 @@ function CookieSessionInner() {
           type="info"
           showIcon
           message={t('globalParam.cookie.tip')}
-          description={t('globalParam.scope.currentGroupOnly', { group: currentGroupName })}
+          description={
+            <Space direction="vertical" size={4}>
+              <span>{t('cookieSession.scope', { group: currentGroupName })}</span>
+              <span>{t('cookieSession.browserPolicy')}</span>
+            </Space>
+          }
           style={{ marginBottom: 16 }}
         />
         <Form<CookieSessionConfig>

@@ -428,8 +428,19 @@ const zhCN = {
     '浏览器 Fetch API 不允许为 {{method}} 请求发送请求体，请改用生成的 cURL 或调整接口方法。',
   'apiDebug.method.browserUnsupported':
     '浏览器 Fetch API 禁止发送 {{method}} 请求，请改用生成的 cURL 或其他非浏览器客户端。',
+  'apiDebug.cookie.source': 'Cookie 参数来源',
+  'apiDebug.cookie.source.session': '浏览器会话',
+  'apiDebug.cookie.source.explicit': '手填 Cookie',
+  'apiDebug.cookie.configureSession': '配置登录会话',
+  'apiDebug.cookie.sessionValue': '由浏览器携带（前端未校验）',
+  'apiDebug.cookie.sessionTip':
+    '复用登录后由浏览器保存的会话。前端无法确认 Cookie 是否存在，也无法校验其 Schema。手填值会保留，切换来源后可继续编辑。',
+  'apiDebug.cookie.explicitTip':
+    '手填 Cookie 可用于请求预览和 cURL；浏览器无法直接发送这些值。登录后调试请选择“浏览器会话”。',
+  'apiDebug.cookie.sessionPreview': 'Cookie 由浏览器按会话和携带策略决定，实际值不可读取，未包含在请求头预览中。',
+  'apiDebug.cookie.sessionCurl': '此 cURL 不包含浏览器登录会话，执行前需自行配置 Cookie。',
   'apiDebug.cookie.browserUnsupported':
-    '浏览器 Fetch API 禁止脚本设置 Cookie 请求头，本次请求未发送。请使用浏览器 Cookie 会话，或复制预览中的等价 cURL。',
+    '浏览器 Fetch API 禁止脚本设置 Cookie 请求头，本次请求未发送。登录后调试请选择“浏览器会话”，并移除请求头或鉴权中的手填 Cookie；手填请求可复制 cURL 执行。',
   'apiDebug.body.file.placeholder': '文件路径或留空后选择文件',
   'apiDebug.body.raw': '原始文本',
   'apiDebug.body.contentType': 'Content-Type',
@@ -588,7 +599,11 @@ const zhCN = {
   'cookieSession.confirm.reset': '确定重置当前分组的 Cookie 会话配置吗？请求参数和鉴权配置不受影响。',
   'cookieSession.msg.reset': 'Cookie 会话配置已重置',
   'globalParam.cookie.title': 'Cookie 会话',
-  'globalParam.cookie.tip': '登录响应中的 Set-Cookie 由浏览器保存；Knife4j 不读取或手动设置 Cookie 值。',
+  'cookieSession.scope':
+    '当前分组 {{group}} 保存登录、退出请求和携带方式；实际 Cookie 按浏览器规则共享，不按分组或端口隔离。',
+  'cookieSession.browserPolicy':
+    '跨域调试需选择 include 并由服务端允许携带凭据的 CORS 请求；实际 Cookie 仍受 SameSite、Secure、domain/path 和浏览器策略约束。',
+  'globalParam.cookie.tip': '登录响应中的 Set-Cookie 由浏览器按策略接收；Knife4j 不读取或手动设置 Cookie 值。',
   'globalParam.cookie.credentials': 'Cookie 携带方式',
   'globalParam.cookie.sameOrigin': '仅同源（same-origin）',
   'globalParam.cookie.include': '包含跨域 Cookie（include）',

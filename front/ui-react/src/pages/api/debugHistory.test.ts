@@ -73,6 +73,41 @@ function makePending(overrides: Partial<Parameters<typeof createPendingEntry>[0]
 }
 
 describe('debugHistory', () => {
+  it('retains the selected Cookie source in history without adding browser Cookie values', () => {
+    const storage = new MemoryStorage();
+    const entry = makePending({
+      headers: {},
+      formSnapshot: {
+        baseUrl: 'https://fixture.test',
+        method: 'GET',
+        path: '/protected',
+        paramValues: { 'cookie:session': 'saved-manual-value' },
+        paramEnabled: {},
+        selectedContentType: '',
+        body: '',
+        formFields: {},
+        rawMode: 'text',
+        customQueryParams: [],
+        customBodyParams: [],
+        customHeaders: [],
+        customCookies: [],
+        cookieParameterSource: 'browser-session',
+      },
+    });
+    appendPending('group|operation', entry, storage);
+    const restored = listHistory('group|operation', storage)[0];
+    expect(restored.headers).toEqual({});
+    expect(restored.formSnapshot?.cookieParameterSource).toBe('browser-session');
+    expect(restored.formSnapshot?.paramValues).toEqual({ 'cookie:session': 'saved-manual-value' });
+    const legacy = {
+      ...entry,
+      id: 'legacy',
+      formSnapshot: { ...entry.formSnapshot!, cookieParameterSource: undefined },
+    };
+    appendPending('group|operation', legacy, storage);
+    expect(listHistory('group|operation', storage)[0].formSnapshot?.cookieParameterSource).toBeUndefined();
+  });
+
   it('builds an encoded per-operation storage key', () => {
     const cacheKey = 'default|用户|创建用户|POST|/users/{id}';
     expect(debugHistoryStorageKey(cacheKey)).toBe(`knife4j-next:debug-history:${encodeURIComponent(cacheKey)}`);
