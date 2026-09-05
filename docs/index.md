@@ -33,7 +33,7 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 当前源码对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.5.0 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: Gateway 与多服务聚合
@@ -64,7 +64,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.4.0</version>
+    <version>5.5.0</version>
 </dependency>
 ```
 
@@ -74,7 +74,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.4.0</version>
+    <version>5.5.0</version>
 </dependency>
 ```
 
@@ -93,14 +93,14 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.4.0 版本亮点 <Badge type="tip" text="最新" />
+## 5.5.0 版本亮点 <Badge type="tip" text="最新" />
 
-以下内容是已发布 `5.4.0` 的历史范围；当前源码后续增加的 OpenAPI 3.1 能力见
-[OpenAPI 3.1 支持与迁移](/guide/openapi31)，最终制品范围以未来发布说明为准。
+`5.5.0` 将 OpenAPI 3.1 能力纳入 Java 发布版本；具体支持范围、浏览器限制与开启方式见
+[OpenAPI 3.1 支持与迁移](/guide/openapi31)。
 
-- 🧭 页签左右关闭、响应状态概要与接口新增/变化标记
-- 🧹 边界清晰、可跨页签协调的 Knife4j 本地数据清理
-- 📦 下载当前接口的闭合 OpenAPI 3.0.x 文档
+- 🧩 OpenAPI 3.1 与 JSON Schema 2020-12 字段树、示例和请求/响应诊断
+- 🔒 默认拒绝、精确授权、无凭据的受控跨文档资源加载
+- 📦 OAS 3.1 单接口可移植下载、接口变化提示与多格式离线文档
 
 完整更新列表见 [发布说明](/release-notes/)。
 

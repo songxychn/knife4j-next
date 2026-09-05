@@ -12,7 +12,40 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.4.0 <Badge type="tip" text="最新" />
+### 5.5.0 <Badge type="tip" text="最新" />
+
+`5.5.0` 是基于 `5.4.0` 的向后兼容次版本，重点发布 OpenAPI 3.1.x 的文档消费、JSON Schema 2020-12、受控跨文档资源、调试诊断与导出能力，并保持现有 OpenAPI 3.0.x、OAS2 兼容维护线和 Java 依赖矩阵。
+
+**OpenAPI 3.1 与 JSON Schema（React UI）**
+
+- 引入文档级 SchemaEngine 会话，支持 OAS 3.1 Base Dialect 与 JSON Schema Draft 2020-12，将布尔 Schema、类型联合、`const`、组合/条件关键字与动态引用接入数据模型和接口字段树（PR #682、#687、#689、#692、#694）。
+- 补齐 `paths`、`components`、`webhooks` 和 Reference Object 语义；规范扩展及未知关键字的普通载荷保持 opaque，不生成伪接口，也不将其中的 Schema 保留名误注册为资源（PR #717、#738、#743、#750）。
+- 受控加载跨文档资源，按 retrieval URI、`$id`、anchor 与方言构建固定资源图；默认拒绝外部请求，仅按用户授权的精确 URI 无凭据加载，保留累计预算、撤销与过期操作隔离（PR #727、#750）。
+
+**示例与接口调试（React UI）**
+
+- 保留作者示例并报告不一致，无作者示例时在预算内生成经过 SchemaEngine 验证的确定性候选；无法解析的作者示例引用明确告警，不以生成值静默替换（PR #715、#750）。
+- JSON 请求体、非 body Parameter、urlencoded 与 multipart Body 接入 Schema 诊断及规范序列化；修正 Header 字面值、结构化表单实际发送存在性和必填空值判断，保留针对当前请求快照的显式负向测试放行（PR #696、#716、#728、#730、#750）。
+- JSON 响应按状态码、媒体类型及其参数选择 Schema，提供非阻断诊断；已授权外部 Response 可用于文档字段、示例与响应诊断（PR #713、#750）。
+
+**单接口下载、变化提示与离线文档（React UI）**
+
+- 完整资源图下可下载 OAS 3.1 单接口 OpenAPI JSON，保留 Schema 资源基址、默认 Server、OAuth 相对地址与 Link 调用上下文，并支持编码 anchor 和导出后重新载入；无法等价闭合时明确阻止下载（PR #732、#733、#750）。
+- OAS 3.1 接口变化提示使用固定完整资源图生成语义指纹，并与 OAS 3.0 基线隔离；资源缺失或存在诊断时不建立错误基线（PR #736）。
+- HTML、Markdown、DOC、DOCX 统一使用不可变 OAS 3.1 快照，离线入口复用同一 3.1.x 版本判断；资源或作者示例无法完整消费时取消，或明确标记降级/不完整（PR #734、#742、#750）。
+
+**其他修复**
+
+- 修复长全限定类型名及悬浮说明挤压字段列、溢出视口的问题，保留完整类型信息（PR #731，issue #729）。
+- 独立聚合转发保留目标 Host 的端口，避免非默认端口场景下游识别错误（PR #680，issue #679）。
+
+**兼容范围与迁移**
+
+Boot 3 WebMVC/WebFlux + springdoc `2.8.9` 显式开启 3.1，以及 Boot 4 WebMVC + springdoc `3.0.3` 默认/显式 3.1，均有真实生成文档和端到端验证；Boot 2 + springdoc `1.8.0` 保持生成 OAS 3.0（PR #737）。支持矩阵、开启方式与迁移示例见 [OpenAPI 3.1 支持与迁移](https://knife4jnext.com/guide/openapi31)。
+
+> 本版本不支持 OpenAPI 3.2 或任意自定义方言/词汇执行。外部资源仍受精确授权、CORS 与预算约束；浏览器不能直接设置 Cookie Header 或由 JavaScript 注入 mutualTLS 客户端证书，Webhook 仅作入站契约展示，不主动发送。示例生成不是通用 JSON Schema 求解器，具体限制以支持矩阵为准。
+
+### 5.4.0
 
 `5.4.0` 是基于 `5.3.3` 的向后兼容次版本，补齐接口工作区、本地数据治理、单接口 OpenAPI 下载与接口变化提示。
 
