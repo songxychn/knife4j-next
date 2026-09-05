@@ -18,7 +18,7 @@
 
 - `.github/workflows/build.yml` 在 PR 和 `master` push 时运行 `mvn verify` 等验证。
 - `.github/workflows/release.yml` 在推送 `v*` tag 时发布 Maven Central 构件，验证公共仓库精确构件 URL 后创建 GitHub Release；手动触发只提供 `finalize-only` 安全收尾。
-- `.github/workflows/deploy-demo.yml` 仅在推送 `v*` tag（或 `workflow_dispatch`）时构建并部署在线 demo，**不在** `master` 合并时自动部署，避免 demo 超前于已发布版本。
+- `.github/workflows/deploy-demo.yml` 正常由 `Release` 的 `publish` job 在公开 Maven Central 构件和 GitHub Release 核验成功后通过 `workflow_call` 调用，构建并发布对应 Java tag 的 demo 镜像。`workflow_dispatch` 仅用于重新部署当前 latest release；`master` 合并和 Go 前缀 tag 均不会直接触发 Demo。
 
 ## Release flow
 
@@ -26,12 +26,12 @@
 2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### 5.0.8`。
 3. 提交并合并 release prep PR，等待 PR CI 和 `master` push CI 通过。
 4. 创建并推送 annotated tag，例如 `v5.0.8`。
-5. 等待 GitHub Actions `Release` workflow 完成发布。
-6. 等待同一次 tag 触发的 `Build and Deploy Demo` workflow 完成 demo 镜像发布。
+5. 等待 GitHub Actions `Release` workflow 的 `publish` job 完成发布及公开 Maven Central 构件、GitHub Release 核验。
+6. 等待 `Release` 随后调用的 `Build and Deploy Demo` workflow 完成对应 Java tag 的 demo 镜像发布。
 7. 验收发布完成条件：
    - `vX.Y.Z` tag 已推送。
-   - `Release` workflow 成功。
-   - `Build and Deploy Demo` workflow 成功（与 tag 对齐，非 master 合并触发）。
+   - `Release` workflow 的发布、公开制品及 GitHub Release 核验成功。
+   - 由 `Release` 在核验成功后调用的 `Build and Deploy Demo` workflow 成功。
    - Maven Central 目标构件可访问。
    - GitHub Release `vX.Y.Z` 存在。
    - GitHub Release body 与 `docs/release-notes/index.md` 中对应版本小节一致。
@@ -52,5 +52,6 @@ GitHub Release body 由 `.github/workflows/release.yml` 调用 `tools/extract-re
 2. **禁止重新运行 `mvn deploy`、移动 tag 或重传同版本构件。** 发布构件不可覆盖，模糊日志也不能视为上传失败。
 3. 等公共构件可见后，在 Actions 中手动运行 `Release`，选择唯一的 `finalize-only` mode，并填写已有 annotated `vX.Y.Z` tag。
 4. 恢复路径会 checkout 该 tag，校验 tag/POM/发布说明一致，读取 `tools/release-modules.txt` 检查父 POM、各模块 POM/JAR、签名、SHA-1 和 UI JAR，再幂等创建或更新 GitHub Release。
+5. 恢复路径在 `publish` job 核验成功后同样调用 Demo；仍需满足上述发布验收条件。
 
 `finalize-only` 不执行 Maven deploy，也不读取 Central/GPG secrets。tag 不存在或不是 annotated tag、checkout/POM 版本不一致、发布说明缺失、公共构件不完整时都会失败关闭；公共仓库超过有界等待时只报告缺失模块，不自动重传。
