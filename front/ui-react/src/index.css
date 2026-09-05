@@ -244,6 +244,23 @@ body {
     overflow-y: auto;
   }
 
+  .knife4j-sidebar-menu.ant-menu-inline {
+    /* Leave room for the 40px title and its margin when keyboard focus scrolls. */
+    scroll-padding-top: 44px;
+  }
+
+  .knife4j-sidebar-menu.ant-menu-inline > .knife4j-sidebar-api-tag {
+    background: inherit;
+  }
+
+  /* Keep each title inside its own API group so the next group can push it away. */
+  .knife4j-sidebar-menu.ant-menu-inline > .knife4j-sidebar-api-tag.ant-menu-submenu-open > .ant-menu-submenu-title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: inherit;
+  }
+
   .knife4j-main-layout.ant-layout {
     height: 100%;
     min-width: 0;

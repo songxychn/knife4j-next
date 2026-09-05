@@ -258,6 +258,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
 
       items.push({
         key: `tag-${tag}`,
+        className: 'knife4j-sidebar-api-tag',
         icon: <ApiOutlined />,
         label: labelContent,
         children: apis.map((api) => {
@@ -389,6 +390,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         </div>
       )}
       <Menu
+        className="knife4j-sidebar-menu"
         theme="dark"
         mode="inline"
         inlineCollapsed={collapsed}
