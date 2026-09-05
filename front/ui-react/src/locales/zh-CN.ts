@@ -126,6 +126,9 @@ const zhCN = {
   'schema.example.explicitInvalid.issue': '示例按原值保留；{{path}} 未通过 {{keyword}} 约束。',
   'schema.example.validationUnavailable.title': '示例验证暂不可用',
   'schema.example.validationUnavailable.description': '作者示例会保留，但不会生成未经验证的 OAS 3.1 候选。',
+  'schema.example.referenceUnavailable.title': '作者示例引用暂不可用',
+  'schema.example.referenceUnavailable.description':
+    '当前只读资源中无法解析此示例，不会用生成值替代；离线导出将标为不完整。',
   'schema.example.none.title': '没有可验证的生成示例',
   'schema.example.none.description': '固定搜索范围内未找到符合当前 Schema 的候选。',
   'schema.example.none.budgetTitle': '示例搜索已达到预算',

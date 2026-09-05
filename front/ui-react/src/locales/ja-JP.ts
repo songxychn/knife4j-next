@@ -142,6 +142,9 @@ const jaJP = {
   'schema.example.validationUnavailable.title': 'サンプルを検証できません',
   'schema.example.validationUnavailable.description':
     '作成者のサンプルは保持しますが、未検証の OAS 3.1 候補は生成しません。',
+  'schema.example.referenceUnavailable.title': '作成者のサンプル参照を利用できません',
+  'schema.example.referenceUnavailable.description':
+    '現在の読み取り専用リソースではこのサンプルを解決できません。生成値で置き換えず、オフラインエクスポートは不完全と表示されます。',
   'schema.example.none.title': '検証済みの生成サンプルがありません',
   'schema.example.none.description': '制限付きの決定的検索では現在の Schema に適合する候補が見つかりませんでした。',
   'schema.example.none.budgetTitle': 'サンプル検索が予算に達しました',

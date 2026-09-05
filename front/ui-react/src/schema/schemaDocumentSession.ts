@@ -26,6 +26,7 @@ type DirectionalEvaluator = (
 ) => Promise<EvaluationResult>;
 
 const directionalEvaluators = new WeakMap<SchemaDocumentSession, DirectionalEvaluator>();
+const registeredDocuments = new WeakMap<SchemaDocumentSession, ReadonlyMap<string, unknown>>();
 let projectionSessionSequence = 0;
 
 export interface SchemaDocumentSession {
@@ -33,6 +34,11 @@ export interface SchemaDocumentSession {
   resolve(reference: string): Promise<SchemaNode>;
   evaluate(reference: string, instance: unknown, options?: EvaluationOptions): Promise<EvaluationResult>;
   dispose(): void;
+}
+
+/** Read only the immutable document registered in this session; never loads a URI. */
+export function registeredSchemaDocument(session: SchemaDocumentSession, retrievalUri: string): unknown {
+  return registeredDocuments.get(session)?.get(retrievalUri);
 }
 
 export interface SchemaDocumentFailure {
@@ -166,6 +172,7 @@ export async function createSchemaDocumentSession(
   assertNotAborted(options.signal);
 
   const engine = engineModule.createSchemaEngine();
+  const documents = new Map<string, unknown>();
   try {
     const registrations = [
       { document, retrievalUri },
@@ -173,6 +180,7 @@ export async function createSchemaDocumentSession(
     ].sort((left, right) => left.retrievalUri.localeCompare(right.retrievalUri));
     for (const resource of registrations) {
       await engine.registerDocument(resource.document, resource.retrievalUri);
+      documents.set(resource.retrievalUri, structuredClone(resource.document));
       assertNotAborted(options.signal);
     }
   } catch (error) {
@@ -261,9 +269,11 @@ export async function createSchemaDocumentSession(
       if (disposed) return;
       disposed = true;
       directionalEvaluators.delete(session);
+      registeredDocuments.delete(session);
       engine.dispose();
     },
   });
+  registeredDocuments.set(session, documents);
   directionalEvaluators.set(session, async (reference, instance, direction, ignoredProperties, evaluationOptions) => {
     if (evaluationOptions?.signal?.aborted) throw new DOMException('Schema evaluation was aborted.', 'AbortError');
     const projection = await ensureProjection(

@@ -26,6 +26,8 @@ export interface SerializedOas31Parameters {
   readonly cookies: SerializedCookieParameter[];
   readonly instances: BuiltParameterInstance[];
   readonly diagnostics: ParameterInputDiagnostic[];
+  /** Presence of edited parameters after serialization, including omitted composites and raw fallbacks. */
+  readonly presence: Readonly<Record<string, boolean>>;
   readonly consumedQueryNames: string[];
   readonly consumedHeaderNames: string[];
   readonly consumedCookieNames: string[];
@@ -40,7 +42,7 @@ type ParseResult =
     };
 
 type SerializedParameter =
-  | { readonly in: 'path'; readonly value: string }
+  | { readonly in: 'path'; readonly value: string; readonly omitted?: true }
   | { readonly in: 'query'; readonly pairs: SerializedQueryParameter[] }
   | { readonly in: 'header'; readonly value: string | undefined }
   | { readonly in: 'cookie'; readonly pairs: SerializedCookieParameter[] };
@@ -439,20 +441,24 @@ function encodeScalars(values: Array<null | string | number | boolean>, delimite
   return values.map((value) => encodeParameterComponent(scalarText(value))).join(delimiter);
 }
 
-function serializeSimpleValue(instance: ParameterInstance, explode: boolean, delimiter: string): string {
-  if (Array.isArray(instance)) return encodeScalars(definedPrimitiveArray(instance), delimiter);
+function serializeSimpleValue(
+  instance: ParameterInstance,
+  explode: boolean,
+  delimiter: string,
+  encode: (value: string) => string = encodeParameterComponent,
+): string {
+  if (Array.isArray(instance))
+    return definedPrimitiveArray(instance)
+      .map((value) => encode(scalarText(value)))
+      .join(delimiter);
   if (isRecord(instance)) {
     const entries = definedPrimitiveEntries(instance);
     if (explode) {
-      return entries
-        .map(([key, value]) => `${encodeParameterComponent(key)}=${encodeParameterComponent(scalarText(value))}`)
-        .join(delimiter);
+      return entries.map(([key, value]) => `${encode(key)}=${encode(scalarText(value))}`).join(delimiter);
     }
-    return entries
-      .flatMap(([key, value]) => [encodeParameterComponent(key), encodeParameterComponent(scalarText(value))])
-      .join(delimiter);
+    return entries.flatMap(([key, value]) => [encode(key), encode(scalarText(value))]).join(delimiter);
   }
-  return encodeParameterComponent(scalarText(instance));
+  return encode(scalarText(instance));
 }
 
 function serializePathSchema(
@@ -499,7 +505,9 @@ function serializeHeaderSchema(
   if (serialization.style !== 'simple') {
     throw new Error(`Unsupported OAS header parameter style: ${serialization.style}.`);
   }
-  return serializeSimpleValue(instance, serialization.explode, ',');
+  // Header fields use the simple separators without URI percent-encoding.
+  // The caller still rejects forbidden header controls in the final value.
+  return serializeSimpleValue(instance, serialization.explode, ',', (value) => value);
 }
 
 function serializeCookieSchema(
@@ -577,7 +585,7 @@ function serializeSchemaParameter(param: DebugParam, instance: ParameterInstance
   const serialization = param.parameterSerialization;
   if (!serialization || serialization.kind !== 'schema') throw new Error('Expected schema parameter serialization.');
   if (isUndefinedComposite(instance)) {
-    if (param.in === 'path') return { in: 'path', value: '' };
+    if (param.in === 'path') return { in: 'path', value: '', omitted: true };
     if (param.in === 'query') return { in: 'query', pairs: [] };
     if (param.in === 'header') return { in: 'header', value: undefined };
     return { in: 'cookie', pairs: [] };
@@ -630,6 +638,7 @@ export function serializeOas31Parameters(
   const cookies: SerializedCookieParameter[] = [];
   const instances: BuiltParameterInstance[] = [];
   const diagnostics: ParameterInputDiagnostic[] = [];
+  const presence: Record<string, boolean> = {};
   const consumedQueryNames: string[] = [];
   const consumedHeaderNames: string[] = [];
   const consumedCookieNames: string[] = [];
@@ -645,6 +654,13 @@ export function serializeOas31Parameters(
         ? serializeContentParameter(param, parsed.instance)
         : serializeSchemaParameter(param, parsed.instance)
       : rawFallback(param, rawValue);
+
+    presence[key] =
+      serialized.in === 'path'
+        ? serialized.omitted !== true
+        : serialized.in === 'header'
+          ? serialized.value !== undefined
+          : serialized.pairs.length > 0;
 
     if (parsed.ok) {
       instances.push({ key, name: param.name, in: param.in, instance: parsed.instance });
@@ -672,6 +688,7 @@ export function serializeOas31Parameters(
     cookies,
     instances,
     diagnostics,
+    presence,
     consumedQueryNames,
     consumedHeaderNames,
     consumedCookieNames,

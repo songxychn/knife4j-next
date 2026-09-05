@@ -26,6 +26,7 @@ export interface SchemaExampleIssue {
 
 export type SchemaExampleDiagnosticCode =
   | 'EXPLICIT_VALUE_INVALID'
+  | 'EXAMPLE_REFERENCE_UNAVAILABLE'
   | 'EVALUATION_UNAVAILABLE'
   | 'SCHEMA_UNAVAILABLE'
   | 'NO_VALID_CANDIDATE'

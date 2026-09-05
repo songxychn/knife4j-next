@@ -1,6 +1,7 @@
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
+import { followRegisteredObject, locateOperationResponses, type RegisteredObjectLocation } from './registeredResponse';
 import {
   asOpenApiRecord as asRecord,
   followLocalReference,
@@ -23,6 +24,7 @@ export interface OperationSchemaExampleTarget {
   readonly schemaReference?: string;
   readonly schema?: JsonValue;
   readonly explicit: readonly ExplicitSchemaExample[];
+  readonly explicitReferenceUnavailable?: true;
 }
 
 export interface ResponseSchemaExampleTarget extends OperationSchemaExampleTarget {
@@ -66,23 +68,45 @@ function asJsonValue(value: unknown): JsonValue | undefined {
   return Object.fromEntries(entries);
 }
 
-function explicitExamples(mediaObject: OpenApiRecord, document: SwaggerDoc): ExplicitSchemaExample[] {
+interface ExplicitExampleSelection {
+  readonly values: readonly ExplicitSchemaExample[];
+  readonly referenceUnavailable?: true;
+}
+
+function explicitExamples(
+  mediaObject: OpenApiRecord,
+  document: SwaggerDoc,
+  location?: RegisteredObjectLocation,
+  session?: SchemaDocumentSession,
+): ExplicitExampleSelection {
   if (Object.prototype.hasOwnProperty.call(mediaObject, 'example')) {
     const value = asJsonValue(mediaObject.example);
-    if (value !== undefined) return [{ source: 'media-example', value }];
+    if (value !== undefined) return { values: [{ source: 'media-example', value }] };
   }
   const examples = asRecord(mediaObject.examples);
-  if (!examples) return [];
+  if (!examples) return { values: [] };
   for (const name in examples) {
     if (!Object.prototype.hasOwnProperty.call(examples, name)) continue;
     const rawExample = examples[name];
+    const record = asRecord(rawExample);
     const example =
-      followLocalReference(document, rawExample, ['components', 'examples', name])?.value ?? asRecord(rawExample);
+      location && record
+        ? followRegisteredObject(
+            { ...location, value: record, tokens: [...location.tokens, 'examples', name] },
+            'example',
+            session,
+          )?.value
+        : (followLocalReference(document, rawExample, ['components', 'examples', name])?.value ?? record);
+    // A loaded graph need not make every referenced OAS object consumable by
+    // the Schema session. Do not silently replace authored data with a sample.
+    if (!example && location && typeof record?.$ref === 'string') {
+      return { values: [], referenceUnavailable: true };
+    }
     if (!example || !Object.prototype.hasOwnProperty.call(example, 'value')) continue;
     const value = asJsonValue(example.value);
-    if (value !== undefined) return [{ source: 'example-object', value }];
+    if (value !== undefined) return { values: [{ source: 'example-object', value }] };
   }
-  return [];
+  return { values: [] };
 }
 
 function mediaTargets(
@@ -90,6 +114,8 @@ function mediaTargets(
   contentValue: unknown,
   contentTokens: readonly string[],
   keyPrefix: string,
+  location?: RegisteredObjectLocation,
+  session?: SchemaDocumentSession,
 ): OperationSchemaExampleTarget[] {
   const content = asRecord(contentValue);
   if (!content) return [];
@@ -99,14 +125,21 @@ function mediaTargets(
     if (!media) continue;
     const schema = asJsonValue(media.schema);
     const schemaReference = Object.prototype.hasOwnProperty.call(media, 'schema')
-      ? pointerReference([...contentTokens, mediaType, 'schema'])
+      ? `${location?.retrievalUri ?? ''}${pointerReference([...contentTokens, mediaType, 'schema'])}`
       : undefined;
+    const explicit = explicitExamples(
+      media,
+      document,
+      location ? { ...location, value: media, tokens: [...contentTokens, mediaType] } : undefined,
+      session,
+    );
     targets.push({
       key: `${keyPrefix}:${mediaType}`,
       mediaType,
       ...(schemaReference === undefined ? {} : { schemaReference }),
       ...(schema === undefined ? {} : { schema }),
-      explicit: explicitExamples(media, document),
+      explicit: explicit.values,
+      ...(explicit.referenceUnavailable ? { explicitReferenceUnavailable: true } : {}),
     });
   }
   return targets;
@@ -130,16 +163,20 @@ export function locateRequestSchemaExampleTargets(
 export function locateResponseSchemaExampleTargets(
   document: SwaggerDoc,
   operation: MenuOperation,
+  session?: SchemaDocumentSession,
 ): ResponseSchemaExampleTarget[] {
-  const located = locateOperationRecord(document, operation);
-  const responses = asRecord(located?.value.responses);
-  if (!located || !responses) return [];
   const targets: ResponseSchemaExampleTarget[] = [];
-  for (const [statusCode, rawResponse] of Object.entries(responses)) {
-    const response = followLocalReference(document, rawResponse, [...located.tokens, 'responses', statusCode]);
+  for (const { statusCode, location: response } of locateOperationResponses(document, operation, session)) {
     if (!response) continue;
     const selected = preferredTarget(
-      mediaTargets(document, response.value.content, [...response.tokens, 'content'], `response:${statusCode}`),
+      mediaTargets(
+        response.document,
+        response.value.content,
+        [...response.tokens, 'content'],
+        `response:${statusCode}`,
+        response,
+        session,
+      ),
     );
     if (selected) targets.push({ ...selected, statusCode });
   }
@@ -156,12 +193,21 @@ function noSchemaResult(target: OperationSchemaExampleTarget): SchemaExampleResu
   };
 }
 
+function unavailableExampleReference(): SchemaExampleResult {
+  return {
+    status: 'none',
+    reason: 'evaluation-unavailable',
+    diagnostics: [{ code: 'EXAMPLE_REFERENCE_UNAVAILABLE' }],
+  };
+}
+
 export async function generateOperationSchemaExample(
   session: SchemaDocumentSession,
   target: OperationSchemaExampleTarget,
   direction: SchemaExampleDirection,
   options: GenerateOperationSchemaExamplesOptions = {},
 ): Promise<SchemaExampleResult> {
+  if (target.explicitReferenceUnavailable) return unavailableExampleReference();
   if (!target.schemaReference) return noSchemaResult(target);
   return generateSchemaExample(session, target.schemaReference, {
     direction,
@@ -185,7 +231,7 @@ export async function generateOperationSchemaExamples(
       }
     : undefined;
   const responses: SelectedResponseSchemaExample[] = [];
-  for (const target of locateResponseSchemaExampleTargets(document, operation)) {
+  for (const target of locateResponseSchemaExampleTargets(document, operation, session)) {
     responses.push({
       statusCode: target.statusCode,
       mediaType: target.mediaType,
@@ -199,6 +245,7 @@ export function unavailableOperationSchemaExample(
   target: OperationSchemaExampleTarget,
   message?: string,
 ): SchemaExampleResult {
+  if (target.explicitReferenceUnavailable) return unavailableExampleReference();
   const explicit = target.explicit[0];
   if (explicit) {
     return {

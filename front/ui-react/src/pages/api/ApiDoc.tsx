@@ -36,6 +36,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useSchemaEngine } from '../../context/SchemaEngineContext';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
 import { createSchemaDisplayProjector } from '../../schema/schemaDisplayProjection';
+import { locateOperationResponses, responseForDisplay } from '../../schema/registeredResponse';
 import { resolveResponseOverviewVisibility } from './responseOverview';
 import {
   prepareApiDocSchemaFields,
@@ -466,9 +467,22 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
     };
   });
   const bodySchema = useMemo(() => firstRequestSchema(op.requestBody, op.parameters), [op.parameters, op.requestBody]);
+  const registeredResponses = useMemo(() => {
+    if (!isOas31SchemaDocument(swaggerDoc)) return null;
+    const session =
+      schemaEngine.status === 'ready' && schemaEngine.document === swaggerDoc ? schemaEngine.session : undefined;
+    return locateOperationResponses(swaggerDoc, operation, session).map(({ statusCode, location }) => ({
+      statusCode,
+      unavailable: location === null,
+      response: location ? responseForDisplay(location, session) : {},
+    }));
+  }, [operation, schemaEngine, swaggerDoc]);
   const responses: ResponseRow[] = useMemo(
     () =>
-      Object.entries(op.responses ?? {}).map(([statusCode, response]) => {
+      (
+        registeredResponses?.map(({ statusCode, response }) => [statusCode, response] as const) ??
+        Object.entries(op.responses ?? {})
+      ).map(([statusCode, response]) => {
         const headers = Object.entries(response.headers ?? {}).map(([name, header]) => {
           const resolvedHeader = header.$ref
             ? (dereferenceReferenceObject(
@@ -494,7 +508,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           headers,
         };
       }),
-    [op.responses, swaggerDoc],
+    [op.responses, registeredResponses, swaggerDoc],
   );
   const legacySchemaRegions = useMemo(() => {
     const regions: Array<{ key: string; fields: SchemaFieldNode[] }> = [];
@@ -707,6 +721,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
 
       {operation.source === 'webhook' && (
         <Alert type="info" showIcon message={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
+      )}
+
+      {registeredResponses?.some((response) => response.unavailable) && (
+        <Alert
+          type="warning"
+          showIcon
+          message={t('apiDebug.responseSchemaValidation.referenceUnavailable')}
+          style={{ marginBottom: 8 }}
+        />
       )}
 
       <div

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSchemaEngine } from 'knife4j-schema-engine';
+import { parseLocalJsonPointer, resolveJsonPointerTokens } from 'knife4j-core';
+import { apiOperationIdentity, buildApiChangeFingerprintSnapshot } from '../../apiChange/apiChangeTracker';
 import { ExternalResourceLoader, type ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import type { SwaggerDoc } from '../../types/swagger';
 import { buildOas31OperationOpenApiDocument } from './oas31OperationOpenApiDocument';
@@ -284,6 +286,24 @@ function asReady(
   return result as Extract<NonNullable<typeof result>, { status: 'ready' }>;
 }
 
+async function expectPortableReload(document: JsonRecord, retrievalUri: string): Promise<void> {
+  const fetchSpy = vi.fn(async () => {
+    throw new Error('Portable export must not fetch resources');
+  });
+  const loader = new ExternalResourceLoader(document, retrievalUri, { fetchImpl: fetchSpy });
+  const engine = createSchemaEngine();
+  try {
+    expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+    expect(loader.currentDiscovery().candidates).toEqual([]);
+    await engine.registerDocument(document, retrievalUri);
+    expect((await engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  } finally {
+    engine.dispose();
+    loader.dispose();
+  }
+}
+
 function absoluteSchemaReferenceUris(document: unknown): string[] {
   const references = new Set<string>();
   const absoluteUriPattern = /^[A-Za-z][A-Za-z0-9+.-]*:/;
@@ -317,6 +337,542 @@ afterEach(() => {
 });
 
 describe('OAS 3.1 portable single-operation export', () => {
+  it.each(
+    ['3.1.0', '3.1.1', '3.1.2'].flatMap((version) => [
+      { version, external: false },
+      { version, external: true },
+    ]),
+  )(
+    'exports encoded anchors without changing retrieval identity ($version, external: $external)',
+    async ({ version, external }) => {
+      const resourceUri = 'https://schemas.knife4j.example/%66oo.json?source=%61';
+      const anchorUri = `${external ? resourceUri : entryUri}#%66oo`;
+      const anchorSchema = { $anchor: 'foo', type: 'string' };
+      const resource = {
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: resourceUri,
+        $defs: { Value: anchorSchema },
+      };
+      const document = {
+        openapi: version,
+        info: { title: 'Encoded anchor export', version: '1' },
+        paths: {
+          '/value': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'Value',
+                  content: { 'application/json': { schema: { $ref: external ? anchorUri : '#%66oo' } } },
+                },
+              },
+            },
+          },
+        },
+        ...(!external ? { components: { schemas: { Value: anchorSchema } } } : {}),
+      } as SwaggerDoc;
+      const sourceBefore = JSON.stringify(document);
+      const networkFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Unexpected network request'));
+      const resourceFetch = vi.fn(async (input: RequestInfo | URL) => {
+        expect(String(input)).toBe(resourceUri);
+        return new Response(JSON.stringify(resource), { headers: { 'content-type': 'application/schema+json' } });
+      });
+      const loader = new ExternalResourceLoader(document, entryUri, { fetchImpl: resourceFetch });
+      const discovery = loader.discover();
+      const snapshot = external
+        ? await loader.load(
+            discovery.candidates.map((candidate) => ({
+              scope: 'generation' as const,
+              documentScope: discovery.documentScope,
+              resourceKey: candidate.retrievalUriHash,
+            })),
+          )
+        : loader.currentSnapshot();
+      expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+      expect(snapshot.edges).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            resolvedUri: anchorUri,
+            targetRetrievalUri: external ? resourceUri : entryUri,
+          }),
+        ]),
+      );
+      const original = createSchemaEngine();
+      let originalResults: boolean[];
+      try {
+        expect((await original.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+        await original.registerDocument(document, entryUri);
+        if (external) await original.registerDocument(resource, resourceUri);
+        originalResults = await Promise.all(
+          ['ok', 1].map(async (value) => (await original.evaluate(anchorUri, value)).valid),
+        );
+      } finally {
+        original.dispose();
+      }
+      const output = asReady(
+        buildOas31OperationOpenApiDocument(document, '/value', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot,
+        }),
+      ).document;
+      expect(absoluteSchemaReferenceUris(output)).toContain(anchorUri);
+      const fingerprints = buildApiChangeFingerprintSnapshot(document, {
+        status: 'ready',
+        retrievalUri: entryUri,
+        snapshot,
+        documentDiagnostics: [],
+      });
+      expect(fingerprints).toMatchObject({
+        status: 'ready',
+        fingerprints: { [apiOperationIdentity('GET', '/value')]: expect.any(String) },
+      });
+      const portableUri = 'https://portable.knife4j.example/encoded-anchor.json';
+      await expectPortableReload(output, portableUri);
+      const portable = createSchemaEngine();
+      try {
+        await portable.registerDocument(output, portableUri);
+        const operation = ((output.paths as JsonRecord)['/value'] as JsonRecord).get as JsonRecord;
+        const response = (operation.responses as JsonRecord)['200'] as JsonRecord;
+        const schema = ((response.content as JsonRecord)['application/json'] as JsonRecord).schema as JsonRecord;
+        const results = await Promise.all(
+          ['ok', 1].map(async (value) => (await portable.evaluate(String(schema.$ref), value)).valid),
+        );
+        expect(originalResults).toEqual([true, false]);
+        expect(results).toEqual(originalResults);
+        expect((await portable.evaluate(anchorUri, 'ok')).valid).toBe(true);
+      } finally {
+        portable.dispose();
+        loader.dispose();
+      }
+      expect(JSON.stringify(document)).toBe(sourceBefore);
+      expect(resourceFetch).toHaveBeenCalledTimes(external ? 1 : 0);
+      expect(networkFetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(
+    ['3.1.0', '3.1.1', '3.1.2'].flatMap((version) => [
+      { version, servers: undefined },
+      { version, servers: [] },
+    ]),
+  )('preserves the default API origin after relocation ($version, $servers)', async ({ version, servers }) => {
+    const document = {
+      openapi: version,
+      info: { title: 'Default API server', version: '1' },
+      ...(servers === undefined ? {} : { servers }),
+      paths: { '/selected': { get: { responses: { '200': { description: 'OK' } } } } },
+    } as SwaggerDoc;
+    const validator = createSchemaEngine();
+    try {
+      expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+    } finally {
+      validator.dispose();
+    }
+    const snapshot = new ExternalResourceLoader(document, entryUri).currentSnapshot();
+    const output = asReady(
+      buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+        retrievalUri: entryUri,
+        snapshot,
+      }),
+    ).document;
+    const portableUri = 'https://portable.knife4j.example/saved.json';
+    const server = (output.servers as Array<{ url: string }> | undefined)?.[0]?.url ?? '/';
+    expect(new URL(server, portableUri).href).toBe(new URL('/', entryUri).href);
+    await expectPortableReload(output, portableUri);
+  });
+
+  it.each(['root', 'path', 'operation', 'multiple'] as const)(
+    'keeps OAuth API references relative to the effective %s servers',
+    async (scope) => {
+      const servers =
+        scope === 'multiple'
+          ? [
+              {
+                url: 'https://one.example.test/{version}/',
+                variables: { version: { default: 'v1', enum: ['v1', 'v2'] } },
+              },
+              { url: './second/' },
+            ]
+          : [{ url: 'https://api.example.test/v1/' }];
+      const flow = { authorizationUrl: 'authorize', tokenUrl: 'token', refreshUrl: 'refresh', scopes: {} };
+      const document = {
+        openapi: '3.1.2',
+        info: { title: 'OAuth API URLs', version: '1' },
+        servers: scope === 'root' || scope === 'multiple' ? servers : [{ url: 'https://root.example.test/' }],
+        security: [{ oauth: [] }],
+        paths: {
+          '/selected': {
+            ...(scope === 'path' ? { servers } : {}),
+            get: {
+              ...(scope === 'operation' ? { servers } : {}),
+              responses: { '200': { description: 'OK' } },
+            },
+          },
+        },
+        components: { securitySchemes: { oauth: { type: 'oauth2', flows: { authorizationCode: flow } } } },
+      } as unknown as SwaggerDoc;
+      const validator = createSchemaEngine();
+      try {
+        expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+      } finally {
+        validator.dispose();
+      }
+      const snapshot = new ExternalResourceLoader(document, entryUri).currentSnapshot();
+      const output = asReady(
+        buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot,
+        }),
+      ).document;
+      const pathItem = (output.paths as JsonRecord)['/selected'] as JsonRecord;
+      const operation = pathItem.get as JsonRecord;
+      const outputServers = (operation.servers ?? pathItem.servers ?? output.servers) as Array<{
+        url: string;
+        variables?: Record<string, { default: string }>;
+      }>;
+      const outputScheme = ((output.components as JsonRecord).securitySchemes as JsonRecord).oauth as JsonRecord;
+      const outputFlow = (outputScheme.flows as JsonRecord).authorizationCode as JsonRecord;
+      expect(outputFlow).toEqual(flow);
+      const portableUri = 'https://portable.knife4j.example/export.json';
+      const expandServer = (
+        server: { url: string; variables?: Record<string, { default: string }> },
+        base: string,
+        version?: string,
+      ) =>
+        new URL(
+          server.url.replace(/\{([^{}]+)\}/g, (_match, name: string) => version ?? server.variables![name].default),
+          base,
+        ).href;
+      for (const version of [undefined, 'v2']) {
+        for (const field of ['authorizationUrl', 'tokenUrl', 'refreshUrl'] as const) {
+          expect(
+            outputServers.map(
+              (server) => new URL(String(outputFlow[field]), expandServer(server, portableUri, version)).href,
+            ),
+          ).toEqual(servers.map((server) => new URL(flow[field], expandServer(server, entryUri, version)).href));
+        }
+      }
+      if (scope === 'multiple') expect(outputServers[0].variables).toEqual(servers[0].variables);
+      await expectPortableReload(output, portableUri);
+    },
+  );
+
+  it.each([false, true])(
+    'retains Link target path, method and inherited parameters (own servers: %s)',
+    async (ownServers) => {
+      const document = {
+        openapi: '3.1.2',
+        info: { title: 'Link target context', version: '1' },
+        servers: [{ url: 'https://api.example.test/v1/' }],
+        'x-knife4j-operation-ref-targets': { note: 'User extension remains opaque' },
+        paths: {
+          '/selected': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  links: {
+                    next: { operationRef: '#/paths/~1orders~1%7Bid%7D/get', parameters: { 'path.id': 'alpha' } },
+                  },
+                },
+              },
+            },
+          },
+          '/orders/{id}': {
+            parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', pattern: '^alpha' } }],
+            servers: [{ url: './orders-api/' }],
+            get: {
+              operationId: 'readOrder',
+              ...(ownServers ? { servers: [{ url: 'https://orders.example.test/' }] } : {}),
+              responses: { '200': { description: 'Order' } },
+            },
+            delete: { responses: { '204': { description: 'Unrelated delete' } } },
+          },
+        },
+      } as unknown as SwaggerDoc;
+      const validator = createSchemaEngine();
+      try {
+        expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+      } finally {
+        validator.dispose();
+      }
+      const snapshot = new ExternalResourceLoader(document, entryUri).currentSnapshot();
+      const output = asReady(
+        buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot,
+        }),
+      ).document;
+      const selected = ((output.paths as JsonRecord)['/selected'] as JsonRecord).get as JsonRecord;
+      const link = (((selected.responses as JsonRecord)['200'] as JsonRecord).links as JsonRecord).next as JsonRecord;
+      const tokens = parseLocalJsonPointer(String(link.operationRef)).tokens!;
+      expect(tokens[0]).toBe('x-knife4j-operation-ref-targets-2');
+      expect(tokens.slice(-3)).toEqual(['paths', '/orders/{id}', 'get']);
+      const target = resolveJsonPointerTokens(output, tokens).value as JsonRecord;
+      const parent = resolveJsonPointerTokens(output, tokens.slice(0, -1)).value as JsonRecord;
+      expect(target.operationId).toBe('readOrder');
+      expect(parent).not.toHaveProperty('delete');
+      expect(parent.parameters).toMatchObject([{ name: 'id', in: 'path', required: true }]);
+      const expectedServer = ownServers
+        ? 'https://orders.example.test/'
+        : 'https://fixtures.knife4j.example/apis/orders-api/';
+      expect(target.servers ?? parent.servers).toEqual([{ url: expectedServer }]);
+      const portableUri = 'https://portable.knife4j.example/saved.json';
+      const portableGraph = new ExternalResourceLoader(output, portableUri);
+      expect(portableGraph.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+      expect(portableGraph.currentDiscovery().candidates).toEqual([]);
+      const reexport = asReady(
+        buildOas31OperationOpenApiDocument(output as unknown as SwaggerDoc, '/selected', 'get', 'path', {
+          retrievalUri: portableUri,
+          snapshot: portableGraph.currentSnapshot(),
+        }),
+      ).document;
+      const originalSchemaRef = `${entryUri}#/paths/~1orders~1%7Bid%7D/parameters/0/schema`;
+      const original = createSchemaEngine();
+      let originalResults: boolean[];
+      try {
+        await original.registerDocument(document, entryUri);
+        originalResults = await Promise.all(
+          ['alpha', 'beta'].map(async (value) => (await original.evaluate(originalSchemaRef, value)).valid),
+        );
+      } finally {
+        original.dispose();
+      }
+      for (const [exported, uri] of [
+        [output, portableUri],
+        [reexport, 'https://second.knife4j.example/again.json'],
+      ] as const) {
+        const portable = createSchemaEngine();
+        try {
+          const exportedSelected = ((exported.paths as JsonRecord)['/selected'] as JsonRecord).get as JsonRecord;
+          const exportedLink = (((exportedSelected.responses as JsonRecord)['200'] as JsonRecord).links as JsonRecord)
+            .next as JsonRecord;
+          const exportedTokens = parseLocalJsonPointer(String(exportedLink.operationRef)).tokens!;
+          expect(exportedTokens.slice(-3)).toEqual(['paths', '/orders/{id}', 'get']);
+          const exportedParent = resolveJsonPointerTokens(exported, exportedTokens.slice(0, -1)).value as JsonRecord;
+          const exportedParameter = (exportedParent.parameters as JsonRecord[])[0];
+          expect(exportedParameter).toMatchObject({ name: 'id', in: 'path', required: true });
+          const exportedSchemaRef = (exportedParameter.schema as JsonRecord).$ref as string;
+          await portable.registerDocument(exported, uri);
+          const portableResults = await Promise.all(
+            ['alpha', 'beta'].map(async (value) => (await portable.evaluate(exportedSchemaRef, value)).valid),
+          );
+          expect(originalResults).toEqual([true, false]);
+          expect(portableResults).toEqual(originalResults);
+          expect((await portable.evaluate('https://spec.openapis.org/oas/3.1/schema-base', exported)).valid).toBe(true);
+        } finally {
+          portable.dispose();
+        }
+      }
+      portableGraph.dispose();
+      await expectPortableReload(reexport, 'https://second.knife4j.example/again.json');
+    },
+  );
+
+  it('blocks a Link target without a path/method context instead of inventing one from extension data', async () => {
+    const document = {
+      openapi: '3.1.2',
+      info: { title: 'Unlocated Link operation', version: '1' },
+      paths: {
+        '/selected': {
+          get: {
+            responses: {
+              '200': { description: 'OK', links: { next: { operationRef: '#/paths/~1selected/x-target/get' } } },
+            },
+          },
+          'x-target': { get: { responses: { '200': { description: 'Operation without a callable path' } } } },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const engine = createSchemaEngine();
+    const loader = new ExternalResourceLoader(document, entryUri);
+    try {
+      expect((await engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+      expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+      expect(
+        buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot: loader.currentSnapshot(),
+        }),
+      ).toMatchObject({
+        status: 'unavailable',
+        blockers: [expect.objectContaining({ code: 'LINK_OPERATION_CONTEXT_UNRESOLVED' })],
+      });
+    } finally {
+      engine.dispose();
+      loader.dispose();
+    }
+  });
+
+  it('requires and carries the registered dependency of a Link target inherited parameter', async () => {
+    const parameterUri = 'https://fixtures.knife4j.example/apis/parameters/order-id.json';
+    const parameterDocument = {
+      openapi: '3.1.2',
+      info: { title: 'Order parameters', version: '1' },
+      components: {
+        parameters: {
+          OrderId: { name: 'id', in: 'path', required: true, schema: { type: 'string', pattern: '^order-' } },
+        },
+      },
+    };
+    const document = {
+      openapi: '3.1.2',
+      info: { title: 'External inherited Link parameter', version: '1' },
+      paths: {
+        '/selected': {
+          get: {
+            responses: {
+              '200': {
+                description: 'OK',
+                links: {
+                  next: { operationRef: '#/paths/~1orders~1%7Bid%7D/get', parameters: { 'path.id': 'order-1' } },
+                },
+              },
+            },
+          },
+        },
+        '/orders/{id}': {
+          parameters: [{ $ref: `${parameterUri}#/components/parameters/OrderId` }],
+          get: { servers: [{ url: 'https://orders.example.test/' }], responses: { '200': { description: 'Order' } } },
+        },
+      },
+    } as unknown as SwaggerDoc;
+    const sourceBefore = JSON.stringify(document);
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(parameterUri);
+      return new Response(JSON.stringify(parameterDocument), { headers: { 'content-type': 'application/json' } });
+    });
+    const loader = new ExternalResourceLoader(document, entryUri, { fetchImpl: fetchSpy });
+    const original = createSchemaEngine();
+    const portable = createSchemaEngine();
+    try {
+      for (const source of [document, parameterDocument]) {
+        expect((await original.evaluate('https://spec.openapis.org/oas/3.1/schema-base', source)).valid).toBe(true);
+      }
+      expect(
+        buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot: loader.currentSnapshot(),
+        }),
+      ).toMatchObject({
+        status: 'unavailable',
+        blockers: [expect.objectContaining({ code: 'RESOURCE_PENDING', resourceDisplay: parameterUri })],
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      const discovery = loader.discover();
+      const snapshot = await loader.load(
+        discovery.candidates.map((candidate) => ({
+          scope: 'generation' as const,
+          documentScope: discovery.documentScope,
+          resourceKey: candidate.retrievalUriHash,
+        })),
+      );
+      expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+      const output = asReady(
+        buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot,
+        }),
+      ).document;
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(document)).toBe(sourceBefore);
+      const selected = ((output.paths as JsonRecord)['/selected'] as JsonRecord).get as JsonRecord;
+      const link = (((selected.responses as JsonRecord)['200'] as JsonRecord).links as JsonRecord).next as JsonRecord;
+      const tokens = parseLocalJsonPointer(String(link.operationRef)).tokens!;
+      const parent = resolveJsonPointerTokens(output, tokens.slice(0, -1)).value as JsonRecord;
+      const parameter = (parent.parameters as JsonRecord[])[0];
+      const registeredParameter = resolveJsonPointerTokens(
+        output,
+        parseLocalJsonPointer(String(parameter.$ref)).tokens!,
+      ).value as JsonRecord;
+      expect(registeredParameter).toMatchObject({ name: 'id', in: 'path', required: true });
+      const portableSchemaRef = (registeredParameter.schema as JsonRecord).$ref as string;
+      await original.registerDocument(document, entryUri);
+      await original.registerDocument(parameterDocument, parameterUri);
+      const values = ['order-1', 'invalid'];
+      const originalResults = await Promise.all(
+        values.map(
+          async (value) =>
+            (await original.evaluate(`${parameterUri}#/components/parameters/OrderId/schema`, value)).valid,
+        ),
+      );
+      original.dispose();
+      const portableUri = 'https://portable.knife4j.example/inherited-parameter.json';
+      await expectPortableReload(output, portableUri);
+      const importedLoader = new ExternalResourceLoader(output, portableUri);
+      let reexport: JsonRecord;
+      try {
+        reexport = asReady(
+          buildOas31OperationOpenApiDocument(output as unknown as SwaggerDoc, '/selected', 'get', 'path', {
+            retrievalUri: portableUri,
+            snapshot: importedLoader.currentSnapshot(),
+          }),
+        ).document;
+      } finally {
+        importedLoader.dispose();
+      }
+      const reselected = ((reexport.paths as JsonRecord)['/selected'] as JsonRecord).get as JsonRecord;
+      const relink = (((reselected.responses as JsonRecord)['200'] as JsonRecord).links as JsonRecord)
+        .next as JsonRecord;
+      const reparent = resolveJsonPointerTokens(
+        reexport,
+        parseLocalJsonPointer(String(relink.operationRef)).tokens!.slice(0, -1),
+      ).value as JsonRecord;
+      const reparameter = resolveJsonPointerTokens(
+        reexport,
+        parseLocalJsonPointer(String((reparent.parameters as JsonRecord[])[0].$ref)).tokens!,
+      ).value as JsonRecord;
+      expect((reparameter.schema as JsonRecord).$ref).toBe(portableSchemaRef);
+      const reexportUri = 'https://second.knife4j.example/inherited-parameter.json';
+      await expectPortableReload(reexport, reexportUri);
+      await portable.registerDocument(reexport, reexportUri);
+      const portableResults = await Promise.all(
+        values.map(async (value) => (await portable.evaluate(portableSchemaRef, value)).valid),
+      );
+      expect(originalResults).toEqual([true, false]);
+      expect(portableResults).toEqual(originalResults);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      original.dispose();
+      portable.dispose();
+      loader.dispose();
+    }
+  });
+
+  it('ignores operationId-shaped Paths extension payloads when resolving a Link', async () => {
+    const target = { operationId: 'readOrder', responses: { '200': { description: 'Order' } } };
+    const opaqueTargets = { 'target-1': { paths: { '/shadow': { get: target } } } };
+    const document = {
+      openapi: '3.1.2',
+      info: { title: 'Opaque operation names', version: '1' },
+      'x-knife4j-operation-ref-targets': opaqueTargets,
+      paths: {
+        '/selected': {
+          get: { responses: { '200': { description: 'OK', links: { next: { operationId: 'readOrder' } } } } },
+        },
+        '/orders': { get: target },
+        'x-business-data': { get: { ...target, description: 'Opaque, not an API operation' } },
+      },
+    } as unknown as SwaggerDoc;
+    const engine = createSchemaEngine();
+    const loader = new ExternalResourceLoader(document, entryUri);
+    try {
+      expect((await engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+      const output = asReady(
+        buildOas31OperationOpenApiDocument(document, '/selected', 'get', 'path', {
+          retrievalUri: entryUri,
+          snapshot: loader.currentSnapshot(),
+        }),
+      ).document;
+      expect(Object.keys(output.paths as JsonRecord)).toEqual(['/selected']);
+      expect(JSON.stringify(output)).not.toContain('Opaque, not an API operation');
+      expect(output['x-knife4j-operation-ref-targets']).toEqual(opaqueTargets);
+      await expectPortableReload(output, 'https://portable.knife4j.example/operation-id.json');
+    } finally {
+      engine.dispose();
+      loader.dispose();
+    }
+  });
+
   it('closes path objects and compound Schema resources without copying unrelated operations', async () => {
     const document = entryDocument();
     const sourceBeforeBuild = JSON.stringify(document);
@@ -350,9 +906,9 @@ describe('OAS 3.1 portable single-operation export', () => {
           ExternalKey: {
             flows: {
               authorizationCode: {
-                authorizationUrl: 'https://fixtures.knife4j.example/apis/oauth/authorize',
-                tokenUrl: 'https://fixtures.knife4j.example/apis/oauth/token',
-                refreshUrl: 'https://fixtures.knife4j.example/apis/oauth/refresh',
+                authorizationUrl: './oauth/authorize',
+                tokenUrl: './oauth/token',
+                refreshUrl: './oauth/refresh',
               },
             },
           },
@@ -397,9 +953,10 @@ describe('OAS 3.1 portable single-operation export', () => {
     const byId = ((selectedResponse.links as JsonRecord).byId ?? {}) as JsonRecord;
     expect(byId).not.toHaveProperty('operationId');
     expect(byId.operationRef).toMatch(/^#\/x-knife4j-operation-ref-targets\/target-/);
-    const lookupName = String(byId.operationRef).split('/').at(-1)!;
-    expect(refTargets[lookupName]).toMatchObject({ operationId: 'lookupPet' });
-    const linked = targets.find((target) => target.operationId === 'linkedGet')!;
+    const lookup = resolveJsonPointerTokens(output, parseLocalJsonPointer(String(byId.operationRef)).tokens!).value;
+    expect(lookup).toMatchObject({ operationId: 'lookupPet' });
+    const linkedContainer = targets.find((target) => (target.paths as JsonRecord | undefined)?.['/linked'])!;
+    const linked = ((linkedContainer.paths as JsonRecord)['/linked'] as JsonRecord).get;
     expect(linked).toMatchObject({
       servers: [{ url: 'https://fixtures.knife4j.example/apis/external-api' }],
       security: [{ ExternalKey: [] }],

@@ -140,6 +140,9 @@ const enUS = {
   'schema.example.validationUnavailable.title': 'Example validation is unavailable',
   'schema.example.validationUnavailable.description':
     'Authored examples are preserved, but Knife4j will not create an unvalidated OAS 3.1 candidate.',
+  'schema.example.referenceUnavailable.title': 'The authored example reference is unavailable',
+  'schema.example.referenceUnavailable.description':
+    'This example cannot be resolved from the current read-only resources. It will not be replaced with a generated value, and offline export will be marked incomplete.',
   'schema.example.none.title': 'No validated generated example',
   'schema.example.none.description': 'No candidate in the bounded deterministic search matched the current Schema.',
   'schema.example.none.budgetTitle': 'The example search reached its budget',

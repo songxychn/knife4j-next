@@ -6,7 +6,13 @@ import boot3MvcSpringdocDocument from '../../ui-react/src/test-fixtures/springdo
 import boot3WebfluxSpringdocDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/boot3-webflux-springdoc-2.8.9.json';
 import boot4MvcSpringdocDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/boot4-mvc-springdoc-3.0.3.json';
 import browserSupplementDocument from '../../ui-react/src/test-fixtures/springdoc-oas31/browser-supplement-3.1.2.json';
-import { HyperjumpSchemaEngine, JSON_SCHEMA_2020_12, SchemaEngineError, type SchemaEngine } from '../src';
+import {
+  HyperjumpSchemaEngine,
+  JSON_SCHEMA_2020_12,
+  OPENAPI_31_BASE_DIALECT,
+  SchemaEngineError,
+  type SchemaEngine,
+} from '../src';
 
 const engines: SchemaEngine[] = [];
 
@@ -37,6 +43,54 @@ describe('official JSON Schema Draft 2020-12 subset', () => {
 });
 
 describe('resource graph and evaluation semantics', () => {
+  test.each(['3.1.0', '3.1.1', '3.1.2'])(
+    'inherits the Schema dialect for embedded ids in OpenAPI %s',
+    async (openapi) => {
+      const engine = createEngine();
+      for (const jsonSchemaDialect of [undefined, JSON_SCHEMA_2020_12]) {
+        const dialect = jsonSchemaDialect ?? OPENAPI_31_BASE_DIALECT;
+        const documentUri = `https://fixtures.knife4j.example/embedded-${openapi}-${jsonSchemaDialect ? 'json' : 'oas'}.json`;
+        const resourceUri = `${documentUri}/value`;
+        const document = {
+          openapi,
+          info: { title: 'Embedded Schema dialect', version: '1' },
+          ...(jsonSchemaDialect ? { jsonSchemaDialect } : {}),
+          components: {
+            schemas: {
+              Value: { $id: resourceUri, type: 'string' },
+              Override: {
+                $schema: OPENAPI_31_BASE_DIALECT,
+                $id: `${documentUri}/override`,
+                $defs: { Nested: { $id: 'nested', type: 'integer' } },
+                $ref: 'nested',
+              },
+            },
+          },
+        };
+        const original = structuredClone(document);
+        const metaValidation = await engine.evaluate('https://spec.openapis.org/oas/3.1/schema', document);
+        expect(metaValidation.valid, JSON.stringify(metaValidation.errors)).toBe(true);
+        await expect(engine.evaluate(dialect, document.components.schemas.Value)).resolves.toMatchObject({
+          valid: true,
+        });
+        await expect(
+          engine.evaluate(OPENAPI_31_BASE_DIALECT, document.components.schemas.Override),
+        ).resolves.toMatchObject({ valid: true });
+        await engine.registerDocument(document, documentUri);
+        for (const uri of [resourceUri, `${documentUri}#/components/schemas/Value`]) {
+          await expect(engine.resolve(uri)).resolves.toMatchObject({ dialectId: dialect });
+          await expect(engine.evaluate(uri, 'ok')).resolves.toMatchObject({ valid: true });
+          await expect(engine.evaluate(uri, 1)).resolves.toMatchObject({ valid: false });
+        }
+        await expect(engine.resolve(`${documentUri}/nested`)).resolves.toMatchObject({
+          dialectId: OPENAPI_31_BASE_DIALECT,
+        });
+        await expect(engine.evaluate(`${documentUri}/override`, 1)).resolves.toMatchObject({ valid: true });
+        expect(document).toEqual(original);
+      }
+    },
+  );
+
   test('honors dynamic scope across registered resources', async () => {
     const engine = createEngine();
     const treeUri = 'https://fixtures.knife4j.example/tree';

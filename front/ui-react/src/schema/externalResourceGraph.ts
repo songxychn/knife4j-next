@@ -203,6 +203,12 @@ interface ResourceFailure {
   readonly phase: ResourceDiagnosticPhase;
 }
 
+interface ResourceBudgetState {
+  readonly attempts: Map<string, number>;
+  totalBytes: number;
+  totalParsedNodes: number;
+}
+
 interface MutableGraphState {
   readonly generation: number;
   readonly nodes: Map<string, ResourceGraphNode>;
@@ -211,17 +217,20 @@ interface MutableGraphState {
   readonly edges: MutableEdge[];
   readonly diagnostics: ResourceDiagnostic[];
   readonly failures: Map<string, ResourceFailure>;
-  readonly attempts: Map<string, number>;
   readonly grants: Map<string, ResourceGrant['scope']>;
-  totalBytes: number;
-  totalParsedNodes: number;
+  readonly budget: ResourceBudgetState;
+  readonly fatalFailure?: ResourceFailure;
 }
 
 const OAS_31_VERSION = /^3\.1\.\d+(?:[-+].*)?$/;
 const KNIFE4J_SCHEMA_RESOURCES_FIELD = /^x-knife4j-schema-resources(?:-(?:[2-9]|[1-9]\d+))?$/;
+const KNIFE4J_OPERATION_TARGETS_FIELD = /^x-knife4j-operation-ref-targets(?:-(?:[2-9]|[1-9]\d+))?$/;
+const OPERATION_TARGET_NAME = /^target-[1-9]\d*$/;
+const PATH_ITEM_CONTEXT_FIELDS = new Set(['summary', 'description', 'servers', 'parameters']);
 const SUPPORTED_SCHEMA_DIALECT =
   /^(?:https:\/\/spec\.openapis\.org\/oas\/3\.1\/dialect\/base|https:\/\/json-schema\.org\/draft\/2020-12\/schema)#?$/;
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const RESPONSE_KEY = /^(?:default|[1-5](?:\d{2}|XX))$/;
 const SCHEMA_SINGLE_KEYWORDS = [
   'not',
   'if',
@@ -1210,7 +1219,13 @@ function walkCallback(
     (callback, callbackPointer, nestedEmit) => {
       if (!isRecord(callback)) return;
       Object.entries(callback).forEach(([expression, pathItem]) => {
-        if (expression === '$ref' || expression === 'summary' || expression === 'description') return;
+        if (
+          expression.startsWith('x-') ||
+          expression === '$ref' ||
+          expression === 'summary' ||
+          expression === 'description'
+        )
+          return;
         walkPathItem(
           pathItem,
           childPointer(callbackPointer, expression),
@@ -1260,7 +1275,8 @@ function walkOperation(
     );
   }
   if (isRecord(value.responses)) {
-    Object.entries(value.responses).forEach(([status, response]) =>
+    Object.entries(value.responses).forEach(([status, response]) => {
+      if (!RESPONSE_KEY.test(status)) return;
       walkResponse(
         response,
         childPointer(childPointer(pointer, 'responses'), status),
@@ -1269,8 +1285,8 @@ function walkOperation(
         emit,
         depth,
         generation,
-      ),
-    );
+      );
+    });
   }
   if (isRecord(value.callbacks)) {
     Object.entries(value.callbacks).forEach(([name, callback]) =>
@@ -1425,9 +1441,10 @@ function walkOpenApiDocument(
     );
   });
   if (isRecord(document.paths)) {
-    Object.entries(document.paths).forEach(([path, item]) =>
-      walkPathItem(item, childPointer(childPointer('#', 'paths'), path), baseUri, collector, emit, depth, generation),
-    );
+    Object.entries(document.paths).forEach(([path, item]) => {
+      if (!path.startsWith('/')) return;
+      walkPathItem(item, childPointer(childPointer('#', 'paths'), path), baseUri, collector, emit, depth, generation);
+    });
   }
   if (isRecord(document.webhooks)) {
     Object.entries(document.webhooks).forEach(([name, item]) =>
@@ -1551,14 +1568,62 @@ interface IndexedTargetValue {
   readonly pointer: string;
   readonly baseUri: string;
   readonly ownerRetrievalUri: string;
+  readonly operationPathItem?: { readonly value: JsonRecord; readonly pointer: string };
+}
+
+function portableOperationPathItem(document: unknown, pointer: string): IndexedTargetValue['operationPathItem'] {
+  if (!isRecord(document) || typeof document.openapi !== 'string' || !pointer.startsWith('#/')) return undefined;
+  // Indexed pointers are already URI-decoded. Only decode their JSON Pointer
+  // tokens here, so a literal percent escape in a path is not decoded twice.
+  const tokens = pointer
+    .slice(2)
+    .split('/')
+    .map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+  if (tokens.length !== 5) return undefined;
+  const [field, name, section, path, method] = tokens;
+  if (
+    !KNIFE4J_OPERATION_TARGETS_FIELD.test(field) ||
+    !OPERATION_TARGET_NAME.test(name) ||
+    !['paths', 'webhooks'].includes(section) ||
+    (section === 'paths' && !path.startsWith('/')) ||
+    !HTTP_METHODS.some((candidate) => candidate === method)
+  )
+    return undefined;
+  const targets = document[field];
+  const container = isRecord(targets) ? targets[name] : undefined;
+  if (!isRecord(container) || Object.keys(container).length !== 1) return undefined;
+  const paths = container[section];
+  if (!isRecord(paths) || Object.keys(paths).length !== 1) return undefined;
+  const pathItem = paths[path];
+  if (
+    !isRecord(pathItem) ||
+    !isRecord(pathItem[method]) ||
+    Object.keys(pathItem).some((key) => key !== method && !PATH_ITEM_CONTEXT_FIELDS.has(key) && !key.startsWith('x-'))
+  )
+    return undefined;
+  return { value: pathItem, pointer: pointer.slice(0, pointer.lastIndexOf('/')) };
+}
+
+export function normalizedAnchorUri(uri: string): string {
+  const fragmentIndex = uri.indexOf('#');
+  if (fragmentIndex < 0) return uri;
+  try {
+    const anchor = decodeURIComponent(uri.slice(fragmentIndex + 1));
+    // Only normalize valid anchor names. JSON Pointer decoding and exact
+    // network retrieval identities follow their own rules.
+    return ANCHOR_NAME.test(anchor) ? `${uri.slice(0, fragmentIndex + 1)}${anchor}` : uri;
+  } catch {
+    return uri;
+  }
 }
 
 function expectedTargetValue(
   edge: MutableEdge,
   resourceTarget: (uri: string) => ResourceTarget | undefined,
   anchorTarget: (uri: string) => ResourceTarget | undefined,
+  containingBase: (ownerRetrievalUri: string, pointer: string, fallback: string) => string,
 ): IndexedTargetValue | undefined {
-  const directAnchor = anchorTarget(edge.resolvedUri);
+  const directAnchor = anchorTarget(normalizedAnchorUri(edge.resolvedUri));
   if (directAnchor)
     return {
       value: directAnchor.value,
@@ -1570,10 +1635,11 @@ function expectedTargetValue(
   if (resource) {
     const value = resolveJsonPointer(resource.value, edge.fragment);
     if (value !== undefined) {
+      const pointer = pointerWithinResource(resource.pointer, edge.fragment);
       return {
         value,
-        pointer: pointerWithinResource(resource.pointer, edge.fragment),
-        baseUri: edge.fragment ? edge.targetRetrievalUri : resource.evaluationBaseUri,
+        pointer,
+        baseUri: containingBase(resource.ownerRetrievalUri, pointer, resource.evaluationBaseUri),
         ownerRetrievalUri: resource.ownerRetrievalUri,
       };
     }
@@ -1586,7 +1652,7 @@ function expectedTargetValue(
 }
 
 function walkExpectedTarget(
-  target: { value: unknown; pointer: string; baseUri: string },
+  target: IndexedTargetValue,
   edge: MutableEdge,
   collector: ScanCollector,
   generation: number,
@@ -1610,7 +1676,19 @@ function walkExpectedTarget(
       walkPathItem(value, pointer, baseUri, collector, true, edge.depth, generation);
       break;
     case 'operation':
-      walkOperation(value, pointer, baseUri, collector, true, edge.depth, generation);
+      if (target.operationPathItem) {
+        walkPathItem(
+          target.operationPathItem.value,
+          target.operationPathItem.pointer,
+          baseUri,
+          collector,
+          true,
+          edge.depth,
+          generation,
+        );
+      } else {
+        walkOperation(value, pointer, baseUri, collector, true, edge.depth, generation);
+      }
       break;
     case 'parameter':
       walkParameter(value, pointer, baseUri, collector, true, edge.depth, generation);
@@ -1730,6 +1808,23 @@ export class ExternalResourceLoader {
     this.assertUsable();
     this.cancel();
     const state = this.buildBaseState();
+    this.setOperationGrants(state, grants);
+    this.state = state;
+    return this.runWave(state, signal);
+  }
+
+  /** Continue this document generation using retained data and a new, exact network grant set. */
+  public async continueLoad(grants: readonly ResourceGrant[], signal?: AbortSignal): Promise<ResourceGraphSnapshot> {
+    this.assertUsable();
+    this.cancel();
+    const state = this.forkState(this.state, false);
+    this.setOperationGrants(state, grants);
+    this.state = state;
+    return this.runWave(state, signal);
+  }
+
+  private setOperationGrants(state: MutableGraphState, grants: readonly ResourceGrant[]): void {
+    state.grants.clear();
     grants.forEach((grant) => {
       if (grant.documentScope !== this.documentScope) return;
       const previous = state.grants.get(grant.resourceKey);
@@ -1737,22 +1832,22 @@ export class ExternalResourceLoader {
         state.grants.set(grant.resourceKey, grant.scope);
       }
     });
-    this.state = state;
-    return this.runWave(state, signal);
   }
 
   public async retry(retrievalUriHash: string, signal?: AbortSignal): Promise<ResourceGraphSnapshot> {
     this.assertUsable();
     const previous = this.state;
+    if (previous.fatalFailure) return this.graphSnapshot(previous);
     this.refreshGraph(previous);
     const previousCandidate = this.candidates(previous).find((item) => item.retrievalUriHash === retrievalUriHash);
     const failure = previousCandidate ? previous.failures.get(previousCandidate.retrievalUri) : undefined;
     if (!previousCandidate || !failure || !previousCandidate.retryable) return this.graphSnapshot(previous);
-    const attempts = previous.attempts.get(previousCandidate.retrievalUri) ?? 0;
+    const attempts = previous.budget.attempts.get(previousCandidate.retrievalUri) ?? 0;
     if (attempts >= 1 + this.limits.maxExplicitRetriesPerResource) return this.graphSnapshot(previous);
 
     this.cancel();
     const state = this.forkState(previous);
+    state.grants.set(retrievalUriHash, previous.grants.get(retrievalUriHash) ?? 'generation');
     this.state = state;
     const candidate = this.candidates(state).find((item) => item.retrievalUriHash === retrievalUriHash)!;
 
@@ -1791,20 +1886,17 @@ export class ExternalResourceLoader {
     this.cancel();
   }
 
-  private buildBaseState(): MutableGraphState {
-    this.generation += 1;
+  private buildBaseState(generation = ++this.generation): MutableGraphState {
     const state: MutableGraphState = {
-      generation: this.generation,
+      generation,
       nodes: new Map(),
       resourceTargets: new Map(),
       anchorTargets: new Map(),
       edges: [],
       diagnostics: [],
       failures: new Map(),
-      attempts: new Map(),
       grants: new Map(),
-      totalBytes: 0,
-      totalParsedNodes: this.entryNodes,
+      budget: { attempts: new Map(), totalBytes: 0, totalParsedNodes: this.entryNodes },
     };
     if (this.entryNodes > this.limits.maxTotalParsedNodes) {
       throw new ResourceLoadError('GRAPH_NODE_LIMIT', 'Resource graph node limit exceeded by the entry document.', {
@@ -1826,6 +1918,22 @@ export class ExternalResourceLoader {
     const collectors = new Map([[this.entryRetrievalUri, collector]]);
     this.assertCollectorsFit(state, collectors, 0);
     this.commitCollectors(state, collectors, new Set());
+    this.refreshGraph(state);
+    const reachableCollectors = new Map<string, ScanCollector>();
+    state.edges.forEach((edge) => {
+      // Ordinary local protocol objects were scanned above. A generated Link
+      // target remains opaque until its Link establishes the operation context.
+      if (
+        edge.state === 'local' &&
+        (edge.kind !== 'link-operation-ref' ||
+          !this.targetFromCollectors(state, reachableCollectors, edge)?.operationPathItem)
+      ) {
+        edge.expanded = true;
+      }
+    });
+    const expandedEdges = this.expandReachableTargets(state, reachableCollectors);
+    this.assertCollectorsFit(state, reachableCollectors, 0);
+    this.commitCollectors(state, reachableCollectors, expandedEdges);
     const node = freezeNode({
       retrievalUri: this.entryRetrievalUri,
       retrievalUriHash: sha256Hex(this.entryRetrievalUri),
@@ -1835,7 +1943,7 @@ export class ExternalResourceLoader {
       contentDigest: sha256Hex(this.entryText),
       documentKind: 'openapi',
       authorizationScope: 'entry',
-      resourceUris: [...collector.resources.keys()].sort(),
+      resourceUris: [...state.resourceTargets.keys()].sort(),
       document: this.entryDocument,
     });
     state.nodes.set(this.entryRetrievalUri, node);
@@ -1846,22 +1954,21 @@ export class ExternalResourceLoader {
     return state;
   }
 
-  private forkState(previous: MutableGraphState): MutableGraphState {
-    this.generation += 1;
+  private forkState(previous: MutableGraphState, advanceGeneration = true): MutableGraphState {
+    const generation = advanceGeneration ? ++this.generation : previous.generation;
     return {
-      generation: this.generation,
+      generation,
       nodes: new Map(previous.nodes),
       resourceTargets: new Map(previous.resourceTargets),
       anchorTargets: new Map(previous.anchorTargets),
       edges: previous.edges.map((edge) => ({ ...edge })),
-      diagnostics: previous.diagnostics.map((diagnostic) =>
-        Object.freeze({ ...diagnostic, generation: this.generation }),
-      ),
+      diagnostics: previous.diagnostics.map((diagnostic) => Object.freeze({ ...diagnostic, generation })),
       failures: new Map(previous.failures),
-      attempts: new Map(previous.attempts),
-      grants: new Map(previous.grants),
-      totalBytes: previous.totalBytes,
-      totalParsedNodes: previous.totalParsedNodes,
+      grants: new Map(),
+      // Cancelled waves can settle after continuation starts. Share accounting
+      // while isolating mutable graph state so consumed work is never reset.
+      budget: previous.budget,
+      fatalFailure: previous.fatalFailure,
     };
   }
 
@@ -1870,6 +1977,7 @@ export class ExternalResourceLoader {
     signal?: AbortSignal,
     explicitRetryUri?: string,
   ): Promise<ResourceGraphSnapshot> {
+    if (state.fatalFailure) return this.graphSnapshot(state);
     const controller = new AbortController();
     this.controller = controller;
     let waveTimedOut = false;
@@ -1884,6 +1992,8 @@ export class ExternalResourceLoader {
     try {
       for (;;) {
         if (this.state !== state) return this.graphSnapshot(this.state);
+        if (controller.signal.aborted)
+          throw new ResourceLoadError('RESOURCE_ABORTED', 'Resource loading was cancelled.');
         this.refreshGraph(state);
         const eligible = this.candidates(state).filter((candidate) => {
           if (!state.grants.has(candidate.retrievalUriHash)) return false;
@@ -1902,18 +2012,18 @@ export class ExternalResourceLoader {
               actual: candidate.depth,
             });
           }
-          const attempts = state.attempts.get(candidate.retrievalUri) ?? 0;
-          if (attempts === 0 && state.attempts.size >= this.limits.maxDocuments) {
+          const attempts = state.budget.attempts.get(candidate.retrievalUri) ?? 0;
+          if (attempts === 0 && state.budget.attempts.size >= this.limits.maxDocuments) {
             documentBudgetBlocked = true;
             break;
           }
-          state.attempts.set(candidate.retrievalUri, attempts + 1);
+          state.budget.attempts.set(candidate.retrievalUri, attempts + 1);
           ready.push(candidate);
         }
         if (ready.length === 0 && documentBudgetBlocked) {
           throw new ResourceLoadError('GRAPH_RESOURCE_LIMIT', 'Resource graph document limit exceeded.', {
             limit: this.limits.maxDocuments,
-            actual: state.attempts.size + 1,
+            actual: state.budget.attempts.size + 1,
           });
         }
 
@@ -1928,6 +2038,7 @@ export class ExternalResourceLoader {
       this.refreshGraph(state);
       return this.graphSnapshot(state);
     } catch (error) {
+      if (this.state !== state) return this.graphSnapshot(this.state);
       const failure =
         error instanceof ResourceLoadError
           ? waveTimedOut && error.code === 'RESOURCE_ABORTED'
@@ -1943,9 +2054,11 @@ export class ExternalResourceLoader {
       );
       if (fatal) {
         controller.abort();
-        const base = this.buildBaseState();
-        base.grants.clear();
-        state.grants.forEach((scope, key) => base.grants.set(key, scope));
+        const base: MutableGraphState = {
+          ...this.buildBaseState(state.generation),
+          budget: state.budget,
+          fatalFailure: { error: failure, phase: phaseForError(failure) },
+        };
         base.diagnostics.push(
           genericDiagnostic(failure, phaseForError(failure), base.generation, this.entryRetrievalUri),
         );
@@ -1979,11 +2092,12 @@ export class ExternalResourceLoader {
         signal,
         fetchImpl: this.fetchImpl,
         accountBytes: (bytes) => {
-          state.totalBytes += bytes;
-          if (state.totalBytes > this.limits.maxTotalBytes) {
+          if (signal.aborted) throw new ResourceLoadError('RESOURCE_ABORTED', 'Resource loading was cancelled.');
+          state.budget.totalBytes += bytes;
+          if (state.budget.totalBytes > this.limits.maxTotalBytes) {
             throw new ResourceLoadError('RESOURCE_TOO_LARGE', 'Resource graph byte limit exceeded.', {
               limit: this.limits.maxTotalBytes,
-              actual: state.totalBytes,
+              actual: state.budget.totalBytes,
               scope: 'graph',
             });
           }
@@ -1997,10 +2111,10 @@ export class ExternalResourceLoader {
       if (signal.aborted) throw new ResourceLoadError('RESOURCE_ABORTED', 'Resource loading was cancelled.');
       if (this.state !== state)
         throw new ResourceLoadError('STALE_GENERATION', 'A newer resource graph generation is active.');
-      if (state.totalParsedNodes + parsed.nodes > this.limits.maxTotalParsedNodes) {
+      if (state.budget.totalParsedNodes + parsed.nodes > this.limits.maxTotalParsedNodes) {
         throw new ResourceLoadError('GRAPH_NODE_LIMIT', 'Resource graph node limit exceeded.', {
           limit: this.limits.maxTotalParsedNodes,
-          actual: state.totalParsedNodes + parsed.nodes,
+          actual: state.budget.totalParsedNodes + parsed.nodes,
           scope: 'graph',
         });
       }
@@ -2020,7 +2134,7 @@ export class ExternalResourceLoader {
       if (this.state !== state)
         throw new ResourceLoadError('STALE_GENERATION', 'A newer resource graph generation is active.');
       this.commitCollectors(state, collectors, expandedEdges);
-      state.totalParsedNodes += parsed.nodes;
+      state.budget.totalParsedNodes += parsed.nodes;
       const node = freezeNode({
         retrievalUri: candidate.retrievalUri,
         retrievalUriHash: candidate.retrievalUriHash,
@@ -2095,7 +2209,34 @@ export class ExternalResourceLoader {
       }
       return state.anchorTargets.get(uri);
     };
-    return expectedTargetValue(edge, findResource, findAnchor);
+    const containingBase = (ownerRetrievalUri: string, pointer: string, fallback: string): string => {
+      let baseUri = fallback;
+      let containingPointerLength = -1;
+      const inspect = (target: ResourceTarget): void => {
+        if (target.ownerRetrievalUri !== ownerRetrievalUri || target.pointer.length <= containingPointerLength) return;
+        if (pointer !== target.pointer && !pointer.startsWith(`${target.pointer}/`)) return;
+        containingPointerLength = target.pointer.length;
+        // A target which declares $id must receive its inherited base because
+        // walkSchema applies that identifier itself. Descendants use the
+        // already resolved containing resource base, never a retrieval alias.
+        baseUri =
+          pointer === target.pointer || !isRecord(target.value) || typeof target.value.$id !== 'string'
+            ? target.evaluationBaseUri
+            : uriWithoutFragment(new URL(target.value.$id, target.evaluationBaseUri).href);
+      };
+      state.resourceTargets.forEach(inspect);
+      collectors.forEach((collector) => collector.resources.forEach(inspect));
+      return baseUri;
+    };
+    const target = expectedTargetValue(edge, findResource, findAnchor, containingBase);
+    if (target && edge.kind === 'link-operation-ref') {
+      const operationPathItem = portableOperationPathItem(
+        findResource(target.ownerRetrievalUri)?.value,
+        target.pointer,
+      );
+      if (operationPathItem) return { ...target, operationPathItem };
+    }
+    return target;
   }
 
   private expandReachableTargets(
@@ -2139,10 +2280,10 @@ export class ExternalResourceLoader {
         actual: referenceKeys.size,
       });
     }
-    if (state.totalParsedNodes + parsedNodes > this.limits.maxTotalParsedNodes) {
+    if (state.budget.totalParsedNodes + parsedNodes > this.limits.maxTotalParsedNodes) {
       throw new ResourceLoadError('GRAPH_NODE_LIMIT', 'Resource graph node limit exceeded.', {
         limit: this.limits.maxTotalParsedNodes,
-        actual: state.totalParsedNodes + parsedNodes,
+        actual: state.budget.totalParsedNodes + parsedNodes,
         scope: 'graph',
       });
     }
@@ -2236,9 +2377,10 @@ export class ExternalResourceLoader {
         edge.state = 'failed';
         return;
       }
-      const target = state.anchorTargets.get(edge.resolvedUri) ?? state.resourceTargets.get(edge.targetRetrievalUri);
+      const anchor = state.anchorTargets.get(normalizedAnchorUri(edge.resolvedUri));
+      const target = anchor ?? state.resourceTargets.get(edge.targetRetrievalUri);
       if (target) {
-        const fragmentTarget = state.anchorTargets.get(edge.resolvedUri) ?? {
+        const fragmentTarget = anchor ?? {
           ...target,
           value: resolveJsonPointer(target.value, edge.fragment),
         };
@@ -2317,7 +2459,7 @@ export class ExternalResourceLoader {
           state: failure ? 'failed' : 'pending',
           retryable:
             failure && isRetryableResourceError(failure.error)
-              ? (state.attempts.get(retrievalUri) ?? 0) < 1 + this.limits.maxExplicitRetriesPerResource
+              ? (state.budget.attempts.get(retrievalUri) ?? 0) < 1 + this.limits.maxExplicitRetriesPerResource
               : false,
           ...(failure ? { failureCode: failure.error.code } : {}),
           references: Object.freeze(

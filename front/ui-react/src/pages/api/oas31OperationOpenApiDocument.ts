@@ -8,6 +8,7 @@ import {
 import {
   PORTABLE_SCHEMA_RESOURCES_EXTENSION,
   PORTABLE_SCHEMA_RESOURCES_VERSION,
+  normalizedAnchorUri,
   safeResourceDisplay,
   type ResourceGraphEdge,
   type ResourceGraphSnapshot,
@@ -76,6 +77,7 @@ export type Oas31OperationExportBlockerCode =
   | 'SECURITY_SCHEME_MISSING'
   | 'LINK_OPERATION_ID_NOT_FOUND'
   | 'LINK_OPERATION_ID_AMBIGUOUS'
+  | 'LINK_OPERATION_CONTEXT_UNRESOLVED'
   | 'RELATIVE_URI_UNRESOLVED';
 
 export interface Oas31OperationExportBlocker {
@@ -118,6 +120,9 @@ const COMPONENT_NAME = /^[A-Za-z0-9._-]+$/;
 const OAS_31_BASE_DIALECT = 'https://spec.openapis.org/oas/3.1/dialect/base';
 const JSON_SCHEMA_2020_12 = 'https://json-schema.org/draft/2020-12/schema';
 const REF_TARGETS_FIELD = 'x-knife4j-operation-ref-targets';
+const REF_TARGETS_FIELD_PATTERN = /^x-knife4j-operation-ref-targets(?:-(?:[2-9]|[1-9]\d+))?$/;
+const REF_TARGET_NAME_PATTERN = /^target-[1-9]\d*$/;
+const SCHEMA_RESOURCES_FIELD_PATTERN = /^x-knife4j-schema-resources(?:-(?:[2-9]|[1-9]\d+))?$/;
 const NO_REFERENCE_ANNOTATIONS: ReadonlySet<string> = new Set();
 const DESCRIPTION_REFERENCE_ANNOTATION: ReadonlySet<string> = new Set(['description']);
 const ALL_REFERENCE_ANNOTATIONS: ReadonlySet<string> = new Set(['summary', 'description']);
@@ -166,10 +171,29 @@ function uriWithoutFragment(uri: string): string {
   return parsed.href;
 }
 
+function pointerReference(tokens: readonly string[]): string {
+  return `#/${tokens.map((token) => encodeURI(escapeJsonPointerSegment(token)).replace(/#/g, '%23')).join('/')}`;
+}
+
+function isPortableReferenceTarget(tokens: readonly string[]): boolean {
+  return tokens.length >= 2 && REF_TARGETS_FIELD_PATTERN.test(tokens[0]) && REF_TARGET_NAME_PATTERN.test(tokens[1]);
+}
+
+function operationContextTokens(pointer: string): string[] | null {
+  const sourceTokens = pointerTokens(pointer);
+  if (!sourceTokens) return null;
+  const tokens =
+    sourceTokens.length === 5 && isPortableReferenceTarget(sourceTokens) ? sourceTokens.slice(2) : sourceTokens;
+  return tokens.length === 3 &&
+    ['paths', 'webhooks'].includes(tokens[0]) &&
+    (tokens[0] !== 'paths' || tokens[1].startsWith('/')) &&
+    HTTP_METHODS.includes(tokens[2])
+    ? tokens
+    : null;
+}
+
 function pointerUri(resourceUri: string, tokens: readonly string[]): string {
-  if (tokens.length === 0) return resourceUri;
-  const pointer = `#/${tokens.map(escapeJsonPointerSegment).join('/')}`;
-  return new URL(pointer, resourceUri).href;
+  return tokens.length === 0 ? resourceUri : new URL(pointerReference(tokens), resourceUri).href;
 }
 
 function absolutePortableUri(value: string, baseUri: string): string | null {
@@ -316,6 +340,7 @@ class Oas31OperationBundler {
   private readonly referenceNames = new Map<string, string>();
   private readonly schemaResourceNames = new Map<string, string>();
   private readonly schemaResourceValues = new Map<string, JsonRecord>();
+  private readonly preservedSchemaResources = new Map<string, JsonRecord>();
   private readonly sparseResources = new Set<string>();
   private readonly includedSparsePointers = new Map<string, Set<string>>();
   private readonly securityNames = new Map<string, string>();
@@ -393,12 +418,7 @@ class Oas31OperationBundler {
     } else if (owns(this.source, 'jsonSchemaDialect')) {
       output.jsonSchemaDialect = this.source.jsonSchemaDialect;
     }
-    if (owns(this.source, 'servers')) {
-      output.servers = this.copyValue(
-        this.childLocation(this.entryLocation(), 'servers', this.source.servers),
-        'servers',
-      );
-    }
+    output.servers = this.copyDocumentServers(this.entryLocation());
     Object.entries(this.source).forEach(([key, value]) => {
       if (key.startsWith('x-'))
         output[key] = this.copyValue(this.childLocation(this.entryLocation(), key, value), 'opaque');
@@ -423,6 +443,12 @@ class Oas31OperationBundler {
         resources: this.schemaResources,
       };
     }
+    // Existing portable containers are copied with the document extensions.
+    // Rewrite a reachable resource in its original slot instead of declaring
+    // the same $id again in a second container after a portable reload.
+    [...this.preservedSchemaResources.entries()]
+      .sort(([left], [right]) => pointerTokens(left)!.length - pointerTokens(right)!.length)
+      .forEach(([pointer, value]) => this.assignAt(output, pointerTokens(pointer)!, value));
 
     return this.blockers.size > 0 ? this.unavailable() : { status: 'ready', document: output };
   }
@@ -525,7 +551,7 @@ class Oas31OperationBundler {
   }
 
   private targetLocationQuiet(edge: ResourceGraphEdge, implicitDocumentUri?: string): LocatedValue | null {
-    const anchor = this.snapshot.anchorTargets.get(edge.resolvedUri);
+    const anchor = this.snapshot.anchorTargets.get(normalizedAnchorUri(edge.resolvedUri));
     if (anchor) {
       return this.location(anchor.ownerRetrievalUri, anchor.pointer, implicitDocumentUri ?? anchor.ownerRetrievalUri);
     }
@@ -596,6 +622,16 @@ class Oas31OperationBundler {
     return value;
   }
 
+  private copyDocumentServers(location: LocatedValue): unknown {
+    const document = asRecord(location.value);
+    const servers = document?.servers;
+    // OAS defines the missing/empty root server array as [{ url: '/' }].
+    // Materialize it before moving the document to another retrieval origin.
+    const effectiveServers =
+      (Array.isArray(servers) && servers.length === 0) || servers === undefined ? [{ url: '/' }] : servers;
+    return this.copyValue(this.childLocation(location, 'servers', effectiveServers), 'servers');
+  }
+
   private isPortableUriField(kind: CopyKind, key: string): boolean {
     if (kind === 'info') return key === 'termsOfService';
     if (kind === 'contact' || kind === 'license' || kind === 'server' || kind === 'externalDocs') {
@@ -603,9 +639,9 @@ class Oas31OperationBundler {
     }
     if (kind === 'example') return key === 'externalValue';
     if (kind === 'securityScheme') return key === 'openIdConnectUrl';
-    if (kind === 'oauthFlow') {
-      return key === 'authorizationUrl' || key === 'tokenUrl' || key === 'refreshUrl';
-    }
+    // OAuth flow URLs are API references, resolved against the selected Server.
+    // Keeping them relative preserves every server/variable choice now that
+    // Server URLs themselves have been made portable.
     return false;
   }
 
@@ -692,9 +728,10 @@ class Oas31OperationBundler {
       const items = asRecord(document[collection]);
       if (!items) return;
       const collectionLocation = this.childLocation(root, collection, items);
-      Object.entries(items).forEach(([path, pathItem]) =>
-        visitPathItem(this.childLocation(collectionLocation, path, pathItem)),
-      );
+      Object.entries(items).forEach(([path, pathItem]) => {
+        if (collection === 'paths' && !path.startsWith('/')) return;
+        visitPathItem(this.childLocation(collectionLocation, path, pathItem));
+      });
     });
     return { matches: [...matches.values()], unresolvedEdges: [...unresolved.values()] };
   }
@@ -832,43 +869,64 @@ class Oas31OperationBundler {
     edge?: ResourceGraphEdge,
   ): string {
     const key = `${targetKind}\n${this.locationKey(target)}`;
-    let name = this.referenceNames.get(key);
-    if (name) return `#/${escapeJsonPointerSegment(this.refTargetsField)}/${escapeJsonPointerSegment(name)}`;
+    const existing = this.referenceNames.get(key);
+    if (existing) return existing;
 
-    name = `target-${this.referenceNames.size + 1}`;
-    this.referenceNames.set(key, name);
+    const operationTokens = targetKind === 'operation' ? operationContextTokens(target.pointer) : null;
+    if (targetKind === 'operation' && !operationTokens) {
+      // A pointer into arbitrary extension data can legally select an Operation,
+      // but it does not establish a callable path/method context for relocation.
+      this.block('LINK_OPERATION_CONTEXT_UNRESOLVED', sourcePointer, edge);
+      return '#';
+    }
+    const name = `target-${this.referenceNames.size + 1}`;
+    const reference = pointerReference([this.refTargetsField, name, ...(operationTokens ?? [])]);
+    this.referenceNames.set(key, reference);
     const placeholder = record();
     this.referenceTargets[name] = placeholder;
-    const copied = targetKind === 'operation' ? this.copyOperationTarget(target) : this.copyValue(target, targetKind);
+    const copied =
+      targetKind === 'operation'
+        ? this.copyOperationTarget(target, operationTokens!)
+        : this.copyValue(target, targetKind);
     const copiedRecord = asRecord(copied);
     if (!copiedRecord) this.block('REFERENCE_TARGET_INVALID', sourcePointer, edge);
     else Object.assign(placeholder, copiedRecord);
-    return `#/${escapeJsonPointerSegment(this.refTargetsField)}/${escapeJsonPointerSegment(name)}`;
+    return reference;
   }
 
-  private copyOperationTarget(location: LocatedValue): unknown {
+  private copyOperationTarget(location: LocatedValue, tokens: readonly string[]): unknown {
     const copied = this.copyValue(location, 'operation');
     const output = asRecord(copied);
     const source = asRecord(location.value);
-    if (!output || !source || owns(source, 'servers')) return copied;
+    if (!output || !source) return copied;
 
-    const tokens = pointerTokens(location.pointer);
-    const parentPointer = tokens && tokens.length > 0 ? appendPointer('#', ...tokens.slice(0, -1)) : null;
-    const parent = parentPointer
-      ? this.location(location.ownerRetrievalUri, parentPointer, location.implicitDocumentUri)
-      : null;
-    const pathItem = asRecord(parent?.value);
-    if (pathItem && owns(pathItem, 'servers')) {
-      output.servers = this.copyValue(this.childLocation(parent!, 'servers', pathItem.servers), 'servers');
-      return output;
+    const parent = this.location(
+      location.ownerRetrievalUri,
+      appendPointer('#', ...pointerTokens(location.pointer)!.slice(0, -1)),
+      location.implicitDocumentUri,
+    );
+    const resolved = parent ? this.resolvePathItem(parent, new Set()) : null;
+    if (!resolved) {
+      this.block('LINK_OPERATION_CONTEXT_UNRESOLVED', location.pointer);
+      return copied;
     }
-
-    const document = asRecord(this.sourceDocument(location.implicitDocumentUri));
-    const root = document ? this.location(location.implicitDocumentUri, '#', location.implicitDocumentUri) : null;
-    if (document && root && owns(document, 'servers')) {
-      output.servers = this.copyValue(this.childLocation(root, 'servers', document.servers), 'servers');
+    const pathItem = record();
+    resolved.fields.forEach((located, field) => {
+      if (PATH_ITEM_FIELDS.includes(field as (typeof PATH_ITEM_FIELDS)[number]) || field.startsWith('x-')) {
+        pathItem[field] = this.copyValue(located, field.startsWith('x-') ? 'opaque' : childKind('pathItem', field));
+      }
+    });
+    if (!owns(source, 'servers')) {
+      const servers = resolved.fields.get('servers');
+      const root = this.location(location.implicitDocumentUri, '#', location.implicitDocumentUri);
+      if (servers) output.servers = this.copyValue(servers, 'servers');
+      else if (root) output.servers = this.copyDocumentServers(root);
+      else this.block('LINK_OPERATION_CONTEXT_UNRESOLVED', location.pointer);
     }
-    return output;
+    pathItem[tokens[tokens.length - 1]] = output;
+    const container = record();
+    this.assignAt(container, tokens.slice(0, -1), pathItem);
+    return container;
   }
 
   private copySecurityRequirements(location: LocatedValue): unknown {
@@ -911,6 +969,24 @@ class Oas31OperationBundler {
   }
 
   private schemaProxy(location: LocatedValue): JsonRecord {
+    const source = asRecord(location.value);
+    const tokens = pointerTokens(location.pointer);
+    if (
+      source &&
+      Object.keys(source).length === 1 &&
+      typeof source.$ref === 'string' &&
+      tokens &&
+      isPortableReferenceTarget(tokens)
+    ) {
+      // Reuse the canonical target of a proxy from a previous portable export.
+      // Giving this proxy a new resource identity inside an opaque extension
+      // would lose the schema's registration context on the next reload.
+      const pointer = appendPointer(location.pointer, '$ref');
+      const edge = this.edgeAt(location.ownerRetrievalUri, pointer, ['schema-ref']);
+      if (!this.usableEdge(edge, pointer)) return { $ref: '#' };
+      const target = this.targetLocation(edge);
+      return { $ref: target ? (this.ensureSchemaLocation(target) ?? '#') : '#' };
+    }
     const uri = this.ensureSchemaLocation(location);
     return { $ref: uri ?? '#' };
   }
@@ -980,7 +1056,11 @@ class Oas31OperationBundler {
     this.schemaResourceNames.set(resource.uri, name);
     const placeholder = record();
     this.schemaResourceValues.set(resource.uri, placeholder);
-    this.schemaResources[name] = placeholder;
+    if (this.isPreservedSchemaResource(resource)) {
+      this.preservedSchemaResources.set(resource.location.pointer, placeholder);
+    } else {
+      this.schemaResources[name] = placeholder;
+    }
 
     const node = this.snapshot.nodes.get(resource.target.ownerRetrievalUri);
     const sparse = node?.documentKind === 'openapi' && resource.target.pointer === '#';
@@ -1011,6 +1091,17 @@ class Oas31OperationBundler {
       placeholder.$id = resource.uri;
     }
     return placeholder;
+  }
+
+  private isPreservedSchemaResource(resource: LocatedResource): boolean {
+    if (resource.location.ownerRetrievalUri !== this.entryRetrievalUri) return false;
+    const tokens = pointerTokens(resource.location.pointer);
+    if (!tokens || tokens.length < 3 || !SCHEMA_RESOURCES_FIELD_PATTERN.test(tokens[0]) || tokens[1] !== 'resources') {
+      return false;
+    }
+    const container = asRecord(this.source[tokens[0]]);
+    const resources = asRecord(container?.resources);
+    return container?.version === PORTABLE_SCHEMA_RESOURCES_VERSION && resources !== null && owns(resources, tokens[2]);
   }
 
   private effectiveDialect(resource: LocatedResource): string {
@@ -1088,7 +1179,7 @@ class Oas31OperationBundler {
               if (
                 portableTarget &&
                 edge.kind !== 'schema-dynamic-ref' &&
-                !this.snapshot.anchorTargets.has(edge.resolvedUri)
+                !this.snapshot.anchorTargets.has(normalizedAnchorUri(edge.resolvedUri))
               ) {
                 return portableTarget;
               }

@@ -1,8 +1,16 @@
-import type { DebugParam, OperationDebugModel } from 'knife4j-core';
+import type { DebugParam, OperationDebugModel, ValidationError } from 'knife4j-core';
 import { paramKey, type ParamValueMap } from './debugDefaultValues';
 
 function declaredParameters(model: OperationDebugModel): DebugParam[] {
   return [...model.pathParams, ...model.queryParams, ...model.headerParams, ...model.cookieParams];
+}
+
+/** Only OAS 3.1 parameter diagnostics participate in the existing explicit negative-test override. */
+export function isOas31RequiredParameterError(model: OperationDebugModel, error: ValidationError): boolean {
+  return declaredParameters(model).some(
+    (parameter) =>
+      parameter.parameterSerialization !== undefined && parameter.name === error.name && parameter.in === error.in,
+  );
 }
 
 export function buildInitialParamEnabled(

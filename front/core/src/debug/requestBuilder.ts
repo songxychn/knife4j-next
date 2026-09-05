@@ -286,17 +286,28 @@ export function splitGlobalParams(globalParams: GlobalParamValues | undefined): 
 // ─── Required 校验 ────────────────────────────────────
 
 /** 校验必填参数，返回缺失列表 */
-export function validateRequired(model: OperationDebugModel, form: DebugFormValues): ValidationError[] {
+export function validateRequired(
+  model: OperationDebugModel,
+  form: DebugFormValues,
+  parameterPresence?: Readonly<Record<string, boolean>>,
+): ValidationError[] {
   const errors: ValidationError[] = [];
+  const presence = parameterPresence ?? serializeOas31Parameters(model, form.oas31ParameterValues).presence;
 
   const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
       if (!param.required) continue;
-      if (param.parameterSerialization && form.oas31ParameterValues) {
-        if (Object.prototype.hasOwnProperty.call(form.oas31ParameterValues, `${param.in}:${param.name}`)) continue;
-      }
+      const key = `${param.in}:${param.name}`;
+      const serializedPresence =
+        param.parameterSerialization && Object.prototype.hasOwnProperty.call(presence, key) ? presence[key] : undefined;
+      if (serializedPresence === true) continue;
       const value = values[param.name];
-      if (value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
+      if (
+        serializedPresence === false ||
+        value === undefined ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0)
+      ) {
         errors.push({
           name: param.name,
           in: in_,
@@ -558,6 +569,9 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     sourceMap,
     jsonFields: formValues.jsonFields,
     ...(serializedParameters.instances.length > 0 ? { parameterInstances: serializedParameters.instances } : {}),
+    ...(Object.keys(serializedParameters.presence).length > 0
+      ? { parameterPresence: serializedParameters.presence }
+      : {}),
     ...(serializedParameters.diagnostics.length > 0
       ? { parameterInputDiagnostics: serializedParameters.diagnostics }
       : {}),

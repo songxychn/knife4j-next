@@ -470,6 +470,52 @@ describe('OAS 3.1 style serialization', () => {
   });
 
   test.each([
+    [{ type: 'string' }, 'W/"etag-v1%2F"', false, 'W/"etag-v1%2F"'],
+    [{ type: 'string' }, 'one\ttwo words', false, 'one\ttwo words'],
+    [{ type: 'array', items: { type: 'string' } }, '["\\"one\\"","W/\\"two\\""]', false, '"one",W/"two"'],
+    [
+      { type: 'object' },
+      '{"etag":"\\"one\\"","uri":"https://example.test/a"}',
+      false,
+      'etag,"one",uri,https://example.test/a',
+    ],
+    [
+      { type: 'object' },
+      '{"etag":"\\"one\\"","uri":"https://example.test/a"}',
+      true,
+      'etag="one",uri=https://example.test/a',
+    ],
+  ] as const)(
+    'preserves legal simple header data for %j input %s with explode=%s',
+    (schema, raw, explode, expected) => {
+      const header = parameter(
+        'X-Value',
+        'header',
+        { kind: 'schema', style: 'simple', explode, allowReserved: false },
+        schema,
+      );
+      expect(serialize(header, raw).headers).toEqual({ 'X-Value': expected });
+    },
+  );
+
+  test.each(['\r', '\n', '\u0000', '\u001f', '\u007f'])(
+    'rejects header controls before they can be disguised by URI encoding (%j)',
+    (control) => {
+      const header = parameter(
+        'X-Value',
+        'header',
+        { kind: 'schema', style: 'simple', explode: true, allowReserved: false },
+        { type: 'string' },
+      );
+      const object = { ...header, type: 'object', schema: { type: 'object' } };
+      expect(() => serialize(header, `before${control}after`)).toThrow('forbidden control character');
+      expect(() => serialize(object, JSON.stringify({ [`key${control}`]: 'value' }))).toThrow(
+        'forbidden control character',
+      );
+    },
+  );
+
+  test.each([
     ['header', 'simple', false, [{ name: 'color', value: 'R,100,G,200' }]],
     ['header', 'simple', true, [{ name: 'color', value: 'R=100,G=200' }]],
     ['cookie', 'form', false, [{ name: 'color', value: 'R,100,G,200' }]],

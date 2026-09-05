@@ -1,5 +1,7 @@
 import { collectOas31DocumentDiagnostics } from 'knife4j-core';
+import { createSchemaEngine } from 'knife4j-schema-engine';
 import { describe, expect, it, vi } from 'vitest';
+import { buildOas31OperationOpenApiDocument } from '../pages/api/oas31OperationOpenApiDocument';
 import {
   ExternalResourceLoader,
   type ResourceGraphSnapshot,
@@ -576,6 +578,88 @@ describe('OAS 3.1 API change fingerprints', () => {
     expect(afterOtherChange[treeKey]).toBe(initial[treeKey]);
     expect(afterOtherChange[otherKey]).not.toBe(initial[otherKey]);
     expect(afterOtherChange[localKey]).toBe(initial[localKey]);
+  });
+
+  it.each([false, true])('propagates Link target inherited parameter changes (own servers: %s)', async (ownServers) => {
+    const document = {
+      openapi: '3.1.2',
+      info: { title: 'Link dependency changes', version: '1' },
+      servers: [{ url: 'https://api.example.test/' }],
+      paths: {
+        '/selected': {
+          get: {
+            responses: {
+              '200': {
+                description: 'OK',
+                links: {
+                  next: { operationRef: '#/paths/~1orders~1%7Bid%7D/get', parameters: { 'path.id': 'alpha' } },
+                },
+              },
+            },
+          },
+        },
+        '/orders/{id}': {
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', pattern: '^alpha' } }],
+          get: {
+            ...(ownServers ? { servers: [{ url: 'https://orders.example.test/' }] } : {}),
+            responses: { '200': { description: 'Order' } },
+          },
+        },
+        '/unrelated': { get: { responses: { '200': { description: 'Unrelated' } } } },
+      },
+    } as unknown as SwaggerDoc;
+    const engine = createSchemaEngine();
+    try {
+      expect((await engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+    } finally {
+      engine.dispose();
+    }
+    const sourceBefore = JSON.stringify(document);
+    const initial = await buildOas31Fingerprints(document, {});
+    const changedDocument = cloneJson(document);
+    changedDocument.paths['/orders/{id}'].parameters![0].schema!.pattern = '^beta';
+    const changed = await buildOas31Fingerprints(changedDocument, {});
+    expect(changed[apiOperationIdentity('GET', '/selected')]).not.toBe(
+      initial[apiOperationIdentity('GET', '/selected')],
+    );
+    expect(changed[apiOperationIdentity('GET', '/orders/{id}')]).not.toBe(
+      initial[apiOperationIdentity('GET', '/orders/{id}')],
+    );
+    expect(changed[apiOperationIdentity('GET', '/unrelated')]).toBe(initial[apiOperationIdentity('GET', '/unrelated')]);
+    expect(JSON.stringify(document)).toBe(sourceBefore);
+
+    const importedFingerprints = async (source: SwaggerDoc): Promise<ApiOperationFingerprintMap> => {
+      const { snapshot } = await oas31Snapshot(source, {});
+      const exported = buildOas31OperationOpenApiDocument(source, '/selected', 'get', 'path', {
+        retrievalUri: OAS31_ENTRY_URI,
+        snapshot,
+      });
+      expect(exported?.status).toBe('ready');
+      if (exported?.status !== 'ready') throw new Error('Expected portable Link document');
+      const importedUri = 'https://portable.knife4j.example/reloaded.json';
+      const loader = new ExternalResourceLoader(exported.document, importedUri);
+      try {
+        expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+        expect(loader.currentDiscovery().candidates).toEqual([]);
+        // Fingerprinting the imported document builds its portable closure again.
+        return readyOas31Fingerprints(
+          buildApiChangeFingerprintSnapshot(exported.document as unknown as SwaggerDoc, {
+            status: 'ready',
+            retrievalUri: importedUri,
+            snapshot: loader.currentSnapshot(),
+            documentDiagnostics: [],
+          }),
+        );
+      } finally {
+        loader.dispose();
+      }
+    };
+    const importedInitial = await importedFingerprints(document);
+    const importedChanged = await importedFingerprints(changedDocument);
+    expect(Object.keys(importedInitial)).toEqual([apiOperationIdentity('GET', '/selected')]);
+    expect(importedChanged[apiOperationIdentity('GET', '/selected')]).not.toBe(
+      importedInitial[apiOperationIdentity('GET', '/selected')],
+    );
   });
 
   it('establishes a separate first baseline, then reports OAS 3.1 additions and recovered changes', async () => {

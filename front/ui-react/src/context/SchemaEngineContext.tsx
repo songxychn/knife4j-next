@@ -211,7 +211,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (!runtime || resourceKeys.length === 0) return;
       const selectedKeys = selectedCandidateKeys(runtime, resourceKeys);
       if (selectedKeys.length === 0) return;
-      await applyGraphOperation(runtime, () => runtime.loader.load(grantsFor(runtime, selectedKeys)));
+      await applyGraphOperation(runtime, () => runtime.loader.continueLoad(grantsFor(runtime, selectedKeys)));
     },
     [applyGraphOperation],
   );
@@ -226,12 +226,14 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .candidates.filter((candidate) => requested.has(candidate.retrievalUriHash));
       if (selected.length === 0) return false;
       const selectedKeys = selected.map((candidate) => candidate.retrievalUriHash);
+      const operationRevision = ++runtime.operationRevision;
+      runtime.loader.cancel();
       const persisted = await rememberResourceGrants(runtime.loader.documentScope, selected);
-      if (!isCurrent(runtime)) return persisted;
+      if (!isCurrent(runtime) || runtime.operationRevision !== operationRevision) return persisted;
       selectedKeys.forEach((key) => {
         if (persisted) runtime.rememberedGrantKeys.add(key);
       });
-      await applyGraphOperation(runtime, () => runtime.loader.load(grantsFor(runtime, selectedKeys)));
+      await applyGraphOperation(runtime, () => runtime.loader.continueLoad(grantsFor(runtime, selectedKeys)));
       return persisted;
     },
     [applyGraphOperation, isCurrent],

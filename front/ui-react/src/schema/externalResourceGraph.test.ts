@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { sha256Hex } from '../apiChange/apiChangeTracker';
 import {
+  DEFAULT_RESOURCE_LOAD_LIMITS,
   ExternalResourceLoader,
   parseExternalResourceDocument,
   safeResourceDisplay,
@@ -25,6 +26,230 @@ const grant = (loader: ExternalResourceLoader, uri: string): ResourceGrant => ({
 });
 
 describe('resource graph discovery and exact grants', () => {
+  test.each([
+    ['x-knife4j-operation-ref-targets', 'paths', '/orders/{id}'],
+    ['x-knife4j-operation-ref-targets-2', 'webhooks', 'x-order-change'],
+  ])('follows a generated Link target and its inherited parameters in %s/%s', async (field, section, path) => {
+    const schemaUri = 'https://schemas.example.test/order-id.json';
+    const opaqueUri = 'https://opaque.example.test/unused.json';
+    const parentPointer = `#/${field}/target-1/${section}/${path.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(schemaUri);
+      return new Response('{"type":"string"}', { headers: { 'content-type': 'application/schema+json' } });
+    });
+    const loader = new ExternalResourceLoader(
+      entryDocument(
+        {},
+        {
+          paths: {
+            '/selected': {
+              get: {
+                responses: {
+                  200: {
+                    description: 'OK',
+                    links: {
+                      next: { operationRef: `${parentPointer}/get`, parameters: { 'path.id': 'order-1' } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          [field]: {
+            'target-1': {
+              [section]: {
+                [path]: {
+                  parameters: [{ $ref: `#/${field}/target-2` }],
+                  'x-context': { $ref: opaqueUri },
+                  get: { responses: { 200: { description: 'Order' } } },
+                },
+              },
+            },
+            'target-2': { name: 'id', in: 'path', required: true, schema: { $ref: schemaUri } },
+            'target-3': { parameters: [{ $ref: opaqueUri }] },
+          },
+        },
+      ),
+      entryUri,
+      { pageUri, fetchImpl },
+    );
+
+    expect(loader.currentDiscovery().candidates.map((candidate) => candidate.retrievalUri)).toEqual([schemaUri]);
+    expect(loader.currentSnapshot().edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sourcePointer: `${parentPointer}/parameters/0/$ref`, kind: 'reference-object' }),
+        expect.objectContaining({ sourcePointer: `#/${field}/target-2/schema/$ref`, kind: 'schema-ref' }),
+      ]),
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+    const snapshot = await loader.load([grant(loader, schemaUri)]);
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(schemaUri);
+  });
+
+  test.each(['no Link', 'ordinary extension', 'wrong target name', 'sibling method', 'sibling path'])(
+    'keeps generated-looking parent parameters opaque with %s',
+    (variant) => {
+      const opaqueUri = 'https://opaque.example.test/unused.json';
+      const field = variant === 'ordinary extension' ? 'x-business-data' : 'x-knife4j-operation-ref-targets';
+      const target = variant === 'wrong target name' ? 'example' : 'target-1';
+      const operation = { responses: { 200: { description: 'Display only' } } };
+      const pathItem = {
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { $ref: opaqueUri, $schema: opaqueUri } }],
+        get: operation,
+        ...(variant === 'sibling method' ? { post: operation } : {}),
+      };
+      const loader = new ExternalResourceLoader(
+        entryDocument(
+          {},
+          {
+            paths: {
+              '/selected': {
+                get: {
+                  responses: {
+                    200: {
+                      description: 'OK',
+                      ...(variant === 'no Link'
+                        ? {}
+                        : {
+                            links: {
+                              next: {
+                                operationRef: `#/${field}/${target}/paths/~1orders~1{id}/get`,
+                              },
+                            },
+                          }),
+                    },
+                  },
+                },
+              },
+            },
+            [field]: {
+              [target]: {
+                paths: {
+                  '/orders/{id}': pathItem,
+                  ...(variant === 'sibling path' ? { '/another': { get: operation } } : {}),
+                },
+              },
+            },
+          },
+        ),
+        entryUri,
+        { pageUri },
+      );
+      expect(loader.currentDiscovery().candidates).toEqual([]);
+      expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+    },
+  );
+
+  test.each([
+    ['#/$defs/Value', { $defs: { Value: { $ref: 'child.json' } } }, 'child.json'],
+    [
+      '#/$defs/Parent/$defs/Value',
+      { $defs: { Parent: { $id: 'nested/', $defs: { Value: { $ref: 'child.json' } } } } },
+      'nested/child.json',
+    ],
+    ['#/$defs/Value', { $defs: { Value: { $id: 'nested/', $ref: 'child.json' } } }, 'nested/child.json'],
+  ] as const)('preserves the containing resource base for retrieval fragment %s', async (fragment, schema, suffix) => {
+    const retrieval = 'https://schemas.example.test/a.json';
+    const canonical = 'https://canonical.example.test/base/';
+    const child = `${canonical}${suffix}`;
+    const requested: string[] = [];
+    const loader = new ExternalResourceLoader(entryDocument({ Value: { $ref: `${retrieval}${fragment}` } }), entryUri, {
+      pageUri,
+      fetchImpl: async (input) => {
+        requested.push(String(input));
+        return new Response(
+          JSON.stringify(String(input) === retrieval ? { $id: canonical, ...schema } : { type: 'string' }),
+          {
+            headers: { 'content-type': 'application/schema+json' },
+          },
+        );
+      },
+    });
+
+    const snapshot = await loader.load([grant(loader, retrieval), grant(loader, child)]);
+    expect(requested).toEqual([retrieval, child]);
+    expect(snapshot.complete).toBe(true);
+    expect(snapshot.diagnostics).toEqual([]);
+  });
+
+  test.each(['paths', 'responses', 'callbacks'])(
+    'keeps %s extensions opaque during discovery and indexing',
+    (location) => {
+      const opaqueUri = 'https://opaque.example.test/display-only.json';
+      const opaque = {
+        $ref: opaqueUri,
+        get: {
+          responses: {
+            200: { description: 'display only', content: { 'application/json': { schema: { $schema: opaqueUri } } } },
+          },
+        },
+        content: { 'application/json': { schema: { $schema: opaqueUri, $id: opaqueUri } } },
+      };
+      const operation = {
+        responses: { 200: { description: 'ok' }, ...(location === 'responses' ? { 'x-business-data': opaque } : {}) },
+        ...(location === 'callbacks' ? { callbacks: { changed: { 'x-business-data': opaque } } } : {}),
+      };
+      const loader = new ExternalResourceLoader(
+        entryDocument(
+          { Value: { type: 'string' } },
+          {
+            paths: { '/value': { get: operation }, ...(location === 'paths' ? { 'x-business-data': opaque } : {}) },
+          },
+        ),
+        entryUri,
+        { pageUri },
+      );
+      expect(loader.currentDiscovery().candidates).toEqual([]);
+      expect(loader.currentSnapshot().resourceTargets.has(opaqueUri)).toBe(false);
+      expect(loader.currentSnapshot().complete).toBe(true);
+    },
+  );
+
+  test('keeps x-prefixed names in arbitrary-name maps as protocol objects', () => {
+    const external = 'https://schemas.example.test/value.json';
+    const loader = new ExternalResourceLoader(
+      entryDocument(
+        {},
+        {
+          webhooks: { 'x-notification': { $ref: external } },
+          components: { responses: { 'x-result': { $ref: external } }, schemas: { 'x-value': { $ref: external } } },
+        },
+      ),
+      entryUri,
+      { pageUri },
+    );
+    expect(loader.currentDiscovery().candidates[0].references).toHaveLength(3);
+  });
+
+  test('normalizes encoded anchor fragments for local and external Schema targets', async () => {
+    const external = 'https://schemas.example.test/encoded.json';
+    const loader = new ExternalResourceLoader(
+      entryDocument({
+        Value: { $anchor: 'foo', type: 'string' },
+        Alias: { $ref: '#%66oo' },
+        External: { $ref: `${external}#%6Eode` },
+      }),
+      entryUri,
+      {
+        pageUri,
+        fetchImpl: async () =>
+          new Response(
+            JSON.stringify({
+              $defs: { Value: { $dynamicAnchor: 'node', $ref: '#%66oo' }, String: { $anchor: 'foo', type: 'string' } },
+            }),
+            { headers: { 'content-type': 'application/schema+json' } },
+          ),
+      },
+    );
+    expect(loader.currentSnapshot().diagnostics).toEqual([]);
+    const snapshot = await loader.load([grant(loader, external)]);
+    expect(snapshot.complete).toBe(true);
+    expect(snapshot.diagnostics).toEqual([]);
+    expect(snapshot.edges).toHaveLength(3);
+  });
+
   test('keeps same-origin and cross-origin references pending with zero requests by default', async () => {
     const fetchImpl = vi.fn(async () => new Response('{}'));
     const loader = new ExternalResourceLoader(
@@ -669,6 +894,166 @@ describe('complete JSON/YAML parsing and graph budgets', () => {
 });
 
 describe('bounded scheduling, cancellation, retry, and generation isolation', () => {
+  test('continues with new grants after cancellation and discards late responses from the previous operation', async () => {
+    const a = 'https://schemas.example.test/a.json';
+    const b = 'https://schemas.example.test/b.json';
+    const queued = 'https://schemas.example.test/queued.json';
+    const requested: string[] = [];
+    let releaseA: (() => void) | undefined;
+    const loader = new ExternalResourceLoader(
+      entryDocument({ A: { $ref: a }, B: { $ref: b }, Queued: { $ref: queued } }),
+      entryUri,
+      {
+        pageUri,
+        limits: { maxConcurrency: 1 },
+        fetchImpl: async (input) => {
+          const uri = String(input);
+          requested.push(uri);
+          if (uri === a)
+            await new Promise<void>((resolve) => {
+              releaseA = resolve;
+            });
+          return new Response('{"type":"string"}', { headers: { 'content-type': 'application/schema+json' } });
+        },
+      },
+    );
+    const first = loader.continueLoad([grant(loader, a), grant(loader, queued)]);
+    await vi.waitFor(() => expect(releaseA).toBeTypeOf('function'));
+    loader.cancel();
+    const second = await loader.continueLoad([grant(loader, b)]);
+    releaseA!();
+    await first;
+
+    expect(requested).toEqual([a, b]);
+    expect(second.nodes.has(b)).toBe(true);
+    expect(loader.currentSnapshot().nodes.has(a)).toBe(false);
+    expect(loader.currentDiscovery().candidates.map((candidate) => candidate.retrievalUri)).toEqual([a, queued]);
+    await loader.continueLoad([]);
+    expect(requested).toEqual([a, b]);
+  });
+
+  test('requires explicit retry for failures and retries only the selected URI after another operation', async () => {
+    const a = 'https://schemas.example.test/a.json';
+    const b = 'https://schemas.example.test/b.json';
+    const requested: string[] = [];
+    const loader = new ExternalResourceLoader(entryDocument({ A: { $ref: a }, B: { $ref: b } }), entryUri, {
+      pageUri,
+      fetchImpl: async (input) => {
+        requested.push(String(input));
+        return new Response('{}', {
+          status: requested.length === 1 ? 503 : 200,
+          headers: { 'content-type': 'application/schema+json' },
+        });
+      },
+    });
+    await loader.continueLoad([grant(loader, a)]);
+    await loader.continueLoad([grant(loader, a)]);
+    expect(requested).toEqual([a]);
+    await loader.continueLoad([grant(loader, b)], AbortSignal.abort());
+    await loader.retry(sha256Hex(a));
+    expect(requested).toEqual([a, a]);
+    expect(loader.currentSnapshot().nodes.has(a)).toBe(true);
+    expect(loader.currentSnapshot().nodes.has(b)).toBe(false);
+  });
+
+  test.each(['documents', 'bytes', 'parsed-nodes'] as const)(
+    'preserves the cumulative %s budget across continuation',
+    async (kind) => {
+      const a = 'https://schemas.example.test/a.json';
+      const b = 'https://schemas.example.test/b.json';
+      const entry = entryDocument({ A: { $ref: a } });
+      const entryNodes = parseExternalResourceDocument(
+        {
+          text: JSON.stringify(entry),
+          mediaType: { format: 'json', essence: 'application/json', legacy: false },
+        },
+        DEFAULT_RESOURCE_LOAD_LIMITS,
+      ).nodes;
+      const aText = JSON.stringify({ $ref: b });
+      const bText = '{"type":"string"}';
+      const limits =
+        kind === 'documents'
+          ? { maxDocuments: 1 }
+          : kind === 'bytes'
+            ? { maxTotalBytes: new TextEncoder().encode(aText + bText).byteLength - 1 }
+            : { maxTotalParsedNodes: entryNodes + 3 };
+      const requested: string[] = [];
+      const loader = new ExternalResourceLoader(entry, entryUri, {
+        pageUri,
+        limits,
+        fetchImpl: async (input) => {
+          requested.push(String(input));
+          return new Response(String(input) === a ? aText : bText, {
+            headers: { 'content-type': 'application/schema+json' },
+          });
+        },
+      });
+      const first = await loader.continueLoad([grant(loader, a)]);
+      expect(first.nodes.has(a)).toBe(true);
+      const second = await loader.continueLoad([grant(loader, b)]);
+      expect(second.nodes.size).toBe(1);
+      expect(second.complete).toBe(false);
+      expect(second.generation).toBe(first.generation);
+      const code =
+        kind === 'documents' ? 'GRAPH_RESOURCE_LIMIT' : kind === 'bytes' ? 'RESOURCE_TOO_LARGE' : 'GRAPH_NODE_LIMIT';
+      expect(second.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ code })]));
+      expect(requested).toEqual(kind === 'documents' ? [a] : [a, b]);
+      const exhausted = [...requested];
+      await loader.continueLoad([grant(loader, a), grant(loader, b)]);
+      expect(requested).toEqual(exhausted);
+    },
+  );
+
+  test('retains a cancelled request in the document budget', async () => {
+    const a = 'https://schemas.example.test/a.json';
+    const b = 'https://schemas.example.test/b.json';
+    const fetchImpl = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), {
+            once: true,
+          });
+        }),
+    );
+    const loader = new ExternalResourceLoader(entryDocument({ A: { $ref: a }, B: { $ref: b } }), entryUri, {
+      pageUri,
+      fetchImpl,
+      limits: { maxDocuments: 1 },
+    });
+    const first = loader.continueLoad([grant(loader, a)]);
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledOnce());
+    loader.cancel();
+    await first;
+    const second = await loader.continueLoad([grant(loader, b)]);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(second.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'GRAPH_RESOURCE_LIMIT' })]),
+    );
+  });
+
+  test('does not share retained data or grants with another entry document', async () => {
+    const resource = 'https://schemas.example.test/shared.json';
+    const fetchImpl = vi.fn(
+      async () => new Response('{"type":"string"}', { headers: { 'content-type': 'application/schema+json' } }),
+    );
+    const first = new ExternalResourceLoader(entryDocument({ Value: { $ref: resource } }), entryUri, {
+      pageUri,
+      fetchImpl,
+    });
+    const firstSnapshot = await first.continueLoad([grant(first, resource)]);
+    first.dispose();
+    const second = new ExternalResourceLoader(entryDocument({ Value: { $ref: resource } }), `${entryUri}/other`, {
+      pageUri,
+      fetchImpl,
+    });
+    await second.continueLoad([grant(first, resource)]);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(second.currentSnapshot().nodes.has(resource)).toBe(false);
+    const secondSnapshot = await second.continueLoad([grant(second, resource)]);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(secondSnapshot.nodes.get(resource)).not.toBe(firstSnapshot.nodes.get(resource));
+  });
+
   test('caps concurrent GET requests at the configured scheduler limit', async () => {
     const uris = Array.from({ length: 6 }, (_, index) => `https://schemas.example.test/${index}.json`);
     const releases: Array<() => void> = [];
