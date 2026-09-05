@@ -56,6 +56,7 @@ Java tag 路由隔离。再检查将进入 module 下载包的许可证与 UI �
 test -s knife4x/go/LICENSE
 test -s knife4x/go/internal/ui/static/index.html
 test -s knife4x/go/internal/ui/static/assets/index.js
+test -s knife4x/go/internal/ui/static/assets/index2.js
 test -s knife4x/go/internal/ui/static/assets/index.css
 ```
 
@@ -147,7 +148,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	for _, path := range []string{"/doc.html", "/assets/index.js", "/assets/index.css"} {
+	for _, path := range []string{"/doc.html", "/assets/index.js", "/assets/index2.js", "/assets/index.css"} {
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 		if recorder.Code != http.StatusOK || recorder.Body.Len() == 0 {
@@ -171,6 +172,7 @@ module_dir="$(go list -m -f '{{.Dir}}' "$module")"
 test -s "$module_dir/LICENSE"
 test -s "$module_dir/internal/ui/static/index.html"
 test -s "$module_dir/internal/ui/static/assets/index.js"
+test -s "$module_dir/internal/ui/static/assets/index2.js"
 test -s "$module_dir/internal/ui/static/assets/index.css"
 ```
 
