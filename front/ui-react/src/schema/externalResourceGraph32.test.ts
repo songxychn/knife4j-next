@@ -1199,3 +1199,245 @@ describe('OAS 3.2 RFC 3986 URI references', () => {
     });
   });
 });
+
+// Focused review regressions: explicit root context must outrank fragment hints.
+describe('explicit unversioned root contexts', () => {
+  const media = 'https://resources.example.test/media.json';
+  const library = 'https://resources.example.test/library.json';
+  const mediaObject = { schema: { type: 'string' }, examples: { Literal: { value: { type: 'number' } } } };
+
+  test.each(['component', 'path'] as const)(
+    'keeps the Media Type root when discovered from a %s before or after its Schema fragment',
+    async (location) => {
+      const rootReference = { $ref: media };
+      const entry = valid32({
+        components: {
+          schemas: { S: { $ref: `${media}#/schema` } },
+          ...(location === 'component' ? { mediaTypes: { M: rootReference } } : {}),
+        },
+        ...(location === 'path'
+          ? {
+              paths: {
+                '/media': {
+                  get: { responses: { '200': { description: 'ok', content: { 'application/json': rootReference } } } },
+                },
+              },
+            }
+          : {}),
+      });
+      const loader = new ExternalResourceLoader(entry, retrieval, { fetchImpl: async () => response(mediaObject) });
+      const snapshot = await loader.load([grant(loader, media)]);
+      expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+      expect(snapshot.nodes.get(media)?.documentKind).toBe('referenceable-object');
+      expect(snapshot.edges.every((edge) => edge.state === 'loaded')).toBe(true);
+    },
+  );
+
+  test.each(['root-conflict', 'opaque-fragment', 'unknown-root'] as const)(
+    'rejects %s without guessing a root shape',
+    async (kind) => {
+      const entry = valid32({
+        components: {
+          ...(kind === 'unknown-root' ? {} : { mediaTypes: { M: { $ref: media } } }),
+          schemas: {
+            S: {
+              $ref:
+                kind === 'root-conflict'
+                  ? media
+                  : `${media}${kind === 'opaque-fragment' ? '#/examples/Literal/value' : '#/schema'}`,
+            },
+          },
+        },
+      });
+      const loader = new ExternalResourceLoader(entry, retrieval, { fetchImpl: async () => response(mediaObject) });
+      const snapshot = await loader.load([grant(loader, media)]);
+      expect(snapshot.complete).toBe(false);
+      expect(snapshot.diagnostics).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'DOCUMENT_KIND_MISMATCH' })]),
+      );
+    },
+  );
+
+  test.each([
+    ['schema-fragment', 'library'],
+    ['schema-fragment', 'media'],
+    ['explicit-root', 'library'],
+    ['explicit-root', 'media'],
+  ] as const)(
+    'keeps the root context when the %s becomes reachable later with %s responding first',
+    async (late, first) => {
+      const referenced = valid32({
+        components: { schemas: { S: { $ref: `${media}#/schema` } }, mediaTypes: { M: { $ref: media } } },
+      });
+      const order = first === 'library' ? [library, media] : [media, library];
+      const releases = new Map<string, () => void>();
+      const fetchImpl = vi.fn(
+        (input: RequestInfo | URL) =>
+          new Promise<Response>((resolve) => {
+            const uri = String(input);
+            releases.set(uri, () => resolve(response(uri === media ? mediaObject : referenced)));
+          }),
+      );
+      const entry = valid32({
+        components: {
+          schemas: {
+            S: { $ref: late === 'schema-fragment' ? `${library}#/components/schemas/S` : `${media}#/schema` },
+          },
+          mediaTypes: { M: { $ref: late === 'explicit-root' ? `${library}#/components/mediaTypes/M` : media } },
+        },
+      });
+      const loader = new ExternalResourceLoader(entry, retrieval, { fetchImpl });
+      const loading = loader.load([grant(loader, media), grant(loader, library)]);
+      await vi.waitFor(() => expect(releases.size).toBe(2));
+      releases.get(order[0])!();
+      await vi.waitFor(() => expect(loader.currentSnapshot().nodes.has(order[0])).toBe(true));
+      releases.get(order[1])!();
+      const snapshot = await loading;
+      expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+      expect(snapshot.nodes.get(media)?.documentKind).toBe('referenceable-object');
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  test('rebuilds a fragment-inferred root across waves without refetching, recounting or mutating prior snapshots', async () => {
+    const referenced = valid32({ components: { mediaTypes: { M: { $ref: media } } } });
+    const entry = valid32({
+      components: {
+        schemas: { S: { $ref: `${media}#/schema` } },
+        mediaTypes: { M: { $ref: `${library}#/components/mediaTypes/M` } },
+      },
+    });
+    const nodes = (value: unknown): number =>
+      1 +
+      (value !== null && typeof value === 'object'
+        ? Object.values(value).reduce<number>((sum, child) => sum + nodes(child), 0)
+        : 0);
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) =>
+      response(String(input) === media ? mediaObject : referenced),
+    );
+    const loader = new ExternalResourceLoader(entry, retrieval, {
+      fetchImpl,
+      limits: {
+        maxDocuments: 2,
+        maxTotalBytes: new TextEncoder().encode(JSON.stringify(mediaObject) + JSON.stringify(referenced)).byteLength,
+        maxTotalParsedNodes: nodes(entry) + nodes(mediaObject) + nodes(referenced),
+      },
+    });
+    const previous = await loader.load([grant(loader, media)]);
+    expect(previous.complete).toBe(false);
+    expect(previous.nodes.get(media)?.documentKind).toBe('json-schema');
+    expect(previous.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'DOCUMENT_KIND_MISMATCH' })]),
+    );
+    const snapshot = await loader.continueLoad([grant(loader, library)]);
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(snapshot.nodes.get(media)?.documentKind).toBe('referenceable-object');
+    expect(snapshot.nodes.get(media)?.authorizationScope).toBe('generation');
+    expect(previous.nodes.get(media)?.documentKind).toBe('json-schema');
+    expect(previous.complete).toBe(false);
+    expect(previous.edges.find((edge) => edge.targetRetrievalUri === media)?.state).toBe('failed');
+    expect(fetchImpl.mock.calls.map(([uri]) => String(uri))).toEqual([media, library]);
+  });
+
+  test.each([
+    [
+      'declared dialect',
+      { $schema: 'https://json-schema.org/draft/2020-12/schema', $defs: { S: { type: 'string' } } },
+      '#/$defs/S',
+    ],
+    ['declared identifier', { $id: 'urn:example:fixed-schema', $defs: { S: { type: 'string' } } }, '#/$defs/S'],
+    ['boolean', true, ''],
+    ['explicit Schema root', { type: 'object' }, ''],
+  ] as const)('never reinterprets a %s as a late Media Type root', async (_kind, document, fragment) => {
+    const referenced = valid32({ components: { mediaTypes: { M: { $ref: media } } } });
+    const entry = valid32({
+      components: {
+        schemas: { S: { $ref: `${media}${fragment}` } },
+        mediaTypes: { M: { $ref: `${library}#/components/mediaTypes/M` } },
+      },
+    });
+    const loader = new ExternalResourceLoader(entry, retrieval, {
+      fetchImpl: async (input) => response(String(input) === media ? document : referenced),
+    });
+    const previous = await loader.load([grant(loader, media)]);
+    expect(previous.nodes.get(media)?.documentKind).toBe('json-schema');
+    expect(previous.edges.find((edge) => edge.targetRetrievalUri === media)?.state).toBe('loaded');
+    const snapshot = await loader.continueLoad([grant(loader, library)]);
+    expect(snapshot.complete).toBe(false);
+    expect(snapshot.nodes.get(media)?.documentKind).toBe('json-schema');
+    expect(snapshot.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'DOCUMENT_KIND_MISMATCH' })]),
+    );
+  });
+
+  test('checks rebuilt Schema identities against other already supplied documents', async () => {
+    const other = 'https://resources.example.test/other.json';
+    const canonical = 'urn:example:existing-schema';
+    const content = { schema: { $id: canonical, type: 'string' } };
+    const referenced = valid32({ components: { mediaTypes: { M: { $ref: media } } } });
+    const loader = new ExternalResourceLoader(
+      valid32({
+        components: {
+          schemas: { S: { $ref: `${media}#/schema` }, Existing: { $ref: other } },
+          mediaTypes: { M: { $ref: `${library}#/components/mediaTypes/M` } },
+        },
+      }),
+      retrieval,
+      {
+        fetchImpl: async (input) =>
+          response(
+            String(input) === media
+              ? content
+              : String(input) === other
+                ? { $id: canonical, type: 'number' }
+                : referenced,
+          ),
+      },
+    );
+    const previous = await loader.load([grant(loader, media), grant(loader, other)]);
+    expect(previous.nodes.has(media)).toBe(true);
+    expect(previous.nodes.has(other)).toBe(true);
+    const snapshot = await loader.continueLoad([grant(loader, library)]);
+    expect(snapshot.complete).toBe(false);
+    expect(snapshot.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_URI_CONFLICT' })]),
+    );
+    expect(previous.resourceTargets.get(canonical)?.ownerRetrievalUri).toBe(other);
+  });
+});
+
+// RFC 3986 §5.2.4 applies to Schema resource identifiers as well as HTTP paths.
+describe('rootless schema resource identities', () => {
+  test.each([
+    ['example:/b', 'example:a/../b'],
+    ['example:a/../b', 'example:/b'],
+    ['example:/b%2Fc?x=%26', 'example:a/../b%2Fc?x=%26'],
+  ])('connects %s and %s as the same local resource', ($id, $ref) => {
+    const loader = new ExternalResourceLoader(
+      valid32({ components: { schemas: { Target: { $id, type: 'string' }, Use: { $ref } } } }),
+      retrieval,
+    );
+    expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+    expect(loader.currentDiscovery().candidates).toEqual([]);
+  });
+
+  test('keeps the rootless a/b identity distinct from a/../b', () => {
+    const loader = new ExternalResourceLoader(
+      valid32({
+        components: {
+          schemas: {
+            First: { $id: 'example:a/b', type: 'string' },
+            Second: { $id: 'example:a/../b', type: 'number' },
+            UseFirst: { $ref: 'example:a/b' },
+            UseSecond: { $ref: 'example:/b' },
+          },
+        },
+      }),
+      retrieval,
+    );
+    const snapshot = loader.currentSnapshot();
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(snapshot.resourceTargets.get('example:a/b')).toMatchObject({ pointer: '#/components/schemas/First' });
+    expect(snapshot.resourceTargets.get('example:/b')).toMatchObject({ pointer: '#/components/schemas/Second' });
+  });
+});

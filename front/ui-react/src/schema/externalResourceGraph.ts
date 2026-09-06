@@ -210,6 +210,8 @@ interface DocumentContext {
   readonly openApiVersion?: string;
   readonly selfUri?: string;
   readonly baseUri: string;
+  /** A Schema fragment supplied the only root-type hint; later explicit roots may replace it. */
+  readonly provisionalSchema?: boolean;
 }
 
 interface ObjectTarget {
@@ -751,6 +753,7 @@ function documentContext(
   document: unknown,
   kind: ResourceGraphNode['documentKind'],
   family: DocumentContext['family'],
+  rootTarget?: ExpectedTargetKind,
 ): DocumentContext {
   const openApiVersion = kind === 'openapi' && isRecord(document) ? String(document.openapi) : undefined;
   let selfUri: string | undefined;
@@ -777,6 +780,8 @@ function documentContext(
     openApiVersion,
     selfUri,
     baseUri: uriWithoutFragment(selfUri ?? retrievalUri, family),
+    provisionalSchema:
+      family === '3.2' && kind === 'json-schema' && rootTarget === undefined && !declaresSchemaRoot(document),
   });
 }
 
@@ -2139,6 +2144,13 @@ function walkExpectedTarget(
   }
 }
 
+function declaresSchemaRoot(document: unknown): boolean {
+  return (
+    typeof document === 'boolean' ||
+    (isRecord(document) && ['$schema', '$id', '$anchor', '$dynamicAnchor'].some((keyword) => owns(document, keyword)))
+  );
+}
+
 function documentKind(
   document: unknown,
   incoming: readonly MutableEdge[],
@@ -2159,14 +2171,17 @@ function documentKind(
     }
     return 'openapi';
   }
-  if (
-    family === '3.2' &&
-    new Set(incoming.filter((edge) => !edge.fragment).map((edge) => edge.expectedTarget)).size > 1
-  ) {
-    throw new ResourceLoadError(
-      'DOCUMENT_KIND_MISMATCH',
-      'An unversioned root cannot be inferred as conflicting object types.',
-    );
+  if (family === '3.2') {
+    const roots = new Set(incoming.filter((edge) => !edge.fragment).map((edge) => edge.expectedTarget));
+    if (roots.size > 1 || (declaresSchemaRoot(document) && [...roots].some((kind) => kind !== 'schema'))) {
+      throw new ResourceLoadError(
+        'DOCUMENT_KIND_MISMATCH',
+        'An unversioned root cannot be inferred as conflicting object types.',
+      );
+    }
+    const root = roots.values().next().value;
+    if (root !== undefined) return root === 'schema' ? 'json-schema' : 'referenceable-object';
+    if (declaresSchemaRoot(document)) return 'json-schema';
   }
   if (typeof document === 'boolean' || incoming.some((edge) => edge.expectedTarget === 'schema')) return 'json-schema';
   return 'referenceable-object';
@@ -2550,7 +2565,7 @@ export class ExternalResourceLoader {
   ): Promise<void> {
     if (this.state !== state)
       throw new ResourceLoadError('STALE_GENERATION', 'A newer resource graph generation is active.');
-    const incoming = state.edges.filter((edge) => edge.targetRetrievalUri === candidate.retrievalUri);
+    let incoming = state.edges.filter((edge) => edge.targetRetrievalUri === candidate.retrievalUri);
     let fetched: FetchedExternalResource;
     try {
       fetched = await fetchExternalResource(candidate.retrievalUri, this.entryRetrievalUri, {
@@ -2587,8 +2602,17 @@ export class ExternalResourceLoader {
           scope: 'graph',
         });
       }
+      // Other responses may have exposed a stronger root context while this request was pending.
+      if (this.entryContext.family === '3.2')
+        incoming = state.edges.filter((edge) => edge.targetRetrievalUri === candidate.retrievalUri);
       const kind = documentKind(parsed.document, incoming, this.entryContext.family);
-      const context = documentContext(candidate.retrievalUri, parsed.document, kind, this.entryContext.family);
+      const context = documentContext(
+        candidate.retrievalUri,
+        parsed.document,
+        kind,
+        this.entryContext.family,
+        incoming.find((edge) => !edge.fragment)?.expectedTarget,
+      );
       const collector = createCollector(context, this.entryContext);
       indexDocument(collector);
       if (kind === 'openapi') walkOpenApiDocument(parsed.document, collector, false, candidate.depth, state.generation);
@@ -2809,6 +2833,104 @@ export class ExternalResourceLoader {
     return target;
   }
 
+  private reconcileProvisionalRoots(
+    state: MutableGraphState,
+    collectors: Map<string, ScanCollector>,
+    edges: ReadonlyMap<string, MutableEdge>,
+    expandedEdges: Set<string>,
+  ): boolean {
+    if (this.entryContext.family !== '3.2') return false;
+    const contexts = new Map(state.contexts);
+    collectors.forEach((collector, owner) => contexts.set(owner, collector.context));
+    if (![...contexts.values()].some((context) => context.provisionalSchema)) return false;
+    const referencedResource = (edge: MutableEdge): ResourceTarget | undefined => {
+      if (!edge.resolvedUri) return undefined;
+      const identities = [
+        ...identityAliases(uriWithoutFragment(edge.resolvedUri, '3.2'), '3.2'),
+        edge.targetRetrievalUri,
+      ];
+      for (const identity of identities) {
+        for (const collector of collectors.values()) {
+          const target = collector.resources.get(identity);
+          if (target) return target;
+        }
+        const target = state.resourceTargets.get(identity);
+        if (target) return target;
+      }
+      return undefined;
+    };
+    const targets = new Map([...edges.values()].map((edge) => [edge, referencedResource(edge)]));
+    for (const [owner, context] of contexts) {
+      if (!context.provisionalSchema) continue;
+      const incoming = [...edges.values()].filter((edge) => targets.get(edge)?.ownerRetrievalUri === owner);
+      const roots = incoming.filter((edge) => !edge.fragment && targets.get(edge)?.pointer === '#');
+      if (roots.length === 0) continue;
+      let replacement: ScanCollector;
+      try {
+        const kind = documentKind(context.document, roots, '3.2');
+        const explicit = documentContext(owner, context.document, kind, '3.2', roots[0].expectedTarget);
+        replacement = createCollector(explicit, this.entryContext);
+        indexDocument(replacement);
+        walkExpectedTarget(
+          { value: context.document, pointer: '#', baseUri: explicit.baseUri, ownerRetrievalUri: owner },
+          roots[0],
+          replacement,
+          state.generation,
+          false,
+        );
+      } catch (error) {
+        if (!(error instanceof ResourceLoadError) || error.code !== 'DOCUMENT_KIND_MISMATCH') throw error;
+        roots.forEach((edge) => this.failTarget(state, edge, error));
+        continue;
+      }
+
+      // Only fragment-inferred indexes are replaceable. Retire their outgoing edges
+      // and retry incoming targets against the newly explicit root, without a fetch.
+      const incomingSet = new Set(incoming);
+      const affected = [...edges.values()].filter((edge) => edge.sourceRetrievalUri === owner || incomingSet.has(edge));
+      const diagnosticKeys = new Set(
+        affected.map((edge) => `${sha256Hex(edge.sourceRetrievalUri)}\n${edge.sourcePointer}\n${edge.kind}`),
+      );
+      const keepDiagnostic = (diagnostic: ResourceDiagnostic): boolean =>
+        !diagnosticKeys.has(
+          `${diagnostic.sourceRetrievalUriHash}\n${diagnostic.sourcePointer}\n${diagnostic.referenceKind}`,
+        );
+      state.diagnostics.splice(0, state.diagnostics.length, ...state.diagnostics.filter(keepDiagnostic));
+      collectors.forEach((collector) =>
+        collector.diagnostics.splice(0, collector.diagnostics.length, ...collector.diagnostics.filter(keepDiagnostic)),
+      );
+      state.edges.splice(0, state.edges.length, ...state.edges.filter((edge) => edge.sourceRetrievalUri !== owner));
+      for (const edge of affected) {
+        expandedEdges.delete(edgeIdentity(edge));
+        edge.expanded = false;
+        delete edge.invalidTarget;
+        edge.state = 'pending';
+      }
+      for (const targets of [state.resourceTargets, state.anchorTargets, state.documentTargets]) {
+        for (const [identity, target] of targets) if (target.ownerRetrievalUri === owner) targets.delete(identity);
+      }
+      for (const key of state.objects.keys()) if (key.startsWith(`${owner}\n`)) state.objects.delete(key);
+      state.contexts.set(owner, replacement.context);
+      collectors.set(owner, replacement);
+      this.assertCollectorsFit(state, collectors, 0);
+      const node = state.nodes.get(owner);
+      if (node)
+        state.nodes.set(
+          owner,
+          freezeNode({
+            ...node,
+            documentKind: replacement.context.kind,
+            ...this.identityMetadata(replacement.context),
+            resourceUris: [...replacement.resources.keys()].sort(),
+          }),
+        );
+      // Every document can leave this provisional state only once per generation.
+      // Parsed-node/byte accounting and immutable previously returned snapshots stay intact.
+      return true;
+    }
+    return false;
+  }
+
   private expandReachableTargets(
     state: MutableGraphState,
     collectors: Map<string, ScanCollector>,
@@ -2823,6 +2945,7 @@ export class ExternalResourceLoader {
         });
       });
 
+      if (this.reconcileProvisionalRoots(state, collectors, edges, expandedEdges)) continue;
       let progressed = false;
       for (const [identity, edge] of edges) {
         if (
