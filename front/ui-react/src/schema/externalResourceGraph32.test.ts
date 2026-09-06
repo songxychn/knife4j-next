@@ -1,4 +1,5 @@
 import { collectOas32DocumentDiagnostics } from 'knife4j-core';
+import { normalizeUri, resolveUri, toAbsoluteUri } from 'knife4j-schema-engine/uri';
 import { describe, expect, test, vi } from 'vitest';
 import { sha256Hex } from '../utils/stableJson';
 import { ExternalResourceLoader, type ResourceGrant } from './externalResourceGraph';
@@ -199,73 +200,91 @@ describe('OAS 3.2 document identity and exact retrieval authorization', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  test.each(['self', 'fragment-self', 'retrieval-alias', 'schema-id', 'schema-anchor'] as const)(
-    'rejects conflicting %s identities in either response order',
-    async (conflict) => {
-      const a = 'https://resources.example.test/a.json';
-      const b = 'https://resources.example.test/b.json';
-      const canonical = 'https://identity.example.test/collision';
-      const self =
-        conflict === 'retrieval-alias'
-          ? b
-          : conflict === 'fragment-self' || conflict === 'schema-anchor'
-            ? `${canonical}#named`
-            : canonical;
-      const first = valid32({ $self: self, components: { schemas: { Value: { type: 'string' } } } });
-      const second = valid32({
-        ...(conflict === 'self' || conflict === 'fragment-self' ? { $self: self } : {}),
-        components: {
-          schemas: {
-            Value: {
-              type: 'number',
-              ...(conflict === 'schema-id'
-                ? { $id: canonical }
-                : conflict === 'schema-anchor'
-                  ? { $id: canonical, $anchor: 'named' }
-                  : {}),
-            },
+  test.each([
+    'self',
+    'fragment-self',
+    'retrieval-alias',
+    'schema-id',
+    'schema-anchor',
+    'normalized-self',
+    'normalized-fragment-self',
+    'normalized-retrieval-alias',
+    'normalized-schema-id',
+    'normalized-schema-anchor',
+  ] as const)('rejects conflicting %s identities in either response order', async (conflict) => {
+    const a = 'https://resources.example.test/a.json';
+    const b = 'https://resources.example.test/b.json';
+    const canonical = 'https://identity.example.test/collision';
+    const normalized = conflict.startsWith('normalized-');
+    const kind = conflict.replace('normalized-', '');
+    const alias = (uri: string) =>
+      normalized
+        ? uri
+            .replace('.test/', '.test:443/')
+            .replace('/collision', '/%63ollision')
+            .replace('/b.json', '/%62.json')
+            .replace('#named', '#%6eamed')
+        : uri;
+    const self =
+      kind === 'retrieval-alias'
+        ? alias(b)
+        : kind === 'fragment-self' || kind === 'schema-anchor'
+          ? `${canonical}#named`
+          : canonical;
+    const first = valid32({ $self: self, components: { schemas: { Value: { type: 'string' } } } });
+    const second = valid32({
+      ...(kind === 'self' || kind === 'fragment-self' ? { $self: alias(self) } : {}),
+      components: {
+        schemas: {
+          Value: {
+            type: 'number',
+            ...(kind === 'schema-id'
+              ? { $id: alias(canonical) }
+              : kind === 'schema-anchor'
+                ? { $id: alias(canonical), $anchor: 'named' }
+                : {}),
           },
         },
-      });
-      for (const order of [
-        [a, b],
-        [b, a],
-      ]) {
-        const releases = new Map<string, () => void>();
-        const fetchImpl = vi.fn(
-          (input: RequestInfo | URL) =>
-            new Promise<Response>((resolve) => {
-              const uri = String(input);
-              releases.set(uri, () => resolve(response(uri === a ? first : second)));
-            }),
-        );
-        const loader = new ExternalResourceLoader(
-          valid32({
-            components: {
-              schemas: {
-                A: { $ref: `${a}#/components/schemas/Value` },
-                B: { $ref: `${b}#/components/schemas/Value` },
-              },
-            },
+      },
+    });
+    for (const order of [
+      [a, b],
+      [b, a],
+    ]) {
+      const releases = new Map<string, () => void>();
+      const fetchImpl = vi.fn(
+        (input: RequestInfo | URL) =>
+          new Promise<Response>((resolve) => {
+            const uri = String(input);
+            releases.set(uri, () => resolve(response(uri === a ? first : second)));
           }),
-          retrieval,
-          { pageUri, fetchImpl },
-        );
-        const loading = loader.load([grant(loader, a), grant(loader, b)]);
-        await vi.waitFor(() => expect(releases.size).toBe(2));
-        releases.get(order[0])!();
-        await vi.waitFor(() => expect(loader.currentSnapshot().nodes.has(order[0])).toBe(true));
-        releases.get(order[1])!();
-        const snapshot = await loading;
-        expect(snapshot.nodes.size).toBe(1);
-        expect(snapshot.complete).toBe(false);
-        expect(snapshot.diagnostics).toEqual(
-          expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_URI_CONFLICT', phase: 'index' })]),
-        );
-        expect(fetchImpl).toHaveBeenCalledTimes(2);
-      }
-    },
-  );
+      );
+      const loader = new ExternalResourceLoader(
+        valid32({
+          components: {
+            schemas: {
+              A: { $ref: `${a}#/components/schemas/Value` },
+              B: { $ref: `${b}#/components/schemas/Value` },
+            },
+          },
+        }),
+        retrieval,
+        { pageUri, fetchImpl },
+      );
+      const loading = loader.load([grant(loader, a), grant(loader, b)]);
+      await vi.waitFor(() => expect(releases.size).toBe(2));
+      releases.get(order[0])!();
+      await vi.waitFor(() => expect(loader.currentSnapshot().nodes.has(order[0])).toBe(true));
+      releases.get(order[1])!();
+      const snapshot = await loading;
+      expect(snapshot.nodes.size).toBe(1);
+      expect(snapshot.complete).toBe(false);
+      expect(snapshot.diagnostics).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_URI_CONFLICT', phase: 'index' })]),
+      );
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    }
+  });
 });
 
 describe('OAS 3.2 typed targets and document versions', () => {
@@ -288,7 +307,9 @@ describe('OAS 3.2 typed targets and document versions', () => {
     );
     const snapshot = await loader.load([grant(loader, external)]);
     expect(snapshot.complete).toBe(supported);
-    expect(snapshot.diagnostics.map((item) => item.code)).toEqual(supported ? [] : ['OPENAPI_VERSION_UNSUPPORTED']);
+    expect(snapshot.diagnostics.map((item) => item.code)).toEqual(
+      supported ? [] : [source.startsWith('3.1.') ? 'DOCUMENT_KIND_MISMATCH' : 'OPENAPI_VERSION_UNSUPPORTED'],
+    );
   });
 
   test.each(['3.0.4', '3.3.0', '4.0.0'])('does not open entry support for %s', (openapi) => {
@@ -732,6 +753,12 @@ describe('OAS 3.2 entry-document names and opaque content', () => {
       $anchor: 'name',
       $dynamicRef: 'https://never.example.test/dynamic',
       itemSchema: { $ref: 'https://never.example.test/item' },
+      oneOf: [{ $ref: 'https://never.example.test/variant' }],
+      discriminator: {
+        propertyName: 'kind',
+        mapping: { value: 'https://never.example.test/mapping' },
+        defaultMapping: 'https://never.example.test/default',
+      },
     };
     const fetchImpl = vi.fn();
     const loader = new ExternalResourceLoader(
@@ -757,34 +784,47 @@ describe('OAS 3.2 entry-document names and opaque content', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test('does not activate OAS discriminator annotations when a nested referenced schema inherits the pure JSON Schema dialect', () => {
-    const loader = new ExternalResourceLoader(
-      valid32({
-        components: {
-          schemas: {
-            Root: {
-              $schema: 'https://json-schema.org/draft/2020-12/schema',
-              $id: 'urn:example:pure-schema',
-              $ref: '#/$defs/Nested',
-              $defs: {
-                Nested: {
-                  discriminator: {
-                    propertyName: 'kind',
-                    mapping: { data: 'https://never.example.test/data' },
-                    defaultMapping: 'https://never.example.test/default',
-                  },
-                },
-              },
+  test.each(['root', 'nested', 'referenced'] as const)(
+    'applies OAS discriminator connections to %s pure JSON Schema positions without implicit fetching',
+    async (position) => {
+      const known = `${retrieval}#/components/schemas/Known`;
+      const other = 'https://resources.example.test/other.json';
+      const library = 'https://resources.example.test/pure.json';
+      const payload = {
+        oneOf: [{ $ref: known }, { $ref: other }],
+        discriminator: { propertyName: 'kind', mapping: { known: 'Known' }, defaultMapping: other },
+      };
+      const schema = {
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        $id: 'urn:example:pure-schema',
+        ...(position === 'root' ? payload : { $ref: '#/$defs/Nested', $defs: { Nested: payload } }),
+      };
+      // Both variants are explicitly listed by oneOf. The required known discriminator
+      // value and defaultMapping cover the property's presence/absence semantics.
+      const external = valid32({ components: { schemas: { Root: schema } } });
+      const fetchImpl = vi.fn(async () => response(external));
+      const loader = new ExternalResourceLoader(
+        valid32({
+          components: {
+            schemas: {
+              Root: position === 'referenced' ? { $ref: `${library}#/components/schemas/Root/$defs/Nested` } : schema,
+              Known: { type: 'object', required: ['kind'], properties: { kind: { const: 'known' } } },
             },
           },
-        },
-      }),
-      retrieval,
-    );
-    expect(loader.currentDiscovery().candidates).toEqual([]);
-    expect(loader.currentSnapshot().edges).toHaveLength(1);
-    expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
-  });
+        }),
+        retrieval,
+        { fetchImpl },
+      );
+      const snapshot = position === 'referenced' ? await loader.load([grant(loader, library)]) : await loader.load([]);
+      expect(snapshot.complete).toBe(false);
+      expect(snapshot.diagnostics).toEqual([]);
+      expect(
+        snapshot.edges.filter((edge) => edge.kind === 'discriminator-mapping').map((edge) => edge.resolvedUri),
+      ).toEqual([known, other]);
+      expect(loader.currentDiscovery().candidates.map((candidate) => candidate.retrievalUri)).toEqual([other]);
+      expect(fetchImpl).toHaveBeenCalledTimes(position === 'referenced' ? 1 : 0);
+    },
+  );
 });
 
 describe('OAS 3.2 resource budget and generation boundaries', () => {
@@ -907,4 +947,255 @@ describe('OAS 3.2 scoped identities and operation targets', () => {
       expect(await loader.continueLoad([grant(loader, parameter)])).toMatchObject({ complete: true, diagnostics: [] });
     },
   );
+});
+
+describe('OAS 3.2 RFC 3986 URI references', () => {
+  test.each([
+    'foo|bar',
+    'foo^bar',
+    '1x:x',
+    'ht%74p:g',
+    'foo{bar}',
+    'foo<bar>',
+    'foo`bar',
+    'foo\\bar',
+    'foo%2',
+    'foo%GG',
+    'foo bar',
+    'foo\n',
+    '文档',
+    '#fragment[invalid]',
+  ])('rejects illegal self %j without URL repair', ($self) => {
+    expect(() => new ExternalResourceLoader(document32({ $self }), retrieval)).toThrow(/URI reference/);
+  });
+
+  test.each(['foo|bar', 'foo^bar', '1x:x', '#fragment[invalid]'])(
+    'rejects an illegal resource reference %j',
+    (reference) => {
+      const loader = new ExternalResourceLoader(document32(schemaReference(reference)), retrieval);
+      expect(loader.currentSnapshot()).toMatchObject({
+        complete: false,
+        diagnostics: [expect.objectContaining({ code: 'RESOURCE_URI_INVALID' })],
+      });
+      expect(loader.currentDiscovery().candidates).toEqual([]);
+    },
+  );
+
+  test.each(['http:g', 'https:g'])('preserves absolute %s identity and its local fragments', ($self) => {
+    const loader = new ExternalResourceLoader(
+      document32({ $self, components: { schemas: { A: { $ref: '#/components/schemas/B' }, B: true } } }),
+      retrieval,
+    );
+    expect(loader.currentSnapshot()).toMatchObject({ complete: true, diagnostics: [] });
+    expect(loader.currentSnapshot().nodes.get(retrieval)).toMatchObject({ selfUri: $self, documentBaseUri: $self });
+    expect(loader.currentSnapshot().edges[0].resolvedUri).toBe(`${$self}#/components/schemas/B`);
+  });
+
+  test.each([
+    ['../api/%6Fpenapi.json#%65ntry', 'https://docs.example.test/api/openapi.json#entry'],
+    ['urn:example:%61pi#%65ntry', 'urn:example:api#entry'],
+    ['https://identity.example.test/a%2Fb?mode=%41#%65ntry', 'https://identity.example.test/a%2Fb?mode=A#entry'],
+    ['./api?x=%2F#section/path?ok', 'https://docs.example.test/cache/api?x=%2F#section/path?ok'],
+  ])('accepts and normalizes legal self %s without fetching its identity', async ($self, identity) => {
+    const fetchImpl = vi.fn();
+    const loader = new ExternalResourceLoader(
+      valid32({ $self, components: { schemas: { A: { $ref: '#/components/schemas/B' }, B: true } } }),
+      retrieval,
+      { fetchImpl },
+    );
+    const snapshot = await loader.load([]);
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(snapshot.nodes.get(retrieval)).toMatchObject({ selfUri: identity, documentBaseUri: identity.split('#')[0] });
+    expect(snapshot.documentTargets.get(identity)).toMatchObject({ ownerRetrievalUri: retrieval, pointer: '#' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test.each(['http:g', 'https:g', 'https:/g'])(
+    'never repairs unknown identity %s into a fetchable HTTP URL',
+    async (reference) => {
+      const fetchImpl = vi.fn();
+      const loader = new ExternalResourceLoader(valid32(schemaReference(reference)), retrieval, { fetchImpl });
+      const snapshot = await loader.load([grant(loader, reference), grant(loader, new URL(reference, retrieval).href)]);
+      expect(snapshot).toMatchObject({
+        complete: false,
+        diagnostics: [expect.objectContaining({ code: 'RESOURCE_URI_INVALID', phase: 'authorize' })],
+      });
+      expect(snapshot.edges[0]).toMatchObject({
+        resolvedUri: reference,
+        targetRetrievalUri: reference,
+        state: 'failed',
+      });
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
+
+  test('keeps percent-encoded retrieval, grant and document-scope keys separate from normalized identities', async () => {
+    const entryInput = 'https://docs.example.test:443/cache/%72oot.json?token=%41';
+    const entryKey = 'https://docs.example.test/cache/%72oot.json?token=%41';
+    const externalInput = 'https://resources.example.test:443/%70et.json?token=%41';
+    const externalKey = 'https://resources.example.test/%70et.json?token=%41';
+    const identity = 'https://resources.example.test:443/pet.json?token=A';
+    const document = valid32({ $self: 'urn:example:entry', ...schemaReference(externalInput) });
+    const fetchImpl = vi.fn(async () => response({ type: 'string' }));
+    const loader = new ExternalResourceLoader(document, entryInput, { pageUri, fetchImpl });
+    expect(loader.currentSnapshot().entryRetrievalUri).toBe(entryKey);
+    expect(loader.documentScope).not.toBe(
+      new ExternalResourceLoader(document, entryKey.replace('%72oot', 'root'), { pageUri }).documentScope,
+    );
+    expect(loader.currentDiscovery().candidates[0]).toMatchObject({
+      retrievalUri: externalKey,
+      retrievalUriHash: sha256Hex(externalKey),
+    });
+    expect((await loader.load([grant(loader, identity), grant(loader, 'urn:example:entry')])).complete).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    const snapshot = await loader.continueLoad([grant(loader, externalKey)]);
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect([...snapshot.nodes.keys()]).toEqual([entryKey, externalKey]);
+    expect(snapshot.edges[0]).toMatchObject({
+      resolvedUri: identity,
+      targetRetrievalUri: externalKey,
+      state: 'loaded',
+    });
+    expect(snapshot.resourceTargets.get('https://resources.example.test/pet.json?token=A')).toMatchObject({
+      ownerRetrievalUri: externalKey,
+    });
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(
+      externalKey,
+      expect.objectContaining({ credentials: 'omit', redirect: 'error' }),
+    );
+  });
+
+  test.each([
+    ['a%3ab?x=%26#%2f', 'a%3Ab?x=%26#%2F'],
+    ['a%2fb?x=%23#%3f', 'a%2Fb?x=%23#%3F'],
+    ['a%25?x=%253A#%2525', 'a%25?x=%253A#%2525'],
+    ['%e6%96%87%e6%a1%a3?x=%E2%82%AC#%F0%9F%90%88', '%E6%96%87%E6%A1%A3?x=%E2%82%AC#%F0%9F%90%88'],
+    ['%61/%2E%2e/b?x=%7e#%65ntry', 'b?x=~#entry'],
+  ])('preserves the URI meaning of %s and remains idempotent', (reference, expected) => {
+    const base = 'https://identity.example.test/base/';
+    const resolved = `${base}${expected}`;
+    expect(resolveUri(reference, base)).toBe(resolved);
+    expect(normalizeUri(resolved)).toBe(resolved);
+    expect(normalizeUri(normalizeUri(resolved))).toBe(resolved);
+    expect(resolveUri(resolved, base)).toBe(resolved);
+    expect(toAbsoluteUri(resolved)).toBe(resolved.split('#')[0]);
+  });
+
+  test.each([
+    ['urn:example:a%3Ab', 'urn:example:a:b'],
+    ['https://identity.example.test/a%2Fb', 'https://identity.example.test/a/b'],
+    ['https://identity.example.test/?x=%26', 'https://identity.example.test/?x=&'],
+    ['https://identity.example.test/?x=%27', "https://identity.example.test/?x='"],
+    ['https://identity.example.test/a%23b', 'https://identity.example.test/a'],
+    ['urn:example:a%253A', 'urn:example:a%3A'],
+    ['urn:example:a%2525', 'urn:example:a%25'],
+  ])('keeps encoded identity %s distinct from %s', (encoded, literal) => {
+    const loader = new ExternalResourceLoader(
+      valid32({
+        components: {
+          schemas: {
+            Encoded: { $id: encoded, const: 'encoded' },
+            Literal: { $id: literal, const: 'literal' },
+            FromEncoded: { $ref: encoded },
+            FromLiteral: { $ref: literal },
+          },
+        },
+      }),
+      retrieval,
+    );
+    const snapshot = loader.currentSnapshot();
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(snapshot.resourceTargets.get(encoded)).toMatchObject({ pointer: '#/components/schemas/Encoded' });
+    expect(snapshot.resourceTargets.get(literal)).toMatchObject({ pointer: '#/components/schemas/Literal' });
+  });
+
+  test('keeps reserved encodings in self, base and reference fragments', () => {
+    const self = 'https://identity.example.test/a%3Ab?x=%26#%2F';
+    const loader = new ExternalResourceLoader(
+      valid32({ $self: self, components: { schemas: { A: { $ref: '#/components/schemas/B' }, B: true } } }),
+      retrieval,
+    );
+    const snapshot = loader.currentSnapshot();
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(snapshot.nodes.get(retrieval)).toMatchObject({
+      selfUri: self,
+      documentBaseUri: 'https://identity.example.test/a%3Ab?x=%26',
+    });
+    expect(snapshot.documentTargets.has('https://identity.example.test/a:b?x=&#/')).toBe(false);
+    expect(snapshot.edges[0].resolvedUri).toBe('https://identity.example.test/a%3Ab?x=%26#/components/schemas/B');
+  });
+
+  test('retains RFC identities through schema ids, anchors and repeated local target expansion', () => {
+    const loader = new ExternalResourceLoader(
+      valid32({
+        $self: 'http:g',
+        components: {
+          schemas: {
+            Root: {
+              $id: 'https:g',
+              $anchor: 'named',
+              $defs: { Child: { $id: 'urn:example:%61pi', $anchor: 'leaf' } },
+              properties: {
+                recursive: { $ref: '#named' },
+                child: { $ref: 'urn:example:api#leaf' },
+              },
+            },
+          },
+        },
+      }),
+      retrieval,
+    );
+    const snapshot = loader.currentSnapshot();
+    expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+    expect(snapshot.resourceTargets.get('https:g')).toMatchObject({ pointer: '#/components/schemas/Root' });
+    expect(snapshot.anchorTargets.get('https:g#named')).toMatchObject({ pointer: '#/components/schemas/Root' });
+    expect(snapshot.anchorTargets.get('urn:example:api#leaf')).toMatchObject({
+      pointer: '#/components/schemas/Root/$defs/Child',
+    });
+    expect(snapshot.edges.map((edge) => edge.resolvedUri)).toEqual(['urn:example:api#leaf', 'https:g#named']);
+    expect(loader.currentDiscovery().candidates).toEqual([]);
+  });
+
+  test('validates raw references before unreserved decoding can change their grammar', () => {
+    expect(() => resolveUri('ht%74p:g', retrieval)).toThrow(/URI reference/);
+    expect(() => normalizeUri('https://example.test/a\n')).toThrow(/URI reference/);
+    expect(() => toAbsoluteUri('https://example.test/a%GG#entry')).toThrow(/URI reference/);
+  });
+
+  test.each(['', '#named'])(
+    'resolves an authorized HTTP spelling through the real typed target %s',
+    async (fragment) => {
+      const logical = "https://resources.example.test/schema.json?x='";
+      const physical = 'https://resources.example.test/schema.json?x=%27';
+      const fetchImpl = vi.fn(async () => response({ $anchor: 'named', type: 'string' }));
+      const loader = new ExternalResourceLoader(valid32(schemaReference(`${logical}${fragment}`)), retrieval, {
+        fetchImpl,
+      });
+      expect((await loader.load([grant(loader, logical)])).complete).toBe(false);
+      expect(fetchImpl).not.toHaveBeenCalled();
+      const snapshot = await loader.continueLoad([grant(loader, physical)]);
+      expect(snapshot).toMatchObject({ complete: true, diagnostics: [] });
+      expect(snapshot.edges[0]).toMatchObject({
+        resolvedUri: `${logical}${fragment}`,
+        targetRetrievalUri: physical,
+        state: 'loaded',
+      });
+      expect(snapshot.resourceTargets.has(logical)).toBe(false);
+      expect(snapshot.resourceTargets.get(physical)).toMatchObject({ ownerRetrievalUri: physical, pointer: '#' });
+      expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(physical, expect.any(Object));
+    },
+  );
+
+  test('still rejects a wrong object type through an authorized HTTP spelling', async () => {
+    const logical = "https://resources.example.test/document.json?x='";
+    const physical = 'https://resources.example.test/document.json?x=%27';
+    const loader = new ExternalResourceLoader(valid32(schemaReference(`${logical}#/info`)), retrieval, {
+      fetchImpl: async () => response(valid32()),
+    });
+    const snapshot = await loader.load([grant(loader, physical)]);
+    expect(snapshot).toMatchObject({
+      complete: false,
+      diagnostics: [expect.objectContaining({ code: 'DOCUMENT_KIND_MISMATCH' })],
+    });
+  });
 });

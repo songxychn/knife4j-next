@@ -10,6 +10,10 @@
     ".": {
       "types": "./lib/index.d.ts",
       "import": "./lib/index.js"
+    },
+    "./uri": {
+      "types": "./lib/uri.d.ts",
+      "import": "./lib/uri.js"
     }
   },
   "files": [

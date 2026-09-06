@@ -1,4 +1,5 @@
 import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from 'knife4j-core';
+import { isUriReference, normalizeUri, parseUri, resolveUri, toAbsoluteUri } from 'knife4j-schema-engine/uri';
 import { parseAllDocuments } from 'yaml';
 import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
 import {
@@ -300,14 +301,57 @@ function normalizeLimits(overrides: Partial<ResourceLoadLimits> = {}): Readonly<
   return Object.freeze(limits);
 }
 
-function uriWithoutFragment(uri: string): string {
+function uriWithoutFragment(uri: string, family: DocumentContext['family'] = '3.1'): string {
+  if (family === '3.2') return toAbsoluteUri(uri);
   const parsed = new URL(uri);
   parsed.hash = '';
   return parsed.href;
 }
 
-function fragmentOf(uri: string): string {
+function fragmentOf(uri: string, family: DocumentContext['family'] = '3.1'): string {
+  if (family === '3.2') {
+    const fragment = parseUri(uri).fragment;
+    return fragment ? `#${fragment}` : '';
+  }
   return new URL(uri).hash;
+}
+
+/** Logical OAS 3.2 identities use RFC 3986; the existing 3.1 path is unchanged. */
+function resolveGraphUri(reference: string, baseUri: string, family: DocumentContext['family']): string {
+  if (family === '3.1') return new URL(reference, baseUri).href;
+  // The extra whitespace check also rejects trailing line breaks accepted by a JS regex `$` assertion.
+  if (/\s/.test(reference) || !isUriReference(reference)) throw new TypeError('Expected a URI reference.');
+  return resolveUri(reference, toAbsoluteUri(baseUri));
+}
+
+/** Keep logical identities and the existing HTTP retrieval normalization in separate namespaces. */
+function identityAliases(uri: string, family: DocumentContext['family']): readonly string[] {
+  if (family === '3.1') return [uri];
+  const logical = normalizeUri(uri);
+  const parsed = parseUri(logical);
+  if (!['http', 'https'].includes(parsed.scheme) || !parsed.host) return [logical];
+  // Only RFC 3986 §6.2.3 HTTP default-port/empty-path equivalence is added.
+  // WHATWG URL serialization would also change reserved query characters such as an apostrophe.
+  const defaultPort = parsed.scheme === 'https' ? '443' : '80';
+  const authority = parsed.port === defaultPort ? parsed.authority.slice(0, -defaultPort.length - 1) : parsed.authority;
+  const alias = `${parsed.scheme}://${authority}${parsed.path || '/'}${parsed.query === undefined ? '' : `?${parsed.query}`}${parsed.fragment === undefined ? '' : `#${parsed.fragment}`}`;
+  return [...new Set([logical, alias])];
+}
+
+function referenceRetrievalUri(
+  reference: string,
+  baseUri: string,
+  resolvedUri: string,
+  family: DocumentContext['family'],
+): string {
+  if (family === '3.1') return uriWithoutFragment(resolvedUri);
+  const parsed = parseUri(resolvedUri);
+  if (['http', 'https'].includes(parsed.scheme) && parsed.host) {
+    // Preserve the existing exact retrieval spelling, including encoded path/query bytes.
+    // A same-scheme absolute URI such as http:g never enters the WHATWG URL resolver.
+    return uriWithoutFragment(new URL(reference, baseUri).href);
+  }
+  return toAbsoluteUri(resolvedUri);
 }
 
 /** Remove credentials and query values from every user-visible resource identity. */
@@ -711,17 +755,18 @@ function documentContext(
   const openApiVersion = kind === 'openapi' && isRecord(document) ? String(document.openapi) : undefined;
   let selfUri: string | undefined;
   if (family === '3.2' && kind === 'openapi' && isRecord(document) && owns(document, '$self')) {
-    if (
-      typeof document.$self !== 'string' ||
-      /[\s\\]/.test(document.$self) ||
-      /%(?![\da-f]{2})/i.test(document.$self)
-    ) {
+    if (typeof document.$self !== 'string') {
       throw new ResourceLoadError('RESOURCE_URI_INVALID', 'OpenAPI $self must be a URI reference.');
     }
     try {
-      selfUri = new URL(document.$self, retrievalUri).href;
+      selfUri = resolveGraphUri(document.$self, retrievalUri, family);
     } catch (error) {
-      throw new ResourceLoadError('RESOURCE_URI_INVALID', 'OpenAPI $self cannot be resolved.', {}, error);
+      throw new ResourceLoadError(
+        'RESOURCE_URI_INVALID',
+        'OpenAPI $self must be a resolvable URI reference.',
+        {},
+        error,
+      );
     }
   }
   return Object.freeze({
@@ -731,7 +776,7 @@ function documentContext(
     family,
     openApiVersion,
     selfUri,
-    baseUri: uriWithoutFragment(selfUri ?? retrievalUri),
+    baseUri: uriWithoutFragment(selfUri ?? retrievalUri, family),
   });
 }
 
@@ -739,17 +784,26 @@ function indexDocument(collector: ScanCollector): void {
   const { context } = collector;
   addResourceTarget(collector, context.retrievalUri, context.document, '#', context.baseUri);
   if (context.family !== '3.2') return;
+  // Physical cache/grant keys keep their original spelling alongside logical aliases.
+  collector.resources.set(context.retrievalUri, {
+    ownerRetrievalUri: context.retrievalUri,
+    value: context.document,
+    pointer: '#',
+    evaluationBaseUri: context.baseUri,
+  });
   if (context.kind === 'openapi') indexObject(collector, '#', 'openapi', context.baseUri);
   if (context.selfUri !== undefined) {
-    const identity = fragmentOf(context.selfUri) ? context.selfUri : uriWithoutFragment(context.selfUri);
-    collector.documents.set(identity, {
-      ownerRetrievalUri: context.retrievalUri,
-      value: context.document,
-      pointer: '#',
-      evaluationBaseUri: context.baseUri,
-    });
+    const fragment = fragmentOf(context.selfUri, context.family);
+    const identity = fragment ? context.selfUri : uriWithoutFragment(context.selfUri, context.family);
+    for (const alias of identityAliases(identity, context.family))
+      collector.documents.set(alias, {
+        ownerRetrievalUri: context.retrievalUri,
+        value: context.document,
+        pointer: '#',
+        evaluationBaseUri: context.baseUri,
+      });
     // A fragment-bearing $self is a full identity, not ownership of its entire base URI.
-    if (!fragmentOf(context.selfUri)) addResourceTarget(collector, identity, context.document, '#', context.baseUri);
+    if (!fragment) addResourceTarget(collector, identity, context.document, '#', context.baseUri);
   }
 }
 
@@ -760,19 +814,20 @@ function addResourceTarget(
   pointer: string,
   evaluationBaseUri = uri,
 ): void {
-  const identity = uriWithoutFragment(uri);
-  const existing = collector.resources.get(identity);
-  if (existing && existing.pointer !== pointer) {
-    throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema resource URI is declared more than once.', {
-      retrievalUri: identity,
+  for (const identity of identityAliases(uriWithoutFragment(uri, collector.context.family), collector.context.family)) {
+    const existing = collector.resources.get(identity);
+    if (existing && existing.pointer !== pointer) {
+      throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema resource URI is declared more than once.', {
+        retrievalUri: identity,
+      });
+    }
+    collector.resources.set(identity, {
+      ownerRetrievalUri: collector.sourceRetrievalUri,
+      value,
+      pointer,
+      evaluationBaseUri,
     });
   }
-  collector.resources.set(identity, {
-    ownerRetrievalUri: collector.sourceRetrievalUri,
-    value,
-    pointer,
-    evaluationBaseUri,
-  });
 }
 
 function addAnchorTarget(
@@ -782,18 +837,20 @@ function addAnchorTarget(
   pointer: string,
   evaluationBaseUri: string,
 ): void {
-  const existing = collector.anchors.get(uri);
-  if (existing && existing.pointer !== pointer) {
-    throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema anchor URI is declared more than once.', {
-      retrievalUri: uri,
+  for (const identity of identityAliases(uri, collector.context.family)) {
+    const existing = collector.anchors.get(identity);
+    if (existing && existing.pointer !== pointer) {
+      throw new ResourceLoadError('RESOURCE_URI_CONFLICT', 'A Schema anchor URI is declared more than once.', {
+        retrievalUri: identity,
+      });
+    }
+    collector.anchors.set(identity, {
+      ownerRetrievalUri: collector.sourceRetrievalUri,
+      value,
+      pointer,
+      evaluationBaseUri,
     });
   }
-  collector.anchors.set(uri, {
-    ownerRetrievalUri: collector.sourceRetrievalUri,
-    value,
-    pointer,
-    evaluationBaseUri,
-  });
 }
 
 function edgeIdentity(
@@ -814,8 +871,15 @@ function addReference(
   targetUri?: string,
 ): void {
   let resolvedUri: string;
+  let targetRetrievalUri: string;
   try {
-    resolvedUri = targetUri ?? new URL(rawReference, baseUri).href;
+    resolvedUri = resolveGraphUri(targetUri ?? rawReference, baseUri, collector.context.family);
+    targetRetrievalUri = referenceRetrievalUri(
+      targetUri ?? rawReference,
+      baseUri,
+      resolvedUri,
+      collector.context.family,
+    );
   } catch (error) {
     const failed: MutableEdge = {
       sourceRetrievalUri: collector.sourceRetrievalUri,
@@ -855,8 +919,8 @@ function addReference(
     sourcePointer,
     kind,
     resolvedUri,
-    targetRetrievalUri: uriWithoutFragment(resolvedUri),
-    fragment: fragmentOf(resolvedUri),
+    targetRetrievalUri,
+    fragment: fragmentOf(resolvedUri, collector.context.family),
     state: 'pending',
     rawReference,
     rawReferenceDisplay: safeRawReferenceDisplay(rawReference),
@@ -900,11 +964,11 @@ function walkSchema(
   let baseUri = inheritedBase;
   if (typeof value.$id === 'string') {
     try {
-      const identifier = new URL(value.$id, inheritedBase);
-      if (identifier.hash) {
+      const identifier = resolveGraphUri(value.$id, inheritedBase, collector.context.family);
+      if (fragmentOf(identifier, collector.context.family)) {
         throw new ResourceLoadError('RESOURCE_URI_INVALID', 'Schema $id values must not contain a non-empty fragment.');
       }
-      baseUri = identifier.href;
+      baseUri = identifier;
       addResourceTarget(collector, baseUri, value, pointer, evaluationBaseUri);
     } catch (error) {
       if (error instanceof ResourceLoadError) throw error;
@@ -917,7 +981,13 @@ function walkSchema(
     if (!ANCHOR_NAME.test(anchor)) {
       throw new ResourceLoadError('RESOURCE_URI_INVALID', `Schema ${keyword} is invalid.`);
     }
-    addAnchorTarget(collector, `${uriWithoutFragment(baseUri)}#${anchor}`, value, pointer, evaluationBaseUri);
+    addAnchorTarget(
+      collector,
+      `${uriWithoutFragment(baseUri, collector.context.family)}#${anchor}`,
+      value,
+      pointer,
+      evaluationBaseUri,
+    );
   }
 
   if (emitReferences && typeof value.$ref === 'string') {
@@ -947,8 +1017,9 @@ function walkSchema(
   const mapping =
     isRecord(value.discriminator) && isRecord(value.discriminator.mapping) ? value.discriminator.mapping : null;
   if (collector.context.family === '3.2') {
-    // Discriminator is an OAS annotation, not a keyword of arbitrary JSON Schema dialects.
-    if (emitReferences && /\/oas\/3\.1\/dialect\/base#?$/.test(dialect) && isRecord(value.discriminator)) {
+    // Project OAS application semantics connect discriminator names/URIs at real Schema positions.
+    // These connections do not change validation under the Schema's selected dialect.
+    if (emitReferences && isRecord(value.discriminator)) {
       const addMapping = (target: unknown, targetPointer: string): void => {
         if (typeof target !== 'string') return;
         addReference(
@@ -2080,8 +2151,10 @@ function documentKind(
         : getOpenApiSpecificationFeatures(document.openapi)?.family !== '3.2'
     ) {
       throw new ResourceLoadError(
-        'OPENAPI_VERSION_UNSUPPORTED',
-        `This project does not support an OpenAPI ${family}.x graph referencing document version '${document.openapi}'.`,
+        family === '3.1' ? 'DOCUMENT_KIND_MISMATCH' : 'OPENAPI_VERSION_UNSUPPORTED',
+        family === '3.1'
+          ? `External OpenAPI document '${document.openapi}' is outside the supported 3.1.x range.`
+          : `This project does not support an OpenAPI ${family}.x graph referencing document version '${document.openapi}'.`,
       );
     }
     return 'openapi';
@@ -2616,20 +2689,29 @@ export class ExternalResourceLoader {
     edge: MutableEdge,
   ): IndexedTargetValue | undefined {
     const findResource = (uri: string): ResourceTarget | undefined => {
-      for (const collector of collectors.values()) {
-        const target = collector.resources.get(uri);
+      for (const identity of identityAliases(uri, this.entryContext.family)) {
+        for (const collector of collectors.values()) {
+          const target = collector.resources.get(identity);
+          if (target) return target;
+        }
+        const target = state.resourceTargets.get(identity);
         if (target) return target;
       }
-      return state.resourceTargets.get(uri);
+      return undefined;
     };
     const findAnchor = (uri: string): ResourceTarget | undefined => {
-      for (const collector of collectors.values()) {
-        const target = collector.anchors.get(uri);
+      for (const identity of identityAliases(uri, this.entryContext.family)) {
+        for (const collector of collectors.values()) {
+          const target = collector.anchors.get(identity);
+          if (target) return target;
+        }
+        const target = state.anchorTargets.get(identity);
         if (target) return target;
       }
-      return state.anchorTargets.get(uri);
+      return undefined;
     };
     const containingBase = (ownerRetrievalUri: string, pointer: string, fallback: string): string => {
+      if (this.entryContext.family === '3.2') return fallback;
       let baseUri = fallback;
       let containingPointerLength = -1;
       const inspect = (target: ResourceTarget): void => {
@@ -2649,21 +2731,30 @@ export class ExternalResourceLoader {
       return baseUri;
     };
     const findDocument = (uri: string): ResourceTarget | undefined => {
-      for (const collector of collectors.values()) {
-        const target = collector.documents.get(uri);
+      for (const identity of identityAliases(uri, this.entryContext.family)) {
+        for (const collector of collectors.values()) {
+          const target = collector.documents.get(identity);
+          if (target) return target;
+        }
+        const target = state.documentTargets.get(identity);
         if (target) return target;
       }
-      return state.documentTargets.get(uri);
+      return undefined;
     };
     const sourceContext =
       collectors.get(edge.sourceRetrievalUri)?.context ?? state.contexts.get(edge.sourceRetrievalUri);
     const strict = this.entryContext.family === '3.2';
+    const lookupEdge = strict ? { ...edge, targetRetrievalUri: uriWithoutFragment(edge.resolvedUri, '3.2') } : edge;
     const identity = strict ? findDocument(edge.resolvedUri) : undefined;
+    const fetched = strict ? findResource(edge.targetRetrievalUri) : undefined;
+    // A fetched document is also reachable by this edge's exact, authorized HTTP key.
+    // This edge-local connection never makes transport spellings into logical aliases.
+    const retrievalTarget = fetched?.ownerRetrievalUri === edge.targetRetrievalUri ? fetched : undefined;
     const scopedResource =
       strict &&
       sourceContext?.selfUri &&
-      fragmentOf(sourceContext.selfUri) &&
-      edge.targetRetrievalUri === sourceContext.baseUri
+      fragmentOf(sourceContext.selfUri, '3.2') &&
+      lookupEdge.targetRetrievalUri === sourceContext.baseUri
         ? {
             ownerRetrievalUri: sourceContext.retrievalUri,
             value: sourceContext.document,
@@ -2673,7 +2764,7 @@ export class ExternalResourceLoader {
         : undefined;
     const schemaResource =
       edge.kind === 'schema-ref' || edge.kind === 'schema-dynamic-ref'
-        ? findResource(edge.targetRetrievalUri)
+        ? findResource(lookupEdge.targetRetrievalUri)
         : undefined;
     const target = identity
       ? {
@@ -2683,10 +2774,13 @@ export class ExternalResourceLoader {
           ownerRetrievalUri: identity.ownerRetrievalUri,
         }
       : expectedTargetValue(
-          edge,
+          lookupEdge,
           (uri) =>
-            (schemaResource && schemaResource.pointer !== '#' ? schemaResource : scopedResource) ?? findResource(uri),
-          findAnchor,
+            (schemaResource && schemaResource.pointer !== '#' ? schemaResource : scopedResource) ??
+            findResource(uri) ??
+            retrievalTarget,
+          (uri) =>
+            findAnchor(uri) ?? (retrievalTarget ? findAnchor(`${edge.targetRetrievalUri}${edge.fragment}`) : undefined),
           containingBase,
         );
     if (target && strict) {
@@ -2974,7 +3068,21 @@ export class ExternalResourceLoader {
       }
       if (edge.state !== 'failed') edge.state = 'pending';
       try {
-        edge.targetRetrievalUri = normalizeExternalResourceUri(edge.resolvedUri, edge.resolutionBase, this.pageUri);
+        if (this.entryContext.family === '3.2') {
+          const parsed = parseUri(edge.resolvedUri);
+          if (['http', 'https'].includes(parsed.scheme) && !parsed.host)
+            throw new ResourceLoadError(
+              'RESOURCE_URI_INVALID',
+              'An HTTP retrieval URI requires an authority and host.',
+            );
+          edge.targetRetrievalUri = normalizeExternalResourceUri(
+            edge.targetRetrievalUri,
+            edge.targetRetrievalUri,
+            this.pageUri,
+          );
+        } else {
+          edge.targetRetrievalUri = normalizeExternalResourceUri(edge.resolvedUri, edge.resolutionBase, this.pageUri);
+        }
       } catch (error) {
         const failure =
           error instanceof ResourceLoadError
