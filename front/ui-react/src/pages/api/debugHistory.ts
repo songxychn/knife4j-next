@@ -1,4 +1,5 @@
-import type { FormBodyEncodingPlan } from 'knife4j-core';
+import type { FormBodyEncodingPlan, SerializedExampleParameter } from 'knife4j-core';
+import { readExampleParameterInputs } from './debugCache';
 import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 import {
   KNIFE4J_STORAGE_PREFIXES,
@@ -26,6 +27,8 @@ export interface DebugHistoryCustomParamRow {
 
 /** Snapshot of form state sufficient to re-apply into the debug panel. */
 export interface DebugHistoryFormSnapshot {
+  serializedExampleParameters?: Record<string, SerializedExampleParameter>;
+  serializedExampleBodyMediaType?: string;
   baseUrl: string;
   method: string;
   path: string;
@@ -413,6 +416,18 @@ export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHi
     formFields: truncateStringRecord(snapshot.formFields),
     formPartHeaders: prepareFormPartHeaders(snapshot.formPartHeaders),
     paramValues: truncateStringRecord(snapshot.paramValues),
+    ...(snapshot.serializedExampleParameters
+      ? {
+          serializedExampleParameters: Object.fromEntries(
+            Object.entries(readExampleParameterInputs(snapshot.serializedExampleParameters))
+              .filter(
+                ([key]) =>
+                  !key.startsWith('cookie:') && !(key.startsWith('header:') && isSensitiveHeaderName(key.slice(7))),
+              )
+              .map(([key, input]) => [key, { ...input, text: truncateBody(input.text).text }]),
+          ),
+        }
+      : {}),
     customBodyParams: truncateCustomRows(snapshot.customBodyParams),
     customHeaders: sanitizeCustomRows(snapshot.customHeaders),
     customCookies: sanitizeCustomCookieRows(snapshot.customCookies),
@@ -442,6 +457,12 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
   const fileFieldNames = readStringArrayRecord(value.fileFieldNames);
   return prepareFormSnapshot({
     baseUrl: readString(value.baseUrl),
+    ...(isRecord(value.serializedExampleParameters)
+      ? { serializedExampleParameters: readExampleParameterInputs(value.serializedExampleParameters) }
+      : {}),
+    ...(typeof value.serializedExampleBodyMediaType === 'string'
+      ? { serializedExampleBodyMediaType: value.serializedExampleBodyMediaType }
+      : {}),
     method: readString(value.method),
     path: readString(value.path),
     paramValues: readStringRecord(value.paramValues),

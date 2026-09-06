@@ -24,6 +24,7 @@ export type {
   Oas31FormBodyModel,
   OperationDebugModel,
   DebugFormValues,
+  SerializedExampleParameter,
   QueryParamValue,
   GlobalParamValues,
   SchemeValue,
@@ -63,7 +64,7 @@ export {
 } from './resolveRef';
 
 // operationDebugModel
-export { buildOperationDebugModel } from './operationDebugModel';
+export { buildOperationDebugModel, analyzeOas31Parameter } from './operationDebugModel';
 export type { BuildDebugModelOptions } from './operationDebugModel';
 
 // requestBuilder
@@ -92,6 +93,21 @@ export {
   replaceSerializedPathParams,
   serializeOas31Parameters,
 } from './parameterSerialization';
+
+export {
+  interpretExampleObject,
+  serializeExampleData,
+  exampleParameterInput,
+  exampleHasOwn,
+  isExampleData,
+} from './exampleRepresentation';
+export type {
+  ExampleLayer,
+  ExampleCheck,
+  ExampleDiagnostic,
+  ExampleRepresentation,
+  ExampleRepresentationContext,
+} from './exampleRepresentation';
 export type {
   SerializedCookieParameter,
   SerializedOas31Parameters,

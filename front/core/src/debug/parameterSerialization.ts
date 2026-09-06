@@ -5,6 +5,7 @@ import type {
   ParameterInputDiagnostic,
   ParameterInstance,
   SchemaValue,
+  SerializedExampleParameter,
 } from './types';
 
 export interface SerializedQueryParameter {
@@ -12,6 +13,7 @@ export interface SerializedQueryParameter {
   readonly value: string;
   readonly encodedName: string;
   readonly encodedValue: string;
+  readonly hasEquals?: boolean;
 }
 
 export interface SerializedCookieParameter {
@@ -238,7 +240,7 @@ function invalidJson(message: string): ParseResult {
   return { ok: false, kind: 'invalid-json', message };
 }
 
-function parseJson(rawValue: string): ParseResult {
+export function parseJsonParameterValue(rawValue: string): ParseResult {
   try {
     const parsed: unknown = JSON.parse(rawValue);
     if (unsafeJsonNumber(rawValue) !== undefined) {
@@ -270,7 +272,7 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
 
   const types = schemaTypes(param.schema);
   if (serialization.kind === 'content' && isJsonMediaType(serialization.mediaType)) {
-    return parseJson(rawValue);
+    return parseJsonParameterValue(rawValue);
   }
 
   if (types.includes('null') && rawValue === 'null') return { ok: true, instance: null };
@@ -280,15 +282,15 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
   // distinguish the string "null" from the null instance. Ordinary strings
   // remain plain text; only a valid quoted JSON string takes this path.
   if (types.includes('null') && nonNullTypes.length === 1 && nonNullTypes[0] === 'string') {
-    const parsed = parseJson(rawValue);
+    const parsed = parseJsonParameterValue(rawValue);
     if (parsed.ok && typeof parsed.instance === 'string') return parsed;
   }
   if (nonNullTypes.length === 0 && acceptsUntypedJsonSyntax(param.schema)) {
-    const parsed = parseJson(rawValue);
+    const parsed = parseJsonParameterValue(rawValue);
     return parsed.ok || parsed.kind === 'unsafe-number' ? parsed : { ok: true, instance: rawValue };
   }
   if (nonNullTypes.length > 1) {
-    const parsed = parseJson(rawValue);
+    const parsed = parseJsonParameterValue(rawValue);
     if (parsed.ok && nonNullTypes.some((type) => matchesDeclaredType(parsed.instance, type))) return parsed;
     if (!parsed.ok && parsed.kind === 'unsafe-number') return parsed;
     if (nonNullTypes.includes('string')) return { ok: true, instance: rawValue };
@@ -297,7 +299,7 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
 
   const expectedType = nonNullTypes[0] ?? param.type;
   if (expectedType === 'array' || expectedType === 'object') {
-    const parsed = parseJson(rawValue);
+    const parsed = parseJsonParameterValue(rawValue);
     if (!parsed.ok) return parsed;
     if (!matchesDeclaredType(parsed.instance, expectedType)) {
       return invalidJson(`The parameter value must be a JSON ${expectedType}.`);
@@ -310,7 +312,7 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
     return invalidJson('The parameter value must be true or false.');
   }
   if (expectedType === 'integer' || expectedType === 'number') {
-    const parsed = parseJson(rawValue);
+    const parsed = parseJsonParameterValue(rawValue);
     if (!parsed.ok) return parsed;
     if (!matchesDeclaredType(parsed.instance, expectedType)) {
       return invalidJson(`The parameter value must be a JSON ${expectedType}.`);
@@ -623,6 +625,49 @@ function allParams(params: {
   return [...params.pathParams, ...params.queryParams, ...params.headerParams, ...params.cookieParams];
 }
 
+function serializedExampleParameter(param: DebugParam, input: SerializedExampleParameter): SerializedParameter {
+  const text = input.text;
+  if (param.in === 'cookie') throw new Error('OAS 3.2 Cookie examples require the Cookie execution work package.');
+  if (input.layer === 'media') {
+    if (param.parameterSerialization?.kind !== 'content')
+      throw new Error('A media example requires parameter content.');
+    if (param.in === 'path') return { in: 'path', value: encodeParameterComponent(text) };
+    if (param.in === 'query') return { in: 'query', pairs: [contentQueryPair(param.name, text)] };
+    return { in: 'header', value: rejectHeaderControls(text) };
+  }
+  if (param.in === 'header') {
+    if (text.toLowerCase().startsWith(`${param.name.toLowerCase()}:`))
+      throw new Error('A header example must not include the header name.');
+    return { in: 'header', value: rejectHeaderControls(text) };
+  }
+  if (/[^\x21-\x7e]/.test(text) || /%(?![0-9a-f]{2})/i.test(text) || text.includes('#'))
+    throw new Error('Invalid serialized example URI characters.');
+  decodeURIComponent(text.replace(/\+/g, ' '));
+  if (param.in === 'path') {
+    if (/[/?]/.test(text)) throw new Error('A path example cannot contain path or query separators.');
+    return { in: 'path', value: text };
+  }
+  if (/^[?&]/.test(text)) throw new Error('A query example must not include a leading delimiter.');
+  return {
+    in: 'query',
+    pairs:
+      text === ''
+        ? []
+        : text.split('&').map((pair) => {
+            const index = pair.indexOf('=');
+            const encodedName = index < 0 ? pair : pair.slice(0, index);
+            const encodedValue = index < 0 ? '' : pair.slice(index + 1);
+            return {
+              encodedName,
+              encodedValue,
+              hasEquals: index >= 0,
+              name: decodeURIComponent(encodedName.replace(/\+/g, ' ')),
+              value: decodeURIComponent(encodedValue.replace(/\+/g, ' ')),
+            };
+          }),
+  };
+}
+
 export function serializeOas31Parameters(
   params: {
     pathParams: readonly DebugParam[];
@@ -631,6 +676,7 @@ export function serializeOas31Parameters(
     cookieParams: readonly DebugParam[];
   },
   rawValues: Readonly<Record<string, string>> = {},
+  examples: Readonly<Record<string, SerializedExampleParameter>> = {},
 ): SerializedOas31Parameters {
   const path: Record<string, string> = {};
   const query: SerializedQueryParameter[] = [];
@@ -646,14 +692,22 @@ export function serializeOas31Parameters(
   for (const param of allParams(params)) {
     if (!param.parameterSerialization) continue;
     const key = parameterKey(param);
-    if (!Object.prototype.hasOwnProperty.call(rawValues, key)) continue;
+    if (!Object.prototype.hasOwnProperty.call(rawValues, key) && !Object.prototype.hasOwnProperty.call(examples, key))
+      continue;
     const rawValue = rawValues[key];
-    const parsed = parseOas31ParameterValue(param, rawValue);
-    const serialized = parsed.ok
-      ? param.parameterSerialization.kind === 'content'
-        ? serializeContentParameter(param, parsed.instance)
-        : serializeSchemaParameter(param, parsed.instance)
-      : rawFallback(param, rawValue);
+    const example = examples[key];
+    const parsed = example
+      ? Object.prototype.hasOwnProperty.call(example, 'instance')
+        ? { ok: true as const, instance: example.instance! }
+        : null
+      : parseOas31ParameterValue(param, rawValue);
+    const serialized = example
+      ? serializedExampleParameter(param, example)
+      : parsed?.ok
+        ? param.parameterSerialization.kind === 'content'
+          ? serializeContentParameter(param, parsed.instance)
+          : serializeSchemaParameter(param, parsed.instance)
+        : rawFallback(param, rawValue);
 
     presence[key] =
       serialized.in === 'path'
@@ -662,9 +716,9 @@ export function serializeOas31Parameters(
           ? serialized.value !== undefined
           : serialized.pairs.length > 0;
 
-    if (parsed.ok) {
+    if (parsed?.ok) {
       instances.push({ key, name: param.name, in: param.in, instance: parsed.instance });
-    } else {
+    } else if (parsed) {
       diagnostics.push({ key, name: param.name, in: param.in, kind: parsed.kind, message: parsed.message });
     }
 
@@ -699,7 +753,7 @@ export function replaceSerializedPathParams(path: string, values: Readonly<Recor
   let result = path;
   for (const [name, value] of Object.entries(values)) {
     if (!name) continue;
-    result = result.replace(new RegExp(`\\{${escapeRegExp(name)}\\}`, 'g'), value);
+    result = result.replace(new RegExp(`\\{${escapeRegExp(name)}\\}`, 'g'), () => value);
   }
   return result;
 }
