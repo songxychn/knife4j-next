@@ -678,9 +678,9 @@ export function serializeOas31Parameters(
   rawValues: Readonly<Record<string, string>> = {},
   examples: Readonly<Record<string, SerializedExampleParameter>> = {},
 ): SerializedOas31Parameters {
-  const path: Record<string, string> = {};
+  const path: Record<string, string> = Object.create(null) as Record<string, string>;
   const query: SerializedQueryParameter[] = [];
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = Object.create(null) as Record<string, string>;
   const cookies: SerializedCookieParameter[] = [];
   const instances: BuiltParameterInstance[] = [];
   const diagnostics: ParameterInputDiagnostic[] = [];

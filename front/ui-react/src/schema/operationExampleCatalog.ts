@@ -1,5 +1,7 @@
 import {
   analyzeOas31Parameter,
+  analyzeOas31FormBody,
+  normalizeAllOfSchema,
   exampleHasOwn,
   getOpenApiSpecificationFeatures,
   interpretExampleObject,
@@ -278,23 +280,40 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
   const content = (location: OpenApiObjectLocation, direction: SchemaExampleDirection, statusCode?: string) => {
     for (const { mediaType, site, media } of mediaList(location)) {
       const value = record(media?.value);
-      const schema = record(value?.schema) ?? undefined;
+      const rawSchema = record(value?.schema) ?? undefined;
       const essence = mediaType.split(';', 1)[0].trim().toLowerCase();
+      const category: BodyContent['category'] = isJsonMediaType(mediaType)
+        ? 'json'
+        : essence === 'application/x-www-form-urlencoded'
+          ? 'urlencoded'
+          : essence.startsWith('multipart/')
+            ? 'multipart'
+            : 'raw';
+      const ownerDocument = record(snapshot.nodes.get((media ?? site).ownerRetrievalUri)?.document) ?? {};
+      const schema =
+        rawSchema && category === 'urlencoded' ? normalizeAllOfSchema(rawSchema, ownerDocument) : rawSchema;
       const bodyContent: BodyContent = {
         mediaType,
-        category: isJsonMediaType(mediaType)
-          ? 'json'
-          : essence === 'application/x-www-form-urlencoded'
-            ? 'urlencoded'
-            : essence.startsWith('multipart/')
-              ? 'multipart'
-              : 'raw',
+        category,
         schema,
         binary:
-          essence === 'application/octet-stream' ||
-          /^(image|audio|video)\//.test(essence) ||
-          schema?.format === 'binary' ||
+          (category === 'raw' &&
+            (essence === 'application/octet-stream' ||
+              /^(image|audio|video)\//.test(essence) ||
+              schema?.format === 'binary')) ||
           undefined,
+        ...(category === 'urlencoded'
+          ? {
+              oas31Form: analyzeOas31FormBody({
+                mediaType,
+                schema,
+                encoding: record(value?.encoding) ?? undefined,
+                fileFields: [],
+                multipleFileFields: [],
+                document: ownerDocument,
+              }),
+            }
+          : {}),
       };
       if (direction === 'request') bodies.push(bodyContent);
       const group = direction === 'request' ? `body:${mediaType}` : `response:${statusCode}:${mediaType}`;

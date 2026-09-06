@@ -374,7 +374,7 @@ export function analyzeOas31FormBody(options: AnalyzeOas31FormBodyOptions): Oas3
   const fields: Oas31FormField[] = [];
   for (const [name, rawSchema] of Object.entries(properties)) {
     const propertySchema = normalizedPropertySchema(rawSchema, document);
-    const rawEncoding = normalizedEncoding[name];
+    const rawEncoding = hasOwn(normalizedEncoding, name) ? normalizedEncoding[name] : undefined;
     const encodingObject = rawEncoding === undefined ? {} : isRecord(rawEncoding) ? rawEncoding : null;
     if (encodingObject === null) {
       diagnostics.push(diagnostic('ENCODING_INVALID', `Encoding for ${name} must be an object.`, name));

@@ -103,8 +103,8 @@ function mergeHeaderLayers(layers: HeaderLayer[]): {
   headers: Record<string, string>;
   sources: Record<string, ParamSource>;
 } {
-  const result: Record<string, string> = {};
-  const resultSources: Record<string, ParamSource> = {};
+  const result: Record<string, string> = Object.create(null) as Record<string, string>;
+  const resultSources: Record<string, ParamSource> = Object.create(null) as Record<string, ParamSource>;
   const keysByLowercase = new Map<string, string>();
 
   for (const layer of layers) {
@@ -292,7 +292,9 @@ export function validateRequired(
   parameterPresence?: Readonly<Record<string, boolean>>,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
-  const presence = parameterPresence ?? serializeOas31Parameters(model, form.oas31ParameterValues).presence;
+  const presence =
+    parameterPresence ??
+    serializeOas31Parameters(model, form.oas31ParameterValues, form.serializedExampleParameters).presence;
 
   const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
@@ -301,7 +303,7 @@ export function validateRequired(
       const serializedPresence =
         param.parameterSerialization && Object.prototype.hasOwnProperty.call(presence, key) ? presence[key] : undefined;
       if (serializedPresence === true) continue;
-      const value = values[param.name];
+      const value = Object.prototype.hasOwnProperty.call(values, param.name) ? values[param.name] : undefined;
       if (
         serializedPresence === false ||
         value === undefined ||
@@ -353,9 +355,13 @@ export function validateRequired(
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
   if (model.bodyRequired && current && !current.oas31Form) {
     const category = current.category;
+    const hasExampleBody =
+      form.serializedExampleBody?.mediaType === selected && typeof form.serializedExampleBody.text === 'string';
 
     let bodyMissing = false;
-    if (current.binary) {
+    if (hasExampleBody && category !== 'multipart' && !current.binary) {
+      bodyMissing = false;
+    } else if (current.binary) {
       bodyMissing = !form.binaryBodyFileName;
     } else if (category === 'json' || category === 'raw') {
       bodyMissing = !form.body || form.body.trim() === '';
@@ -506,7 +512,10 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     debugModel.bodyContents[0];
   const category = currentBody?.category ?? 'raw';
   const exampleBody =
-    formValues.serializedExampleBody?.mediaType === selectedContentType ? formValues.serializedExampleBody : undefined;
+    formValues.serializedExampleBody?.mediaType === selectedContentType &&
+    typeof formValues.serializedExampleBody.text === 'string'
+      ? formValues.serializedExampleBody
+      : undefined;
   if (exampleBody && (category === 'multipart' || currentBody?.binary))
     throw new Error('This example requires a binary or multipart codec.');
   const formBodyPlan =

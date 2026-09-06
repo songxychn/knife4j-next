@@ -433,3 +433,198 @@ describe('OAS 3.2 shared Example catalog', () => {
     expect(built.url).toBe('https://api.example/items?filter=%7B+%22n%22%3A+2+%7D');
   });
 });
+
+describe('reviewed catalog codec integration', () => {
+  test.each(['"1"', '1'])(
+    'nullable query literal quotes are validated against const %p without editor unescaping',
+    async (expected) => {
+      const document = {
+        openapi: '3.2.0',
+        info: { title: 'Wire quotes', version: '1' },
+        paths: {
+          '/items': {
+            get: {
+              parameters: [
+                {
+                  name: 'q',
+                  in: 'query',
+                  schema: { type: ['string', 'null'], const: expected },
+                  examples: { quoted: { serializedValue: 'q=%221%22' } },
+                },
+              ],
+              responses: { '204': { description: 'done' } },
+            },
+          },
+        },
+      } as SwaggerDoc;
+      expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+      const op = operation(document);
+      const catalog = locateOperationExampleCatalog(document, op);
+      const session = await sessionFor(document, op.resourceSnapshot!);
+      const result = await evaluateOperationExample(
+        catalog.targets.find((target) => target.name === 'quoted')!,
+        session,
+      );
+      const validation = expected === '"1"' ? 'valid' : 'invalid';
+      expect(result.schemaResult).toMatchObject({ value: '"1"', validation });
+      expect(result.serializedSchemaResult).toMatchObject({ value: '"1"', validation });
+      const model = exampleDebugModel(
+        buildOperationDebugModel({
+          doc: document as unknown as Record<string, unknown>,
+          path: op.path,
+          method: op.method,
+          operationIdentity: op.identity,
+        }),
+        catalog,
+      );
+      const request = buildRequest({
+        baseUrl: 'https://api.example',
+        path: op.path,
+        method: op.method,
+        debugModel: model,
+        formValues: {
+          pathParams: {},
+          queryParams: {},
+          headerParams: {},
+          cookieParams: {},
+          serializedExampleParameters: { 'query:q': exampleParameterInput(result.representation, 'parameter')! },
+        },
+      });
+      expect(request.url).toBe('https://api.example/items?q=%221%22');
+      expect(request.parameterInstances).toContainEqual({ key: 'query:q', name: 'q', in: 'query', instance: '"1"' });
+    },
+  );
+
+  test('field editing keeps the form encoding and actual Media Type owner after a reference', async () => {
+    const mediaUri = 'https://retrieval.example/forms.json';
+    const schema = { type: 'object', properties: { tags: { type: 'array', items: { type: 'string' } } } };
+    const media = {
+      schema: { $ref: '#/components/schemas/Form' },
+      encoding: { tags: { style: 'form', explode: false } },
+      examples: { sample: { dataValue: { tags: ['a', 'b'] } } },
+    };
+    const library = {
+      openapi: '3.2.0',
+      info: { title: 'Form library', version: '1' },
+      components: { schemas: { Form: schema }, mediaTypes: { Form: media } },
+    };
+    const document = {
+      openapi: '3.2.0',
+      info: { title: 'Form owner', version: '1' },
+      paths: {
+        '/items': {
+          post: {
+            requestBody: {
+              required: true,
+              content: { 'application/x-www-form-urlencoded': { $ref: './forms.json#/components/mediaTypes/Form' } },
+            },
+            responses: { '204': { description: 'done' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(library), { headers: { 'content-type': 'application/json' } }),
+    );
+    const loader = new ExternalResourceLoader(document, uri, { fetchImpl, pageUri: uri });
+    await loader.load([{ scope: 'generation', documentScope: loader.documentScope, resourceKey: sha256Hex(mediaUri) }]);
+    const op = operation(document, loader.currentSnapshot());
+    const catalog = locateOperationExampleCatalog(document, op);
+    const target = catalog.targets.find((item) => item.name === 'sample')!;
+    expect(target.schemaLocation).toMatchObject({
+      ownerRetrievalUri: mediaUri,
+      pointer: '#/components/mediaTypes/Form/schema',
+      value: media.schema,
+    });
+    const model = exampleDebugModel(
+      buildOperationDebugModel({
+        doc: document as unknown as Record<string, unknown>,
+        path: op.path,
+        method: op.method,
+        operationIdentity: op.identity,
+      }),
+      catalog,
+    );
+    expect(model.bodyContents[0].oas31Form?.fields[0]).toMatchObject({
+      name: 'tags',
+      schema: schema.properties.tags,
+      encoding: { kind: 'style', style: 'form', explode: false },
+    });
+    const result = await evaluateOperationExample(target, await sessionFor(document, op.resourceSnapshot!));
+    expect(result.representation.text).toBe('tags=a,b');
+    const request = buildRequest({
+      baseUrl: 'https://api.example',
+      path: op.path,
+      method: op.method,
+      debugModel: model,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'application/x-www-form-urlencoded',
+        formFields: { tags: '["a","b"]' },
+      },
+    });
+    expect(request.body).toBe(result.representation.text);
+    expect(request.formBodyPlan?.diagnostics).toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  test('JSON string format binary remains a JSON string in the catalog and the built body', async () => {
+    const document = {
+      openapi: '3.2.0',
+      info: { title: 'JSON annotation', version: '1' },
+      paths: {
+        '/items': {
+          post: {
+            requestBody: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { type: 'string', format: 'binary' },
+                  examples: { sample: { dataValue: 'test' } },
+                },
+              },
+            },
+            responses: { '204': { description: 'done' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+    const op = operation(document);
+    const catalog = locateOperationExampleCatalog(document, op);
+    expect(catalog.bodies[0]).toMatchObject({ category: 'json' });
+    expect(catalog.bodies[0].binary).not.toBe(true);
+    const result = await evaluateOperationExample(
+      catalog.targets.find((target) => target.name === 'sample')!,
+      await sessionFor(document, op.resourceSnapshot!),
+    );
+    expect(result.schemaResult).toMatchObject({ value: 'test', validation: 'valid' });
+    const model = exampleDebugModel(
+      buildOperationDebugModel({
+        doc: document as unknown as Record<string, unknown>,
+        path: op.path,
+        method: op.method,
+        operationIdentity: op.identity,
+      }),
+      catalog,
+    );
+    const request = buildRequest({
+      baseUrl: 'https://api.example',
+      path: op.path,
+      method: op.method,
+      debugModel: model,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'application/json',
+        serializedExampleBody: { mediaType: 'application/json', text: result.representation.text! },
+      },
+    });
+    expect(request.body).toBe('"test"');
+  });
+});

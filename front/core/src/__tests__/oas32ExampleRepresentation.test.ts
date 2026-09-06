@@ -1,8 +1,8 @@
 import { buildMediaTypeExampleValue } from '../debug/mediaTypeExample';
 import { exampleParameterInput, interpretExampleObject, serializeExampleData } from '../debug/exampleRepresentation';
 import { serializeOas31Parameters } from '../debug/parameterSerialization';
-import { buildCurl, buildRequest } from '../debug/requestBuilder';
-import type { BodyContent, DebugParam, OperationDebugModel } from '../debug/types';
+import { buildCurl, buildRequest, validateRequired } from '../debug/requestBuilder';
+import type { BodyContent, DebugFormValues, DebugParam, OperationDebugModel } from '../debug/types';
 
 describe('OAS 3.2 Example Object values', () => {
   const context = { doc: { openapi: '3.2.0', info: { title: 'Example fixture', version: '1' }, paths: {} } };
@@ -392,4 +392,185 @@ describe('layer-aware text on the actual request builder', () => {
     expect(buildCurl(built)).toContain(text);
     expect(buildCurl({ ...built, body: '' }).replace(/\\\n\s*/g, '')).toContain("-d ''");
   });
+});
+
+describe('reviewed Example request boundaries', () => {
+  const emptyForm: DebugFormValues = { pathParams: {}, queryParams: {}, headerParams: {}, cookieParams: {} };
+  const modelFor = (body: BodyContent): OperationDebugModel => ({
+    pathParams: [],
+    queryParams: [],
+    headerParams: [],
+    cookieParams: [],
+    bodyContents: [body],
+    bodyRequired: true,
+  });
+
+  test.each([
+    ['application/x-www-form-urlencoded', 'urlencoded', 'tags=a,b'],
+    ['text/plain', 'raw', ''],
+  ] as const)(
+    'required %s accepts explicit text including empty, but not missing or mismatched media',
+    (mediaType, category, text) => {
+      const model = modelFor({ mediaType, category });
+      const form = { ...emptyForm, selectedContentType: mediaType, serializedExampleBody: { mediaType, text } };
+      const request = buildRequest({
+        baseUrl: 'https://api.example',
+        path: '/items',
+        method: 'post',
+        debugModel: model,
+        formValues: form,
+      });
+      expect(request).toMatchObject({ body: text, explicitExampleBody: true });
+      expect(validateRequired(model, form, request.parameterPresence)).toEqual([]);
+      for (const missing of [
+        { ...emptyForm, selectedContentType: mediaType },
+        { ...form, serializedExampleBody: { mediaType: 'application/other', text } },
+        {
+          ...form,
+          serializedExampleBody: { mediaType, text: undefined } as unknown as DebugFormValues['serializedExampleBody'],
+        },
+      ])
+        expect(validateRequired(model, missing).map((error) => error.key)).toContain('body:requestBody');
+      const external = interpretExampleObject({ externalValue: './sample' }, { layer: 'media', mediaType });
+      expect(external.text).toBeUndefined();
+    },
+  );
+
+  test.each(['"1"', '"abc"', 'null', ''])('wire scalar %p is not editor JSON-string escaping', (value) => {
+    const parameter = queryParam({ type: ['string', 'null'] });
+    const text = `q=${encodeURIComponent(value)}`;
+    const result = interpretExampleObject({ serializedValue: text }, { layer: 'parameter', parameter });
+    if (value === '') {
+      expect(result.serialization).toBe('unavailable');
+      expect(result).not.toHaveProperty('decodedData');
+    } else expect(result).toMatchObject({ decodedData: value, data: value, text, serialization: 'valid' });
+    const paired = interpretExampleObject(
+      { dataValue: value, serializedValue: text },
+      { layer: 'parameter', parameter },
+    );
+    expect(paired.pairing).toBe('valid');
+  });
+
+  test('nullable array items retain literal quotes and leave ambiguous empty values undecoded', () => {
+    const parameter = queryParam({ type: 'array', items: { type: ['string', 'null'] } });
+    expect(
+      interpretExampleObject({ serializedValue: 'q=%221%22&q=null' }, { layer: 'parameter', parameter }),
+    ).toMatchObject({ data: ['"1"', 'null'], serialization: 'valid' });
+    expect(interpretExampleObject({ serializedValue: 'q=' }, { layer: 'parameter', parameter })).not.toHaveProperty(
+      'data',
+    );
+  });
+
+  test.each([
+    { style: 'form', explode: false, contentType: 'application/json' },
+    { explode: false, contentType: 'application/json' },
+    { allowReserved: false, contentType: 'application/json' },
+  ])('form inverse uses the same Encoding precedence as the forward codec: %p', (encoding) => {
+    const bodyContent: BodyContent = {
+      mediaType: 'application/x-www-form-urlencoded',
+      category: 'urlencoded',
+      schema: { type: 'object', properties: { payload: { type: 'object', properties: { a: { type: 'integer' } } } } },
+    };
+    const context = {
+      layer: 'media' as const,
+      mediaType: bodyContent.mediaType,
+      bodyContent,
+      encoding: { payload: encoding },
+    };
+    const data = { payload: { a: 1 } };
+    const text = serializeExampleData(data, context);
+    // form/explode=true flattens an object's keys; its inverse has no unique field ownership.
+    if (!('explode' in encoding)) expect(text).toBe('a=1');
+    else {
+      expect(text).toBe('payload=a,1');
+      for (const source of [
+        { dataValue: data },
+        { serializedValue: text },
+        { dataValue: data, serializedValue: text },
+      ]) {
+        expect(interpretExampleObject(source, context)).toMatchObject({ data, text, serialization: 'valid' });
+      }
+      expect(
+        interpretExampleObject({ dataValue: { payload: { a: 2 } }, serializedValue: text }, context),
+      ).toMatchObject({ pairing: 'invalid', serialization: 'valid' });
+    }
+    expect(interpretExampleObject({ dataValue: data, serializedValue: text }, context).pairing).toBe('valid');
+    expect(interpretExampleObject({ dataValue: data }, context).diagnostics.map((item) => item.code)).not.toContain(
+      'INVALID_JSON_SERIALIZATION',
+    );
+  });
+
+  test.each(['constructor', 'toString', '__proto__', 'normal'])(
+    'form field %s does not inherit an Encoding Object',
+    (name) => {
+      const bodyContent: BodyContent = {
+        mediaType: 'application/x-www-form-urlencoded',
+        category: 'urlencoded',
+        schema: { type: 'object', properties: Object.fromEntries([[name, { type: 'string' }]]) },
+      };
+      const context = { layer: 'media' as const, mediaType: bodyContent.mediaType, bodyContent };
+      const data = Object.fromEntries([[name, 'ok']]);
+      expect(interpretExampleObject({ serializedValue: `${name}=ok` }, context)).toMatchObject({
+        data,
+        serialization: 'valid',
+      });
+      expect(interpretExampleObject({ dataValue: data, serializedValue: `${name}=ok` }, context)).toMatchObject({
+        data,
+        serialization: 'valid',
+        pairing: 'valid',
+      });
+    },
+  );
+
+  test.each(['__proto__', 'constructor', 'toString'])(
+    'Header %s survives data, author text, editing and case-insensitive merge',
+    (name) => {
+      const parameter: DebugParam = {
+        ...queryParam(),
+        name,
+        in: 'header',
+        required: true,
+        parameterSerialization: { kind: 'schema', style: 'simple', explode: false, allowReserved: false },
+      };
+      const model: OperationDebugModel = {
+        pathParams: [],
+        queryParams: [],
+        headerParams: [parameter],
+        cookieParams: [],
+        bodyContents: [],
+        bodyRequired: false,
+      };
+      for (const source of [{ dataValue: 'ok' }, { serializedValue: 'ok' }]) {
+        const result = interpretExampleObject(source, { layer: 'parameter', parameter });
+        expect(result).toMatchObject({ text: 'ok', data: 'ok', serialization: 'valid' });
+        const form = {
+          ...emptyForm,
+          serializedExampleParameters: { [`header:${name}`]: exampleParameterInput(result, 'parameter')! },
+        };
+        const request = buildRequest({
+          baseUrl: 'https://api.example',
+          path: '/items',
+          method: 'get',
+          debugModel: model,
+          formValues: form,
+          globalParams: { headers: { [name.toUpperCase()]: 'global' }, queries: {} },
+        });
+        expect(Object.keys(request.headers)).toEqual([name]);
+        expect(Object.prototype.hasOwnProperty.call(request.headers, name)).toBe(true);
+        expect(request.headers[name]).toBe('ok');
+        expect(request.sourceMap?.headers[name]).toBe('interface');
+        expect(validateRequired(model, form)).toEqual([]);
+        expect(buildCurl(request)).toContain(`${name}: ok`);
+      }
+      const edited = buildRequest({
+        baseUrl: 'https://api.example',
+        path: '/items',
+        method: 'get',
+        debugModel: model,
+        formValues: { ...emptyForm, oas31ParameterValues: { [`header:${name}`]: 'edited' } },
+      });
+      expect(edited.headers[name]).toBe('edited');
+      expect(validateRequired(model, emptyForm).map((error) => error.key)).toContain(`header:${name}`);
+    },
+  );
 });

@@ -1,4 +1,4 @@
-import type { BodyContent, DebugParam, ParameterInstance, SerializedExampleParameter } from './types';
+import type { BodyContent, DebugParam, Oas31FormField, ParameterInstance, SerializedExampleParameter } from './types';
 import {
   isJsonMediaType,
   isTextMediaType,
@@ -95,6 +95,42 @@ function editorText(data: ParameterInstance, param?: DebugParam): string {
   return data;
 }
 
+function exampleFormModel(context: ExampleRepresentationContext) {
+  const content = context.bodyContent;
+  if (!content) return undefined;
+  return (
+    content.oas31Form ??
+    analyzeOas31FormBody({
+      mediaType: context.mediaType ?? content.mediaType,
+      schema: content.schema,
+      encoding: context.encoding,
+      fileFields: [],
+      multipleFileFields: [],
+      document: {},
+    })
+  );
+}
+
+function formFieldParameter(field: Oas31FormField): DebugParam {
+  const encoding = field.encoding;
+  return {
+    name: field.name,
+    in: 'query',
+    required: field.required,
+    type: field.type,
+    schema: field.schema,
+    parameterSerialization:
+      encoding.kind === 'content' && encoding.contentTypes.some(isJsonMediaType)
+        ? { kind: 'content', mediaType: encoding.contentTypes.find(isJsonMediaType)! }
+        : {
+            kind: 'schema',
+            style: encoding.style ?? 'form',
+            explode: encoding.explode ?? true,
+            allowReserved: encoding.allowReserved ?? false,
+          },
+  };
+}
+
 export function serializeExampleData(data: ParameterInstance, context: ExampleRepresentationContext): string {
   if (context.layer !== 'media') {
     const param = context.parameter;
@@ -117,41 +153,15 @@ export function serializeExampleData(data: ParameterInstance, context: ExampleRe
     const object = record(data);
     if (!object) throw new Error('FORM_DATA_UNREPRESENTABLE');
     const content = context.bodyContent;
-    if (!content) throw new Error('FORM_CODEC_UNAVAILABLE');
-    const oas31Form =
-      content.oas31Form ??
-      analyzeOas31FormBody({
-        mediaType,
-        schema: content.schema,
-        encoding: context.encoding,
-        fileFields: [],
-        multipleFileFields: [],
-        document: {},
-      });
+    const oas31Form = exampleFormModel(context);
+    if (!content || !oas31Form) throw new Error('FORM_CODEC_UNAVAILABLE');
     const plan = serializeOas31FormBody(
       { ...content, oas31Form },
       {
         formFields: Object.fromEntries(
           Object.entries(object).map(([name, value]) => {
             const field = oas31Form.fields.find((field) => field.name === name);
-            const parameter: DebugParam | undefined = field
-              ? {
-                  name,
-                  in: 'query',
-                  required: field.required,
-                  type: field.type,
-                  schema: field.schema,
-                  parameterSerialization:
-                    field.encoding.kind === 'content' && field.encoding.contentTypes.some(isJsonMediaType)
-                      ? { kind: 'content', mediaType: field.encoding.contentTypes.find(isJsonMediaType)! }
-                      : {
-                          kind: 'schema',
-                          style: field.encoding.style ?? 'form',
-                          explode: field.encoding.explode ?? true,
-                          allowReserved: field.encoding.allowReserved ?? false,
-                        },
-                }
-              : undefined;
+            const parameter = field ? formFieldParameter(field) : undefined;
             return [name, editorText(value as ParameterInstance, parameter)];
           }),
         ),
@@ -164,26 +174,28 @@ export function serializeExampleData(data: ParameterInstance, context: ExampleRe
   throw new Error('MEDIA_CODEC_UNAVAILABLE');
 }
 
-function scalar(value: string, schema: unknown): ParameterInstance | undefined {
+function scalar(value: string, schema: unknown, nullText = ''): ParameterInstance | undefined {
   const object = record(schema);
   if (!object) return undefined;
   const types = Array.isArray(object.type) ? object.type : [object.type];
-  if (!types.some((type) => ['string', 'number', 'integer', 'boolean', 'null'].includes(String(type))))
+  if (types.some((type) => !['string', 'number', 'integer', 'boolean', 'null'].includes(String(type))))
     return undefined;
-  const parsed = parseOas31ParameterValue(
-    {
-      name: '',
-      in: 'query',
-      required: false,
-      type: String(types[0]),
-      schema: object,
-      parameterSerialization: { kind: 'schema', style: 'form', explode: true, allowReserved: false },
-    },
-    value,
-  );
-  if (parsed.ok && types.includes('string') && types.length > 1 && typeof parsed.instance !== 'string')
-    return undefined;
-  return parsed.ok ? parsed.instance : undefined;
+  // Wire strings have no editor escape hatch. Consider only primitive representations supported
+  // by the existing codec; multiple possible logical values stay unavailable, regardless of const.
+  const candidates: ParameterInstance[] = [];
+  if (types.includes('string')) candidates.push(value);
+  if (types.includes('null') && value === nullText) candidates.push(null);
+  if (types.includes('boolean') && (value === 'true' || value === 'false')) candidates.push(value === 'true');
+  if (types.includes('number') || types.includes('integer')) {
+    const parsed = parseJsonParameterValue(value);
+    if (
+      parsed.ok &&
+      typeof parsed.instance === 'number' &&
+      (types.includes('number') || Number.isInteger(parsed.instance))
+    )
+      candidates.push(parsed.instance);
+  }
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 const decode = (value: string, form = false): string => decodeURIComponent(form ? value.replace(/\+/g, ' ') : value);
@@ -310,34 +322,18 @@ function decodeMedia(text: string, context: ExampleRepresentationContext): Param
     const schema = context.parameter?.schema ?? context.bodyContent?.schema;
     const types = record(schema)?.type;
     if (Array.isArray(types) && types.includes('string') && types.length > 1) return undefined;
-    return scalar(text, schema) ?? text;
+    return scalar(text, schema, 'null') ?? text;
   }
   if (type.split(';', 1)[0].trim().toLowerCase() !== 'application/x-www-form-urlencoded') return undefined;
-  const schema = context.bodyContent?.schema;
-  const properties = record(schema?.properties);
-  if (!properties) return undefined;
+  const plan = exampleFormModel(context);
+  if (!plan || plan.diagnostics.length) return undefined;
   const entries = pairs(text);
   const result: Array<[string, ParameterInstance]> = [];
-  for (const [name, property] of Object.entries(properties)) {
-    const encoding = record(context.encoding?.[name]);
+  for (const field of plan.fields) {
+    const name = field.name;
     const keyEntries = entries.filter(([key]) => key === name || key.startsWith(`${name}[`));
     if (!keyEntries.length) continue;
-    const param: DebugParam = {
-      name,
-      in: 'query',
-      required: false,
-      type: String(record(property)?.type ?? 'string'),
-      schema: property as DebugParam['schema'],
-      parameterSerialization:
-        typeof encoding?.contentType === 'string' && isJsonMediaType(encoding.contentType)
-          ? { kind: 'content', mediaType: encoding.contentType }
-          : {
-              kind: 'schema',
-              style: typeof encoding?.style === 'string' ? encoding.style : 'form',
-              explode: typeof encoding?.explode === 'boolean' ? encoding.explode : true,
-              allowReserved: false,
-            },
-    };
+    const param = formFieldParameter(field);
     const raw = text
       .split('&')
       .filter((pair) => {
@@ -351,7 +347,7 @@ function decodeMedia(text: string, context: ExampleRepresentationContext): Param
     result.push([name, parsed]);
   }
   // Never silently erase extra fields while claiming that the whole example was decoded.
-  if (entries.some(([key]) => !Object.keys(properties).some((name) => key === name || key.startsWith(`${name}[`))))
+  if (entries.some(([key]) => !plan.fields.some(({ name }) => key === name || key.startsWith(`${name}[`))))
     return undefined;
   return Object.fromEntries(result);
 }
