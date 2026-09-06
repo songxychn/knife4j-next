@@ -1,4 +1,56 @@
 const jaJP = {
+  'schema.example32.serializedDataValidation': 'シリアル化テキストをデコードしたデータの検証',
+  'schema.example32.diagnostics.UNSAFE_EXAMPLE_NUMBER':
+    'JavaScript で安全に表現できない数値があります。原文を保持しますが、データは検証できません。',
+  'schema.example32.choose': '例を選択',
+  'schema.example32.candidate': 'Schema の候補',
+  'schema.example32.apply': 'リクエストに適用',
+  'schema.example32.editFields': 'フィールド入力に切り替え',
+  'schema.example32.layer.parameter': 'パラメータ',
+  'schema.example32.layer.header': 'ヘッダー',
+  'schema.example32.layer.media': 'メディアタイプ',
+  'schema.example32.data': '論理データ',
+  'schema.example32.serialized': 'シリアル化テキスト（そのまま送信）',
+  'schema.example32.external': '外部の例の場所（未読込・本文として送信しません）',
+  'schema.example32.checks': 'データ検証：{{data}}、デコード：{{serialization}}、整合性：{{pairing}}',
+  'schema.example32.diagnostic': '例の診断',
+  'schema.example32.status.valid': '成功',
+  'schema.example32.status.invalid': '不一致',
+  'schema.example32.status.unavailable': '検証不可',
+  'schema.example32.status.absent': '対象外・データなし',
+  'schema.example32.diagnostics.EXAMPLE_FIELDS_CONFLICT': 'Example representation fields conflict.',
+  'schema.example32.diagnostics.SERIALIZED_VALUE_NOT_STRING': 'serializedValue must be a string.',
+  'schema.example32.diagnostics.EXTERNAL_VALUE_NOT_STRING': 'externalValue must be a string.',
+  'schema.example32.diagnostics.EXAMPLE_DATA_UNREPRESENTABLE':
+    'The example is not representable JSON data within the budget.',
+  'schema.example32.diagnostics.EXTERNAL_URI_UNAVAILABLE':
+    'The external location cannot be resolved against its owner document.',
+  'schema.example32.diagnostics.EXTERNAL_EXAMPLE_NOT_LOADED':
+    'External content is not loaded and cannot be validated or inserted into a request.',
+  'schema.example32.diagnostics.LEGACY_VALUE_IMPLEMENTATION_DEFINED':
+    'Legacy non-JSON value uses the existing codec; semantics may differ across tools.',
+  'schema.example32.diagnostics.CODEC_UNAVAILABLE':
+    'No serialization codec is available for this media type or data shape.',
+  'schema.example32.diagnostics.SERIALIZATION_NOT_VERIFIED':
+    'Author text is preserved; the current codec cannot unambiguously decode logical data.',
+  'schema.example32.diagnostics.SERIALIZATION_DECODE_FAILED': 'The current codec cannot parse this serialization.',
+  'schema.example32.diagnostics.EXAMPLE_PAIR_MISMATCH': 'dataValue and serializedValue represent different data.',
+  'schema.example32.diagnostics.EXAMPLE_REFERENCE_UNAVAILABLE':
+    'The example or media reference is unavailable in the typed resource registry.',
+  'schema.example32.diagnostics.EXAMPLE_SIZE_LIMIT': 'The example exceeds the size limit.',
+  'schema.example32.diagnostics.INVALID_JSON_SERIALIZATION': 'The serialization is not valid JSON.',
+  'schema.example32.diagnostics.PARAMETER_CODEC_UNAVAILABLE': 'No codec is available for this parameter.',
+  'schema.example32.diagnostics.INVALID_HEADER_SERIALIZATION':
+    'The header example contains forbidden control characters.',
+  'schema.example32.diagnostics.HEADER_NAME_IN_SERIALIZATION':
+    'A header example must not contain the HTTP header name.',
+  'schema.example32.diagnostics.INVALID_URI_SERIALIZATION':
+    'The URI example contains invalid characters or percent-encoding.',
+  'schema.example32.diagnostics.INVALID_PATH_SERIALIZATION':
+    'A path parameter example must not contain path or query separators.',
+  'schema.example32.diagnostics.QUERY_LEADING_DELIMITER': 'A query example must not begin with ? or &.',
+  'schema.example32.diagnostics.MATRIX_LEADING_DELIMITER': 'A matrix example must include its leading semicolon.',
+  'schema.example32.diagnostics.LABEL_LEADING_DELIMITER': 'A label example must include its leading dot.',
   // App / Layout
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI ドキュメント集約センター',

@@ -59,6 +59,27 @@ function makeState(): DebugCacheState {
 }
 
 describe('debugCache', () => {
+  it('restores raw example layer and empty body presence while discarding stale decoded instances', () => {
+    const storage = new MemoryStorage();
+    writeDebugCache(
+      'examples',
+      {
+        ...makeState(),
+        serializedExampleParameters: { 'query:q': { text: 'q=a%2Cb&q=', layer: 'parameter', instance: ['stale'] } },
+        serializedExampleBodyMediaType: 'text/plain',
+        body: '',
+      },
+      storage,
+    );
+    expect(readDebugCache('examples', storage)).toMatchObject({
+      serializedExampleParameters: { 'query:q': { text: 'q=a%2Cb&q=', layer: 'parameter' } },
+      serializedExampleBodyMediaType: 'text/plain',
+      body: '',
+    });
+    expect(readDebugCache('examples', storage)?.serializedExampleParameters?.['query:q']).not.toHaveProperty(
+      'instance',
+    );
+  });
   it('persists Cookie source per operation while preserving manual values and old cache semantics', () => {
     const storage = new MemoryStorage();
     const saved = { ...makeState(), cookieParameterSource: 'browser-session' as const };

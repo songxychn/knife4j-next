@@ -11,6 +11,15 @@ export interface RequestPreviewBuild {
 
 export type RequestPreviewBuildResult = { ok: true; value: RequestPreviewBuild } | { ok: false; error: string };
 
+export function formatRequestPreviewBody(raw: string, contentType: string, preserveText = false): string {
+  if (preserveText || !contentType.includes('json')) return raw;
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 export function buildPreviewCurl(built: BuiltRequest, source: CookieParameterSource, sessionNote: string): string {
   const curl = buildCurl(built);
   return source === 'browser-session' ? `# ${sessionNote}\n${curl}` : curl;

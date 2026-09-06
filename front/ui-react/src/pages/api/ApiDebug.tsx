@@ -1,4 +1,12 @@
-import { operationHttpMethod } from 'knife4j-core';
+import { exampleParameterInput, operationHttpMethod, type SerializedExampleParameter } from 'knife4j-core';
+import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
+import {
+  exampleDebugModel,
+  isOas32ExampleDocument,
+  locateOperationExampleCatalog,
+  type OperationExampleResult,
+} from '../../schema/operationExampleCatalog';
+import { useOperationExampleDefaults } from '../../schema/useOperationExampleDefaults';
 import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -119,6 +127,7 @@ import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState 
 import {
   buildRequestPreviewSafely,
   buildPreviewCurl,
+  formatRequestPreviewBody,
   type RequestPreviewBuild,
   type RequestPreviewBuildResult,
 } from './requestPreviewBuild';
@@ -1610,15 +1619,7 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
   const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/form-data');
   const previewBody = multipartPlan ? formatMultipartPlanBody(multipartPlan) : built.body;
-  const hasBody = previewBody !== undefined && previewBody !== '';
-
-  const prettyJson = (raw: string): string => {
-    try {
-      return JSON.stringify(JSON.parse(raw), null, 2);
-    } catch {
-      return raw;
-    }
-  };
+  const hasBody = previewBody !== undefined && (previewBody !== '' || built.explicitExampleBody === true);
 
   const headerPairs = Object.entries(built.headers);
   const queryPairs = Object.entries(built.query);
@@ -1778,7 +1779,7 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
         <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
-            {built.contentType.includes('json') ? prettyJson(previewBody ?? '') : (previewBody ?? '')}
+            {formatRequestPreviewBody(previewBody ?? '', built.contentType, built.explicitExampleBody)}
           </pre>
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
@@ -2016,9 +2017,19 @@ export default function ApiDebug() {
   const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
   const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
   const [cookieParameterSource, setCookieParameterSource] = useState<CookieParameterSource>('explicit');
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const exampleCatalog32 = useMemo(
+    () => (isOas32 && swaggerDoc && operation ? locateOperationExampleCatalog(swaggerDoc, operation) : null),
+    [isOas32, swaggerDoc, operation],
+  );
+  const exampleSession32 = isOas32 && schemaEngine.status === 'ready' ? schemaEngine.session : undefined;
+  const defaults32 = useOperationExampleDefaults(exampleCatalog32, exampleSession32);
+  const [serializedParams32, setSerializedParams32] = useState<Record<string, SerializedExampleParameter>>({});
+  const [serializedBodyMedia32, setSerializedBodyMedia32] = useState<string>();
+  const appliedDefaults32 = useRef<ReadonlyMap<string, OperationExampleResult> | null>(null);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
-    return buildOperationDebugModel({
+    const model = buildOperationDebugModel({
       doc: swaggerDoc as unknown as Record<string, unknown>,
       operationDocuments: operation.identity ? operationSchemaDocuments(swaggerDoc, operation) : undefined,
       operationIdentity: operation.identity,
@@ -2026,18 +2037,19 @@ export default function ApiDebug() {
       method: operation.method,
       isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
     });
-  }, [operation, swaggerDoc]);
+    return exampleCatalog32 ? exampleDebugModel(model, exampleCatalog32) : model;
+  }, [operation, swaggerDoc, exampleCatalog32]);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
   const effectiveCookieSource = effectiveCookieParameterSource(isOas31, cookieParameterSource);
   const synchronousBodyDefaults = useMemo(
     () =>
-      !isOas31 && swaggerDoc && operation && debugModel
+      !isOas31 && !isOas32 && swaggerDoc && operation && debugModel
         ? buildBodyContentDefaults(swaggerDoc, operation, debugModel)
         : EMPTY_BODY_CONTENT_DEFAULTS,
-    [debugModel, isOas31, operation, swaggerDoc],
+    [debugModel, isOas31, isOas32, operation, swaggerDoc],
   );
   const emptyOas31Defaults = useMemo(() => emptyOas31BodyContentDefaults(debugModel), [debugModel]);
-  const initialBodyDefaults = isOas31 ? emptyOas31Defaults : synchronousBodyDefaults;
+  const initialBodyDefaults = isOas31 || isOas32 ? emptyOas31Defaults : synchronousBodyDefaults;
   const oas31ExampleIdentity = useMemo<Oas31DebugExampleIdentity | null>(
     () =>
       isOas31 && schemaEngine.status === 'ready' && operation && swaggerDoc
@@ -2070,7 +2082,20 @@ export default function ApiDebug() {
     }
     return null;
   }, [debugModel, isOas31, oas31ExampleIdentity, oas31ExampleState, operation, schemaEngine, swaggerDoc]);
-  const bodyDefaults = activeOas31Examples?.defaults ?? initialBodyDefaults;
+  const bodyDefaults = useMemo(
+    () =>
+      defaults32
+        ? {
+            bodyByMediaType: Object.fromEntries(
+              [...defaults32.values()]
+                .filter((value) => value.target.group.startsWith('body:'))
+                .map((value) => [value.target.mediaType!, value.representation.text ?? '']),
+            ),
+            formFieldsByMediaType: emptyOas31Defaults.formFieldsByMediaType,
+          }
+        : (activeOas31Examples?.defaults ?? initialBodyDefaults),
+    [defaults32, emptyOas31Defaults, activeOas31Examples, initialBodyDefaults],
+  );
   const [loading, setLoading] = useState(false);
   const [responseProgress, setResponseProgress] = useState<ResponseBodyProgress | null>(null);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
@@ -2155,6 +2180,9 @@ export default function ApiDebug() {
   }, [debugCacheKey, settings.enableRequestHistory]);
 
   const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
+    setSerializedParams32({});
+    setSerializedBodyMedia32(undefined);
+    appliedDefaults32.current = null;
     setCookieParameterSource(initial.cookieParameterSource);
     setBaseUrl(initial.baseUrl);
     setMethod(initial.method);
@@ -2204,6 +2232,10 @@ export default function ApiDebug() {
     setSseStreaming(false);
     const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
     applyInitialDebugState(nextInitial, { resetActiveTab: true });
+    if (isOas32 && cached) {
+      setSerializedParams32(cached.serializedExampleParameters ?? {});
+      setSerializedBodyMedia32(cached.serializedExampleBodyMediaType);
+    }
     setLoading(false);
     setResponse(cachedSession?.response ?? null);
     setError(cachedSession?.error ?? null);
@@ -2218,6 +2250,7 @@ export default function ApiDebug() {
     initialDebugState,
     settings.enableRequestCache,
     operation?.identity,
+    isOas32,
   ]);
 
   useEffect(() => {
@@ -2246,6 +2279,9 @@ export default function ApiDebug() {
     writeDebugCache(debugCacheKey, {
       version: DEBUG_CACHE_VERSION,
       cookieParameterSource: effectiveCookieSource,
+      ...(isOas32
+        ? { serializedExampleParameters: serializedParams32, serializedExampleBodyMediaType: serializedBodyMedia32 }
+        : {}),
       baseUrl,
       method,
       path,
@@ -2280,7 +2316,47 @@ export default function ApiDebug() {
     selectedContentType,
     settings.enableRequestCache,
     hydratedDebugCacheKey,
+    isOas32,
+    serializedParams32,
+    serializedBodyMedia32,
   ]);
+
+  useEffect(() => {
+    if (
+      !defaults32 ||
+      appliedDefaults32.current === defaults32 ||
+      debugDefaultEditRevisionRef.current !== 0 ||
+      hydratedDebugCacheKey !== debugCacheKey
+    )
+      return;
+    const inputs: Record<string, SerializedExampleParameter> = {};
+    const values: Record<string, string> = {};
+    const enabled: Record<string, boolean> = {};
+    for (const result of defaults32.values()) {
+      if (result.target.parameterKey) {
+        const input = exampleParameterInput(result.representation, result.target.layer);
+        if (input && result.target.context.parameter?.in !== 'cookie') {
+          inputs[result.target.parameterKey] = input;
+          values[result.target.parameterKey] = input.text;
+          enabled[result.target.parameterKey] = true;
+        }
+      } else if (
+        result.target.mediaType === selectedContentType &&
+        result.representation.text !== undefined &&
+        result.representation.serialization !== 'invalid' &&
+        !result.representation.external &&
+        !result.target.context.bodyContent?.binary &&
+        result.target.context.bodyContent?.category !== 'multipart'
+      ) {
+        setBody(result.representation.text);
+        setSerializedBodyMedia32(selectedContentType);
+      }
+    }
+    setSerializedParams32(inputs);
+    setParamValues((previous) => ({ ...previous, ...values }));
+    setParamEnabled((previous) => ({ ...previous, ...enabled }));
+    appliedDefaults32.current = defaults32;
+  }, [defaults32, hydratedDebugCacheKey, debugCacheKey, selectedContentType, resetNonce]);
 
   const setBodyFromUser = useCallback((next: string) => {
     debugDefaultEditRevisionRef.current += 1;
@@ -2301,6 +2377,10 @@ export default function ApiDebug() {
   );
 
   const updateValue = (param: DebugParam, next: string) => {
+    debugDefaultEditRevisionRef.current += 1;
+    const key = paramKey(param);
+    if (serializedParams32[key])
+      setSerializedParams32((previous) => ({ ...previous, [key]: { text: next, layer: previous[key].layer } }));
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
   };
 
@@ -2322,14 +2402,18 @@ export default function ApiDebug() {
     const legacyPath = replacePathParams(path, pathParamValues);
     try {
       const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled, effectiveCookieSource);
-      const serializedPath = serializeOas31Parameters(debugModel, oas31Values).path;
+      const serializedPath = serializeOas31Parameters(
+        debugModel,
+        oas31Values,
+        Object.fromEntries(Object.entries(serializedParams32).filter(([key]) => paramEnabled[key] !== false)),
+      ).path;
       return replaceSerializedPathParams(legacyPath, serializedPath);
     } catch {
       // The canonical preview reports the precise serialization diagnostic.
       // Keep the editable URL field usable while the value is incomplete.
       return legacyPath;
     }
-  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource]);
+  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource, serializedParams32]);
 
   /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
   const handlePathInputChange = (newPath: string) => {
@@ -2423,9 +2507,10 @@ export default function ApiDebug() {
               checked={selection.checked}
               indeterminate={selection.indeterminate}
               disabled={paramKeys.length === 0}
-              onChange={(event) =>
-                setParamEnabled((current) => setApiDebugParamsEnabled(current, paramKeys, event.target.checked))
-              }
+              onChange={(event) => {
+                debugDefaultEditRevisionRef.current += 1;
+                setParamEnabled((current) => setApiDebugParamsEnabled(current, paramKeys, event.target.checked));
+              }}
             />
           </Tooltip>
         ),
@@ -2434,12 +2519,13 @@ export default function ApiDebug() {
         render: (_value: unknown, record: DebugParam) => (
           <Checkbox
             checked={paramEnabled[paramKey(record)] !== false}
-            onChange={(e) =>
+            onChange={(e) => {
+              debugDefaultEditRevisionRef.current += 1;
               setParamEnabled((prev) => ({
                 ...prev,
                 [paramKey(record)]: e.target.checked,
-              }))
-            }
+              }));
+            }}
           />
         ),
       },
@@ -2476,6 +2562,13 @@ export default function ApiDebug() {
         render: (_value: string, record: DebugParam) =>
           isBrowserSessionParameter(record, effectiveCookieSource) ? (
             <Text type="secondary">{t('apiDebug.cookie.sessionValue')}</Text>
+          ) : serializedParams32[paramKey(record)] ? (
+            <Input.TextArea
+              aria-label={`${record.name} serializedValue`}
+              value={paramValues[paramKey(record)] ?? ''}
+              onChange={(event) => updateValue(record, event.target.value)}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+            />
           ) : (
             <ParamInput
               param={record}
@@ -2577,6 +2670,7 @@ export default function ApiDebug() {
 
   /** 获取最终 effective content-type */
   const getEffectiveContentType = (): string => {
+    if (isOas32 && serializedBodyMedia32 === selectedContentType) return selectedContentType;
     const category = getCurrentCategory();
     const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
     if (category === 'json') {
@@ -2631,6 +2725,16 @@ export default function ApiDebug() {
       headerParams: { ...extraHeaders, ...specHeaders },
       cookieParams: effectiveCookieSource === 'browser-session' ? {} : { ...extraCookieParams, ...specCookieParams },
       ...(Object.keys(oas31ParameterValues).length > 0 ? { oas31ParameterValues } : {}),
+      ...(isOas32
+        ? {
+            serializedExampleParameters: Object.fromEntries(
+              Object.entries(serializedParams32).filter(([key]) => paramEnabled[key] !== false),
+            ),
+            ...(serializedBodyMedia32 === selectedContentType
+              ? { serializedExampleBody: { mediaType: getEffectiveContentType(), text: body } }
+              : {}),
+          }
+        : {}),
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
       binaryBodyFileName: currentBody?.binary ? binaryBodyFileRef.current?.name : undefined,
@@ -2688,6 +2792,9 @@ export default function ApiDebug() {
       method,
       path,
       cookieParameterSource: effectiveCookieSource,
+      ...(isOas32
+        ? { serializedExampleParameters: serializedParams32, serializedExampleBodyMediaType: serializedBodyMedia32 }
+        : {}),
       paramValues: { ...paramValues },
       paramEnabled: { ...paramEnabled },
       selectedContentType,
@@ -2736,6 +2843,8 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     const snap = entry.formSnapshot;
     if (snap) {
+      setSerializedParams32(snap.serializedExampleParameters ?? {});
+      setSerializedBodyMedia32(snap.serializedExampleBodyMediaType);
       setCookieParameterSource(snap.cookieParameterSource ?? 'explicit');
       setBaseUrl(snap.baseUrl);
       setMethod(snap.method);
@@ -2789,6 +2898,8 @@ export default function ApiDebug() {
       return;
     }
 
+    setSerializedParams32({});
+    setSerializedBodyMedia32(undefined);
     setBaseUrl(entry.baseUrl);
     setCookieParameterSource('explicit');
     setMethod(entry.method);
@@ -2866,7 +2977,7 @@ export default function ApiDebug() {
       ? (multipartPlan?.parts.length ?? Object.keys(multipartTextFields).length) > 0 || hasMultipartFile
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
-        : built.body !== undefined && built.body !== '';
+        : built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true);
     const browserConstraint = browserRequestConstraint(
       built.method,
       hasBodyInput,
@@ -3173,7 +3284,7 @@ export default function ApiDebug() {
       } else if (isBinaryBody && binaryBodyFileRef.current) {
         init.body = binaryBodyFileRef.current;
       } else {
-        if (built.body !== undefined && built.body !== '') {
+        if (built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true)) {
           init.body = built.body;
         }
       }
@@ -3585,6 +3696,69 @@ export default function ApiDebug() {
       (oas31ExampleState.status === 'loading' &&
         sameOas31DebugExampleIdentity(oas31ExampleState.identity, oas31ExampleIdentity)));
 
+  const applyExample32 = (result: OperationExampleResult, revision: number) => {
+    if (
+      revision !== debugDefaultEditRevisionRef.current ||
+      result.session !== exampleSession32 ||
+      !exampleCatalog32 ||
+      result.target.generation !== exampleCatalog32.generation ||
+      !exampleCatalog32.targets.includes(result.target)
+    )
+      return;
+    debugDefaultEditRevisionRef.current += 1;
+    const key = result.target.parameterKey;
+    if (key) {
+      const input =
+        result.target.context.parameter?.in === 'cookie'
+          ? undefined
+          : exampleParameterInput(result.representation, result.target.layer);
+      setSerializedParams32((previous) => {
+        const next = { ...previous };
+        if (input) next[key] = input;
+        else delete next[key];
+        return next;
+      });
+      setParamValues((previous) => ({ ...previous, [key]: input?.text ?? '' }));
+      setParamEnabled((previous) => ({ ...previous, [key]: !!input }));
+    } else if (result.target.group.startsWith('body:')) {
+      const usable =
+        result.representation.text !== undefined &&
+        !result.representation.external &&
+        result.representation.serialization !== 'invalid' &&
+        !result.target.context.bodyContent?.binary &&
+        result.target.context.bodyContent?.category !== 'multipart';
+      setSelectedContentType(result.target.mediaType ?? '');
+      setSerializedBodyMedia32(usable ? result.target.mediaType : undefined);
+      setBody(usable ? result.representation.text! : '');
+      setFormFields({});
+      setRawMode(inferRawMode(result.target.context.bodyContent));
+    }
+  };
+  const renderExamplePickers32 = (location: string) =>
+    !exampleCatalog32
+      ? null
+      : [
+          ...new Set(
+            exampleCatalog32.targets
+              .filter(
+                (target) =>
+                  target.direction === 'request' &&
+                  (location === 'body'
+                    ? target.group === `body:${selectedContentType}`
+                    : target.parameterKey?.startsWith(`${location}:`)),
+              )
+              .map((target) => target.group),
+          ),
+        ].map((group) => (
+          <OperationExamplePicker
+            key={group}
+            targets={exampleCatalog32.targets.filter((target) => target.group === group)}
+            session={exampleSession32}
+            onApply={applyExample32}
+            editRevision={() => debugDefaultEditRevisionRef.current}
+          />
+        ));
+
   const pathParams = debugModel.pathParams.filter((param) => !param.readOnly);
   const queryParams = debugModel.queryParams.filter((param) => !param.readOnly);
   const headerParams = debugModel.headerParams.filter((param) => !param.readOnly);
@@ -3596,16 +3770,19 @@ export default function ApiDebug() {
       label: `${t('apiDebug.tab.path')} (${debugModel.pathParams.length})`,
       disabled: false,
       children: (
-        <Table
-          size="small"
-          dataSource={pathParams}
-          columns={paramColumnsFor(pathParams)}
-          pagination={false}
-          rowKey={paramKey}
-          tableLayout="fixed"
-          scroll={PARAM_TABLE_SCROLL}
-          locale={{ emptyText: t('apiDebug.noPathParams') }}
-        />
+        <>
+          {renderExamplePickers32('path')}
+          <Table
+            size="small"
+            dataSource={pathParams}
+            columns={paramColumnsFor(pathParams)}
+            pagination={false}
+            rowKey={paramKey}
+            tableLayout="fixed"
+            scroll={PARAM_TABLE_SCROLL}
+            locale={{ emptyText: t('apiDebug.noPathParams') }}
+          />
+        </>
       ),
     },
     {
@@ -3618,6 +3795,7 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {renderExamplePickers32('query')}
           {(queryParams.length > 0 || injectedGlobalQueries.length === 0) && (
             <Table
               size="small"
@@ -3652,6 +3830,7 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {renderExamplePickers32('header')}
           {(headerParams.length > 0 || injectedGlobalHeaders.length === 0) && (
             <Table
               size="small"
@@ -3756,6 +3935,7 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {renderExamplePickers32('body')}
           {bodyExampleLoading && (
             <Alert
               type="info"
@@ -3768,26 +3948,90 @@ export default function ApiDebug() {
           {currentBodyExampleResult && (
             <SchemaExampleNotice result={currentBodyExampleResult} style={{ marginBottom: 12 }} />
           )}
-          <BodyTab
-            key={resetNonce}
-            debugModel={debugModel}
-            bodyDefaults={bodyDefaults}
-            body={body}
-            setBody={setBodyFromUser}
-            selectedContentType={selectedContentType}
-            setSelectedContentType={setSelectedContentType}
-            formFields={formFields}
-            setFormFields={setFormFieldsFromUser}
-            formPartHeaders={formPartHeaders}
-            setFormPartHeaders={setFormPartHeadersFromUser}
-            enableDynamicParameter={settings.enableDynamicParameter}
-            customBodyParams={customBodyParams}
-            setCustomBodyParams={setCustomBodyParams}
-            fileFieldsRef={fileFieldsRef}
-            binaryBodyFileRef={binaryBodyFileRef}
-            rawMode={rawMode}
-            setRawMode={setRawMode}
-          />
+          {serializedBodyMedia32 === selectedContentType ? (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <Select
+                  aria-label={t('apiDebug.body.contentType')}
+                  value={selectedContentType}
+                  options={debugModel.bodyContents.map((content) => ({
+                    value: content.mediaType,
+                    label: content.mediaType,
+                  }))}
+                  onChange={(media) => {
+                    debugDefaultEditRevisionRef.current += 1;
+                    setSelectedContentType(media);
+                    const next = defaults32?.get(`body:${media}`);
+                    const usable =
+                      next?.representation.text !== undefined &&
+                      next.representation.serialization !== 'invalid' &&
+                      !next.representation.external &&
+                      !next.target.context.bodyContent?.binary &&
+                      next.target.context.bodyContent?.category !== 'multipart';
+                    setSerializedBodyMedia32(usable ? media : undefined);
+                    setBody(usable ? next.representation.text! : '');
+                    setRawMode(inferRawMode(debugModel.bodyContents.find((content) => content.mediaType === media)));
+                  }}
+                />
+                <Button
+                  onClick={() => {
+                    debugDefaultEditRevisionRef.current += 1;
+                    setSerializedBodyMedia32(undefined);
+                  }}
+                >
+                  {t('schema.example32.editFields')}
+                </Button>
+              </Space>
+              <Typography.Text>{t('schema.example32.serialized')}</Typography.Text>
+              <CodeEditor
+                value={body}
+                onChange={setBodyFromUser}
+                language={getCurrentCategory() === 'json' ? 'json' : 'text'}
+              />
+            </Space>
+          ) : (
+            <BodyTab
+              key={resetNonce}
+              debugModel={debugModel}
+              bodyDefaults={bodyDefaults}
+              body={body}
+              setBody={setBodyFromUser}
+              selectedContentType={selectedContentType}
+              setSelectedContentType={(media) => {
+                debugDefaultEditRevisionRef.current += 1;
+                setSelectedContentType(media);
+                const next = defaults32?.get(`body:${media}`);
+                if (
+                  next?.representation.text !== undefined &&
+                  next.representation.serialization !== 'invalid' &&
+                  !next.representation.external &&
+                  !next.target.context.bodyContent?.binary &&
+                  next.target.context.bodyContent?.category !== 'multipart'
+                )
+                  setBody(next.representation.text);
+                setSerializedBodyMedia32(
+                  next?.representation.text !== undefined &&
+                    next.representation.serialization !== 'invalid' &&
+                    !next.representation.external &&
+                    !next.target.context.bodyContent?.binary &&
+                    next.target.context.bodyContent?.category !== 'multipart'
+                    ? media
+                    : undefined,
+                );
+              }}
+              formFields={formFields}
+              setFormFields={setFormFieldsFromUser}
+              formPartHeaders={formPartHeaders}
+              setFormPartHeaders={setFormPartHeadersFromUser}
+              enableDynamicParameter={settings.enableDynamicParameter}
+              customBodyParams={customBodyParams}
+              setCustomBodyParams={setCustomBodyParams}
+              fileFieldsRef={fileFieldsRef}
+              binaryBodyFileRef={binaryBodyFileRef}
+              rawMode={rawMode}
+              setRawMode={setRawMode}
+            />
+          )}
         </>
       ),
     },

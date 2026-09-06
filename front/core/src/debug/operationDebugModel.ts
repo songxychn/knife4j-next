@@ -319,7 +319,7 @@ interface Oas31ParameterAnalysis {
   readonly diagnostic?: ParameterDocumentDiagnostic;
 }
 
-function analyzeOas31Parameter(
+export function analyzeOas31Parameter(
   param: OAS3Param,
   paramIn: ParamIn,
   doc: DocLike,
