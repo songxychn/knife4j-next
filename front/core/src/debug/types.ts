@@ -219,6 +219,13 @@ export interface OperationDebugModel {
 /** query 参数值；数组会按 OAS3 query 参数的 style / explode 规则序列化。 */
 export type QueryParamValue = string | string[];
 
+/** OAS 3.2 author text, explicitly distinguished from logical editor values. */
+export interface SerializedExampleParameter {
+  readonly text: string;
+  readonly layer: 'parameter' | 'media';
+  readonly instance?: ParameterInstance;
+}
+
 /** requestBuilder 的用户填写输入 */
 export interface DebugFormValues {
   pathParams: Record<string, string>;
@@ -227,6 +234,8 @@ export interface DebugFormValues {
   cookieParams: Record<string, string>;
   /** Raw editor values for declared OAS 3.1 parameters, keyed by `${in}:${name}`. */
   oas31ParameterValues?: Record<string, string>;
+  serializedExampleParameters?: Readonly<Record<string, SerializedExampleParameter>>;
+  serializedExampleBody?: { readonly mediaType: string; readonly text: string };
   /** 当前选中的 content-type */
   selectedContentType?: string;
   /** body 文本（已序列化，用于 json/raw 模式） */
@@ -401,6 +410,8 @@ export interface BuiltRequest {
   query: Record<string, QueryParamValue>;
   /** 请求体（原始字符串，或 FormData 引用 — 后者由 UI 层处理） */
   body?: string;
+  /** Includes an explicitly authored empty body in cURL and Fetch. */
+  explicitExampleBody?: boolean;
   /** 整段二进制请求体所选文件名，用于校验、预览和 cURL 占位。 */
   binaryBodyFileName?: string;
   /** Content-Type */

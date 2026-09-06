@@ -32,6 +32,8 @@ import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
+import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
+import { isOas32ExampleDocument, locateOperationExampleCatalog } from '../../schema/operationExampleCatalog';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
@@ -343,6 +345,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const { t } = useTranslation();
   const { settings } = useSettings();
   const schemaEngine = useSchemaEngine();
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const exampleCatalog32 = useMemo(() => locateOperationExampleCatalog(swaggerDoc, operation), [swaggerDoc, operation]);
+  const exampleGroups32 = [...new Set(exampleCatalog32.targets.map((target) => target.group))];
+  const renderExample32 = (group: string) => (
+    <OperationExamplePicker
+      targets={exampleCatalog32.targets.filter((target) => target.group === group)}
+      session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+    />
+  );
   const schemaDocuments = useMemo(() => operationSchemaDocuments(swaggerDoc, operation), [swaggerDoc, operation]);
   const op = useMemo(
     () => resolveApiDocOperation(operation.operation, schemaDocuments.operation as unknown as SwaggerDoc),
@@ -696,10 +707,9 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
     oas31Examples === null &&
     (schemaEngine.status === 'loading' ||
       (exampleState.status === 'loading' && sameApiDocExampleIdentity(exampleState.identity, exampleIdentity)));
-  const requestExample = isOas31
-    ? null
-    : requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
-  const respExamples = isOas31 ? [] : responseExamples(op.responses, swaggerDoc);
+  const requestExample =
+    isOas31 || isOas32 ? null : requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
+  const respExamples = isOas31 || isOas32 ? [] : responseExamples(op.responses, swaggerDoc);
   const oas31RequestExample = oas31Examples?.request;
   const renderOas31Example = (selection: NonNullable<typeof oas31RequestExample>) => {
     const code =
@@ -879,6 +889,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         locale={{ emptyText: t('apiDoc.noParams') }}
       />
 
+      {isOas32 && (
+        <Tabs
+          size="small"
+          items={exampleGroups32
+            .filter((group) => group.startsWith('parameter:'))
+            .map((group) => ({ key: group, label: group.slice(10), children: renderExample32(group) }))}
+        />
+      )}
+
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestBody')}
       </Title>
@@ -887,7 +906,11 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           <Markdown source={op.requestBody.description} preserveLineBreaks />
         </div>
       )}
-      {bodySchema !== undefined || requestExample !== null || oas31RequestExample !== undefined || exampleLoading ? (
+      {bodySchema !== undefined ||
+      requestExample !== null ||
+      oas31RequestExample !== undefined ||
+      exampleLoading ||
+      (isOas32 && exampleCatalog32.bodies.length > 0) ? (
         <Tabs
           size="small"
           items={[
@@ -896,6 +919,13 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
               label: t('apiDoc.tab.schema'),
               children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
             },
+            ...exampleGroups32
+              .filter((group) => group.startsWith('body:'))
+              .map((group) => ({
+                key: group,
+                label: `${t('apiDoc.tab.requestExample')} ${group.slice(5)}`,
+                children: renderExample32(group),
+              })),
             ...(isOas31 && oas31RequestExample
               ? [
                   {
@@ -1008,6 +1038,13 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
               </div>
             ),
           },
+          ...exampleGroups32
+            .filter((group) => group.startsWith('response:'))
+            .map((group) => ({
+              key: group,
+              label: `${t('apiDoc.tab.responseExample')} ${group.slice(9)}`,
+              children: renderExample32(group),
+            })),
           ...(isOas31
             ? (oas31Examples?.responses ?? []).map((selection) => ({
                 key: `resp-${selection.statusCode}`,

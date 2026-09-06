@@ -103,8 +103,8 @@ function mergeHeaderLayers(layers: HeaderLayer[]): {
   headers: Record<string, string>;
   sources: Record<string, ParamSource>;
 } {
-  const result: Record<string, string> = {};
-  const resultSources: Record<string, ParamSource> = {};
+  const result: Record<string, string> = Object.create(null) as Record<string, string>;
+  const resultSources: Record<string, ParamSource> = Object.create(null) as Record<string, ParamSource>;
   const keysByLowercase = new Map<string, string>();
 
   for (const layer of layers) {
@@ -292,7 +292,9 @@ export function validateRequired(
   parameterPresence?: Readonly<Record<string, boolean>>,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
-  const presence = parameterPresence ?? serializeOas31Parameters(model, form.oas31ParameterValues).presence;
+  const presence =
+    parameterPresence ??
+    serializeOas31Parameters(model, form.oas31ParameterValues, form.serializedExampleParameters).presence;
 
   const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
@@ -301,7 +303,7 @@ export function validateRequired(
       const serializedPresence =
         param.parameterSerialization && Object.prototype.hasOwnProperty.call(presence, key) ? presence[key] : undefined;
       if (serializedPresence === true) continue;
-      const value = values[param.name];
+      const value = Object.prototype.hasOwnProperty.call(values, param.name) ? values[param.name] : undefined;
       if (
         serializedPresence === false ||
         value === undefined ||
@@ -353,9 +355,13 @@ export function validateRequired(
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
   if (model.bodyRequired && current && !current.oas31Form) {
     const category = current.category;
+    const hasExampleBody =
+      form.serializedExampleBody?.mediaType === selected && typeof form.serializedExampleBody.text === 'string';
 
     let bodyMissing = false;
-    if (current.binary) {
+    if (hasExampleBody && category !== 'multipart' && !current.binary) {
+      bodyMissing = false;
+    } else if (current.binary) {
       bodyMissing = !form.binaryBodyFileName;
     } else if (category === 'json' || category === 'raw') {
       bodyMissing = !form.body || form.body.trim() === '';
@@ -421,7 +427,11 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   const parameterDiagnostic = debugModel.parameterDiagnostics?.[0];
   if (parameterDiagnostic) throw new Error(parameterDiagnostic.message);
-  const serializedParameters = serializeOas31Parameters(debugModel, formValues.oas31ParameterValues);
+  const serializedParameters = serializeOas31Parameters(
+    debugModel,
+    formValues.oas31ParameterValues,
+    formValues.serializedExampleParameters,
+  );
 
   // 1. path 替换
   const resolvedPath = replacePathParams(
@@ -501,8 +511,15 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     debugModel.bodyContents.find((candidate) => candidate.mediaType === selectedContentType) ??
     debugModel.bodyContents[0];
   const category = currentBody?.category ?? 'raw';
+  const exampleBody =
+    formValues.serializedExampleBody?.mediaType === selectedContentType &&
+    typeof formValues.serializedExampleBody.text === 'string'
+      ? formValues.serializedExampleBody
+      : undefined;
+  if (exampleBody && (category === 'multipart' || currentBody?.binary))
+    throw new Error('This example requires a binary or multipart codec.');
   const formBodyPlan =
-    currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
+    !exampleBody && currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
       ? serializeOas31FormBody(currentBody, {
           formFields: formValues.formFields,
           formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
@@ -514,7 +531,11 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   // Keep explicit request bodies for every HTTP method in the pure model and
   // generated cURL. Browser callers reject GET / HEAD bodies before Fetch.
-  if (formBodyPlan?.kind === 'urlencoded') {
+  if (exampleBody) {
+    body = exampleBody.text;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
+      headersWithCookies['Content-Type'] = selectedContentType;
+  } else if (formBodyPlan?.kind === 'urlencoded') {
     body = formBodyPlan.body;
     if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
       headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
@@ -551,7 +572,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   );
   const legacyQueryString = buildQueryString(mergedQuery, queryEncodings);
   const parameterQueryString = serializedParameters.query
-    .map((parameter) => `${parameter.encodedName}=${parameter.encodedValue}`)
+    .map((parameter) => `${parameter.encodedName}${parameter.hasEquals === false ? '' : '='}${parameter.encodedValue}`)
     .join('&');
   const queryString = [legacyQueryString, parameterQueryString].filter(Boolean).join('&');
   const url = `${baseUrl}${resolvedPath}${queryString ? `?${queryString}` : ''}`;
@@ -566,6 +587,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     headers: headersWithCookies,
     query: previewQuery,
     body,
+    ...(exampleBody ? { explicitExampleBody: true } : {}),
     binaryBodyFileName: formValues.binaryBodyFileName,
     contentType: selectedContentType,
     sourceMap,
@@ -715,7 +737,7 @@ export function buildCurl(req: BuiltRequest): string {
     parts.push('# TODO append file fields via: -F field=@/path/to/file');
   } else if (req.binaryBodyFileName) {
     parts.push('--data-binary', shellQuote(`@/path/to/${req.binaryBodyFileName}`));
-  } else if (req.body !== undefined && req.body !== '') {
+  } else if (req.body !== undefined && (req.body !== '' || req.explicitExampleBody)) {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
     parts.push('-d', shellQuote(req.body));
   }

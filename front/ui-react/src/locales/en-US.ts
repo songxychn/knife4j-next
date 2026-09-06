@@ -1,4 +1,56 @@
 const enUS = {
+  'schema.example32.serializedDataValidation': 'Validation of data decoded from serialization',
+  'schema.example32.diagnostics.UNSAFE_EXAMPLE_NUMBER':
+    'The serialization contains a number JavaScript cannot represent safely. The original text is retained; data validation is unavailable.',
+  'schema.example32.choose': 'Choose example',
+  'schema.example32.candidate': 'Schema candidate',
+  'schema.example32.apply': 'Apply to request',
+  'schema.example32.editFields': 'Switch to field input',
+  'schema.example32.layer.parameter': 'Parameter',
+  'schema.example32.layer.header': 'Header',
+  'schema.example32.layer.media': 'Media type',
+  'schema.example32.data': 'Logical data',
+  'schema.example32.serialized': 'Serialized text (sent verbatim)',
+  'schema.example32.external': 'External example location (not loaded or sent as a body)',
+  'schema.example32.checks': 'Data validation: {{data}}; decoding: {{serialization}}; pairing: {{pairing}}',
+  'schema.example32.diagnostic': 'Example diagnostics',
+  'schema.example32.status.valid': 'Passed',
+  'schema.example32.status.invalid': 'Failed',
+  'schema.example32.status.unavailable': 'Unavailable',
+  'schema.example32.status.absent': 'Not applicable / no data',
+  'schema.example32.diagnostics.EXAMPLE_FIELDS_CONFLICT': 'Example representation fields conflict.',
+  'schema.example32.diagnostics.SERIALIZED_VALUE_NOT_STRING': 'serializedValue must be a string.',
+  'schema.example32.diagnostics.EXTERNAL_VALUE_NOT_STRING': 'externalValue must be a string.',
+  'schema.example32.diagnostics.EXAMPLE_DATA_UNREPRESENTABLE':
+    'The example is not representable JSON data within the budget.',
+  'schema.example32.diagnostics.EXTERNAL_URI_UNAVAILABLE':
+    'The external location cannot be resolved against its owner document.',
+  'schema.example32.diagnostics.EXTERNAL_EXAMPLE_NOT_LOADED':
+    'External content is not loaded and cannot be validated or inserted into a request.',
+  'schema.example32.diagnostics.LEGACY_VALUE_IMPLEMENTATION_DEFINED':
+    'Legacy non-JSON value uses the existing codec; semantics may differ across tools.',
+  'schema.example32.diagnostics.CODEC_UNAVAILABLE':
+    'No serialization codec is available for this media type or data shape.',
+  'schema.example32.diagnostics.SERIALIZATION_NOT_VERIFIED':
+    'Author text is preserved; the current codec cannot unambiguously decode logical data.',
+  'schema.example32.diagnostics.SERIALIZATION_DECODE_FAILED': 'The current codec cannot parse this serialization.',
+  'schema.example32.diagnostics.EXAMPLE_PAIR_MISMATCH': 'dataValue and serializedValue represent different data.',
+  'schema.example32.diagnostics.EXAMPLE_REFERENCE_UNAVAILABLE':
+    'The example or media reference is unavailable in the typed resource registry.',
+  'schema.example32.diagnostics.EXAMPLE_SIZE_LIMIT': 'The example exceeds the size limit.',
+  'schema.example32.diagnostics.INVALID_JSON_SERIALIZATION': 'The serialization is not valid JSON.',
+  'schema.example32.diagnostics.PARAMETER_CODEC_UNAVAILABLE': 'No codec is available for this parameter.',
+  'schema.example32.diagnostics.INVALID_HEADER_SERIALIZATION':
+    'The header example contains forbidden control characters.',
+  'schema.example32.diagnostics.HEADER_NAME_IN_SERIALIZATION':
+    'A header example must not contain the HTTP header name.',
+  'schema.example32.diagnostics.INVALID_URI_SERIALIZATION':
+    'The URI example contains invalid characters or percent-encoding.',
+  'schema.example32.diagnostics.INVALID_PATH_SERIALIZATION':
+    'A path parameter example must not contain path or query separators.',
+  'schema.example32.diagnostics.QUERY_LEADING_DELIMITER': 'A query example must not begin with ? or &.',
+  'schema.example32.diagnostics.MATRIX_LEADING_DELIMITER': 'A matrix example must include its leading semicolon.',
+  'schema.example32.diagnostics.LABEL_LEADING_DELIMITER': 'A label example must include its leading dot.',
   // App / Layout
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI Hub',
