@@ -1,11 +1,6 @@
 import type { EvaluationResult } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
-import {
-  asOpenApiRecord,
-  followLocalReference,
-  type LocatedRecord,
-  type OpenApiRecord,
-} from './openApiDocumentPointer';
+import { asOpenApiRecord, locateOperationRecord, type OpenApiRecord } from './openApiDocumentPointer';
 import { isJsonCompatibleMediaType } from './requestBodySchemaValidation';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 import { isOas31SchemaDocument } from './schemaDocumentSession';
@@ -205,18 +200,6 @@ export function responseSchemaStatusKey(responses: OpenApiRecord, statusCode: nu
   return Object.prototype.hasOwnProperty.call(responses, 'default') ? 'default' : null;
 }
 
-function locateOpenApiOperation(document: SwaggerDoc, operation: MenuOperation): LocatedRecord | null {
-  const source = operation.source === 'webhook' ? 'webhooks' : 'paths';
-  const sourceItems = source === 'webhooks' ? document.webhooks : document.paths;
-  const pathItem = followLocalReference(document, sourceItems?.[operation.path], [source, operation.path]);
-  if (!pathItem) return null;
-
-  const method = operation.method.toLowerCase();
-  const operationValue = asOpenApiRecord(pathItem.value[method]);
-  if (!operationValue) return null;
-  return { value: operationValue, tokens: [...pathItem.tokens, method] };
-}
-
 function locateResponseBodySchema(
   document: SwaggerDoc,
   operation: MenuOperation,
@@ -224,7 +207,7 @@ function locateResponseBodySchema(
   contentType: string,
   session?: SchemaDocumentSession,
 ): LocatedSchema {
-  const locatedOperation = locateOpenApiOperation(document, operation);
+  const locatedOperation = locateOperationRecord(document, operation);
   if (!locatedOperation) return { status: 'unavailable' };
 
   if (!Object.prototype.hasOwnProperty.call(locatedOperation.value, 'responses')) {

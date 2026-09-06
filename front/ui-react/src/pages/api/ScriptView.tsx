@@ -1,3 +1,8 @@
+import { operationSchemaDocuments } from '../../schema/operationRegistry';
+import type { OperationSchemaDocuments } from 'knife4j-core';
+import { getOpenApiSpecificationFeatures } from 'knife4j-core';
+import { browserRequestConstraint } from './browserRequestConstraints';
+import { operationHttpMethod } from 'knife4j-core';
 import { useMemo, useState } from 'react';
 import { normalizeAllOfSchema } from 'knife4j-core';
 import { Alert, Radio, Space, Spin, Typography, message } from 'antd';
@@ -127,8 +132,17 @@ export function generateCode(
   responseSchema: SchemaObject | undefined,
   doc: SwaggerDoc,
   labels: CodeCommentLabels,
+  schemaDocuments?: OperationSchemaDocuments,
 ): GeneratedCode {
-  const fnName = deriveFunctionName(operationId, method, path);
+  const uses32 = getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2';
+  const requestDocument = (schemaDocuments?.requestBody ?? doc) as SwaggerDoc;
+  const responseDocument = (schemaDocuments?.responses.values().next().value ??
+    schemaDocuments?.operation ??
+    doc) as SwaggerDoc;
+  const exactMethodName = method.replace(/[^a-zA-Z0-9]/g, (character) => `_x${character.charCodeAt(0).toString(16)}_`);
+  const fnName = uses32
+    ? `operation_${operationId ? operationId.replace(/[^a-zA-Z0-9]/g, (character) => `_x${character.charCodeAt(0).toString(16)}_`) : exactMethodName + deriveFunctionName(undefined, '', path)}`
+    : deriveFunctionName(operationId, method, path);
   const interfaceName = upperFirst(fnName);
 
   const pathParams = parameters.filter((p) => p.in === 'path');
@@ -149,6 +163,21 @@ export function generateCode(
   if (queryParams.length > 0) jsRequestArgs.push('query');
   if (hasBody) jsRequestArgs.push('params');
 
+  const requestCall = (typescript: boolean): string => {
+    if (!uses32) return `request.${method.toLowerCase()}(${jsRequestArgs.join(', ')})`;
+    const constraint = browserRequestConstraint(method, hasBody);
+    if (constraint)
+      return `Promise.reject(new TypeError(${JSON.stringify(`Fetch cannot send the documented ${method} request (${constraint}); use the cURL preview.`)}))`;
+    const url = queryParams.length
+      ? `${buildUrlExpression(path, pathParams)} + '?' + new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))`
+      : buildUrlExpression(path, pathParams);
+    const init = [
+      `method: ${JSON.stringify(method)}`,
+      ...(hasBody ? [`headers: { 'Content-Type': 'application/json' }`, 'body: JSON.stringify(params)'] : []),
+    ];
+    return `fetch(${url}, { ${init.join(', ')} }).then(response => response.json()${typescript ? ' as Promise<' + resType + '>' : ''})`;
+  };
+
   const jsComment = [
     `/**`,
     ` * ${summary ?? fnName}`,
@@ -162,14 +191,14 @@ export function generateCode(
   const jsBody = [
     jsComment,
     `export function ${fnName}(${jsParamList.join(', ')}) {${jsQueryStr}`,
-    `  return request.${method.toLowerCase()}(${jsRequestArgs.join(', ')});`,
+    `  return ${requestCall(false)};`,
     `}`,
   ].join('\n');
 
   // ---- TS interfaces ----
   let tsParamsInterface = '';
   if (hasBody && requestBodySchema) {
-    const resolved = resolveSchema(requestBodySchema, doc);
+    const resolved = resolveSchema(requestBodySchema, requestDocument);
     const resolvedType = Array.isArray(resolved?.type)
       ? resolved.type.find((value) => value !== 'null')
       : resolved?.type;
@@ -177,18 +206,18 @@ export function generateCode(
       const props = Object.entries(resolved?.properties ?? {})
         .map(([k, v]) => {
           const req = Array.isArray(resolved?.required) && resolved.required.includes(k);
-          return `  ${k}${req ? '' : '?'}: ${schemaToTsType(v, doc)};`;
+          return `  ${k}${req ? '' : '?'}: ${schemaToTsType(v, requestDocument)};`;
         })
         .join('\n');
       tsParamsInterface = `// ${labels.requestInterface}\nexport interface ${interfaceName}Params {\n${props}\n}\n\n`;
-    } else if (resolvedType === 'array') {
-      tsParamsInterface = `// ${labels.requestType}\nexport type ${interfaceName}Params = ${schemaToTsType(resolved, doc)};\n\n`;
+    } else if (resolvedType === 'array' || (uses32 && resolvedType)) {
+      tsParamsInterface = `// ${labels.requestType}\nexport type ${interfaceName}Params = ${schemaToTsType(resolved, requestDocument)};\n\n`;
     }
   }
 
   let tsResInterface = '';
   if (responseSchema) {
-    const resolved = resolveSchema(responseSchema, doc);
+    const resolved = resolveSchema(responseSchema, responseDocument);
     const resolvedType = Array.isArray(resolved?.type)
       ? resolved.type.find((value) => value !== 'null')
       : resolved?.type;
@@ -196,12 +225,12 @@ export function generateCode(
       const props = Object.entries(resolved?.properties ?? {})
         .map(([k, v]) => {
           const req = Array.isArray(resolved?.required) && resolved.required.includes(k);
-          return `  ${k}${req ? '' : '?'}: ${schemaToTsType(v, doc)};`;
+          return `  ${k}${req ? '' : '?'}: ${schemaToTsType(v, responseDocument)};`;
         })
         .join('\n');
       tsResInterface = `// ${labels.responseInterface}\nexport interface ${interfaceName}Res {\n${props}\n}\n\n`;
-    } else if (resolvedType === 'array') {
-      tsResInterface = `// ${labels.responseType}\nexport type ${interfaceName}Res = ${schemaToTsType(resolved, doc)};\n\n`;
+    } else if (resolvedType === 'array' || (uses32 && resolvedType)) {
+      tsResInterface = `// ${labels.responseType}\nexport type ${interfaceName}Res = ${schemaToTsType(resolved, responseDocument)};\n\n`;
     }
   }
 
@@ -209,8 +238,11 @@ export function generateCode(
   const tsParamList: string[] = [
     ...pathParams.map((p) => `${p.name}: string`),
     ...queryParams.map((p) => {
-      const t = schemaToTsType(p.schema, doc);
-      return `${p.name}${p.required ? '' : '?'}: ${t}`;
+      const t = schemaToTsType(
+        p.schema,
+        (schemaDocuments?.parameters.get(`${p.in}:${p.name}`) ?? schemaDocuments?.operation ?? doc) as SwaggerDoc,
+      );
+      return uses32 ? `${p.name}: ${t}${p.required ? '' : ' | undefined'}` : `${p.name}${p.required ? '' : '?'}: ${t}`;
     }),
     ...(hasBody ? [`params: ${tsParamsInterface ? `${interfaceName}Params` : 'Record<string, unknown>'}`] : []),
   ];
@@ -234,7 +266,7 @@ export function generateCode(
   const tsBody = [
     tsParamsInterface + tsResInterface + tsComment,
     `export function ${fnName}(${tsParamList.join(', ')}): Promise<${resType}> {${tsQueryStr}`,
-    `  return request.${method.toLowerCase()}(${jsRequestArgs.join(', ')});`,
+    `  return ${requestCall(true)};`,
     `}`,
   ].join('\n');
 
@@ -253,7 +285,7 @@ export default function ScriptView() {
   const code = useMemo(() => {
     if (!swaggerDoc || !operation) return null;
     const op = operation.operation;
-    const method = operation.method.toUpperCase();
+    const method = operationHttpMethod(operation);
 
     const parameters: ParameterObject[] = (op.parameters ?? []) as ParameterObject[];
 
@@ -281,6 +313,9 @@ export default function ScriptView() {
     }
 
     try {
+      const documents = operationSchemaDocuments(swaggerDoc, operation);
+      // Match the same selected response used above, not response map iteration order.
+      const responseDocument = successCode ? documents.responses.get(successCode) : undefined;
       return generateCode(
         method,
         operation.path,
@@ -297,6 +332,7 @@ export default function ScriptView() {
           responseInterface: t('apiScript.comment.responseInterface'),
           responseType: t('apiScript.comment.responseType'),
         },
+        { ...documents, responses: new Map(responseDocument ? [[successCode!, responseDocument]] : []) },
       );
     } catch {
       return null;

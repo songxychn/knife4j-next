@@ -156,3 +156,38 @@ describe('ScriptView generated comments', () => {
     expect(code).toContain('value?: string;');
   });
 });
+
+describe('OAS 3.2 exact method scripts', () => {
+  test.each(['QUERY', 'COPY', 'Copy', 'patch', 'x-PING'])('uses a generic Fetch call for %s', (method) => {
+    const output = generateCode(
+      method,
+      '/items',
+      `method-${method}`,
+      undefined,
+      [],
+      undefined,
+      undefined,
+      { ...doc, openapi: '3.2.0' },
+      labels,
+    );
+    expect(output.js).toContain(`method: ${JSON.stringify(method)}`);
+    expect(output.ts).toContain(`method: ${JSON.stringify(method)}`);
+    expect(output.js).not.toContain('request.');
+    expect(() => new Function(output.js.replace('export ', ''))).not.toThrow();
+  });
+  test.each(['get', 'Trace'])('does not emit a misleading runnable fetch for %s', (method) => {
+    const output = generateCode(
+      method,
+      '/items',
+      `method-${method}`,
+      undefined,
+      [],
+      undefined,
+      undefined,
+      { ...doc, openapi: '3.2.0' },
+      labels,
+    );
+    expect(output.js).toContain('Promise.reject');
+    expect(output.js).not.toContain('fetch(');
+  });
+});

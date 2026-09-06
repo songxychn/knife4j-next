@@ -5,6 +5,13 @@ const enUS = {
   'app.tab.home': 'Home',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'Failed to load API docs',
+  'app.oas32Compatibility.title': 'This OAS 3.2 document has structure or reference diagnostics',
+  'apiDoc.link.unavailable': 'Target unavailable ({{status}})',
+  'app.operationLimit.title': 'Operation expansion reached a local limit; results are incomplete',
+  'app.operationLimit.description':
+    'Local limits are {{maxOperations}} operations and {{maxWork}} processing steps. Menus, search, statistics and Link targets may be incomplete. This is not an OpenAPI validity error.',
+  'apiDoc.link.readOnly': 'This loaded Link target is not mounted in the current entry document and is read-only.',
+  'apiDoc.definition.readOnly': 'This operation describes a callback or reusable definition and is read-only.',
   'app.oas31Compatibility.title': 'This OAS 3.1 document has structure or local-resolution diagnostics',
   'app.oas31Compatibility.description':
     '{{count}} item(s) violate structural constraints or cannot be resolved locally. Safe raw content remains available; ambiguous operations are omitted.',
@@ -462,6 +469,8 @@ const enUS = {
     'This OAS 3.1 body sends the selected file unchanged as {{contentType}}; it is not converted to text or multipart.',
   'apiDebug.body.browserMethodUnsupported':
     'The browser Fetch API cannot send a request body with {{method}}. Use the generated cURL command or change the operation method.',
+  'apiDebug.method.browserNormalized':
+    'Fetch changes {{method}} to {{normalized}} and cannot send the documented method. Preview and cURL preserve its spelling.',
   'apiDebug.method.browserUnsupported':
     'The browser Fetch API forbids {{method}} requests. Use the generated cURL command or another non-browser client.',
   'apiDebug.cookie.source': 'Cookie parameter source',

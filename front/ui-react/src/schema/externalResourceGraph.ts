@@ -112,6 +112,8 @@ export interface ResourceGraphEdge {
   readonly targetRetrievalUri: string;
   readonly fragment: string;
   readonly state: 'local' | 'pending' | 'loaded' | 'failed';
+  /** Target resolved by the existing controlled graph; consumers must not repeat URI/alias resolution. */
+  readonly target?: Pick<ResourceGraphTarget, 'ownerRetrievalUri' | 'pointer'>;
 }
 
 /** Immutable location metadata for a resource or anchor already indexed by the graph. */
@@ -123,6 +125,8 @@ export interface ResourceGraphTarget {
 
 /** Frozen projection of the graph's typed object index; carries no loader capability. */
 export interface ResourceGraphObject extends ResourceGraphTarget {
+  /** Physical parent already recorded while indexing an Operation; never inferred by consumers. */
+  readonly operationPathItemPointer?: string;
   readonly kind: ExpectedTargetKind | 'openapi';
   readonly schemaDialect?: string;
 }
@@ -3343,8 +3347,12 @@ export class ExternalResourceLoader {
   private graphSnapshot(state: MutableGraphState): ResourceGraphSnapshot {
     this.refreshGraph(state);
     const edges = Object.freeze(
-      state.edges.map((edge) =>
-        Object.freeze({
+      state.edges.map((edge) => {
+        const target =
+          edge.state === 'local' || edge.state === 'loaded'
+            ? this.targetFromCollectors(state, new Map(), edge)
+            : undefined;
+        return Object.freeze({
           sourceRetrievalUri: edge.sourceRetrievalUri,
           sourcePointer: edge.sourcePointer,
           kind: edge.kind,
@@ -3352,8 +3360,11 @@ export class ExternalResourceLoader {
           targetRetrievalUri: edge.targetRetrievalUri,
           fragment: edge.fragment,
           state: edge.state,
-        }),
-      ),
+          ...(target
+            ? { target: Object.freeze({ ownerRetrievalUri: target.ownerRetrievalUri, pointer: target.pointer }) }
+            : {}),
+        });
+      }),
     );
     return Object.freeze({
       generation: state.generation,
@@ -3403,6 +3414,7 @@ export class ExternalResourceLoader {
             ownerRetrievalUri: key.slice(0, separator),
             pointer: key.slice(separator + 1),
             kind: target.kind,
+            operationPathItemPointer: target.operationPathItem?.pointer,
             evaluationBaseUri: target.evaluationBaseUri,
             schemaDialect: target.schemaDialect,
           });

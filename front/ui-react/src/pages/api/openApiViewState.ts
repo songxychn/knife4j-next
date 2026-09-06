@@ -1,4 +1,4 @@
-import { isOpenApi31Version } from 'knife4j-core';
+import { isOpenApi31Version, physicalJsonPointerTokens } from 'knife4j-core';
 import type { ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import {
@@ -50,11 +50,24 @@ function oas31FallbackPreview(swaggerDoc: SwaggerDoc, operation: MenuOperation):
 }
 
 function previewDocument(swaggerDoc: SwaggerDoc, operation: MenuOperation): JsonRecord | null {
+  if (operation.identity) {
+    const output: JsonRecord = { openapi: swaggerDoc.openapi, info: swaggerDoc.info };
+    const tokens = physicalJsonPointerTokens(operation.identity.operationPointer);
+    if (!tokens) return null;
+    if (tokens.length === 0) return operation.identity.rawOperation.value as JsonRecord;
+    let parent = output;
+    tokens.forEach((token, index) => {
+      const value = index === tokens.length - 1 ? operation.identity!.rawOperation.value : {};
+      Object.defineProperty(parent, token, { value, enumerable: true, configurable: true, writable: true });
+      parent = value as JsonRecord;
+    });
+    return output;
+  }
   const preview = buildOperationOpenApiPreviewDocument(
     swaggerDoc,
     operation.path,
     operation.method,
-    operation.source ?? 'path',
+    operation.source === 'webhook' ? 'webhook' : 'path',
   );
   if (preview || !isOpenApi31Version(swaggerDoc.openapi)) return preview;
   return oas31FallbackPreview(swaggerDoc, operation);
@@ -74,7 +87,7 @@ export function buildOpenApiViewState(
           swaggerDoc,
           operation.path,
           operation.method,
-          operation.source ?? 'path',
+          operation.source === 'webhook' ? 'webhook' : 'path',
           {
             retrievalUri: oas31Availability.retrievalUri,
             snapshot: oas31Availability.snapshot,

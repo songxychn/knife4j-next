@@ -1,4 +1,8 @@
-import { isOpenApi31Version, OPENAPI_HTTP_METHODS, type Oas31DocumentDiagnostic } from 'knife4j-core';
+import {
+  isOpenApi31Version,
+  OPENAPI_HTTP_METHODS,
+  type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
+} from 'knife4j-core';
 import { buildOperationOpenApiDocument } from '../pages/api/operationOpenApiDocument';
 import {
   buildOas31OperationOpenApiDocument,

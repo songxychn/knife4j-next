@@ -5,6 +5,13 @@ const zhCN = {
   'app.tab.home': '主页',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': '接口文档加载失败',
+  'app.oas32Compatibility.title': 'OAS 3.2 文档存在结构或引用诊断',
+  'apiDoc.link.unavailable': '目标暂不可用（{{status}}）',
+  'app.operationLimit.title': '接口展开达到本地限额，当前显示不完整',
+  'app.operationLimit.description':
+    '本地最多展开 {{maxOperations}} 个接口、执行 {{maxWork}} 步处理。菜单、搜索、统计及 Link 目标可能缺项；这不是 OpenAPI 规范错误。',
+  'apiDoc.link.readOnly': '这是已加载的 Link 目标，未挂载到当前入口；仅供文档查看。',
+  'apiDoc.definition.readOnly': '此接口描述回调或可复用定义，仅供文档查看。',
   'app.oas31Compatibility.title': 'OAS 3.1 文档存在结构或本地解析诊断',
   'app.oas31Compatibility.description':
     '以下 {{count}} 处不符合结构约束或无法在本地安全解析；可安全展示的原文仍会加载，存在歧义的操作将被省略。',
@@ -426,6 +433,8 @@ const zhCN = {
   'apiDebug.body.binaryHint': '该 OAS 3.1 请求体会按 {{contentType}} 原样发送所选文件，不会转成文本或 multipart。',
   'apiDebug.body.browserMethodUnsupported':
     '浏览器 Fetch API 不允许为 {{method}} 请求发送请求体，请改用生成的 cURL 或调整接口方法。',
+  'apiDebug.method.browserNormalized':
+    '浏览器会将 {{method}} 改为 {{normalized}}，无法按文档方法发送。预览和 cURL 保留原值。',
   'apiDebug.method.browserUnsupported':
     '浏览器 Fetch API 禁止发送 {{method}} 请求，请改用生成的 cURL 或其他非浏览器客户端。',
   'apiDebug.cookie.source': 'Cookie 参数来源',

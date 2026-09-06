@@ -6,7 +6,12 @@ import {
   isOas31SchemaDocument,
   type SchemaDocumentSession,
 } from './schemaDocumentSession';
-import { asOpenApiRecord as asRecord, followLocalReference, pointerReference } from './openApiDocumentPointer';
+import {
+  asOpenApiRecord as asRecord,
+  followLocalReference,
+  locateOperationRecord,
+  pointerReference,
+} from './openApiDocumentPointer';
 import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
 
 export type RequestBodySchemaPreparation =
@@ -63,16 +68,10 @@ export function effectiveRequestContentType(headers: Readonly<Record<string, str
 }
 
 function locateRequestBodySchema(document: SwaggerDoc, operation: MenuOperation, mediaType: string): LocatedSchema {
-  const source = operation.source === 'webhook' ? 'webhooks' : 'paths';
-  const sourceItems = source === 'webhooks' ? document.webhooks : document.paths;
-  const pathItemTokens = [source, operation.path];
-  const pathItem = followLocalReference(document, sourceItems?.[operation.path], pathItemTokens);
-  if (!pathItem) return { status: 'unavailable' };
-
-  const method = operation.method.toLowerCase();
-  const operationValue = asRecord(pathItem.value[method]);
-  if (!operationValue) return { status: 'unavailable' };
-  const operationTokens = [...pathItem.tokens, method];
+  const locatedOperation = locateOperationRecord(document, operation);
+  if (!locatedOperation) return { status: 'unavailable' };
+  const operationValue = locatedOperation.value;
+  const operationTokens = locatedOperation.tokens;
   if (!Object.prototype.hasOwnProperty.call(operationValue, 'requestBody')) return { status: 'none' };
 
   const requestBodyTokens = [...operationTokens, 'requestBody'];

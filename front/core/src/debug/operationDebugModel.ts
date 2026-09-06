@@ -1,3 +1,5 @@
+import { enumerateOpenApiOperations, type OpenApiOperation, type OperationSchemaDocuments } from '../openapiOperations';
+import { getOpenApiSpecificationFeatures } from '../openapiVersion';
 /**
  * OperationDebugModel — 从 OAS2/OAS3 operation 解析出统一的调试参数模型
  *
@@ -726,6 +728,10 @@ export interface BuildDebugModelOptions {
   isOAS2?: boolean;
   /** schema 解析上下文（maxDepth 等） */
   schemaCtx?: SchemaResolveContext;
+  /** Already enumerated location for 3.2, including custom methods and reference owners. */
+  operationIdentity?: OpenApiOperation;
+  /** Physical documents for already resolved 3.2 members; no loading or reference resolution. */
+  operationDocuments?: OperationSchemaDocuments;
 }
 
 /**
@@ -736,6 +742,13 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   const useOas31ParameterPath = !isOAS2 && isOas31(doc);
 
   // 定位 PathItem 和 Operation
+  const identity =
+    options.operationIdentity ??
+    (getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
+      ? enumerateOpenApiOperations(doc as Record<string, unknown>).find(
+          (operation) => operation.source === 'path' && operation.path === path && operation.method === method,
+        )
+      : undefined);
   const rawPathItem = doc.paths?.[path];
   const useOas31PathResolution = !isOAS2 && isOpenApi31Version(doc.openapi);
   const resolvedPathOperation =
@@ -746,11 +759,16 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           doc as Record<string, unknown>,
         )
       : null;
-  const pathItem = useOas31PathResolution
-    ? (resolvedPathOperation?.pathItem as PathItemLike | undefined)
-    : rawPathItem
-      ? (dereference(rawPathItem as unknown as Record<string, unknown>, doc as Record<string, unknown>) as PathItemLike)
-      : undefined;
+  const pathItem = identity
+    ? (identity.pathItem as PathItemLike)
+    : useOas31PathResolution
+      ? (resolvedPathOperation?.pathItem as PathItemLike | undefined)
+      : rawPathItem
+        ? (dereference(
+            rawPathItem as unknown as Record<string, unknown>,
+            doc as Record<string, unknown>,
+          ) as PathItemLike)
+        : undefined;
   if (!pathItem) {
     return {
       pathParams: [],
@@ -762,9 +780,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     };
   }
 
-  const operation = resolvedPathOperation
-    ? (resolvedPathOperation.operation as OperationLike)
-    : (pathItem[method] as OperationLike | undefined);
+  const operation = identity
+    ? (identity.operation as OperationLike)
+    : resolvedPathOperation
+      ? (resolvedPathOperation.operation as OperationLike)
+      : (pathItem[method] as OperationLike | undefined);
   if (!operation) {
     return {
       pathParams: [],
@@ -776,12 +796,15 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     };
   }
 
-  const ctx: SchemaResolveContext = schemaCtx ?? { doc: doc as Record<string, unknown>, maxDepth: 8 };
+  const ctx: SchemaResolveContext = schemaCtx ?? {
+    doc: options.operationDocuments?.operation ?? (doc as Record<string, unknown>),
+    maxDepth: 8,
+  };
 
   // 合并 path-level parameters + operation-level parameters
   // operation 级参数覆盖 path 级（按 name+in 去重）
   const allRawParams: Array<OAS3Param | OAS2Param> = (
-    resolvedPathOperation
+    resolvedPathOperation || identity
       ? (operation.parameters ?? [])
       : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
   ).map((parameter) => resolveParameter(parameter, doc));
@@ -897,13 +920,14 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       ? analyzeOas31Parameter(raw as OAS3Param, paramIn, doc, ctx.maxDepth ?? 8)
       : undefined;
     if (oas31Analysis?.diagnostic) parameterDiagnostics.push(oas31Analysis.diagnostic);
+    const parameterDocument = options.operationDocuments?.parameters.get(`${paramIn}:${raw.name ?? ''}`) ?? ctx.doc;
     const rawSchema = raw.schema;
     const schema = oas31Analysis
       ? oas31Analysis.schema
       : rawSchema && typeof rawSchema === 'object'
         ? isOAS2
           ? dereference(rawSchema, doc as Record<string, unknown>)
-          : normalizeAllOfSchema(rawSchema, doc as Record<string, unknown>, ctx.maxDepth ?? 8)
+          : normalizeAllOfSchema(rawSchema, parameterDocument, ctx.maxDepth ?? 8)
         : undefined;
     const schemaObject = schemaRecord(schema);
     const type = extractType(raw, schema);
@@ -928,7 +952,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       format: (schemaObject?.format as string | undefined) ?? (raw as OAS2Param).format,
       default: parameterDefault,
       example: parameterExample,
-      enum: extractEnum(raw, schema, type, doc, isOAS2),
+      enum: extractEnum(raw, schema, type, parameterDocument, isOAS2),
       deprecated: raw.deprecated,
       readOnly: schemaObject?.readOnly as boolean | undefined,
       schema,
@@ -956,6 +980,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
   // OAS3: requestBody
   if (!isOAS2 && operation.requestBody) {
+    const bodyCtx = options.operationDocuments ? { ...ctx, doc: options.operationDocuments.requestBody } : ctx;
     const rb = operation.requestBody.$ref
       ? (dereferenceReferenceObject(
           operation.requestBody as Record<string, unknown>,
@@ -971,7 +996,9 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       );
 
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
-        const schema = mediaObj.schema ? normalizeAllOfSchema(mediaObj.schema, ctx.doc, ctx.maxDepth ?? 8) : undefined;
+        const schema = mediaObj.schema
+          ? normalizeAllOfSchema(mediaObj.schema, bodyCtx.doc, bodyCtx.maxDepth ?? 8)
+          : undefined;
         const declaredCategory = classifyContentType(mediaType);
         const allowOas31Binary = isOas31(doc);
         const isMultipartFallback =
@@ -1011,7 +1038,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
-          exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, ctx, { mediaType }),
+          exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, bodyCtx, { mediaType }),
           binary: binary || undefined,
           fileFields,
           // 区分「单文件」与「多文件」语义（issue #251）：

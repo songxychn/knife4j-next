@@ -28,13 +28,13 @@ export function useCurrentOperation(): CurrentOperation {
 
   useEffect(() => {
     if (!apiChangesReady || !operation) return;
-    if (operation.source !== 'webhook') acknowledgeOperation(operation.method, operation.path);
+    if (!operation.identity && operation.source !== 'webhook') acknowledgeOperation(operation.method, operation.path);
   }, [acknowledgeOperation, apiChangeScopeKey, apiChangesReady, operation]);
 
   return {
     loading,
     swaggerDoc,
-    tag: tag ? decodeURIComponent(tag) : undefined,
+    tag: menuTags.find((item) => (item.routeId ?? item.tag) === tag)?.tag,
     operation,
   };
 }

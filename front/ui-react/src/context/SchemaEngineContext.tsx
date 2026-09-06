@@ -124,7 +124,7 @@ function selectedCandidateKeys(runtime: ActiveResourceRuntime, resourceKeys: rea
 }
 
 export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { activeSwaggerGroup, swaggerDoc, loading, routeGroupReady } = useGroup();
+  const { activeSwaggerGroup, swaggerDoc, loading, routeGroupReady, setOperationResourceSnapshot } = useGroup();
   const managerRef = useRef<SchemaDocumentSessionManager | null>(null);
   const runtimeRef = useRef<ActiveResourceRuntime | null>(null);
   const revisionRef = useRef(0);
@@ -143,6 +143,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
     ): Promise<void> => {
       const isCurrentOperation = (): boolean => isCurrent(runtime) && runtime.operationRevision === operationRevision;
       if (!isCurrentOperation()) return;
+      setOperationResourceSnapshot?.(runtime.document, snapshot);
       setState({ status: 'loading', retrievalUri: runtime.retrievalUri, session: null, error: null });
       try {
         const result = await managerRef.current!.open(runtime.document, runtime.retrievalUri, {
@@ -184,7 +185,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       }
     },
-    [isCurrent],
+    [isCurrent, setOperationResourceSnapshot],
   );
 
   const applyGraphOperation = useCallback(
