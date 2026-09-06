@@ -50,8 +50,24 @@ export interface SchemaEngineOptions {
   limits?: Partial<SchemaEngineLimits>;
 }
 
+/** Locations come from a typed OAS traversal, never from payload-shape inference. */
+export interface SchemaLocationMetadata {
+  readonly pointer: string;
+  /** Public base before this Schema Object's own $id is applied. */
+  readonly evaluationBaseUri: string;
+  readonly schemaDialect?: string;
+}
+
+export interface SchemaDocumentRegistrationContext {
+  readonly openapi32: true;
+  readonly documentBaseUri?: string;
+  readonly selfUri?: string;
+  readonly schemaLocations: readonly SchemaLocationMetadata[];
+  readonly aliases?: readonly { readonly uri: string; readonly pointer: string }[];
+}
+
 export interface SchemaEngine {
-  registerDocument(document: unknown, retrievalUri: string): Promise<void>;
+  registerDocument(document: unknown, retrievalUri: string, context?: SchemaDocumentRegistrationContext): Promise<void>;
   resolve(schemaUri: string): Promise<SchemaNode>;
   evaluate(schemaUri: string, instance: unknown, options?: EvaluationOptions): Promise<EvaluationResult>;
   unregisterDocument(retrievalUri: string): void;

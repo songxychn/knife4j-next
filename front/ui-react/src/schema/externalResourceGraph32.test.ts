@@ -391,19 +391,20 @@ describe('OAS 3.2 typed targets and document versions', () => {
     });
   });
 
-  test.each(['https://json-schema.org/draft/2020-12/schema', 'https://spec.openapis.org/oas/3.1/dialect/base'])(
-    'keeps standalone schemas in supported dialect %s',
-    async ($schema) => {
-      const external = 'https://resources.example.test/schema.json';
-      const loader = new ExternalResourceLoader(valid32(schemaReference(external)), retrieval, {
-        fetchImpl: async () => response({ $schema, type: 'string' }),
-      });
-      expect(await loader.load([grant(loader, external)])).toMatchObject({ complete: true, diagnostics: [] });
-    },
-  );
+  test.each([
+    'https://json-schema.org/draft/2020-12/schema',
+    'https://spec.openapis.org/oas/3.1/dialect/base',
+    'https://spec.openapis.org/oas/3.2/dialect/2025-09-17',
+  ])('keeps standalone schemas in supported dialect %s', async ($schema) => {
+    const external = 'https://resources.example.test/schema.json';
+    const loader = new ExternalResourceLoader(valid32(schemaReference(external)), retrieval, {
+      fetchImpl: async () => response({ $schema, type: 'string' }),
+    });
+    expect(await loader.load([grant(loader, external)])).toMatchObject({ complete: true, diagnostics: [] });
+  });
 
-  test.each(['https://dialects.example.test/custom', 'https://spec.openapis.org/oas/3.2/dialect/2025-09-17'])(
-    'leaves unsupported dialect %s explicit until the engine package',
+  test.each(['https://dialects.example.test/custom', 'https://spec.openapis.org/oas/3.2/dialect/base'])(
+    'rejects unsupported or undated helper dialect %s',
     async ($schema) => {
       const external = 'https://resources.example.test/schema.json';
       const loader = new ExternalResourceLoader(valid32(schemaReference(external)), retrieval, {

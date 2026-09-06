@@ -1,5 +1,6 @@
 import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from 'knife4j-core';
 import { isUriReference, normalizeUri, parseUri, resolveUri, toAbsoluteUri } from 'knife4j-schema-engine/uri';
+import type { SchemaDocumentRegistrationContext } from 'knife4j-schema-engine';
 import { parseAllDocuments } from 'yaml';
 import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
 import {
@@ -120,6 +121,12 @@ export interface ResourceGraphTarget {
   readonly evaluationBaseUri: string;
 }
 
+/** Frozen projection of the graph's typed object index; carries no loader capability. */
+export interface ResourceGraphObject extends ResourceGraphTarget {
+  readonly kind: ExpectedTargetKind | 'openapi';
+  readonly schemaDialect?: string;
+}
+
 export interface ResourceDiagnostic {
   readonly code: ResourceLoadErrorCode;
   readonly phase: ResourceDiagnosticPhase;
@@ -145,6 +152,7 @@ export interface ResourceGraphSnapshot {
   readonly anchorTargets: ReadonlyMap<string, ResourceGraphTarget>;
   /** Full $self identities, including non-empty fragments. */
   readonly documentTargets: ReadonlyMap<string, ResourceGraphTarget>;
+  readonly objectLocations: readonly ResourceGraphObject[];
   readonly edges: readonly ResourceGraphEdge[];
   readonly diagnostics: readonly ResourceDiagnostic[];
   readonly complete: boolean;
@@ -267,6 +275,9 @@ const OPERATION_TARGET_NAME = /^target-[1-9]\d*$/;
 const PATH_ITEM_CONTEXT_FIELDS = new Set(['summary', 'description', 'servers', 'parameters']);
 const SUPPORTED_SCHEMA_DIALECT =
   /^(?:https:\/\/spec\.openapis\.org\/oas\/3\.1\/dialect\/base|https:\/\/json-schema\.org\/draft\/2020-12\/schema)#?$/;
+const SUPPORTED_SCHEMA_DIALECT_32 = /^(?:https:\/\/spec\.openapis\.org\/oas\/3\.2\/dialect\/2025-09-17)#?$/;
+const supportedSchemaDialect = (dialect: string, family: DocumentContext['family']): boolean =>
+  SUPPORTED_SCHEMA_DIALECT.test(dialect) || (family === '3.2' && SUPPORTED_SCHEMA_DIALECT_32.test(dialect));
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 const METHOD_TOKEN = /^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$/;
 const OAS_32_METHODS = getOpenApiStandardHttpMethods('3.2.0')!;
@@ -948,15 +959,19 @@ function walkSchema(
   inheritedDialect?: string,
 ): void {
   indexObject(collector, pointer, 'schema', inheritedBase);
-  if (typeof value === 'boolean' || !isRecord(value)) return;
-  if (typeof value.$schema === 'string' && !SUPPORTED_SCHEMA_DIALECT.test(value.$schema)) {
+  if (typeof value !== 'boolean' && !isRecord(value)) return;
+  if (
+    isRecord(value) &&
+    typeof value.$schema === 'string' &&
+    !supportedSchemaDialect(value.$schema, collector.context.family)
+  ) {
     throw new ResourceLoadError(
       'DIALECT_UNSUPPORTED',
       'The Schema declares a dialect outside the supported OAS 3.1 base and Draft 2020-12 dialects.',
     );
   }
   const dialect =
-    typeof value.$schema === 'string'
+    isRecord(value) && typeof value.$schema === 'string'
       ? value.$schema
       : (inheritedDialect ??
         (isRecord(collector.context.document) && typeof collector.context.document.jsonSchemaDialect === 'string'
@@ -965,6 +980,7 @@ function walkSchema(
             ? 'https://json-schema.org/draft/2020-12/schema'
             : 'https://spec.openapis.org/oas/3.1/dialect/base'));
   indexObject(collector, pointer, 'schema', inheritedBase, dialect);
+  if (!isRecord(value)) return;
   const evaluationBaseUri = inheritedBase;
   let baseUri = inheritedBase;
   if (typeof value.$id === 'string') {
@@ -1809,7 +1825,10 @@ function walkOpenApiDocument(
   generation: number,
 ): void {
   if (!isRecord(document)) return;
-  if (typeof document.jsonSchemaDialect === 'string' && !SUPPORTED_SCHEMA_DIALECT.test(document.jsonSchemaDialect)) {
+  if (
+    typeof document.jsonSchemaDialect === 'string' &&
+    !supportedSchemaDialect(document.jsonSchemaDialect, collector.context.family)
+  ) {
     throw new ResourceLoadError(
       'DIALECT_UNSUPPORTED',
       'The OpenAPI document declares an unsupported JSON Schema dialect.',
@@ -3377,6 +3396,18 @@ export class ExternalResourceLoader {
           ]),
         ),
       ),
+      objectLocations: Object.freeze(
+        [...state.objects].map(([key, target]) => {
+          const separator = key.indexOf('\n');
+          return Object.freeze({
+            ownerRetrievalUri: key.slice(0, separator),
+            pointer: key.slice(separator + 1),
+            kind: target.kind,
+            evaluationBaseUri: target.evaluationBaseUri,
+            schemaDialect: target.schemaDialect,
+          });
+        }),
+      ),
       edges,
       diagnostics: Object.freeze([...state.diagnostics]),
       complete: edges.every((edge) => edge.state === 'local' || edge.state === 'loaded'),
@@ -3403,15 +3434,58 @@ export class ExternalResourceLoader {
 
 export function schemaDocumentsFromResourceGraph(
   snapshot: ResourceGraphSnapshot,
-): readonly { retrievalUri: string; document: unknown }[] {
+): readonly { retrievalUri: string; document: unknown; context?: SchemaDocumentRegistrationContext }[] {
+  const is32 = snapshot.objectLocations.length > 0;
   return Object.freeze(
     [...snapshot.nodes.values()]
       .filter(
         (node) =>
           node.retrievalUri !== snapshot.entryRetrievalUri &&
-          (node.documentKind === 'openapi' || node.documentKind === 'json-schema'),
+          (node.documentKind === 'openapi' ||
+            node.documentKind === 'json-schema' ||
+            (is32 &&
+              snapshot.objectLocations.some(
+                (entry) => entry.ownerRetrievalUri === node.retrievalUri && entry.kind === 'schema',
+              ))),
       )
       .sort((left, right) => left.retrievalUri.localeCompare(right.retrievalUri))
-      .map((node) => Object.freeze({ retrievalUri: node.retrievalUri, document: node.document })),
+      .map((node) =>
+        Object.freeze({
+          retrievalUri: node.retrievalUri,
+          document: node.document,
+          ...(is32 ? { context: schemaRegistrationContextFromResourceGraph(snapshot, node.retrievalUri) } : {}),
+        }),
+      ),
   );
+}
+
+export function schemaRegistrationContextFromResourceGraph(
+  snapshot: ResourceGraphSnapshot,
+  retrievalUri: string,
+): SchemaDocumentRegistrationContext | undefined {
+  const node = snapshot.nodes.get(retrievalUri);
+  if (!node || snapshot.objectLocations.length === 0) return undefined;
+  return Object.freeze({
+    openapi32: true,
+    documentBaseUri: node.documentBaseUri ?? retrievalUri,
+    selfUri: node.selfUri,
+    schemaLocations: Object.freeze(
+      snapshot.objectLocations
+        .filter((entry) => entry.ownerRetrievalUri === retrievalUri && entry.kind === 'schema')
+        .map((entry) =>
+          Object.freeze({
+            pointer: entry.pointer,
+            evaluationBaseUri: entry.evaluationBaseUri,
+            schemaDialect: entry.schemaDialect,
+          }),
+        ),
+    ),
+    aliases: Object.freeze(
+      [snapshot.resourceTargets, snapshot.anchorTargets, snapshot.documentTargets].flatMap((targets) =>
+        [...targets]
+          .filter(([, target]) => target.ownerRetrievalUri === retrievalUri)
+          .map(([uri, target]) => Object.freeze({ uri, pointer: target.pointer })),
+      ),
+    ),
+  });
 }
