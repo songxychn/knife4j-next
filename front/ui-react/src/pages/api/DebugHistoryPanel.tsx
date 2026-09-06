@@ -277,7 +277,7 @@ export default function DebugHistoryPanel({
             <HistoryOutlined />
             <span>{t('apiDebug.history.detail')}</span>
             <Tag color={METHOD_COLORS[selected.method.toUpperCase()] ?? 'default'} style={{ margin: 0 }}>
-              {selected.method.toUpperCase()}
+              {selected.method}
             </Tag>
             <Tag color={statusTagColor(selected)} style={{ margin: 0 }}>
               {statusLabel(selected, t)}
@@ -508,7 +508,7 @@ export default function DebugHistoryPanel({
                     color={METHOD_COLORS[entry.method.toUpperCase()] ?? 'default'}
                     style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}
                   >
-                    {entry.method.toUpperCase()}
+                    {entry.method}
                   </Tag>
                   <Tag color={statusTagColor(entry)} style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}>
                     {statusLabel(entry, t)}

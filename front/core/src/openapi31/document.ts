@@ -371,6 +371,16 @@ export function resolvePathItemOperation(
   const rawOperation = resolved.value[method];
   if (!isRecord(rawOperation)) return null;
 
+  return projectPathItemOperation(resolved.value, rawOperation, document);
+}
+
+/** Project already resolved operation fields without doing a second Path Item lookup. */
+export function projectPathItemOperation(
+  pathItem: Record<string, unknown>,
+  rawOperation: Record<string, unknown>,
+  document: Record<string, unknown>,
+): ResolvedPathItemOperation {
+  const resolved = { value: pathItem };
   const operation: ResolvedOperationObject = { ...rawOperation };
   if (owns(rawOperation, 'summary')) {
     if (typeof rawOperation.summary !== 'string') delete operation.summary;

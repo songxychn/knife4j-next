@@ -1,3 +1,5 @@
+import type { OpenApiOperation } from 'knife4j-core';
+import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
 /**
  * OpenAPI 数据类型定义
  * 兼容 OAS3（/v3/api-docs）和 Swagger2（/v2/api-docs）
@@ -342,7 +344,9 @@ export interface MenuOperation {
   deprecated?: boolean;
   operation: OperationObject;
   /** Path operations are executable; webhook operations are read-only inbound contracts. */
-  source?: 'path' | 'webhook';
+  source?: 'path' | 'webhook' | 'callback' | 'component';
+  identity?: OpenApiOperation;
+  resourceSnapshot?: ResourceGraphSnapshot;
   /** Collision-safe identity used in the operation route. */
   routeId?: string;
 }

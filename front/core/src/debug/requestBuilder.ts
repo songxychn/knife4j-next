@@ -391,6 +391,8 @@ export interface BuildRequestOptions {
   path: string;
   /** HTTP 方法 */
   method: string;
+  /** Preserve the author-specified case for OAS 3.2 additional operations. */
+  preserveMethodCase?: boolean;
   /** 解析后的调试模型 */
   debugModel: OperationDebugModel;
   /** 用户填写的表单值 */
@@ -560,7 +562,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   return {
     url,
-    method: method.toUpperCase(),
+    method: options.preserveMethodCase ? method : method.toUpperCase(),
     headers: headersWithCookies,
     query: previewQuery,
     body,
@@ -640,7 +642,7 @@ export function buildCurl(req: BuiltRequest): string {
   const parts: string[] = [];
 
   parts.push('curl');
-  parts.push('-X', req.method);
+  parts.push('-X', /^[A-Za-z]+$/.test(req.method) ? req.method : shellQuote(req.method));
 
   const plannedMultipart = req.formBodyPlan?.kind === 'multipart' ? req.formBodyPlan : undefined;
   const legacyMultipart =

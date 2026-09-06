@@ -1,3 +1,5 @@
+import { operationHttpMethod } from 'knife4j-core';
+import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -1863,7 +1865,7 @@ function buildInitialDebugState(
   return {
     cookieParameterSource: isOas31SchemaDocument(swaggerDoc) ? 'browser-session' : 'explicit',
     baseUrl,
-    method: operation.method.toUpperCase(),
+    method: operationHttpMethod(operation),
     path: operation.path,
     paramValues,
     paramEnabled,
@@ -1919,10 +1921,11 @@ function restoreInitialDebugStateFromCache(
   cached: DebugCacheState | null,
   debugModel: OperationDebugModel,
   bodyDefaults: BodyContentDefaults,
+  preserveMethodCase = false,
 ): InitialDebugState {
   if (!cached) return initial;
 
-  const cachedMethod = cached.method.toUpperCase();
+  const cachedMethod = preserveMethodCase ? cached.method : cached.method.toUpperCase();
   const cachedBody = debugModel.bodyContents.find(
     (bodyContent) => bodyContent.mediaType === cached.selectedContentType,
   );
@@ -1933,7 +1936,7 @@ function restoreInitialDebugStateFromCache(
     ...initial,
     cookieParameterSource: cached.cookieParameterSource ?? 'explicit',
     baseUrl: cached.baseUrl || initial.baseUrl,
-    method: DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
+    method: cachedMethod === initial.method || DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
     path: cached.path || initial.path,
     paramValues: mergeCachedStringRecord(initial.paramValues, cached.paramValues),
     paramEnabled: mergeCachedBooleanRecord(initial.paramEnabled, cached.paramEnabled),
@@ -1968,8 +1971,10 @@ export default function ApiDebug() {
   const operationPath = operation?.path;
   const debugCacheKey = useMemo(() => {
     if (!group || !tag || !operaterId || !operationMethod || !operationPath) return null;
-    return [group, tag, operaterId, operationMethod, operationPath].join('|');
-  }, [group, operaterId, operationMethod, operationPath, tag]);
+    return operation?.identity
+      ? JSON.stringify([group, operation.identity.identity])
+      : [group, tag, operaterId, operationMethod, operationPath].join('|');
+  }, [group, operaterId, operationMethod, operationPath, tag, operation]);
   const defaultBaseUrl = useMemo(
     () =>
       resolveRequestBaseUrl({
@@ -2015,6 +2020,8 @@ export default function ApiDebug() {
     if (!operation || !swaggerDoc) return null;
     return buildOperationDebugModel({
       doc: swaggerDoc as unknown as Record<string, unknown>,
+      operationDocuments: operation.identity ? operationSchemaDocuments(swaggerDoc, operation) : undefined,
+      operationIdentity: operation.identity,
       path: operation.path,
       method: operation.method,
       isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
@@ -2181,7 +2188,13 @@ export default function ApiDebug() {
   useEffect(() => {
     if (!initialDebugState || !debugModel) return;
     const cached = settings.enableRequestCache && debugCacheKey !== null ? readDebugCache(debugCacheKey) : null;
-    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel, initialBodyDefaults);
+    const nextInitial = restoreInitialDebugStateFromCache(
+      initialDebugState,
+      cached,
+      debugModel,
+      initialBodyDefaults,
+      Boolean(operation?.identity),
+    );
     skipNextDebugCacheWriteRef.current = true;
     debugDefaultEditRevisionRef.current = cached === null ? 0 : 1;
     appliedOas31ExampleIdentityRef.current = null;
@@ -2198,7 +2211,14 @@ export default function ApiDebug() {
     setBuiltRequestCookieSource(cachedSession?.builtRequestCookieSource ?? 'explicit');
     setSseEvents(cachedSession?.sseEvents ?? null);
     setHydratedDebugCacheKey(debugCacheKey);
-  }, [debugCacheKey, debugModel, initialBodyDefaults, initialDebugState, settings.enableRequestCache]);
+  }, [
+    debugCacheKey,
+    debugModel,
+    initialBodyDefaults,
+    initialDebugState,
+    settings.enableRequestCache,
+    operation?.identity,
+  ]);
 
   useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
@@ -2630,6 +2650,7 @@ export default function ApiDebug() {
         baseUrl,
         path,
         method,
+        preserveMethodCase: Boolean(operation.identity),
         debugModel,
         formValues,
         auth: authValues,
@@ -2854,6 +2875,13 @@ export default function ApiDebug() {
     if (browserConstraint === 'unsupported-method') {
       setActiveTab('preview');
       setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
+      return;
+    }
+    if (browserConstraint === 'normalized-method') {
+      setActiveTab('preview');
+      setError(
+        t('apiDebug.method.browserNormalized', { method: built.method, normalized: built.method.toUpperCase() }),
+      );
       return;
     }
     if (browserConstraint === 'unsupported-body') {
@@ -3507,6 +3535,13 @@ export default function ApiDebug() {
   // 每次渲染都实时重建一次，保证预览与当前表单同步；非法规范组合转成可见错误。
   const previewResult = buildRequestPreviewSafely(buildPreview);
   const previewBuilt = previewResult.ok ? previewResult.value.built : undefined;
+  const methodConstraint = operation.identity ? browserRequestConstraint(method, false) : null;
+  const methodConstraintMessage =
+    methodConstraint === 'normalized-method'
+      ? t('apiDebug.method.browserNormalized', { method, normalized: method.toUpperCase() })
+      : methodConstraint === 'unsupported-method'
+        ? t('apiDebug.method.browserUnsupported', { method })
+        : null;
   const injectedGlobalHeaders: InjectedGlobalParamRow[] = previewBuilt
     ? Object.entries(previewBuilt.headers)
         .filter(([name]) => {
@@ -3932,12 +3967,20 @@ export default function ApiDebug() {
             </Title>
           </Space>
 
+          {methodConstraintMessage && (
+            <Alert type="warning" showIcon message={methodConstraintMessage} style={{ marginBottom: 12 }} />
+          )}
           <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
             <Select
               value={method}
               onChange={setMethod}
               style={{ width: 110, flex: '0 0 110px' }}
-              options={Array.from(DEBUG_HTTP_METHODS).map((item) => ({
+              options={Array.from(
+                new Set([
+                  ...(operation.identity ? [operationHttpMethod(operation), 'QUERY'] : []),
+                  ...DEBUG_HTTP_METHODS,
+                ]),
+              ).map((item) => ({
                 value: item,
                 label: item,
               }))}
@@ -3960,6 +4003,7 @@ export default function ApiDebug() {
               type="primary"
               icon={<SendOutlined />}
               onClick={() => void handleSend()}
+              disabled={Boolean(methodConstraintMessage)}
               loading={loading || schemaValidating}
             >
               {t('apiDebug.send')}

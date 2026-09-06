@@ -1,15 +1,17 @@
-import { resolvePathItemObject } from 'knife4j-core';
+import { parseLocalJsonPointer, resolvePathItemObject } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 
 export type OpenApiRecord = Record<string, unknown>;
 
 export interface LocatedRecord {
   readonly value: OpenApiRecord;
+  readonly ownerRetrievalUri?: string;
   readonly tokens: readonly string[];
 }
 
 export interface LocatedValue {
   readonly value: unknown;
+  readonly ownerRetrievalUri?: string;
   readonly tokens: readonly string[];
 }
 
@@ -109,6 +111,11 @@ export function locatePathItemMember(
   operation: MenuOperation,
   member: string,
 ): LocatedValue | null {
+  if (operation.identity) {
+    const location = operation.identity.pathItemMembers[member];
+    const tokens = location ? parseLocalJsonPointer(location.pointer).tokens : undefined;
+    return location && tokens ? { value: location.value, tokens, ownerRetrievalUri: location.ownerRetrievalUri } : null;
+  }
   const matches = (locatedPathItemChain(document, operation) ?? []).filter(({ value }) =>
     Object.prototype.hasOwnProperty.call(value, member),
   );
@@ -117,6 +124,12 @@ export function locatePathItemMember(
 }
 
 export function locateOperationRecord(document: SwaggerDoc, operation: MenuOperation): LocatedRecord | null {
+  if (operation.identity) {
+    const location = operation.identity.rawOperation;
+    const tokens = parseLocalJsonPointer(location.pointer).tokens;
+    const value = asOpenApiRecord(location.value);
+    return value && tokens ? { value, tokens, ownerRetrievalUri: location.ownerRetrievalUri } : null;
+  }
   const method = operation.method.toLowerCase();
   const located = locatePathItemMember(document, operation, method);
   const value = asOpenApiRecord(located?.value);

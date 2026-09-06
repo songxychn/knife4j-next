@@ -5,6 +5,9 @@ const jaJP = {
   'app.tab.home': 'ホーム',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'API ドキュメントを読み込めません',
+  'app.oas32Compatibility.title': 'この OAS 3.2 文書には構造または参照の診断があります',
+  'apiDoc.link.unavailable': 'ターゲットは利用できません（{{status}}）',
+  'apiDoc.definition.readOnly': 'この操作はコールバックまたは再利用可能な定義を表し、読み取り専用です。',
   'app.oas31Compatibility.title': 'この OAS 3.1 ドキュメントには構造またはローカル解決の診断があります',
   'app.oas31Compatibility.description':
     '{{count}} 件が構造制約に違反しているか、ローカルで安全に解決できません。安全な元データは表示し、曖昧な操作は省略します。',
@@ -470,6 +473,8 @@ const jaJP = {
     'この OAS 3.1 リクエストボディは、選択したファイルを {{contentType}} としてそのまま送信します。テキストや multipart には変換しません。',
   'apiDebug.body.browserMethodUnsupported':
     'ブラウザーの Fetch API は {{method}} リクエストにボディを送信できません。生成された cURL を使用するか、操作メソッドを変更してください。',
+  'apiDebug.method.browserNormalized':
+    'ブラウザーは {{method}} を {{normalized}} に変換するため、文書のメソッドで送信できません。プレビューと cURL は元の値を保持します。',
   'apiDebug.method.browserUnsupported':
     'ブラウザーの Fetch API は {{method}} リクエストを禁止しています。生成された cURL またはブラウザー以外のクライアントを使用してください。',
   'apiDebug.cookie.source': 'Cookie パラメータの取得元',

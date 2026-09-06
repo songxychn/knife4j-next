@@ -1,3 +1,5 @@
+import { enumerateOpenApiOperations, type OpenApiOperation } from '../../openapiOperations';
+import { getOpenApiSpecificationFeatures } from '../../openapiVersion';
 import { BaseCommonParser } from '../knife4j/BaseCommonParser';
 import { Knife4jParseOptions } from '../knife4j/Knife4jParseOptions';
 import { Knife4jInstance } from '../knife4j/Knife4jInstance';
@@ -50,7 +52,17 @@ export class OpenAPIParser extends BaseCommonParser {
     this.resolveTag(tagArray, instance);
     //解析path接口
     const paths = data['paths'] as PathsObject | undefined;
-    this.resolvePaths(paths, instance);
+    if (getOpenApiSpecificationFeatures(data.openapi)?.family === '3.2') {
+      for (const operation of enumerateOpenApiOperations(data)) {
+        this.resolveOperation(
+          operation.operation as OperationObject,
+          operation.path,
+          operation.method,
+          instance,
+          operation,
+        );
+      }
+    } else this.resolvePaths(paths, instance);
     // 解析externalDocs外部文档
     const extDoc = data['externalDocs'] as ExternalDocumentationObject;
     this.resolveExternalDoc(extDoc, instance);
@@ -68,6 +80,12 @@ export class OpenAPIParser extends BaseCommonParser {
   parsePathAsync(operation: Knife4jPathItemObject, instance: Knife4jInstance, options: Knife4jParseOptions): void {
     void options;
     const data = instance.originalRecord;
+    if (operation.identity) {
+      const resolved = operation.identity.operation as OperationObject;
+      operation.asyncResolveParameters(resolved.parameters as ParameterObject[] | undefined);
+      operation.asyncResolveRequestBody(resolved.requestBody as RequestBodyObject | undefined, instance);
+      return;
+    }
     const paths = data['paths'] as PathsObject | undefined;
     const pathItem = paths?.[operation.url];
     if (lodash.isEmpty(pathItem)) {
@@ -205,12 +223,19 @@ export class OpenAPIParser extends BaseCommonParser {
    * @param methodType 接口类型，包括：POST\GET\PUT\DELETE
    * @param instance  对象实例
    */
-  resolveOperation(operation: OperationObject, url: string, methodType: string, instance: Knife4jInstance): void {
-    if (lodash.isEmpty(operation)) {
+  resolveOperation(
+    operation: OperationObject,
+    url: string,
+    methodType: string,
+    instance: Knife4jInstance,
+    identity?: OpenApiOperation,
+  ): void {
+    if (!identity && lodash.isEmpty(operation)) {
       return;
     }
     //此处只解析基础对象
     const _operation = new Knife4jPathItemObject(url, methodType);
+    _operation.identity = identity;
     _operation.summary = lodash.defaultTo(operation.summary, '');
     _operation.description = lodash.defaultTo(operation.description, '');
     _operation.operationId = lodash.defaultTo(operation.operationId, '');

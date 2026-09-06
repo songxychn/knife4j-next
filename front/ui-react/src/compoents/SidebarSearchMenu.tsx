@@ -63,7 +63,7 @@ function methodTag(method: string) {
         overflow: 'hidden',
       }}
     >
-      {method.toUpperCase()}
+      {method}
     </span>
   );
 }
@@ -265,7 +265,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
           const status = apiChanges.statuses[apiOperationIdentity(api.method, api.path)];
           return {
             key: api.key,
-            title: `${api.method.toUpperCase()} ${api.summary}`,
+            title: `${api.method} ${api.summary}`,
             label: (
               <span
                 style={{

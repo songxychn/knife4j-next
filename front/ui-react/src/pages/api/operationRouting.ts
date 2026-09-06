@@ -28,7 +28,7 @@ export function findMenuOperation(
   return menuTag?.operations.find(
     (item) =>
       item.operationId === routeOperationId ||
-      (item.source !== 'webhook' && !item.operationId && item.path === routeOperationId),
+      (!item.identity && item.source !== 'webhook' && !item.operationId && item.path === routeOperationId),
   );
 }
 
@@ -38,7 +38,7 @@ export function visibleOperationModeKeys(
   enableOpenApi: boolean,
 ): OperationModeKey[] {
   return OPERATION_MODE_KEYS.filter((key) => {
-    if (source === 'webhook' && (key === 'debug' || key === 'script')) return false;
+    if (source && source !== 'path' && (key === 'debug' || key === 'script')) return false;
     if (key === 'debug') return enableDebug;
     if (key === 'openapi') return enableOpenApi;
     return true;

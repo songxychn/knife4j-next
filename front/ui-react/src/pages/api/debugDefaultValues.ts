@@ -9,6 +9,7 @@ import {
   type Oas31FormPartHeader,
   type OperationDebugModel,
 } from 'knife4j-core';
+import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 
 export type ParamValueMap = Record<string, string>;
@@ -161,7 +162,7 @@ export function paramKey(param: DebugParam): string {
 }
 
 function operationObjectFromDoc(doc: SwaggerDoc, operation: MenuOperation): JsonRecord | undefined {
-  if (isOpenApi31Version(doc.openapi)) return operation.operation as unknown as JsonRecord;
+  if (operation.identity || isOpenApi31Version(doc.openapi)) return operation.operation as unknown as JsonRecord;
   const pathItem = doc.paths?.[operation.path] as JsonRecord | undefined;
   const fromDoc = pathItem?.[operation.method.toLowerCase()];
   return resolveRecord(fromDoc, doc) ?? (operation.operation as unknown as JsonRecord);
@@ -171,14 +172,15 @@ function rawParametersForOperation(doc: SwaggerDoc, operation: MenuOperation): M
   const map = new Map<string, JsonRecord>();
   const pathItem = doc.paths?.[operation.path] as JsonRecord | undefined;
   const operationObject = operationObjectFromDoc(doc, operation);
-  const rawParams = isOpenApi31Version(doc.openapi)
-    ? Array.isArray(operationObject?.parameters)
-      ? operationObject.parameters
-      : []
-    : [
-        ...(Array.isArray(pathItem?.parameters) ? pathItem.parameters : []),
-        ...(Array.isArray(operationObject?.parameters) ? operationObject.parameters : []),
-      ];
+  const rawParams =
+    operation.identity || isOpenApi31Version(doc.openapi)
+      ? Array.isArray(operationObject?.parameters)
+        ? operationObject.parameters
+        : []
+      : [
+          ...(Array.isArray(pathItem?.parameters) ? pathItem.parameters : []),
+          ...(Array.isArray(operationObject?.parameters) ? operationObject.parameters : []),
+        ];
 
   for (const rawParam of rawParams) {
     const param = resolveRecord(rawParam, doc);
@@ -224,7 +226,8 @@ export function buildInitialParamValues(
   doc: SwaggerDoc,
   operation: MenuOperation,
 ): ParamValueMap {
-  const rawParams = rawParametersForOperation(doc, operation);
+  const schemaDocuments = operationSchemaDocuments(doc, operation);
+  const rawParams = rawParametersForOperation(schemaDocuments.operation as unknown as SwaggerDoc, operation);
   const paramValues: ParamValueMap = {};
   const allParams = [
     ...debugModel.pathParams,
@@ -234,7 +237,7 @@ export function buildInitialParamValues(
   ];
   for (const param of allParams) {
     paramValues[paramKey(param)] = initialValueForDebugParam(param, {
-      doc,
+      doc: (schemaDocuments.parameters.get(paramKey(param)) ?? schemaDocuments.operation) as unknown as SwaggerDoc,
       rawParam: rawParams.get(paramKey(param)),
     });
   }
@@ -324,6 +327,7 @@ export function buildBodyContentDefaults(
   operation: MenuOperation,
   debugModel: OperationDebugModel,
 ): BodyContentDefaults {
+  doc = operationSchemaDocuments(doc, operation).requestBody as unknown as SwaggerDoc;
   const mediaObjects = mediaObjectsForOperation(doc, operation);
   const bodyByMediaType: Record<string, string> = {};
   const formFieldsByMediaType: Record<string, Record<string, string>> = {};

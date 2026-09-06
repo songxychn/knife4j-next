@@ -191,7 +191,7 @@ const AppInner: React.FC = () => {
     const api = activeGroup.apis.find((a) => a.key === menuKey);
     if (!api) return; // apis loaded but this one didn't match; wait for other groups
 
-    const title = `${api.method.toUpperCase()} ${api.summary}`;
+    const title = `${api.method} ${api.summary}`;
     setItems((prev) => upsertOperationRoutePane(prev, pathname, title, (key, label) => ({ label, children: '', key })));
     setActiveKey(pathname);
     setSelectedKey(menuKey);
@@ -297,7 +297,7 @@ const AppInner: React.FC = () => {
           : markdownDoc
             ? markdownDoc.title
             : api
-              ? `${api.method.toUpperCase()} ${api.summary}`
+              ? `${api.method} ${api.summary}`
               : rawKey;
       setItems([...items, { label: title, children: '', key: newActiveKey }]);
     }
@@ -621,7 +621,11 @@ const AppInner: React.FC = () => {
                 <Alert
                   type="warning"
                   showIcon
-                  message={t('app.oas31Compatibility.title')}
+                  message={t(
+                    swaggerDoc?.openapi?.startsWith('3.2.')
+                      ? 'app.oas32Compatibility.title'
+                      : 'app.oas31Compatibility.title',
+                  )}
                   description={
                     <div>
                       <div>{t('app.oas31Compatibility.description', { count: oas31Diagnostics.length })}</div>

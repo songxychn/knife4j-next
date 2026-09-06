@@ -154,7 +154,7 @@ export function resolveRequestServerOptions({
   ResolveRequestBaseUrlOptions,
   'swaggerDoc' | 'operation' | 'groupContextPath' | 'origin'
 >): RequestServerOption[] {
-  const rawPathItem = operation ? swaggerDoc?.paths?.[operation.path] : undefined;
+  const rawPathItem = operation?.identity?.pathItem ?? (operation ? swaggerDoc?.paths?.[operation.path] : undefined);
   const resolvedPathItem =
     swaggerDoc && rawPathItem && isOpenApi31Version(swaggerDoc.openapi)
       ? resolvePathItemObject(rawPathItem, swaggerDoc as unknown as Record<string, unknown>)

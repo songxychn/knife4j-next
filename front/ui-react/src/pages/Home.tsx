@@ -24,7 +24,7 @@ import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
 import knife4jMark from '../assets/logo/knife4j-next-mark.svg';
 import { currentHomeOrigin, normalizeHomeHost, resolveHomeHostLabel, resolveHomeServers } from './homeServerInfo';
 import { collectSpecificationExtensions, type DisplayExtension } from './homeSpecificationExtensions';
-import { buildHomeStats, HOME_HTTP_METHODS, type HomeHttpMethod } from './homeStats';
+import { buildHomeStats, type HomeHttpMethod } from './homeStats';
 
 const { Title, Text, Paragraph, Link } = Typography;
 
@@ -366,45 +366,50 @@ export default function Home() {
             size="small"
           >
             <Row gutter={[12, 12]}>
-              {HOME_HTTP_METHODS.filter((m) => stats.counts[m] > 0).map((m) => {
-                const c = stats.counts[m];
-                const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
-                return (
-                  <Col key={m} xs={12} sm={8} md={6} lg={6} xl={6}>
-                    <div
-                      style={{
-                        padding: '10px 12px',
-                        border: `1px solid ${token.colorBorderSecondary}`,
-                        borderRadius: 8,
-                        background: token.colorFillQuaternary,
-                      }}
-                    >
+              {Object.keys(stats.counts)
+                .filter((m) => stats.counts[m] > 0)
+                .map((m) => {
+                  const c = stats.counts[m];
+                  const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
+                  return (
+                    <Col key={m} xs={12} sm={8} md={6} lg={6} xl={6}>
                       <div
                         style={{
-                          alignItems: 'center',
-                          display: 'flex',
-                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          border: `1px solid ${token.colorBorderSecondary}`,
+                          borderRadius: 8,
+                          background: token.colorFillQuaternary,
                         }}
                       >
-                        <Tag color={METHOD_COLORS[m]} style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}>
-                          {m.toUpperCase()}
-                        </Tag>
-                        <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
+                        <div
+                          style={{
+                            alignItems: 'center',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Tag
+                            color={METHOD_COLORS[m.toLowerCase()] ?? '#999'}
+                            style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}
+                          >
+                            {swaggerDoc.openapi?.startsWith('3.2.') ? m : m.toUpperCase()}
+                          </Tag>
+                          <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
+                        </div>
+                        <Progress
+                          percent={pct}
+                          showInfo={false}
+                          strokeColor={METHOD_COLORS[m.toLowerCase()] ?? '#999'}
+                          size="small"
+                          style={{ marginTop: 8, marginBottom: 0 }}
+                        />
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {pct}%
+                        </Text>
                       </div>
-                      <Progress
-                        percent={pct}
-                        showInfo={false}
-                        strokeColor={METHOD_COLORS[m]}
-                        size="small"
-                        style={{ marginTop: 8, marginBottom: 0 }}
-                      />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {pct}%
-                      </Text>
-                    </div>
-                  </Col>
-                );
-              })}
+                    </Col>
+                  );
+                })}
               {stats.total === 0 && (
                 <Col span={24}>
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('home.noOperations')} />

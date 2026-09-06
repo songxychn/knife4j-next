@@ -15,3 +15,5 @@ export type {
   RenderExportDocumentMarkdownOptions,
   RenderExportOperationMarkdownOptions,
 } from './markdownExport';
+
+export * from './openapiOperations';

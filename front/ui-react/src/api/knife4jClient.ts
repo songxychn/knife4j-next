@@ -5,11 +5,13 @@
 
 import {
   OPENAPI_HTTP_METHODS,
+  getOpenApiSpecificationFeatures,
   collectOas31DocumentDiagnostics,
+  collectOas32DocumentDiagnostics,
   isOpenApi31Version,
   resolveLocalJsonPointer,
   resolvePathItemOperation,
-  type Oas31DocumentDiagnostic,
+  type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
   type OpenApiHttpMethod,
 } from 'knife4j-core';
 
@@ -25,6 +27,8 @@ import type {
   PathItemObject,
 } from '../types/swagger';
 import type { LocalizedMessage } from '../types/i18n';
+import { enumerateRegistryOperations } from '../schema/operationRegistry';
+import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
 import { fetchWithAcceptLanguage } from './acceptLanguage';
 import { buildRouteProxyHeaders } from './routeProxyHeader';
 
@@ -204,7 +208,10 @@ function normalizeSwaggerDocResponse(text: string): SwaggerDocFetchResult {
   return {
     doc: normalizeSwaggerDoc(payload),
     error: null,
-    diagnostics: collectOas31DocumentDiagnostics(payload),
+    diagnostics:
+      getOpenApiSpecificationFeatures(payload.openapi)?.family === '3.2'
+        ? collectOas32DocumentDiagnostics(payload)
+        : collectOas31DocumentDiagnostics(payload),
   };
 }
 
@@ -274,14 +281,18 @@ export interface MenuSortOptions {
   operationsSorter?: OperationsSorter;
   filterMultipartApis?: boolean;
   filterMultipartApiMethodType?: string;
+  retrievalUri?: string;
+  resourceSnapshot?: ResourceGraphSnapshot;
 }
 
 interface ParsedOperation {
   path: string;
-  method: OpenApiHttpMethod;
+  method: string;
+  identity?: MenuOperation['identity'];
+  resourceSnapshot?: ResourceGraphSnapshot;
   operation: OperationObject;
   tags: string[];
-  source: 'path' | 'webhook';
+  source: NonNullable<MenuOperation['source']>;
 }
 
 function resolveLegacyPathItem(document: SwaggerDoc, value: unknown): PathItemObject | null {
@@ -312,6 +323,7 @@ function resolveMenuOperation(
 }
 
 function defaultOperationRouteId(operation: ParsedOperation): string {
+  if (operation.identity) return operation.identity.identity;
   const { path, method, source } = operation;
   return source === 'webhook'
     ? `webhook:${operation.operation.operationId ?? `${method}:${path}`}`
@@ -325,10 +337,16 @@ function sortOperations(ops: MenuOperation[], sorter: OperationsSorter): MenuOpe
     sorted.sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
   } else if (sorter === 'method') {
     sorted.sort((a, b) => {
-      const ma = METHOD_ORDER[a.method] ?? 99;
-      const mb = METHOD_ORDER[b.method] ?? 99;
+      const ma =
+        a.identity?.methodSource === 'additional'
+          ? 99
+          : (METHOD_ORDER[a.method.toLowerCase()] ?? (a.method === 'QUERY' ? 8 : 99));
+      const mb =
+        b.identity?.methodSource === 'additional'
+          ? 99
+          : (METHOD_ORDER[b.method.toLowerCase()] ?? (b.method === 'QUERY' ? 8 : 99));
       if (ma !== mb) return ma - mb;
-      return a.path.localeCompare(b.path);
+      return a.path.localeCompare(b.path) || a.method.localeCompare(b.method);
     });
   }
   return sorted;
@@ -375,6 +393,7 @@ function normalizeHttpMethod(value: unknown): OpenApiHttpMethod | null {
 }
 
 function filterMultipartOperations(operations: ParsedOperation[], methodType: string | undefined): ParsedOperation[] {
+  if (operations.some((operation) => operation.identity)) return operations;
   const preferredMethod = normalizeHttpMethod(methodType) ?? 'post';
   const operationsByPath = new Map<string, ParsedOperation[]>();
 
@@ -415,25 +434,58 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
     });
   });
 
-  Object.entries(isRecord(doc.paths) ? doc.paths : {}).forEach(([path, rawPathItem]) => {
-    if (!path.startsWith('/')) return;
-    OPENAPI_HTTP_METHODS.forEach((method) => {
-      const op = resolveMenuOperation(doc, rawPathItem, method);
-      if (!op) return;
+  if (getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2') {
+    let registry: ReturnType<typeof enumerateRegistryOperations>;
+    try {
+      registry = enumerateRegistryOperations(doc, options.retrievalUri, options.resourceSnapshot);
+    } catch {
+      return Array.from(tagMap.values());
+    }
+    const mounted = new Set(
+      registry.operations
+        .filter((operation) => operation.source !== 'component')
+        .map((operation) => JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer])),
+    );
+    for (const identity of registry.operations) {
+      if (
+        identity.source === 'component' &&
+        mounted.has(JSON.stringify([identity.ownerRetrievalUri, identity.operationPointer]))
+      )
+        continue;
+      const operation = identity.operation as OperationObject;
+      parsedOperations.push({
+        path: identity.path,
+        method: identity.method,
+        operation,
+        tags: operation.tags?.length
+          ? operation.tags
+          : [identity.source === 'path' ? 'default' : `${identity.source}s`],
+        source: identity.source,
+        identity,
+        resourceSnapshot: registry.snapshot,
+      });
+    }
+  } else {
+    Object.entries(isRecord(doc.paths) ? doc.paths : {}).forEach(([path, rawPathItem]) => {
+      if (!path.startsWith('/')) return;
+      OPENAPI_HTTP_METHODS.forEach((method) => {
+        const op = resolveMenuOperation(doc, rawPathItem, method);
+        if (!op) return;
 
-      const tags = op.tags?.length ? op.tags : ['default'];
-      parsedOperations.push({ path, method, operation: op, tags, source: 'path' });
+        const tags = op.tags?.length ? op.tags : ['default'];
+        parsedOperations.push({ path, method, operation: op, tags, source: 'path' });
+      });
     });
-  });
 
-  Object.entries(isRecord(doc.webhooks) ? doc.webhooks : {}).forEach(([name, rawPathItem]) => {
-    OPENAPI_HTTP_METHODS.forEach((method) => {
-      const op = resolveMenuOperation(doc, rawPathItem, method);
-      if (!op) return;
-      const tags = op.tags?.length ? op.tags : ['webhooks'];
-      parsedOperations.push({ path: name, method, operation: op, tags, source: 'webhook' });
+    Object.entries(isRecord(doc.webhooks) ? doc.webhooks : {}).forEach(([name, rawPathItem]) => {
+      OPENAPI_HTTP_METHODS.forEach((method) => {
+        const op = resolveMenuOperation(doc, rawPathItem, method);
+        if (!op) return;
+        const tags = op.tags?.length ? op.tags : ['webhooks'];
+        parsedOperations.push({ path: name, method, operation: op, tags, source: 'webhook' });
+      });
     });
-  });
+  }
 
   const visibleOperations = filterMultipartApis
     ? [
@@ -441,7 +493,7 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
           parsedOperations.filter((operation) => operation.source === 'path'),
           options.filterMultipartApiMethodType,
         ),
-        ...parsedOperations.filter((operation) => operation.source === 'webhook'),
+        ...parsedOperations.filter((operation) => operation.source !== 'path'),
       ]
     : parsedOperations;
 
@@ -498,6 +550,9 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
         operation,
         source,
         routeId,
+        ...(parsedOperation.identity
+          ? { identity: parsedOperation.identity, resourceSnapshot: parsedOperation.resourceSnapshot }
+          : {}),
       };
       tagMap.get(tag)!.operations.push(menuOp);
     });

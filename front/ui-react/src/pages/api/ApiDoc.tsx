@@ -1,3 +1,7 @@
+import { useNavigate } from 'react-router-dom';
+import { useGroup } from '../../context/GroupContext';
+import { operationSchemaDocuments, operationResponseLinks, resolveOperationLink } from '../../schema/operationRegistry';
+import { operationHttpMethod } from 'knife4j-core';
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -326,19 +330,33 @@ export default function ApiDoc() {
 }
 
 function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; operation: MenuOperation }) {
+  const navigate = useNavigate();
+  const { activeGroup, menuTags } = useGroup();
+  const responseLinks = operationResponseLinks(operation).map((link) => ({
+    ...link,
+    target: resolveOperationLink(
+      menuTags.flatMap((tag) => tag.operations),
+      link.location,
+      operation.resourceSnapshot,
+    ),
+  }));
   const { t } = useTranslation();
   const { settings } = useSettings();
   const schemaEngine = useSchemaEngine();
-  const op = useMemo(() => resolveApiDocOperation(operation.operation, swaggerDoc), [operation.operation, swaggerDoc]);
+  const schemaDocuments = useMemo(() => operationSchemaDocuments(swaggerDoc, operation), [swaggerDoc, operation]);
+  const op = useMemo(
+    () => resolveApiDocOperation(operation.operation, schemaDocuments.operation as unknown as SwaggerDoc),
+    [operation.operation, schemaDocuments],
+  );
 
-  const method = operation.method.toUpperCase();
+  const method = operationHttpMethod(operation);
 
   const handleCopyMarkdown = () => {
     const md = generateApiMarkdown({
       method,
       path: operation.path,
       operation: op,
-      docContext: swaggerDoc,
+      docContext: schemaDocuments.operation as unknown as SwaggerDoc,
       labels: {
         deprecated: t('apiDoc.markdown.deprecated'),
         requestParameters: t('apiDoc.requestParams'),
@@ -453,7 +471,10 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       (parameter as ParameterObject & { $ref?: string }).$ref ??
       (typeof parameter.schema === 'object' ? parameter.schema.$ref : undefined);
     const { refDescription, refTitle } = ref
-      ? resolveRefMeta(ref, swaggerDoc as unknown as Record<string, unknown>)
+      ? resolveRefMeta(
+          ref,
+          schemaDocuments.parameters.get(`${parameter.in}:${parameter.name}`) ?? schemaDocuments.operation,
+        )
       : {};
     return {
       key: `${parameter.in}-${parameter.name}-${index}`,
@@ -515,18 +536,28 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
     if (bodySchema !== undefined) {
       regions.push({
         key: REQUEST_BODY_REGION_KEY,
-        fields: prepareApiDocSchemaFields(schemaToFieldNodes(bodySchema, swaggerDoc), 'request', op),
+        fields: prepareApiDocSchemaFields(
+          schemaToFieldNodes(bodySchema, schemaDocuments.requestBody as unknown as SwaggerDoc),
+          'request',
+          op,
+        ),
       });
     }
     for (const response of responses) {
       if (response.schema === undefined) continue;
       regions.push({
         key: responseSchemaRegionKey(response.key),
-        fields: prepareApiDocSchemaFields(schemaToFieldNodes(response.schema, swaggerDoc), 'response'),
+        fields: prepareApiDocSchemaFields(
+          schemaToFieldNodes(
+            response.schema,
+            (schemaDocuments.responses.get(response.key) ?? schemaDocuments.operation) as unknown as SwaggerDoc,
+          ),
+          'response',
+        ),
       });
     }
     return regions;
-  }, [bodySchema, op, responses, swaggerDoc]);
+  }, [bodySchema, op, responses, schemaDocuments]);
   const projectionTargets = useMemo<ApiDocSchemaProjectionTarget[]>(() => {
     const targets: ApiDocSchemaProjectionTarget[] = [];
     if (bodySchema !== undefined) {
@@ -719,10 +750,36 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         </Space>
       </div>
 
+      {(operation.source === 'callback' || operation.source === 'component') && (
+        <Alert type="info" showIcon message={t('apiDoc.definition.readOnly')} style={{ marginBottom: 8 }} />
+      )}
       {operation.source === 'webhook' && (
         <Alert type="info" showIcon message={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
       )}
 
+      {responseLinks.length > 0 && (
+        <Space wrap style={{ marginBottom: 8 }}>
+          <Text>Links:</Text>
+          {responseLinks.map((link) =>
+            link.target.status === 'resolved' ? (
+              <Button
+                key={link.name}
+                size="small"
+                onClick={() => {
+                  if (link.target.status === 'resolved')
+                    navigate(`/${encodeURIComponent(activeGroup.value)}/${link.target.operation.key}/doc`);
+                }}
+              >
+                {link.name}: {operationHttpMethod(link.target.operation)} {link.target.operation.path}
+              </Button>
+            ) : (
+              <Text key={link.name} type="secondary">
+                {link.name}: {t('apiDoc.link.unavailable', { status: link.target.status })}
+              </Text>
+            ),
+          )}
+        </Space>
+      )}
       {registeredResponses?.some((response) => response.unavailable) && (
         <Alert
           type="warning"

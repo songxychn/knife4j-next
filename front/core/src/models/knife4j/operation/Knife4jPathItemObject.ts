@@ -1,3 +1,4 @@
+import type { OpenApiOperation } from '../../../openapiOperations';
 import lodash from 'lodash';
 //ExternalDocumentationObject
 //Knife4jExternalDocumentationObject
@@ -23,6 +24,7 @@ export class Knife4jPathItemObject {
    * 接口类型
    */
   methodType: string;
+  identity?: OpenApiOperation;
   /**
    * Allows for an external definition of this path item.
    * Referencing a `$ref` requires the value of the property to be the URI of a valid OpenAPI Specification file.
