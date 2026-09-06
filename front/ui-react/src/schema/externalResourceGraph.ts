@@ -1,3 +1,4 @@
+import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from 'knife4j-core';
 import { parseAllDocuments } from 'yaml';
 import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
 import {
@@ -17,7 +18,8 @@ export type ResourceReferenceKind =
   | 'schema-ref'
   | 'schema-dynamic-ref'
   | 'link-operation-ref'
-  | 'discriminator-mapping';
+  | 'discriminator-mapping'
+  | 'security-requirement';
 
 export type ResourceDiagnosticPhase = 'discover' | 'authorize' | 'fetch' | 'read' | 'parse' | 'index' | 'register';
 
@@ -91,6 +93,10 @@ export interface ResourceGraphNode {
   readonly byteLength: number;
   readonly contentDigest: string;
   readonly documentKind: 'openapi' | 'json-schema' | 'referenceable-object';
+  /** OAS 3.2 identity metadata; retrievalUri remains the authorization/cache key. */
+  readonly openApiVersion?: string;
+  readonly selfUri?: string;
+  readonly documentBaseUri?: string;
   readonly authorizationScope: 'entry' | ResourceGrant['scope'];
   readonly resourceUris: readonly string[];
   readonly document: unknown;
@@ -136,6 +142,8 @@ export interface ResourceGraphSnapshot {
   readonly nodes: ReadonlyMap<string, ResourceGraphNode>;
   readonly resourceTargets: ReadonlyMap<string, ResourceGraphTarget>;
   readonly anchorTargets: ReadonlyMap<string, ResourceGraphTarget>;
+  /** Full $self identities, including non-empty fragments. */
+  readonly documentTargets: ReadonlyMap<string, ResourceGraphTarget>;
   readonly edges: readonly ResourceGraphEdge[];
   readonly diagnostics: readonly ResourceDiagnostic[];
   readonly complete: boolean;
@@ -165,7 +173,8 @@ type ExpectedTargetKind =
   | 'callback'
   | 'link'
   | 'example'
-  | 'security-scheme';
+  | 'security-scheme'
+  | 'media-type';
 
 interface MutableEdge {
   readonly sourceRetrievalUri: string;
@@ -180,6 +189,8 @@ interface MutableEdge {
   readonly depth: number;
   readonly expectedTarget: ExpectedTargetKind;
   expanded: boolean;
+  /** A strict target failure must not be promoted to loaded by refreshGraph. */
+  invalidTarget?: boolean;
   state: ResourceGraphEdge['state'];
 }
 
@@ -190,8 +201,29 @@ interface ResourceTarget {
   readonly evaluationBaseUri: string;
 }
 
+interface DocumentContext {
+  readonly retrievalUri: string;
+  readonly document: unknown;
+  readonly kind: ResourceGraphNode['documentKind'];
+  readonly family: '3.1' | '3.2';
+  readonly openApiVersion?: string;
+  readonly selfUri?: string;
+  readonly baseUri: string;
+}
+
+interface ObjectTarget {
+  readonly operationPathItem?: { readonly value: JsonRecord; readonly pointer: string };
+  readonly schemaDialect?: string;
+  readonly kind: ExpectedTargetKind | 'openapi';
+  readonly evaluationBaseUri: string;
+}
+
 interface ScanCollector {
   readonly sourceRetrievalUri: string;
+  readonly context: DocumentContext;
+  readonly entry: DocumentContext;
+  readonly objects: Map<string, ObjectTarget>;
+  readonly documents: Map<string, ResourceTarget>;
   readonly resources: Map<string, ResourceTarget>;
   readonly anchors: Map<string, ResourceTarget>;
   readonly edges: MutableEdge[];
@@ -214,6 +246,9 @@ interface MutableGraphState {
   readonly nodes: Map<string, ResourceGraphNode>;
   readonly resourceTargets: Map<string, ResourceTarget>;
   readonly anchorTargets: Map<string, ResourceTarget>;
+  readonly documentTargets: Map<string, ResourceTarget>;
+  readonly contexts: Map<string, DocumentContext>;
+  readonly objects: Map<string, ObjectTarget>;
   readonly edges: MutableEdge[];
   readonly diagnostics: ResourceDiagnostic[];
   readonly failures: Map<string, ResourceFailure>;
@@ -230,6 +265,9 @@ const PATH_ITEM_CONTEXT_FIELDS = new Set(['summary', 'description', 'servers', '
 const SUPPORTED_SCHEMA_DIALECT =
   /^(?:https:\/\/spec\.openapis\.org\/oas\/3\.1\/dialect\/base|https:\/\/json-schema\.org\/draft\/2020-12\/schema)#?$/;
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const METHOD_TOKEN = /^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$/;
+const OAS_32_METHODS = getOpenApiStandardHttpMethods('3.2.0')!;
+const RESERVED_METHODS = new Set(OAS_32_METHODS.map((method) => method.toUpperCase()));
 const RESPONSE_KEY = /^(?:default|[1-5](?:\d{2}|XX))$/;
 const SCHEMA_SINGLE_KEYWORDS = [
   'not',
@@ -640,6 +678,81 @@ function cloneAndCountEntry(
   return { document: freezeJsonValue(parsed.value), nodes: parsed.nodes, text };
 }
 
+function objectKey(ownerRetrievalUri: string, pointer: string): string {
+  return `${ownerRetrievalUri}\n${pointer}`;
+}
+
+function indexObject(
+  collector: ScanCollector,
+  pointer: string,
+  kind: ObjectTarget['kind'],
+  evaluationBaseUri: string,
+  schemaDialect?: string,
+  operationPathItem?: ObjectTarget['operationPathItem'],
+): void {
+  if (collector.context.family !== '3.2') return;
+  const key = objectKey(collector.sourceRetrievalUri, pointer);
+  const existing = collector.objects.get(key);
+  if (existing && existing.kind !== kind) {
+    throw new ResourceLoadError(
+      'DOCUMENT_KIND_MISMATCH',
+      'A reference conflicts with the indexed OpenAPI object type.',
+    );
+  }
+  collector.objects.set(key, { kind, evaluationBaseUri, schemaDialect, operationPathItem });
+}
+
+function documentContext(
+  retrievalUri: string,
+  document: unknown,
+  kind: ResourceGraphNode['documentKind'],
+  family: DocumentContext['family'],
+): DocumentContext {
+  const openApiVersion = kind === 'openapi' && isRecord(document) ? String(document.openapi) : undefined;
+  let selfUri: string | undefined;
+  if (family === '3.2' && kind === 'openapi' && isRecord(document) && owns(document, '$self')) {
+    if (
+      typeof document.$self !== 'string' ||
+      /[\s\\]/.test(document.$self) ||
+      /%(?![\da-f]{2})/i.test(document.$self)
+    ) {
+      throw new ResourceLoadError('RESOURCE_URI_INVALID', 'OpenAPI $self must be a URI reference.');
+    }
+    try {
+      selfUri = new URL(document.$self, retrievalUri).href;
+    } catch (error) {
+      throw new ResourceLoadError('RESOURCE_URI_INVALID', 'OpenAPI $self cannot be resolved.', {}, error);
+    }
+  }
+  return Object.freeze({
+    retrievalUri,
+    document,
+    kind,
+    family,
+    openApiVersion,
+    selfUri,
+    baseUri: uriWithoutFragment(selfUri ?? retrievalUri),
+  });
+}
+
+function indexDocument(collector: ScanCollector): void {
+  const { context } = collector;
+  addResourceTarget(collector, context.retrievalUri, context.document, '#', context.baseUri);
+  if (context.family !== '3.2') return;
+  if (context.kind === 'openapi') indexObject(collector, '#', 'openapi', context.baseUri);
+  if (context.selfUri !== undefined) {
+    const identity = fragmentOf(context.selfUri) ? context.selfUri : uriWithoutFragment(context.selfUri);
+    collector.documents.set(identity, {
+      ownerRetrievalUri: context.retrievalUri,
+      value: context.document,
+      pointer: '#',
+      evaluationBaseUri: context.baseUri,
+    });
+    // A fragment-bearing $self is a full identity, not ownership of its entire base URI.
+    if (!fragmentOf(context.selfUri)) addResourceTarget(collector, identity, context.document, '#', context.baseUri);
+  }
+}
+
 function addResourceTarget(
   collector: ScanCollector,
   uri: string,
@@ -698,36 +811,45 @@ function addReference(
   expectedTarget: ExpectedTargetKind,
   depth: number,
   generation: number,
+  targetUri?: string,
 ): void {
   let resolvedUri: string;
   try {
-    resolvedUri = new URL(rawReference, baseUri).href;
+    resolvedUri = targetUri ?? new URL(rawReference, baseUri).href;
   } catch (error) {
+    const failed: MutableEdge = {
+      sourceRetrievalUri: collector.sourceRetrievalUri,
+      sourcePointer,
+      kind,
+      resolvedUri: '',
+      targetRetrievalUri: '',
+      fragment: '',
+      state: 'failed',
+      rawReference,
+      rawReferenceDisplay: safeRawReferenceDisplay(rawReference),
+      resolutionBase: baseUri,
+      depth,
+      expectedTarget,
+      expanded: true,
+      invalidTarget: true,
+    };
     collector.diagnostics.push(
       genericDiagnostic(
         new ResourceLoadError('RESOURCE_URI_INVALID', 'A resource reference cannot be resolved.', {}, error),
         'discover',
         generation,
         collector.sourceRetrievalUri,
-        {
-          sourceRetrievalUri: collector.sourceRetrievalUri,
-          sourcePointer,
-          kind,
-          resolvedUri: '',
-          targetRetrievalUri: '',
-          fragment: '',
-          state: 'failed',
-          rawReference,
-          rawReferenceDisplay: safeRawReferenceDisplay(rawReference),
-          resolutionBase: baseUri,
-          depth,
-          expectedTarget,
-          expanded: true,
-        },
+        failed,
       ),
     );
+    if (
+      collector.context.family === '3.2' &&
+      !collector.edges.some((edge) => edgeIdentity(edge) === edgeIdentity(failed))
+    )
+      collector.edges.push(failed);
     return;
   }
+
   const edge: MutableEdge = {
     sourceRetrievalUri: collector.sourceRetrievalUri,
     sourcePointer,
@@ -754,7 +876,9 @@ function walkSchema(
   emitReferences: boolean,
   depth: number,
   generation: number,
+  inheritedDialect?: string,
 ): void {
+  indexObject(collector, pointer, 'schema', inheritedBase);
   if (typeof value === 'boolean' || !isRecord(value)) return;
   if (typeof value.$schema === 'string' && !SUPPORTED_SCHEMA_DIALECT.test(value.$schema)) {
     throw new ResourceLoadError(
@@ -762,6 +886,16 @@ function walkSchema(
       'The Schema declares a dialect outside the supported OAS 3.1 base and Draft 2020-12 dialects.',
     );
   }
+  const dialect =
+    typeof value.$schema === 'string'
+      ? value.$schema
+      : (inheritedDialect ??
+        (isRecord(collector.context.document) && typeof collector.context.document.jsonSchemaDialect === 'string'
+          ? collector.context.document.jsonSchemaDialect
+          : collector.context.kind === 'json-schema'
+            ? 'https://json-schema.org/draft/2020-12/schema'
+            : 'https://spec.openapis.org/oas/3.1/dialect/base'));
+  indexObject(collector, pointer, 'schema', inheritedBase, dialect);
   const evaluationBaseUri = inheritedBase;
   let baseUri = inheritedBase;
   if (typeof value.$id === 'string') {
@@ -812,12 +946,36 @@ function walkSchema(
   }
   const mapping =
     isRecord(value.discriminator) && isRecord(value.discriminator.mapping) ? value.discriminator.mapping : null;
-  if (emitReferences && mapping) {
+  if (collector.context.family === '3.2') {
+    // Discriminator is an OAS annotation, not a keyword of arbitrary JSON Schema dialects.
+    if (emitReferences && /\/oas\/3\.1\/dialect\/base#?$/.test(dialect) && isRecord(value.discriminator)) {
+      const addMapping = (target: unknown, targetPointer: string): void => {
+        if (typeof target !== 'string') return;
+        addReference(
+          collector,
+          target,
+          collector.context.baseUri,
+          targetPointer,
+          'discriminator-mapping',
+          'schema',
+          depth + 1,
+          generation,
+          COMPONENT_NAME.test(target) ? componentTargetUri(collector, 'schemas', target) : undefined,
+        );
+      };
+      if (mapping)
+        Object.entries(mapping).forEach(([name, target]) =>
+          addMapping(target, childPointer(childPointer(childPointer(pointer, 'discriminator'), 'mapping'), name)),
+        );
+      addMapping(
+        value.discriminator.defaultMapping,
+        childPointer(childPointer(pointer, 'discriminator'), 'defaultMapping'),
+      );
+    }
+  } else if (emitReferences && mapping) {
     Object.entries(mapping).forEach(([name, target]) => {
       if (typeof target !== 'string') return;
-      // OAS component-name shorthand wins for bare values. Every other value is
-      // an explicit URI reference and, unlike Schema $ref, resolves against the
-      // physical OpenAPI document rather than the nearest Schema Resource $id.
+      // Preserve the existing 3.1 shorthand and document-relative mapping behavior.
       if (COMPONENT_NAME.test(target)) return;
       addReference(
         collector,
@@ -834,7 +992,16 @@ function walkSchema(
 
   SCHEMA_SINGLE_KEYWORDS.forEach((keyword) => {
     if (owns(value, keyword)) {
-      walkSchema(value[keyword], childPointer(pointer, keyword), baseUri, collector, emitReferences, depth, generation);
+      walkSchema(
+        value[keyword],
+        childPointer(pointer, keyword),
+        baseUri,
+        collector,
+        emitReferences,
+        depth,
+        generation,
+        dialect,
+      );
     }
   });
   SCHEMA_ARRAY_KEYWORDS.forEach((keyword) => {
@@ -849,6 +1016,7 @@ function walkSchema(
         emitReferences,
         depth,
         generation,
+        dialect,
       ),
     );
   });
@@ -862,10 +1030,20 @@ function walkSchema(
         emitReferences,
         depth,
         generation,
+        dialect,
       ),
     );
   } else if (owns(value, 'items')) {
-    walkSchema(value.items, childPointer(pointer, 'items'), baseUri, collector, emitReferences, depth, generation);
+    walkSchema(
+      value.items,
+      childPointer(pointer, 'items'),
+      baseUri,
+      collector,
+      emitReferences,
+      depth,
+      generation,
+      dialect,
+    );
   }
   SCHEMA_MAP_KEYWORDS.forEach((keyword) => {
     const schemas = value[keyword];
@@ -879,6 +1057,7 @@ function walkSchema(
         emitReferences,
         depth,
         generation,
+        dialect,
       ),
     );
   });
@@ -896,7 +1075,15 @@ function walkReferenceOr(
   walkValue: (value: unknown, pointer: string, emit: boolean) => void,
   kind: ResourceReferenceKind = 'reference-object',
 ): void {
+  indexObject(collector, pointer, expectedTarget, baseUri);
   if (!isRecord(value)) return;
+  if (
+    collector.context.family === '3.2' &&
+    !emitReferences &&
+    typeof value.$ref === 'string' &&
+    kind === 'reference-object'
+  )
+    return;
   if (emitReferences && typeof value.$ref === 'string') {
     addReference(
       collector,
@@ -922,6 +1109,44 @@ function walkMediaType(
   depth: number,
   generation: number,
 ): void {
+  if (collector.context.family === '3.2') {
+    walkReferenceOr(
+      value,
+      pointer,
+      baseUri,
+      collector,
+      emit,
+      depth,
+      generation,
+      'media-type',
+      (media, mediaPointer, nestedEmit) => {
+        if (!isRecord(media)) return;
+        for (const keyword of ['schema', 'itemSchema']) {
+          if (owns(media, keyword))
+            walkSchema(
+              media[keyword],
+              childPointer(mediaPointer, keyword),
+              baseUri,
+              collector,
+              nestedEmit,
+              depth,
+              generation,
+            );
+        }
+        walkExamples(
+          media.examples,
+          childPointer(mediaPointer, 'examples'),
+          baseUri,
+          collector,
+          nestedEmit,
+          depth,
+          generation,
+        );
+        walkEncodings(media, mediaPointer, baseUri, collector, nestedEmit, depth, generation);
+      },
+    );
+    return;
+  }
   if (!isRecord(value)) return;
   if (owns(value, 'schema'))
     walkSchema(value.schema, childPointer(pointer, 'schema'), baseUri, collector, emit, depth, generation);
@@ -938,6 +1163,82 @@ function walkMediaType(
         emit,
         depth,
         generation,
+      ),
+    );
+  });
+}
+
+function walkEncodings(
+  value: JsonRecord,
+  pointer: string,
+  baseUri: string,
+  collector: ScanCollector,
+  emit: boolean,
+  depth: number,
+  generation: number,
+): void {
+  const walkEncoding = (encoding: unknown, encodingPointer: string): void => {
+    if (!isRecord(encoding)) return;
+    if (isRecord(encoding.headers)) {
+      Object.entries(encoding.headers).forEach(([name, header]) => {
+        // Content-Type is explicitly ignored by the Encoding Object contract.
+        if (name.toLowerCase() !== 'content-type')
+          walkHeader(
+            header,
+            childPointer(childPointer(encodingPointer, 'headers'), name),
+            baseUri,
+            collector,
+            emit,
+            depth,
+            generation,
+          );
+      });
+    }
+    walkEncodings(encoding, encodingPointer, baseUri, collector, emit, depth, generation);
+  };
+  if (isRecord(value.encoding))
+    Object.entries(value.encoding).forEach(([name, encoding]) =>
+      walkEncoding(encoding, childPointer(childPointer(pointer, 'encoding'), name)),
+    );
+  if (Array.isArray(value.prefixEncoding))
+    value.prefixEncoding.forEach((encoding, index) =>
+      walkEncoding(encoding, childPointer(childPointer(pointer, 'prefixEncoding'), index)),
+    );
+  if (owns(value, 'itemEncoding')) walkEncoding(value.itemEncoding, childPointer(pointer, 'itemEncoding'));
+}
+
+function componentTargetUri(collector: ScanCollector, kind: 'schemas' | 'securitySchemes', name: string): string {
+  // Entry retrieval is already registered and remains unambiguous even when $self has a fragment.
+  return `${collector.entry.retrievalUri}#/components/${kind}/${pointerToken(name)}`;
+}
+
+function walkSecurityRequirements(
+  value: unknown,
+  pointer: string,
+  collector: ScanCollector,
+  emit: boolean,
+  depth: number,
+  generation: number,
+): void {
+  if (!emit || collector.context.family !== '3.2' || !Array.isArray(value)) return;
+  const entry = collector.entry.document;
+  const schemes =
+    isRecord(entry) && isRecord(entry.components) && isRecord(entry.components.securitySchemes)
+      ? entry.components.securitySchemes
+      : undefined;
+  value.forEach((requirement, index) => {
+    if (!isRecord(requirement)) return;
+    Object.keys(requirement).forEach((name) =>
+      addReference(
+        collector,
+        name,
+        collector.context.baseUri,
+        childPointer(childPointer(pointer, index), name),
+        'security-requirement',
+        'security-scheme',
+        depth + 1,
+        generation,
+        schemes && owns(schemes, name) ? componentTargetUri(collector, 'securitySchemes', name) : undefined,
       ),
     );
   });
@@ -1248,8 +1549,11 @@ function walkOperation(
   emit: boolean,
   depth: number,
   generation: number,
+  operationPathItem?: ObjectTarget['operationPathItem'],
 ): void {
+  indexObject(collector, pointer, 'operation', baseUri, undefined, operationPathItem);
   if (!isRecord(value)) return;
+  walkSecurityRequirements(value.security, childPointer(pointer, 'security'), collector, emit, depth, generation);
   if (Array.isArray(value.parameters)) {
     value.parameters.forEach((parameter, index) =>
       walkParameter(
@@ -1336,7 +1640,8 @@ function walkPathItem(
           ),
         );
       }
-      HTTP_METHODS.forEach((method) => {
+      const methods = collector.context.family === '3.2' ? OAS_32_METHODS : HTTP_METHODS;
+      methods.forEach((method) => {
         if (owns(pathItem, method)) {
           walkOperation(
             pathItem[method],
@@ -1346,9 +1651,25 @@ function walkPathItem(
             nestedEmit,
             depth,
             generation,
+            { value: pathItem, pointer: pathPointer },
           );
         }
       });
+      if (collector.context.family === '3.2' && isRecord(pathItem.additionalOperations)) {
+        Object.entries(pathItem.additionalOperations).forEach(([method, operation]) => {
+          if (!METHOD_TOKEN.test(method) || RESERVED_METHODS.has(method.toUpperCase())) return;
+          walkOperation(
+            operation,
+            childPointer(childPointer(pathPointer, 'additionalOperations'), method),
+            baseUri,
+            collector,
+            nestedEmit,
+            depth,
+            generation,
+            { value: pathItem, pointer: pathPointer },
+          );
+        });
+      }
     },
     'path-item-ref',
   );
@@ -1418,7 +1739,8 @@ function walkOpenApiDocument(
       'The OpenAPI document declares an unsupported JSON Schema dialect.',
     );
   }
-  const baseUri = collector.sourceRetrievalUri;
+  const baseUri = collector.context.baseUri;
+  walkSecurityRequirements(document.security, '#/security', collector, emit, depth, generation);
   Object.entries(document).forEach(([key, container]) => {
     if (
       !KNIFE4J_SCHEMA_RESOURCES_FIELD.test(key) ||
@@ -1522,6 +1844,14 @@ function walkOpenApiDocument(
     (value, valuePointer) => walkPathItem(value, valuePointer, baseUri, collector, emit, depth, generation),
     pointer,
   );
+  if (collector.context.family === '3.2') {
+    walkComponentMap(
+      components,
+      'mediaTypes',
+      (value, valuePointer) => walkMediaType(value, valuePointer, baseUri, collector, emit, depth, generation),
+      pointer,
+    );
+  }
 }
 
 function decodedJsonPointer(fragment: string): string | undefined {
@@ -1564,6 +1894,7 @@ function pointerWithinResource(resourcePointer: string, fragment: string): strin
 }
 
 interface IndexedTargetValue {
+  readonly schemaDialect?: string;
   readonly value: unknown;
   readonly pointer: string;
   readonly baseUri: string;
@@ -1656,6 +1987,7 @@ function walkExpectedTarget(
   edge: MutableEdge,
   collector: ScanCollector,
   generation: number,
+  emit = true,
 ): void {
   const { value, pointer, baseUri } = target;
   if (edge.expectedTarget === 'schema') {
@@ -1665,7 +1997,7 @@ function walkExpectedTarget(
     if (!edge.fragment && isRecord(value) && typeof value.openapi === 'string') {
       throw new ResourceLoadError('DOCUMENT_KIND_MISMATCH', 'An OpenAPI document root is not a Schema Object.');
     }
-    walkSchema(value, pointer, baseUri, collector, true, edge.depth, generation);
+    walkSchema(value, pointer, baseUri, collector, emit, edge.depth, generation, target.schemaDialect);
     return;
   }
   if (!isRecord(value)) {
@@ -1673,67 +2005,107 @@ function walkExpectedTarget(
   }
   switch (edge.expectedTarget) {
     case 'path-item':
-      walkPathItem(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkPathItem(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'operation':
-      if (target.operationPathItem) {
+      if (target.operationPathItem && collector.context.family === '3.2') {
+        const parent = target.operationPathItem;
+        if (Array.isArray(parent.value.parameters))
+          parent.value.parameters.forEach((parameter, index) =>
+            walkParameter(
+              parameter,
+              childPointer(childPointer(parent.pointer, 'parameters'), index),
+              baseUri,
+              collector,
+              emit,
+              edge.depth,
+              generation,
+            ),
+          );
+        // An operationRef reaches its inherited parameters, not sibling operations.
+        walkOperation(value, pointer, baseUri, collector, emit, edge.depth, generation, parent);
+      } else if (target.operationPathItem) {
         walkPathItem(
           target.operationPathItem.value,
           target.operationPathItem.pointer,
           baseUri,
           collector,
-          true,
+          emit,
           edge.depth,
           generation,
         );
       } else {
-        walkOperation(value, pointer, baseUri, collector, true, edge.depth, generation);
+        walkOperation(value, pointer, baseUri, collector, emit, edge.depth, generation);
       }
       break;
     case 'parameter':
-      walkParameter(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkParameter(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'request-body':
-      walkRequestBody(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkRequestBody(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'response':
-      walkResponse(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkResponse(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'header':
-      walkHeader(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkHeader(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'callback':
-      walkCallback(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkCallback(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'link':
-      walkLink(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkLink(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'example':
-      walkExample(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkExample(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
     case 'security-scheme':
-      walkSecurityScheme(value, pointer, baseUri, collector, true, edge.depth, generation);
+      walkSecurityScheme(value, pointer, baseUri, collector, emit, edge.depth, generation);
+      break;
+    case 'media-type':
+      walkMediaType(value, pointer, baseUri, collector, emit, edge.depth, generation);
       break;
   }
 }
 
-function documentKind(document: unknown, incoming: readonly MutableEdge[]): ResourceGraphNode['documentKind'] {
+function documentKind(
+  document: unknown,
+  incoming: readonly MutableEdge[],
+  family: DocumentContext['family'],
+): ResourceGraphNode['documentKind'] {
   if (isRecord(document) && typeof document.openapi === 'string') {
-    if (!OAS_31_VERSION.test(document.openapi)) {
+    if (
+      family === '3.1'
+        ? !OAS_31_VERSION.test(document.openapi)
+        : getOpenApiSpecificationFeatures(document.openapi)?.family !== '3.2'
+    ) {
       throw new ResourceLoadError(
-        'DOCUMENT_KIND_MISMATCH',
-        `External OpenAPI document '${document.openapi}' is outside the supported 3.1.x range.`,
+        'OPENAPI_VERSION_UNSUPPORTED',
+        `This project does not support an OpenAPI ${family}.x graph referencing document version '${document.openapi}'.`,
       );
     }
     return 'openapi';
+  }
+  if (
+    family === '3.2' &&
+    new Set(incoming.filter((edge) => !edge.fragment).map((edge) => edge.expectedTarget)).size > 1
+  ) {
+    throw new ResourceLoadError(
+      'DOCUMENT_KIND_MISMATCH',
+      'An unversioned root cannot be inferred as conflicting object types.',
+    );
   }
   if (typeof document === 'boolean' || incoming.some((edge) => edge.expectedTarget === 'schema')) return 'json-schema';
   return 'referenceable-object';
 }
 
-function createCollector(retrievalUri: string): ScanCollector {
+function createCollector(context: DocumentContext, entry: DocumentContext): ScanCollector {
   return {
-    sourceRetrievalUri: retrievalUri,
+    sourceRetrievalUri: context.retrievalUri,
+    context,
+    entry,
+    objects: new Map(),
+    documents: new Map(),
     resources: new Map(),
     anchors: new Map(),
     edges: [],
@@ -1747,6 +2119,8 @@ function phaseForError(error: ResourceLoadError): ResourceDiagnosticPhase {
   if (error.code === 'DOCUMENT_PARSE_FAILED' || error.code === 'GRAPH_NODE_LIMIT') return 'parse';
   if (
     error.code === 'DOCUMENT_KIND_MISMATCH' ||
+    error.code === 'OPENAPI_VERSION_UNSUPPORTED' ||
+    error.code === 'REFERENCE_CYCLE' ||
     error.code === 'DIALECT_UNSUPPORTED' ||
     error.code === 'RESOURCE_URI_CONFLICT' ||
     error.code === 'FRAGMENT_NOT_FOUND'
@@ -1765,6 +2139,7 @@ export class ExternalResourceLoader {
   public readonly documentScope: string;
 
   private readonly entryDocument: unknown;
+  private readonly entryContext: DocumentContext;
   private readonly entryText: string;
   private readonly entryNodes: number;
   private readonly pageUri: string;
@@ -1783,14 +2158,21 @@ export class ExternalResourceLoader {
     if (
       !isRecord(entry.document) ||
       typeof entry.document.openapi !== 'string' ||
-      !OAS_31_VERSION.test(entry.document.openapi)
+      (!OAS_31_VERSION.test(entry.document.openapi) &&
+        getOpenApiSpecificationFeatures(entry.document.openapi)?.family !== '3.2')
     ) {
       throw new ResourceLoadError(
         'DOCUMENT_KIND_MISMATCH',
-        'The entry document must declare a supported OpenAPI 3.1.x version.',
+        'The entry document must declare a supported OpenAPI 3.1.x or 3.2.x version.',
       );
     }
     this.entryDocument = entry.document;
+    this.entryContext = documentContext(
+      this.entryRetrievalUri,
+      entry.document,
+      'openapi',
+      OAS_31_VERSION.test(entry.document.openapi) ? '3.1' : '3.2',
+    );
     this.entryText = entry.text;
     this.entryNodes = entry.nodes;
     this.documentScope = sha256Hex(`${this.entryRetrievalUri}\n${sha256Hex(entry.text)}`);
@@ -1892,6 +2274,9 @@ export class ExternalResourceLoader {
       nodes: new Map(),
       resourceTargets: new Map(),
       anchorTargets: new Map(),
+      documentTargets: new Map(),
+      contexts: new Map(),
+      objects: new Map(),
       edges: [],
       diagnostics: [],
       failures: new Map(),
@@ -1905,8 +2290,8 @@ export class ExternalResourceLoader {
         scope: 'graph',
       });
     }
-    const collector = createCollector(this.entryRetrievalUri);
-    addResourceTarget(collector, this.entryRetrievalUri, this.entryDocument, '#');
+    const collector = createCollector(this.entryContext, this.entryContext);
+    indexDocument(collector);
     walkOpenApiDocument(this.entryDocument, collector, true, 0, state.generation);
     if (collector.resources.size > this.limits.maxSchemaResources) {
       throw new ResourceLoadError('GRAPH_RESOURCE_LIMIT', 'Schema resource limit exceeded by the entry document.', {
@@ -1924,6 +2309,7 @@ export class ExternalResourceLoader {
       // Ordinary local protocol objects were scanned above. A generated Link
       // target remains opaque until its Link establishes the operation context.
       if (
+        this.entryContext.family !== '3.2' &&
         edge.state === 'local' &&
         (edge.kind !== 'link-operation-ref' ||
           !this.targetFromCollectors(state, reachableCollectors, edge)?.operationPathItem)
@@ -1942,6 +2328,7 @@ export class ExternalResourceLoader {
       byteLength: new TextEncoder().encode(this.entryText).byteLength,
       contentDigest: sha256Hex(this.entryText),
       documentKind: 'openapi',
+      ...this.identityMetadata(this.entryContext),
       authorizationScope: 'entry',
       resourceUris: [...state.resourceTargets.keys()].sort(),
       document: this.entryDocument,
@@ -1961,6 +2348,9 @@ export class ExternalResourceLoader {
       nodes: new Map(previous.nodes),
       resourceTargets: new Map(previous.resourceTargets),
       anchorTargets: new Map(previous.anchorTargets),
+      documentTargets: new Map(previous.documentTargets),
+      contexts: new Map(previous.contexts),
+      objects: new Map(previous.objects),
       edges: previous.edges.map((edge) => ({ ...edge })),
       diagnostics: previous.diagnostics.map((diagnostic) => Object.freeze({ ...diagnostic, generation })),
       failures: new Map(previous.failures),
@@ -1970,6 +2360,12 @@ export class ExternalResourceLoader {
       budget: previous.budget,
       fatalFailure: previous.fatalFailure,
     };
+  }
+
+  private identityMetadata(context: DocumentContext): Partial<ResourceGraphNode> {
+    return context.family === '3.2'
+      ? { openApiVersion: context.openApiVersion, selfUri: context.selfUri, documentBaseUri: context.baseUri }
+      : {};
   }
 
   private async runWave(
@@ -2118,12 +2514,28 @@ export class ExternalResourceLoader {
           scope: 'graph',
         });
       }
-      const kind = documentKind(parsed.document, incoming);
-      const collector = createCollector(candidate.retrievalUri);
-      addResourceTarget(collector, candidate.retrievalUri, parsed.document, '#');
+      const kind = documentKind(parsed.document, incoming, this.entryContext.family);
+      const context = documentContext(candidate.retrievalUri, parsed.document, kind, this.entryContext.family);
+      const collector = createCollector(context, this.entryContext);
+      indexDocument(collector);
       if (kind === 'openapi') walkOpenApiDocument(parsed.document, collector, false, candidate.depth, state.generation);
       if (kind === 'json-schema') {
         walkSchema(parsed.document, '#', candidate.retrievalUri, collector, false, candidate.depth, state.generation);
+      }
+      if (kind === 'referenceable-object' && context.family === '3.2') {
+        const rootReference = incoming.find((edge) => !edge.fragment || edge.fragment === '#');
+        if (!rootReference)
+          throw new ResourceLoadError(
+            'DOCUMENT_KIND_MISMATCH',
+            'This project requires a known root context before resolving an OpenAPI object fragment.',
+          );
+        walkExpectedTarget(
+          { value: parsed.document, pointer: '#', baseUri: context.baseUri, ownerRetrievalUri: context.retrievalUri },
+          rootReference,
+          collector,
+          state.generation,
+          false,
+        );
       }
       const resourceUris = [...collector.resources.keys()].sort();
       const collectors = new Map<string, ScanCollector>([[candidate.retrievalUri, collector]]);
@@ -2143,6 +2555,7 @@ export class ExternalResourceLoader {
         byteLength: fetched.bytes,
         contentDigest: sha256Hex(fetched.text),
         documentKind: kind,
+        ...this.identityMetadata(context),
         authorizationScope: state.grants.get(candidate.retrievalUriHash) ?? 'generation',
         resourceUris,
         document: parsed.document,
@@ -2182,10 +2595,17 @@ export class ExternalResourceLoader {
     }
   }
 
-  private collectorFor(collectors: Map<string, ScanCollector>, ownerRetrievalUri: string): ScanCollector {
+  private collectorFor(
+    state: MutableGraphState,
+    collectors: Map<string, ScanCollector>,
+    ownerRetrievalUri: string,
+  ): ScanCollector {
     const existing = collectors.get(ownerRetrievalUri);
     if (existing) return existing;
-    const collector = createCollector(ownerRetrievalUri);
+    const context = state.contexts.get(ownerRetrievalUri);
+    if (!context)
+      throw new ResourceLoadError('DOCUMENT_KIND_MISMATCH', 'The referenced document has not been indexed.');
+    const collector = createCollector(context, this.entryContext);
     collectors.set(ownerRetrievalUri, collector);
     return collector;
   }
@@ -2228,7 +2648,63 @@ export class ExternalResourceLoader {
       collectors.forEach((collector) => collector.resources.forEach(inspect));
       return baseUri;
     };
-    const target = expectedTargetValue(edge, findResource, findAnchor, containingBase);
+    const findDocument = (uri: string): ResourceTarget | undefined => {
+      for (const collector of collectors.values()) {
+        const target = collector.documents.get(uri);
+        if (target) return target;
+      }
+      return state.documentTargets.get(uri);
+    };
+    const sourceContext =
+      collectors.get(edge.sourceRetrievalUri)?.context ?? state.contexts.get(edge.sourceRetrievalUri);
+    const strict = this.entryContext.family === '3.2';
+    const identity = strict ? findDocument(edge.resolvedUri) : undefined;
+    const scopedResource =
+      strict &&
+      sourceContext?.selfUri &&
+      fragmentOf(sourceContext.selfUri) &&
+      edge.targetRetrievalUri === sourceContext.baseUri
+        ? {
+            ownerRetrievalUri: sourceContext.retrievalUri,
+            value: sourceContext.document,
+            pointer: '#',
+            evaluationBaseUri: sourceContext.baseUri,
+          }
+        : undefined;
+    const schemaResource =
+      edge.kind === 'schema-ref' || edge.kind === 'schema-dynamic-ref'
+        ? findResource(edge.targetRetrievalUri)
+        : undefined;
+    const target = identity
+      ? {
+          value: identity.value,
+          pointer: identity.pointer,
+          baseUri: identity.evaluationBaseUri,
+          ownerRetrievalUri: identity.ownerRetrievalUri,
+        }
+      : expectedTargetValue(
+          edge,
+          (uri) =>
+            (schemaResource && schemaResource.pointer !== '#' ? schemaResource : scopedResource) ?? findResource(uri),
+          findAnchor,
+          containingBase,
+        );
+    if (target && strict) {
+      const key = objectKey(target.ownerRetrievalUri, target.pointer);
+      const indexed = collectors.get(target.ownerRetrievalUri)?.objects.get(key) ?? state.objects.get(key);
+      if (!indexed || indexed.kind !== edge.expectedTarget) {
+        throw new ResourceLoadError(
+          'DOCUMENT_KIND_MISMATCH',
+          'The reference target does not match a real indexed object position of the expected type.',
+        );
+      }
+      return {
+        ...target,
+        baseUri: indexed.evaluationBaseUri,
+        schemaDialect: indexed.schemaDialect,
+        operationPathItem: indexed.operationPathItem,
+      };
+    }
     if (target && edge.kind === 'link-operation-ref') {
       const operationPathItem = portableOperationPathItem(
         findResource(target.ownerRetrievalUri)?.value,
@@ -2255,13 +2731,29 @@ export class ExternalResourceLoader {
 
       let progressed = false;
       for (const [identity, edge] of edges) {
-        if (edge.state === 'failed' || edge.expanded || expandedEdges.has(identity)) continue;
-        const target = this.targetFromCollectors(state, collectors, edge);
-        if (!target) continue;
-        const ownerCollector = this.collectorFor(collectors, target.ownerRetrievalUri);
-        walkExpectedTarget(target, edge, ownerCollector, state.generation);
-        expandedEdges.add(identity);
-        progressed = true;
+        if (
+          edge.invalidTarget ||
+          (edge.state === 'failed' && this.entryContext.family !== '3.2') ||
+          edge.expanded ||
+          expandedEdges.has(identity)
+        )
+          continue;
+        try {
+          const target = this.targetFromCollectors(state, collectors, edge);
+          if (!target) continue;
+          const ownerCollector = this.collectorFor(state, collectors, target.ownerRetrievalUri);
+          walkExpectedTarget(target, edge, ownerCollector, state.generation);
+          expandedEdges.add(identity);
+          progressed = true;
+        } catch (error) {
+          if (
+            this.entryContext.family !== '3.2' ||
+            !(error instanceof ResourceLoadError) ||
+            !['DOCUMENT_KIND_MISMATCH', 'FRAGMENT_NOT_FOUND'].includes(error.code)
+          )
+            throw error;
+          this.failTarget(state, edge, error);
+        }
       }
       if (!progressed) return expandedEdges;
     }
@@ -2286,6 +2778,37 @@ export class ExternalResourceLoader {
         actual: state.budget.totalParsedNodes + parsedNodes,
         scope: 'graph',
       });
+    }
+
+    if (this.entryContext.family === '3.2') {
+      const identities = new Map<string, ResourceTarget>();
+      const inspect = (target: ResourceTarget, uri: string): void => {
+        const existing = identities.get(uri);
+        if (
+          existing &&
+          (existing.ownerRetrievalUri !== target.ownerRetrievalUri || existing.pointer !== target.pointer)
+        ) {
+          throw new ResourceLoadError(
+            'RESOURCE_URI_CONFLICT',
+            'A document or Schema identity is owned by multiple locations.',
+            { retrievalUri: uri },
+          );
+        }
+        identities.set(uri, target);
+      };
+      state.resourceTargets.forEach(inspect);
+      state.anchorTargets.forEach(inspect);
+      state.documentTargets.forEach(inspect);
+      collectors.forEach((collector) => {
+        collector.resources.forEach(inspect);
+        collector.anchors.forEach(inspect);
+        collector.documents.forEach(inspect);
+      });
+      if (identities.size > this.limits.maxSchemaResources)
+        throw new ResourceLoadError('GRAPH_RESOURCE_LIMIT', 'Resource identity limit exceeded.', {
+          limit: this.limits.maxSchemaResources,
+          actual: identities.size,
+        });
     }
 
     const resources = new Map(state.resourceTargets);
@@ -2341,6 +2864,9 @@ export class ExternalResourceLoader {
       if (expandedEdges.has(edgeIdentity(edge))) edge.expanded = true;
     });
     collectors.forEach((collector) => {
+      state.contexts.set(collector.sourceRetrievalUri, collector.context);
+      collector.objects.forEach((target, key) => state.objects.set(key, target));
+      collector.documents.forEach((target, uri) => state.documentTargets.set(uri, target));
       collector.resources.forEach((target, uri) => {
         if (!state.resourceTargets.has(uri)) state.resourceTargets.set(uri, target);
       });
@@ -2371,8 +2897,49 @@ export class ExternalResourceLoader {
     });
   }
 
+  private failTarget(state: MutableGraphState, edge: MutableEdge, error: ResourceLoadError): void {
+    edge.state = 'failed';
+    edge.invalidTarget = true;
+    edge.expanded = true;
+    const diagnostic = genericDiagnostic(error, 'index', state.generation, edge.sourceRetrievalUri, edge);
+    if (
+      !state.diagnostics.some(
+        (existing) =>
+          existing.code === diagnostic.code &&
+          existing.sourcePointer === diagnostic.sourcePointer &&
+          existing.sourceRetrievalUriHash === diagnostic.sourceRetrievalUriHash,
+      )
+    )
+      state.diagnostics.push(diagnostic);
+  }
+
   private refreshGraph(state: MutableGraphState): void {
     state.edges.forEach((edge) => {
+      if (this.entryContext.family === '3.2') {
+        if (edge.invalidTarget) return;
+        try {
+          const target = this.targetFromCollectors(state, new Map(), edge);
+          if (target) {
+            const failedRetrieval = state.failures.get(edge.targetRetrievalUri);
+            if (failedRetrieval?.phase === 'authorize') state.failures.delete(edge.targetRetrievalUri);
+            for (let i = state.diagnostics.length - 1; i >= 0; i--) {
+              const diagnostic = state.diagnostics[i];
+              if (
+                diagnostic.phase === 'authorize' &&
+                diagnostic.sourcePointer === edge.sourcePointer &&
+                diagnostic.sourceRetrievalUriHash === sha256Hex(edge.sourceRetrievalUri)
+              )
+                state.diagnostics.splice(i, 1);
+            }
+            edge.state = target.ownerRetrievalUri === edge.sourceRetrievalUri ? 'local' : 'loaded';
+            return;
+          }
+        } catch (error) {
+          if (!(error instanceof ResourceLoadError)) throw error;
+          this.failTarget(state, edge, error);
+          return;
+        }
+      }
       if (state.failures.has(edge.targetRetrievalUri)) {
         edge.state = 'failed';
         return;
@@ -2429,6 +2996,41 @@ export class ExternalResourceLoader {
         }
       }
     });
+    this.diagnoseReferenceCycles(state);
+  }
+
+  private diagnoseReferenceCycles(state: MutableGraphState): void {
+    if (this.entryContext.family !== '3.2') return;
+    const byPointer = new Map(
+      state.edges
+        .filter((edge) => edge.kind === 'reference-object' || edge.kind === 'path-item-ref')
+        .map((edge) => [objectKey(edge.sourceRetrievalUri, edge.sourcePointer), edge]),
+    );
+    const checked = new Set<MutableEdge>();
+    for (const start of byPointer.values()) {
+      const chain: MutableEdge[] = [];
+      const positions = new Map<MutableEdge, number>();
+      let edge: MutableEdge | undefined = start;
+      while (edge && !checked.has(edge) && (edge.state === 'local' || edge.state === 'loaded')) {
+        const cycleStart = positions.get(edge);
+        if (cycleStart !== undefined) {
+          for (const cyclic of chain.slice(cycleStart))
+            this.failTarget(
+              state,
+              cyclic,
+              new ResourceLoadError('REFERENCE_CYCLE', 'An OpenAPI object reference cycle has no concrete target.'),
+            );
+          break;
+        }
+        positions.set(edge, chain.length);
+        chain.push(edge);
+        const target = this.targetFromCollectors(state, new Map(), edge);
+        edge = target
+          ? byPointer.get(objectKey(target.ownerRetrievalUri, childPointer(target.pointer, '$ref')))
+          : undefined;
+      }
+      chain.forEach((item) => checked.add(item));
+    }
   }
 
   private candidates(state: MutableGraphState): ResourceCandidate[] {
@@ -2523,6 +3125,18 @@ export class ExternalResourceLoader {
       anchorTargets: readonlyMap(
         new Map(
           [...state.anchorTargets].map(([uri, target]) => [
+            uri,
+            Object.freeze({
+              ownerRetrievalUri: target.ownerRetrievalUri,
+              pointer: target.pointer,
+              evaluationBaseUri: target.evaluationBaseUri,
+            }),
+          ]),
+        ),
+      ),
+      documentTargets: readonlyMap(
+        new Map(
+          [...state.documentTargets].map(([uri, target]) => [
             uri,
             Object.freeze({
               ownerRetrievalUri: target.ownerRetrievalUri,
