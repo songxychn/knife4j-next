@@ -5,6 +5,8 @@ export {
   createSchemaEngine,
 } from './hyperjumpSchemaEngine';
 export { DEFAULT_SCHEMA_ENGINE_LIMITS } from './budgets';
+export { OPENAPI_32_DIALECT } from './openapi32Dialect';
+export { createOpenApi32ProjectionSource, openApi32SchemaRegistrationContext } from './openapi32Registration';
 export { SchemaEngineError, type SchemaEngineErrorCode, type SchemaEngineErrorDetails } from './errors';
 export type {
   EvaluationAnnotation,
@@ -16,4 +18,6 @@ export type {
   SchemaEngineLimits,
   SchemaEngineOptions,
   SchemaNode,
+  SchemaDocumentRegistrationContext,
+  SchemaLocationMetadata,
 } from './types';

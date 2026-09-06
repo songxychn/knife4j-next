@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
   ExternalResourceLoader,
   schemaDocumentsFromResourceGraph,
+  schemaRegistrationContextFromResourceGraph,
   type ResourceCandidate,
   type ResourceDiagnostic,
   type ResourceGrant,
@@ -9,7 +10,7 @@ import {
 } from '../schema/externalResourceGraph';
 import { readRememberedResourceGrants, rememberResourceGrants } from '../schema/resourceGrantStorage';
 import {
-  isOas31SchemaDocument,
+  isSchemaEngineDocument,
   schemaDocumentRetrievalUri,
   SchemaDocumentSessionManager,
   toSchemaDocumentFailure,
@@ -146,6 +147,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
       try {
         const result = await managerRef.current!.open(runtime.document, runtime.retrievalUri, {
           resourceDocuments: schemaDocumentsFromResourceGraph(snapshot),
+          registrationContext: schemaRegistrationContextFromResourceGraph(snapshot, runtime.retrievalUri),
         });
         if (!isCurrentOperation() || result.status === 'stale') return;
         setState({
@@ -261,7 +263,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
     revisionRef.current += 1;
     runtimeRef.current?.loader.dispose();
     runtimeRef.current = null;
-    if (loading || !routeGroupReady || !isOas31SchemaDocument(swaggerDoc) || !activeSwaggerGroup) {
+    if (loading || !routeGroupReady || !isSchemaEngineDocument(swaggerDoc) || !activeSwaggerGroup) {
       manager.clear();
       setState(INACTIVE_STATE);
       setResources(INACTIVE_RESOURCES);

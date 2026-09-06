@@ -1,6 +1,8 @@
 import { removeUriSchemePlugin, UnsupportedUriSchemeError, type Browser } from '@hyperjump/browser';
+import { Reference } from '@hyperjump/browser/jref';
 import {
   getAllRegisteredSchemaUris,
+  InvalidSchemaError,
   registerSchema,
   unregisterSchema,
   type OutputUnit,
@@ -22,6 +24,15 @@ import { fromJs } from '@hyperjump/json-schema/instance/experimental';
 import { isIriReference, normalizeIri, parseIri, resolveIri, toAbsoluteIri } from '@hyperjump/uri';
 import { EvaluationBudgetPlugin, inspectJsonValue, normalizeLimits } from './budgets';
 import { SchemaEngineError } from './errors';
+import { OAS32_DOCUMENT_WRAPPER, OAS32_SCHEMA_ADAPTER, registerOpenApi32Dialects } from './openapi32Dialect';
+import {
+  OpenApi32Registration,
+  isOpenApi32,
+  normalizePublicUri,
+  publicResourceUri,
+  schemaValueAt,
+  type OpenApi32SchemaLocation,
+} from './openapi32Registration';
 import type {
   EvaluationAnnotation,
   EvaluationIssue,
@@ -32,6 +43,7 @@ import type {
   SchemaEngineLimits,
   SchemaEngineOptions,
   SchemaNode,
+  SchemaDocumentRegistrationContext,
 } from './types';
 
 export const JSON_SCHEMA_2020_12 = 'https://json-schema.org/draft/2020-12/schema';
@@ -80,6 +92,7 @@ const lockDownExternalResourceLoading = (): void => {
   removeUriSchemePlugin('file');
 };
 
+registerOpenApi32Dialects();
 lockDownExternalResourceLoading();
 
 const builtInResourceUris = new Set(getAllRegisteredSchemaUris().map((uri) => withoutFragment(uri)));
@@ -88,6 +101,12 @@ let activeOwner: symbol | undefined;
 interface RegisteredDocument {
   retrievalUri: string;
   resourceUris: Set<string>;
+  registryUris: Set<string>;
+  oas32?: OpenApi32Registration;
+  metaValidated?: boolean;
+  metaFailure?: SchemaEngineError;
+  processingDocuments?: Map<string, Set<SchemaDocument>>;
+  referencesGeneration?: number;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -663,6 +682,8 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
   private readonly limits: Readonly<SchemaEngineLimits>;
   private readonly documents = new Map<string, RegisteredDocument>();
   private readonly resources = new Map<string, RegisteredDocument>();
+  private readonly registryOwners = new Map<string, RegisteredDocument>();
+  private readonly pendingRegistryUris = new Set<string>();
   private readonly pendingRetrievalUris = new Set<string>();
   private readonly pendingResourceUris = new Set<string>();
   private readonly compiled = new Map<string, Promise<CompiledSchema>>();
@@ -673,9 +694,16 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     this.limits = normalizeLimits(options.limits);
   }
 
-  public async registerDocument(document: unknown, retrievalUri: string): Promise<void> {
+  public async registerDocument(
+    document: unknown,
+    retrievalUri: string,
+    context?: SchemaDocumentRegistrationContext,
+  ): Promise<void> {
     this.assertUsable();
-    const normalizedRetrievalUri = normalizeAbsoluteUri(retrievalUri, false);
+    const uses32 = isOpenApi32(document) || context?.openapi32 === true;
+    const normalizedRetrievalUri = uses32
+      ? normalizePublicUri(retrievalUri, false)
+      : normalizeAbsoluteUri(retrievalUri, false);
     if (this.documents.has(normalizedRetrievalUri) || this.pendingRetrievalUris.has(normalizedRetrievalUri)) {
       throw new SchemaEngineError(
         'DOCUMENT_ALREADY_REGISTERED',
@@ -698,9 +726,11 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     if (typeof document !== 'boolean' && !isRecord(document)) {
       throw new SchemaEngineError('INVALID_DOCUMENT', 'A schema document must be an object or a boolean schema.');
     }
-    const contextDialect = contextDialectFor(document);
+    const oas32 = uses32 ? new OpenApi32Registration(document, normalizedRetrievalUri, context) : undefined;
+    const contextDialect = oas32 ? OAS32_DOCUMENT_WRAPPER : contextDialectFor(document);
     const prepared = prepareDocumentForHyperjump(document);
-    inspectResourceDeclarations(prepared.value, normalizedRetrievalUri, prepared);
+    if (oas32) oas32.prepare(prepared.value, prepared.unmaskSchemaObject, (uri) => builtInResourceUris.has(uri));
+    else inspectResourceDeclarations(prepared.value, normalizedRetrievalUri, prepared);
     inspectJsonValue(prepared.value, {
       kind: 'schema',
       maxNodes: this.limits.maxSchemaNodes,
@@ -712,23 +742,37 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     try {
       preview = buildSchemaDocument(
         structuredClone(prepared.value) as SchemaObject | boolean,
-        normalizedRetrievalUri,
+        oas32?.physicalRetrievalUri ?? normalizedRetrievalUri,
         contextDialect,
       );
     } catch (error) {
       throw asEngineError(error, normalizedRetrievalUri);
     }
+    const physicalResources = Object.keys(preview.embedded ?? { [preview.baseUri]: preview });
     const resourceUris = new Set(
-      Object.keys(preview.embedded ?? { [preview.baseUri]: preview }).map((uri) => withoutFragment(uri)),
+      oas32 ? oas32.resourceAliases.keys() : physicalResources.map((uri) => withoutFragment(uri)),
     );
-    resourceUris.add(withoutFragment(preview.baseUri));
-    if (resourceUris.size > this.limits.maxResourcesPerDocument) {
+    if (!oas32) resourceUris.add(withoutFragment(preview.baseUri));
+    const resourceCount = oas32 ? physicalResources.length : resourceUris.size;
+    if (resourceCount > this.limits.maxResourcesPerDocument) {
       throw new SchemaEngineError('SCHEMA_BUDGET_EXCEEDED', 'Schema resource limit exceeded.', {
         limit: this.limits.maxResourcesPerDocument,
-        actual: resourceUris.size,
+        actual: resourceCount,
       });
     }
 
+    const registryUris = new Set([
+      ...physicalResources,
+      preview.baseUri,
+      oas32?.physicalRetrievalUri ?? normalizedRetrievalUri,
+    ]);
+    for (const uri of registryUris) {
+      if (builtInResourceUris.has(uri) || this.registryOwners.has(uri) || this.pendingRegistryUris.has(uri)) {
+        throw new SchemaEngineError('RESOURCE_URI_CONFLICT', 'Schema registry address is already occupied.', {
+          resourceUri: normalizedRetrievalUri,
+        });
+      }
+    }
     for (const resourceUri of resourceUris) {
       if (
         builtInResourceUris.has(resourceUri) ||
@@ -759,30 +803,60 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     this.pendingRetrievalUris.add(normalizedRetrievalUri);
     this.pendingResourceUris.add(normalizedRetrievalUri);
     for (const resourceUri of resourceUris) this.pendingResourceUris.add(resourceUri);
+    for (const uri of registryUris) this.pendingRegistryUris.add(uri);
     activeOwner = this.owner;
-    let registered = false;
+    const registeredUris: string[] = [];
+    const processingDocuments = new Map<string, Set<SchemaDocument>>();
     try {
-      registerSchema(prepared.value as SchemaObject | boolean, normalizedRetrievalUri, contextDialect);
-      registered = true;
-      const registeredRoot = await getSchema(normalizedRetrievalUri);
-      prepared.restoreRegisteredDocument(registeredRoot.document);
+      const primaryUri = oas32?.physicalRetrievalUri ?? normalizedRetrievalUri;
+      const addresses = oas32
+        ? [primaryUri, ...registryUris].filter((uri, index, all) => all.indexOf(uri) === index)
+        : [primaryUri];
+      for (const address of addresses) {
+        // Hyperjump's registry stores retrievals, not embedded resource aliases.
+        // Register only resources discovered in the typed private preview so a
+        // different document can resolve embedded IDs without retaining a Browser.
+        const source =
+          oas32 && address !== primaryUri
+            ? schemaValueAt(prepared.value, oas32.resourcePointers.get(address)!)
+            : prepared.value;
+        registerSchema(source as SchemaObject | boolean, address, contextDialect);
+        registeredUris.push(address);
+        const registeredRoot = await getSchema(address);
+        prepared.restoreRegisteredDocument(registeredRoot.document);
+        oas32?.decorate(registeredRoot.document);
+        if (oas32)
+          for (const document of new Set([
+            registeredRoot.document,
+            ...Object.values(registeredRoot.document.embedded ?? {}).map((item) => item as SchemaDocument),
+          ])) {
+            const copies = processingDocuments.get(document.baseUri) ?? new Set<SchemaDocument>();
+            copies.add(document);
+            processingDocuments.set(document.baseUri, copies);
+          }
+      }
       if (this.disposed) {
-        unregisterSchema(normalizedRetrievalUri);
-        registered = false;
+        registeredUris.forEach(unregisterSchema);
+        registeredUris.length = 0;
         return;
       }
       const registration: RegisteredDocument = {
         retrievalUri: normalizedRetrievalUri,
         resourceUris,
+        registryUris,
+        oas32,
+        processingDocuments: oas32 ? processingDocuments : undefined,
       };
+      for (const uri of registryUris) this.registryOwners.set(uri, registration);
       this.documents.set(normalizedRetrievalUri, registration);
       this.resources.set(normalizedRetrievalUri, registration);
       for (const resourceUri of resourceUris) this.resources.set(resourceUri, registration);
       this.invalidateCompiledSchemas();
     } catch (error) {
-      if (registered) unregisterSchema(normalizedRetrievalUri);
+      registeredUris.forEach(unregisterSchema);
       throw asEngineError(error, normalizedRetrievalUri);
     } finally {
+      for (const uri of registryUris) this.pendingRegistryUris.delete(uri);
       this.pendingRetrievalUris.delete(normalizedRetrievalUri);
       this.pendingResourceUris.delete(normalizedRetrievalUri);
       for (const resourceUri of resourceUris) this.pendingResourceUris.delete(resourceUri);
@@ -794,10 +868,12 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
 
   public async resolve(schemaUri: string): Promise<SchemaNode> {
     this.assertUsable();
+    const indexed = this.findOpenApi32Location(schemaUri);
+    if (indexed) return indexed.registration.oas32!.publicNode(indexed.location, normalizePublicUri(schemaUri));
     const normalizedSchemaUri = normalizeAbsoluteUri(schemaUri, true);
     const generation = this.generation;
     try {
-      const resource = await this.getResource(normalizedSchemaUri);
+      const resource = await this.getResource(normalizedSchemaUri, schemaUri);
       this.assertGeneration(generation);
       const resourceSchema = toSchema(resource, { includeDialect: 'always', includeEmbedded: true }) as JsonValue;
       return {
@@ -820,7 +896,8 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     options: EvaluationOptions = {},
   ): Promise<EvaluationResult> {
     this.assertUsable();
-    const normalizedSchemaUri = normalizeAbsoluteUri(schemaUri, true);
+    const indexed = this.findOpenApi32Location(schemaUri);
+    const normalizedSchemaUri = indexed ? normalizePublicUri(schemaUri) : normalizeAbsoluteUri(schemaUri, true);
     inspectJsonValue(instance, {
       kind: 'instance',
       maxNodes: this.limits.maxInstanceNodes,
@@ -834,7 +911,16 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     const generation = this.generation;
 
     try {
-      const resource = await this.getResource(normalizedSchemaUri);
+      if (indexed) {
+        this.prepareOpenApi32References(budget);
+        await this.validateOpenApi32Registrations(indexed.registration, budget);
+      }
+      const resource = indexed
+        ? await getSchema(
+            indexed.registration.oas32!.physicalLocation(indexed.location),
+            await getSchema(indexed.registration.oas32!.physicalRetrievalUri),
+          )
+        : await this.getResource(normalizedSchemaUri, schemaUri);
       const key = canonicalUri(resource);
       let compiled = this.compiled.get(key);
       if (!compiled) {
@@ -857,27 +943,52 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       if (!output.valid) {
         return {
           valid: false,
-          errors: output.errors?.map((unit) => cloneIssue(unit, budget)) ?? [],
+          errors:
+            output.errors?.map((unit) => {
+              const issue = cloneIssue(unit, budget);
+              return indexed ? this.publicIssue(issue) : issue;
+            }) ?? [],
           annotations: [],
         };
       }
       return {
         valid: true,
         errors: [],
-        annotations: collectAnnotations(annotations.annotations, budget),
+        annotations: collectAnnotations(
+          indexed ? this.publicAnnotations(annotations.annotations, budget) : annotations.annotations,
+          budget,
+        ),
       };
     } catch (error) {
-      throw asEngineError(error, normalizedSchemaUri);
+      if (indexed) this.assertGeneration(generation);
+      if (indexed && findCause(error, InvalidSchemaError)) {
+        // Recheck processing documents after an upstream meta-validation failure.
+        // The retry guard belongs to the failing registration, never to unrelated owners.
+        for (const registration of this.documents.values())
+          if (registration.oas32 && !registration.metaFailure) registration.metaValidated = false;
+      }
+      throw indexed ? this.openApi32Error(error, normalizedSchemaUri) : asEngineError(error, normalizedSchemaUri);
     }
   }
 
   public unregisterDocument(retrievalUri: string): void {
     if (this.disposed) return;
-    const normalizedRetrievalUri = normalizeAbsoluteUri(retrievalUri, false);
+    const strict = (() => {
+      try {
+        return normalizePublicUri(retrievalUri, false);
+      } catch {
+        return undefined;
+      }
+    })();
+    const normalizedRetrievalUri =
+      strict && this.documents.get(strict)?.oas32 ? strict : normalizeAbsoluteUri(retrievalUri, false);
     const registration = this.documents.get(normalizedRetrievalUri);
-    if (!registration) return;
+    if (!registration || (registration.oas32 && strict !== normalizedRetrievalUri)) return;
 
-    unregisterSchema(normalizedRetrievalUri);
+    if (registration.oas32) registration.registryUris.forEach(unregisterSchema);
+    else unregisterSchema(normalizedRetrievalUri);
+    for (const uri of registration.registryUris)
+      if (this.registryOwners.get(uri) === registration) this.registryOwners.delete(uri);
     this.documents.delete(normalizedRetrievalUri);
     this.resources.delete(normalizedRetrievalUri);
     for (const resourceUri of registration.resourceUris) {
@@ -897,9 +1008,26 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     if (activeOwner === this.owner && this.pendingRetrievalUris.size === 0) activeOwner = undefined;
   }
 
-  private async getResource(schemaUri: string): Promise<Browser<SchemaDocument>> {
-    const resourceUri = withoutFragment(schemaUri);
-    const registration = this.resources.get(resourceUri);
+  private async getResource(schemaUri: string, requestedUri: string): Promise<Browser<SchemaDocument>> {
+    let resourceUri = withoutFragment(schemaUri);
+    let registration = this.resources.get(resourceUri);
+    const strictSchemaUri = [...this.documents.values()].some((entry) => entry.oas32)
+      ? normalizePublicUri(requestedUri)
+      : undefined;
+    const strictResourceUri = strictSchemaUri?.split('#')[0];
+    if (registration?.oas32 || (strictResourceUri && this.resources.get(strictResourceUri)?.oas32)) {
+      // A strict 3.2 lookup already missed. Neither its resource nor a legacy
+      // normalized alias may redirect this request into a different owner.
+      schemaUri = strictSchemaUri!;
+      resourceUri = strictResourceUri!;
+      registration = this.resources.get(resourceUri);
+      if (registration?.oas32)
+        throw new SchemaEngineError(
+          'SCHEMA_RESOLUTION_FAILED',
+          `The target '${schemaUri}' is not a real Schema position.`,
+          { uri: schemaUri },
+        );
+    }
     if (registration) {
       // Start from a fresh browser context so an unregistered document cannot
       // survive in Hyperjump's per-browser cache after lifecycle invalidation.
@@ -920,6 +1048,152 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       uri: schemaUri,
       resourceUri,
     });
+  }
+
+  private findOpenApi32Location(
+    uri: string,
+  ): { registration: RegisteredDocument; location: OpenApi32SchemaLocation } | undefined {
+    if (![...this.documents.values()].some((entry) => entry.oas32)) return undefined;
+    for (const registration of this.documents.values()) {
+      const location = registration.oas32?.lookup(uri);
+      if (location) return { registration, location };
+    }
+    return undefined;
+  }
+
+  private publicIssue(issue: EvaluationIssue): EvaluationIssue {
+    let location = issue.absoluteKeywordLocation;
+    for (const registration of this.documents.values())
+      location = registration.oas32?.publicLocation(location) ?? location;
+    return {
+      ...issue,
+      absoluteKeywordLocation: location,
+      // Output instanceLocation is a string JSON Pointer, not a URI fragment.
+      instanceLocation: decodeURIComponent(issue.instanceLocation),
+      ...(issue.errors ? { errors: issue.errors.map((child) => this.publicIssue(child)) } : {}),
+    };
+  }
+
+  private publicAnnotations(units: OutputUnit[], budget: EvaluationBudgetPlugin): OutputUnit[] {
+    const result: OutputUnit[] = [];
+    for (const unit of units) {
+      budget.assertWithinBudget();
+      let annotation = unit.annotation;
+      if (
+        unit.keyword.startsWith('https://json-schema.org/keyword/unknown#') ||
+        unit.keyword === 'https://json-schema.org/keyword/contentSchema'
+      ) {
+        const source = [...this.documents.values()]
+          .map((registration) => registration.oas32?.publicKeywordSource(unit.absoluteKeywordLocation))
+          .find((value) => value !== undefined);
+        if (source) {
+          // Restore only the actual annotation keyword's authored value. Unknown
+          // annotations remain opaque, including strings equal to private URIs.
+          if (!isRecord(source.node.value) || !owns(source.node.value, source.keyword)) continue;
+          annotation = source.node.value[source.keyword];
+        }
+      }
+      result.push({ ...unit, annotation, instanceLocation: decodeURIComponent(unit.instanceLocation) });
+    }
+    return result;
+  }
+
+  private prepareOpenApi32References(budget: EvaluationBudgetPlugin): void {
+    for (const registration of this.documents.values()) {
+      const context = registration.oas32;
+      if (!context || registration.referencesGeneration === this.generation) continue;
+      for (const reference of context.references) {
+        budget.assertWithinBudget();
+        const target =
+          context.lookup(reference.uri, reference.source) ?? this.findOpenApi32Location(reference.uri)?.location;
+        const uri = context.physicalReference(reference, (resource) => builtInResourceUris.has(resource), target);
+        for (const document of registration.processingDocuments?.get(reference.source.physicalResource) ?? []) {
+          const schema = schemaValueAt(document.root, `#${reference.source.relativePointer}`);
+          if (isRecord(schema))
+            schema[reference.keyword] = reference.keyword === '$ref' ? new Reference(uri, uri) : uri;
+        }
+      }
+      registration.referencesGeneration = this.generation;
+    }
+  }
+
+  private openApi32Error(error: unknown, operationUri: string): SchemaEngineError {
+    if (error instanceof SchemaEngineError) return error;
+    const physical = referencedResourceFrom(error);
+    const resourceUri = physical && publicResourceUri(physical);
+    if (resourceUri && findCause(error, UnsupportedUriSchemeError)) {
+      const external = /^(?:https?|file):/.test(resourceUri);
+      return new SchemaEngineError(
+        external ? 'EXTERNAL_RESOURCE_LOADING_DISABLED' : 'RESOURCE_NOT_REGISTERED',
+        external
+          ? `External schema resource loading is disabled for '${resourceUri}'.`
+          : `Schema resource '${resourceUri}' is not registered.`,
+        { uri: operationUri, resourceUri },
+      );
+    }
+    const failure = asEngineError(error, operationUri);
+    // Private processing addresses and their upstream cause stay inside the engine.
+    return new SchemaEngineError(failure.code, failure.message, {
+      ...failure.details,
+      ...(resourceUri ? { resourceUri } : {}),
+    });
+  }
+
+  private async validateOpenApi32Registrations(
+    entry: RegisteredDocument,
+    budget: EvaluationBudgetPlugin,
+  ): Promise<void> {
+    const pending = [entry];
+    const visited = new Set<RegisteredDocument>();
+    while (pending.length) {
+      const registration = pending.pop()!;
+      if (visited.has(registration)) continue;
+      visited.add(registration);
+      const context = registration.oas32;
+      if (!context) continue;
+      if (registration.metaFailure) throw registration.metaFailure;
+      if (!registration.metaValidated) {
+        // Cache completed Schema validity, never an in-flight operation's budget
+        // or AbortSignal. Concurrent callers may validate with independent limits.
+        const documents = new Set([...registration.processingDocuments!.values()].flatMap((copies) => [...copies]));
+        const schemas: { schema: unknown; dialect: string }[] = context.metaRoots.map((schema) => ({
+          schema,
+          dialect: OAS32_SCHEMA_ADAPTER,
+        }));
+        for (const document of documents) schemas.push({ schema: document.root, dialect: document.dialectId });
+        const validators = new Map<string, CompiledSchema>();
+        for (const { schema, dialect } of schemas) {
+          budget.assertWithinBudget();
+          let validator = validators.get(dialect);
+          if (!validator) {
+            validator = await compile(await getSchema(dialect));
+            validators.set(dialect, validator);
+          }
+          const result = interpret(validator, fromJs(schema as JsonValue), {
+            outputFormat: BASIC,
+            plugins: [budget],
+          });
+          budget.assertWithinBudget();
+          if (!result.valid) {
+            const failure = new SchemaEngineError(
+              'SCHEMA_RESOLUTION_FAILED',
+              'OpenAPI 3.2 Schema meta-validation failed.',
+              { uri: registration.retrievalUri },
+            );
+            registration.metaFailure = failure;
+            throw failure;
+          }
+        }
+        registration.metaValidated = true;
+      }
+      // Check only registered dependencies. Missing resources are rejected when
+      // compilation reaches the reference; unused references do not block siblings.
+      for (const reference of context.references) {
+        budget.assertWithinBudget();
+        const dependency = this.findOpenApi32Location(reference.uri)?.registration;
+        if (dependency) pending.push(dependency);
+      }
+    }
   }
 
   private invalidateCompiledSchemas(): void {
