@@ -108,9 +108,10 @@ export function buildOas32TagNavigation<TGroup extends Oas32TagGroup>(
     const declaration = node.declarations[0];
     if (!declaration) return;
     node.declaration = declaration;
-    node.label = declaration.summary !== undefined && declaration.summary.length > 0 ? declaration.summary : node.name;
-    node.kind = declaration.kind;
-    if (declaration.parent === undefined) return;
+    node.label =
+      typeof declaration.summary === 'string' && declaration.summary.length > 0 ? declaration.summary : node.name;
+    node.kind = typeof declaration.kind === 'string' ? declaration.kind : undefined;
+    if (typeof declaration.parent !== 'string') return;
     const parent = byName.get(declaration.parent);
     if (!parent?.declarations.length) {
       diagnose('unknown-parent-tag', node.name, indexes[0], 'parent', 'parent 指向的 Tag 声明必须存在；已拒绝该连接');

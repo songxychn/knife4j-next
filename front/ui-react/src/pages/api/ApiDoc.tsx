@@ -87,6 +87,8 @@ interface ParamRow {
 }
 
 interface ResponseRow {
+  summary?: string;
+  unavailable?: boolean;
   key: string;
   statusCode: string;
   description: string;
@@ -500,7 +502,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   });
   const bodySchema = useMemo(() => firstRequestSchema(op.requestBody, op.parameters), [op.parameters, op.requestBody]);
   const registeredResponses = useMemo(() => {
-    if (!isOas31SchemaDocument(swaggerDoc)) return null;
+    if (!isOas31SchemaDocument(swaggerDoc) && !isOas32) return null;
     const session =
       schemaEngine.status === 'ready' && schemaEngine.document === swaggerDoc ? schemaEngine.session : undefined;
     return locateOperationResponses(swaggerDoc, operation, session).map(({ statusCode, location }) => ({
@@ -508,7 +510,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       unavailable: location === null,
       response: location ? responseForDisplay(location, session) : {},
     }));
-  }, [operation, schemaEngine, swaggerDoc]);
+  }, [isOas32, operation, schemaEngine, swaggerDoc]);
   const responses: ResponseRow[] = useMemo(
     () =>
       (
@@ -534,13 +536,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         return {
           key: statusCode,
           statusCode,
+          summary: isOas32 ? response.summary : undefined,
+          unavailable: registeredResponses?.find((record) => record.statusCode === statusCode)?.unavailable,
           description: response.description ?? '',
           schema: responseSchema(response),
           mediaType: responseMediaType(response),
           headers,
         };
       }),
-    [op.responses, registeredResponses, swaggerDoc],
+    [isOas32, op.responses, registeredResponses, swaggerDoc],
   );
   const legacySchemaRegions = useMemo(() => {
     const regions: Array<{ key: string; fields: SchemaFieldNode[] }> = [];
@@ -1006,6 +1010,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                             {responseOverviewVisibility.showStatusCode && <Tag color={color}>{row.statusCode}</Tag>}
                             {responseOverviewVisibility.showDetails && (
                               <>
+                                {row.summary && <Text strong>{row.summary}</Text>}
                                 {row.description && (
                                   <DescriptionText type="secondary" style={{ fontSize: 13 }}>
                                     {row.description}
@@ -1017,7 +1022,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                             )}
                           </Space>
                         )}
-                        <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
+                        {row.unavailable ? (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            message={t('oas32.responseUnavailable', { status: row.statusCode })}
+                          />
+                        ) : (
+                          <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
+                        )}
                         {row.headers.length > 0 && (
                           <div style={{ marginTop: 12 }}>
                             <Text strong>{t('apiDebug.response.headers')}</Text>

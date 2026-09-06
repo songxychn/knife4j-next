@@ -839,6 +839,26 @@ const jaJP = {
   'auth.modal401.description': 'リクエストが 401 で拒否されました。以下で認証情報を設定してから再送信してください。',
   'auth.modal401.resend': '再送信',
   'auth.modal401.close': '閉じる',
+  'oas32.responseUnavailable':
+    'レスポンス {{status}} は未解決または参照先の型が無効です。空のレスポンスとは異なります。',
+  'oas32.server.select': 'Server を選択',
+  'oas32.server.customUrl': 'カスタム URL',
+  'oas32.server.source': 'ソース',
+  'oas32.server.raw': '宣言 URL',
+  'oas32.server.substituted': '変数置換後',
+  'oas32.server.resolved': '解決 URL',
+  'oas32.server.request': 'リクエスト base URL',
+  'oas32.server.owner': '実際のドキュメント位置',
+  'oas32.server.unavailable':
+    '選択した Server ではリクエストを送信できません。宣言、変数、解決状態を確認してください。',
+  'oas32.server.override.host': '製品設定による上書き: Host',
+  'oas32.server.override.gateway': '製品設定による上書き: ゲートウェイ contextPath',
+  'oas32.server.override.custom': '製品設定による上書き: カスタム URL',
+  'oas32.server.level.operation': 'Operation Server',
+  'oas32.server.level.path-item': 'Path Item Server',
+  'oas32.server.level.root': 'ルートドキュメント Server',
+  'oas32.server.level.default': '仕様のデフォルト Server /',
+  'oas32.server.changed': 'Server またはパスが変更されました。現在の設定で再送信してください。',
 } as const;
 
 export default jaJP;

@@ -26,6 +26,7 @@ import {
 } from '../utils/groupRoute';
 import { useSettings } from './SettingsContext';
 import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
+import { oas32MetadataDiagnostics } from '../schema/oas32MetadataDiagnostics';
 import { schemaDocumentRetrievalUri } from '../schema/schemaDocumentSession';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
@@ -69,6 +70,7 @@ interface GroupContextValue {
   swaggerDoc: SwaggerDoc | null;
   swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
+  operationRetrievalUri?: string;
   operationEnumerationLimit?: OperationEnumerationDiagnostic;
   markdownDocs: MarkdownDocItem[];
   schemas: Record<string, SchemaObject>;
@@ -282,6 +284,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     },
     [activeGroupValue],
   );
+  const metadataDiagnostics = useMemo(() => oas32MetadataDiagnostics(swaggerDoc, menuTags), [swaggerDoc, menuTags]);
   const routeGroupReady = isRouteGroupReady(routeGroupName, activeGroupValue);
 
   return (
@@ -294,6 +297,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         swaggerDoc,
         swaggerUiConfig,
         menuTags,
+        operationRetrievalUri,
         operationEnumerationLimit,
         markdownDocs,
         schemas,
@@ -301,7 +305,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         routeGroupReady,
         usingMock,
         groupError,
-        documentDiagnostics,
+        documentDiagnostics: [...documentDiagnostics, ...metadataDiagnostics],
         setOperationResourceSnapshot,
       }}
     >

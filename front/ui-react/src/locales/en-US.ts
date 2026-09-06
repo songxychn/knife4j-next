@@ -829,6 +829,26 @@ const enUS = {
   'auth.modal401.description': 'The request was rejected with 401. Please configure your credentials below and resend.',
   'auth.modal401.resend': 'Resend',
   'auth.modal401.close': 'Close',
+  'oas32.responseUnavailable':
+    'Response {{status}} is unresolved or has an invalid target type; it is not an empty response.',
+  'oas32.server.select': 'Select Server',
+  'oas32.server.customUrl': 'Custom override URL',
+  'oas32.server.source': 'Source',
+  'oas32.server.raw': 'Declared URL',
+  'oas32.server.substituted': 'After substitution',
+  'oas32.server.resolved': 'Resolved URL',
+  'oas32.server.request': 'Request base URL',
+  'oas32.server.owner': 'Physical document location',
+  'oas32.server.unavailable':
+    'The selected Server cannot be used for requests. Check its declaration, variables and resolution status.',
+  'oas32.server.override.host': 'Product override: configured Host',
+  'oas32.server.override.gateway': 'Product override: gateway contextPath',
+  'oas32.server.override.custom': 'Product override: custom URL',
+  'oas32.server.level.operation': 'Operation Server',
+  'oas32.server.level.path-item': 'Path Item Server',
+  'oas32.server.level.root': 'Root document Server',
+  'oas32.server.level.default': 'Specification default Server /',
+  'oas32.server.changed': 'The Server or path changed. Send again using the current configuration.',
 } as const;
 
 export default enUS;

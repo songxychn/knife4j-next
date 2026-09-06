@@ -6,7 +6,7 @@ import {
   type Oas32UrlLocation,
   type Oas32UrlTemplate,
   type Oas32ServerVariableValue,
-} from '../../../core/src/openapi32/urlTemplates';
+} from 'knife4j-core';
 
 export type Oas32ServerLevel = 'operation' | 'path-item' | 'root' | 'default';
 
