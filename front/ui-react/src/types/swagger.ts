@@ -344,8 +344,9 @@ export interface MenuOperation {
   deprecated?: boolean;
   operation: OperationObject;
   /** Path operations are executable; webhook operations are read-only inbound contracts. */
-  source?: 'path' | 'webhook' | 'callback' | 'component';
+  source?: 'path' | 'webhook' | 'callback' | 'component' | 'link';
   identity?: OpenApiOperation;
+  enumerationLimited?: boolean;
   resourceSnapshot?: ResourceGraphSnapshot;
   /** Collision-safe identity used in the operation route. */
   routeId?: string;
@@ -353,6 +354,8 @@ export interface MenuOperation {
 
 export interface MenuTag {
   tag: string;
+  /** Opaque 3.2 routing segment; display names remain verbatim. */
+  routeId?: string;
   description?: string;
   operations: MenuOperation[];
 }

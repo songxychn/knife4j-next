@@ -11,7 +11,7 @@ import { getOpenApiSpecificationFeatures, OPENAPI_HTTP_METHODS } from './openapi
 export type OpenApiDocumentDiagnostic = Oas31DocumentDiagnostic | (Oas32DocumentDiagnostic & { value?: string });
 
 type RecordValue = Record<string, unknown>;
-export type OpenApiOperationSource = 'path' | 'webhook' | 'callback' | 'component';
+export type OpenApiOperationSource = 'path' | 'webhook' | 'callback' | 'component' | 'link';
 export type OperationReferenceKind =
   'pathItem' | 'callback' | 'parameter' | 'requestBody' | 'response' | 'header' | 'link';
 
@@ -29,7 +29,7 @@ export interface OpenApiOperation {
   readonly path: string;
   /** The actual HTTP method: fixed fields are uppercased, additional keys are verbatim. */
   readonly method: string;
-  readonly methodSource: 'fixed' | 'additional';
+  readonly methodSource: 'fixed' | 'additional' | 'unknown';
   readonly methodField: string;
   readonly operationPointer: string;
   readonly pathItemPointer: string;
@@ -51,8 +51,78 @@ export interface OperationSchemaDocuments {
   readonly responses: ReadonlyMap<string, RecordValue>;
 }
 
+export interface OperationEnumerationLimits {
+  readonly maxWork: number;
+  readonly maxOperations: number;
+}
+
+/** Product-local expansion limits, independent of OAS validity and physical resource graph limits. */
+export const DEFAULT_OPERATION_ENUMERATION_LIMITS: OperationEnumerationLimits = Object.freeze({
+  maxWork: 50000,
+  maxOperations: 2000,
+});
+
+export interface OperationEnumerationDiagnostic {
+  readonly code: 'OPERATION_EXPANSION_LIMIT';
+  readonly resource: 'work' | 'operations';
+  readonly limits: OperationEnumerationLimits;
+  readonly work: number;
+  readonly operations: number;
+  readonly ownerRetrievalUri: string;
+  readonly pointer: string;
+}
+
+class OperationEnumerationLimitReached extends Error {
+  constructor(readonly budget: OperationEnumerationBudget) {
+    super('Operation expansion reached a local limit.');
+    Object.setPrototypeOf(this, OperationEnumerationLimitReached.prototype);
+  }
+}
+
+/** One budget is shared by every mount, prototype, callback branch and loaded Link target. */
+export class OperationEnumerationBudget {
+  readonly limits: OperationEnumerationLimits;
+  work = 0;
+  operations = 0;
+  diagnostic?: OperationEnumerationDiagnostic;
+
+  constructor(limits: Partial<OperationEnumerationLimits> = {}) {
+    const bounded = (value: number | undefined, maximum: number) =>
+      value === undefined || !Number.isFinite(value) ? maximum : Math.max(0, Math.min(maximum, Math.floor(value)));
+    this.limits = Object.freeze({
+      maxWork: bounded(limits.maxWork, DEFAULT_OPERATION_ENUMERATION_LIMITS.maxWork),
+      maxOperations: bounded(limits.maxOperations, DEFAULT_OPERATION_ENUMERATION_LIMITS.maxOperations),
+    });
+  }
+
+  consume(resource: 'work' | 'operations', location: OpenApiObjectLocation): void {
+    const maximum = resource === 'work' ? this.limits.maxWork : this.limits.maxOperations;
+    if (this.diagnostic || this[resource] >= maximum) {
+      this.diagnostic ??= Object.freeze({
+        code: 'OPERATION_EXPANSION_LIMIT',
+        resource,
+        limits: this.limits,
+        work: this.work,
+        operations: this.operations,
+        ownerRetrievalUri: location.ownerRetrievalUri,
+        pointer: location.pointer,
+      });
+      throw new OperationEnumerationLimitReached(this);
+    }
+    this[resource] += 1;
+  }
+}
+
+export interface OpenApiLinkedOperationTarget {
+  readonly operation: OpenApiObjectLocation;
+  /** Already indexed physical parent; absent for a standalone Operation document. */
+  readonly pathItem?: OpenApiObjectLocation;
+}
+
 export interface EnumerateOpenApiOperationsOptions {
   readonly retrievalUri?: string;
+  readonly budget?: OperationEnumerationBudget;
+  readonly linkTargets?: readonly OpenApiLinkedOperationTarget[];
   /** A registry-only resolver. It receives the reference site, not a guessed URI. */
   readonly resolveReference?: (
     location: OpenApiObjectLocation,
@@ -61,6 +131,28 @@ export interface EnumerateOpenApiOperationsOptions {
 }
 
 export const HTTP_METHOD_TOKEN = /^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$/;
+
+/** Physical indexed pointers are already URI-decoded; only JSON Pointer token escapes remain. */
+export function physicalJsonPointerTokens(pointer: string): string[] | null {
+  if (pointer === '#') return [];
+  if (!pointer.startsWith('#/') || /~(?![01])/.test(pointer)) return null;
+  return pointer
+    .slice(2)
+    .split('/')
+    .map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+}
+
+export function resolvePhysicalJsonPointer(document: unknown, pointer: string): { found: boolean; value?: unknown } {
+  const tokens = physicalJsonPointerTokens(pointer);
+  if (!tokens) return { found: false };
+  let value = document;
+  for (const token of tokens) {
+    if (value === null || typeof value !== 'object' || !Object.prototype.hasOwnProperty.call(value, token))
+      return { found: false };
+    value = (value as RecordValue)[token];
+  }
+  return { found: true, value };
+}
 
 function record(value: unknown): value is RecordValue {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -86,6 +178,7 @@ export function enumerateOpenApiOperations(
   const documentUri = options.retrievalUri ?? '';
   const root: OpenApiObjectLocation = { value: document, pointer: '#', ownerRetrievalUri: documentUri };
   const result: OpenApiOperation[] = [];
+  const budget = options.budget ?? new OperationEnumerationBudget();
   const resolve =
     options.resolveReference ??
     ((location, kind) => {
@@ -106,6 +199,7 @@ export function enumerateOpenApiOperations(
     const seen = new Set<string>();
     let current = location;
     for (let depth = 0; depth <= 20; depth++) {
+      budget.consume('work', current);
       if (!record(current.value)) return null;
       if (typeof current.value.$ref !== 'string') return current;
       const key = JSON.stringify([current.ownerRetrievalUri, current.pointer]);
@@ -121,6 +215,7 @@ export function enumerateOpenApiOperations(
     location: OpenApiObjectLocation,
     seen = new Set<string>(),
   ): Record<string, OpenApiObjectLocation> | null => {
+    budget.consume('work', location);
     if (!record(location.value) || seen.size > 20) return null;
     const key = JSON.stringify([location.ownerRetrievalUri, location.pointer]);
     if (seen.has(key)) return null;
@@ -169,13 +264,19 @@ export function enumerateOpenApiOperations(
     source: OpenApiOperationSource,
     mountPointer: string,
     ancestry: ReadonlySet<string>,
+    linkedOperation?: OpenApiObjectLocation,
   ): void => {
+    budget.consume('work', location);
     const visitKey = JSON.stringify([location.ownerRetrievalUri, location.pointer]);
     if (ancestry.has(visitKey) || ancestry.size > 32) return;
     const fields = fieldsForPathItem(location);
     if (!fields) return;
     const pathItem = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value]));
-    const entries: Array<{ field: string; source: 'fixed' | 'additional'; location: OpenApiObjectLocation }> = [];
+    const entries: Array<{
+      field: string;
+      source: 'fixed' | 'additional' | 'unknown';
+      location: OpenApiObjectLocation;
+    }> = [];
     for (const method of methods)
       if (fields[method]) entries.push({ field: method, source: 'fixed', location: fields[method] });
     const additional = fields.additionalOperations;
@@ -185,8 +286,17 @@ export function enumerateOpenApiOperations(
           entries.push({ field: method, source: 'additional', location: child(additional, method, value) });
       }
     }
+    if (linkedOperation && !location.pointer) entries.push({ field: '', source: 'unknown', location: linkedOperation });
     for (const entry of entries) {
+      budget.consume('work', entry.location);
+      if (
+        linkedOperation &&
+        (entry.location.pointer !== linkedOperation.pointer ||
+          entry.location.ownerRetrievalUri !== linkedOperation.ownerRetrievalUri)
+      )
+        continue;
       if (!record(entry.location.value)) continue;
+      budget.consume('operations', entry.location);
       const raw = entry.location.value;
       const projectedRaw = { ...raw };
       const parameterLocations: Record<string, OpenApiObjectLocation> = {};
@@ -243,10 +353,13 @@ export function enumerateOpenApiOperations(
         methodSource: entry.source,
         methodField: entry.field,
         operationPointer: entry.location.pointer,
-        pathItemPointer: entry.location.pointer.slice(
-          0,
-          entry.location.pointer.lastIndexOf(entry.source === 'additional' ? '/additionalOperations/' : '/'),
-        ),
+        pathItemPointer:
+          entry.source === 'unknown'
+            ? ''
+            : entry.location.pointer.slice(
+                0,
+                entry.location.pointer.lastIndexOf(entry.source === 'additional' ? '/additionalOperations/' : '/'),
+              ),
         ownerRetrievalUri: entry.location.ownerRetrievalUri,
         mountPointer,
         operation,
@@ -265,6 +378,7 @@ export function enumerateOpenApiOperations(
             callbackLocation,
             `${mountPointer}/${entry.source === 'additional' ? 'additionalOperations/' : ''}${escapeJsonPointerSegment(entry.field)}/callbacks/${escapeJsonPointerSegment(name)}`,
             new Set([...Array.from(ancestry), visitKey]),
+            source === 'component' || source === 'link' ? source : 'callback',
           );
         }
     }
@@ -278,6 +392,7 @@ export function enumerateOpenApiOperations(
     const resolved = dereference(location, 'callback');
     if (!resolved || !record(resolved.value)) return;
     for (const [expression, pathItem] of Object.entries(resolved.value)) {
+      budget.consume('work', resolved);
       if (!expression.startsWith('x-'))
         visitPathItem(
           child(resolved, expression, pathItem),
@@ -288,29 +403,52 @@ export function enumerateOpenApiOperations(
         );
     }
   };
-  for (const [collection, source] of [
-    ['paths', 'path'],
-    ['webhooks', 'webhook'],
-  ] as const) {
-    if (!record(document[collection])) continue;
-    for (const [path, pathItem] of Object.entries(document[collection] as RecordValue)) {
-      if (collection === 'paths' && !path.startsWith('/')) continue;
-      const location = child(child(root, collection, document[collection]), path, pathItem);
-      visitPathItem(location, path, source, location.pointer, new Set());
+  try {
+    for (const [collection, source] of [
+      ['paths', 'path'],
+      ['webhooks', 'webhook'],
+    ] as const) {
+      if (!record(document[collection])) continue;
+      for (const [path, pathItem] of Object.entries(document[collection] as RecordValue)) {
+        if (collection === 'paths' && !path.startsWith('/')) continue;
+        const location = child(child(root, collection, document[collection]), path, pathItem);
+        visitPathItem(location, path, source, location.pointer, new Set());
+      }
     }
-  }
-  if (record(document.components)) {
-    const components = child(root, 'components', document.components);
-    if (record(document.components.pathItems))
-      for (const [name, pathItem] of Object.entries(document.components.pathItems)) {
-        const location = child(child(components, 'pathItems', document.components.pathItems), name, pathItem);
-        visitPathItem(location, name, 'component', location.pointer, new Set());
-      }
-    if (record(document.components.callbacks))
-      for (const [name, callback] of Object.entries(document.components.callbacks)) {
-        const location = child(child(components, 'callbacks', document.components.callbacks), name, callback);
-        visitCallback(location, location.pointer, new Set(), 'component');
-      }
+    if (record(document.components)) {
+      const components = child(root, 'components', document.components);
+      if (record(document.components.pathItems))
+        for (const [name, pathItem] of Object.entries(document.components.pathItems)) {
+          const location = child(child(components, 'pathItems', document.components.pathItems), name, pathItem);
+          visitPathItem(location, name, 'component', location.pointer, new Set());
+        }
+      if (record(document.components.callbacks))
+        for (const [name, callback] of Object.entries(document.components.callbacks)) {
+          const location = child(child(components, 'callbacks', document.components.callbacks), name, callback);
+          visitCallback(location, location.pointer, new Set(), 'component');
+        }
+    }
+    const knownTargets = new Set(
+      result.map((operation) => JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer])),
+    );
+    for (const target of options.linkTargets ?? []) {
+      budget.consume('work', target.operation);
+      const key = JSON.stringify([target.operation.ownerRetrievalUri, target.operation.pointer]);
+      if (knownTargets.has(key)) continue;
+      const start = result.length;
+      visitPathItem(
+        target.pathItem ?? { value: {}, pointer: '', ownerRetrievalUri: target.operation.ownerRetrievalUri },
+        target.pathItem?.pointer ?? target.operation.pointer,
+        'link',
+        '',
+        new Set(),
+        target.operation,
+      );
+      for (const operation of result.slice(start))
+        knownTargets.add(JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer]));
+    }
+  } catch (error) {
+    if (!(error instanceof OperationEnumerationLimitReached) || error.budget !== budget) throw error;
   }
   return result;
 }

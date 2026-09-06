@@ -1,5 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { operationHttpMethod, type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic } from 'knife4j-core';
+import {
+  operationHttpMethod,
+  type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
+  type OperationEnumerationDiagnostic,
+} from 'knife4j-core';
 import { useLocation } from 'react-router-dom';
 import {
   getSchemas,
@@ -65,6 +69,7 @@ interface GroupContextValue {
   swaggerDoc: SwaggerDoc | null;
   swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
+  operationEnumerationLimit?: OperationEnumerationDiagnostic;
   markdownDocs: MarkdownDocItem[];
   schemas: Record<string, SchemaObject>;
   loading: boolean;
@@ -199,28 +204,31 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [settings.operationsSorter, swaggerUiConfig]);
 
   // 派生数据
-  const menuTags: MenuTag[] = useMemo(
-    () =>
-      swaggerDoc
-        ? parseMenuTags(swaggerDoc, {
-            retrievalUri: operationRetrievalUri,
-            resourceSnapshot: operationSnapshot,
-            tagsSorter: effectiveTagsSorter,
-            operationsSorter: effectiveOperationsSorter,
-            filterMultipartApis: settings.enableFilterMultipartApis,
-            filterMultipartApiMethodType: settings.enableFilterMultipartApiMethodType,
-          })
-        : [],
-    [
-      swaggerDoc,
-      operationRetrievalUri,
-      operationSnapshot,
-      effectiveTagsSorter,
-      effectiveOperationsSorter,
-      settings.enableFilterMultipartApis,
-      settings.enableFilterMultipartApiMethodType,
-    ],
-  );
+  const { menuTags, operationEnumerationLimit } = useMemo(() => {
+    let operationEnumerationLimit: OperationEnumerationDiagnostic | undefined;
+    const menuTags = swaggerDoc
+      ? parseMenuTags(swaggerDoc, {
+          onOperationLimit: (diagnostic) => {
+            operationEnumerationLimit = diagnostic;
+          },
+          retrievalUri: operationRetrievalUri,
+          resourceSnapshot: operationSnapshot,
+          tagsSorter: effectiveTagsSorter,
+          operationsSorter: effectiveOperationsSorter,
+          filterMultipartApis: settings.enableFilterMultipartApis,
+          filterMultipartApiMethodType: settings.enableFilterMultipartApiMethodType,
+        })
+      : [];
+    return { menuTags, operationEnumerationLimit };
+  }, [
+    swaggerDoc,
+    operationRetrievalUri,
+    operationSnapshot,
+    effectiveTagsSorter,
+    effectiveOperationsSorter,
+    settings.enableFilterMultipartApis,
+    settings.enableFilterMultipartApiMethodType,
+  ]);
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   const markdownDocs: MarkdownDocItem[] = useMemo(() => {
@@ -286,6 +294,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         swaggerDoc,
         swaggerUiConfig,
         menuTags,
+        operationEnumerationLimit,
         markdownDocs,
         schemas,
         loading,

@@ -1,6 +1,15 @@
+import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { MenuTag } from '../../types/swagger';
 import { findMenuOperation, visibleOperationModeKeys } from './operationRouting';
+
+function findThroughRouter(menuTags: MenuTag[], tag: string, operationId: string) {
+  const params = matchRoutes(
+    [{ path: '/:group/:tag/:operaterId/:mode' }],
+    `/default/${encodeURIComponent(tag)}/${encodeURIComponent(operationId)}/doc`,
+  )![0].params;
+  return findMenuOperation(menuTags, params.tag, params.operaterId);
+}
 
 describe('OAS 3.1 operation routing', () => {
   const menuTags: MenuTag[] = [
@@ -21,8 +30,16 @@ describe('OAS 3.1 operation routing', () => {
     },
   ];
 
+  it('preserves legacy encoded bookmarks through the actual Router', () => {
+    const params = matchRoutes(
+      [{ path: '/:group/:tag/:operaterId/:mode' }],
+      '/default/events/webhook%3ApetChanged/doc',
+    )![0].params;
+    expect(findMenuOperation(menuTags, params.tag, params.operaterId)?.source).toBe('webhook');
+  });
+
   it('finds a webhook by its collision-safe route id', () => {
-    expect(findMenuOperation(menuTags, 'events', 'webhook%3ApetChanged')?.source).toBe('webhook');
+    expect(findThroughRouter(menuTags, 'events', 'webhook:petChanged')?.source).toBe('webhook');
   });
 
   it('selects the requested operation when a tag contains multiple path fallbacks', () => {
@@ -52,7 +69,7 @@ describe('OAS 3.1 operation routing', () => {
       },
     ];
 
-    expect(findMenuOperation(paths, 'upload', '%2Fattachments')?.path).toBe('/attachments');
+    expect(findThroughRouter(paths, 'upload', '/attachments')?.path).toBe('/attachments');
   });
 
   it('selects method-qualified fallback routes and keeps legacy bare-path bookmarks', () => {
@@ -82,8 +99,8 @@ describe('OAS 3.1 operation routing', () => {
       },
     ];
 
-    expect(findMenuOperation(paths, 'diagnostics', 'trace%3A%2Fdiagnostics')?.method).toBe('trace');
-    expect(findMenuOperation(paths, 'diagnostics', '%2Fdiagnostics')?.method).toBe('get');
+    expect(findThroughRouter(paths, 'diagnostics', 'trace:/diagnostics')?.method).toBe('trace');
+    expect(findThroughRouter(paths, 'diagnostics', '/diagnostics')?.method).toBe('get');
   });
 
   it('selects a source-qualified webhook after a cross-source route collision', () => {
@@ -115,7 +132,7 @@ describe('OAS 3.1 operation routing', () => {
       },
     ];
 
-    expect(findMenuOperation(operations, 'events', 'webhook%3Apost%3Achanged')?.source).toBe('webhook');
+    expect(findThroughRouter(operations, 'events', 'webhook:post:changed')?.source).toBe('webhook');
   });
 
   it('keeps webhook contracts read-only', () => {

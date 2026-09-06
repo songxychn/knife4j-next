@@ -13,6 +13,8 @@ import {
   resolvePathItemOperation,
   type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
   type OpenApiHttpMethod,
+  type OperationEnumerationLimits,
+  type OperationEnumerationDiagnostic,
 } from 'knife4j-core';
 
 import type {
@@ -277,6 +279,8 @@ export function normalizeOperationsSorter(value: unknown): OperationsSorter {
 
 /** 排序选项（供 parseMenuTags 使用） */
 export interface MenuSortOptions {
+  operationLimits?: Partial<OperationEnumerationLimits>;
+  onOperationLimit?: (diagnostic: OperationEnumerationDiagnostic) => void;
   tagsSorter?: TagsSorter;
   operationsSorter?: OperationsSorter;
   filterMultipartApis?: boolean;
@@ -289,6 +293,7 @@ interface ParsedOperation {
   path: string;
   method: string;
   identity?: MenuOperation['identity'];
+  enumerationLimited?: boolean;
   resourceSnapshot?: ResourceGraphSnapshot;
   operation: OperationObject;
   tags: string[];
@@ -322,8 +327,13 @@ function resolveMenuOperation(
   return resolveLegacyPathItem(document, pathItem)?.[method] ?? null;
 }
 
+function oas32RouteSegment(value: string): string {
+  return `oas32:${Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function defaultOperationRouteId(operation: ParsedOperation): string {
-  if (operation.identity) return operation.identity.identity;
+  // Router handles percent/slash escapes before params; keep both 3.2 identity segments opaque.
+  if (operation.identity) return oas32RouteSegment(operation.identity.identity);
   const { path, method, source } = operation;
   return source === 'webhook'
     ? `webhook:${operation.operation.operationId ?? `${method}:${path}`}`
@@ -437,13 +447,19 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
   if (getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2') {
     let registry: ReturnType<typeof enumerateRegistryOperations>;
     try {
-      registry = enumerateRegistryOperations(doc, options.retrievalUri, options.resourceSnapshot);
+      registry = enumerateRegistryOperations(
+        doc,
+        options.retrievalUri,
+        options.resourceSnapshot,
+        options.operationLimits,
+      );
     } catch {
       return Array.from(tagMap.values());
     }
+    if (registry.diagnostic) options.onOperationLimit?.(registry.diagnostic);
     const mounted = new Set(
       registry.operations
-        .filter((operation) => operation.source !== 'component')
+        .filter((operation) => operation.source !== 'component' && operation.source !== 'link')
         .map((operation) => JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer])),
     );
     for (const identity of registry.operations) {
@@ -462,6 +478,7 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
           : [identity.source === 'path' ? 'default' : `${identity.source}s`],
         source: identity.source,
         identity,
+        enumerationLimited: Boolean(registry.diagnostic),
         resourceSnapshot: registry.snapshot,
       });
     }
@@ -540,8 +557,10 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
       }
       used.add(routeId);
       usedRouteIds.set(tag, used);
+      const routeTag = parsedOperation.identity ? oas32RouteSegment(tag) : tag;
+      if (parsedOperation.identity) tagMap.get(tag)!.routeId = routeTag;
       const menuOp: MenuOperation = {
-        key: `${encodeURIComponent(tag)}/${encodeURIComponent(routeId)}`,
+        key: `${encodeURIComponent(routeTag)}/${encodeURIComponent(routeId)}`,
         path,
         method,
         summary: operation.summary ?? path,
@@ -551,7 +570,11 @@ export function parseMenuTags(doc: SwaggerDoc, options: MenuSortOptions = {}): M
         source,
         routeId,
         ...(parsedOperation.identity
-          ? { identity: parsedOperation.identity, resourceSnapshot: parsedOperation.resourceSnapshot }
+          ? {
+              identity: parsedOperation.identity,
+              resourceSnapshot: parsedOperation.resourceSnapshot,
+              enumerationLimited: parsedOperation.enumerationLimited,
+            }
           : {}),
       };
       tagMap.get(tag)!.operations.push(menuOp);

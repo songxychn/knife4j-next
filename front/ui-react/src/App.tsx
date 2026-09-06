@@ -111,6 +111,7 @@ const AppInner: React.FC = () => {
     swaggerDoc,
     groupError,
     documentDiagnostics: oas31Diagnostics,
+    operationEnumerationLimit,
   } = useGroup();
   const { t, i18n } = useTranslation();
   const { settings, setSetting, storageResetSnapshot } = useSettings();
@@ -614,6 +615,15 @@ const AppInner: React.FC = () => {
                   description={
                     <span style={{ whiteSpace: 'pre-wrap' }}>{t(groupError.key, groupError.values ?? {})}</span>
                   }
+                  style={{ margin: '2px 2px 8px' }}
+                />
+              )}
+              {operationEnumerationLimit && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={t('app.operationLimit.title')}
+                  description={t('app.operationLimit.description', { ...operationEnumerationLimit.limits })}
                   style={{ margin: '2px 2px 8px' }}
                 />
               )}

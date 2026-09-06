@@ -1,3 +1,4 @@
+import { matchRoutes } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
 import {
   buildOperationDebugModel,
@@ -71,9 +72,9 @@ describe('OAS 3.2 operation consumers', () => {
         const operation = tags
           .find((tag) => tag.tag === 'Methods')!
           .operations.find((operation) => operation.method === method)!;
-        expect(findMenuOperation(tags, encodeURIComponent('Methods'), encodeURIComponent(operation.routeId!))).toBe(
-          operation,
-        );
+        const params = matchRoutes([{ path: '/:group/:tag/:operaterId/:mode' }], `/default/${operation.key}/doc`)![0]
+          .params;
+        expect(findMenuOperation(tags, params.tag, params.operaterId)).toBe(operation);
         expect(operationHttpMethod(operation)).toBe(method);
         const debug = buildOperationDebugModel({
           doc: document as never,

@@ -7,6 +7,10 @@ const zhCN = {
   'app.groupError.title': '接口文档加载失败',
   'app.oas32Compatibility.title': 'OAS 3.2 文档存在结构或引用诊断',
   'apiDoc.link.unavailable': '目标暂不可用（{{status}}）',
+  'app.operationLimit.title': '接口展开达到本地限额，当前显示不完整',
+  'app.operationLimit.description':
+    '本地最多展开 {{maxOperations}} 个接口、执行 {{maxWork}} 步处理。菜单、搜索、统计及 Link 目标可能缺项；这不是 OpenAPI 规范错误。',
+  'apiDoc.link.readOnly': '这是已加载的 Link 目标，未挂载到当前入口；仅供文档查看。',
   'apiDoc.definition.readOnly': '此接口描述回调或可复用定义，仅供文档查看。',
   'app.oas31Compatibility.title': 'OAS 3.1 文档存在结构或本地解析诊断',
   'app.oas31Compatibility.description':

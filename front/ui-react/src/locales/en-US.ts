@@ -7,6 +7,10 @@ const enUS = {
   'app.groupError.title': 'Failed to load API docs',
   'app.oas32Compatibility.title': 'This OAS 3.2 document has structure or reference diagnostics',
   'apiDoc.link.unavailable': 'Target unavailable ({{status}})',
+  'app.operationLimit.title': 'Operation expansion reached a local limit; results are incomplete',
+  'app.operationLimit.description':
+    'Local limits are {{maxOperations}} operations and {{maxWork}} processing steps. Menus, search, statistics and Link targets may be incomplete. This is not an OpenAPI validity error.',
+  'apiDoc.link.readOnly': 'This loaded Link target is not mounted in the current entry document and is read-only.',
   'apiDoc.definition.readOnly': 'This operation describes a callback or reusable definition and is read-only.',
   'app.oas31Compatibility.title': 'This OAS 3.1 document has structure or local-resolution diagnostics',
   'app.oas31Compatibility.description':

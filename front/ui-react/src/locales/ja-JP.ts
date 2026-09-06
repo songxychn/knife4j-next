@@ -7,6 +7,10 @@ const jaJP = {
   'app.groupError.title': 'API ドキュメントを読み込めません',
   'app.oas32Compatibility.title': 'この OAS 3.2 文書には構造または参照の診断があります',
   'apiDoc.link.unavailable': 'ターゲットは利用できません（{{status}}）',
+  'app.operationLimit.title': '操作の展開がローカル上限に達したため、表示は不完全です',
+  'app.operationLimit.description':
+    'ローカル上限は {{maxOperations}} 操作、{{maxWork}} 処理ステップです。メニュー、検索、統計、Link 先に欠落がある可能性があります。OpenAPI 仕様エラーではありません。',
+  'apiDoc.link.readOnly': '読み込み済みの Link 先です。現在の文書にはマウントされていないため、閲覧のみ可能です。',
   'apiDoc.definition.readOnly': 'この操作はコールバックまたは再利用可能な定義を表し、読み取り専用です。',
   'app.oas31Compatibility.title': 'この OAS 3.1 ドキュメントには構造またはローカル解決の診断があります',
   'app.oas31Compatibility.description':

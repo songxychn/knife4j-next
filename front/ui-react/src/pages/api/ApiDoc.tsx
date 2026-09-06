@@ -753,6 +753,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       {(operation.source === 'callback' || operation.source === 'component') && (
         <Alert type="info" showIcon message={t('apiDoc.definition.readOnly')} style={{ marginBottom: 8 }} />
       )}
+      {operation.source === 'link' && (
+        <Alert
+          type="info"
+          showIcon
+          message={t('apiDoc.link.readOnly')}
+          description={`${operation.identity?.ownerRetrievalUri ?? ''}${operation.identity?.operationPointer ?? ''}`}
+          style={{ marginBottom: 8 }}
+        />
+      )}
       {operation.source === 'webhook' && (
         <Alert type="info" showIcon message={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
       )}

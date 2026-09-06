@@ -34,7 +34,7 @@ export function useCurrentOperation(): CurrentOperation {
   return {
     loading,
     swaggerDoc,
-    tag: tag ? decodeURIComponent(tag) : undefined,
+    tag: menuTags.find((item) => (item.routeId ?? item.tag) === tag)?.tag,
     operation,
   };
 }

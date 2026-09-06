@@ -125,6 +125,8 @@ export interface ResourceGraphTarget {
 
 /** Frozen projection of the graph's typed object index; carries no loader capability. */
 export interface ResourceGraphObject extends ResourceGraphTarget {
+  /** Physical parent already recorded while indexing an Operation; never inferred by consumers. */
+  readonly operationPathItemPointer?: string;
   readonly kind: ExpectedTargetKind | 'openapi';
   readonly schemaDialect?: string;
 }
@@ -3412,6 +3414,7 @@ export class ExternalResourceLoader {
             ownerRetrievalUri: key.slice(0, separator),
             pointer: key.slice(separator + 1),
             kind: target.kind,
+            operationPathItemPointer: target.operationPathItem?.pointer,
             evaluationBaseUri: target.evaluationBaseUri,
             schemaDialect: target.schemaDialect,
           });

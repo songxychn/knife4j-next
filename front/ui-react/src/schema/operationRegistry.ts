@@ -1,7 +1,11 @@
-import { stableSerializeJson } from '../utils/stableJson';
+import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
 import {
   enumerateOpenApiOperations,
-  resolveLocalJsonPointer,
+  OperationEnumerationBudget,
+  type OperationEnumerationLimits,
+  type OperationEnumerationDiagnostic,
+  type OpenApiLinkedOperationTarget,
+  resolvePhysicalJsonPointer,
   type OpenApiObjectLocation,
   type OpenApiOperation,
   type OperationReferenceKind,
@@ -39,7 +43,7 @@ export function resolveOperationReference(
   )
     return null;
   const document = snapshot.nodes.get(target.ownerRetrievalUri)?.document;
-  const value = resolveLocalJsonPointer(document, target.pointer);
+  const value = resolvePhysicalJsonPointer(document, target.pointer);
   return value.found ? { ...target, value: value.value } : null;
 }
 
@@ -47,19 +51,50 @@ export function enumerateRegistryOperations(
   document: SwaggerDoc,
   retrievalUri = 'https://knife4j.invalid/openapi.json',
   snapshot?: ResourceGraphSnapshot,
-): { operations: OpenApiOperation[]; snapshot: ResourceGraphSnapshot } {
+  limits?: Partial<OperationEnumerationLimits>,
+): { operations: OpenApiOperation[]; snapshot: ResourceGraphSnapshot; diagnostic?: OperationEnumerationDiagnostic } {
   // Same graph as the asynchronous resource UI, with no grants and no network capability used here.
   const graph = snapshot ?? new ExternalResourceLoader(document, retrievalUri).currentSnapshot();
   const entry = graph.nodes.get(graph.entryRetrievalUri)?.document;
   if (!entry || stableSerializeJson(entry) !== stableSerializeJson(document))
     return { snapshot: graph, operations: [] };
-  return {
-    snapshot: graph,
-    operations: enumerateOpenApiOperations(entry as RecordValue, {
-      retrievalUri: graph.entryRetrievalUri,
-      resolveReference: (location, kind) => resolveOperationReference(graph, location, kind),
-    }),
-  };
+  const budget = new OperationEnumerationBudget(limits);
+  const linkTargets: OpenApiLinkedOperationTarget[] = [];
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'link-operation-ref' || !edge.target || !['loaded', 'local'].includes(edge.state)) continue;
+    const target = graph.objectLocations.find(
+      (object) =>
+        object.kind === 'operation' &&
+        object.ownerRetrievalUri === edge.target!.ownerRetrievalUri &&
+        object.pointer === edge.target!.pointer,
+    );
+    if (!target) continue;
+    const owner = graph.nodes.get(target.ownerRetrievalUri)?.document;
+    const value = resolvePhysicalJsonPointer(owner, target.pointer);
+    if (!value.found) continue;
+    const parent = target.operationPathItemPointer
+      ? resolvePhysicalJsonPointer(owner, target.operationPathItemPointer)
+      : null;
+    linkTargets.push({
+      operation: { value: value.value, pointer: target.pointer, ownerRetrievalUri: target.ownerRetrievalUri },
+      ...(parent?.found
+        ? {
+            pathItem: {
+              value: parent.value,
+              pointer: target.operationPathItemPointer!,
+              ownerRetrievalUri: target.ownerRetrievalUri,
+            },
+          }
+        : {}),
+    });
+  }
+  const operations = enumerateOpenApiOperations(entry as RecordValue, {
+    retrievalUri: graph.entryRetrievalUri,
+    resolveReference: (location, kind) => resolveOperationReference(graph, location, kind),
+    budget,
+    linkTargets,
+  });
+  return { snapshot: graph, operations, diagnostic: budget.diagnostic };
 }
 
 export function operationOwnerDocument(document: SwaggerDoc, operation: MenuOperation): SwaggerDoc {
@@ -92,7 +127,8 @@ export function operationSchemaDocuments(document: SwaggerDoc, operation: MenuOp
 }
 
 export type OperationLinkResolution =
-  { status: 'resolved'; operation: MenuOperation } | { status: 'missing' | 'ambiguous' | 'unavailable' };
+  | { status: 'resolved'; operation: MenuOperation }
+  | { status: 'missing' | 'ambiguous' | 'unavailable' | 'not-loaded' | 'wrong-type' | 'limited' };
 
 /** Links use the same mounted operation identities as menus. Repeated tag membership is not ambiguity. */
 export function resolveOperationLink(
@@ -109,7 +145,23 @@ export function resolveOperationLink(
   if (typeof value.operationRef === 'string') {
     if (!snapshot) return { status: 'unavailable' };
     const target = resolveOperationReference(snapshot, link, 'operation');
-    if (!target) return { status: 'unavailable' };
+    if (!target) {
+      const pointer = `${link.pointer}/operationRef`;
+      const edge = snapshot.edges.find(
+        (candidate) =>
+          candidate.kind === 'link-operation-ref' &&
+          candidate.sourceRetrievalUri === link.ownerRetrievalUri &&
+          candidate.sourcePointer === pointer,
+      );
+      if (edge?.state === 'pending') return { status: 'not-loaded' };
+      const diagnostic = snapshot.diagnostics.find(
+        (candidate) =>
+          candidate.sourcePointer === pointer &&
+          candidate.sourceRetrievalUriHash === sha256Hex(link.ownerRetrievalUri) &&
+          candidate.code === 'DOCUMENT_KIND_MISMATCH',
+      );
+      return { status: diagnostic ? 'wrong-type' : 'unavailable' };
+    }
     matches = distinct.filter(
       (operation) =>
         operation.identity?.ownerRetrievalUri === target.ownerRetrievalUri &&
@@ -119,8 +171,18 @@ export function resolveOperationLink(
     matches = distinct.filter((operation) => operation.operationId === value.operationId);
   } else return { status: 'missing' };
   // A component definition and its one executable mount describe the same target.
-  const mounted = matches.filter((operation) => operation.source !== 'component');
+  const mounted = matches.filter((operation) => operation.source !== 'component' && operation.source !== 'link');
   if (mounted.length) matches = mounted;
+  else {
+    const definition = matches.filter((operation) => operation.source === 'component');
+    const directLink = matches.filter(
+      (operation) => operation.source === 'link' && operation.identity?.mountPointer === '',
+    );
+    if (definition.length) matches = definition;
+    else if (directLink.length) matches = directLink;
+  }
+  if (matches.length === 0 && operations.some((operation) => operation.enumerationLimited))
+    return { status: 'limited' };
   return matches.length === 1
     ? { status: 'resolved', operation: matches[0] }
     : { status: matches.length ? 'ambiguous' : 'missing' };
