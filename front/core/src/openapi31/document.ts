@@ -1,12 +1,7 @@
-export const OPENAPI_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'] as const;
+import { isOpenApi31Version, type OpenApiHttpMethod } from '../openapiVersion';
 
-export type OpenApiHttpMethod = (typeof OPENAPI_HTTP_METHODS)[number];
-
-export interface ParsedOpenApiVersion {
-  major: number;
-  minor: number;
-  patch: number;
-}
+export { OPENAPI_HTTP_METHODS, isOpenApi3Version, isOpenApi31Version, parseOpenApiVersion } from '../openapiVersion';
+export type { OpenApiHttpMethod, ParsedOpenApiVersion } from '../openapiVersion';
 
 export interface LocalJsonPointerResult {
   found: boolean;
@@ -46,34 +41,12 @@ export type ReferenceObjectTargetKind =
 
 export type LocalReferenceTargetKind = ReferenceObjectTargetKind | 'schema' | 'pathItem';
 
-const OPENAPI_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(\d+)(?:-(.+))?$/;
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function owns(value: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-export function parseOpenApiVersion(value: unknown): ParsedOpenApiVersion | null {
-  if (typeof value !== 'string') return null;
-  const match = OPENAPI_VERSION_PATTERN.exec(value);
-  if (!match) return null;
-  return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
-  };
-}
-
-export function isOpenApi3Version(value: unknown): boolean {
-  return parseOpenApiVersion(value)?.major === 3;
-}
-
-export function isOpenApi31Version(value: unknown): boolean {
-  const version = parseOpenApiVersion(value);
-  return version?.major === 3 && version.minor === 1;
 }
 
 export function escapeJsonPointerSegment(value: string): string {
