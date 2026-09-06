@@ -211,6 +211,7 @@ export class OpenApi32Registration {
   readonly references: OpenApi32Reference[] = [];
   readonly metaRoots: JsonValue[] = [];
   private readonly roots: string[] = [];
+  private readonly processingLocations = new Map<string, OpenApi32SchemaLocation>();
 
   constructor(document: unknown, retrievalUri: string, context?: SchemaDocumentRegistrationContext) {
     this.document = structuredClone(document);
@@ -290,6 +291,10 @@ export class OpenApi32Registration {
         this.resourcePointers.set(physicalResource, entry.pointer);
       }
       this.locations.set(entry.pointer, node);
+      // Hyperjump emits encodeURI(cursor), then appends the raw JSON Pointer
+      // keyword token. Keep that exact internal representation as provenance;
+      // public output uses RFC 3986 fragment encoding instead.
+      this.processingLocations.set(`${physicalResource}#${encodeURI(node.relativePointer)}`, node);
       if (record(value)) {
         if (owns(value, '$vocabulary'))
           throw new SchemaEngineError('UNSUPPORTED_DIALECT', 'Custom Schema vocabularies are not supported.', {
@@ -428,7 +433,27 @@ export class OpenApi32Registration {
     };
   }
 
+  publicKeywordSource(uri: string): { node: OpenApi32SchemaLocation; keyword: string } | undefined {
+    const slash = uri.lastIndexOf('/');
+    const node = this.processingLocations.get(uri.slice(0, slash));
+    return node
+      ? {
+          node,
+          keyword: uri
+            .slice(slash + 1)
+            .replace(/~1/g, '/')
+            .replace(/~0/g, '~'),
+        }
+      : undefined;
+  }
+
   publicLocation(uri: string): string {
+    const source = this.publicKeywordSource(uri);
+    const node = source?.node ?? this.processingLocations.get(uri);
+    if (node) {
+      const pointer = source ? pointerChild(node.relativePointer, source.keyword) : node.relativePointer;
+      return `${this.physicalResources.get(node.physicalResource)!}#${encodedPointer(pointer)}`;
+    }
     const hash = uri.indexOf('#');
     const base = hash < 0 ? uri : uri.slice(0, hash);
     const publicBase = this.physicalResources.get(base);
@@ -544,7 +569,7 @@ export function createOpenApi32ProjectionSource(
         ? dynamic
           ? `${locations.get(target)!.resource}#${physicalAnchor(fragment)}`
           : referenceForNode(target)
-        : context.physicalReference(reference, () => false);
+        : reference.uri;
     }
   return {
     document: {
@@ -557,9 +582,7 @@ export function createOpenApi32ProjectionSource(
     referenceFor: (reference: string): string => {
       const uri = resolveUri(reference, entryRetrievalUri);
       const target = lookup(uri);
-      if (!target)
-        throw new SchemaEngineError('RESOURCE_NOT_REGISTERED', `Schema '${uri}' is not registered.`, { uri });
-      return referenceForNode(target);
+      return target ? referenceForNode(target) : uri;
     },
   };
 }

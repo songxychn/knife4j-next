@@ -546,3 +546,179 @@ test('keeps the registered public Schema snapshot independent from caller mutati
     valid: true,
   });
 });
+
+// PR #788 F1–F4: public identities/results and operation-local cancellation.
+describe('OAS 3.2 review regressions', () => {
+  test.each([false, true])(
+    'never retries a missing encoded URI through the legacy resolver (invalid: %s)',
+    async (invalid) => {
+      const value = engine();
+      const literal = 'https://schemas.example/a:b?x=&';
+      const encoded = 'https://schemas.example/a%3Ab?x=%26';
+      await value.registerDocument(
+        {
+          ...document32(),
+          components: {
+            schemas: { Value: { $id: literal, type: 'object', ...(invalid ? { xml: { nodeType: 'invalid' } } : {}) } },
+          },
+        },
+        'urn:test:strict-lookup',
+      );
+      if (invalid)
+        await expect(value.evaluate(literal, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+      for (const operation of [
+        () => value.resolve(encoded),
+        ...[0, 1, 2].map(() => () => value.evaluate(encoded, {})),
+      ]) {
+        const result = await operation().then(
+          () => null,
+          (error: unknown) => error,
+        );
+        expect(result).toMatchObject({
+          code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
+          details: { uri: encoded, resourceUri: encoded },
+        });
+        expect(JSON.stringify(result)).not.toContain('knife4j-internal');
+      }
+      if (invalid)
+        await expect(value.evaluate(literal, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+      else await expect(value.evaluate(literal, {})).resolves.toMatchObject({ valid: true });
+      // Legacy lookup keeps its own prior URI behavior when its resource owns the URI.
+      await value.registerDocument(
+        { $schema: OPENAPI_31_BASE_DIALECT, type: 'integer' },
+        'https://legacy.example/a:b?x=&',
+      );
+      await expect(value.evaluate('https://legacy.example/a%3Ab?x=%26', 1)).resolves.toMatchObject({ valid: true });
+    },
+  );
+
+  test('does not route a missing 3.2 pointer into a different legacy resource', async () => {
+    const value = engine();
+    const encoded = 'https://schemas.example/a%3Ab?x=%26';
+    const literal = 'https://schemas.example/a:b?x=&';
+    await value.registerDocument(document32(), encoded);
+    await value.registerDocument(
+      {
+        openapi: '3.1.1',
+        info: { title: 'Legacy', version: '1' },
+        paths: {},
+        components: { schemas: { Extra: { type: 'integer' } } },
+      },
+      literal,
+    );
+    const missing = `${encoded}#/components/schemas/Extra`;
+    await expect(value.resolve(missing)).rejects.toMatchObject({
+      code: 'SCHEMA_RESOLUTION_FAILED',
+      details: { uri: missing },
+    });
+    await expect(value.evaluate(missing, 1)).rejects.toMatchObject({
+      code: 'SCHEMA_RESOLUTION_FAILED',
+      details: { uri: missing },
+    });
+    await expect(value.evaluate(`${literal}#/components/schemas/Extra`, 1)).resolves.toMatchObject({ valid: true });
+    await expect(value.evaluate(`${encoded}#/components/schemas/Value`, {})).resolves.toMatchObject({ valid: true });
+  });
+
+  test('does not revoke a 3.2 owner through an unregistered legacy-normalized retrieval alias', async () => {
+    const value = engine();
+    await value.registerDocument(document32(), 'https://schemas.example/a:b?x=&');
+    value.unregisterDocument('https://schemas.example/a%3Ab?x=%26');
+    await expect(
+      value.evaluate('https://schemas.example/a:b?x=&#/components/schemas/Value', {}),
+    ).resolves.toMatchObject({ valid: true });
+  });
+
+  test('restores annotations from their real keyword source and preserves opaque author values', async () => {
+    const value = engine();
+    const opaque = { $schema: 'urn:knife4j-internal:oas32:schema:1', $ref: 'urn:opaque', data: { $id: 'urn:opaque' } };
+    const contentSchema = {
+      $id: 'https://schemas.example/content',
+      type: 'object',
+      properties: { n: { $ref: 'https://schemas.example/integer' } },
+      'x-original': opaque,
+    };
+    const document = {
+      ...document32(),
+      components: {
+        schemas: {
+          Text: {
+            $schema: OPENAPI_32_DIALECT,
+            type: 'string',
+            contentMediaType: 'application/json',
+            contentSchema,
+            'x-original': opaque,
+            unknownAnnotation: opaque,
+          },
+          Number: { $id: 'https://schemas.example/integer', type: 'integer' },
+          Plain: { type: 'integer' },
+        },
+      },
+    };
+    await value.registerDocument(document, 'urn:test:annotations');
+    const result = await value.evaluate('urn:test:annotations#/components/schemas/Text', '{"n":1}');
+    expect(result.valid).toBe(true);
+    const values = (keyword: string) =>
+      result.annotations.find((annotation) => annotation.keywordId === keyword)?.values;
+    expect(values('https://json-schema.org/keyword/contentSchema')).toEqual([contentSchema]);
+    expect(values('https://json-schema.org/keyword/unknown#$schema')).toEqual([OPENAPI_32_DIALECT]);
+    expect(values('https://json-schema.org/keyword/unknown#x-original')).toEqual([opaque]);
+    expect(values('https://json-schema.org/keyword/unknown#unknownAnnotation')).toEqual([opaque]);
+    const plain = await value.evaluate('urn:test:annotations#/components/schemas/Plain', 1);
+    expect(plain.annotations).toEqual([]);
+  });
+
+  test('returns URI-encoded keyword locations and decoded string instance pointers for special property names', async () => {
+    const value = engine();
+    const keys = ['a#b% c', 'literal%20', 'literal space', 'a~b/c', '汉字', '%2F', '/'];
+    const properties = Object.fromEntries(keys.map((key) => [key, { type: 'integer', title: key }]));
+    await value.registerDocument(
+      { ...document32(), components: { schemas: { Value: { type: 'object', properties } } } },
+      'urn:test:public-locations',
+    );
+    const invalid = await value.evaluate(
+      'urn:test:public-locations#/components/schemas/Value',
+      Object.fromEntries(keys.map((key) => [key, 'bad'])),
+    );
+    expect(invalid.valid).toBe(false);
+    for (const key of keys) {
+      const token = key.replace(/~/g, '~0').replace(/\//g, '~1');
+      const pointer = `/components/schemas/Value/properties/${token}`;
+      expect(invalid.errors).toContainEqual(
+        expect.objectContaining({
+          absoluteKeywordLocation: `urn:test:public-locations#${encodeURIComponent(`${pointer}/type`).replace(/%2F/g, '/')}`,
+          instanceLocation: `/${token}`,
+        }),
+      );
+    }
+    const valid = await value.evaluate(
+      'urn:test:public-locations#/components/schemas/Value',
+      Object.fromEntries(keys.map((key) => [key, 1])),
+    );
+    for (const key of keys)
+      expect(valid.annotations).toContainEqual({
+        instanceLocation: `/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+        keywordId: 'https://json-schema.org/keyword/title',
+        values: [key],
+      });
+  });
+
+  test('keeps cancellation local when concurrent calls begin uncached meta-validation', async () => {
+    const value = engine();
+    await value.registerDocument(
+      { ...document32(), components: { schemas: { Value: { type: 'integer' } } } },
+      'urn:test:independent-cancel',
+    );
+    const controller = new AbortController();
+    const cancelled = value.evaluate('urn:test:independent-cancel#/components/schemas/Value', 1, {
+      signal: controller.signal,
+    });
+    const unaffected = value.evaluate('urn:test:independent-cancel#/components/schemas/Value', 1);
+    controller.abort();
+    const [first, second] = await Promise.allSettled([cancelled, unaffected]);
+    expect(first).toMatchObject({ status: 'rejected', reason: { code: 'OPERATION_ABORTED' } });
+    expect(second).toMatchObject({ status: 'fulfilled', value: { valid: true, annotations: [] } });
+    await expect(value.evaluate('urn:test:independent-cancel#/components/schemas/Value', 1)).resolves.toMatchObject({
+      valid: true,
+    });
+  });
+});

@@ -337,3 +337,33 @@ test.each(['3.1.1', '3.0.4'])('preserves C rejection of an external OpenAPI %s d
   await expect(session.evaluate('#/components/schemas/Local', 1)).resolves.toMatchObject({ valid: true });
   loader.dispose();
 });
+
+test('preserves built-in and missing public references in both direction projections', async () => {
+  const missing = 'https://missing.example/a%3Ab?x=%26#/somewhere';
+  const session = await createSchemaDocumentSession(
+    document32({ Schema: { $ref: JSON_SCHEMA_2020_12 }, Missing: { $ref: missing } }),
+    retrievalUri,
+  );
+  sessions.push(session);
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('No engine fetch'));
+  for (const direction of ['request', 'response'] as const) {
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, '#/components/schemas/Schema', { type: 'integer' }, direction),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(
+      evaluateSchemaDocumentDirectionally(session, '#/components/schemas/Schema', { type: 'unknown-type' }, direction),
+    ).resolves.toMatchObject({ valid: false });
+    const failure = await evaluateSchemaDocumentDirectionally(
+      session,
+      '#/components/schemas/Missing',
+      null,
+      direction,
+    ).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
+      details: { resourceUri: 'https://missing.example/a%3Ab?x=%26' },
+    });
+    expect(JSON.stringify(failure)).not.toContain('knife4j-internal');
+  }
+  expect(fetchSpy).not.toHaveBeenCalled();
+});
