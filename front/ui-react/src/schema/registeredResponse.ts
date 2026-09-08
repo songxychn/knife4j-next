@@ -1,4 +1,10 @@
-import { inferReferenceObjectTargetKind, resolveLocalJsonPointer } from 'knife4j-core';
+import {
+  getOpenApiSpecificationFeatures,
+  inferReferenceObjectTargetKind,
+  physicalJsonPointerTokens,
+  resolveLocalJsonPointer,
+} from 'knife4j-core';
+import { resolveOperationReference } from './operationRegistry';
 import type { MenuOperation, ResponseObject, SwaggerDoc } from '../types/swagger';
 import { asOpenApiRecord, locateOperationRecord, pointerReference, type OpenApiRecord } from './openApiDocumentPointer';
 import { registeredSchemaDocument, type SchemaDocumentSession } from './schemaDocumentSession';
@@ -94,6 +100,60 @@ export function locateOperationResponses(
   operation: MenuOperation,
   session?: SchemaDocumentSession,
 ): OperationResponseRecord[] {
+  if (getOpenApiSpecificationFeatures(document.openapi)?.family === '3.2') {
+    const identity = operation.identity;
+    const snapshot = operation.resourceSnapshot;
+    if (!identity || !snapshot)
+      return Object.keys(operation.operation.responses ?? {})
+        .filter((status) => !status.startsWith('x-'))
+        .map((statusCode) => ({ statusCode, location: null }));
+    const raw = asOpenApiRecord(identity.rawOperation.value);
+    const responses = asOpenApiRecord(raw?.responses);
+    if (!responses) return [];
+    return Object.entries(responses)
+      .filter(([status]) => !status.startsWith('x-'))
+      .map(([statusCode, value]) => {
+        let location = {
+          value,
+          ownerRetrievalUri: identity.rawOperation.ownerRetrievalUri,
+          pointer: `${identity.rawOperation.pointer}/responses/${statusCode.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+        };
+        const seen = new Set<string>();
+        let summary: string | undefined;
+        let description: string | undefined;
+        for (let depth = 0; depth <= 20; depth++) {
+          const record = asOpenApiRecord(location.value);
+          if (!record) break;
+          if (!Object.prototype.hasOwnProperty.call(record, '$ref')) {
+            const owner = snapshot.nodes.get(location.ownerRetrievalUri)?.document as SwaggerDoc | undefined;
+            if (!owner || (session && !registeredSchemaDocument(session, location.ownerRetrievalUri))) break;
+            return {
+              statusCode,
+              location: {
+                value: {
+                  ...record,
+                  ...(summary === undefined ? {} : { summary }),
+                  ...(description === undefined ? {} : { description }),
+                },
+                document: owner,
+                tokens: physicalJsonPointerTokens(location.pointer) ?? [],
+                retrievalUri: location.ownerRetrievalUri,
+              },
+            };
+          }
+          if (typeof record.$ref !== 'string') break;
+          if (typeof record.summary === 'string') summary ??= record.summary;
+          if (typeof record.description === 'string') description ??= record.description;
+          const key = JSON.stringify([location.ownerRetrievalUri, location.pointer]);
+          if (seen.has(key)) break;
+          seen.add(key);
+          const target = resolveOperationReference(snapshot, location, 'response');
+          if (!target) break;
+          location = target;
+        }
+        return { statusCode, location: null };
+      });
+  }
   const registered = session ? registeredSchemaDocument(session, session.retrievalUri) : undefined;
   const snapshotDocument = (registered as SwaggerDoc | undefined) ?? document;
   const located = locateOperationRecord(snapshotDocument, operation);

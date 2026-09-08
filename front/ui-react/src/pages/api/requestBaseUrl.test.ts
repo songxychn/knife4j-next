@@ -396,3 +396,30 @@ describe('request base URL resolution', () => {
     });
   });
 });
+
+describe('OAS 3.2 Server consumer regression', () => {
+  const retrievalUri = 'http://api.example.test/specs/root.json';
+  function input() {
+    const swaggerDoc = docWithServerLevels({
+      root: ['./root'],
+      path: ['./path'],
+      operation: ['./operation', './operation'],
+    });
+    swaggerDoc.openapi = '3.2.0';
+    swaggerDoc.$self = 'https://logical.example.test/ignored.json';
+    const operation = parseMenuTags(swaggerDoc, { retrievalUri })[0].operations[0];
+    return { swaggerDoc, operation, origin: 'https://api.example.test' };
+  }
+  it('replaces lower layers and preserves equal URL sources', () => {
+    expect(resolveRequestServerOptions(input()).map((server) => server.url)).toEqual([
+      'http://api.example.test/specs/operation',
+      'http://api.example.test/specs/operation',
+    ]);
+  });
+  it('does not fall back when the effective operation list is empty', () => {
+    const options = input();
+    options.swaggerDoc.paths['/pets'].get!.servers = [];
+    options.operation = parseMenuTags(options.swaggerDoc, { retrievalUri })[0].operations[0];
+    expect(resolveRequestBaseUrl({ ...options, enableHost: false, enableHostText: '' })).toBe('');
+  });
+});

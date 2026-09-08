@@ -1,3 +1,7 @@
+import { parseOas32UrlTemplate } from 'knife4j-core';
+import { oas32MetadataDiagnostics } from '../../schema/oas32MetadataDiagnostics';
+import Oas32ServerDetails from '../../components/Oas32ServerDetails';
+import { useOas32ServerSelection } from './useOas32ServerSelection';
 import { exampleParameterInput, operationHttpMethod, type SerializedExampleParameter } from 'knife4j-core';
 import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
 import {
@@ -1963,11 +1967,21 @@ export default function ApiDebug() {
   const { t } = useTranslation();
   const { group, tag, operaterId } = useParams();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
-  const { activeSwaggerGroup, routeGroupReady } = useGroup();
+  const { activeSwaggerGroup, operationRetrievalUri, routeGroupReady } = useGroup();
   const { settings } = useSettings();
   const { effectiveParams, cookieSession } = useGlobalParam();
   const schemaEngine = useSchemaEngine();
   const groupContextPath = activeSwaggerGroup?.contextPath;
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const server32 = useOas32ServerSelection({
+    document: isOas32 ? swaggerDoc : null,
+    operation,
+    retrievalUri: operationRetrievalUri,
+    session: schemaEngine.session,
+    enableHost: settings.enableHost,
+    host: settings.enableHostText,
+    contextPath: groupContextPath,
+  });
   const operationMethod = operation?.method;
   const operationPath = operation?.path;
   const debugCacheKey = useMemo(() => {
@@ -2005,9 +2019,30 @@ export default function ApiDebug() {
       }),
     [groupContextPath, operation, swaggerDoc, t],
   );
-  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const [legacyBaseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const baseUrl = isOas32 ? server32.baseUrl : legacyBaseUrl;
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
+  const pathDiagnostics32 = useMemo(
+    () =>
+      isOas32 && operation
+        ? [
+            ...oas32MetadataDiagnostics(swaggerDoc, [{ tag: '', operations: [operation] }]),
+            ...(operation.source === 'path'
+              ? parseOas32UrlTemplate(path, 'path', {
+                  ownerRetrievalUri: operation.identity?.ownerRetrievalUri ?? '',
+                  pointer: operation.identity?.mountPointer ?? '',
+                }).diagnostics.map((diagnostic) => ({
+                  code: diagnostic.code,
+                  path: diagnostic.pointer,
+                  reason: diagnostic.reason,
+                }))
+              : []),
+          ]
+        : [],
+    [isOas32, swaggerDoc, operation, path],
+  );
+  const serverOrPathUnavailable32 = !server32.executable || pathDiagnostics32.length > 0;
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
   // enabled state: keyed by paramKey; empty optional OAS 3.1 params start omitted.
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
@@ -2017,7 +2052,6 @@ export default function ApiDebug() {
   const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
   const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
   const [cookieParameterSource, setCookieParameterSource] = useState<CookieParameterSource>('explicit');
-  const isOas32 = isOas32ExampleDocument(swaggerDoc);
   const exampleCatalog32 = useMemo(
     () => (isOas32 && swaggerDoc && operation ? locateOperationExampleCatalog(swaggerDoc, operation) : null),
     [isOas32, swaggerDoc, operation],
@@ -2748,6 +2782,7 @@ export default function ApiDebug() {
 
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
   const buildPreview = (): RequestPreviewBuild => {
+    if (isOas32 && serverOrPathUnavailable32) throw new Error(t('oas32.server.unavailable'));
     const formValues = collectFormValues();
     const built = applyRouteProxyHeader(
       coreBuildRequest({
@@ -2846,7 +2881,8 @@ export default function ApiDebug() {
       setSerializedParams32(snap.serializedExampleParameters ?? {});
       setSerializedBodyMedia32(snap.serializedExampleBodyMediaType);
       setCookieParameterSource(snap.cookieParameterSource ?? 'explicit');
-      setBaseUrl(snap.baseUrl);
+      if (isOas32) server32.restoreOverride(snap.baseUrl);
+      else setBaseUrl(snap.baseUrl);
       setMethod(snap.method);
       setPath(snap.path);
       setParamValues(snap.paramValues);
@@ -2900,7 +2936,8 @@ export default function ApiDebug() {
 
     setSerializedParams32({});
     setSerializedBodyMedia32(undefined);
-    setBaseUrl(entry.baseUrl);
+    if (isOas32) server32.restoreOverride(entry.baseUrl);
+    else setBaseUrl(entry.baseUrl);
     setCookieParameterSource('explicit');
     setMethod(entry.method);
     setPath(entry.path);
@@ -2922,7 +2959,22 @@ export default function ApiDebug() {
 
   const handleSend = async (options: HandleSendOptions = {}) => {
     if (!debugModel) return;
+    if (isOas32 && serverOrPathUnavailable32) {
+      setError(t('oas32.server.unavailable'));
+      return;
+    }
     setError(null);
+    if (isOas32 && options.prepared) {
+      const current = buildRequestPreviewSafely(buildPreview);
+      if (
+        !current.ok ||
+        current.value.built.url !== options.prepared.built.url ||
+        current.value.built.method !== options.prepared.built.method
+      ) {
+        setError(t('oas32.server.changed'));
+        return;
+      }
+    }
 
     const previewResult: RequestPreviewBuildResult = options.prepared
       ? { ok: true, value: options.prepared }
@@ -4211,8 +4263,75 @@ export default function ApiDebug() {
             </Title>
           </Space>
 
+          {pathDiagnostics32.map((diagnostic) => (
+            <Alert
+              key={`${diagnostic.code}:${diagnostic.path}`}
+              type="warning"
+              message={diagnostic.code}
+              description={`${diagnostic.path}: ${diagnostic.reason}`}
+              style={{ marginBottom: 8 }}
+            />
+          ))}
           {methodConstraintMessage && (
             <Alert type="warning" showIcon message={methodConstraintMessage} style={{ marginBottom: 12 }} />
+          )}
+          {isOas32 && (
+            <div className="knife4j-server-selection">
+              <Select
+                aria-label={t('oas32.server.select')}
+                value={server32.key || undefined}
+                onChange={server32.select}
+                style={{ width: '100%' }}
+                options={[
+                  ...(server32.declarations?.resolutions.map((server, index) => ({
+                    value: server.source.key,
+                    label: `${server.name ?? `Server ${index + 1}`} · ${server.rawUrl ?? t('oas32.server.unavailable')}`,
+                  })) ?? []),
+                  ...server32.overrides.map((override) => ({
+                    value: override.key,
+                    label: t(`oas32.server.override.${override.source}`),
+                  })),
+                ]}
+              />
+              {server32.override === 'custom' && (
+                <Input
+                  aria-label={t('oas32.server.customUrl')}
+                  value={server32.custom}
+                  onChange={(event) => server32.setCustom(event.target.value)}
+                />
+              )}
+              {!server32.override &&
+                server32.resolved?.variables.map((variable) => (
+                  <label className="knife4j-server-variable" key={variable.name}>
+                    <span>{variable.name}</span>
+                    {variable.enum ? (
+                      <Select
+                        aria-label={variable.name}
+                        value={variable.value}
+                        options={variable.enum.map((value) => ({ value, label: value }))}
+                        onChange={(value) => server32.setVariable(variable.name, value)}
+                      />
+                    ) : (
+                      <Input
+                        aria-label={variable.name}
+                        value={variable.value ?? ''}
+                        onChange={(event) => server32.setVariable(variable.name, event.target.value)}
+                      />
+                    )}
+                  </label>
+                ))}
+              {server32.resolved ? (
+                <Oas32ServerDetails server={server32.resolved} override={server32.override} />
+              ) : (
+                <Alert
+                  type="warning"
+                  message={t('oas32.server.unavailable')}
+                  description={server32.declarations?.diagnostics
+                    .map((diagnostic) => `${diagnostic.code}: ${diagnostic.reason}`)
+                    .join('; ')}
+                />
+              )}
+            </div>
           )}
           <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
             <Select
@@ -4229,14 +4348,23 @@ export default function ApiDebug() {
                 label: item,
               }))}
             />
-            <AutoComplete
-              value={baseUrl}
-              title={baseUrl}
-              onChange={setBaseUrl}
-              options={requestServerSelectOptions}
-              filterOption={false}
-              style={{ flex: '0 1 420px', minWidth: 320 }}
-            />
+            {isOas32 ? (
+              <Input
+                aria-label={t('oas32.server.request')}
+                value={baseUrl}
+                readOnly
+                style={{ flex: '0 1 420px', minWidth: 0 }}
+              />
+            ) : (
+              <AutoComplete
+                value={baseUrl}
+                title={baseUrl}
+                onChange={setBaseUrl}
+                options={requestServerSelectOptions}
+                filterOption={false}
+                style={{ flex: '0 1 420px', minWidth: 320 }}
+              />
+            )}
             <Input
               value={displayPath}
               title={displayPath}
@@ -4247,12 +4375,18 @@ export default function ApiDebug() {
               type="primary"
               icon={<SendOutlined />}
               onClick={() => void handleSend()}
-              disabled={Boolean(methodConstraintMessage)}
+              disabled={Boolean(methodConstraintMessage) || (isOas32 && serverOrPathUnavailable32)}
               loading={loading || schemaValidating}
             >
               {t('apiDebug.send')}
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                if (isOas32) server32.reset();
+                handleReset();
+              }}
+            >
               {t('apiDebug.reset')}
             </Button>
           </Space.Compact>

@@ -147,3 +147,27 @@ describe('registered OAS response consumers', () => {
     ]);
   });
 });
+
+describe('OAS 3.2 Response metadata consumer regression', () => {
+  test.each(['3.2.0', '3.2.99'])('keeps outer summary and empty description in %s', (openapi) => {
+    const document: SwaggerDoc = {
+      openapi,
+      info: { title: 'Metadata', version: '1' },
+      paths: {
+        '/result': {
+          get: {
+            responses: {
+              '200': { $ref: '#/components/responses/Result', summary: 'Outer', description: '' },
+              '204': {},
+            },
+          },
+        },
+      },
+      components: { responses: { Result: { summary: 'Target', description: 'Target description' } } },
+    };
+    const operation = parseMenuTags(document, { retrievalUri: entryUri })[0].operations[0];
+    const records = locateOperationResponses(document, operation);
+    expect(records[0].location?.value).toMatchObject({ summary: 'Outer', description: '' });
+    expect(records[1].location?.value).toEqual({});
+  });
+});

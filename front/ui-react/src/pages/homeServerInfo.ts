@@ -1,3 +1,6 @@
+import { getOpenApiSpecificationFeatures } from 'knife4j-core';
+import { resolveOas32OperationServers } from '../schema/oas32OperationServers';
+import type { Oas32ResolvedServer } from '../schema/oas32ServerResolution';
 import type { SwaggerDoc, SwaggerServer } from '../types/swagger';
 import { currentOrigin, normalizeRequestBaseUrl } from './api/requestBaseUrl';
 
@@ -63,8 +66,16 @@ function legacySwaggerServers(swaggerDoc: SwaggerDoc): SwaggerServer[] {
 export function resolveHomeServers(
   swaggerDoc: SwaggerDoc | null | undefined,
   origin: string = currentHomeOrigin(),
-): SwaggerServer[] {
+  retrievalUri?: string,
+): Array<SwaggerServer & { resolution?: Oas32ResolvedServer }> {
   if (!swaggerDoc) return [];
+  if (getOpenApiSpecificationFeatures(swaggerDoc.openapi)?.family === '3.2')
+    return resolveOas32OperationServers(swaggerDoc, null, retrievalUri).resolutions.map((resolution) => ({
+      url: resolution.requestUrl ?? '',
+      name: resolution.name,
+      description: resolution.description,
+      resolution,
+    }));
 
   const validServers = Array.isArray(swaggerDoc.servers)
     ? swaggerDoc.servers.filter(
@@ -85,6 +96,13 @@ export function resolveHomeHostLabel(
   servers: SwaggerServer[],
   origin: string = currentHomeOrigin(),
 ): string {
+  if (getOpenApiSpecificationFeatures(swaggerDoc?.openapi)?.family === '3.2') {
+    try {
+      return servers[0]?.url ? new URL(servers[0].url).host : '-';
+    } catch {
+      return '-';
+    }
+  }
   const explicitHost = normalizeHomeHost(swaggerDoc?.host, origin);
   if (explicitHost) return explicitHost;
 
