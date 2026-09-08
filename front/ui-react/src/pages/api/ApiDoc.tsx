@@ -536,7 +536,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         return {
           key: statusCode,
           statusCode,
-          summary: isOas32 ? response.summary : undefined,
+          summary: isOas32 && typeof response.summary === 'string' ? response.summary : undefined,
           unavailable: registeredResponses?.find((record) => record.statusCode === statusCode)?.unavailable,
           description: response.description ?? '',
           schema: responseSchema(response),

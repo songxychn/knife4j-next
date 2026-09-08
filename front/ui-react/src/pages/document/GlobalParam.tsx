@@ -56,7 +56,7 @@ type ParamFormValues = Omit<GlobalParamItem, 'id'>;
 
 function GlobalParamInner() {
   const { t } = useTranslation();
-  const { activeGroup, activeSwaggerGroup, swaggerDoc } = useGroup();
+  const { activeGroup, activeSwaggerGroup, swaggerDoc, operationRetrievalUri } = useGroup();
   const { settings } = useSettings();
   const { applicationParams, groupParams, addParam, updateParam, removeParam, clearParams, cookieSession } =
     useGlobalParam();
@@ -74,12 +74,13 @@ function GlobalParamInner() {
     () =>
       resolveRequestBaseUrl({
         swaggerDoc,
+        retrievalUri: operationRetrievalUri,
         enableHost: settings.enableHost,
         enableHostText: settings.enableHostText,
         groupContextPath: activeSwaggerGroup?.contextPath,
         origin: currentOrigin(),
       }),
-    [activeSwaggerGroup?.contextPath, settings.enableHost, settings.enableHostText, swaggerDoc],
+    [activeSwaggerGroup?.contextPath, operationRetrievalUri, settings.enableHost, settings.enableHostText, swaggerDoc],
   );
 
   const openAdd = () => {

@@ -24,7 +24,14 @@ function optionalRequest(request: GlobalParamHttpRequest | undefined): GlobalPar
 
 function CookieSessionInner() {
   const { t } = useTranslation();
-  const { activeGroup, activeSwaggerGroup, swaggerDoc, loading: groupLoading, routeGroupReady } = useGroup();
+  const {
+    activeGroup,
+    activeSwaggerGroup,
+    swaggerDoc,
+    operationRetrievalUri,
+    loading: groupLoading,
+    routeGroupReady,
+  } = useGroup();
   const { settings } = useSettings();
   const { cookieSession, groupId, setCookieSession } = useGlobalParam();
   const [cookieForm] = Form.useForm<CookieSessionConfig>();
@@ -35,12 +42,13 @@ function CookieSessionInner() {
     () =>
       resolveRequestBaseUrl({
         swaggerDoc,
+        retrievalUri: operationRetrievalUri,
         enableHost: settings.enableHost,
         enableHostText: settings.enableHostText,
         groupContextPath: activeSwaggerGroup?.contextPath,
         origin: currentOrigin(),
       }),
-    [activeSwaggerGroup?.contextPath, settings.enableHost, settings.enableHostText, swaggerDoc],
+    [activeSwaggerGroup?.contextPath, operationRetrievalUri, settings.enableHost, settings.enableHostText, swaggerDoc],
   );
 
   useEffect(() => {
