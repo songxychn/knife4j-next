@@ -9,6 +9,7 @@ import {
 import {
   createSchemaDocumentSession,
   evaluateSchemaDocumentDirectionally,
+  type SchemaDocumentResource,
   type SchemaDocumentSession,
 } from './schemaDocumentSession';
 import { createSchemaDiscriminatorIndex } from './schemaDiscriminator';
@@ -72,6 +73,19 @@ async function setup(document = fixture(), resources = new Map<string, unknown>(
   });
   sessions.push(session);
   return { document, loader, snapshot, metadata, session };
+}
+
+async function replaceSession(
+  context: Awaited<ReturnType<typeof setup>>,
+  extraDocuments: readonly SchemaDocumentResource[],
+) {
+  context.session.dispose();
+  const session = await createSchemaDocumentSession(context.document, uri, {
+    resourceDocuments: [...schemaDocumentsFromResourceGraph(context.snapshot), ...extraDocuments],
+    registrationContext: schemaRegistrationContextFromResourceGraph(context.snapshot, uri),
+  });
+  sessions.push(session);
+  return { ...context, session };
 }
 
 function request(
@@ -453,6 +467,324 @@ describe('snapshot/session provenance and available public identities', () => {
     expect(result).toMatchObject({ status: 'value', value: { kind: name } });
     expect(result.provenance.target?.location?.reference).toBe(`${uri}${reference.replace('$defs', '%24defs')}`);
   });
+});
+
+describe('generation dependency closure', () => {
+  test.each([
+    ['component', 'pending'],
+    ['component', 'failed'],
+    ['operation', 'pending'],
+    ['operation', 'failed'],
+  ] as const)('ignores an unrelated %s Schema with a %s external reference', async (position, state) => {
+    const document = fixture();
+    const externalUri = 'https://unrelated.example/schema.json';
+    if (position === 'component') document.components!.schemas!.Unused = { $ref: externalUri };
+    else
+      document.paths = {
+        '/unrelated': {
+          get: {
+            responses: {
+              '200': {
+                description: 'Unrelated response',
+                content: { 'application/json': { schema: { $ref: externalUri } } },
+              },
+            },
+          },
+        },
+      };
+    const context = await setup(document);
+    const snapshot =
+      state === 'pending'
+        ? context.snapshot
+        : await context.loader.load([
+            { scope: 'generation', documentScope: context.loader.documentScope, resourceKey: sha256Hex(externalUri) },
+          ]);
+    expect(snapshot.edges.find((edge) => edge.resolvedUri === externalUri)?.state).toBe(state);
+    const metadata = createSchemaDiscriminatorIndex(snapshot).describe(location);
+    const result = await generateDiscriminatorCandidate(request({ ...context, snapshot, metadata }));
+    expect(result.diagnostics).toEqual([]);
+    expect(result).toMatchObject({
+      status: 'value',
+      value: { kind: 'known' },
+      validations: { target: { valid: true }, branch: { valid: true }, root: { valid: true } },
+    });
+  });
+
+  test.each(['pending', 'failed'] as const)(
+    'rejects a relevant %s reference even when a real session separately registered its target',
+    async (state) => {
+      const document = fixture();
+      const externalUri = 'https://related.example/value.json';
+      (document.components!.schemas!.Known as Record<string, unknown>).properties = {
+        kind: { const: 'known' },
+        profile: { type: 'object', properties: { value: { $ref: externalUri } } },
+      };
+      const initial = await setup(document);
+      const snapshot =
+        state === 'pending'
+          ? initial.snapshot
+          : await initial.loader.load([
+              { scope: 'generation', documentScope: initial.loader.documentScope, resourceKey: sha256Hex(externalUri) },
+            ]);
+      expect(snapshot.edges.find((edge) => edge.resolvedUri === externalUri)?.state).toBe(state);
+      const metadata = createSchemaDiscriminatorIndex(snapshot).describe(location);
+      const context = await replaceSession({ ...initial, snapshot, metadata }, [
+        { retrievalUri: externalUri, document: { type: 'string' } },
+      ]);
+      expect((await context.session.resolve(externalUri)).schema).toMatchObject({ type: 'string' });
+      expect(await generateDiscriminatorCandidate(request(context))).toMatchObject({
+        status: 'none',
+        reason: 'unavailable',
+        diagnostics: [{ code: 'SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE' }],
+        budget: { generationCalls: 0 },
+      });
+    },
+  );
+
+  test.each(['branch-sibling', 'root-sibling', 'other-root-branch', 'array-child', 'dynamic-ref'])(
+    'checks the complete related %s despite an extra session registration',
+    async (position) => {
+      const document = fixture();
+      const externalUri = 'https://related.example/assertion.json';
+      const root = document.components!.schemas!.Payload as Record<string, unknown>;
+      const reference = { $ref: externalUri };
+      if (position === 'branch-sibling') (root.oneOf as Record<string, unknown>[])[0].properties = { extra: reference };
+      if (position === 'root-sibling') {
+        document.components!.schemas!.Declaration = document.components!.schemas!.Payload;
+        document.components!.schemas!.Payload = {
+          $ref: '#/components/schemas/Declaration',
+          properties: { extra: reference },
+        };
+      }
+      if (position === 'other-root-branch')
+        (document.components!.schemas!.Other as Record<string, unknown>).allOf = [reference];
+      if (position === 'array-child')
+        ((document.components!.schemas!.Known as Record<string, unknown>).properties as Record<string, unknown>).items =
+          {
+            type: 'array',
+            prefixItems: [reference],
+          };
+      if (position === 'dynamic-ref')
+        ((document.components!.schemas!.Known as Record<string, unknown>).properties as Record<string, unknown>).extra =
+          { $dynamicRef: externalUri };
+      const context = await replaceSession(await setup(document), [{ retrievalUri: externalUri, document: true }]);
+      expect((await context.session.evaluate(externalUri, {})).valid).toBe(true);
+      expect(await generateDiscriminatorCandidate(request(context))).toMatchObject({
+        status: 'none',
+        diagnostics: [{ code: 'SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE' }],
+        budget: { generationCalls: 0 },
+      });
+    },
+  );
+
+  test.each(['local', 'loaded'] as const)(
+    'generates through an authorized %s nested Schema dependency',
+    async (state) => {
+      const document = fixture();
+      const externalUri = 'https://related.example/value.json';
+      const nested = { type: 'string', const: 'nested-value' };
+      if (state === 'local') document.components!.schemas!.Value = nested;
+      ((document.components!.schemas!.Known as Record<string, unknown>).properties as Record<string, unknown>).profile =
+        {
+          type: 'object',
+          required: ['values'],
+          properties: {
+            values: {
+              type: 'array',
+              minItems: 1,
+              prefixItems: [{ $ref: state === 'local' ? '#/components/schemas/Value' : externalUri }],
+            },
+          },
+        };
+      const context = await setup(document, state === 'loaded' ? new Map([[externalUri, nested]]) : undefined);
+      expect(await generateDiscriminatorCandidate(request(context))).toMatchObject({
+        status: 'value',
+        value: { kind: 'known', profile: { values: ['nested-value'] } },
+        validations: { target: { valid: true }, branch: { valid: true }, root: { valid: true } },
+      });
+    },
+  );
+
+  test.each(['unrelated-missing', 'unrelated-stale', 'related-stale'] as const)(
+    'compares the full documents of actual dependency owners for %s',
+    async (condition) => {
+      const document = fixture();
+      const externalUri = 'https://related.example/owner.json';
+      if (condition === 'related-stale')
+        ((document.components!.schemas!.Known as Record<string, unknown>).properties as Record<string, unknown>).extra =
+          { $ref: externalUri };
+      else document.components!.schemas!.Unused = { $ref: externalUri };
+      const context = await setup(document, new Map([[externalUri, { type: 'string' }]]));
+      context.session.dispose();
+      const session = await createSchemaDocumentSession(document, uri, {
+        registrationContext: schemaRegistrationContextFromResourceGraph(context.snapshot, uri),
+        resourceDocuments:
+          condition === 'unrelated-missing'
+            ? []
+            : [
+                {
+                  retrievalUri: externalUri,
+                  document: { type: 'boolean' },
+                  context: schemaRegistrationContextFromResourceGraph(context.snapshot, externalUri),
+                },
+              ],
+      });
+      sessions.push(session);
+      const result = await generateDiscriminatorCandidate({ ...request(context), session });
+      if (condition === 'related-stale')
+        expect(result).toMatchObject({
+          status: 'none',
+          diagnostics: [{ code: 'SESSION_SNAPSHOT_CONTENT_MISMATCH' }],
+          budget: { generationCalls: 0 },
+        });
+      else expect(result).toMatchObject({ status: 'value', value: { kind: 'known' } });
+    },
+  );
+
+  test.each(['loaded', 'pending'] as const)(
+    'follows an external same-name Schema back into the entry and its %s dependency',
+    async (state) => {
+      const document = fixture();
+      const libraryUri = 'https://related.example/library.json';
+      const leafUri = 'https://related.example/leaf.json';
+      const library = {
+        openapi: '3.2.0',
+        info: { title: 'Related library', version: '1' },
+        components: { schemas: { Known: { $ref: `${uri}#/components/schemas/Back` } } },
+      };
+      document.components!.schemas!.Back = { $ref: leafUri };
+      ((document.components!.schemas!.Known as Record<string, unknown>).properties as Record<string, unknown>).back = {
+        $ref: `${libraryUri}#/components/schemas/Known`,
+      };
+      const leaf = { type: 'string', const: 'returned-to-entry' };
+      const resources = new Map<string, unknown>([[libraryUri, library]]);
+      if (state === 'loaded') resources.set(leafUri, leaf);
+      let context = await setup(document, resources);
+      if (state === 'pending') context = await replaceSession(context, [{ retrievalUri: leafUri, document: leaf }]);
+      const result = await generateDiscriminatorCandidate(request(context));
+      if (state === 'loaded')
+        expect(result).toMatchObject({ status: 'value', value: { kind: 'known', back: 'returned-to-entry' } });
+      else
+        expect(result).toMatchObject({
+          status: 'none',
+          diagnostics: [{ code: 'SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE' }],
+          budget: { generationCalls: 0 },
+        });
+    },
+  );
+
+  test.each(['opaque', 'contentSchema', 'definitions'])(
+    'ignores opaque fake references and unapplied %s annotations',
+    async (keyword) => {
+      const document = fixture();
+      const externalUri = 'https://unused.example/value.json';
+      const pseudo = { $ref: externalUri, properties: { value: { $dynamicRef: externalUri } } };
+      Object.assign(document.components!.schemas!.Payload as object, {
+        examples: [pseudo],
+        'x-schema': pseudo,
+        unknownAnnotation: pseudo,
+      });
+      if (keyword === 'contentSchema')
+        (document.components!.schemas!.Payload as Record<string, unknown>).contentSchema = { $ref: externalUri };
+      if (keyword === 'definitions')
+        (document.components!.schemas!.Payload as Record<string, unknown>).definitions = {
+          Unused: { $ref: externalUri },
+        };
+      document.components!.schemas!.UnrelatedDynamic = { $dynamicRef: externalUri };
+      const context = await setup(document);
+      expect(context.snapshot.edges.filter((edge) => edge.resolvedUri === externalUri)).toHaveLength(
+        keyword === 'opaque' ? 1 : 2,
+      );
+      const result = await generateDiscriminatorCandidate(request(context));
+      expect(result.diagnostics).toEqual([]);
+      expect(result).toMatchObject({
+        status: 'value',
+        value: { kind: 'known' },
+      });
+    },
+  );
+
+  test('retains the actual D compilation dependency within $defs even when no assertion references it', async () => {
+    const document = fixture();
+    const externalUri = 'https://related.example/reserved.json';
+    (document.components!.schemas!.Payload as Record<string, unknown>).$defs = { Unused: { $ref: externalUri } };
+    const context = await setup(document);
+    await expect(
+      evaluateSchemaDocumentDirectionally(
+        context.session,
+        context.metadata.requested.reference,
+        { kind: 'known' },
+        'request',
+      ),
+    ).rejects.toMatchObject({ code: 'EXTERNAL_RESOURCE_LOADING_DISABLED' });
+    expect(await generateDiscriminatorCandidate(request(context))).toMatchObject({
+      status: 'none',
+      diagnostics: [{ code: 'SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE' }],
+      budget: { generationCalls: 0 },
+    });
+  });
+
+  test.each(['definitions', 'contentSchema'])(
+    'includes %s when reached by a real Schema reference',
+    async (keyword) => {
+      const document = fixture();
+      const externalUri = 'https://related.example/annotation-target.json';
+      const target = { $ref: externalUri };
+      const known = document.components!.schemas!.Known as Record<string, unknown>;
+      known[keyword] = keyword === 'definitions' ? { Value: target } : target;
+      (known.properties as Record<string, unknown>).extra = {
+        $ref: `#/components/schemas/Known/${keyword}${keyword === 'definitions' ? '/Value' : ''}`,
+      };
+      const context = await setup(document);
+      expect(await generateDiscriminatorCandidate(request(context))).toMatchObject({
+        status: 'none',
+        diagnostics: [{ code: 'SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE' }],
+        budget: { generationCalls: 0 },
+      });
+    },
+  );
+
+  test('checks a recursive reference closure once and still uses actual G and root validation', async () => {
+    const document = fixture();
+    Object.assign(document.components!.schemas!.Known as object, {
+      properties: { kind: { const: 'known' }, next: { $ref: '#/components/schemas/Known' } },
+      examples: [{ kind: 'known' }],
+    });
+    const context = await setup(document);
+    expect(await generateDiscriminatorCandidate(request(context))).toMatchObject({
+      status: 'value',
+      value: { kind: 'known' },
+      budget: { generationCalls: 1, validationCalls: 3 },
+    });
+  });
+
+  test.each(['pointer', 'plain-anchor', 'dynamic-anchor'] as const)(
+    'handles the public %s dynamic-reference boundary',
+    async (kind) => {
+      const document = fixture();
+      document.components!.schemas!.Value = {
+        type: 'string',
+        const: 'referenced-value',
+        ...(kind === 'plain-anchor'
+          ? { $anchor: 'value' }
+          : kind === 'dynamic-anchor'
+            ? { $dynamicAnchor: 'value' }
+            : {}),
+      };
+      ((document.components!.schemas!.Known as Record<string, unknown>).properties as Record<string, unknown>).extra = {
+        $dynamicRef: kind === 'pointer' ? '#/components/schemas/Value' : '#value',
+      };
+      const context = await setup(document);
+      const result = await generateDiscriminatorCandidate(request(context));
+      if (kind === 'dynamic-anchor')
+        expect(result).toMatchObject({
+          status: 'none',
+          diagnostics: [{ code: 'DYNAMIC_SCHEMA_DEPENDENCY_UNAVAILABLE' }],
+          budget: { generationCalls: 0 },
+        });
+      else expect(result).toMatchObject({ status: 'value', value: { kind: 'known', extra: 'referenced-value' } });
+    },
+  );
 });
 
 describe('bounded generation, unavailable inputs and cancellation', () => {

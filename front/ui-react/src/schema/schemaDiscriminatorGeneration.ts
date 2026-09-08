@@ -274,20 +274,14 @@ export async function generateDiscriminatorCandidate(
       return none('BRANCH_UNAVAILABLE');
 
     const objects = new Map<string, ResourceGraphObject>();
-    const schemaOwners = new Set([snapshot.entryRetrievalUri]);
     for (const object of snapshot.objectLocations) {
       inspect();
       objects.set(identity(object), object);
-      if (object.kind === 'schema') schemaOwners.add(object.ownerRetrievalUri);
     }
     const edges = new Map<string, ResourceGraphEdge>();
     for (const edge of snapshot.edges) {
       inspect();
-      if (edge.kind === 'schema-ref' || edge.kind === 'schema-dynamic-ref') {
-        // A session cannot supply extra, ungranted Schema dependencies absent from this snapshot.
-        if (!['local', 'loaded'].includes(edge.state)) return none('SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE');
-      }
-      if (edge.kind === 'schema-ref' || edge.kind === 'discriminator-mapping')
+      if (['schema-ref', 'schema-dynamic-ref', 'discriminator-mapping'].includes(edge.kind))
         edges.set(identity({ ownerRetrievalUri: edge.sourceRetrievalUri, pointer: edge.sourcePointer }), edge);
     }
     const raw = (site: Location) =>
@@ -377,14 +371,76 @@ export async function generateDiscriminatorCandidate(
         return none('TARGET_IDENTITY_MISMATCH');
     }
 
-    const registeredMatches = (): boolean => {
-      for (const owner of schemaOwners) if (!snapshot.nodes.has(owner)) return false;
-      for (const node of snapshot.nodes.values()) {
+    // Only C-typed positions can be children. D compiles $defs too. Its
+    // definitions/contentSchema annotations are only reached by actual references.
+    const children = new Map<string, Location[]>();
+    for (const object of objects.values()) {
+      inspect();
+      if (object.kind !== 'schema') continue;
+      let pointer = object.pointer;
+      while (pointer.includes('/')) {
         inspect();
-        const registered = registeredSchemaDocument(session, node.retrievalUri);
-        if (registered === undefined) {
-          if (schemaOwners.has(node.retrievalUri)) return false;
-        } else if (!equalContent(node.document, registered)) return false;
+        pointer = pointer.slice(0, pointer.lastIndexOf('/'));
+        const parent = { ownerRetrievalUri: object.ownerRetrievalUri, pointer };
+        const key = identity(parent);
+        if (objects.get(key)?.kind !== 'schema') continue;
+        const keyword = object.pointer.slice(pointer.length + 1).split('/')[0];
+        if (!['definitions', 'contentSchema'].includes(keyword)) {
+          const nested = children.get(key) ?? [];
+          nested.push(object);
+          children.set(key, nested);
+        }
+        break;
+      }
+    }
+    const schemaOwners = new Set([snapshot.entryRetrievalUri]);
+    const reachable = new Set<string>();
+    const dependencies = [requested, branch.location, target.location].map((site) => ({
+      site: site as Location,
+      depth: 0,
+    }));
+    for (let cursor = 0; cursor < dependencies.length; cursor++) {
+      const { site, depth } = dependencies[cursor];
+      inspect(depth);
+      const key = identity(site);
+      if (reachable.has(key)) continue;
+      if (objects.get(key)?.kind !== 'schema') return none('SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE');
+      reachable.add(key);
+      schemaOwners.add(site.ownerRetrievalUri);
+      for (const nested of children.get(key) ?? []) {
+        inspect(depth);
+        dependencies.push({ site: nested, depth: depth + 1 });
+      }
+      const schema = record(raw(site).value);
+      for (const keyword of ['$ref', '$dynamicRef'] as const) {
+        if (!schema || !exampleHasOwn(schema, keyword)) continue;
+        inspect(depth);
+        const edge = edges.get(identity(child(site, keyword)));
+        if (
+          typeof schema[keyword] !== 'string' ||
+          edge?.kind !== (keyword === '$ref' ? 'schema-ref' : 'schema-dynamic-ref') ||
+          !['local', 'loaded'].includes(edge.state) ||
+          !edge.target ||
+          objects.get(identity(edge.target))?.kind !== 'schema'
+        )
+          return none('SNAPSHOT_SCHEMA_DEPENDENCY_UNAVAILABLE');
+        if (keyword === '$dynamicRef') {
+          const fragment = decodeURIComponent(edge.fragment.slice(1));
+          // C exposes the initial target, not the runtime dynamic-scope closure.
+          // Non-dynamic fragments have the same dependency as $ref (Core 8.2.3.2).
+          if (fragment && !fragment.startsWith('/') && record(raw(edge.target).value)?.$dynamicAnchor === fragment)
+            return none('DYNAMIC_SCHEMA_DEPENDENCY_UNAVAILABLE');
+        }
+        dependencies.push({ site: edge.target, depth: depth + 1 });
+      }
+    }
+
+    const registeredMatches = (): boolean => {
+      for (const owner of schemaOwners) {
+        inspect();
+        const node = snapshot.nodes.get(owner);
+        const registered = registeredSchemaDocument(session, owner);
+        if (!node || registered === undefined || !equalContent(node.document, registered)) return false;
       }
       return true;
     };
