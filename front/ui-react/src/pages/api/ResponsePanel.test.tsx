@@ -46,7 +46,10 @@ vi.mock('react-i18next', () => ({
     t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key),
   }),
 }));
-vi.mock('knife4j-core', () => ({ buildCurl: vi.fn(() => 'curl fixture') }));
+vi.mock('knife4j-core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('knife4j-core')>()),
+  buildCurl: vi.fn(() => 'curl fixture'),
+}));
 vi.mock('./CodeBlock', () => ({ default: 'CodeBlock' }));
 vi.mock('../../utils/clipboard', () => ({ copyToClipboard: vi.fn() }));
 

@@ -83,12 +83,16 @@ export interface SwaggerInfo {
 }
 
 export interface SwaggerServer {
+  variables?: Record<string, { default: string; enum?: string[]; description?: string }>;
   url: string;
   name?: string;
   description?: string;
 }
 
 export interface SwaggerTag {
+  summary?: string;
+  parent?: string;
+  kind?: string;
   name: string;
   description?: string;
   /** Knife4j extension emitted from @ApiSupport.order. */
