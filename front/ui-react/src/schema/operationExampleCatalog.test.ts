@@ -17,6 +17,7 @@ import {
   evaluateOperationExample,
   exampleDebugModel,
   exampleDefaultTarget,
+  isOas32ExampleDocument,
   locateOperationExampleCatalog,
 } from './operationExampleCatalog';
 import { sha256Hex } from '../utils/stableJson';
@@ -491,7 +492,12 @@ describe('reviewed catalog codec integration', () => {
         },
       });
       expect(request.url).toBe('https://api.example/items?q=%221%22');
-      expect(request.parameterInstances).toContainEqual({ key: 'query:q', name: 'q', in: 'query', instance: '"1"' });
+      expect(request.oas32ParameterPlan?.results).toContainEqual(
+        expect.objectContaining({
+          parameter: expect.objectContaining({ key: 'query:q' }),
+          decodedData: '"1"',
+        }),
+      );
     },
   );
 
@@ -626,5 +632,79 @@ describe('reviewed catalog codec integration', () => {
       },
     });
     expect(request.body).toBe('"test"');
+  });
+
+  test.each(['3.2.0', '3.2.99'])('keeps querystring examples out of the query table for %s', async (version) => {
+    const document = {
+      openapi: version,
+      info: { title: 'Whole querystring catalog', version: '1' },
+      paths: {
+        '/search': {
+          get: {
+            parameters: [
+              {
+                name: 'whole',
+                in: 'querystring',
+                required: true,
+                content: {
+                  'application/x-www-form-urlencoded': {
+                    schema: { type: 'object', properties: { q: { type: 'string' } } },
+                    examples: {
+                      raw: { serializedValue: 'q=%2B+' },
+                      data: { dataValue: { q: '+ ' } },
+                    },
+                  },
+                },
+              },
+            ],
+            responses: { '204': { description: 'done' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+    const op = operation(document);
+    const catalog = locateOperationExampleCatalog(document, op);
+    expect([...catalog.parameters.keys()]).toEqual(['querystring:whole']);
+    expect(catalog.parameters.get('querystring:whole')?.in).toBe('querystring');
+    const model = exampleDebugModel(
+      buildOperationDebugModel({
+        doc: document as unknown as Record<string, unknown>,
+        path: '/search',
+        method: 'GET',
+        operationIdentity: op.identity,
+        operationDocuments: op.identity ? { [uri]: document as unknown as Record<string, unknown> } : undefined,
+      }),
+      catalog,
+    );
+    expect(model.queryParams).toEqual([]);
+    expect(model.oas32Parameters?.parameters.map((parameter) => parameter.key)).toEqual(['querystring:whole']);
+    const raw = catalog.targets.find(
+      (target) => target.group === 'parameter:querystring:whole' && target.name === 'raw' && target.layer === 'media',
+    );
+    expect(raw).toMatchObject({
+      name: 'raw',
+      layer: 'media',
+      parameter32: expect.objectContaining({ in: 'querystring' }),
+    });
+    const session = await sessionFor(document, op.resourceSnapshot!);
+    const result = await evaluateOperationExample(raw!, session);
+    expect(result.parameterResult).toMatchObject({
+      present: true,
+      parameterText: 'q=%2B+',
+    });
+    expect(result.representation.text).toBe('q=%2B+');
+  });
+
+  test('does not treat OAS 3.0 or 3.1 documents as 3.2 example catalogs', () => {
+    for (const openapi of ['3.0.3', '3.1.0']) {
+      const document = {
+        openapi,
+        info: { title: 'Legacy', version: '1' },
+        paths: { '/items': { get: { responses: { '204': { description: 'done' } } } } },
+      } as SwaggerDoc;
+      expect(isOas32ExampleDocument(document)).toBe(false);
+      expect(locateOperationExampleCatalog(document, operation(document)).targets).toEqual([]);
+    }
   });
 });

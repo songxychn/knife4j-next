@@ -1,4 +1,8 @@
-import { exampleParameterInput, operationHttpMethod, type SerializedExampleParameter } from 'knife4j-core';
+import { parseOas32UrlTemplate } from 'knife4j-core';
+import { oas32MetadataDiagnostics } from '../../schema/oas32MetadataDiagnostics';
+import Oas32ServerDetails from '../../components/Oas32ServerDetails';
+import { useOas32ServerSelection } from './useOas32ServerSelection';
+import { operationHttpMethod } from 'knife4j-core';
 import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
 import {
   exampleDebugModel,
@@ -6,6 +10,26 @@ import {
   locateOperationExampleCatalog,
   type OperationExampleResult,
 } from '../../schema/operationExampleCatalog';
+import {
+  evaluateOas32ParameterPlan,
+  oas32ExampleParameterEntry,
+  oas32ParameterContext,
+  type Oas32ParameterEntries,
+  type Oas32ParameterEntry,
+  type Oas32ParameterSchemaIssue,
+} from '../../schema/oas32ParameterAdapter';
+import {
+  collectResolvedOas32ParameterInputs,
+  editableOas32ParameterEntries,
+  oas32DiagnosticMessages,
+  oas32PreviewDiagnostics,
+  oas32QuerystringMediaType,
+  oas32QuerystringParameter,
+  previewOas32DisplayPath,
+  restoreOas32ParameterEntries,
+  serializedExampleParameterForKey,
+  serializedExampleParametersFromEntries,
+} from './oas32ParameterForm';
 import { useOperationExampleDefaults } from '../../schema/useOperationExampleDefaults';
 import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -67,6 +91,7 @@ import {
   replaceSerializedPathParams,
   serializeOas31Parameters,
   validateRequired,
+  type Oas32ParameterDiagnostic,
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
@@ -159,14 +184,15 @@ import {
   isNullableOas31Parameter,
   isOas31RequiredParameterError,
 } from './oas31ParameterForm';
-import {
-  effectiveCookieParameterSource,
-  hasExplicitCookieHeader,
-  type CookieParameterSource,
-} from './cookieParameterSource';
+import { effectiveCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
+import {
+  discardUnsentDebugResponse,
+  inspectUnsentBrowserSendFailure,
+  unsentBrowserSendFailureTab,
+} from './apiDebugBrowserSend';
 import {
   consumeRequestBodySchemaOverride,
   effectiveRequestContentType,
@@ -229,7 +255,8 @@ type RequestSchemaDiagnosticIssue =
       readonly keyword: string;
       readonly absoluteKeywordLocation: string;
     }
-  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & ParameterSchemaIssue);
+  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & ParameterSchemaIssue)
+  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & Oas32ParameterSchemaIssue);
 
 type PendingSchemaOverride = {
   readonly preview: RequestPreviewBuild;
@@ -1610,6 +1637,18 @@ function applyMaterializedMultipartContentType(headers: Record<string, string>, 
   if (contentType) headers['Content-Type'] = contentType;
 }
 
+function oas32PreviewDiagnosticAlertType(diagnostic: Oas32ParameterDiagnostic): 'error' | 'warning' | 'info' {
+  if (diagnostic.blocks === 'all') return 'error';
+  if (diagnostic.blocks === 'browser') return 'warning';
+  return 'info';
+}
+
+function oas32PreviewDiagnosticTitle(diagnostic: Oas32ParameterDiagnostic): string {
+  if (diagnostic.blocks === 'all') return 'apiDebug.preview.diagnosticsBlocked';
+  if (diagnostic.blocks === 'browser') return 'apiDebug.preview.diagnosticsBrowser';
+  return 'apiDebug.preview.diagnosticsInfo';
+}
+
 function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   const { t } = useTranslation();
   if (!result.ok) {
@@ -1620,6 +1659,7 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/form-data');
   const previewBody = multipartPlan ? formatMultipartPlanBody(multipartPlan) : built.body;
   const hasBody = previewBody !== undefined && (previewBody !== '' || built.explicitExampleBody === true);
+  const parameterDiagnostics = oas32PreviewDiagnostics(built);
 
   const headerPairs = Object.entries(built.headers);
   const queryPairs = Object.entries(built.query);
@@ -1682,6 +1722,21 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
         </Space>
         <pre style={previewBoxStyle}>{built.url}</pre>
       </div>
+
+      {parameterDiagnostics.length > 0 && (
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          <Text strong>{t('apiDebug.preview.diagnostics')}</Text>
+          {parameterDiagnostics.map((diagnostic, index) => (
+            <Alert
+              key={`${diagnostic.code}:${diagnostic.key ?? ''}:${index}`}
+              type={oas32PreviewDiagnosticAlertType(diagnostic)}
+              showIcon
+              message={t(oas32PreviewDiagnosticTitle(diagnostic))}
+              description={`${diagnostic.code}: ${diagnostic.message}`}
+            />
+          ))}
+        </Space>
+      )}
 
       {/* Headers */}
       <div>
@@ -1864,7 +1919,8 @@ function buildInitialDebugState(
 
   const firstBody = debugModel.bodyContents[0];
   return {
-    cookieParameterSource: isOas31SchemaDocument(swaggerDoc) ? 'browser-session' : 'explicit',
+    cookieParameterSource:
+      isOas31SchemaDocument(swaggerDoc) || isOas32ExampleDocument(swaggerDoc) ? 'browser-session' : 'explicit',
     baseUrl,
     method: operationHttpMethod(operation),
     path: operation.path,
@@ -1963,11 +2019,21 @@ export default function ApiDebug() {
   const { t } = useTranslation();
   const { group, tag, operaterId } = useParams();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
-  const { activeSwaggerGroup, routeGroupReady } = useGroup();
+  const { activeSwaggerGroup, operationRetrievalUri, routeGroupReady } = useGroup();
   const { settings } = useSettings();
   const { effectiveParams, cookieSession } = useGlobalParam();
   const schemaEngine = useSchemaEngine();
   const groupContextPath = activeSwaggerGroup?.contextPath;
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const server32 = useOas32ServerSelection({
+    document: isOas32 ? swaggerDoc : null,
+    operation,
+    retrievalUri: operationRetrievalUri,
+    session: schemaEngine.session,
+    enableHost: settings.enableHost,
+    host: settings.enableHostText,
+    contextPath: groupContextPath,
+  });
   const operationMethod = operation?.method;
   const operationPath = operation?.path;
   const debugCacheKey = useMemo(() => {
@@ -2005,9 +2071,30 @@ export default function ApiDebug() {
       }),
     [groupContextPath, operation, swaggerDoc, t],
   );
-  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const [legacyBaseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const baseUrl = isOas32 ? server32.baseUrl : legacyBaseUrl;
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
+  const pathDiagnostics32 = useMemo(
+    () =>
+      isOas32 && operation
+        ? [
+            ...oas32MetadataDiagnostics(swaggerDoc, [{ tag: '', operations: [operation] }]),
+            ...(operation.source === 'path'
+              ? parseOas32UrlTemplate(path, 'path', {
+                  ownerRetrievalUri: operation.identity?.ownerRetrievalUri ?? '',
+                  pointer: operation.identity?.mountPointer ?? '',
+                }).diagnostics.map((diagnostic) => ({
+                  code: diagnostic.code,
+                  path: diagnostic.pointer,
+                  reason: diagnostic.reason,
+                }))
+              : []),
+          ]
+        : [],
+    [isOas32, swaggerDoc, operation, path],
+  );
+  const serverOrPathUnavailable32 = !server32.executable || pathDiagnostics32.length > 0;
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
   // enabled state: keyed by paramKey; empty optional OAS 3.1 params start omitted.
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
@@ -2017,14 +2104,17 @@ export default function ApiDebug() {
   const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
   const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
   const [cookieParameterSource, setCookieParameterSource] = useState<CookieParameterSource>('explicit');
-  const isOas32 = isOas32ExampleDocument(swaggerDoc);
   const exampleCatalog32 = useMemo(
     () => (isOas32 && swaggerDoc && operation ? locateOperationExampleCatalog(swaggerDoc, operation) : null),
     [isOas32, swaggerDoc, operation],
   );
   const exampleSession32 = isOas32 && schemaEngine.status === 'ready' ? schemaEngine.session : undefined;
   const defaults32 = useOperationExampleDefaults(exampleCatalog32, exampleSession32);
-  const [serializedParams32, setSerializedParams32] = useState<Record<string, SerializedExampleParameter>>({});
+  const [oas32ParameterEntries, setOas32ParameterEntries] = useState<Oas32ParameterEntries>({});
+  const serializedParams32 = useMemo(
+    () => serializedExampleParametersFromEntries(oas32ParameterEntries),
+    [oas32ParameterEntries],
+  );
   const [serializedBodyMedia32, setSerializedBodyMedia32] = useState<string>();
   const appliedDefaults32 = useRef<ReadonlyMap<string, OperationExampleResult> | null>(null);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
@@ -2033,14 +2123,16 @@ export default function ApiDebug() {
       doc: swaggerDoc as unknown as Record<string, unknown>,
       operationDocuments: operation.identity ? operationSchemaDocuments(swaggerDoc, operation) : undefined,
       operationIdentity: operation.identity,
+      parameterContext: isOas32 ? oas32ParameterContext(operation) : undefined,
       path: operation.path,
       method: operation.method,
       isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
     });
     return exampleCatalog32 ? exampleDebugModel(model, exampleCatalog32) : model;
-  }, [operation, swaggerDoc, exampleCatalog32]);
+  }, [exampleCatalog32, isOas32, operation, swaggerDoc]);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
-  const effectiveCookieSource = effectiveCookieParameterSource(isOas31, cookieParameterSource);
+  const cookieSessionEnabled = isOas31 || isOas32;
+  const effectiveCookieSource = effectiveCookieParameterSource(cookieSessionEnabled, cookieParameterSource);
   const synchronousBodyDefaults = useMemo(
     () =>
       !isOas31 && !isOas32 && swaggerDoc && operation && debugModel
@@ -2180,7 +2272,7 @@ export default function ApiDebug() {
   }, [debugCacheKey, settings.enableRequestHistory]);
 
   const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
-    setSerializedParams32({});
+    setOas32ParameterEntries({});
     setSerializedBodyMedia32(undefined);
     appliedDefaults32.current = null;
     setCookieParameterSource(initial.cookieParameterSource);
@@ -2233,7 +2325,9 @@ export default function ApiDebug() {
     const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
     applyInitialDebugState(nextInitial, { resetActiveTab: true });
     if (isOas32 && cached) {
-      setSerializedParams32(cached.serializedExampleParameters ?? {});
+      setOas32ParameterEntries(
+        restoreOas32ParameterEntries(cached.oas32ParameterEntries, cached.serializedExampleParameters),
+      );
       setSerializedBodyMedia32(cached.serializedExampleBodyMediaType);
     }
     setLoading(false);
@@ -2280,7 +2374,11 @@ export default function ApiDebug() {
       version: DEBUG_CACHE_VERSION,
       cookieParameterSource: effectiveCookieSource,
       ...(isOas32
-        ? { serializedExampleParameters: serializedParams32, serializedExampleBodyMediaType: serializedBodyMedia32 }
+        ? {
+            serializedExampleParameters: serializedParams32,
+            oas32ParameterEntries: editableOas32ParameterEntries(oas32ParameterEntries),
+            serializedExampleBodyMediaType: serializedBodyMedia32,
+          }
         : {}),
       baseUrl,
       method,
@@ -2319,6 +2417,7 @@ export default function ApiDebug() {
     isOas32,
     serializedParams32,
     serializedBodyMedia32,
+    oas32ParameterEntries,
   ]);
 
   useEffect(() => {
@@ -2329,15 +2428,15 @@ export default function ApiDebug() {
       hydratedDebugCacheKey !== debugCacheKey
     )
       return;
-    const inputs: Record<string, SerializedExampleParameter> = {};
+    const entries: Record<string, (typeof oas32ParameterEntries)[string]> = Object.create(null);
     const values: Record<string, string> = {};
     const enabled: Record<string, boolean> = {};
     for (const result of defaults32.values()) {
       if (result.target.parameterKey) {
-        const input = exampleParameterInput(result.representation, result.target.layer);
-        if (input && result.target.context.parameter?.in !== 'cookie') {
-          inputs[result.target.parameterKey] = input;
-          values[result.target.parameterKey] = input.text;
+        const entry = oas32ExampleParameterEntry(result, debugDefaultEditRevisionRef.current);
+        if (entry) {
+          entries[result.target.parameterKey] = entry;
+          values[result.target.parameterKey] = entry.text;
           enabled[result.target.parameterKey] = true;
         }
       } else if (
@@ -2352,7 +2451,7 @@ export default function ApiDebug() {
         setSerializedBodyMedia32(selectedContentType);
       }
     }
-    setSerializedParams32(inputs);
+    setOas32ParameterEntries(entries);
     setParamValues((previous) => ({ ...previous, ...values }));
     setParamEnabled((previous) => ({ ...previous, ...enabled }));
     appliedDefaults32.current = defaults32;
@@ -2379,8 +2478,18 @@ export default function ApiDebug() {
   const updateValue = (param: DebugParam, next: string) => {
     debugDefaultEditRevisionRef.current += 1;
     const key = paramKey(param);
-    if (serializedParams32[key])
-      setSerializedParams32((previous) => ({ ...previous, [key]: { text: next, layer: previous[key].layer } }));
+    setOas32ParameterEntries((previous) => {
+      const current = previous[key];
+      return {
+        ...previous,
+        [key]: {
+          kind: current?.kind ?? 'editor',
+          text: next,
+          enabled: paramEnabled[key] !== false,
+          ...(current && 'data' in current ? { data: current.data } : {}),
+        },
+      };
+    });
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
   };
 
@@ -2399,6 +2508,17 @@ export default function ApiDebug() {
     // 如果 path 已不包含任何占位符，说明用户手动编辑了 URL，直接显示
     const hasPlaceholders = debugModel.pathParams.some((p) => path.includes(`{${p.name}}`));
     if (!hasPlaceholders) return path;
+    if (debugModel.oas32Parameters) {
+      return previewOas32DisplayPath(
+        path,
+        debugModel.oas32Parameters,
+        oas32ParameterEntries,
+        paramValues,
+        paramEnabled,
+        effectiveCookieSource,
+        debugDefaultEditRevisionRef.current,
+      );
+    }
     const legacyPath = replacePathParams(path, pathParamValues);
     try {
       const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled, effectiveCookieSource);
@@ -2413,7 +2533,7 @@ export default function ApiDebug() {
       // Keep the editable URL field usable while the value is incomplete.
       return legacyPath;
     }
-  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource, serializedParams32]);
+  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource, serializedParams32, oas32ParameterEntries]);
 
   /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
   const handlePathInputChange = (newPath: string) => {
@@ -2493,7 +2613,9 @@ export default function ApiDebug() {
   };
 
   const paramColumnsFor = (params: DebugParam[]): ColumnsType<DebugParam> => {
-    const browserSession = params.some((parameter) => isBrowserSessionParameter(parameter, effectiveCookieSource));
+    const browserSession = params.some((parameter) =>
+      isBrowserSessionParameter(parameter, effectiveCookieSource, { declaredCookies: isOas32 }),
+    );
     const paramKeys = params.map(paramKey);
     const selection = resolveApiDebugParamSelection(paramKeys, paramEnabled);
     const selectAllLabel = t(selection.checked ? 'apiDebug.params.deselectAll' : 'apiDebug.params.selectAll');
@@ -2560,9 +2682,9 @@ export default function ApiDebug() {
         key: 'value',
         width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.value,
         render: (_value: string, record: DebugParam) =>
-          isBrowserSessionParameter(record, effectiveCookieSource) ? (
+          isBrowserSessionParameter(record, effectiveCookieSource, { declaredCookies: isOas32 }) ? (
             <Text type="secondary">{t('apiDebug.cookie.sessionValue')}</Text>
-          ) : serializedParams32[paramKey(record)] ? (
+          ) : serializedExampleParameterForKey(oas32ParameterEntries, paramKey(record)) ? (
             <Input.TextArea
               aria-label={`${record.name} serializedValue`}
               value={paramValues[paramKey(record)] ?? ''}
@@ -2725,16 +2847,31 @@ export default function ApiDebug() {
       headerParams: { ...extraHeaders, ...specHeaders },
       cookieParams: effectiveCookieSource === 'browser-session' ? {} : { ...extraCookieParams, ...specCookieParams },
       ...(Object.keys(oas31ParameterValues).length > 0 ? { oas31ParameterValues } : {}),
-      ...(isOas32
+      ...(isOas32 && debugModel.oas32Parameters
         ? {
-            serializedExampleParameters: Object.fromEntries(
-              Object.entries(serializedParams32).filter(([key]) => paramEnabled[key] !== false),
+            oas32ParameterInputs: collectResolvedOas32ParameterInputs(
+              debugModel.oas32Parameters,
+              oas32ParameterEntries,
+              paramValues,
+              paramEnabled,
+              effectiveCookieSource,
+              debugDefaultEditRevisionRef.current,
+              exampleSession32,
             ),
             ...(serializedBodyMedia32 === selectedContentType
               ? { serializedExampleBody: { mediaType: getEffectiveContentType(), text: body } }
               : {}),
           }
-        : {}),
+        : isOas32
+          ? {
+              serializedExampleParameters: Object.fromEntries(
+                Object.entries(serializedParams32).filter(([key]) => paramEnabled[key] !== false),
+              ),
+              ...(serializedBodyMedia32 === selectedContentType
+                ? { serializedExampleBody: { mediaType: getEffectiveContentType(), text: body } }
+                : {}),
+            }
+          : {}),
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
       binaryBodyFileName: currentBody?.binary ? binaryBodyFileRef.current?.name : undefined,
@@ -2748,6 +2885,7 @@ export default function ApiDebug() {
 
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
   const buildPreview = (): RequestPreviewBuild => {
+    if (isOas32 && serverOrPathUnavailable32) throw new Error(t('oas32.server.unavailable'));
     const formValues = collectFormValues();
     const built = applyRouteProxyHeader(
       coreBuildRequest({
@@ -2793,7 +2931,11 @@ export default function ApiDebug() {
       path,
       cookieParameterSource: effectiveCookieSource,
       ...(isOas32
-        ? { serializedExampleParameters: serializedParams32, serializedExampleBodyMediaType: serializedBodyMedia32 }
+        ? {
+            serializedExampleParameters: serializedParams32,
+            oas32ParameterEntries: editableOas32ParameterEntries(oas32ParameterEntries),
+            serializedExampleBodyMediaType: serializedBodyMedia32,
+          }
         : {}),
       paramValues: { ...paramValues },
       paramEnabled: { ...paramEnabled },
@@ -2843,10 +2985,13 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     const snap = entry.formSnapshot;
     if (snap) {
-      setSerializedParams32(snap.serializedExampleParameters ?? {});
+      setOas32ParameterEntries(
+        restoreOas32ParameterEntries(snap.oas32ParameterEntries, snap.serializedExampleParameters),
+      );
       setSerializedBodyMedia32(snap.serializedExampleBodyMediaType);
       setCookieParameterSource(snap.cookieParameterSource ?? 'explicit');
-      setBaseUrl(snap.baseUrl);
+      if (isOas32) server32.restoreOverride(snap.baseUrl);
+      else setBaseUrl(snap.baseUrl);
       setMethod(snap.method);
       setPath(snap.path);
       setParamValues(snap.paramValues);
@@ -2898,9 +3043,10 @@ export default function ApiDebug() {
       return;
     }
 
-    setSerializedParams32({});
+    setOas32ParameterEntries({});
     setSerializedBodyMedia32(undefined);
-    setBaseUrl(entry.baseUrl);
+    if (isOas32) server32.restoreOverride(entry.baseUrl);
+    else setBaseUrl(entry.baseUrl);
     setCookieParameterSource('explicit');
     setMethod(entry.method);
     setPath(entry.path);
@@ -2922,15 +3068,40 @@ export default function ApiDebug() {
 
   const handleSend = async (options: HandleSendOptions = {}) => {
     if (!debugModel) return;
+    const failWithoutFetch = (message: string, tab?: string) => {
+      if (tab) setActiveTab(tab);
+      discardUnsentDebugResponse(response);
+      sseAbortRef.current?.abort();
+      sseAbortRef.current = null;
+      setSseStreaming(false);
+      setResponse(null);
+      setSseEvents(null);
+      setResponseSchemaDiagnostic(null);
+      setError(message);
+    };
+    if (isOas32 && serverOrPathUnavailable32) {
+      failWithoutFetch(t('oas32.server.unavailable'));
+      return;
+    }
     setError(null);
+    if (isOas32 && options.prepared) {
+      const current = buildRequestPreviewSafely(buildPreview);
+      if (
+        !current.ok ||
+        current.value.built.url !== options.prepared.built.url ||
+        current.value.built.method !== options.prepared.built.method
+      ) {
+        failWithoutFetch(t('oas32.server.changed'));
+        return;
+      }
+    }
 
     const previewResult: RequestPreviewBuildResult = options.prepared
       ? { ok: true, value: options.prepared }
       : buildRequestPreviewSafely(buildPreview);
     if (!previewResult.ok) {
       setValidationErrors([]);
-      setActiveTab(debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
-      setError(previewResult.error);
+      failWithoutFetch(previewResult.error, debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
       return;
     }
     const {
@@ -2945,6 +3116,7 @@ export default function ApiDebug() {
       debugModel,
       validateRequired(debugModel, formValues, built.parameterPresence),
       requestCookieSource,
+      { declaredCookies: isOas32 },
     );
     const requiredParameterErrors = isOas31SchemaDocument(swaggerDoc)
       ? errors.filter((error) => isOas31RequiredParameterError(debugModel, error))
@@ -2952,11 +3124,11 @@ export default function ApiDebug() {
     const blockingRequiredErrors = errors.filter((error) => !requiredParameterErrors.includes(error));
     setValidationErrors(errors);
     if (blockingRequiredErrors.length > 0) {
-      // 定位到第一个错误所在 Tab
       const first = blockingRequiredErrors[0];
-      const nextTab = first.in === 'body' ? 'body' : first.in;
-      setActiveTab(nextTab);
-      setError(blockingRequiredErrors.map((e) => e.message).join('\n'));
+      failWithoutFetch(
+        blockingRequiredErrors.map((e) => e.message).join('\n'),
+        first.in === 'body' ? 'body' : first.in,
+      );
       return;
     }
 
@@ -2978,31 +3150,35 @@ export default function ApiDebug() {
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
         : built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true);
-    const browserConstraint = browserRequestConstraint(
-      built.method,
+    const hardFailure = inspectUnsentBrowserSendFailure({
+      built,
       hasBodyInput,
-      built.hasExplicitCookieParameters === true || (isOas31 && hasExplicitCookieHeader(built.headers)),
-    );
-    if (browserConstraint === 'unsupported-method') {
-      setActiveTab('preview');
-      setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
-      return;
-    }
-    if (browserConstraint === 'normalized-method') {
-      setActiveTab('preview');
-      setError(
-        t('apiDebug.method.browserNormalized', { method: built.method, normalized: built.method.toUpperCase() }),
-      );
-      return;
-    }
-    if (browserConstraint === 'unsupported-body') {
-      setActiveTab('body');
-      setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
-      return;
-    }
-    if (browserConstraint === 'unsupported-cookie') {
-      setActiveTab('cookie');
-      setError(t('apiDebug.cookie.browserUnsupported'));
+      cookieSessionCapable: isOas31 || isOas32,
+      isOas32,
+    });
+    if (hardFailure) {
+      let message: string;
+      switch (hardFailure.kind) {
+        case 'unsupported-method':
+          message = t('apiDebug.method.browserUnsupported', { method: built.method });
+          break;
+        case 'normalized-method':
+          message = t('apiDebug.method.browserNormalized', {
+            method: built.method,
+            normalized: built.method.toUpperCase(),
+          });
+          break;
+        case 'unsupported-body':
+          message = t('apiDebug.body.browserMethodUnsupported', { method: built.method });
+          break;
+        case 'unsupported-cookie':
+          message = t('apiDebug.cookie.browserUnsupported');
+          break;
+        case 'oas32-browser':
+          message = oas32DiagnosticMessages(hardFailure.diagnostics);
+          break;
+      }
+      failWithoutFetch(message, unsentBrowserSendFailureTab(hardFailure));
       return;
     }
 
@@ -3139,9 +3315,51 @@ export default function ApiDebug() {
         }
       }
 
+      if (isOas32 && built.oas32ParameterPlan && exampleSession32) {
+        const controller = new AbortController();
+        schemaValidationAbortRef.current = controller;
+        setSchemaValidating(true);
+        try {
+          const planIssues = await evaluateOas32ParameterPlan(
+            built.oas32ParameterPlan,
+            exampleSession32,
+            controller.signal,
+          );
+          if (!isCurrentValidation()) return;
+          if (planIssues.length > 0) {
+            totalDiagnosticIssues += planIssues.length;
+            diagnosticIssues.push(
+              ...planIssues.map((issue): RequestSchemaDiagnosticIssue => ({
+                ...issue,
+                kind: 'invalid-schema',
+                target: 'parameter',
+              })),
+            );
+          }
+        } catch (reason) {
+          const code =
+            reason && typeof reason === 'object' && 'code' in reason
+              ? String((reason as { code?: string }).code)
+              : undefined;
+          if (controller.signal.aborted || code === 'OPERATION_ABORTED' || !isCurrentValidation()) return;
+          const detail = reason instanceof Error ? reason.message : String(reason);
+          void message.warning(t('apiDebug.schemaValidation.engineFailed', { message: detail }));
+        } finally {
+          if (schemaValidationAbortRef.current === controller) {
+            schemaValidationAbortRef.current = null;
+            setSchemaValidating(false);
+          }
+        }
+        if (!isCurrentValidation()) return;
+      } else if (isOas32 && built.oas32ParameterPlan && schemaEngine.status !== 'ready') {
+        const detail =
+          schemaEngine.status === 'error' ? schemaEngine.error.message : t('apiDebug.schemaValidation.engineNotReady');
+        void message.warning(t('apiDebug.schemaValidation.engineFailed', { message: detail }));
+      }
+
       if (diagnosticIssues.length > 0) {
         const first = diagnosticIssues[0];
-        setActiveTab(first.target === 'body' ? 'body' : first.in);
+        setActiveTab(first.target === 'body' ? 'body' : first.in === 'querystring' ? 'querystring' : first.in);
         setPendingSchemaOverride({
           preview: previewResult.value,
           debugCacheKey: validationDebugCacheKey,
@@ -3708,18 +3926,15 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     const key = result.target.parameterKey;
     if (key) {
-      const input =
-        result.target.context.parameter?.in === 'cookie'
-          ? undefined
-          : exampleParameterInput(result.representation, result.target.layer);
-      setSerializedParams32((previous) => {
+      const entry = oas32ExampleParameterEntry(result, debugDefaultEditRevisionRef.current);
+      setOas32ParameterEntries((previous) => {
         const next = { ...previous };
-        if (input) next[key] = input;
+        if (entry) next[key] = entry;
         else delete next[key];
         return next;
       });
-      setParamValues((previous) => ({ ...previous, [key]: input?.text ?? '' }));
-      setParamEnabled((previous) => ({ ...previous, [key]: !!input }));
+      setParamValues((previous) => ({ ...previous, [key]: entry?.text ?? '' }));
+      setParamEnabled((previous) => ({ ...previous, [key]: !!entry }));
     } else if (result.target.group.startsWith('body:')) {
       const usable =
         result.representation.text !== undefined &&
@@ -3763,6 +3978,32 @@ export default function ApiDebug() {
   const queryParams = debugModel.queryParams.filter((param) => !param.readOnly);
   const headerParams = debugModel.headerParams.filter((param) => !param.readOnly);
   const cookieParams = debugModel.cookieParams.filter((param) => !param.readOnly);
+  const querystringParameter = oas32QuerystringParameter(debugModel.oas32Parameters);
+  const querystringMediaType = oas32QuerystringMediaType(querystringParameter);
+  const querystringEntry = querystringParameter ? oas32ParameterEntries[querystringParameter.key] : undefined;
+  const querystringKind = querystringEntry?.kind ?? (querystringMediaType?.includes('json') ? 'data' : 'media');
+  const updateQuerystringEntry = (patch: Partial<Oas32ParameterEntry>) => {
+    if (!querystringParameter) return;
+    debugDefaultEditRevisionRef.current += 1;
+    setOas32ParameterEntries((previous) => {
+      const current = previous[querystringParameter.key];
+      return {
+        ...previous,
+        [querystringParameter.key]: {
+          kind: patch.kind ?? current?.kind ?? querystringKind,
+          text: patch.text ?? current?.text ?? '',
+          enabled: patch.enabled ?? current?.enabled ?? true,
+          ...(current && 'data' in current ? { data: current.data } : {}),
+        },
+      };
+    });
+  };
+  const querystringConflict =
+    (!previewResult.ok && /querystring|QUERYSTRING_SOURCE_CONFLICT/i.test(previewResult.error)) ||
+    (previewBuilt?.oas32ParameterPlan?.diagnostics.some(
+      (diagnostic) => diagnostic.code === 'QUERYSTRING_SOURCE_CONFLICT',
+    ) ??
+      false);
 
   const tabItems = [
     {
@@ -3817,9 +4058,74 @@ export default function ApiDebug() {
             rows={customQueryParams}
             onChange={setCustomQueryParams}
           />
+          {querystringParameter && querystringConflict && (
+            <Alert type="error" showIcon message={t('apiDebug.querystring.conflict')} style={{ marginTop: 12 }} />
+          )}
         </>
       ),
     },
+    ...(querystringParameter
+      ? [
+          {
+            key: 'querystring',
+            label: `${t('apiDebug.tab.querystring')} (1)`,
+            disabled: false,
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {renderExamplePickers32('querystring')}
+                {querystringConflict && <Alert type="error" showIcon message={t('apiDebug.querystring.conflict')} />}
+                <Space wrap>
+                  <Checkbox
+                    checked={querystringEntry?.enabled !== false}
+                    onChange={(event) => updateQuerystringEntry({ enabled: event.target.checked })}
+                  >
+                    {t('apiDebug.querystring.title')}
+                  </Checkbox>
+                  {querystringMediaType && (
+                    <Text type="secondary">
+                      {t('apiDebug.querystring.mediaType', { mediaType: querystringMediaType })}
+                    </Text>
+                  )}
+                </Space>
+                <Alert type="info" showIcon message={t('apiDebug.querystring.emptyHint')} />
+                <Radio.Group
+                  value={querystringKind}
+                  optionType="button"
+                  options={[
+                    { value: 'data', label: t('apiDebug.querystring.kind.data') },
+                    { value: 'media', label: t('apiDebug.querystring.kind.media') },
+                    { value: 'parameter', label: t('apiDebug.querystring.kind.parameter') },
+                  ]}
+                  onChange={(event) =>
+                    updateQuerystringEntry({ kind: event.target.value as Oas32ParameterEntry['kind'] })
+                  }
+                />
+                {querystringKind === 'data' ? (
+                  <CodeEditor
+                    value={querystringEntry?.text ?? ''}
+                    onChange={(next) => updateQuerystringEntry({ text: next, kind: 'data', enabled: true })}
+                    language="json"
+                  />
+                ) : (
+                  <Input.TextArea
+                    aria-label={t('apiDebug.querystring.title')}
+                    value={querystringEntry?.text ?? ''}
+                    placeholder={t('apiDebug.querystring.placeholder.media')}
+                    autoSize={{ minRows: 3, maxRows: 10 }}
+                    onChange={(event) =>
+                      updateQuerystringEntry({
+                        text: event.target.value,
+                        kind: querystringKind,
+                        enabled: true,
+                      })
+                    }
+                  />
+                )}
+              </Space>
+            ),
+          },
+        ]
+      : []),
     {
       key: 'header',
       label: `${t('apiDebug.tab.header')} (${
@@ -3867,7 +4173,8 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
-          {isOas31 && (
+          {renderExamplePickers32('cookie')}
+          {cookieSessionEnabled && (
             <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }}>
               <Space wrap>
                 <Text strong>{t('apiDebug.cookie.source')}</Text>
@@ -4046,15 +4353,17 @@ export default function ApiDebug() {
   const defaultTab =
     debugModel.pathParams.length > 0
       ? 'path'
-      : debugModel.queryParams.length > 0 || injectedGlobalQueries.length > 0
-        ? 'query'
-        : debugModel.headerParams.length > 0 || injectedGlobalHeaders.length > 0
-          ? 'header'
-          : debugModel.cookieParams.length > 0
-            ? 'cookie'
-            : debugModel.bodyContents.length > 0
-              ? 'body'
-              : 'preview';
+      : querystringParameter
+        ? 'querystring'
+        : debugModel.queryParams.length > 0 || injectedGlobalQueries.length > 0
+          ? 'query'
+          : debugModel.headerParams.length > 0 || injectedGlobalHeaders.length > 0
+            ? 'header'
+            : debugModel.cookieParams.length > 0
+              ? 'cookie'
+              : debugModel.bodyContents.length > 0
+                ? 'body'
+                : 'preview';
   const currentActiveTab = activeTab ?? defaultTab;
   const responsePercent =
     responseProgress?.totalBytes === null || responseProgress === null
@@ -4094,7 +4403,8 @@ export default function ApiDebug() {
           schemaValidationRevisionRef.current += 1;
           const first = pendingSchemaOverride?.issues[0];
           setPendingSchemaOverride(null);
-          if (first) setActiveTab(first.target === 'body' ? 'body' : first.in);
+          if (first)
+            setActiveTab(first.target === 'body' ? 'body' : first.in === 'querystring' ? 'querystring' : first.in);
         }}
         onOk={() => {
           const pending = pendingSchemaOverride;
@@ -4211,8 +4521,75 @@ export default function ApiDebug() {
             </Title>
           </Space>
 
+          {pathDiagnostics32.map((diagnostic) => (
+            <Alert
+              key={`${diagnostic.code}:${diagnostic.path}`}
+              type="warning"
+              message={diagnostic.code}
+              description={`${diagnostic.path}: ${diagnostic.reason}`}
+              style={{ marginBottom: 8 }}
+            />
+          ))}
           {methodConstraintMessage && (
             <Alert type="warning" showIcon message={methodConstraintMessage} style={{ marginBottom: 12 }} />
+          )}
+          {isOas32 && (
+            <div className="knife4j-server-selection">
+              <Select
+                aria-label={t('oas32.server.select')}
+                value={server32.key || undefined}
+                onChange={server32.select}
+                style={{ width: '100%' }}
+                options={[
+                  ...(server32.declarations?.resolutions.map((server, index) => ({
+                    value: server.source.key,
+                    label: `${server.name ?? `Server ${index + 1}`} · ${server.rawUrl ?? t('oas32.server.unavailable')}`,
+                  })) ?? []),
+                  ...server32.overrides.map((override) => ({
+                    value: override.key,
+                    label: t(`oas32.server.override.${override.source}`),
+                  })),
+                ]}
+              />
+              {server32.override === 'custom' && (
+                <Input
+                  aria-label={t('oas32.server.customUrl')}
+                  value={server32.custom}
+                  onChange={(event) => server32.setCustom(event.target.value)}
+                />
+              )}
+              {!server32.override &&
+                server32.resolved?.variables.map((variable) => (
+                  <label className="knife4j-server-variable" key={variable.name}>
+                    <span>{variable.name}</span>
+                    {variable.enum ? (
+                      <Select
+                        aria-label={variable.name}
+                        value={variable.value}
+                        options={variable.enum.map((value) => ({ value, label: value }))}
+                        onChange={(value) => server32.setVariable(variable.name, value)}
+                      />
+                    ) : (
+                      <Input
+                        aria-label={variable.name}
+                        value={variable.value ?? ''}
+                        onChange={(event) => server32.setVariable(variable.name, event.target.value)}
+                      />
+                    )}
+                  </label>
+                ))}
+              {server32.resolved ? (
+                <Oas32ServerDetails server={server32.resolved} override={server32.override} />
+              ) : (
+                <Alert
+                  type="warning"
+                  message={t('oas32.server.unavailable')}
+                  description={server32.declarations?.diagnostics
+                    .map((diagnostic) => `${diagnostic.code}: ${diagnostic.reason}`)
+                    .join('; ')}
+                />
+              )}
+            </div>
           )}
           <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
             <Select
@@ -4229,14 +4606,23 @@ export default function ApiDebug() {
                 label: item,
               }))}
             />
-            <AutoComplete
-              value={baseUrl}
-              title={baseUrl}
-              onChange={setBaseUrl}
-              options={requestServerSelectOptions}
-              filterOption={false}
-              style={{ flex: '0 1 420px', minWidth: 320 }}
-            />
+            {isOas32 ? (
+              <Input
+                aria-label={t('oas32.server.request')}
+                value={baseUrl}
+                readOnly
+                style={{ flex: '0 1 420px', minWidth: 0 }}
+              />
+            ) : (
+              <AutoComplete
+                value={baseUrl}
+                title={baseUrl}
+                onChange={setBaseUrl}
+                options={requestServerSelectOptions}
+                filterOption={false}
+                style={{ flex: '0 1 420px', minWidth: 320 }}
+              />
+            )}
             <Input
               value={displayPath}
               title={displayPath}
@@ -4247,12 +4633,18 @@ export default function ApiDebug() {
               type="primary"
               icon={<SendOutlined />}
               onClick={() => void handleSend()}
-              disabled={Boolean(methodConstraintMessage)}
+              disabled={Boolean(methodConstraintMessage) || (isOas32 && serverOrPathUnavailable32)}
               loading={loading || schemaValidating}
             >
               {t('apiDebug.send')}
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                if (isOas32) server32.reset();
+                handleReset();
+              }}
+            >
               {t('apiDebug.reset')}
             </Button>
           </Space.Compact>

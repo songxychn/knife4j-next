@@ -1,3 +1,11 @@
+import { buildOas32TagNavigation } from './tagNavigation';
+import type { Oas32TagObject } from './types';
+import {
+  parseOas32UrlTemplate,
+  substituteOas32ServerVariables,
+  findOas32PathTemplateConflicts,
+  type Oas32UrlDiagnostic,
+} from './urlTemplates';
 import { escapeJsonPointerSegment, resolveLocalJsonPointer } from '../openapi31/document';
 import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from '../openapiVersion';
 
@@ -153,6 +161,8 @@ interface LocatedValue {
 }
 
 export type Oas32DocumentDiagnosticCode =
+  | Oas32UrlDiagnostic['code']
+  | 'ambiguous-parent-tag'
   | 'invalid-field-type'
   | 'invalid-field-value'
   | 'missing-required-field'
@@ -236,6 +246,14 @@ class StructureCollector {
     this.parameterLists.forEach((list) => this.checkParameters(this.parameters(list), true));
     this.pathItems.forEach((pathItem) => this.checkEffectiveParameters(pathItem));
     this.checkTags();
+    if (isRecord(this.document.paths)) {
+      const paths = Object.keys(this.document.paths)
+        .filter((path) => path.startsWith('/'))
+        .map((path) => parseOas32UrlTemplate(path, 'path', { ownerRetrievalUri: '', pointer: child('#/paths', path) }));
+      [...paths.flatMap((path) => path.diagnostics), ...findOas32PathTemplateConflicts(paths)].forEach((diagnostic) =>
+        this.add(diagnostic.code, diagnostic.pointer, diagnostic.reason),
+      );
+    }
     return this.diagnostics;
   }
 
@@ -440,6 +458,17 @@ class StructureCollector {
         this.scalar(object, path, 'url', 'string', true);
         this.strings(object, path, ['name', 'description']);
         this.mapField(object, path, 'variables', 'serverVariable');
+        if (typeof object.url === 'string') {
+          const template = parseOas32UrlTemplate(object.url, 'server', {
+            ownerRetrievalUri: '',
+            pointer: child(path, 'url'),
+          });
+          substituteOas32ServerVariables({
+            template,
+            variables: object.variables,
+            variablesLocation: { ownerRetrievalUri: '', pointer: child(path, 'variables') },
+          }).diagnostics.forEach((diagnostic) => this.add(diagnostic.code, diagnostic.pointer, diagnostic.reason));
+        }
         break;
       case 'serverVariable':
         this.scalar(object, path, 'default', 'string', true);
@@ -834,41 +863,22 @@ class StructureCollector {
 
   private checkTags(): void {
     if (!Array.isArray(this.document.tags)) return;
-    const tags = new Map<string, LocatedObject>();
-    this.document.tags.forEach((value, index) => {
-      if (!isRecord(value) || typeof value.name !== 'string') return;
-      const path = child('#/tags', index);
-      if (tags.has(value.name)) this.add('duplicate-tag', child(path, 'name'), 'Tag 名称必须唯一');
-      else tags.set(value.name, { kind: 'tag', value, path });
-    });
-    const completed = new Set<string>();
-    tags.forEach((_tag, name) => {
-      const chain: string[] = [];
-      const positions = new Map<string, number>();
-      let currentName: string | undefined = name;
-      while (currentName !== undefined && !completed.has(currentName)) {
-        const cycleStart = positions.get(currentName);
-        if (cycleStart !== undefined) {
-          chain.slice(cycleStart).forEach((cycleName) => {
-            const tag = tags.get(cycleName);
-            if (tag) this.add('tag-parent-cycle', child(tag.path, 'parent'), 'Tag parent 不能形成循环');
-          });
-          break;
-        }
-        const current = tags.get(currentName);
-        if (!current) break;
-        positions.set(currentName, chain.length);
-        chain.push(currentName);
-        const parent = current.value.parent;
-        if (typeof parent !== 'string') break;
-        if (!tags.has(parent)) {
-          this.add('unknown-parent-tag', child(current.path, 'parent'), 'parent 指向的 Tag 必须存在');
-          break;
-        }
-        currentName = parent;
-      }
-      chain.forEach((visited) => completed.add(visited));
-    });
+    const tags = this.document.tags.filter(
+      (value): value is Oas32TagObject => isRecord(value) && typeof value.name === 'string',
+    );
+    // Keep source indexes even when malformed declarations were rejected by structural checks.
+    const sourceIndexes = this.document.tags
+      .map((value, index) => (isRecord(value) && typeof value.name === 'string' ? index : -1))
+      .filter((index) => index >= 0);
+    buildOas32TagNavigation([], tags, { ownerRetrievalUri: '', pointer: '#/tags' }).diagnostics.forEach(
+      (diagnostic) => {
+        const path = diagnostic.pointer.replace(
+          /^#\/tags\/(\d+)/,
+          (_match, index: string) => `#/tags/${sourceIndexes[Number(index)]}`,
+        );
+        this.add(diagnostic.code, path, diagnostic.reason);
+      },
+    );
   }
 }
 

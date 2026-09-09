@@ -355,3 +355,46 @@ body {
     overflow: auto;
   }
 }
+
+/* OAS 3.2 metadata keeps names visible and caps indentation at narrow widths. */
+.knife4j-tag-metadata {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 18px;
+}
+.knife4j-tag-metadata > span,
+.knife4j-tag-metadata > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.knife4j-tag-metadata > small {
+  font-size: 10px;
+  opacity: 0.75;
+}
+.knife4j-sidebar-api-tag[style] > .ant-menu-submenu-title {
+  padding-inline-start: var(--knife4j-tag-indent) !important;
+}
+.knife4j-server-details {
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.knife4j-server-details .ant-alert {
+  margin-top: 6px;
+}
+.knife4j-server-selection {
+  margin-bottom: 16px;
+}
+.knife4j-server-variable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.knife4j-server-variable > .ant-select,
+.knife4j-server-variable > .ant-input {
+  flex: 1;
+  min-width: 0;
+}

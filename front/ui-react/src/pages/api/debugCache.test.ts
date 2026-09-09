@@ -80,6 +80,27 @@ describe('debugCache', () => {
       'instance',
     );
   });
+
+  it('restores OAS 3.2 editable entries without a schema session', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      debugCacheStorageKey('oas32'),
+      JSON.stringify({
+        ...makeState(),
+        oas32ParameterEntries: {
+          'querystring:whole': {
+            kind: 'media',
+            text: '',
+            enabled: true,
+            provenance: { id: 'editor', layer: 'media', session: { stale: true } },
+          },
+        },
+      }),
+    );
+    expect(readDebugCache('oas32', storage)?.oas32ParameterEntries).toEqual({
+      'querystring:whole': { kind: 'media', text: '', enabled: true },
+    });
+  });
   it('persists Cookie source per operation while preserving manual values and old cache semantics', () => {
     const storage = new MemoryStorage();
     const saved = { ...makeState(), cookieParameterSource: 'browser-session' as const };

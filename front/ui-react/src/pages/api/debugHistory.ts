@@ -1,6 +1,7 @@
 import type { FormBodyEncodingPlan, SerializedExampleParameter } from 'knife4j-core';
 import { readExampleParameterInputs } from './debugCache';
 import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
+import { readOas32ParameterEntries, type Oas32ParameterEntries } from '../../schema/oas32ParameterAdapter';
 import {
   KNIFE4J_STORAGE_PREFIXES,
   getKnife4jStorageItemSnapshot,
@@ -28,6 +29,7 @@ export interface DebugHistoryCustomParamRow {
 /** Snapshot of form state sufficient to re-apply into the debug panel. */
 export interface DebugHistoryFormSnapshot {
   serializedExampleParameters?: Record<string, SerializedExampleParameter>;
+  oas32ParameterEntries?: Oas32ParameterEntries;
   serializedExampleBodyMediaType?: string;
   baseUrl: string;
   method: string;
@@ -428,6 +430,18 @@ export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHi
           ),
         }
       : {}),
+    ...(snapshot.oas32ParameterEntries
+      ? {
+          oas32ParameterEntries: Object.fromEntries(
+            Object.entries(readOas32ParameterEntries(snapshot.oas32ParameterEntries))
+              .filter(
+                ([key]) =>
+                  !key.startsWith('cookie:') && !(key.startsWith('header:') && isSensitiveHeaderName(key.slice(7))),
+              )
+              .map(([key, entry]) => [key, { ...entry, text: truncateBody(entry.text).text }]),
+          ),
+        }
+      : {}),
     customBodyParams: truncateCustomRows(snapshot.customBodyParams),
     customHeaders: sanitizeCustomRows(snapshot.customHeaders),
     customCookies: sanitizeCustomCookieRows(snapshot.customCookies),
@@ -459,6 +473,9 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     baseUrl: readString(value.baseUrl),
     ...(isRecord(value.serializedExampleParameters)
       ? { serializedExampleParameters: readExampleParameterInputs(value.serializedExampleParameters) }
+      : {}),
+    ...(isRecord(value.oas32ParameterEntries)
+      ? { oas32ParameterEntries: readOas32ParameterEntries(value.oas32ParameterEntries) }
       : {}),
     ...(typeof value.serializedExampleBodyMediaType === 'string'
       ? { serializedExampleBodyMediaType: value.serializedExampleBodyMediaType }
