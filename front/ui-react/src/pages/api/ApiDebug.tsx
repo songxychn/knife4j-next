@@ -21,7 +21,6 @@ import {
 import {
   collectResolvedOas32ParameterInputs,
   editableOas32ParameterEntries,
-  oas32BrowserSendDiagnostics,
   oas32DiagnosticMessages,
   oas32PreviewDiagnostics,
   oas32QuerystringMediaType,
@@ -185,14 +184,15 @@ import {
   isNullableOas31Parameter,
   isOas31RequiredParameterError,
 } from './oas31ParameterForm';
-import {
-  effectiveCookieParameterSource,
-  hasExplicitCookieHeader,
-  type CookieParameterSource,
-} from './cookieParameterSource';
+import { effectiveCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
+import {
+  discardUnsentDebugResponse,
+  inspectUnsentBrowserSendFailure,
+  unsentBrowserSendFailureTab,
+} from './apiDebugBrowserSend';
 import {
   consumeRequestBodySchemaOverride,
   effectiveRequestContentType,
@@ -3068,8 +3068,19 @@ export default function ApiDebug() {
 
   const handleSend = async (options: HandleSendOptions = {}) => {
     if (!debugModel) return;
+    const failWithoutFetch = (message: string, tab?: string) => {
+      if (tab) setActiveTab(tab);
+      discardUnsentDebugResponse(response);
+      sseAbortRef.current?.abort();
+      sseAbortRef.current = null;
+      setSseStreaming(false);
+      setResponse(null);
+      setSseEvents(null);
+      setResponseSchemaDiagnostic(null);
+      setError(message);
+    };
     if (isOas32 && serverOrPathUnavailable32) {
-      setError(t('oas32.server.unavailable'));
+      failWithoutFetch(t('oas32.server.unavailable'));
       return;
     }
     setError(null);
@@ -3080,7 +3091,7 @@ export default function ApiDebug() {
         current.value.built.url !== options.prepared.built.url ||
         current.value.built.method !== options.prepared.built.method
       ) {
-        setError(t('oas32.server.changed'));
+        failWithoutFetch(t('oas32.server.changed'));
         return;
       }
     }
@@ -3090,8 +3101,7 @@ export default function ApiDebug() {
       : buildRequestPreviewSafely(buildPreview);
     if (!previewResult.ok) {
       setValidationErrors([]);
-      setActiveTab(debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
-      setError(previewResult.error);
+      failWithoutFetch(previewResult.error, debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
       return;
     }
     const {
@@ -3114,11 +3124,11 @@ export default function ApiDebug() {
     const blockingRequiredErrors = errors.filter((error) => !requiredParameterErrors.includes(error));
     setValidationErrors(errors);
     if (blockingRequiredErrors.length > 0) {
-      // 定位到第一个错误所在 Tab
       const first = blockingRequiredErrors[0];
-      const nextTab = first.in === 'body' ? 'body' : first.in;
-      setActiveTab(nextTab);
-      setError(blockingRequiredErrors.map((e) => e.message).join('\n'));
+      failWithoutFetch(
+        blockingRequiredErrors.map((e) => e.message).join('\n'),
+        first.in === 'body' ? 'body' : first.in,
+      );
       return;
     }
 
@@ -3140,48 +3150,36 @@ export default function ApiDebug() {
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
         : built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true);
-    const browserConstraint = browserRequestConstraint(
-      built.method,
+    const hardFailure = inspectUnsentBrowserSendFailure({
+      built,
       hasBodyInput,
-      built.hasExplicitCookieParameters === true || ((isOas31 || isOas32) && hasExplicitCookieHeader(built.headers)),
-    );
-    if (browserConstraint === 'unsupported-method') {
-      setActiveTab('preview');
-      setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
-      return;
-    }
-    if (browserConstraint === 'normalized-method') {
-      setActiveTab('preview');
-      setError(
-        t('apiDebug.method.browserNormalized', { method: built.method, normalized: built.method.toUpperCase() }),
-      );
-      return;
-    }
-    if (browserConstraint === 'unsupported-body') {
-      setActiveTab('body');
-      setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
-      return;
-    }
-    if (browserConstraint === 'unsupported-cookie') {
-      setActiveTab('cookie');
-      setError(t('apiDebug.cookie.browserUnsupported'));
-      return;
-    }
-
-    if (isOas32) {
-      const hardFailures = oas32BrowserSendDiagnostics(built);
-      if (hardFailures.length > 0) {
-        const first = hardFailures[0];
-        setActiveTab(
-          first.key?.startsWith('querystring:')
-            ? 'querystring'
-            : first.name && first.key?.startsWith('cookie:')
-              ? 'cookie'
-              : 'preview',
-        );
-        setError(oas32DiagnosticMessages(hardFailures));
-        return;
+      cookieSessionCapable: isOas31 || isOas32,
+      isOas32,
+    });
+    if (hardFailure) {
+      let message: string;
+      switch (hardFailure.kind) {
+        case 'unsupported-method':
+          message = t('apiDebug.method.browserUnsupported', { method: built.method });
+          break;
+        case 'normalized-method':
+          message = t('apiDebug.method.browserNormalized', {
+            method: built.method,
+            normalized: built.method.toUpperCase(),
+          });
+          break;
+        case 'unsupported-body':
+          message = t('apiDebug.body.browserMethodUnsupported', { method: built.method });
+          break;
+        case 'unsupported-cookie':
+          message = t('apiDebug.cookie.browserUnsupported');
+          break;
+        case 'oas32-browser':
+          message = oas32DiagnosticMessages(hardFailure.diagnostics);
+          break;
       }
+      failWithoutFetch(message, unsentBrowserSendFailureTab(hardFailure));
+      return;
     }
 
     if (options.skipSchemaValidation) {

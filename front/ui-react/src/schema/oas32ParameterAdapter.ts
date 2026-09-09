@@ -185,13 +185,24 @@ export function collectOas32ParameterInputs(
       continue;
     }
     const entry = own(entries, parameter.key) ? entries[parameter.key] : undefined;
-    if (!entry?.enabled) {
+    // Querystring UI treats a missing row as checked (`enabled !== false`); only unchecking is absent.
+    if (parameter.in === 'querystring' ? entry?.enabled === false : !entry?.enabled) {
       inputs[parameter.key] = { kind: 'absent' };
       continue;
     }
-    const provenance = entry.provenance ?? {
+    const effective: Oas32ParameterEntry =
+      entry ??
+      ({
+        kind:
+          parameter.serialization?.kind === 'content' && parameter.serialization.mediaType.includes('json')
+            ? 'data'
+            : 'media',
+        text: '',
+        enabled: true,
+      } as const);
+    const provenance = effective.provenance ?? {
       id: `editor:${parameter.key}`,
-      layer: entry.kind === 'media' ? 'media' : 'parameter',
+      layer: effective.kind === 'media' ? 'media' : 'parameter',
       sourceLocation: parameter.location,
       schemaLocation: parameter.schemaLocation,
       schemaReference: parameter.schemaReference,
@@ -200,17 +211,17 @@ export function collectOas32ParameterInputs(
       operationIdentity: collection.operation.identity,
     };
     const currentProvenance = { ...provenance, editRevision: revision, session };
-    if (entry.kind === 'data') {
-      const parsed = parseJsonParameterValue(entry.text);
+    if (effective.kind === 'data') {
+      const parsed = parseJsonParameterValue(effective.text);
       inputs[parameter.key] = parsed.ok
         ? { kind: 'data', value: parsed.instance, provenance: currentProvenance }
-        : { kind: 'editor', text: entry.text, provenance: currentProvenance };
+        : { kind: 'editor', text: effective.text, provenance: currentProvenance };
       continue;
     }
     inputs[parameter.key] = {
-      kind: entry.kind,
-      text: entry.text,
-      ...(exampleHasOwn(entry, 'data') ? { data: entry.data } : {}),
+      kind: effective.kind,
+      text: effective.text,
+      ...(exampleHasOwn(effective, 'data') ? { data: effective.data } : {}),
       provenance: currentProvenance,
     };
   }

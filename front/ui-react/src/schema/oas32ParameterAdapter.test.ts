@@ -61,6 +61,30 @@ describe('OAS 3.2 parameter adapter', () => {
     });
   });
 
+  test('treats a missing querystring entry as a checked empty editor, not a required miss', () => {
+    const model = collection([
+      {
+        name: 'whole',
+        in: 'querystring',
+        required: true,
+        content: { 'text/plain': { schema: { type: 'string' } } },
+      },
+    ]);
+    const inputs = collectOas32ParameterInputs(model, {}, 'explicit', 0);
+    expect(inputs['querystring:whole']).toMatchObject({ kind: 'media', text: '' });
+    const plan = serializeOas32Parameters(model, inputs);
+    expect(plan.wholeQuery).toMatchObject({ present: true, component: '' });
+    expect(plan.presence['querystring:whole']).toBe(true);
+    expect(
+      collectOas32ParameterInputs(
+        model,
+        { 'querystring:whole': { kind: 'media', text: '', enabled: false } },
+        'explicit',
+        0,
+      )['querystring:whole'],
+    ).toEqual({ kind: 'absent' });
+  });
+
   test('collects querystring empty media as present and cookie session as unknown', () => {
     const model = collection([
       {

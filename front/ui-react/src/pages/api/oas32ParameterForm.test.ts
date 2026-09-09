@@ -5,6 +5,7 @@ import {
   buildRequest,
   collectOas32DocumentDiagnostics,
   Oas32ParameterRequestError,
+  validateRequired,
   type DebugFormValues,
 } from 'knife4j-core';
 import {
@@ -122,8 +123,8 @@ describe('OAS 3.2 debug form binding', () => {
     });
     expect(sessionRequest.headers).not.toHaveProperty('Cookie');
     expect(sessionRequest.oas32ParameterPlan?.presence['cookie:SID']).toBe('unknown');
-    expect(assertOas32BrowserRequest.length).toBe(1);
     expect(oas32BrowserSendDiagnostics(sessionRequest)).toEqual([]);
+    expect(() => assertOas32BrowserRequest(sessionRequest)).not.toThrow();
     expect(
       filterRequiredErrorsForCookieSource(
         current,
@@ -152,6 +153,8 @@ describe('OAS 3.2 debug form binding', () => {
     });
     expect(explicit.headers.Cookie).toBe('SID=x; SID=y%2F');
     expect(oas32BrowserSendDiagnostics(explicit).some((diagnostic) => diagnostic.blocks === 'browser')).toBe(true);
+    expect(() => assertOas32BrowserRequest(explicit)).toThrow(Oas32ParameterRequestError);
+    expect(() => assertOas32BrowserRequest(explicit)).toThrow(/Fetch controls or forbids header Cookie/);
   });
 
   test('restores editable entries without decoded instances or schema sessions', () => {
@@ -177,6 +180,60 @@ describe('OAS 3.2 debug form binding', () => {
     expect(oas32EntriesFromSerializedExamples({ 'header:X': { text: 'a', layer: 'media' } })).toEqual({
       'header:X': { kind: 'media', text: 'a', enabled: true },
     });
+  });
+
+  test('checked empty querystring without an example row is present, not a required miss', () => {
+    const current = model(
+      [
+        {
+          name: 'whole',
+          in: 'querystring',
+          required: true,
+          content: { 'text/plain': { schema: { type: 'string' } } },
+        },
+      ],
+      '/search',
+    );
+    expect(resolveOas32ParameterEntries(current.oas32Parameters!, {}, {}, {})).toEqual({});
+    const inputs = collectResolvedOas32ParameterInputs(current.oas32Parameters!, {}, {}, {}, 'explicit', 0);
+    expect(inputs['querystring:whole']).toMatchObject({ kind: 'media', text: '' });
+    const formValues = { ...emptyForm(), oas32ParameterInputs: inputs };
+    const built = buildRequest({
+      baseUrl: 'https://example.test',
+      path: '/search',
+      method: 'GET',
+      debugModel: current,
+      formValues,
+    });
+    expect(built.url).toBe('https://example.test/search?');
+    expect(built.parameterPresence).toEqual({ 'querystring:whole': true });
+    expect(validateRequired(current, formValues, built.parameterPresence)).toEqual([]);
+    expect(() =>
+      buildRequest({
+        baseUrl: 'https://example.test',
+        path: '/search',
+        method: 'GET',
+        debugModel: current,
+        formValues: { ...formValues, queryParams: { extra: '1' } },
+      }),
+    ).toThrow(/conflicts with custom query source extra/);
+
+    const absentInputs = collectResolvedOas32ParameterInputs(
+      current.oas32Parameters!,
+      { 'querystring:whole': { kind: 'media', text: '', enabled: false } },
+      {},
+      {},
+      'explicit',
+      0,
+    );
+    expect(absentInputs['querystring:whole']).toEqual({ kind: 'absent' });
+    expect(
+      validateRequired(
+        current,
+        { ...emptyForm(), oas32ParameterInputs: absentInputs },
+        { 'querystring:whole': false },
+      ).map((error) => error.key),
+    ).toEqual(['querystring:whole']);
   });
 
   test('does not invent a querystring editor from the query param table', () => {
