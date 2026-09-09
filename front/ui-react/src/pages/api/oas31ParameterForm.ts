@@ -2,8 +2,16 @@ import type { DebugParam, OperationDebugModel, ValidationError } from 'knife4j-c
 import { paramKey, type ParamValueMap } from './debugDefaultValues';
 import type { CookieParameterSource } from './cookieParameterSource';
 
-export function isBrowserSessionParameter(parameter: DebugParam, source: CookieParameterSource): boolean {
-  return source === 'browser-session' && parameter.in === 'cookie' && parameter.parameterSerialization !== undefined;
+export function isBrowserSessionParameter(
+  parameter: DebugParam,
+  source: CookieParameterSource,
+  options: { readonly declaredCookies?: boolean } = {},
+): boolean {
+  return (
+    source === 'browser-session' &&
+    parameter.in === 'cookie' &&
+    (parameter.parameterSerialization !== undefined || options.declaredCookies === true)
+  );
 }
 
 /** A browser-managed value is unknown, not a locally missing or schema-valid instance. */
@@ -11,12 +19,15 @@ export function filterRequiredErrorsForCookieSource(
   model: OperationDebugModel,
   errors: readonly ValidationError[],
   source: CookieParameterSource,
+  options: { readonly declaredCookies?: boolean } = {},
 ): ValidationError[] {
   return errors.filter(
     (error) =>
       !model.cookieParams.some(
         (parameter) =>
-          isBrowserSessionParameter(parameter, source) && error.in === 'cookie' && error.name === parameter.name,
+          isBrowserSessionParameter(parameter, source, options) &&
+          error.in === 'cookie' &&
+          error.name === parameter.name,
       ),
   );
 }

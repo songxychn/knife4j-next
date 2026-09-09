@@ -6,6 +6,7 @@ import {
 } from '../../storage/knife4jStorage';
 import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 import type { SerializedExampleParameter } from 'knife4j-core';
+import { readOas32ParameterEntries, type Oas32ParameterEntries } from '../../schema/oas32ParameterAdapter';
 
 export const DEBUG_CACHE_VERSION = 1;
 
@@ -19,6 +20,7 @@ export interface DebugCacheCustomParamRow {
 
 export interface DebugCacheState {
   serializedExampleParameters?: Record<string, SerializedExampleParameter>;
+  oas32ParameterEntries?: Oas32ParameterEntries;
   serializedExampleBodyMediaType?: string;
   version: typeof DEBUG_CACHE_VERSION;
   baseUrl: string;
@@ -124,6 +126,9 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
     version: DEBUG_CACHE_VERSION,
     ...(isRecord(value.serializedExampleParameters)
       ? { serializedExampleParameters: readExampleParameterInputs(value.serializedExampleParameters) }
+      : {}),
+    ...(isRecord(value.oas32ParameterEntries)
+      ? { oas32ParameterEntries: readOas32ParameterEntries(value.oas32ParameterEntries) }
       : {}),
     ...(typeof value.serializedExampleBodyMediaType === 'string'
       ? { serializedExampleBodyMediaType: value.serializedExampleBodyMediaType }

@@ -1093,12 +1093,15 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     pathParams.length = 0;
     for (const parameter of oas32Parameters.parameters) {
       if (parameter.in === 'querystring') continue;
-      const display = oas32EditorParameter(parameter);
+      const display = oas32EditorParameter(
+        parameter,
+        options.operationDocuments?.parameters.get(`${parameter.in}:${parameter.name}`),
+      );
       const debugParam: DebugParam = {
         ...display,
         parameterSerialization: undefined,
         schema: parameter.schema,
-        description: typeof parameter.raw.description === 'string' ? parameter.raw.description : undefined,
+        description: typeof parameter.raw.description === 'string' ? parameter.raw.description : display.description,
       };
       if (parameter.in === 'path') pathParams.push(debugParam);
       if (parameter.in === 'query') queryParams.push(debugParam);

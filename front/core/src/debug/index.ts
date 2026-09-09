@@ -116,6 +116,7 @@ export {
   isTextMediaType,
   isSupportedParameterContentType,
   parameterKey,
+  parseJsonParameterValue,
   parseOas31ParameterValue,
   replaceSerializedPathParams,
   serializeOas31Parameters,

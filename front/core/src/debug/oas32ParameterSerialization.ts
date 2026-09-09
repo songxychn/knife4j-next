@@ -1,3 +1,4 @@
+import { resolveLocalJsonPointer } from '../openapi31/document';
 import { isExampleData } from './exampleRepresentation';
 import {
   encodeParameterComponent,
@@ -573,8 +574,27 @@ function validateAuthorBoundary(parameter: Oas32Parameter, text: string): void {
   }
 }
 
-export function oas32EditorParameter(parameter: Oas32Parameter): DebugParam {
-  const types = directTypes(parameter.schemaView);
+/** Display/codec hints only. Physical Schema evaluation still uses the original reference. */
+function editorSchemaRecord(
+  parameter: Oas32Parameter,
+  ownerDocument?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const schema = parameterRecord(parameter.schemaView) ?? parameterRecord(parameter.schema);
+  if (!schema) return undefined;
+  const ref = typeof schema.$ref === 'string' ? schema.$ref : undefined;
+  if (!ref || !ownerDocument) return schema;
+  const resolved = parameterRecord(resolveLocalJsonPointer(ownerDocument, ref).value);
+  if (!resolved) return schema;
+  const siblings = { ...schema };
+  delete siblings.$ref;
+  return { ...resolved, ...siblings };
+}
+
+export function oas32EditorParameter(parameter: Oas32Parameter, ownerDocument?: Record<string, unknown>): DebugParam {
+  const schema = editorSchemaRecord(parameter, ownerDocument);
+  const types = directTypes(schema);
+  const serialization = parameter.serialization;
+  const rawExample = parameterOwn(parameter.raw, 'example') ? parameter.raw.example : undefined;
   return {
     name: parameter.name,
     in: parameter.in === 'querystring' ? 'query' : parameter.in,
@@ -582,6 +602,23 @@ export function oas32EditorParameter(parameter: Oas32Parameter): DebugParam {
     type: types.find((type) => type !== 'null') ?? 'string',
     schema: parameter.schemaView,
     parameterSerialization: parameter.serialization,
+    ...(typeof schema?.format === 'string' ? { format: schema.format } : {}),
+    ...(schema && parameterOwn(schema, 'default') ? { default: schema.default } : {}),
+    ...(rawExample !== undefined
+      ? { example: rawExample }
+      : schema && parameterOwn(schema, 'example')
+        ? { example: schema.example }
+        : {}),
+    ...(typeof parameter.raw.description === 'string' ? { description: parameter.raw.description } : {}),
+    ...(parameter.raw.deprecated === true ? { deprecated: true } : {}),
+    ...(schema?.readOnly === true ? { readOnly: true } : {}),
+    ...(serialization?.kind === 'schema'
+      ? {
+          style: serialization.style,
+          explode: serialization.explode,
+          allowReserved: serialization.allowReserved === true ? true : undefined,
+        }
+      : {}),
   };
 }
 const equalData = (a: ParameterInstance, b: ParameterInstance): boolean => {

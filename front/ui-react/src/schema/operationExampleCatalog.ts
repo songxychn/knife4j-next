@@ -9,6 +9,7 @@ import {
   isJsonMediaType,
   parameterKey,
   resolvePhysicalJsonPointer,
+  buildOas32ParameterCollection,
   type BodyContent,
   type DebugParam,
   type ExampleLayer,
@@ -16,6 +17,8 @@ import {
   type ExampleRepresentationContext,
   type OpenApiObjectLocation,
   type OperationDebugModel,
+  type Oas32Parameter,
+  type Oas32ParameterResult,
 } from 'knife4j-core';
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
@@ -30,6 +33,11 @@ import {
   type SchemaExampleSearchLimits,
 } from './schemaExampleGeneration';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
+import {
+  interpretOas32ParameterExample,
+  oas32ParameterContext,
+  resolveOas32ParameterSchema,
+} from './oas32ParameterAdapter';
 
 export interface OperationExampleTarget {
   readonly id: string;
@@ -53,6 +61,7 @@ export interface OperationExampleTarget {
   readonly source?: Record<string, unknown>;
   readonly unavailable?: true;
   readonly context: ExampleRepresentationContext;
+  readonly parameter32?: Oas32Parameter;
 }
 export interface OperationExampleCatalog {
   readonly targets: readonly OperationExampleTarget[];
@@ -67,6 +76,7 @@ export interface OperationExampleResult {
   readonly serializedSchemaResult?: SchemaExampleResult;
   readonly session?: SchemaDocumentSession;
   readonly authored: boolean;
+  readonly parameterResult?: Oas32ParameterResult;
 }
 
 const child = (parent: OpenApiObjectLocation, name: string, value: unknown): OpenApiObjectLocation => ({
@@ -149,6 +159,11 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
   const parameters = new Map<string, DebugParam>();
   const bodies: BodyContent[] = [];
   const operationIdentity = identity.identity;
+  const collection32 = buildOas32ParameterCollection(
+    document as unknown as Record<string, unknown>,
+    identity,
+    oas32ParameterContext({ ...operation, identity, resourceSnapshot: snapshot }),
+  );
   type TargetContext = Pick<
     OperationExampleTarget,
     | 'group'
@@ -161,6 +176,7 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
     | 'schemaLocation'
     | 'itemSchemaLocation'
     | 'context'
+    | 'parameter32'
   >;
 
   const add = (container: OpenApiObjectLocation, details: TargetContext) => {
@@ -224,8 +240,11 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
     if (!value) return;
     const header = direction === 'response';
     const inValue = header ? 'header' : value.in;
-    if (!['path', 'query', 'header', 'cookie'].includes(String(inValue))) return;
+    if (!['path', 'query', 'querystring', 'header', 'cookie'].includes(String(inValue))) return;
     const name = header ? key : String(value.name ?? '');
+    const parameter32 = header
+      ? undefined
+      : collection32.parameters.find((parameter) => parameter.key === `${String(inValue)}:${name}`);
     const media = mediaList(location)[0];
     const codecValue = media?.media
       ? { ...value, name, content: { [media.mediaType]: media.media.value } }
@@ -259,6 +278,8 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
       mediaType: media?.mediaType,
       mediaLocation: media?.media,
       schemaLocation,
+      parameter32,
+      itemSchemaLocation: parameter32?.itemSchemaLocation,
       context: { layer: header ? 'header' : 'parameter', parameter: param, mediaType: media?.mediaType },
     };
     add(location, details);
@@ -276,7 +297,7 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
       });
     if (schemaLocation) fallback(location, details);
   };
-  for (const [key, location] of Object.entries(identity.parameterLocations)) parameter(location, key, 'request');
+  for (const entry of collection32.parameters) parameter(entry.location, entry.key, 'request');
   const content = (location: OpenApiObjectLocation, direction: SchemaExampleDirection, statusCode?: string) => {
     for (const { mediaType, site, media } of mediaList(location)) {
       const value = record(media?.value);
@@ -400,7 +421,9 @@ export function exampleDebugModel(model: OperationDebugModel, catalog: Operation
   const update = (params: readonly DebugParam[]) =>
     params.map((param) => {
       const located = catalog.parameters.get(parameterKey(param));
-      return located ? { ...param, ...located, example: undefined, default: undefined } : param;
+      return located && !model.oas32Parameters
+        ? { ...param, ...located, example: undefined, default: undefined }
+        : param;
     });
   return {
     ...model,
@@ -421,6 +444,10 @@ export async function evaluateOperationExample(
   options: { signal?: AbortSignal; limits?: SchemaExampleSearchLimits } = {},
 ): Promise<OperationExampleResult> {
   abort(options.signal);
+  const parameter32 =
+    target.parameter32 && session
+      ? await resolveOas32ParameterSchema(target.parameter32, session, options.signal)
+      : target.parameter32;
   let context = target.context;
   if (session && target.schemaReference) {
     try {
@@ -438,7 +465,14 @@ export async function evaluateOperationExample(
   }
   abort(options.signal);
   let schemaResult: SchemaExampleResult | undefined;
-  let representation = interpretExampleObject(target.source ?? {}, context);
+  let parameterResult: Oas32ParameterResult | undefined;
+  const interpret = (source: Record<string, unknown>): ExampleRepresentation => {
+    if (!parameter32) return interpretExampleObject(source, context);
+    const interpreted = interpretOas32ParameterExample({ ...target, context }, parameter32, source);
+    parameterResult = interpreted.parameterResult;
+    return interpreted.representation;
+  };
+  let representation = interpret(target.source ?? {});
   if (target.unavailable)
     representation = {
       ...representation,
@@ -458,7 +492,7 @@ export async function evaluateOperationExample(
     } else if (explicit[0]) schemaResult = explicitSchemaExampleWithoutSchema(explicit[0]);
     else schemaResult = { status: 'none', reason: 'schema-unavailable', diagnostics: [{ code: 'SCHEMA_UNAVAILABLE' }] };
     if (!target.source && schemaResult.status === 'value' && isExampleData(schemaResult.value))
-      representation = interpretExampleObject({ dataValue: schemaResult.value }, context);
+      representation = interpret({ dataValue: schemaResult.value });
   }
   abort(options.signal);
   let serializedSchemaResult: SchemaExampleResult | undefined;
@@ -483,5 +517,6 @@ export async function evaluateOperationExample(
     ...(schemaResult ? { schemaResult } : {}),
     ...(session ? { session } : {}),
     authored: target.source !== undefined || target.unavailable === true,
+    ...(parameterResult ? { parameterResult } : {}),
   };
 }
