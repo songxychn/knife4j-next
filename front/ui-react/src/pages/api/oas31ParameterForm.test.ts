@@ -12,6 +12,7 @@ import {
   buildInitialParamEnabled,
   collectOas31ParameterValues,
   filterRequiredErrorsForCookieSource,
+  isBrowserSessionParameter,
   isNullableOas31Parameter,
   isOas31RequiredParameterError,
 } from './oas31ParameterForm';
@@ -142,6 +143,9 @@ describe('OAS 3.1 parameter form snapshots', () => {
     expect(filterRequiredErrorsForCookieSource(current, errors, 'explicit')).toEqual(errors);
     expect(effectiveCookieParameterSource(false, 'browser-session')).toBe('explicit');
     expect(effectiveCookieParameterSource(true, undefined)).toBe('explicit');
+    expect(
+      isBrowserSessionParameter(parameter('session', { in: 'cookie' }), 'browser-session', { declaredCookies: true }),
+    ).toBe(true);
   });
 
   test('detects explicit Cookie headers from custom headers and authentication without silently discarding them', () => {

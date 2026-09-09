@@ -28,6 +28,9 @@ import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/docum
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 import { analyzeOas31FormBody } from './formBodyEncoding';
+import { buildOas32ParameterCollection } from './oas32ParameterModel';
+import { oas32EditorParameter } from './oas32ParameterSerialization';
+import type { Oas32ParameterContext } from './oas32ParameterTypes';
 
 // ─── 内部类型 ─────────────────────────────────────────
 
@@ -732,6 +735,8 @@ export interface BuildDebugModelOptions {
   operationIdentity?: OpenApiOperation;
   /** Physical documents for already resolved 3.2 members; no loading or reference resolution. */
   operationDocuments?: OperationSchemaDocuments;
+  /** C/D registry-only physical reference and Schema view readers for 3.2 parameters. */
+  parameterContext?: Oas32ParameterContext;
 }
 
 /**
@@ -746,7 +751,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     options.operationIdentity ??
     (getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
       ? enumerateOpenApiOperations(doc as Record<string, unknown>).find(
-          (operation) => operation.source === 'path' && operation.path === path && operation.method === method,
+          (operation) =>
+            operation.source === 'path' &&
+            operation.path === path &&
+            (operation.method === method ||
+              (operation.methodSource === 'fixed' && operation.method === method.toUpperCase())),
         )
       : undefined);
   const rawPathItem = doc.paths?.[path];
@@ -803,11 +812,13 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
   // 合并 path-level parameters + operation-level parameters
   // operation 级参数覆盖 path 级（按 name+in 去重）
-  const allRawParams: Array<OAS3Param | OAS2Param> = (
-    resolvedPathOperation || identity
-      ? (operation.parameters ?? [])
-      : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
-  ).map((parameter) => resolveParameter(parameter, doc));
+  const allRawParams: Array<OAS3Param | OAS2Param> =
+    !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
+      ? []
+      : (resolvedPathOperation || identity
+          ? (operation.parameters ?? [])
+          : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
+        ).map((parameter) => resolveParameter(parameter, doc));
 
   // 去重（同名同位置，后者覆盖前者）
   const paramMap = new Map<string, OAS3Param | OAS2Param>();
@@ -816,7 +827,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     const in_ = p.in ?? '';
     paramMap.set(`${in_}:${name}`, p);
   }
-  const uniqueParams = Array.from(paramMap.values());
+  const oas32Parameters =
+    !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2' && identity
+      ? buildOas32ParameterCollection(doc, identity, options.parameterContext)
+      : undefined;
+  const uniqueParams = oas32Parameters ? [] : Array.from(paramMap.values());
 
   // 分组
   const pathParams: DebugParam[] = [];
@@ -1074,6 +1089,27 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     }
   }
 
+  if (oas32Parameters) {
+    pathParams.length = 0;
+    for (const parameter of oas32Parameters.parameters) {
+      if (parameter.in === 'querystring') continue;
+      const display = oas32EditorParameter(
+        parameter,
+        options.operationDocuments?.parameters.get(`${parameter.in}:${parameter.name}`),
+      );
+      const debugParam: DebugParam = {
+        ...display,
+        parameterSerialization: undefined,
+        schema: parameter.schema,
+        description: typeof parameter.raw.description === 'string' ? parameter.raw.description : display.description,
+      };
+      if (parameter.in === 'path') pathParams.push(debugParam);
+      if (parameter.in === 'query') queryParams.push(debugParam);
+      if (parameter.in === 'header') headerParams.push(debugParam);
+      if (parameter.in === 'cookie') cookieParams.push(debugParam);
+    }
+  }
+
   return {
     pathParams,
     queryParams,
@@ -1081,6 +1117,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     cookieParams,
     bodyContents,
     bodyRequired,
+    ...(oas32Parameters ? { oas32Parameters } : {}),
     ...(parameterDiagnostics.length > 0 ? { parameterDiagnostics } : {}),
   };
 }

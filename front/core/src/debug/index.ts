@@ -50,6 +50,33 @@ export type {
   BuildSchemaFieldTreeFn,
 } from './types';
 
+export type {
+  Oas32ParamIn,
+  Oas32ParameterDiagnostic,
+  Oas32ParameterContext,
+  Oas32Parameter,
+  Oas32ParameterCollection,
+  Oas32ParameterProvenance,
+  Oas32ParameterInput,
+  Oas32CookiePair,
+  Oas32ParameterResult,
+  Oas32ParameterPlan,
+} from './oas32ParameterTypes';
+export { buildOas32ParameterCollection } from './oas32ParameterModel';
+export {
+  encodeOas32ParameterValue,
+  serializeOas32Parameter,
+  serializeOas32Parameters,
+} from './oas32ParameterSerialization';
+export {
+  Oas32ParameterRequestError,
+  replaceOas32PathParameters,
+  oas32ParameterInputs,
+  validateOas32Required,
+  oas32BrowserRequestDiagnostics,
+  assertOas32BrowserRequest,
+} from './oas32ParameterRequest';
+
 // OAS 3.1 form request bodies
 export { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
 export type { AnalyzeOas31FormBodyOptions } from './formBodyEncoding';
@@ -89,6 +116,7 @@ export {
   isTextMediaType,
   isSupportedParameterContentType,
   parameterKey,
+  parseJsonParameterValue,
   parseOas31ParameterValue,
   replaceSerializedPathParams,
   serializeOas31Parameters,

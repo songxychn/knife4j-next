@@ -7,6 +7,8 @@
  * - 纯数据，无框架依赖、无浏览器 API
  */
 
+import type { Oas32ParameterCollection, Oas32ParameterInput, Oas32ParameterPlan } from './oas32ParameterTypes';
+
 // ─── 参数模型 ─────────────────────────────────────────
 
 /** 参数位置（统一 OAS2 + OAS3） */
@@ -198,6 +200,8 @@ export interface BodyContent {
 
 /** 从一个 operation 解析出的调试模型 */
 export interface OperationDebugModel {
+  /** Explicit 3.2 path; the legacy four-location display arrays do not establish collection completeness. */
+  oas32Parameters?: Oas32ParameterCollection;
   /** path 参数 */
   pathParams: DebugParam[];
   /** query 参数 */
@@ -228,6 +232,7 @@ export interface SerializedExampleParameter {
 
 /** requestBuilder 的用户填写输入 */
 export interface DebugFormValues {
+  oas32ParameterInputs?: Readonly<Record<string, Oas32ParameterInput>>;
   pathParams: Record<string, string>;
   queryParams: Record<string, QueryParamValue>;
   headerParams: Record<string, string>;
@@ -400,6 +405,10 @@ export interface AuthValues {
 
 /** requestBuilder 输出 */
 export interface BuiltRequest {
+  /** Final parameter result shared by preview, validation and dispatch. */
+  oas32ParameterPlan?: Oas32ParameterPlan;
+  /** Avoid cURL URI globbing and path normalization for the 3.2 final URL. */
+  curlPreserveUrl?: boolean;
   /** 最终请求 URL（已替换 path 参数、已拼接 query） */
   url: string;
   /** HTTP 方法 */
@@ -455,7 +464,7 @@ export interface ValidationError {
   /** 参数名 */
   name: string;
   /** 参数位置 */
-  in: ParamIn | 'body';
+  in: ParamIn | 'querystring' | 'body';
   /** 错误信息 */
   message: string;
   /**

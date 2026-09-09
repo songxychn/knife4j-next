@@ -1719,6 +1719,59 @@ describe('buildOperationDebugModel — OAS 3.1 parameter semantics', () => {
     expect(model.queryParams).toEqual([expect.objectContaining({ name: 'locale' })]);
   });
 
+  test('OAS 3.2 debug params keep inline schema defaults and owner-document $ref defaults', () => {
+    const inline = {
+      openapi: '3.2.0',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/q': {
+          get: {
+            parameters: [{ name: 'variant', in: 'query', schema: { type: 'string', default: 'upper' } }],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+    expect(buildOperationDebugModel({ doc: inline as any, path: '/q', method: 'get' }).queryParams[0].default).toBe(
+      'upper',
+    );
+
+    const library = {
+      openapi: '3.2.0',
+      info: { title: 'Lib', version: '1' },
+      components: { schemas: { Shared: { type: 'string', default: 'library-value' } } },
+    };
+    const entry = {
+      openapi: '3.2.0',
+      info: { title: 'Entry', version: '1' },
+      paths: {
+        '/mount': {
+          get: {
+            parameters: [{ name: 'id', in: 'query', schema: { $ref: '#/components/schemas/Shared' } }],
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: { schemas: { Shared: { type: 'integer', default: 42 } } },
+    };
+    expect(buildOperationDebugModel({ doc: entry as any, path: '/mount', method: 'get' }).queryParams[0].default).toBe(
+      undefined,
+    );
+    expect(
+      buildOperationDebugModel({
+        doc: entry as any,
+        path: '/mount',
+        method: 'get',
+        operationDocuments: {
+          operation: entry as any,
+          parameters: new Map([['query:id', library as any]]),
+          requestBody: entry as any,
+          responses: new Map(),
+        },
+      }).queryParams[0],
+    ).toMatchObject({ type: 'string', default: 'library-value' });
+  });
+
   test('does not guess an operation when Path Item reference fields overlap', () => {
     const doc = {
       openapi: '3.1.2',
