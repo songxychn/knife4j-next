@@ -9,11 +9,16 @@ import {
 } from '../../schema/operationExampleCatalog';
 import type { SchemaDocumentSession } from '../../schema/schemaDocumentSession';
 import SchemaExampleNotice from './SchemaExampleNotice';
+import SchemaDiscriminatorPanel from './SchemaDiscriminatorPanel';
 import CodeBlock from '../../pages/api/CodeBlock';
+import type { ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
+import { describeSchemaDiscriminator, discriminatorLocationFromOpenApi } from '../../schema/schemaDiscriminatorView';
 
 export interface OperationExamplePickerProps {
   readonly targets: readonly OperationExampleTarget[];
   readonly session?: SchemaDocumentSession;
+  readonly snapshot?: ResourceGraphSnapshot | null;
+  readonly operationToken?: string;
   readonly onApply?: (result: OperationExampleResult, editRevision: number) => void;
   readonly editRevision?: () => number;
 }
@@ -21,6 +26,8 @@ export interface OperationExamplePickerProps {
 export default function OperationExamplePicker({
   targets,
   session,
+  snapshot,
+  operationToken,
   onApply,
   editRevision,
 }: OperationExamplePickerProps) {
@@ -59,6 +66,12 @@ export default function OperationExamplePicker({
   const result = state && state.target === target && state.session === session ? state.result : undefined;
   const representation = result?.representation;
   if (!target) return null;
+  const discriminator = snapshot
+    ? (() => {
+        const location = discriminatorLocationFromOpenApi(snapshot, target.schemaLocation);
+        return location ? describeSchemaDiscriminator(snapshot, location) : undefined;
+      })()
+    : undefined;
   return (
     <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} data-example-group={target.group}>
       <Space wrap>
@@ -87,6 +100,45 @@ export default function OperationExamplePicker({
       )}
       {!result && <Typography.Text type="secondary">{t('schema.example.loading.title')}</Typography.Text>}
       {result?.schemaResult && <SchemaExampleNotice result={result.schemaResult} />}
+      {discriminator && (
+        <SchemaDiscriminatorPanel
+          metadata={discriminator}
+          snapshot={snapshot}
+          session={session}
+          direction={target.direction}
+          representation={representation}
+          missingPropertyValidated={
+            result?.schemaResult?.status === 'value' && result.schemaResult.validation === 'valid'
+          }
+          operationToken={operationToken ?? target.operationIdentity}
+          onApplyGenerated={
+            onApply && result && target.group.startsWith('body:')
+              ? (value) =>
+                  onApply(
+                    {
+                      ...result,
+                      authored: false,
+                      representation: {
+                        fields: {
+                          dataValue: true,
+                          serializedValue: false,
+                          externalValue: false,
+                          value: false,
+                        },
+                        data: value as never,
+                        dataSource: 'dataValue',
+                        text: JSON.stringify(value, null, 2),
+                        serialization: 'valid',
+                        pairing: 'absent',
+                        diagnostics: [],
+                      },
+                    },
+                    editRevision?.() ?? 0,
+                  )
+              : undefined
+          }
+        />
+      )}
       {result?.serializedSchemaResult && (
         <>
           <Typography.Text>
