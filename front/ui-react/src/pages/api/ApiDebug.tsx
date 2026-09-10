@@ -3969,6 +3969,8 @@ export default function ApiDebug() {
             key={group}
             targets={exampleCatalog32.targets.filter((target) => target.group === group)}
             session={exampleSession32}
+            snapshot={operation?.resourceSnapshot}
+            operationToken={operation?.identity?.identity ?? operation?.key}
             onApply={applyExample32}
             editRevision={() => debugDefaultEditRevisionRef.current}
           />

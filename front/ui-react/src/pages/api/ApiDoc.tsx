@@ -33,6 +33,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
+import SchemaDiscriminatorPanel from '../../components/schema/SchemaDiscriminatorPanel';
 import { isOas32ExampleDocument, locateOperationExampleCatalog } from '../../schema/operationExampleCatalog';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
@@ -41,6 +42,11 @@ import { firstRequestMedia, requestBodyExample, responseExamples } from './apiDo
 import { useSettings } from '../../context/SettingsContext';
 import { useSchemaEngine } from '../../context/SchemaEngineContext';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
+import {
+  attachDiscriminatorMappingFields,
+  describeSchemaDiscriminator,
+  discriminatorLocationFromOpenApi,
+} from '../../schema/schemaDiscriminatorView';
 import { createSchemaDisplayProjector } from '../../schema/schemaDisplayProjection';
 import { locateOperationResponses, responseForDisplay } from '../../schema/registeredResponse';
 import { resolveResponseOverviewVisibility } from './responseOverview';
@@ -275,18 +281,22 @@ function projectionRegionLabel(regionKey: string, t: TFunction): string {
   return regionKey;
 }
 
-function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction) {
+function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction, family: '3.1' | '3.2') {
+  const titleKey =
+    family === '3.2' ? 'apiDoc.schemaProjection.loading.title32' : 'apiDoc.schemaProjection.loading.title';
+  const degradedKey =
+    family === '3.2' ? 'apiDoc.schemaProjection.degraded.title32' : 'apiDoc.schemaProjection.degraded.title';
   if (notice.kind === 'loading') {
     return {
       type: 'info' as const,
-      title: t('apiDoc.schemaProjection.loading.title'),
+      title: t(titleKey),
       description: t('apiDoc.schemaProjection.loading.description'),
     };
   }
   if (notice.kind === 'fallback') {
     return {
       type: 'warning' as const,
-      title: t('apiDoc.schemaProjection.degraded.title'),
+      title: t(degradedKey),
       description: t(
         notice.reason === 'engine'
           ? 'apiDoc.schemaProjection.engineFallback.description'
@@ -300,7 +310,7 @@ function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction) {
   const keywords = `${visibleKeywords.join(', ')}${notice.keywords.length > visibleKeywords.length ? ', …' : ''}`;
   return {
     type: 'warning' as const,
-    title: t('apiDoc.schemaProjection.degraded.title'),
+    title: t(degradedKey),
     description: t('apiDoc.schemaProjection.degraded.description', {
       count: notice.issueCount,
       regionCount: notice.regionCount,
@@ -350,10 +360,13 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const isOas32 = isOas32ExampleDocument(swaggerDoc);
   const exampleCatalog32 = useMemo(() => locateOperationExampleCatalog(swaggerDoc, operation), [swaggerDoc, operation]);
   const exampleGroups32 = [...new Set(exampleCatalog32.targets.map((target) => target.group))];
+  const snapshot32 = operation.resourceSnapshot;
   const renderExample32 = (group: string) => (
     <OperationExamplePicker
       targets={exampleCatalog32.targets.filter((target) => target.group === group)}
       session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+      snapshot={snapshot32}
+      operationToken={operation.identity?.identity ?? operation.key}
     />
   );
   const schemaDocuments = useMemo(() => operationSchemaDocuments(swaggerDoc, operation), [swaggerDoc, operation]);
@@ -605,6 +618,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   );
   const [projectionState, setProjectionState] = useState<ApiDocSchemaProjectionState>(IDLE_SCHEMA_PROJECTION_STATE);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  const usesEngineSchemaProjection = isOas31 || isOas32;
   const exampleIdentity = useMemo<ApiDocExampleIdentity | null>(
     () =>
       isOas31 && schemaEngine.status === 'ready'
@@ -620,7 +634,12 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const [exampleState, setExampleState] = useState<ApiDocExampleState>(IDLE_EXAMPLE_STATE);
 
   useEffect(() => {
-    if (!isOas31 || projectionTargets.length === 0 || schemaEngine.status !== 'ready' || !projectionIdentity) {
+    if (
+      !usesEngineSchemaProjection ||
+      projectionTargets.length === 0 ||
+      schemaEngine.status !== 'ready' ||
+      !projectionIdentity
+    ) {
       setProjectionState(IDLE_SCHEMA_PROJECTION_STATE);
       return;
     }
@@ -642,7 +661,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       });
 
     return () => controller.abort();
-  }, [isOas31, projectionIdentity, projectionTargets, schemaEngine]);
+  }, [projectionIdentity, projectionTargets, schemaEngine, usesEngineSchemaProjection]);
 
   useEffect(() => {
     if (!isOas31 || schemaEngine.status !== 'ready' || !exampleIdentity) {
@@ -670,17 +689,49 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const schemaView = useMemo(
     () =>
       selectApiDocSchemaView({
-        isOas31,
+        isOas31: usesEngineSchemaProjection,
         hasTargets: projectionTargets.length > 0,
         engineStatus: schemaEngine.status,
         currentIdentity: projectionIdentity,
         projectionState,
         legacyFields: legacySchemaRegions,
       }),
-    [isOas31, legacySchemaRegions, projectionIdentity, projectionState, projectionTargets.length, schemaEngine.status],
+    [
+      legacySchemaRegions,
+      projectionIdentity,
+      projectionState,
+      projectionTargets.length,
+      schemaEngine.status,
+      usesEngineSchemaProjection,
+    ],
   );
   const bodyFields = schemaView.fieldsByRegion[REQUEST_BODY_REGION_KEY] ?? [];
-  const projectionNotice = schemaView.notice ? projectionNoticeContent(schemaView.notice, t) : null;
+  const projectionNotice = schemaView.notice
+    ? projectionNoticeContent(schemaView.notice, t, isOas32 ? '3.2' : '3.1')
+    : null;
+  const bodyDiscriminator = useMemo(() => {
+    if (!isOas32 || !snapshot32) return undefined;
+    const location = exampleCatalog32.targets.find(
+      (item) => item.group.startsWith('body:') && item.schemaLocation,
+    )?.schemaLocation;
+    const described = discriminatorLocationFromOpenApi(snapshot32, location);
+    return described ? describeSchemaDiscriminator(snapshot32, described) : undefined;
+  }, [exampleCatalog32.targets, isOas32, snapshot32]);
+  const bodyFieldsWithDiscriminator = bodyDiscriminator
+    ? attachDiscriminatorMappingFields(bodyFields, bodyDiscriminator)
+    : bodyFields;
+  const responseDiscriminators = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof describeSchemaDiscriminator>>();
+    if (!isOas32 || !snapshot32) return map;
+    for (const row of responses) {
+      const location = exampleCatalog32.targets.find(
+        (item) => item.statusCode === row.statusCode && item.layer === 'media' && item.schemaLocation,
+      )?.schemaLocation;
+      const described = discriminatorLocationFromOpenApi(snapshot32, location);
+      if (described) map.set(row.key, describeSchemaDiscriminator(snapshot32, described));
+    }
+    return map;
+  }, [exampleCatalog32.targets, isOas32, responses, snapshot32]);
   const relatedModelNames = (() => {
     const refs = new Set<string>();
     (op.parameters ?? []).forEach((parameter) => collectSchemaRefs(parameter.schema, swaggerDoc, refs));
@@ -921,7 +972,17 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
             {
               key: 'schema',
               label: t('apiDoc.tab.schema'),
-              children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
+              children: (
+                <>
+                  <SchemaDiscriminatorPanel
+                    metadata={bodyDiscriminator}
+                    snapshot={snapshot32}
+                    session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+                    operationToken={operation.identity?.identity ?? operation.key}
+                  />
+                  <SchemaFieldTable fields={bodyFieldsWithDiscriminator} emptyText={t('apiDoc.body.notExpandable')} />
+                </>
+              ),
             },
             ...exampleGroups32
               .filter((group) => group.startsWith('body:'))
@@ -1003,6 +1064,8 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                       row.schema === undefined
                         ? []
                         : (schemaView.fieldsByRegion[responseSchemaRegionKey(row.key)] ?? []);
+                    const metadata = responseDiscriminators.get(row.key);
+                    const tableFields = metadata ? attachDiscriminatorMappingFields(fields, metadata) : fields;
                     return (
                       <div key={row.key} style={{ marginBottom: 16 }}>
                         {(responseOverviewVisibility.showStatusCode || responseOverviewVisibility.showDetails) && (
@@ -1029,7 +1092,16 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                             message={t('oas32.responseUnavailable', { status: row.statusCode })}
                           />
                         ) : (
-                          <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
+                          <>
+                            <SchemaDiscriminatorPanel
+                              metadata={metadata}
+                              snapshot={snapshot32}
+                              session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+                              direction="response"
+                              operationToken={`${operation.identity?.identity ?? operation.key}:${row.statusCode}`}
+                            />
+                            <SchemaFieldTable fields={tableFields} emptyText={t('apiDoc.response.notExpandable')} />
+                          </>
                         )}
                         {row.headers.length > 0 && (
                           <div style={{ marginTop: 12 }}>

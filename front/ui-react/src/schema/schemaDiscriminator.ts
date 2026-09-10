@@ -173,6 +173,14 @@ function publicLocation(location: Location, entry: string): DiscriminatorSchemaL
   });
 }
 
+/** Product consumers must use this identity; last-path-segment names are not locations. */
+export function discriminatorSchemaLocation(
+  location: Location,
+  entryRetrievalUri: string,
+): DiscriminatorSchemaLocation {
+  return publicLocation(location, entryRetrievalUri);
+}
+
 interface Chain {
   readonly identities: readonly DiscriminatorSchemaLocation[];
   readonly state: DiscriminatorTargetState;

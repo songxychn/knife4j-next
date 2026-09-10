@@ -4,11 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import SchemaFieldTable from '../components/schema/SchemaFieldTable';
+import SchemaDiscriminatorPanel from '../components/schema/SchemaDiscriminatorPanel';
 import { useGroup } from '../context/GroupContext';
-import { useSchemaEngine } from '../context/SchemaEngineContext';
+import { useExternalResources, useSchemaEngine } from '../context/SchemaEngineContext';
 import { useSettings } from '../context/SettingsContext';
 import DescriptionText from '../components/DescriptionText';
 import { isOas31SchemaDocument } from '../schema/schemaDocumentSession';
+import { isOas32DiscriminatorDocument } from '../schema/schemaDiscriminator';
+import {
+  attachDiscriminatorMappingFields,
+  componentDiscriminatorLocation,
+  describeSchemaDiscriminator,
+} from '../schema/schemaDiscriminatorView';
 import { createSchemaDisplayProjector } from '../schema/schemaDisplayProjection';
 import { buildLegacySchemaModels, projectSchemaModels } from '../schema/schemaModelProjection';
 import {
@@ -30,18 +37,20 @@ function projectionErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unable to project OAS 3.1 data models.';
 }
 
-function projectionNoticeContent(notice: SchemaModelViewNotice, t: TFunction) {
+function projectionNoticeContent(notice: SchemaModelViewNotice, t: TFunction, family: '3.1' | '3.2') {
+  const titleKey = family === '3.2' ? 'schema.projection.loading.title32' : 'schema.projection.loading.title';
+  const degradedKey = family === '3.2' ? 'schema.projection.degraded.title32' : 'schema.projection.degraded.title';
   if (notice.kind === 'loading') {
     return {
       type: 'info' as const,
-      title: t('schema.projection.loading.title'),
+      title: t(titleKey),
       description: t('schema.projection.loading.description'),
     };
   }
   if (notice.kind === 'fallback') {
     return {
       type: 'warning' as const,
-      title: t('schema.projection.degraded.title'),
+      title: t(degradedKey),
       description: t(
         notice.reason === 'engine'
           ? 'schema.projection.engineFallback.description'
@@ -55,7 +64,7 @@ function projectionNoticeContent(notice: SchemaModelViewNotice, t: TFunction) {
   const keywords = `${visibleKeywords.join(', ')}${notice.keywords.length > visibleKeywords.length ? ', …' : ''}`;
   return {
     type: 'warning' as const,
-    title: t('schema.projection.degraded.title'),
+    title: t(degradedKey),
     description: t('schema.projection.degraded.description', {
       count: notice.issueCount,
       modelCount: notice.modelCount,
@@ -70,6 +79,7 @@ export default function Schema() {
   const { group: routeGroup, schemaName } = useParams<{ group?: string; schemaName?: string }>();
   const { schemas, swaggerDoc, loading, activeGroup } = useGroup();
   const schemaEngine = useSchemaEngine();
+  const { snapshot } = useExternalResources();
   const { settings } = useSettings();
   const navigate = useNavigate();
   const selectedSchemaName = schemaName ? decodeURIComponent(schemaName) : undefined;
@@ -98,8 +108,15 @@ export default function Schema() {
   }, [loading, schemas, swaggerDoc, settings.enableSwaggerModels]);
 
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  const isOas32 = isOas32DiscriminatorDocument(swaggerDoc);
+  const usesEngineProjection = isOas31 || isOas32;
   useEffect(() => {
-    if (!isOas31 || !swaggerDoc || settings.enableSwaggerModels === false || schemaEngine.status !== 'ready') {
+    if (
+      !usesEngineProjection ||
+      !swaggerDoc ||
+      settings.enableSwaggerModels === false ||
+      schemaEngine.status !== 'ready'
+    ) {
       setProjectionState(IDLE_PROJECTION_STATE);
       return;
     }
@@ -118,20 +135,31 @@ export default function Schema() {
       });
 
     return () => controller.abort();
-  }, [isOas31, schemaEngine, schemas, settings.enableSwaggerModels, swaggerDoc]);
+  }, [usesEngineProjection, schemaEngine, schemas, settings.enableSwaggerModels, swaggerDoc]);
 
   const { models, notice: projectionNotice } = useMemo(
     () =>
       selectSchemaModelView({
-        isOas31,
+        isOas31: usesEngineProjection,
         engineStatus: schemaEngine.status,
         retrievalUri: schemaEngine.retrievalUri,
         projectionState,
         legacyModels,
       }),
-    [isOas31, legacyModels, projectionState, schemaEngine.retrievalUri, schemaEngine.status],
+    [legacyModels, projectionState, schemaEngine.retrievalUri, schemaEngine.status, usesEngineProjection],
   );
-  const noticeContent = projectionNotice ? projectionNoticeContent(projectionNotice, t) : null;
+  const noticeContent = projectionNotice ? projectionNoticeContent(projectionNotice, t, isOas32 ? '3.2' : '3.1') : null;
+  const discriminatorByName = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof describeSchemaDiscriminator>>();
+    if (!isOas32 || !snapshot) return map;
+    for (const model of models) {
+      map.set(
+        model.name,
+        describeSchemaDiscriminator(snapshot, componentDiscriminatorLocation(snapshot.entryRetrievalUri, model.name)),
+      );
+    }
+    return map;
+  }, [isOas32, models, snapshot]);
 
   const filteredModels = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -167,6 +195,8 @@ export default function Schema() {
 
   const collapseItems = filteredModels.map((model) => {
     const displayTitle = model.title && model.title !== model.name ? model.title : undefined;
+    const metadata = discriminatorByName.get(model.name);
+    const fields = metadata ? attachDiscriminatorMappingFields(model.fields, metadata) : model.fields;
     return {
       key: model.name,
       label: (
@@ -185,11 +215,21 @@ export default function Schema() {
             </DescriptionText>
           )}
           <Tag style={{ marginLeft: 12 }} color="default">
-            {model.fields.length} {t('schema.fields')}
+            {fields.length} {t('schema.fields')}
           </Tag>
         </span>
       ),
-      children: <SchemaFieldTable fields={model.fields} />,
+      children: (
+        <>
+          <SchemaDiscriminatorPanel
+            metadata={metadata}
+            snapshot={snapshot}
+            session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+            operationToken={`schema:${model.name}`}
+          />
+          <SchemaFieldTable fields={fields} />
+        </>
+      ),
     };
   });
 

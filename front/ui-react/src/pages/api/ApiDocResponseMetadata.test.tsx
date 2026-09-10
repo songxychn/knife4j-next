@@ -47,6 +47,7 @@ vi.mock('../../components/schema/SchemaFieldTable', () => ({
 }));
 vi.mock('../../components/schema/SchemaExampleNotice', () => ({ default: 'SchemaExampleNotice' }));
 vi.mock('../../components/schema/OperationExamplePicker', () => ({ default: 'OperationExamplePicker' }));
+vi.mock('../../components/schema/SchemaDiscriminatorPanel', () => ({ default: 'SchemaDiscriminatorPanel' }));
 vi.mock('./CodeBlock', () => ({ default: 'CodeBlock' }));
 
 import ApiDoc from './ApiDoc';
