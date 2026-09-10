@@ -103,6 +103,34 @@ export function discriminatorCandidateChoices(
   return metadata.candidates.filter((candidate) => target.candidateIds.includes(candidate.id));
 }
 
+export function selectedDiscriminatorCandidateId(
+  selectedId: string | undefined,
+  choices: readonly Pick<DiscriminatorCandidate, 'id'>[],
+): string | undefined {
+  if (selectedId !== undefined && choices.some((candidate) => candidate.id === selectedId)) return selectedId;
+  return choices.length === 1 ? choices[0]?.id : undefined;
+}
+
+export function preferredDiscriminatorSchemaLocation<
+  T extends {
+    readonly schemaLocation?: { readonly ownerRetrievalUri: string; readonly pointer: string };
+    readonly mediaType?: string;
+    readonly layer?: string;
+    readonly group?: string;
+    readonly statusCode?: string;
+  },
+>(
+  targets: readonly T[],
+  match: { readonly role: 'body' | 'response'; readonly mediaType?: string; readonly statusCode?: string },
+): T['schemaLocation'] {
+  if (match.mediaType === undefined) return undefined;
+  return targets.find((item) => {
+    if (!item.schemaLocation || item.layer !== 'media' || item.mediaType !== match.mediaType) return false;
+    if (match.role === 'body') return item.group?.startsWith('body:');
+    return item.statusCode === match.statusCode && Boolean(item.group?.startsWith('response:'));
+  })?.schemaLocation;
+}
+
 export function isDynamicScopeGenerationUnavailable(code: string | undefined): boolean {
   return code === 'DYNAMIC_SCHEMA_DEPENDENCY_UNAVAILABLE';
 }

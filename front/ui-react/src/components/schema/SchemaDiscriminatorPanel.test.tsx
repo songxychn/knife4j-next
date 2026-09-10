@@ -92,4 +92,41 @@ describe('SchemaDiscriminatorPanel', () => {
     const metadata = describeSchemaDiscriminator(snapshot, componentDiscriminatorLocation(uri, 'Payload'));
     expect(SchemaDiscriminatorPanel({ metadata, operationToken: 'payload' })).toBeNull();
   });
+
+  test('does not pretend-select the first overlapping branch or enable generate until chosen', () => {
+    const document = {
+      openapi: '3.2.0',
+      info: { title: 'Overlapping oneOf', version: '1' },
+      components: {
+        schemas: {
+          Payload: {
+            type: 'object',
+            required: ['kind', 'side'],
+            oneOf: [
+              { $ref: '#/components/schemas/Known', required: ['side'], properties: { side: { const: 'left' } } },
+              { $ref: '#/components/schemas/Known', required: ['side'], properties: { side: { const: 'right' } } },
+            ],
+            discriminator: { propertyName: 'kind', mapping: { known: 'Known' } },
+          },
+          Known: { type: 'object', required: ['kind'], properties: { kind: { const: 'known' } } },
+        },
+      },
+    } as SwaggerDoc;
+    expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+    const snapshot = new ExternalResourceLoader(document, uri).currentSnapshot();
+    const metadata = describeSchemaDiscriminator(snapshot, componentDiscriminatorLocation(uri, 'Payload'));
+    const tree = SchemaDiscriminatorPanel({
+      metadata,
+      snapshot,
+      session: { token: 'session' } as never,
+      operationToken: 'payload',
+    });
+    const nodes = elements(tree);
+    const select = nodes.find((node) => node.type === 'Select');
+    const options = select?.props.options as Array<{ value: string }> | undefined;
+    expect(select?.props.value).toBeUndefined();
+    expect(options?.length).toBeGreaterThan(1);
+    expect(options?.[0]?.value).toEqual(expect.any(String));
+    expect(nodes.find((node) => node.props['data-discriminator-generate'] === 'explicit')?.props.disabled).toBe(true);
+  });
 });

@@ -9,11 +9,13 @@ import {
   describeSchemaDiscriminator,
   discriminatorMetadataVisible,
   isDynamicScopeGenerationUnavailable,
+  preferredDiscriminatorSchemaLocation,
   schemaDiscriminatorAllowsModelRoute,
   schemaDiscriminatorFieldName,
   schemaDiscriminatorIndexFor,
   schemaDiscriminatorTargetLabel,
   selectDiscriminatorExampleHint,
+  selectedDiscriminatorCandidateId,
 } from './schemaDiscriminatorView';
 
 const uri = 'https://retrieval.example/entry.json';
@@ -164,5 +166,56 @@ describe('schema discriminator product view', () => {
   test('surfaces dynamic-scope generation unavailability without claiming a candidate', () => {
     expect(isDynamicScopeGenerationUnavailable('DYNAMIC_SCHEMA_DEPENDENCY_UNAVAILABLE')).toBe(true);
     expect(isDynamicScopeGenerationUnavailable('GENERATION_DID_NOT_PRODUCE_VALID_VALUE')).toBe(false);
+  });
+
+  test('does not treat an unchosen overlapping branch as selected', () => {
+    expect(selectedDiscriminatorCandidateId(undefined, [{ id: 'left' }, { id: 'right' }])).toBeUndefined();
+    expect(selectedDiscriminatorCandidateId('missing', [{ id: 'left' }, { id: 'right' }])).toBeUndefined();
+    expect(selectedDiscriminatorCandidateId('left', [{ id: 'left' }, { id: 'right' }])).toBe('left');
+    expect(selectedDiscriminatorCandidateId(undefined, [{ id: 'only' }])).toBe('only');
+    expect(selectedDiscriminatorCandidateId('missing', [{ id: 'only' }])).toBe('only');
+  });
+
+  test('prefers the field-table media schema over document-order content', () => {
+    const xml = {
+      layer: 'media',
+      group: 'body:application/xml',
+      mediaType: 'application/xml',
+      schemaLocation: { ownerRetrievalUri: uri, pointer: '#/xml' },
+    };
+    const json = {
+      layer: 'media',
+      group: 'body:application/json',
+      mediaType: 'application/json',
+      schemaLocation: { ownerRetrievalUri: uri, pointer: '#/json' },
+    };
+    expect(preferredDiscriminatorSchemaLocation([xml, json], { role: 'body', mediaType: 'application/json' })).toEqual(
+      json.schemaLocation,
+    );
+    expect(preferredDiscriminatorSchemaLocation([xml, json], { role: 'body' })).toBeUndefined();
+    expect(preferredDiscriminatorSchemaLocation([xml, json], { role: 'body', mediaType: 'application/xml' })).toEqual(
+      xml.schemaLocation,
+    );
+    expect(
+      preferredDiscriminatorSchemaLocation(
+        [
+          {
+            layer: 'media',
+            group: 'response:200:application/xml',
+            mediaType: 'application/xml',
+            statusCode: '200',
+            schemaLocation: { ownerRetrievalUri: uri, pointer: '#/xml' },
+          },
+          {
+            layer: 'media',
+            group: 'response:200:application/json',
+            mediaType: 'application/json',
+            statusCode: '200',
+            schemaLocation: { ownerRetrievalUri: uri, pointer: '#/json' },
+          },
+        ],
+        { role: 'response', statusCode: '200', mediaType: 'application/json' },
+      ),
+    ).toEqual({ ownerRetrievalUri: uri, pointer: '#/json' });
   });
 });

@@ -24,6 +24,7 @@ import {
   schemaDiscriminatorAllowsModelRoute,
   schemaDiscriminatorTargetLabel,
   selectDiscriminatorExampleHint,
+  selectedDiscriminatorCandidateId,
 } from '../../schema/schemaDiscriminatorView';
 
 export interface SchemaDiscriminatorPanelProps {
@@ -74,6 +75,7 @@ export default function SchemaDiscriminatorPanel({
     pending.current += 1;
     setSelectionToken(`sel-${pending.current}`);
     setGeneration(undefined);
+    setBranchByTarget({});
   }, [metadata, operationToken, representation, snapshot]);
 
   if (!metadata || !discriminatorMetadataVisible(metadata)) return null;
@@ -82,7 +84,7 @@ export default function SchemaDiscriminatorPanel({
     if (!snapshot || !session) return;
     const token = `sel-${pending.current}`;
     const choices = discriminatorCandidateChoices(metadata, target);
-    const chosenId = branchByTarget[target.id] ?? (choices.length === 1 ? choices[0]?.id : undefined);
+    const chosenId = selectedDiscriminatorCandidateId(branchByTarget[target.id], choices);
     const result = await generateDiscriminatorCandidate({
       metadata,
       snapshot,
@@ -181,7 +183,8 @@ export default function SchemaDiscriminatorPanel({
                     aria-label={t('schema.discriminator.candidates')}
                     size="small"
                     style={{ minWidth: 240 }}
-                    value={branchByTarget[target.id] ?? choices[0]?.id}
+                    value={branchByTarget[target.id]}
+                    placeholder={t('schema.discriminator.generate.ambiguous')}
                     options={choices.map((candidate) => ({
                       value: candidate.id,
                       label: candidateLabel(candidate),
@@ -198,6 +201,7 @@ export default function SchemaDiscriminatorPanel({
                 size="small"
                 style={{ marginTop: 8 }}
                 data-discriminator-generate={target.source}
+                disabled={selectedDiscriminatorCandidateId(branchByTarget[target.id], choices) === undefined}
                 onClick={() => void generate(target)}
               >
                 {t('schema.discriminator.generate')}

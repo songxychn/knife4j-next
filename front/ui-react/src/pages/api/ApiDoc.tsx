@@ -46,6 +46,7 @@ import {
   attachDiscriminatorMappingFields,
   describeSchemaDiscriminator,
   discriminatorLocationFromOpenApi,
+  preferredDiscriminatorSchemaLocation,
 } from '../../schema/schemaDiscriminatorView';
 import { createSchemaDisplayProjector } from '../../schema/schemaDisplayProjection';
 import { locateOperationResponses, responseForDisplay } from '../../schema/registeredResponse';
@@ -271,8 +272,8 @@ function resolveApiDocOperation(rawOperation: OperationObject, swaggerDoc: Swagg
   };
 }
 
-function projectionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to project OAS 3.1 ApiDoc schemas.';
+function projectionErrorMessage(error: unknown, family: '3.1' | '3.2'): string {
+  return error instanceof Error ? error.message : `Unable to project OAS ${family} ApiDoc schemas.`;
 }
 
 function projectionRegionLabel(regionKey: string, t: TFunction): string {
@@ -656,12 +657,12 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         setProjectionState({
           status: 'error',
           identity: projectionIdentity,
-          message: projectionErrorMessage(error),
+          message: projectionErrorMessage(error, isOas32 ? '3.2' : '3.1'),
         });
       });
 
     return () => controller.abort();
-  }, [projectionIdentity, projectionTargets, schemaEngine, usesEngineSchemaProjection]);
+  }, [isOas32, projectionIdentity, projectionTargets, schemaEngine, usesEngineSchemaProjection]);
 
   useEffect(() => {
     if (!isOas31 || schemaEngine.status !== 'ready' || !exampleIdentity) {
@@ -709,14 +710,16 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const projectionNotice = schemaView.notice
     ? projectionNoticeContent(schemaView.notice, t, isOas32 ? '3.2' : '3.1')
     : null;
+  const requestMediaType = firstRequestMedia(op.requestBody)?.mediaType;
   const bodyDiscriminator = useMemo(() => {
     if (!isOas32 || !snapshot32) return undefined;
-    const location = exampleCatalog32.targets.find(
-      (item) => item.group.startsWith('body:') && item.schemaLocation,
-    )?.schemaLocation;
+    const location = preferredDiscriminatorSchemaLocation(exampleCatalog32.targets, {
+      role: 'body',
+      mediaType: requestMediaType,
+    });
     const described = discriminatorLocationFromOpenApi(snapshot32, location);
     return described ? describeSchemaDiscriminator(snapshot32, described) : undefined;
-  }, [exampleCatalog32.targets, isOas32, snapshot32]);
+  }, [exampleCatalog32.targets, isOas32, requestMediaType, snapshot32]);
   const bodyFieldsWithDiscriminator = bodyDiscriminator
     ? attachDiscriminatorMappingFields(bodyFields, bodyDiscriminator)
     : bodyFields;
@@ -724,9 +727,11 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
     const map = new Map<string, ReturnType<typeof describeSchemaDiscriminator>>();
     if (!isOas32 || !snapshot32) return map;
     for (const row of responses) {
-      const location = exampleCatalog32.targets.find(
-        (item) => item.statusCode === row.statusCode && item.layer === 'media' && item.schemaLocation,
-      )?.schemaLocation;
+      const location = preferredDiscriminatorSchemaLocation(exampleCatalog32.targets, {
+        role: 'response',
+        statusCode: row.statusCode,
+        mediaType: row.mediaType,
+      });
       const described = discriminatorLocationFromOpenApi(snapshot32, location);
       if (described) map.set(row.key, describeSchemaDiscriminator(snapshot32, described));
     }

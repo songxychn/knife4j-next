@@ -33,8 +33,8 @@ function modelDomId(name: string): string {
   return `schema-${encodeURIComponent(name)}`;
 }
 
-function projectionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to project OAS 3.1 data models.';
+function projectionErrorMessage(error: unknown, family: '3.1' | '3.2'): string {
+  return error instanceof Error ? error.message : `Unable to project OAS ${family} data models.`;
 }
 
 function projectionNoticeContent(notice: SchemaModelViewNotice, t: TFunction, family: '3.1' | '3.2') {
@@ -131,11 +131,15 @@ export default function Schema() {
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return;
-        setProjectionState({ status: 'error', retrievalUri, message: projectionErrorMessage(error) });
+        setProjectionState({
+          status: 'error',
+          retrievalUri,
+          message: projectionErrorMessage(error, isOas32 ? '3.2' : '3.1'),
+        });
       });
 
     return () => controller.abort();
-  }, [usesEngineProjection, schemaEngine, schemas, settings.enableSwaggerModels, swaggerDoc]);
+  }, [isOas32, usesEngineProjection, schemaEngine, schemas, settings.enableSwaggerModels, swaggerDoc]);
 
   const { models, notice: projectionNotice } = useMemo(
     () =>
