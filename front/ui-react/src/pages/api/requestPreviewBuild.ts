@@ -1,4 +1,5 @@
 import { buildCurl, type BuiltRequest, type DebugFormValues } from 'knife4j-core';
+import type { MaterializedMultipartBody } from './formBodyRequest';
 import type { CookieParameterSource } from './cookieParameterSource';
 
 export interface RequestPreviewBuild {
@@ -7,6 +8,7 @@ export interface RequestPreviewBuild {
   curl: string;
   cookieParameterSource?: CookieParameterSource;
   credentials?: 'same-origin' | 'include';
+  materializedMultipart?: MaterializedMultipartBody;
 }
 
 export type RequestPreviewBuildResult = { ok: true; value: RequestPreviewBuild } | { ok: false; error: string };

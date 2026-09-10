@@ -22,6 +22,7 @@ import type {
 } from './types';
 import { replaceSerializedPathParams, serializeOas31Parameters } from './parameterSerialization';
 import { serializeOas31FormBody } from './formBodyEncoding';
+import { authoredMultipartPlan, serializeOas32FormBody } from './oas32FormBodyEncoding';
 import { buildRequestWithOas32Parameters, oas32ParameterInputs, validateOas32Required } from './oas32ParameterRequest';
 import { serializeOas32Parameters } from './oas32ParameterSerialization';
 
@@ -340,7 +341,7 @@ export function validateRequired(
   // OAS 3.1 form files use the shared encoding plan so missing/cardinality
   // diagnostics participate in the same one-shot override as Schema issues.
   // Keep the historical hard-required behavior for OAS 3.0/OAS2.
-  if (current?.category === 'multipart' && current.schema && !current.oas31Form) {
+  if (current?.category === 'multipart' && current.schema && !current.oas31Form && !current.oas32Form) {
     const requiredFields = Array.isArray(current.schema.required) ? current.schema.required : [];
     const properties = current.schema.properties as Record<string, Record<string, unknown>> | undefined;
     const fileFields = new Set(current.fileFields ?? []);
@@ -361,7 +362,7 @@ export function validateRequired(
   }
 
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
-  if (model.bodyRequired && current && !current.oas31Form) {
+  if (model.bodyRequired && current && !current.oas31Form && !current.oas32Form) {
     const category = current.category;
     const hasExampleBody =
       form.serializedExampleBody?.mediaType === selected && typeof form.serializedExampleBody.text === 'string';
@@ -526,18 +527,30 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     typeof formValues.serializedExampleBody.text === 'string'
       ? formValues.serializedExampleBody
       : undefined;
-  if (exampleBody && (category === 'multipart' || currentBody?.binary))
+  if (exampleBody && currentBody?.binary) throw new Error('This example requires a binary or multipart codec.');
+  if (exampleBody && category === 'multipart' && !currentBody?.oas32Form)
     throw new Error('This example requires a binary or multipart codec.');
   const formBodyPlan =
-    !exampleBody && currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
-      ? serializeOas31FormBody(currentBody, {
-          formFields: formValues.formFields,
-          formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
-          fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
-          partHeaders: formValues.formPartHeaders,
-          bodyRequired: debugModel.bodyRequired,
-        })
-      : undefined;
+    exampleBody && category === 'multipart' && currentBody?.oas32Form
+      ? authoredMultipartPlan(exampleBody.mediaType, exampleBody.text)
+      : !exampleBody && currentBody?.oas32Form && (category === 'urlencoded' || category === 'multipart')
+        ? serializeOas32FormBody(currentBody, {
+            formFields: formValues.formFields,
+            formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
+            fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
+            partHeaders: formValues.formPartHeaders,
+            partContentTypes: formValues.formPartContentTypes,
+            bodyRequired: debugModel.bodyRequired,
+          })
+        : !exampleBody && currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
+          ? serializeOas31FormBody(currentBody, {
+              formFields: formValues.formFields,
+              formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
+              fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
+              partHeaders: formValues.formPartHeaders,
+              bodyRequired: debugModel.bodyRequired,
+            })
+          : undefined;
 
   // Keep explicit request bodies for every HTTP method in the pure model and
   // generated cURL. Browser callers reject GET / HEAD bodies before Fetch.
@@ -550,6 +563,11 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
       headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
     }
+  } else if (formBodyPlan?.kind === 'multipart' && formBodyPlan.wire === 'authored') {
+    body = formBodyPlan.authoredBody;
+    const authoredType = formBodyPlan.authoredContentType ?? formBodyPlan.mediaType;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
+      headersWithCookies['Content-Type'] = authoredType;
   } else if (formBodyPlan?.kind === 'multipart') {
     body = JSON.stringify(
       formFieldsForRequest(formValues.formFields ?? {}, formValues.formFieldNamesToIncludeWhenEmpty),
@@ -678,19 +696,27 @@ export function buildCurl(req: BuiltRequest): string {
   parts.push('-X', /^[A-Za-z]+$/.test(req.method) ? req.method : shellQuote(req.method));
 
   const plannedMultipart = req.formBodyPlan?.kind === 'multipart' ? req.formBodyPlan : undefined;
+  const encodedMultipart = plannedMultipart?.specFamily === '3.2';
   const legacyMultipart =
     plannedMultipart === undefined &&
     typeof req.contentType === 'string' &&
     multipartMediaTypeEssence(req.contentType) === 'multipart/form-data';
-  const isMultipart = plannedMultipart !== undefined || legacyMultipart;
+  const isMultipart = !encodedMultipart && (plannedMultipart !== undefined || legacyMultipart);
 
-  // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
+  // headers（3.1 multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
     if (isMultipart && key.toLowerCase() === 'content-type') continue;
     parts.push('-H', shellQuote(req.curlPreserveUrl && value === '' ? `${key};` : `${key}: ${value}`));
   }
 
-  if (plannedMultipart) {
+  if (encodedMultipart) {
+    const headerType = Object.entries(req.headers).find(([key]) => key.toLowerCase() === 'content-type')?.[1];
+    const contentType = headerType ?? plannedMultipart.authoredContentType ?? plannedMultipart.mediaType;
+    if (findHeaderKey(req.headers, 'Content-Type') === undefined && contentType) {
+      parts.push('-H', shellQuote(`Content-Type: ${contentType}`));
+    }
+    parts.push('--data-binary', shellQuote('@knife4j-multipart-body.bin'));
+  } else if (plannedMultipart) {
     const contentType = multipartMediaTypeWithoutBoundary(plannedMultipart.mediaType);
     if (
       contentType &&
@@ -703,8 +729,13 @@ export function buildCurl(req: BuiltRequest): string {
     }
   }
 
-  if (plannedMultipart) {
+  if (encodedMultipart) {
+    // Complex MIME uses the same envelope file as preview and Fetch.
+  } else if (plannedMultipart) {
     for (const part of plannedMultipart.parts) {
+      if (part.kind === 'nested') {
+        throw new Error('Nested multipart cannot be represented by curl -F.');
+      }
       const attributes = ['='];
       if (part.kind === 'file') {
         attributes[0] += `@${curlFormQuoted(`/path/to/${part.fileName}`)}`;

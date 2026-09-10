@@ -47,6 +47,7 @@ function makeState(): DebugCacheState {
     formPartHeaders: {
       metadata: { 'X-Part-Trace': 'trace-1' },
     },
+    formPartContentTypes: {},
     rawMode: 'json',
     customQueryParams: [{ id: 'custom-query', name: 'debug', value: '1' }],
     customBodyParams: [
@@ -167,6 +168,7 @@ describe('debugCache', () => {
       body: '{"name":"alice"}',
       formFields: { name: 'alice' },
       formPartHeaders: { metadata: { 'X-Part-Trace': 'trace-1' } },
+      formPartContentTypes: {},
       rawMode: 'text',
       customQueryParams: [{ id: 'q1', name: 'debug', value: '1' }],
       customBodyParams: [{ id: 'b1', name: 'folderId', value: '42' }],

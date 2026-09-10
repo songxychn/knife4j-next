@@ -32,6 +32,7 @@ export interface DebugCacheState {
   body: string;
   formFields: Record<string, string>;
   formPartHeaders: Record<string, Record<string, string>>;
+  formPartContentTypes?: Record<string, string>;
   rawMode: DebugCacheRawMode;
   customQueryParams: DebugCacheCustomParamRow[];
   customBodyParams: DebugCacheCustomParamRow[];
@@ -142,6 +143,7 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
     body: readString(value.body),
     formFields: readStringRecord(value.formFields),
     formPartHeaders: readNestedStringRecord(value.formPartHeaders),
+    formPartContentTypes: readStringRecord(value.formPartContentTypes),
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
     customBodyParams: readCustomRows(value.customBodyParams),

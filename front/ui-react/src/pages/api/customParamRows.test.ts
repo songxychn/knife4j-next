@@ -190,4 +190,34 @@ describe('mergeCustomBodyParams', () => {
       formFieldNamesToIncludeWhenEmpty: ['dynamic'],
     });
   });
+
+  it('reserves OAS 3.2 positional and nested part names', () => {
+    const doc = {
+      openapi: '3.2.0',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/submit': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/mixed': {
+                  schema: {
+                    type: 'array',
+                    prefixItems: [{ type: 'string' }, { type: 'string' }],
+                  },
+                  prefixEncoding: [{ contentType: 'text/plain' }, { contentType: 'text/plain' }],
+                  itemEncoding: { contentType: 'text/plain' },
+                },
+              },
+            },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+    };
+    const reserved = reservedBodyFieldNames(
+      buildOperationDebugModel({ doc, path: '/submit', method: 'post' }).bodyContents[0],
+    );
+    expect([...reserved]).toEqual(expect.arrayContaining(['0', '1', '2']));
+  });
 });

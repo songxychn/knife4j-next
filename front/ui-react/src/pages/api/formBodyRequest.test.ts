@@ -192,4 +192,99 @@ describe('multipart request materialization', () => {
     };
     expect(() => materializeMultipartBody(stalePlan, {})).toThrow('file snapshot is unavailable');
   });
+
+  test('never downgrades OAS 3.2 nested or unnamed parts to native FormData', async () => {
+    const inner = file(['png'], 'inner.png', 'image/png');
+    const plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
+      kind: 'multipart',
+      mediaType: 'multipart/mixed',
+      instance: {},
+      ignoredProperties: [],
+      diagnostics: [],
+      specFamily: '3.2',
+      parts: [
+        {
+          kind: 'nested',
+          sourceField: '0',
+          name: '',
+          contentType: 'multipart/mixed',
+          headers: {},
+          parts: [
+            {
+              kind: 'text',
+              sourceField: '0.0',
+              name: '',
+              value: 'inner',
+              contentType: 'text/plain',
+              headers: {},
+            },
+            {
+              kind: 'file',
+              sourceField: '0.1',
+              name: '',
+              fileIndex: 0,
+              fileName: inner.name,
+              contentType: 'image/png',
+              headers: {},
+            },
+          ],
+        },
+      ],
+    };
+    const materialized = materializeMultipartBody(plan, { '0.1': [inner] }, { boundaryFactory: () => 'outer' });
+    expect(materialized.mode).toBe('encoded');
+    expect(materialized.contentType).toContain('multipart/mixed; boundary=');
+    const text = await (materialized.body as Blob).text();
+    expect(text).toContain('--outer');
+    expect(text).toContain('Content-Type: multipart/mixed; boundary=');
+    expect(text).toContain('inner');
+    expect(text).toContain('inner.png');
+    expect(text.startsWith('--outer\r\n')).toBe(true);
+  });
+
+  test('preserves authored MIME bytes without regenerating a boundary', async () => {
+    const authored = '--keep-me\r\nContent-Type: text/plain\r\n\r\nhello\r\n--keep-me--\r\n';
+    const plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
+      kind: 'multipart',
+      mediaType: 'multipart/mixed; boundary=keep-me',
+      instance: {},
+      ignoredProperties: [],
+      diagnostics: [],
+      specFamily: '3.2',
+      wire: 'authored',
+      authoredBody: authored,
+      authoredContentType: 'multipart/mixed; boundary=keep-me',
+      parts: [],
+    };
+    const materialized = materializeMultipartBody(plan, {});
+    expect(materialized).toMatchObject({
+      mode: 'encoded',
+      contentType: 'multipart/mixed; boundary=keep-me',
+    });
+    await expect((materialized.body as Blob).text()).resolves.toBe(authored);
+  });
+
+  test('rejects delimiter collision instead of silently rewriting the envelope', () => {
+    const plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
+      kind: 'multipart',
+      mediaType: 'multipart/mixed',
+      instance: {},
+      ignoredProperties: [],
+      diagnostics: [],
+      specFamily: '3.2',
+      parts: [
+        {
+          kind: 'text',
+          sourceField: '0',
+          name: '',
+          value: 'contains --fixed',
+          contentType: 'text/plain',
+          headers: {},
+        },
+      ],
+    };
+    expect(() => materializeMultipartBody(plan, {}, { boundaryFactory: () => 'fixed' })).toThrow(
+      'collides with part contents',
+    );
+  });
 });

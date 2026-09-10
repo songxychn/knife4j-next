@@ -167,6 +167,51 @@ describe('debugHistory', () => {
     expect(body).not.toContain('Bearer secret');
   });
 
+  it('records nested multipart parts without flattening them', () => {
+    const body = buildOas31MultipartHistoryBody({
+      kind: 'multipart',
+      mediaType: 'multipart/mixed',
+      instance: {},
+      ignoredProperties: [],
+      diagnostics: [],
+      specFamily: '3.2',
+      parts: [
+        {
+          kind: 'nested',
+          sourceField: '0',
+          name: '',
+          contentType: 'multipart/mixed',
+          headers: { 'Content-ID': '<root@example>' },
+          parts: [
+            {
+              kind: 'text',
+              sourceField: '0.0',
+              name: '',
+              value: 'inner',
+              contentType: 'text/plain',
+              headers: {},
+            },
+          ],
+        },
+      ],
+    });
+    expect(JSON.parse(body)).toEqual([
+      {
+        name: '',
+        contentType: 'multipart/mixed',
+        headers: { 'Content-ID': '<root@example>' },
+        parts: [
+          {
+            name: '',
+            value: 'inner',
+            contentType: 'text/plain',
+            headers: {},
+          },
+        ],
+      },
+    ]);
+  });
+
   it('truncates large bodies and marks truncated', () => {
     const large = 'x'.repeat(DEBUG_HISTORY_BODY_MAX_BYTES + 100);
     const result = truncateBody(large);

@@ -92,6 +92,7 @@ import {
   serializeOas31Parameters,
   validateRequired,
   type Oas32ParameterDiagnostic,
+  oas32FormFieldsFromInstance,
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
@@ -162,6 +163,7 @@ import {
   buildBodyContentDefaults,
   buildInitialParamValues,
   extractSchemaFields,
+  extraPositionalSchemaFields,
   initialBodyValueForContent,
   initialFormFieldsForContent,
   initialFormPartHeadersForContent,
@@ -173,7 +175,7 @@ import {
   type ParamValueMap,
   type SchemaFieldRow,
 } from './debugDefaultValues';
-import { materializeMultipartBody } from './formBodyRequest';
+import { materializeMultipartBody, multipartPlanNeedsEncodedEnvelope } from './formBodyRequest';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import {
@@ -1012,6 +1014,8 @@ interface BodyTabProps {
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   formPartHeaders: Record<string, Record<string, string>>;
   setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
+  formPartContentTypes: Record<string, string>;
+  setFormPartContentTypes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   enableDynamicParameter: boolean;
   customBodyParams: CustomParamRow[];
   setCustomBodyParams: (rows: CustomParamRow[]) => void;
@@ -1032,6 +1036,8 @@ function BodyTab({
   setFormFields,
   formPartHeaders,
   setFormPartHeaders,
+  formPartContentTypes,
+  setFormPartContentTypes,
   enableDynamicParameter,
   customBodyParams,
   setCustomBodyParams,
@@ -1058,6 +1064,7 @@ function BodyTab({
     if (target) {
       setFormFields(initialFormFieldsForContent(target, bodyDefaults));
       setFormPartHeaders(initialFormPartHeadersForContent(target));
+      setFormPartContentTypes({});
       setCustomBodyParams([]);
       // 重置 fileFields
       fileFieldsRef.current = {};
@@ -1100,7 +1107,7 @@ function BodyTab({
                   : bc.category === 'urlencoded'
                     ? 'x-www-form-urlencoded'
                     : bc.category === 'multipart'
-                      ? 'multipart/form-data'
+                      ? bc.mediaType.split(';', 1)[0].trim() || 'multipart'
                       : bc.binary
                         ? 'binary'
                         : 'raw'}
@@ -1132,6 +1139,8 @@ function BodyTab({
           setFormFields={setFormFields}
           formPartHeaders={formPartHeaders}
           setFormPartHeaders={setFormPartHeaders}
+          formPartContentTypes={formPartContentTypes}
+          setFormPartContentTypes={setFormPartContentTypes}
           fileFieldsRef={fileFieldsRef}
         />
       )}
@@ -1292,6 +1301,8 @@ interface MultipartFormProps {
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   formPartHeaders: Record<string, Record<string, string>>;
   setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
+  formPartContentTypes: Record<string, string>;
+  setFormPartContentTypes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
 }
 
@@ -1301,11 +1312,26 @@ function MultipartForm({
   setFormFields,
   formPartHeaders,
   setFormPartHeaders,
+  formPartContentTypes,
+  setFormPartContentTypes,
   fileFieldsRef,
 }: MultipartFormProps) {
   const { t } = useTranslation();
   const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>({});
-  const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
+  const declaredFields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
+  const extraFields = useMemo(
+    () =>
+      extraPositionalSchemaFields(bodyContent, [
+        ...Object.keys(formFields),
+        ...Object.keys(fileListMap),
+        ...Object.keys(formPartContentTypes),
+      ]),
+    [bodyContent, formFields, fileListMap, formPartContentTypes],
+  );
+  const fields = useMemo(() => {
+    const seen = new Set(declaredFields.map((field) => field.name));
+    return [...declaredFields, ...extraFields.filter((field) => !seen.has(field.name))];
+  }, [declaredFields, extraFields]);
 
   const updateField = (name: string, value: string) => {
     setFormFields((prev) => ({ ...prev, [name]: value }));
@@ -1326,6 +1352,21 @@ function MultipartForm({
       if (f.originFileObj) files.push(f.originFileObj);
     }
     fileFieldsRef.current[name] = files;
+  };
+
+  const addExtraPart = () => {
+    const prefixCount = bodyContent.oas32Form?.fields.length ?? 0;
+    const present = [...Object.keys(formFields), ...Object.keys(fileListMap), ...Object.keys(formPartContentTypes)]
+      .filter((name) => /^\d+$/.test(name))
+      .map(Number)
+      .filter((index) => index >= prefixCount);
+    const next = present.length > 0 ? Math.max(...present) + 1 : prefixCount;
+    const name = String(next);
+    setFormFields((prev) => ({ ...prev, [name]: prev[name] ?? '' }));
+  };
+
+  const updatePartContentType = (name: string, value: string) => {
+    setFormPartContentTypes((prev) => ({ ...prev, [name]: value }));
   };
 
   const columns: ColumnsType<SchemaFieldRow> = [
@@ -1417,6 +1458,19 @@ function MultipartForm({
         return (
           <Space direction="vertical" size={6} style={{ width: '100%' }}>
             {editor}
+            {record.contentTypeRequiresChoice && (
+              <AutoComplete
+                size="small"
+                value={formPartContentTypes[record.name] ?? ''}
+                options={record.contentTypes
+                  .filter((mediaType) => !mediaType.includes('*'))
+                  .map((mediaType) => ({ value: mediaType }))}
+                onChange={(value) => updatePartContentType(record.name, value)}
+                placeholder={t('apiDebug.body.choosePartContentType.placeholder')}
+                aria-label={t('apiDebug.body.choosePartContentType')}
+                style={{ width: '100%' }}
+              />
+            )}
             {record.partHeaders.map((header) => (
               <Input
                 key={header.name}
@@ -1459,7 +1513,16 @@ function MultipartForm({
     },
   ];
 
-  return <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />;
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />
+      {bodyContent.oas32Form?.extraItemTemplate && (
+        <Button size="small" icon={<PlusOutlined />} onClick={addExtraPart}>
+          {t('apiDebug.body.addPart')}
+        </Button>
+      )}
+    </Space>
+  );
 }
 
 // ─── Raw Editor ───────────────────────────────────────
@@ -1608,26 +1671,34 @@ interface PreviewTabPanelProps {
 }
 
 function formatMultipartPlanBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
-  return JSON.stringify(
-    plan.parts.map((part) =>
-      part.kind === 'file'
-        ? {
-            name: part.name,
-            file: part.fileName,
-            ...(part.fileSize === undefined ? {} : { size: part.fileSize }),
-            contentType: part.contentType,
-            headers: part.headers,
-          }
-        : {
-            name: part.name,
-            value: part.value,
-            contentType: part.contentType,
-            headers: part.headers,
-          },
-    ),
-    null,
-    2,
-  );
+  const formatPart = (part: (typeof plan.parts)[number]): Record<string, unknown> => {
+    if (part.kind === 'nested') {
+      return {
+        name: part.name,
+        contentType: part.contentType,
+        headers: part.headers,
+        parts: part.parts.map(formatPart),
+      };
+    }
+    return part.kind === 'file'
+      ? {
+          name: part.name,
+          file: part.fileName,
+          ...(part.fileSize === undefined ? {} : { size: part.fileSize }),
+          contentType: part.contentType,
+          headers: part.headers,
+        }
+      : {
+          name: part.name,
+          value: part.value,
+          contentType: part.contentType,
+          headers: part.headers,
+        };
+  };
+  if (plan.wire === 'authored') {
+    return plan.authoredBody ?? '';
+  }
+  return JSON.stringify(plan.parts.map(formatPart), null, 2);
 }
 
 function applyMaterializedMultipartContentType(headers: Record<string, string>, contentType: string | undefined): void {
@@ -1651,14 +1722,35 @@ function oas32PreviewDiagnosticTitle(diagnostic: Oas32ParameterDiagnostic): stri
 
 function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
   const { t } = useTranslation();
+  const [wireText, setWireText] = useState<string>();
+  const materialized = result.ok ? result.value.materializedMultipart : undefined;
+  useEffect(() => {
+    if (!result.ok || materialized?.mode !== 'encoded' || !(materialized.body instanceof Blob)) {
+      setWireText(undefined);
+      return;
+    }
+    let cancelled = false;
+    void materialized.body.text().then((value) => {
+      if (!cancelled) setWireText(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [result, materialized]);
   if (!result.ok) {
     return <Alert type="error" showIcon message={t('apiDebug.error.title')} description={result.error} />;
   }
   const { built, curl, cookieParameterSource } = result.value;
   const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
-  const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/form-data');
-  const previewBody = multipartPlan ? formatMultipartPlanBody(multipartPlan) : built.body;
-  const hasBody = previewBody !== undefined && (previewBody !== '' || built.explicitExampleBody === true);
+  const encodedMultipart = materialized?.mode === 'encoded';
+  const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/');
+  const previewBody = encodedMultipart
+    ? (wireText ?? '')
+    : multipartPlan
+      ? formatMultipartPlanBody(multipartPlan)
+      : built.body;
+  const hasBody =
+    encodedMultipart || (previewBody !== undefined && (previewBody !== '' || built.explicitExampleBody === true));
   const parameterDiagnostics = oas32PreviewDiagnostics(built);
 
   const headerPairs = Object.entries(built.headers);
@@ -1831,10 +1923,18 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
 
       {/* Body */}
       <div>
-        <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
+        <Text strong>
+          {encodedMultipart
+            ? t('apiDebug.preview.multipartWire')
+            : isMultipart
+              ? t('apiDebug.preview.bodyMultipart')
+              : t('apiDebug.preview.body')}
+        </Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
-            {formatRequestPreviewBody(previewBody ?? '', built.contentType, built.explicitExampleBody)}
+            {encodedMultipart
+              ? (wireText ?? '')
+              : formatRequestPreviewBody(previewBody ?? '', built.contentType, built.explicitExampleBody)}
           </pre>
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
@@ -1853,6 +1953,9 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
             description={t('apiDebug.cookie.sessionCurl')}
             style={{ marginBottom: 8 }}
           />
+        )}
+        {encodedMultipart && (
+          <Alert type="info" showIcon message={t('apiDebug.preview.multipartBodyFile')} style={{ marginBottom: 8 }} />
         )}
         <Space style={{ marginBottom: 4 }}>
           <Text strong>{t('apiDebug.preview.curl')}</Text>
@@ -1889,6 +1992,7 @@ interface InitialDebugState {
   body: string;
   formFields: Record<string, string>;
   formPartHeaders: Record<string, Record<string, string>>;
+  formPartContentTypes: Record<string, string>;
   rawMode: RawMode;
   customQueryParams: CustomParamRow[];
   customBodyParams: CustomParamRow[];
@@ -1930,6 +2034,7 @@ function buildInitialDebugState(
     body: initialBodyValueForContent(firstBody, bodyDefaults),
     formFields: initialFormFieldsForContent(firstBody, bodyDefaults),
     formPartHeaders: initialFormPartHeadersForContent(firstBody),
+    formPartContentTypes: {},
     rawMode: inferRawMode(firstBody),
     customQueryParams: [],
     customBodyParams: [],
@@ -2005,6 +2110,7 @@ function restoreInitialDebugStateFromCache(
     formPartHeaders: restoreCachedBody
       ? mergeCachedFormPartHeaders(selectedBody, cached.formPartHeaders)
       : initialFormPartHeadersForContent(selectedBody),
+    formPartContentTypes: restoreCachedBody ? { ...(cached.formPartContentTypes ?? {}) } : {},
     rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
     customQueryParams: cached.customQueryParams,
     customBodyParams: restoreCachedBody ? cached.customBodyParams : [],
@@ -2214,6 +2320,7 @@ export default function ApiDebug() {
   const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
   const [formPartHeaders, setFormPartHeaders] = useState<Record<string, Record<string, string>>>({});
+  const [formPartContentTypes, setFormPartContentTypes] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const binaryBodyFileRef = useRef<File | null>(null);
   const [rawMode, setRawMode] = useState<RawMode>('text');
@@ -2285,6 +2392,7 @@ export default function ApiDebug() {
     setBody(initial.body);
     setFormFields(initial.formFields);
     setFormPartHeaders(initial.formPartHeaders);
+    setFormPartContentTypes(initial.formPartContentTypes);
     fileFieldsRef.current = {};
     binaryBodyFileRef.current = null;
     setRawMode(initial.rawMode);
@@ -2389,6 +2497,7 @@ export default function ApiDebug() {
       body,
       formFields,
       formPartHeaders,
+      formPartContentTypes,
       rawMode,
       customQueryParams,
       customBodyParams,
@@ -2406,6 +2515,7 @@ export default function ApiDebug() {
     debugCacheKey,
     formFields,
     formPartHeaders,
+    formPartContentTypes,
     method,
     paramEnabled,
     paramValues,
@@ -2441,6 +2551,18 @@ export default function ApiDebug() {
         }
       } else if (
         result.target.mediaType === selectedContentType &&
+        result.target.context.bodyContent?.category === 'multipart' &&
+        result.representation.data !== undefined &&
+        result.target.context.bodyContent.oas32Form &&
+        result.representation.serialization !== 'invalid' &&
+        !result.representation.external
+      ) {
+        setSerializedBodyMedia32(undefined);
+        setFormFields(
+          oas32FormFieldsFromInstance(result.target.context.bodyContent.oas32Form, result.representation.data),
+        );
+      } else if (
+        result.target.mediaType === selectedContentType &&
         result.representation.text !== undefined &&
         result.representation.serialization !== 'invalid' &&
         !result.representation.external &&
@@ -2474,6 +2596,11 @@ export default function ApiDebug() {
     },
     [],
   );
+
+  const setFormPartContentTypesFromUser = useCallback((next: React.SetStateAction<Record<string, string>>) => {
+    debugDefaultEditRevisionRef.current += 1;
+    setFormPartContentTypes(next);
+  }, []);
 
   const updateValue = (param: DebugParam, next: string) => {
     debugDefaultEditRevisionRef.current += 1;
@@ -2840,6 +2967,7 @@ export default function ApiDebug() {
     const partHeaderSnapshot = Object.fromEntries(
       Object.entries(formPartHeaders).map(([fieldName, headers]) => [fieldName, { ...headers }]),
     );
+    const partContentTypeSnapshot = { ...formPartContentTypes };
 
     return {
       pathParams: collectForIn(debugModel.pathParams),
@@ -2880,6 +3008,7 @@ export default function ApiDebug() {
       fileFields: fileSnapshot,
       jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
       formPartHeaders: category === 'multipart' ? partHeaderSnapshot : undefined,
+      formPartContentTypes: category === 'multipart' ? partContentTypeSnapshot : undefined,
     };
   };
 
@@ -2906,13 +3035,30 @@ export default function ApiDebug() {
         contextPath: groupContextPath,
       },
     );
-    const curl = buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'));
+    const curlWithoutEnvelope = buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'));
+    const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
+    if (isOas32 && getCurrentCategory() === 'multipart' && !multipartPlan) {
+      throw new Error(t('apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE'));
+    }
+    const files = (formValues.fileFields ?? {}) as Record<string, File[]>;
+    const materializedMultipart =
+      multipartPlan && (isOas32 || multipartPlanNeedsEncodedEnvelope(multipartPlan))
+        ? materializeMultipartBody(multipartPlan, files)
+        : undefined;
+    if (materializedMultipart?.contentType) {
+      applyMaterializedMultipartContentType(built.headers, materializedMultipart.contentType);
+      built.contentType = materializedMultipart.contentType;
+    }
+    const curl = materializedMultipart
+      ? buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'))
+      : curlWithoutEnvelope;
     return {
       formValues,
       built,
       curl,
       cookieParameterSource: effectiveCookieSource,
       credentials: cookieSession.credentials,
+      materializedMultipart,
     };
   };
 
@@ -2945,6 +3091,7 @@ export default function ApiDebug() {
       formPartHeaders: Object.fromEntries(
         Object.entries(formPartHeaders).map(([fieldName, headers]) => [fieldName, { ...headers }]),
       ),
+      formPartContentTypes: { ...formPartContentTypes },
       rawMode,
       customQueryParams: customQueryParams.map((row) => ({ ...row })),
       customBodyParams: customBodyParams.map((row) => ({ ...row })),
@@ -3013,6 +3160,7 @@ export default function ApiDebug() {
         ]),
       );
       setFormPartHeaders(mergeCachedFormPartHeaders(snapshotBodyContent, restoredPartHeaders));
+      setFormPartContentTypes({ ...(snap.formPartContentTypes ?? {}) });
       setRawMode(snap.rawMode);
       setCustomQueryParams(snap.customQueryParams);
       setCustomBodyParams(snap.customBodyParams);
@@ -3109,6 +3257,7 @@ export default function ApiDebug() {
       built,
       cookieParameterSource: requestCookieSource = 'explicit',
       credentials = 'same-origin',
+      materializedMultipart: preparedMultipart,
     } = previewResult.value;
 
     // required 校验 — 用 core 侧统一校验，并携带定位 key
@@ -3142,11 +3291,22 @@ export default function ApiDebug() {
     const isBinaryBody = Boolean(activeBodyContent?.binary);
     // core 的 multipart built.body 是已经按发送规则过滤后的文本 part 映射，
     // 历史、cURL 和真实 FormData 共用它，避免在 UI 层维护第二套过滤逻辑。
-    const multipartTextFields = isMultipart ? (JSON.parse(built.body ?? '{}') as Record<string, string>) : {};
+    const multipartTextFields =
+      isMultipart && multipartPlan?.wire !== 'authored'
+        ? (() => {
+            try {
+              return JSON.parse(built.body ?? '{}') as Record<string, string>;
+            } catch {
+              return {};
+            }
+          })()
+        : {};
     const multipartFiles = (formValues.fileFields ?? {}) as Record<string, File[]>;
     const hasMultipartFile = Object.values(multipartFiles).some((files) => files.length > 0);
     const hasBodyInput = isMultipart
-      ? (multipartPlan?.parts.length ?? Object.keys(multipartTextFields).length) > 0 || hasMultipartFile
+      ? multipartPlan?.wire === 'authored'
+        ? Boolean(multipartPlan.authoredBody)
+        : (multipartPlan?.parts.length ?? Object.keys(multipartTextFields).length) > 0 || hasMultipartFile
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
         : built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true);
@@ -3386,17 +3546,19 @@ export default function ApiDebug() {
       // multipart: built.body only represents text fields and cannot carry filenames.
       // Persist the sent text parts + filename/size placeholders (binary content is never stored).
       const historyBody = isMultipart
-        ? multipartPlan
-          ? buildOas31MultipartHistoryBody(multipartPlan)
-          : buildMultipartHistoryBody(
-              multipartTextFields,
-              Object.fromEntries(
-                Object.entries(multipartFiles).map(([name, fileList]) => [
-                  name,
-                  fileList.map((file) => ({ name: file.name, size: file.size })),
-                ]),
-              ),
-            )
+        ? multipartPlan?.wire === 'authored'
+          ? multipartPlan.authoredBody
+          : multipartPlan
+            ? buildOas31MultipartHistoryBody(multipartPlan)
+            : buildMultipartHistoryBody(
+                multipartTextFields,
+                Object.fromEntries(
+                  Object.entries(multipartFiles).map(([name, fileList]) => [
+                    name,
+                    fileList.map((file) => ({ name: file.name, size: file.size })),
+                  ]),
+                ),
+              )
         : isBinaryBody && binaryBodyFileRef.current
           ? JSON.stringify({ file: binaryBodyFileRef.current.name, size: binaryBodyFileRef.current.size })
           : built.body;
@@ -3457,7 +3619,13 @@ export default function ApiDebug() {
         signal: abortController.signal,
       };
 
-      if (multipartPlan) {
+      if (isOas32 && isMultipart && !preparedMultipart && !multipartPlan) {
+        throw new Error(t('apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE'));
+      }
+      if (preparedMultipart) {
+        init.body = preparedMultipart.body;
+        applyMaterializedMultipartContentType(init.headers as Record<string, string>, preparedMultipart.contentType);
+      } else if (multipartPlan) {
         const materialized = materializeMultipartBody(multipartPlan, multipartFiles);
         init.body = materialized.body;
         applyMaterializedMultipartContentType(init.headers as Record<string, string>, materialized.contentType);
@@ -3936,17 +4104,41 @@ export default function ApiDebug() {
       setParamValues((previous) => ({ ...previous, [key]: entry?.text ?? '' }));
       setParamEnabled((previous) => ({ ...previous, [key]: !!entry }));
     } else if (result.target.group.startsWith('body:')) {
+      const bodyContent = result.target.context.bodyContent;
+      const isMultipartBody = bodyContent?.category === 'multipart';
+      const authoredMultipart =
+        Boolean(isOas32) &&
+        isMultipartBody &&
+        result.representation.fields.serializedValue &&
+        result.representation.text !== undefined &&
+        !result.representation.external &&
+        result.representation.serialization !== 'invalid';
       const usable =
         result.representation.text !== undefined &&
         !result.representation.external &&
         result.representation.serialization !== 'invalid' &&
-        !result.target.context.bodyContent?.binary &&
-        result.target.context.bodyContent?.category !== 'multipart';
+        !bodyContent?.binary &&
+        !isMultipartBody;
       setSelectedContentType(result.target.mediaType ?? '');
-      setSerializedBodyMedia32(usable ? result.target.mediaType : undefined);
-      setBody(usable ? result.representation.text! : '');
-      setFormFields({});
-      setRawMode(inferRawMode(result.target.context.bodyContent));
+      setFormPartContentTypes({});
+      if (authoredMultipart) {
+        setSerializedBodyMedia32(result.target.mediaType);
+        setBody(result.representation.text!);
+        setFormFields({});
+      } else if (usable) {
+        setSerializedBodyMedia32(result.target.mediaType);
+        setBody(result.representation.text!);
+        setFormFields({});
+      } else if (isOas32 && isMultipartBody && result.representation.data !== undefined && bodyContent?.oas32Form) {
+        setSerializedBodyMedia32(undefined);
+        setBody('');
+        setFormFields(oas32FormFieldsFromInstance(bodyContent.oas32Form, result.representation.data));
+      } else {
+        setSerializedBodyMedia32(undefined);
+        setBody('');
+        setFormFields({});
+      }
+      setRawMode(inferRawMode(bodyContent));
     }
   };
   const renderExamplePickers32 = (location: string) =>
@@ -4332,6 +4524,8 @@ export default function ApiDebug() {
               setFormFields={setFormFieldsFromUser}
               formPartHeaders={formPartHeaders}
               setFormPartHeaders={setFormPartHeadersFromUser}
+              formPartContentTypes={formPartContentTypes}
+              setFormPartContentTypes={setFormPartContentTypesFromUser}
               enableDynamicParameter={settings.enableDynamicParameter}
               customBodyParams={customBodyParams}
               setCustomBodyParams={setCustomBodyParams}

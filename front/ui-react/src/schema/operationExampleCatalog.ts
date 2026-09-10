@@ -1,6 +1,7 @@
 import {
   analyzeOas31Parameter,
   analyzeOas31FormBody,
+  analyzeOas32FormBody,
   normalizeAllOfSchema,
   exampleHasOwn,
   getOpenApiSpecificationFeatures,
@@ -19,6 +20,7 @@ import {
   type OperationDebugModel,
   type Oas32Parameter,
   type Oas32ParameterResult,
+  type SchemaValue,
 } from 'knife4j-core';
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
@@ -312,29 +314,51 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
             : 'raw';
       const ownerDocument = record(snapshot.nodes.get((media ?? site).ownerRetrievalUri)?.document) ?? {};
       const schema =
-        rawSchema && category === 'urlencoded' ? normalizeAllOfSchema(rawSchema, ownerDocument) : rawSchema;
+        rawSchema && (category === 'urlencoded' || category === 'multipart')
+          ? normalizeAllOfSchema(rawSchema, ownerDocument)
+          : rawSchema;
+      const encoding = value && exampleHasOwn(value, 'encoding') ? value.encoding : undefined;
+      const prefixEncoding = value && exampleHasOwn(value, 'prefixEncoding') ? value.prefixEncoding : undefined;
+      const itemEncoding = value && exampleHasOwn(value, 'itemEncoding') ? value.itemEncoding : undefined;
+      const itemSchema = value && exampleHasOwn(value, 'itemSchema') ? (value.itemSchema as SchemaValue) : undefined;
+      const oas32Form =
+        category === 'urlencoded' || category === 'multipart'
+          ? analyzeOas32FormBody({
+              mediaType,
+              schema,
+              itemSchema,
+              encoding,
+              prefixEncoding,
+              itemEncoding,
+              fileFields: [],
+              multipleFileFields: [],
+              document: ownerDocument,
+            })
+          : undefined;
+      const namedForm =
+        category === 'urlencoded' || oas32Form?.layout === 'named'
+          ? analyzeOas31FormBody({
+              mediaType,
+              schema,
+              encoding: record(value?.encoding) ?? undefined,
+              fileFields: [],
+              multipleFileFields: [],
+              document: ownerDocument,
+            })
+          : undefined;
       const bodyContent: BodyContent = {
         mediaType,
         category,
         schema,
+        itemSchema,
         binary:
           (category === 'raw' &&
             (essence === 'application/octet-stream' ||
               /^(image|audio|video)\//.test(essence) ||
               schema?.format === 'binary')) ||
           undefined,
-        ...(category === 'urlencoded'
-          ? {
-              oas31Form: analyzeOas31FormBody({
-                mediaType,
-                schema,
-                encoding: record(value?.encoding) ?? undefined,
-                fileFields: [],
-                multipleFileFields: [],
-                document: ownerDocument,
-              }),
-            }
-          : {}),
+        ...(namedForm ? { oas31Form: namedForm } : {}),
+        ...(oas32Form ? { oas32Form } : {}),
       };
       if (direction === 'request') bodies.push(bodyContent);
       const group = direction === 'request' ? `body:${mediaType}` : `response:${statusCode}:${mediaType}`;
@@ -417,6 +441,20 @@ export function exampleDefaultTarget(targets: readonly OperationExampleTarget[])
   return targets.find((target) => !target.source) ?? targets[0];
 }
 
+function mergeExampleBody(original: BodyContent | undefined, overlay: BodyContent): BodyContent {
+  if (!original) return overlay;
+  return {
+    ...original,
+    ...overlay,
+    oas31Form: overlay.oas31Form ?? original.oas31Form,
+    oas32Form: overlay.oas32Form ?? original.oas32Form,
+    fileFields: overlay.fileFields ?? original.fileFields,
+    fileFieldsMultiple: overlay.fileFieldsMultiple ?? original.fileFieldsMultiple,
+    jsonFields: overlay.jsonFields ?? original.jsonFields,
+    itemSchema: overlay.itemSchema ?? original.itemSchema,
+  };
+}
+
 export function exampleDebugModel(model: OperationDebugModel, catalog: OperationExampleCatalog): OperationDebugModel {
   const update = (params: readonly DebugParam[]) =>
     params.map((param) => {
@@ -425,13 +463,16 @@ export function exampleDebugModel(model: OperationDebugModel, catalog: Operation
         ? { ...param, ...located, example: undefined, default: undefined }
         : param;
     });
+  const originals = new Map(model.bodyContents.map((body) => [body.mediaType, body]));
+  const merged = catalog.bodies.map((body) => mergeExampleBody(originals.get(body.mediaType), body));
+  const extras = model.bodyContents.filter((body) => !catalog.bodies.some((item) => item.mediaType === body.mediaType));
   return {
     ...model,
     pathParams: update(model.pathParams),
     queryParams: update(model.queryParams),
     headerParams: update(model.headerParams),
     cookieParams: update(model.cookieParams),
-    bodyContents: [...catalog.bodies],
+    bodyContents: merged.length > 0 ? [...merged, ...extras] : model.bodyContents,
   };
 }
 

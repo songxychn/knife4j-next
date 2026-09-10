@@ -696,6 +696,69 @@ describe('reviewed catalog codec integration', () => {
     expect(result.representation.text).toBe('q=%2B+');
   });
 
+  test('keeps OAS 3.2 multipart positional encoding after the example catalog overlay', () => {
+    const media = {
+      schema: {
+        type: 'array',
+        prefixItems: [{ type: 'string' }],
+        items: { type: 'string' },
+      },
+      prefixEncoding: [{ contentType: 'text/plain' }],
+      itemEncoding: { contentType: 'text/plain' },
+    };
+    const document = {
+      openapi: '3.2.0',
+      info: { title: 'Multipart mixed', version: '1' },
+      paths: {
+        '/mixed': {
+          post: {
+            requestBody: { required: true, content: { 'multipart/mixed': media } },
+            responses: { '204': { description: 'done' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+    const op = operation(document);
+    const catalog = locateOperationExampleCatalog(document, op);
+    expect(catalog.bodies[0]).toMatchObject({
+      category: 'multipart',
+      oas32Form: {
+        layout: 'positional',
+        extraItemTemplate: expect.objectContaining({ extraItem: true }),
+      },
+    });
+    const model = exampleDebugModel(
+      buildOperationDebugModel({
+        doc: document as unknown as Record<string, unknown>,
+        path: op.path,
+        method: op.method,
+        operationIdentity: op.identity,
+      }),
+      catalog,
+    );
+    expect(model.bodyContents[0].oas32Form?.fields.map((field) => field.name)).toEqual(['0']);
+    expect(model.bodyContents[0].oas32Form?.extraItemTemplate?.name).toBe('1');
+    const request = buildRequest({
+      baseUrl: 'https://api.example',
+      path: op.path,
+      method: op.method,
+      debugModel: model,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'multipart/mixed',
+        formFields: { '0': 'alpha' },
+      },
+    });
+    expect(request.formBodyPlan).toMatchObject({
+      specFamily: '3.2',
+      parts: [{ kind: 'text', value: 'alpha', sourceField: '0' }],
+    });
+  });
+
   test('does not treat OAS 3.0 or 3.1 documents as 3.2 example catalogs', () => {
     for (const openapi of ['3.0.3', '3.1.0']) {
       const document = {

@@ -489,6 +489,31 @@ const enUS = {
   'apiDebug.formDiagnostic.FILE_REQUIRED': 'A required file is missing.',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': 'The selected file count does not satisfy the Schema.',
   'apiDebug.formDiagnostic.FILE_MEDIA_TYPE': 'The file media type does not match the encoding declaration.',
+  'apiDebug.formDiagnostic.ENCODING_CONFLICT':
+    'encoding cannot take effect together with prefixEncoding or itemEncoding.',
+  'apiDebug.formDiagnostic.ENCODING_IGNORED':
+    'This encoding field does not apply to the selected media type and was ignored.',
+  'apiDebug.formDiagnostic.POSITIONAL_SCHEMA_REQUIRED': 'Positional encoding requires an array schema or itemSchema.',
+  'apiDebug.formDiagnostic.HEADER_NOT_ALLOWED': 'This part header is not allowed for the current multipart subtype.',
+  'apiDebug.formDiagnostic.NESTING_UNSUPPORTED': 'Nested multipart exceeds the one supported nesting level.',
+  'apiDebug.formDiagnostic.STREAMING_UNSUPPORTED':
+    'Infinite multipart streams are unsupported; only a finite part list is materialized.',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_CHOICE_REQUIRED':
+    'Choose the part Content-Type explicitly; filename or first-item sniffing is not used.',
+  'apiDebug.formDiagnostic.AUTHORED_BOUNDARY_MISMATCH':
+    'Authored MIME text must keep the media-type boundary parameter as a pair.',
+  'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'A part would collide with the MIME delimiter and was rejected.',
+  'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'Multipart nesting exceeds the depth limit.',
+  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT':
+    'Request materialization was cancelled or exceeded its time budget.',
+  'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
+    'Browser FormData cannot represent this multipart structure; an explicit envelope or diagnostic boundary is used.',
+  'apiDebug.body.choosePartContentType': 'Part Content-Type',
+  'apiDebug.body.choosePartContentType.placeholder': 'Choose a media type',
+  'apiDebug.body.addPart': 'Add another part',
+  'apiDebug.preview.multipartWire': 'MIME bytes shared with cURL and the actual send',
+  'apiDebug.preview.multipartBodyFile':
+    'cURL uses --data-binary @knife4j-multipart-body.bin and must not regenerate the envelope with -F.',
   'apiDebug.responseSchemaValidation.title': 'Response body does not match the OAS 3.1 JSON Schema',
   'apiDebug.responseSchemaValidation.nonBlocking':
     'This diagnostic does not change the HTTP status, response body, headers, or request history.',

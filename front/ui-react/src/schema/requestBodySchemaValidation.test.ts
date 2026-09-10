@@ -344,4 +344,50 @@ describe('request body schema evaluation', () => {
     expect(consumeRequestBodySchemaOverride(4, consumed!, 'group|tag|operation', 'group|tag|operation')).toBeNull();
     expect(consumeRequestBodySchemaOverride(4, 4, 'old', 'new')).toBeNull();
   });
+
+  test('evaluates OAS 3.2 complete schema and itemSchema independently', async () => {
+    const mediaType = 'multipart/mixed';
+    const operationObject: OperationObject = {
+      requestBody: {
+        content: {
+          [mediaType]: {
+            schema: { type: 'array', maxItems: 2 },
+            itemSchema: { type: 'integer' },
+          },
+        },
+      },
+      responses: { 204: { description: 'accepted' } },
+    };
+    const document: SwaggerDoc = {
+      openapi: '3.2.0',
+      info: { title: 'OAS 3.2 multipart', version: '1.0.0' },
+      paths: { '/submit': { post: operationObject } },
+    };
+    const currentOperation = operation('/submit', operationObject);
+    const prepared = prepareRequestBodySchemaEvaluation({
+      document,
+      operation: currentOperation,
+      schemaMediaType: mediaType,
+      effectiveContentType: mediaType,
+      body: undefined,
+      formBodyPlan: {
+        kind: 'multipart',
+        mediaType,
+        parts: [],
+        instance: [1, 2] as unknown as Record<string, never>,
+        ignoredProperties: [],
+        diagnostics: [],
+        specFamily: '3.2',
+      },
+    });
+    expect(prepared).toMatchObject({
+      status: 'ready',
+      itemSchemaReference: expect.stringContaining('itemSchema'),
+      itemInstances: [1, 2],
+    });
+    if (prepared.status !== 'ready') throw new Error('expected 3.2 preparation');
+    const { session, evaluate } = fakeSession({ valid: true, errors: [], annotations: [] });
+    await expect(evaluateRequestBodySchema(session, prepared)).resolves.toEqual({ status: 'valid' });
+    expect(evaluate).toHaveBeenCalledTimes(3);
+  });
 });

@@ -497,6 +497,31 @@ const jaJP = {
   'apiDebug.formDiagnostic.FILE_REQUIRED': '必須ファイルがありません。',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': '選択したファイル数が Schema 制約を満たしていません。',
   'apiDebug.formDiagnostic.FILE_MEDIA_TYPE': 'ファイルのメディアタイプが encoding 宣言と一致しません。',
+  'apiDebug.formDiagnostic.ENCODING_CONFLICT': 'encoding は prefixEncoding / itemEncoding と同時に有効になりません。',
+  'apiDebug.formDiagnostic.ENCODING_IGNORED':
+    'この encoding フィールドは選択中のメディアタイプに適用されないため無視されました。',
+  'apiDebug.formDiagnostic.POSITIONAL_SCHEMA_REQUIRED':
+    '位置エンコーディングには配列 schema または itemSchema が必要です。',
+  'apiDebug.formDiagnostic.HEADER_NOT_ALLOWED': 'この part Header は現在の multipart サブタイプでは許可されません。',
+  'apiDebug.formDiagnostic.NESTING_UNSUPPORTED': 'ネストされた multipart がサポートする 1 階層を超えています。',
+  'apiDebug.formDiagnostic.STREAMING_UNSUPPORTED':
+    '無限の multipart ストリームはサポートしません。有限の part リストのみを実体化します。',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_CHOICE_REQUIRED':
+    'part の Content-Type を明示的に選択してください。ファイル名や先頭項目からの推定はしません。',
+  'apiDebug.formDiagnostic.AUTHORED_BOUNDARY_MISMATCH':
+    '著者の MIME 原文はメディアタイプの boundary パラメータと対で保持する必要があります。',
+  'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'part 内容が区切り文字と衝突するため生成を拒否しました。',
+  'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'multipart のネスト深度が制限を超えています。',
+  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT':
+    'リクエスト実体化がキャンセルされたか、時間予算を超えました。',
+  'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
+    'ブラウザ FormData ではこの multipart 構造を表せないため、明示的なエンベロープまたは診断境界を使います。',
+  'apiDebug.body.choosePartContentType': 'Part Content-Type',
+  'apiDebug.body.choosePartContentType.placeholder': 'メディアタイプを選択',
+  'apiDebug.body.addPart': '後続 part を追加',
+  'apiDebug.preview.multipartWire': 'cURL / 実送信と同一の MIME バイト',
+  'apiDebug.preview.multipartBodyFile':
+    'cURL は --data-binary @knife4j-multipart-body.bin を使い、-F で別エンベロープを再生成してはなりません。',
   'apiDebug.responseSchemaValidation.title': 'レスポンスボディが OAS 3.1 JSON Schema に適合していません',
   'apiDebug.responseSchemaValidation.nonBlocking':
     'この診断は HTTP ステータス、レスポンス本文、Header、リクエスト履歴を変更しません。',

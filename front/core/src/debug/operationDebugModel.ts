@@ -28,6 +28,7 @@ import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/docum
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 import { analyzeOas31FormBody } from './formBodyEncoding';
+import { analyzeOas32FormBody } from './oas32FormBodyEncoding';
 import { buildOas32ParameterCollection } from './oas32ParameterModel';
 import { oas32EditorParameter } from './oas32ParameterSerialization';
 import type { Oas32ParameterContext } from './oas32ParameterTypes';
@@ -83,9 +84,12 @@ interface OAS3RequestBody {
     string,
     {
       schema?: Record<string, unknown>;
+      itemSchema?: Record<string, unknown> | boolean;
       example?: unknown;
       examples?: Record<string, unknown>;
       encoding?: Record<string, unknown>;
+      prefixEncoding?: unknown;
+      itemEncoding?: unknown;
     }
   >;
   $ref?: string;
@@ -1024,6 +1028,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
         const effectiveCategory: BodyContentType = isMultipartFallback ? 'multipart' : declaredCategory;
         const isMultipart = effectiveCategory === 'multipart';
         const encoding = mediaObj.encoding;
+        const isOas32 = getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2';
+        const itemSchema =
+          isOas32 && Object.prototype.hasOwnProperty.call(mediaObj, 'itemSchema')
+            ? (mediaObj.itemSchema as SchemaValue)
+            : undefined;
         const binary =
           effectiveCategory === 'raw' &&
           ((schema?.format === 'binary' &&
@@ -1048,21 +1057,56 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
                 document: doc as Record<string, unknown>,
               })
             : undefined;
+        const oas32Form =
+          isOas32 && !isMultipartFallback && (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+            ? analyzeOas32FormBody({
+                mediaType: effectiveMediaType,
+                schema,
+                itemSchema,
+                encoding,
+                prefixEncoding: mediaObj.prefixEncoding,
+                itemEncoding: mediaObj.itemEncoding,
+                fileFields: fileFields ?? [],
+                multipleFileFields: fileFieldsMultiple ?? [],
+                document: doc as Record<string, unknown>,
+              })
+            : undefined;
+        const oas32NamedForm =
+          isOas32 &&
+          oas32Form?.layout === 'named' &&
+          schema &&
+          !isMultipartFallback &&
+          (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+            ? analyzeOas31FormBody({
+                mediaType: effectiveMediaType,
+                schema,
+                encoding,
+                fileFields: fileFields ?? [],
+                multipleFileFields: fileFieldsMultiple ?? [],
+                document: doc as Record<string, unknown>,
+              })
+            : undefined;
+        const positionalFiles =
+          oas32Form?.layout === 'positional'
+            ? oas32Form.fields.filter((field) => field.file).map((field) => field.name)
+            : [];
 
         bodyContents.push({
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
+          itemSchema,
           exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, bodyCtx, { mediaType }),
           binary: binary || undefined,
-          fileFields,
+          fileFields: positionalFiles.length > 0 ? [...(fileFields ?? []), ...positionalFiles] : fileFields,
           // 区分「单文件」与「多文件」语义（issue #251）：
           // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录
           // 其中允许多选的子集。UI 层据此决定 `<Upload multiple>` 和 FormData
           // 组装时 append 几次。
           fileFieldsMultiple,
           jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
-          oas31Form,
+          oas31Form: oas31Form ?? oas32NamedForm,
+          oas32Form,
         });
       }
     }

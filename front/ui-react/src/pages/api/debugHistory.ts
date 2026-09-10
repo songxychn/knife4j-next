@@ -41,6 +41,8 @@ export interface DebugHistoryFormSnapshot {
   formFields: Record<string, string>;
   /** Multipart Encoding Object Header Object editor values. */
   formPartHeaders?: Record<string, Record<string, string>>;
+  /** Explicit per-part Content-Type choices; never inferred from filename. */
+  formPartContentTypes?: Record<string, string>;
   rawMode: DebugHistoryRawMode;
   customQueryParams: DebugHistoryCustomParamRow[];
   customBodyParams: DebugHistoryCustomParamRow[];
@@ -359,8 +361,21 @@ export function buildMultipartHistoryBody(
 
 /** Persist only multipart plan metadata and redact sensitive per-part headers. */
 export function buildOas31MultipartHistoryBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
-  return JSON.stringify(
-    plan.parts.map((part) => ({
+  const formatPart = (part: (typeof plan.parts)[number]): Record<string, unknown> => {
+    if (part.kind === 'nested') {
+      return {
+        name: part.name,
+        contentType: part.contentType,
+        headers: Object.fromEntries(
+          Object.entries(part.headers).map(([name, value]) => [
+            name,
+            isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : value,
+          ]),
+        ),
+        parts: part.parts.map(formatPart),
+      };
+    }
+    return {
       name: part.name,
       ...(part.kind === 'file'
         ? {
@@ -375,10 +390,9 @@ export function buildOas31MultipartHistoryBody(plan: Extract<FormBodyEncodingPla
           isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : value,
         ]),
       ),
-    })),
-    null,
-    2,
-  );
+    };
+  };
+  return JSON.stringify(plan.parts.map(formatPart), null, 2);
 }
 
 function truncateStringRecord(fields: Record<string, string>): Record<string, string> {
@@ -417,6 +431,9 @@ export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHi
     body: truncateBody(snapshot.body).text,
     formFields: truncateStringRecord(snapshot.formFields),
     formPartHeaders: prepareFormPartHeaders(snapshot.formPartHeaders),
+    formPartContentTypes: snapshot.formPartContentTypes
+      ? truncateStringRecord(snapshot.formPartContentTypes)
+      : undefined,
     paramValues: truncateStringRecord(snapshot.paramValues),
     ...(snapshot.serializedExampleParameters
       ? {
@@ -488,6 +505,9 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     body: readString(value.body),
     formFields: readStringRecord(value.formFields),
     formPartHeaders: readNestedStringRecord(value.formPartHeaders),
+    formPartContentTypes: isRecord(value.formPartContentTypes)
+      ? readStringRecord(value.formPartContentTypes)
+      : undefined,
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
     customBodyParams: readCustomRows(value.customBodyParams),
