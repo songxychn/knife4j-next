@@ -138,6 +138,41 @@ describe('consumeOas32SequentialResponse', () => {
     expect(result.completeSchema).toEqual({ status: 'skipped', reason: 'truncated' });
   });
 
+  test('does not report a character-clipped SSE collection as a valid complete schema', async () => {
+    const { document, operation } = document32({
+      'text/event-stream': {
+        schema: { type: 'array' },
+        itemSchema: { type: 'object' },
+      },
+    });
+    const session = await createSchemaDocumentSession(
+      document,
+      'https://fixtures.knife4j.example/sequential-clip.json',
+    );
+    sessions.push(session);
+    const encoder = new TextEncoder();
+    const result = await consumeOas32SequentialResponse({
+      response: new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${'x'.repeat(80)}\n\n`));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      ),
+      contentType: 'text/event-stream',
+      document,
+      operation,
+      session,
+      limits: { maxRecordCharacters: 8 },
+    });
+    expect(result.termination).toBe('eof');
+    expect(result.items[0]?.record.complete).toBe(true);
+    expect(result.items[0]?.record.diagnostics.map((item) => item.code)).toContain('BUDGET_EXCEEDED');
+    expect(result.completeSchema).toEqual({ status: 'skipped', reason: 'not-representable' });
+  });
+
   test('keeps an invalid JSONL item distinct from later valid items', async () => {
     const { document, operation } = document32({
       'application/jsonl': {

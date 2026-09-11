@@ -176,7 +176,11 @@ export function sequentialItemInstance(record: Oas32SequentialRecord): unknown |
 }
 
 function recordIsRepresentable(item: Oas32SequentialItemView): boolean {
-  return item.record.complete && item.instance !== undefined;
+  return (
+    item.record.complete &&
+    item.instance !== undefined &&
+    !item.record.diagnostics.some((diagnostic) => diagnostic.code === 'BUDGET_EXCEEDED')
+  );
 }
 
 async function evaluateStatus(

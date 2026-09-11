@@ -2475,7 +2475,9 @@ export default function ApiDebug() {
     setBuiltRequest(cachedSession?.builtRequest ?? null);
     setBuiltRequestCookieSource(cachedSession?.builtRequestCookieSource ?? 'explicit');
     setSseEvents(cachedSession?.sseEvents ?? null);
-    setSequentialStream(cachedSession?.sequentialStream ?? null);
+    setSequentialStream(
+      cachedSession?.sequentialStream ? { ...cachedSession.sequentialStream, streaming: false } : null,
+    );
     setHydratedDebugCacheKey(debugCacheKey);
   }, [
     debugCacheKey,
@@ -2499,7 +2501,7 @@ export default function ApiDebug() {
       builtRequest,
       builtRequestCookieSource,
       sseEvents,
-      sequentialStream,
+      sequentialStream: sequentialStream ? { ...sequentialStream, streaming: false } : sequentialStream,
     });
   }, [
     builtRequest,

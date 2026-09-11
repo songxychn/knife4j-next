@@ -43,9 +43,13 @@ describe('SSE decoder', () => {
     expect(typeof (records[0]?.value as { event: { data: string } }).event.data).toBe('string');
   });
 
-  test('defaults unnamed events to message and ignores comments', () => {
-    const records = decodeOas32SequentialBytes(bytes(': keep-alive\n\ndata: hi\n\n'), 'text/event-stream');
-    expect(records.map((record) => record.value)).toEqual([{ kind: 'sse', event: { event: 'message', data: 'hi' } }]);
+  test('does not dispatch comment-only or empty-data events, and keeps id across later events', () => {
+    const records = decodeOas32SequentialBytes(
+      bytes(': keep-alive\n', 'id: 9\n\n', 'data: hi\n\n'),
+      'text/event-stream',
+    );
+    expect(records).toHaveLength(1);
+    expect(records[0]?.value).toEqual({ kind: 'sse', event: { event: 'message', data: 'hi', id: '9' } });
   });
 
   test('decodes UTF-8 split across chunks', () => {
