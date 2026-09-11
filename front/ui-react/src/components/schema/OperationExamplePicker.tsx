@@ -13,8 +13,11 @@ import SchemaDiscriminatorPanel from './SchemaDiscriminatorPanel';
 import CodeBlock from '../../pages/api/CodeBlock';
 import type { ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import { describeSchemaDiscriminator, discriminatorLocationFromOpenApi } from '../../schema/schemaDiscriminatorView';
-import { attachOas32XmlExampleSerialization, isOas32XmlMediaType } from '../../schema/oas32XmlExample';
-import type { ExampleRepresentation } from 'knife4j-core';
+import {
+  canApplyGeneratedExample,
+  materializeDiscriminatorGeneratedExample,
+  shouldCommitGeneratedExample,
+} from '../../schema/oas32XmlExample';
 
 export interface OperationExamplePickerProps {
   readonly targets: readonly OperationExampleTarget[];
@@ -115,43 +118,33 @@ export default function OperationExamplePicker({
           operationToken={operationToken ?? target.operationIdentity}
           onApplyGenerated={
             onApply && result && target.group.startsWith('body:')
-              ? (value) => {
+              ? (value, branchLocation) => {
                   void (async () => {
-                    const xmlMedia = isOas32XmlMediaType(target.mediaType ?? target.context.mediaType);
-                    const generated: ExampleRepresentation = {
-                      fields: {
-                        dataValue: true,
-                        serializedValue: false,
-                        externalValue: false,
-                        value: false,
-                      },
-                      data: value as never,
-                      dataSource: 'dataValue',
-                      pairing: 'absent',
-                      ...(xmlMedia
-                        ? {
-                            serialization: 'unavailable' as const,
-                            diagnostics: [{ phase: 'serialization' as const, code: 'CODEC_UNAVAILABLE' }],
-                          }
-                        : {
-                            text: JSON.stringify(value, null, 2),
-                            serialization: 'valid' as const,
-                            diagnostics: [],
-                          }),
-                    };
-                    const representation = await attachOas32XmlExampleSerialization(generated, {
+                    const revision = callbacks.current.editRevision?.() ?? 0;
+                    const representation = await materializeDiscriminatorGeneratedExample({
+                      value,
                       snapshot: snapshot ?? target.snapshot,
                       session,
-                      schemaLocation: target.schemaLocation
-                        ? {
-                            ownerRetrievalUri: target.schemaLocation.ownerRetrievalUri,
-                            pointer: target.schemaLocation.pointer,
-                          }
-                        : undefined,
+                      schemaLocation:
+                        branchLocation ??
+                        (target.schemaLocation
+                          ? {
+                              ownerRetrievalUri: target.schemaLocation.ownerRetrievalUri,
+                              pointer: target.schemaLocation.pointer,
+                            }
+                          : undefined),
                       mediaType: target.mediaType ?? target.context.mediaType,
-                      source: 'candidate',
                     });
-                    onApply({ ...result, authored: false, representation }, editRevision?.() ?? 0);
+                    if (
+                      !shouldCommitGeneratedExample(
+                        revision,
+                        callbacks.current.editRevision?.() ?? 0,
+                        canApplyGeneratedExample(representation) ? representation : undefined,
+                      )
+                    ) {
+                      return;
+                    }
+                    callbacks.current.onApply?.({ ...result, authored: false, representation }, revision);
                   })();
                 }
               : undefined

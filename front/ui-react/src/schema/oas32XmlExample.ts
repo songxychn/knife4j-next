@@ -42,9 +42,14 @@ export function overlayOas32XmlExampleRepresentation(
     )
     .map((diagnostic) => ({ phase: 'serialization' as const, code: diagnostic.code }));
   if (xml.status !== 'document' && xml.status !== 'fragment') {
-    return xmlDiagnostics.length === 0
-      ? representation
-      : { ...representation, diagnostics: [...representation.diagnostics, ...xmlDiagnostics] };
+    if (xmlDiagnostics.length === 0) return representation;
+    return {
+      ...representation,
+      diagnostics: [
+        ...representation.diagnostics.filter((diagnostic) => diagnostic.code !== 'CODEC_UNAVAILABLE'),
+        ...xmlDiagnostics,
+      ],
+    };
   }
   return {
     ...representation,
@@ -84,4 +89,60 @@ export async function attachOas32XmlExampleSerialization(
     signal: options.signal,
   });
   return overlayOas32XmlExampleRepresentation(representation, xml);
+}
+
+export function discriminatorGeneratedExampleSeed(value: unknown, xmlMedia: boolean): ExampleRepresentation {
+  return {
+    fields: {
+      dataValue: true,
+      serializedValue: false,
+      externalValue: false,
+      value: false,
+    },
+    data: value as never,
+    dataSource: 'dataValue',
+    pairing: 'absent',
+    ...(xmlMedia
+      ? {
+          serialization: 'unavailable' as const,
+          diagnostics: [{ phase: 'serialization' as const, code: 'CODEC_UNAVAILABLE' }],
+        }
+      : {
+          text: JSON.stringify(value, null, 2),
+          serialization: 'valid' as const,
+          diagnostics: [],
+        }),
+  };
+}
+
+export function canApplyGeneratedExample(representation: ExampleRepresentation): boolean {
+  return representation.text !== undefined && representation.serialization !== 'invalid';
+}
+
+export function shouldCommitGeneratedExample(
+  requestedRevision: number,
+  currentRevision: number,
+  representation: ExampleRepresentation | undefined,
+): representation is ExampleRepresentation {
+  return representation !== undefined && requestedRevision === currentRevision;
+}
+
+/** Serialize a discriminator-generated instance. Combinator parents stay diagnostic-only. */
+export async function materializeDiscriminatorGeneratedExample(options: {
+  readonly value: unknown;
+  readonly snapshot?: ResourceGraphSnapshot;
+  readonly session?: Pick<SchemaDocumentSession, 'resolve'>;
+  readonly schemaLocation?: Oas32XmlSchemaLocation;
+  readonly mediaType?: string;
+  readonly signal?: AbortSignal;
+}): Promise<ExampleRepresentation> {
+  const xmlMedia = isOas32XmlMediaType(options.mediaType);
+  return attachOas32XmlExampleSerialization(discriminatorGeneratedExampleSeed(options.value, xmlMedia), {
+    snapshot: options.snapshot,
+    session: options.session,
+    schemaLocation: options.schemaLocation,
+    mediaType: options.mediaType,
+    source: 'candidate',
+    signal: options.signal,
+  });
 }

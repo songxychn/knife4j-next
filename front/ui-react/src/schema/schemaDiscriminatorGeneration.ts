@@ -105,6 +105,13 @@ export type DiscriminatorGenerationResult = GenerationDetails &
       }
   );
 
+export function discriminatorGenerationSchemaLocation(
+  result: DiscriminatorGenerationResult,
+): Pick<DiscriminatorSchemaLocation, 'ownerRetrievalUri' | 'pointer'> | undefined {
+  const location = result.provenance.branch?.location ?? result.provenance.target?.location;
+  return location ? { ownerRetrievalUri: location.ownerRetrievalUri, pointer: location.pointer } : undefined;
+}
+
 const record = (value: unknown): Record<string, unknown> | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 const identity = (value: Location): string => JSON.stringify([value.ownerRetrievalUri, value.pointer]);

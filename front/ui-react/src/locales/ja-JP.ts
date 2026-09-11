@@ -68,6 +68,22 @@ const jaJP = {
   'schema.example32.diagnostics.UNMAPPED_DATA': 'Some logical data was not mapped to XML nodes.',
   'schema.example32.diagnostics.ATTRIBUTE_WITHOUT_ELEMENT':
     'An XML attribute has no parent element; no wrapper is invented.',
+  'schema.example32.diagnostics.VERSION_NOT_APPLICABLE': 'This XML serialization applies only to OpenAPI 3.2.x.',
+  'schema.example32.diagnostics.KNOWN_DATA_REQUIRED': 'Known logical data is required to produce XML.',
+  'schema.example32.diagnostics.SCHEMA_CONTEXT_MISMATCH':
+    'The Schema location does not match the current document session.',
+  'schema.example32.diagnostics.REFERENCE_UNAVAILABLE': 'The reference target is unavailable or unresolved.',
+  'schema.example32.diagnostics.REFERENCE_CYCLE': 'A reference cycle stopped XML serialization.',
+  'schema.example32.diagnostics.INVALID_XML_DECLARATION': 'The Schema xml object is not a valid declaration.',
+  'schema.example32.diagnostics.UNKNOWN_XML_DECLARATION': 'The xml object contains an unknown field.',
+  'schema.example32.diagnostics.RESERVED_NAMESPACE': 'A reserved XML namespace was used.',
+  'schema.example32.diagnostics.UNBOUND_PREFIX': 'The XML prefix is not bound to a namespace.',
+  'schema.example32.diagnostics.NAMESPACE_CONFLICT': 'XML namespace bindings conflict.',
+  'schema.example32.diagnostics.NAMESPACE_REBOUND': 'The namespace prefix is rebound on a descendant element.',
+  'schema.example32.diagnostics.ATTRIBUTE_NAMESPACE_REQUIRES_PREFIX': 'An attribute namespace requires a prefix.',
+  'schema.example32.diagnostics.DUPLICATE_ATTRIBUTE': 'Duplicate XML attributes were produced.',
+  'schema.example32.diagnostics.COMPLEX_TEXT_VALUE': 'Complex content cannot be serialized as a text node.',
+  'schema.example32.diagnostics.CANCELLED': 'XML serialization was cancelled.',
   // App / Layout
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI ドキュメント集約センター',
