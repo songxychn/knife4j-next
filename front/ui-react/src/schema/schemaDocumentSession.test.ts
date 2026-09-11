@@ -105,6 +105,30 @@ describe('SchemaDocumentSession', () => {
     await expect(session.evaluate('#/components/schemas/Pet', { id: '1' })).resolves.toMatchObject({ valid: false });
   });
 
+  test('resolves springdoc-style absolute self $refs when the group name is non-ASCII', async () => {
+    const groupName = 'Member接口文档';
+    const sourceUrl = `/v3/api-docs/${groupName}`;
+    const documentUri = schemaDocumentRetrievalUri(sourceUrl, groupName, 'https://docs.knife4j.example/doc.html');
+    const unicodeDocUri = `https://docs.knife4j.example/v3/api-docs/${groupName}`;
+    const document = openApiDocument({
+      $ref: `${unicodeDocUri}#/components/schemas/Item`,
+    });
+    (document.components!.schemas as Record<string, unknown>).Item = {
+      type: 'object',
+      required: ['id'],
+      properties: { id: { type: 'integer' } },
+      additionalProperties: false,
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch must not be called'));
+    const session = await createSchemaDocumentSession(document, documentUri);
+    sessions.push(session);
+
+    expect(documentUri).toContain('%E6%8E%A5');
+    await expect(session.evaluate('#/components/schemas/Pet', { id: 1 })).resolves.toMatchObject({ valid: true });
+    await expect(session.evaluate('#/components/schemas/Pet', { id: '1' })).resolves.toMatchObject({ valid: false });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test('keeps external references registry-only and performs no fetch', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch must not be called'));
     const session = await createSchemaDocumentSession(
