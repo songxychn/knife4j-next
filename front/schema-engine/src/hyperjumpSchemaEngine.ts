@@ -96,6 +96,50 @@ const owns = (value: object, key: string): boolean => Object.prototype.hasOwnPro
 const childPointer = (pointer: string, key: string | number): string =>
   `${pointer}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`;
 
+const SCHEMA_IDENTIFIER_KEYS = new Set(['$id', '$ref', '$dynamicRef', '$recursiveRef']);
+
+/**
+ * Decode UTF-8 percent-encoding in http(s) identifiers before Hyperjump IRI
+ * normalization. `@hyperjump/uri` unescapes `%XX` per Latin-1 code unit, so a
+ * path like `%E6%8E%A5` becomes a different identity than the Unicode `接`.
+ * ASCII percent-encoding (`%24`, `%20`, `%2F`) is left intact so JSON Pointer
+ * fragments are not double-encoded.
+ */
+function decodeUtf8PercentEncoding(value: string): string {
+  return value.replace(/(?:%[0-9A-Fa-f]{2})+/gi, (sequence) => {
+    const bytes = new Uint8Array(sequence.length / 3);
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Number.parseInt(sequence.slice(index * 3 + 1, index * 3 + 3), 16);
+    }
+    try {
+      const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      let offset = 0;
+      let result = '';
+      for (const char of decoded) {
+        const code = char.codePointAt(0)!;
+        const byteLength = code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+        result += code < 0x80 ? sequence.slice(offset, offset + byteLength * 3).toUpperCase() : char;
+        offset += byteLength * 3;
+      }
+      return result;
+    } catch {
+      return sequence.toUpperCase();
+    }
+  });
+}
+
+function canonicalizeHttpIri(uri: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    return uri;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return uri;
+  const hash = parsed.hash ? `#${decodeUtf8PercentEncoding(parsed.hash.slice(1))}` : '';
+  return `${parsed.origin}${decodeUtf8PercentEncoding(parsed.pathname)}${parsed.search}${hash}`;
+}
+
 function normalizeAbsoluteUri(uri: string, allowFragment: boolean): string {
   if (typeof uri !== 'string' || uri.length === 0) {
     throw new SchemaEngineError('INVALID_URI', 'Schema URI must be a non-empty absolute URI.', { uri });
@@ -104,8 +148,9 @@ function normalizeAbsoluteUri(uri: string, allowFragment: boolean): string {
     throw new SchemaEngineError('INVALID_URI', 'A retrieval URI must not contain a fragment.', { uri });
   }
   try {
-    parseIri(uri);
-    return normalizeIri(uri);
+    const canonical = canonicalizeHttpIri(uri);
+    parseIri(canonical);
+    return normalizeIri(canonical);
   } catch (error) {
     throw new SchemaEngineError('INVALID_URI', `Schema URI '${uri}' is not absolute.`, { uri }, error);
   }
@@ -163,7 +208,9 @@ function prepareDocumentForHyperjump(document: unknown): PreparedDocument {
     for (const key of HYPERJUMP_SCHEMA_CONTROL_KEYS) {
       const masked = maskedKey(key);
       if (!owns(value, masked)) continue;
-      value[key] = value[masked];
+      const restored = value[masked];
+      value[key] =
+        SCHEMA_IDENTIFIER_KEYS.has(key) && typeof restored === 'string' ? canonicalizeHttpIri(restored) : restored;
       delete value[masked];
     }
   };

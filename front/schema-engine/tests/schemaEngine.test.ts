@@ -299,6 +299,111 @@ describe('OpenAPI 3.1 and resource policy', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  test.each(['3.1.0', '3.1.1', '3.1.2'])(
+    'treats UTF-8 percent-encoded and Unicode self $refs as the same OpenAPI %s document',
+    async (openapi) => {
+      const engine = createEngine();
+      const groupName = 'Member接口文档';
+      const unicodeDocUri = `https://docs.knife4j.example/v3/api-docs/${groupName}`;
+      const encodedDocUri = new URL(unicodeDocUri).href;
+      const itemRef = `${unicodeDocUri}#/components/schemas/Item`;
+      const encodedItemRef = `${encodedDocUri}#/components/schemas/Item`;
+      const responsePointer = '#/paths/~1items/get/responses/200/content/application~1json/schema';
+      const document = {
+        openapi,
+        info: { title: 'Member API', version: '1.0.0' },
+        paths: {
+          '/items': {
+            get: {
+              operationId: 'listItems',
+              parameters: [
+                {
+                  name: 'q',
+                  in: 'query',
+                  schema: { $ref: `${unicodeDocUri}#/components/schemas/Query` },
+                },
+              ],
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: { $ref: itemRef },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        components: {
+          schemas: {
+            Query: { type: 'string', minLength: 1 },
+            Item: {
+              type: 'object',
+              required: ['id'],
+              properties: {
+                id: { type: 'integer' },
+                label: { $ref: `${unicodeDocUri}#/components/schemas/Query` },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+      };
+      const original = structuredClone(document);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch must not be called'));
+
+      expect(encodedDocUri).toContain('%E6%8E%A5');
+      expect(encodedDocUri).not.toBe(unicodeDocUri);
+      await expect(engine.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).resolves.toMatchObject({
+        valid: true,
+      });
+
+      await engine.registerDocument(document, encodedDocUri);
+      for (const schemaUri of [
+        `${encodedDocUri}${responsePointer}`,
+        `${unicodeDocUri}${responsePointer}`,
+        encodedItemRef,
+        itemRef,
+      ]) {
+        await expect(engine.evaluate(schemaUri, { id: 1, label: 'ok' })).resolves.toMatchObject({ valid: true });
+        await expect(engine.evaluate(schemaUri, { id: '1' })).resolves.toMatchObject({ valid: false });
+      }
+
+      const node = await engine.resolve(`${encodedDocUri}#/components/schemas/Item`);
+      expect(node.schema).toMatchObject({ type: 'object', required: ['id'] });
+      await expect(
+        engine.evaluate(`${encodedDocUri}#/paths/~1items/get/parameters/0/schema`, 'ab'),
+      ).resolves.toMatchObject({ valid: true });
+      await expect(
+        engine.evaluate('https://docs.knife4j.example/v3/api-docs/其他文档#/components/schemas/Item', { id: 1 }),
+      ).rejects.toMatchObject({ code: 'EXTERNAL_RESOURCE_LOADING_DISABLED' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(document).toEqual(original);
+    },
+  );
+
+  test('follows percent-encoded same-document $refs registered under a Unicode retrieval URI', async () => {
+    const engine = createEngine();
+    const unicodeDocUri = 'https://docs.knife4j.example/v3/api-docs/Member接口文档';
+    const encodedDocUri = new URL(unicodeDocUri).href;
+    const document = {
+      $schema: JSON_SCHEMA_2020_12,
+      $id: encodedDocUri,
+      $ref: `${encodedDocUri}#/$defs/Item`,
+      $defs: {
+        Item: { type: 'integer' },
+      },
+    };
+    const original = structuredClone(document);
+
+    await engine.registerDocument(document, unicodeDocUri);
+    await expect(engine.evaluate(unicodeDocUri, 1)).resolves.toMatchObject({ valid: true });
+    await expect(engine.evaluate(encodedDocUri, '1')).resolves.toMatchObject({ valid: false });
+    expect(document).toEqual(original);
+  });
+
   test('validates a fixed Springdoc-style document and its component schemas', async () => {
     const engine = createEngine();
     const documentUri = 'https://fixtures.knife4j.example/springdoc.openapi.json';
