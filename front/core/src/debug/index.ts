@@ -22,6 +22,8 @@ export type {
   Oas31FormFieldEncoding,
   Oas31FormField,
   Oas31FormBodyModel,
+  Oas32FormField,
+  Oas32FormBodyModel,
   OperationDebugModel,
   DebugFormValues,
   SerializedExampleParameter,
@@ -41,6 +43,7 @@ export type {
   UrlencodedFormEntry,
   MultipartTextPart,
   MultipartFilePart,
+  MultipartNestedPart,
   MultipartPart,
   FormBodyEncodingPlan,
   SchemaResolveContext,
@@ -80,6 +83,14 @@ export {
 // OAS 3.1 form request bodies
 export { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
 export type { AnalyzeOas31FormBodyOptions } from './formBodyEncoding';
+export {
+  analyzeOas32FormBody,
+  serializeOas32FormBody,
+  authoredMultipartPlan,
+  oas32FormFieldsFromInstance,
+  mediaTypeBoundary,
+} from './oas32FormBodyEncoding';
+export type { AnalyzeOas32FormBodyOptions } from './oas32FormBodyEncoding';
 
 // resolveRef
 export {
@@ -91,7 +102,7 @@ export {
 } from './resolveRef';
 
 // operationDebugModel
-export { buildOperationDebugModel, analyzeOas31Parameter } from './operationDebugModel';
+export { buildOperationDebugModel, analyzeOas31Parameter, extractMultipartUploadFields } from './operationDebugModel';
 export type { BuildDebugModelOptions } from './operationDebugModel';
 
 // requestBuilder
@@ -104,6 +115,7 @@ export {
   validateRequired,
   buildRequest,
   buildCurl,
+  OAS32_MULTIPART_CURL_BODY_FILE,
   buildUrlencodedBody,
 } from './requestBuilder';
 export type { BuildRequestOptions } from './requestBuilder';

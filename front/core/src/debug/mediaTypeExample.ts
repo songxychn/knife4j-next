@@ -108,7 +108,9 @@ export function buildMediaTypeExampleValue(
         category:
           mediaType.split(';', 1)[0].trim().toLowerCase() === 'application/x-www-form-urlencoded'
             ? ('urlencoded' as const)
-            : ('raw' as const),
+            : mediaType.split(';', 1)[0].trim().toLowerCase().startsWith('multipart/')
+              ? ('multipart' as const)
+              : ('raw' as const),
         schema,
       },
     };

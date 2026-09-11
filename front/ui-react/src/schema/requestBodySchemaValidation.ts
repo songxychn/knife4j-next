@@ -3,7 +3,7 @@ import type { FormBodyEncodingPlan } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import {
   evaluateSchemaDocumentDirectionallyIgnoringProperties,
-  isOas31SchemaDocument,
+  isSchemaEngineDocument,
   type SchemaDocumentSession,
 } from './schemaDocumentSession';
 import {
@@ -26,6 +26,9 @@ export type RequestBodySchemaPreparation =
       readonly reference: string;
       readonly instance: unknown;
       readonly ignoredProperties?: readonly string[];
+      readonly skipComplete?: boolean;
+      readonly itemSchemaReference?: string;
+      readonly itemInstances?: readonly unknown[];
     };
 
 export type RequestBodySchemaIssue = SchemaEvaluationIssue;
@@ -67,7 +70,12 @@ export function effectiveRequestContentType(headers: Readonly<Record<string, str
   return header?.[1] ?? fallback;
 }
 
-function locateRequestBodySchema(document: SwaggerDoc, operation: MenuOperation, mediaType: string): LocatedSchema {
+function locateRequestBodySchemaField(
+  document: SwaggerDoc,
+  operation: MenuOperation,
+  mediaType: string,
+  field: 'schema' | 'itemSchema',
+): LocatedSchema {
   const locatedOperation = locateOperationRecord(document, operation);
   if (!locatedOperation) return { status: 'unavailable' };
   const operationValue = locatedOperation.value;
@@ -80,47 +88,68 @@ function locateRequestBodySchema(document: SwaggerDoc, operation: MenuOperation,
 
   const content = asRecord(requestBody.value.content);
   const media = content ? asRecord(content[mediaType]) : null;
-  if (!media || !Object.prototype.hasOwnProperty.call(media, 'schema')) return { status: 'none' };
+  if (!media || !Object.prototype.hasOwnProperty.call(media, field)) return { status: 'none' };
 
   return {
     status: 'found',
-    reference: pointerReference([...requestBody.tokens, 'content', mediaType, 'schema']),
+    reference: pointerReference([...requestBody.tokens, 'content', mediaType, field]),
   };
+}
+
+function locateRequestBodySchema(document: SwaggerDoc, operation: MenuOperation, mediaType: string): LocatedSchema {
+  return locateRequestBodySchemaField(document, operation, mediaType, 'schema');
 }
 
 export function prepareRequestBodySchemaEvaluation(
   options: PrepareRequestBodySchemaEvaluationOptions,
 ): RequestBodySchemaPreparation {
   const { document, operation, schemaMediaType, effectiveContentType, body, formBodyPlan } = options;
-  if (!isOas31SchemaDocument(document) || !operation) return { status: 'skipped', reason: 'version' };
+  if (!isSchemaEngineDocument(document) || !operation) return { status: 'skipped', reason: 'version' };
   if (!formBodyPlan && !isJsonCompatibleMediaType(effectiveContentType)) {
     return { status: 'skipped', reason: 'content-type' };
   }
   if (!formBodyPlan && (body === undefined || body.trim() === '')) return { status: 'skipped', reason: 'empty-body' };
 
   const located = locateRequestBodySchema(document, operation, schemaMediaType);
-  if (located.status === 'none') return { status: 'skipped', reason: 'no-schema' };
-  if (located.status === 'unavailable') return located;
+  const itemLocated = locateRequestBodySchemaField(document, operation, schemaMediaType, 'itemSchema');
+  if (located.status === 'unavailable' || itemLocated.status === 'unavailable') return { status: 'unavailable' };
+  if (located.status === 'none' && itemLocated.status === 'none') return { status: 'skipped', reason: 'no-schema' };
 
+  let instance: unknown;
+  let ignoredProperties: readonly string[] | undefined;
   if (formBodyPlan) {
-    return {
-      status: 'ready',
-      reference: located.reference,
-      instance: formBodyPlan.instance,
-      ignoredProperties: formBodyPlan.ignoredProperties,
-    };
+    instance = formBodyPlan.instance;
+    ignoredProperties = formBodyPlan.ignoredProperties;
+  } else {
+    if (body === undefined) return { status: 'skipped', reason: 'empty-body' };
+    try {
+      instance = JSON.parse(body) as unknown;
+    } catch {
+      return { status: 'invalid-json' };
+    }
   }
-  if (body === undefined) return { status: 'skipped', reason: 'empty-body' };
 
-  try {
+  const itemInstances = Array.isArray(instance) ? instance : undefined;
+  if (located.status === 'found') {
     return {
       status: 'ready',
       reference: located.reference,
-      instance: JSON.parse(body) as unknown,
+      instance,
+      ...(ignoredProperties ? { ignoredProperties } : {}),
+      ...(itemLocated.status === 'found' && itemInstances
+        ? { itemSchemaReference: itemLocated.reference, itemInstances }
+        : {}),
     };
-  } catch {
-    return { status: 'invalid-json' };
   }
+  return {
+    status: 'ready',
+    reference: itemLocated.status === 'found' ? itemLocated.reference : '',
+    instance,
+    skipComplete: true,
+    ...(itemLocated.status === 'found' && itemInstances
+      ? { itemSchemaReference: itemLocated.reference, itemInstances }
+      : {}),
+  };
 }
 
 export async function evaluateRequestBodySchema(
@@ -128,35 +157,52 @@ export async function evaluateRequestBodySchema(
   preparation: Extract<RequestBodySchemaPreparation, { status: 'ready' }>,
   options: { readonly signal?: AbortSignal; readonly maxIssues?: number } = {},
 ): Promise<RequestBodySchemaEvaluation> {
-  const result: EvaluationResult =
-    preparation.ignoredProperties && preparation.ignoredProperties.length > 0
-      ? await evaluateSchemaDocumentDirectionallyIgnoringProperties(
-          session,
-          preparation.reference,
-          preparation.instance,
-          'request',
-          preparation.ignoredProperties,
-          { signal: options.signal },
-        )
-      : await session.evaluate(preparation.reference, preparation.instance, { signal: options.signal });
-  if (result.valid) return { status: 'valid' };
+  const collected: RequestBodySchemaIssue[] = [];
+  const evaluateOne = async (reference: string, instance: unknown, locationPrefix = '') => {
+    const result: EvaluationResult =
+      preparation.ignoredProperties && preparation.ignoredProperties.length > 0 && locationPrefix === ''
+        ? await evaluateSchemaDocumentDirectionallyIgnoringProperties(
+            session,
+            reference,
+            instance,
+            'request',
+            preparation.ignoredProperties,
+            { signal: options.signal },
+          )
+        : await session.evaluate(reference, instance, { signal: options.signal });
+    if (result.valid) return;
+    const issues = collectLeafSchemaIssues(result.errors);
+    if (issues.length === 0) {
+      collected.push({
+        instanceLocation: locationPrefix,
+        keyword: 'schema',
+        absoluteKeywordLocation: reference,
+      });
+      return;
+    }
+    for (const issue of issues) {
+      collected.push({
+        ...issue,
+        instanceLocation: `${locationPrefix}${issue.instanceLocation}`,
+      });
+    }
+  };
 
-  const issues = collectLeafSchemaIssues(result.errors);
-  const normalizedIssues =
-    issues.length > 0
-      ? issues
-      : [
-          {
-            instanceLocation: '',
-            keyword: 'schema',
-            absoluteKeywordLocation: preparation.reference,
-          },
-        ];
+  if (!preparation.skipComplete) {
+    await evaluateOne(preparation.reference, preparation.instance);
+  }
+  if (preparation.itemSchemaReference && preparation.itemInstances) {
+    for (const [index, item] of preparation.itemInstances.entries()) {
+      await evaluateOne(preparation.itemSchemaReference, item, `/${index}`);
+    }
+  }
+
+  if (collected.length === 0) return { status: 'valid' };
   const maxIssues = Math.max(1, options.maxIssues ?? 8);
   return {
     status: 'invalid',
-    issues: normalizedIssues.slice(0, maxIssues),
-    totalIssues: normalizedIssues.length,
+    issues: collected.slice(0, maxIssues),
+    totalIssues: collected.length,
   };
 }
 

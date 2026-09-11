@@ -110,7 +110,19 @@ export interface FormBodyDiagnostic {
     | 'FORM_BUDGET_EXCEEDED'
     | 'FILE_REQUIRED'
     | 'FILE_CARDINALITY'
-    | 'FILE_MEDIA_TYPE';
+    | 'FILE_MEDIA_TYPE'
+    | 'ENCODING_CONFLICT'
+    | 'ENCODING_IGNORED'
+    | 'POSITIONAL_SCHEMA_REQUIRED'
+    | 'HEADER_NOT_ALLOWED'
+    | 'NESTING_UNSUPPORTED'
+    | 'STREAMING_UNSUPPORTED'
+    | 'CONTENT_TYPE_CHOICE_REQUIRED'
+    | 'AUTHORED_BOUNDARY_MISMATCH'
+    | 'BOUNDARY_INJECTION'
+    | 'FORM_DEPTH_EXCEEDED'
+    | 'FORM_MATERIALIZATION_TIMEOUT'
+    | 'FORMDATA_UNREPRESENTABLE';
   readonly message: string;
   readonly fieldName?: string;
   readonly headerName?: string;
@@ -154,6 +166,28 @@ export interface Oas31FormField {
   readonly encoding: Oas31FormFieldEncoding;
 }
 
+/** OAS 3.2 named or positional multipart/urlencoded editor field. */
+export interface Oas32FormField extends Oas31FormField {
+  readonly partId: string;
+  readonly layout: 'named' | 'positional';
+  readonly depth: number;
+  readonly itemSchema?: SchemaValue;
+  readonly nestedFields?: readonly Oas32FormField[];
+  readonly nestedMediaType?: string;
+  readonly contentTypeRequiresChoice?: boolean;
+  readonly extraItem?: boolean;
+}
+
+export interface Oas32FormBodyModel {
+  readonly layout: 'named' | 'positional';
+  readonly mediaType: string;
+  readonly fields: readonly Oas32FormField[];
+  readonly extraItemTemplate?: Oas32FormField;
+  readonly streaming: boolean;
+  readonly schemaAppliesTo: 'complete' | 'items' | 'both';
+  readonly diagnostics: readonly FormBodyDiagnostic[];
+}
+
 /** OAS 3.1-only analysis kept beside the legacy BodyContent shape. */
 export interface Oas31FormBodyModel {
   readonly fields: readonly Oas31FormField[];
@@ -194,6 +228,10 @@ export interface BodyContent {
   jsonFields?: string[];
   /** Present only for OAS 3.1 urlencoded / declared multipart request bodies. */
   oas31Form?: Oas31FormBodyModel;
+  /** Present only for OAS 3.2 urlencoded / declared multipart request bodies. */
+  oas32Form?: Oas32FormBodyModel;
+  /** OAS 3.2 Media Type itemSchema; applies to each sequential item, not the complete payload. */
+  itemSchema?: SchemaValue;
 }
 
 // ─── OperationDebugModel ──────────────────────────────
@@ -260,6 +298,8 @@ export interface DebugFormValues {
   jsonFields?: string[];
   /** Raw values for Encoding Object Header Objects: field name -> header name -> editor value. */
   formPartHeaders?: Record<string, Record<string, string>>;
+  /** Explicit per-part Content-Type chosen by the user; never inferred from filename. */
+  formPartContentTypes?: Record<string, string>;
 }
 
 /** File metadata consumed by the pure planner without reading file bytes. */
@@ -273,6 +313,8 @@ export interface FormBodyInputLimits {
   readonly maxFieldBytes?: number;
   readonly maxTotalBytes?: number;
   readonly maxParts?: number;
+  readonly maxDepth?: number;
+  readonly maxMaterializationMs?: number;
 }
 
 export interface SerializeOas31FormBodyInput {
@@ -280,8 +322,11 @@ export interface SerializeOas31FormBodyInput {
   readonly formFieldNamesToIncludeWhenEmpty?: readonly string[];
   readonly fileFields?: Readonly<Record<string, readonly unknown[]>>;
   readonly partHeaders?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly partContentTypes?: Readonly<Record<string, string>>;
   readonly bodyRequired?: boolean;
   readonly limits?: FormBodyInputLimits;
+  readonly signal?: AbortSignal;
+  readonly now?: () => number;
 }
 
 export interface UrlencodedFormEntry {
@@ -312,7 +357,16 @@ export interface MultipartFilePart {
   readonly headers: Readonly<Record<string, string>>;
 }
 
-export type MultipartPart = MultipartTextPart | MultipartFilePart;
+export interface MultipartNestedPart {
+  readonly kind: 'nested';
+  readonly sourceField: string;
+  readonly name: string;
+  readonly contentType: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly parts: readonly MultipartPart[];
+}
+
+export type MultipartPart = MultipartTextPart | MultipartFilePart | MultipartNestedPart;
 
 export type FormBodyEncodingPlan =
   | {
@@ -330,6 +384,10 @@ export type FormBodyEncodingPlan =
       readonly instance: Readonly<Record<string, ParameterInstance>>;
       readonly ignoredProperties: readonly string[];
       readonly diagnostics: readonly FormBodyDiagnostic[];
+      readonly specFamily?: '3.2';
+      readonly wire?: 'parts' | 'authored';
+      readonly authoredBody?: string;
+      readonly authoredContentType?: string;
     };
 
 /** 全局参数来源 */
