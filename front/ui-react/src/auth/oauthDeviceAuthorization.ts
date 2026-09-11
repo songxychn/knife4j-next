@@ -261,7 +261,9 @@ function readDevice(payload: Record<string, unknown>) {
   ) {
     throw new ProtocolFailure('invalid_response');
   }
-  const uri = safeHttpsUrl(payload.verification_uri, true);
+  // Ordinary verification_uri is shown as a clickable page; fragments are not in
+  // RFC 8628 examples and can visually spoof a different host after '#'.
+  const uri = safeHttpsUrl(payload.verification_uri);
   if (!uri) throw new ProtocolFailure('unsafe_verification_uri');
   const completeUri =
     typeof payload.verification_uri_complete === 'string'

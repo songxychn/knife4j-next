@@ -280,16 +280,19 @@ describe('protocol validation and safe presentation', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  test.each(['javascript:alert(1)', 'http://auth.example.test/verify', 'https://user:pass@auth.example.test/verify'])(
-    'never exposes an unsafe verification link: %s',
-    async (uri) => {
-      const { controller, input, fetchImpl, snapshots } = setup();
-      fetchImpl.mockResolvedValueOnce(device({ verification_uri: uri }));
-      expect(await controller.start(input)).toMatchObject({ status: 'failed', error: 'unsafe_verification_uri' });
-      expect(JSON.stringify(snapshots)).not.toContain(uri);
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-    },
-  );
+  test.each([
+    'javascript:alert(1)',
+    'http://auth.example.test/verify',
+    'https://user:pass@auth.example.test/verify',
+    'https://auth.example.test/verify#fragment',
+    'https://evil.example.test/#https://auth.example.test/verify',
+  ])('never exposes an unsafe verification link: %s', async (uri) => {
+    const { controller, input, fetchImpl, snapshots } = setup();
+    fetchImpl.mockResolvedValueOnce(device({ verification_uri: uri }));
+    expect(await controller.start(input)).toMatchObject({ status: 'failed', error: 'unsafe_verification_uri' });
+    expect(JSON.stringify(snapshots)).not.toContain(uri);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 
   test('retains user_code with a complete URI but never requests either verification URI', async () => {
     const { controller, input, fetchImpl } = setup();
