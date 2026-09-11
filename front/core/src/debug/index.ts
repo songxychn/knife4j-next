@@ -102,7 +102,7 @@ export {
 } from './resolveRef';
 
 // operationDebugModel
-export { buildOperationDebugModel, analyzeOas31Parameter } from './operationDebugModel';
+export { buildOperationDebugModel, analyzeOas31Parameter, extractMultipartUploadFields } from './operationDebugModel';
 export type { BuildDebugModelOptions } from './operationDebugModel';
 
 // requestBuilder
@@ -115,6 +115,7 @@ export {
   validateRequired,
   buildRequest,
   buildCurl,
+  OAS32_MULTIPART_CURL_BODY_FILE,
   buildUrlencodedBody,
 } from './requestBuilder';
 export type { BuildRequestOptions } from './requestBuilder';

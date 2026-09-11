@@ -554,7 +554,12 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
 
   // Keep explicit request bodies for every HTTP method in the pure model and
   // generated cURL. Browser callers reject GET / HEAD bodies before Fetch.
-  if (exampleBody) {
+  if (exampleBody && formBodyPlan?.kind === 'multipart' && formBodyPlan.wire === 'authored') {
+    body = formBodyPlan.authoredBody;
+    const authoredType = formBodyPlan.authoredContentType ?? formBodyPlan.mediaType;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
+      headersWithCookies['Content-Type'] = authoredType;
+  } else if (exampleBody) {
     body = exampleBody.text;
     if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
       headersWithCookies['Content-Type'] = selectedContentType;
@@ -682,6 +687,8 @@ function multipartDisposition(part: MultipartPart): string {
   return part.kind === 'file' ? `${disposition}; filename="${mimeQuotedParameter(part.fileName)}"` : disposition;
 }
 
+export const OAS32_MULTIPART_CURL_BODY_FILE = 'knife4j-multipart-body.bin';
+
 /**
  * 从 BuiltRequest 生成等价 curl 命令
  *
@@ -715,7 +722,7 @@ export function buildCurl(req: BuiltRequest): string {
     if (findHeaderKey(req.headers, 'Content-Type') === undefined && contentType) {
       parts.push('-H', shellQuote(`Content-Type: ${contentType}`));
     }
-    parts.push('--data-binary', shellQuote('@knife4j-multipart-body.bin'));
+    parts.push('--data-binary', shellQuote(`@${OAS32_MULTIPART_CURL_BODY_FILE}`));
   } else if (plannedMultipart) {
     const contentType = multipartMediaTypeWithoutBoundary(plannedMultipart.mediaType);
     if (

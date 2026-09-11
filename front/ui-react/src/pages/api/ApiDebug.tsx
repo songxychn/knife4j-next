@@ -59,6 +59,7 @@ import {
 import {
   CopyOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   PlusOutlined,
   ReloadOutlined,
   SendOutlined,
@@ -154,6 +155,8 @@ import {
   buildRequestPreviewSafely,
   buildPreviewCurl,
   formatRequestPreviewBody,
+  resolveSendPreview,
+  triggerMultipartBodyDownload,
   type RequestPreviewBuild,
   type RequestPreviewBuildResult,
 } from './requestPreviewBuild';
@@ -175,7 +178,7 @@ import {
   type ParamValueMap,
   type SchemaFieldRow,
 } from './debugDefaultValues';
-import { materializeMultipartBody, multipartPlanNeedsEncodedEnvelope } from './formBodyRequest';
+import { multipartPlanNeedsEncodedEnvelope, reuseMaterializedMultipartBody } from './formBodyRequest';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import {
@@ -1668,6 +1671,7 @@ function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] 
 interface PreviewTabPanelProps {
   result: RequestPreviewBuildResult;
   onCopyText: (text: string) => void;
+  onDownloadMultipartBody?: (body: Blob) => void;
 }
 
 function formatMultipartPlanBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
@@ -1720,7 +1724,7 @@ function oas32PreviewDiagnosticTitle(diagnostic: Oas32ParameterDiagnostic): stri
   return 'apiDebug.preview.diagnosticsInfo';
 }
 
-function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
+function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: PreviewTabPanelProps) {
   const { t } = useTranslation();
   const [wireText, setWireText] = useState<string>();
   const materialized = result.ok ? result.value.materializedMultipart : undefined;
@@ -1962,6 +1966,15 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
           <Button size="small" onClick={() => onCopyText(curl)}>
             {t('apiDebug.preview.copyCurl')}
           </Button>
+          {encodedMultipart && materialized?.body instanceof Blob && (
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => onDownloadMultipartBody?.(materialized.body as Blob)}
+            >
+              {t('apiDebug.preview.downloadMultipartBody')}
+            </Button>
+          )}
         </Space>
         <pre style={{ ...previewBoxStyle, maxHeight: 260 }}>{curl}</pre>
       </div>
@@ -2323,6 +2336,11 @@ export default function ApiDebug() {
   const [formPartContentTypes, setFormPartContentTypes] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const binaryBodyFileRef = useRef<File | null>(null);
+  const displayedPreviewRef = useRef<RequestPreviewBuildResult | null>(null);
+  const multipartMaterializationRef = useRef<{
+    key: string;
+    value: NonNullable<RequestPreviewBuild['materializedMultipart']>;
+  } | null>(null);
   const [rawMode, setRawMode] = useState<RawMode>('text');
   const [resetNonce, setResetNonce] = useState(0);
   const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
@@ -3043,7 +3061,11 @@ export default function ApiDebug() {
     const files = (formValues.fileFields ?? {}) as Record<string, File[]>;
     const materializedMultipart =
       multipartPlan && (isOas32 || multipartPlanNeedsEncodedEnvelope(multipartPlan))
-        ? materializeMultipartBody(multipartPlan, files)
+        ? (multipartMaterializationRef.current = reuseMaterializedMultipartBody(
+            multipartMaterializationRef.current,
+            multipartPlan,
+            files,
+          )).value
         : undefined;
     if (materializedMultipart?.contentType) {
       applyMaterializedMultipartContentType(built.headers, materializedMultipart.contentType);
@@ -3244,9 +3266,11 @@ export default function ApiDebug() {
       }
     }
 
-    const previewResult: RequestPreviewBuildResult = options.prepared
-      ? { ok: true, value: options.prepared }
-      : buildRequestPreviewSafely(buildPreview);
+    const previewResult: RequestPreviewBuildResult = resolveSendPreview(
+      options.prepared,
+      displayedPreviewRef.current,
+      buildPreview,
+    );
     if (!previewResult.ok) {
       setValidationErrors([]);
       failWithoutFetch(previewResult.error, debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
@@ -3625,10 +3649,8 @@ export default function ApiDebug() {
       if (preparedMultipart) {
         init.body = preparedMultipart.body;
         applyMaterializedMultipartContentType(init.headers as Record<string, string>, preparedMultipart.contentType);
-      } else if (multipartPlan) {
-        const materialized = materializeMultipartBody(multipartPlan, multipartFiles);
-        init.body = materialized.body;
-        applyMaterializedMultipartContentType(init.headers as Record<string, string>, materialized.contentType);
+      } else if (multipartPlan && (isOas32 || multipartPlanNeedsEncodedEnvelope(multipartPlan))) {
+        throw new Error(t('apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE'));
       } else if (isMultipart) {
         // 构建 FormData
         const fd = new FormData();
@@ -4031,6 +4053,7 @@ export default function ApiDebug() {
 
   // 每次渲染都实时重建一次，保证预览与当前表单同步；非法规范组合转成可见错误。
   const previewResult = buildRequestPreviewSafely(buildPreview);
+  displayedPreviewRef.current = previewResult;
   const previewBuilt = previewResult.ok ? previewResult.value.built : undefined;
   const methodConstraint = operation.identity ? browserRequestConstraint(method, false) : null;
   const methodConstraintMessage =
@@ -4542,7 +4565,13 @@ export default function ApiDebug() {
       key: 'preview',
       label: t('apiDebug.tab.preview'),
       disabled: false,
-      children: <PreviewTabPanel result={previewResult} onCopyText={handleCopyPreviewText} />,
+      children: (
+        <PreviewTabPanel
+          result={previewResult}
+          onCopyText={handleCopyPreviewText}
+          onDownloadMultipartBody={triggerMultipartBodyDownload}
+        />
+      ),
     },
   ];
 

@@ -1243,6 +1243,24 @@ function serializeField(
   return [part];
 }
 
+function inferAuthoredBoundary(body: string): string | undefined {
+  const firstLine = body.split(/\r\n|\n/, 1)[0] ?? '';
+  if (!firstLine.startsWith('--')) return undefined;
+  let token = firstLine.slice(2);
+  if (token.endsWith('--')) token = token.slice(0, -2);
+  token = token.trim();
+  if (!token || /[\r\n"]/u.test(token)) return undefined;
+  return token;
+}
+
+function pairAuthoredContentType(mediaType: string, body: string): string {
+  if (mediaTypeBoundary(mediaType)) return mediaType;
+  const inferred = inferAuthoredBoundary(body);
+  if (!inferred) return mediaType;
+  const trimmed = mediaType.trim();
+  return trimmed ? `${trimmed}; boundary=${inferred}` : `multipart/mixed; boundary=${inferred}`;
+}
+
 function authoredDiagnostics(mediaType: string, body: string): FormBodyDiagnostic[] {
   const diagnostics: FormBodyDiagnostic[] = [];
   const boundary = mediaTypeBoundary(mediaType);
@@ -1374,17 +1392,18 @@ export function authoredMultipartPlan(
   mediaType: string,
   body: string,
 ): Extract<FormBodyEncodingPlan, { kind: 'multipart' }> {
+  const authoredContentType = pairAuthoredContentType(mediaType, body);
   return {
     kind: 'multipart',
     mediaType,
     parts: [],
     instance: {},
     ignoredProperties: [],
-    diagnostics: authoredDiagnostics(mediaType, body),
+    diagnostics: authoredDiagnostics(authoredContentType, body),
     specFamily: '3.2',
     wire: 'authored',
     authoredBody: body,
-    authoredContentType: mediaType,
+    authoredContentType,
   };
 }
 

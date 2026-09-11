@@ -641,6 +641,20 @@ function extractMultipleFileFields(
   return multiple;
 }
 
+/** Schema-driven upload field names for named multipart/urlencoded analysis. */
+export function extractMultipartUploadFields(
+  schema: Record<string, unknown> | undefined,
+  encoding: Record<string, unknown> | undefined,
+  document: Record<string, unknown>,
+): { readonly fileFields: string[]; readonly multipleFileFields: string[] } {
+  const allowOas31Binary = isOpenApi31Version(document.openapi);
+  const doc = document as DocLike;
+  return {
+    fileFields: extractFileFields(schema, encoding, allowOas31Binary, doc),
+    multipleFileFields: extractMultipleFileFields(schema, encoding, allowOas31Binary, doc),
+  };
+}
+
 /**
  * 判断非 multipart requestBody 是否实际描述了文件上传字段。
  *

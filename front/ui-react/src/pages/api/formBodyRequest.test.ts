@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { FormBodyEncodingPlan } from 'knife4j-core';
-import { materializeMultipartBody } from './formBodyRequest';
+import { materializeMultipartBody, reuseMaterializedMultipartBody } from './formBodyRequest';
 
 function file(parts: BlobPart[], name: string, type: string): File {
   return new File(parts, name, { type });
@@ -286,5 +286,31 @@ describe('multipart request materialization', () => {
     expect(() => materializeMultipartBody(plan, {}, { boundaryFactory: () => 'fixed' })).toThrow(
       'collides with part contents',
     );
+  });
+
+  test('reuses one MIME envelope for the same plan and file snapshot', async () => {
+    const plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }> = {
+      kind: 'multipart',
+      mediaType: 'multipart/mixed',
+      instance: {},
+      ignoredProperties: [],
+      diagnostics: [],
+      specFamily: '3.2',
+      parts: [
+        {
+          kind: 'text',
+          sourceField: '0',
+          name: '',
+          value: 'alpha',
+          contentType: 'text/plain',
+          headers: {},
+        },
+      ],
+    };
+    const first = reuseMaterializedMultipartBody(null, plan, {}, { boundaryFactory: () => 'once' });
+    const second = reuseMaterializedMultipartBody(first, plan, {}, { boundaryFactory: () => 'twice' });
+    expect(second.value).toBe(first.value);
+    expect(second.value.contentType).toBe('multipart/mixed; boundary=once');
+    await expect((first.value.body as Blob).text()).resolves.toContain('--once');
   });
 });

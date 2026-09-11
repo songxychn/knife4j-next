@@ -222,3 +222,29 @@ export function multipartPlanNeedsEncodedEnvelope(plan: Extract<FormBodyEncoding
 export function nestedPart(part: MultipartPart): part is MultipartNestedPart {
   return part.kind === 'nested';
 }
+
+function fileSnapshotKey(files: FileMap): unknown {
+  return Object.entries(files).map(([name, list]) => [
+    name,
+    list.map((file) => [file.name, file.size, file.type, file.lastModified]),
+  ]);
+}
+
+/** Stable identity for reusing one MIME envelope across preview renders and send. */
+export function multipartMaterializationKey(
+  plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>,
+  files: FileMap,
+): string {
+  return JSON.stringify({ plan, files: fileSnapshotKey(files) });
+}
+
+export function reuseMaterializedMultipartBody(
+  cache: { key: string; value: MaterializedMultipartBody } | null,
+  plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>,
+  files: FileMap,
+  options?: MaterializeMultipartBodyOptions,
+): { key: string; value: MaterializedMultipartBody } {
+  const key = multipartMaterializationKey(plan, files);
+  if (cache?.key === key) return cache;
+  return { key, value: materializeMultipartBody(plan, files, options) };
+}

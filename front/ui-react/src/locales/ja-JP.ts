@@ -654,6 +654,7 @@ const jaJP = {
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': '同等の cURL',
   'apiDebug.preview.copyCurl': 'cURL をコピー',
+  'apiDebug.preview.downloadMultipartBody': 'knife4j-multipart-body.bin をダウンロード',
   'apiDebug.preview.copyValue': '完全な値をコピー',
   'apiDebug.preview.expandValue': '展開',
   'apiDebug.preview.collapseValue': '折りたたむ',

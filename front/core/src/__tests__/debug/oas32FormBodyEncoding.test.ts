@@ -223,7 +223,12 @@ describe('OAS 3.2 form body encoding', () => {
       authoredContentType: 'multipart/mixed; boundary=keep-me',
       diagnostics: [],
     });
-    expect(authoredMultipartPlan('multipart/mixed', body).diagnostics).toEqual(
+    expect(authoredMultipartPlan('multipart/mixed', body)).toMatchObject({
+      authoredBody: body,
+      authoredContentType: 'multipart/mixed; boundary=keep-me',
+      diagnostics: [],
+    });
+    expect(authoredMultipartPlan('multipart/mixed', '').diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: 'AUTHORED_BOUNDARY_MISMATCH' })]),
     );
   });
@@ -351,9 +356,11 @@ describe('OAS 3.2 form body encoding', () => {
         },
       },
     });
+    expect(authored.headers['Content-Type']).toBe('multipart/mixed; boundary=keep-me');
     expect(authored.formBodyPlan).toMatchObject({
       wire: 'authored',
       authoredBody: '--keep-me\r\n\r\nhello\r\n--keep-me--\r\n',
+      authoredContentType: 'multipart/mixed; boundary=keep-me',
     });
     expect(buildCurl(authored)).toContain('--data-binary');
 

@@ -588,6 +588,7 @@ const zhCN = {
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': '等价 cURL',
   'apiDebug.preview.copyCurl': '复制 cURL',
+  'apiDebug.preview.downloadMultipartBody': '下载 knife4j-multipart-body.bin',
   'apiDebug.preview.copyValue': '复制完整值',
   'apiDebug.preview.expandValue': '展开',
   'apiDebug.preview.collapseValue': '收起',

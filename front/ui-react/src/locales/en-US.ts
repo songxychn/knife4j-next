@@ -647,6 +647,7 @@ const enUS = {
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': 'Equivalent cURL',
   'apiDebug.preview.copyCurl': 'Copy cURL',
+  'apiDebug.preview.downloadMultipartBody': 'Download knife4j-multipart-body.bin',
   'apiDebug.preview.copyValue': 'Copy full value',
   'apiDebug.preview.expandValue': 'Expand',
   'apiDebug.preview.collapseValue': 'Collapse',

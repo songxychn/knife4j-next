@@ -1,4 +1,4 @@
-import { buildCurl, type BuiltRequest, type DebugFormValues } from 'knife4j-core';
+import { buildCurl, OAS32_MULTIPART_CURL_BODY_FILE, type BuiltRequest, type DebugFormValues } from 'knife4j-core';
 import type { MaterializedMultipartBody } from './formBodyRequest';
 import type { CookieParameterSource } from './cookieParameterSource';
 
@@ -36,5 +36,28 @@ export function buildRequestPreviewSafely(build: () => RequestPreviewBuild): Req
       ok: false,
       error: cause instanceof Error ? cause.message : String(cause),
     };
+  }
+}
+
+/** Bind send/cURL to the currently displayed preview instead of rematerializing. */
+export function resolveSendPreview(
+  prepared: RequestPreviewBuild | undefined,
+  displayed: RequestPreviewBuildResult | null,
+  rebuild: () => RequestPreviewBuild,
+): RequestPreviewBuildResult {
+  if (prepared) return { ok: true, value: prepared };
+  if (displayed) return displayed;
+  return buildRequestPreviewSafely(rebuild);
+}
+
+export function triggerMultipartBodyDownload(body: Blob, fileName: string = OAS32_MULTIPART_CURL_BODY_FILE): void {
+  const url = URL.createObjectURL(body);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }

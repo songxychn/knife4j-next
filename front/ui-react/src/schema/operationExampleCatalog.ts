@@ -2,6 +2,7 @@ import {
   analyzeOas31Parameter,
   analyzeOas31FormBody,
   analyzeOas32FormBody,
+  extractMultipartUploadFields,
   normalizeAllOfSchema,
   exampleHasOwn,
   getOpenApiSpecificationFeatures,
@@ -321,6 +322,14 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
       const prefixEncoding = value && exampleHasOwn(value, 'prefixEncoding') ? value.prefixEncoding : undefined;
       const itemEncoding = value && exampleHasOwn(value, 'itemEncoding') ? value.itemEncoding : undefined;
       const itemSchema = value && exampleHasOwn(value, 'itemSchema') ? (value.itemSchema as SchemaValue) : undefined;
+      const schemaRecord =
+        schema && typeof schema === 'object' && !Array.isArray(schema)
+          ? (schema as Record<string, unknown>)
+          : undefined;
+      const uploadFields =
+        category === 'urlencoded' || category === 'multipart'
+          ? extractMultipartUploadFields(schemaRecord, record(encoding) ?? undefined, ownerDocument)
+          : { fileFields: [] as string[], multipleFileFields: [] as string[] };
       const oas32Form =
         category === 'urlencoded' || category === 'multipart'
           ? analyzeOas32FormBody({
@@ -330,8 +339,8 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
               encoding,
               prefixEncoding,
               itemEncoding,
-              fileFields: [],
-              multipleFileFields: [],
+              fileFields: uploadFields.fileFields,
+              multipleFileFields: uploadFields.multipleFileFields,
               document: ownerDocument,
             })
           : undefined;
@@ -341,10 +350,20 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
               mediaType,
               schema,
               encoding: record(value?.encoding) ?? undefined,
-              fileFields: [],
-              multipleFileFields: [],
+              fileFields: uploadFields.fileFields,
+              multipleFileFields: uploadFields.multipleFileFields,
               document: ownerDocument,
             })
+          : undefined;
+      const positionalFiles =
+        oas32Form?.layout === 'positional'
+          ? oas32Form.fields.filter((field) => field.file).map((field) => field.name)
+          : [];
+      const fileFields =
+        category === 'multipart'
+          ? positionalFiles.length > 0
+            ? [...uploadFields.fileFields, ...positionalFiles]
+            : uploadFields.fileFields
           : undefined;
       const bodyContent: BodyContent = {
         mediaType,
@@ -357,6 +376,8 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
               /^(image|audio|video)\//.test(essence) ||
               schema?.format === 'binary')) ||
           undefined,
+        ...(fileFields && fileFields.length > 0 ? { fileFields } : {}),
+        ...(uploadFields.multipleFileFields.length > 0 ? { fileFieldsMultiple: uploadFields.multipleFileFields } : {}),
         ...(namedForm ? { oas31Form: namedForm } : {}),
         ...(oas32Form ? { oas32Form } : {}),
       };
@@ -441,15 +462,22 @@ export function exampleDefaultTarget(targets: readonly OperationExampleTarget[])
   return targets.find((target) => !target.source) ?? targets[0];
 }
 
+function overlayDroppedUploadFields(original: BodyContent | undefined, overlay: BodyContent): boolean {
+  return Boolean(original?.fileFields?.length) && !overlay.fileFields?.length;
+}
+
 function mergeExampleBody(original: BodyContent | undefined, overlay: BodyContent): BodyContent {
   if (!original) return overlay;
+  const dropped = overlayDroppedUploadFields(original, overlay);
   return {
     ...original,
     ...overlay,
-    oas31Form: overlay.oas31Form ?? original.oas31Form,
-    oas32Form: overlay.oas32Form ?? original.oas32Form,
-    fileFields: overlay.fileFields ?? original.fileFields,
-    fileFieldsMultiple: overlay.fileFieldsMultiple ?? original.fileFieldsMultiple,
+    oas31Form: dropped ? (original.oas31Form ?? overlay.oas31Form) : (overlay.oas31Form ?? original.oas31Form),
+    oas32Form: dropped ? (original.oas32Form ?? overlay.oas32Form) : (overlay.oas32Form ?? original.oas32Form),
+    fileFields: dropped ? original.fileFields : (overlay.fileFields ?? original.fileFields),
+    fileFieldsMultiple: dropped
+      ? original.fileFieldsMultiple
+      : (overlay.fileFieldsMultiple ?? original.fileFieldsMultiple),
     jsonFields: overlay.jsonFields ?? original.jsonFields,
     itemSchema: overlay.itemSchema ?? original.itemSchema,
   };
