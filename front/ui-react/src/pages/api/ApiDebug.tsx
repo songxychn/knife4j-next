@@ -219,6 +219,17 @@ import {
   responseBodySchemaResultIsCurrent,
   type ResponseBodySchemaDiagnostic,
 } from '../../schema/responseBodySchemaValidation';
+import {
+  consumeOas32SequentialResponse,
+  shouldConsumeOas32SequentialResponse,
+} from '../../schema/oas32SequentialResponse';
+import { classifyOas32SequentialMedia } from '../../schema/oas32SequentialMedia';
+import {
+  formatSequentialHistoryBody,
+  sequentialStreamFromConsumeResult,
+  toSequentialDisplayedItem,
+  type Oas32SequentialStreamView,
+} from '../../schema/oas32SequentialView';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
 import {
   emptyOas31BodyContentDefaults,
@@ -2315,6 +2326,7 @@ export default function ApiDebug() {
   const [builtRequestCookieSource, setBuiltRequestCookieSource] = useState<CookieParameterSource>('explicit');
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
   const [sseStreaming, setSseStreaming] = useState(false);
+  const [sequentialStream, setSequentialStream] = useState<Oas32SequentialStreamView | null>(null);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
   const currentSchemaEngineRef = useRef(schemaEngine);
@@ -2421,6 +2433,7 @@ export default function ApiDebug() {
     setBuiltRequest(null);
     setBuiltRequestCookieSource('explicit');
     setSseEvents(null);
+    setSequentialStream(null);
     setSseStreaming(false);
     setResponseProgress(null);
     setValidationErrors([]);
@@ -2462,6 +2475,9 @@ export default function ApiDebug() {
     setBuiltRequest(cachedSession?.builtRequest ?? null);
     setBuiltRequestCookieSource(cachedSession?.builtRequestCookieSource ?? 'explicit');
     setSseEvents(cachedSession?.sseEvents ?? null);
+    setSequentialStream(
+      cachedSession?.sequentialStream ? { ...cachedSession.sequentialStream, streaming: false } : null,
+    );
     setHydratedDebugCacheKey(debugCacheKey);
   }, [
     debugCacheKey,
@@ -2475,7 +2491,7 @@ export default function ApiDebug() {
 
   useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
-    if (!response && !error && !builtRequest && sseEvents === null) {
+    if (!response && !error && !builtRequest && sseEvents === null && sequentialStream === null) {
       removeDebugSessionState(debugCacheKey);
       return;
     }
@@ -2485,8 +2501,18 @@ export default function ApiDebug() {
       builtRequest,
       builtRequestCookieSource,
       sseEvents,
+      sequentialStream: sequentialStream ? { ...sequentialStream, streaming: false } : sequentialStream,
     });
-  }, [builtRequest, builtRequestCookieSource, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
+  }, [
+    builtRequest,
+    builtRequestCookieSource,
+    debugCacheKey,
+    error,
+    hydratedDebugCacheKey,
+    response,
+    sseEvents,
+    sequentialStream,
+  ]);
 
   useEffect(() => {
     if (!settings.enableRequestCache || debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) {
@@ -3246,6 +3272,7 @@ export default function ApiDebug() {
       setSseStreaming(false);
       setResponse(null);
       setSseEvents(null);
+      setSequentialStream(null);
       setResponseSchemaDiagnostic(null);
       setError(message);
     };
@@ -3625,6 +3652,7 @@ export default function ApiDebug() {
     }
     setResponse(null);
     setSseEvents(null);
+    setSequentialStream(null);
     setSseStreaming(false);
     setBuiltRequest(built);
     setBuiltRequestCookieSource(requestCookieSource);
@@ -3705,6 +3733,170 @@ export default function ApiDebug() {
 
       const contentType = responseHeaders['content-type'] ?? '';
       const durationMs = Date.now() - start;
+
+      if (shouldConsumeOas32SequentialResponse(Boolean(isOas32), contentType)) {
+        if (!isCurrentDebugRequest()) {
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'completed',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs,
+              responseBody: '[sequential] superseded by another request',
+            }),
+          );
+          return;
+        }
+        setLoading(false);
+        if (!res.body) {
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'error',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs,
+              errorMessage: 'Sequential response has no body',
+            }),
+          );
+          setError('Sequential response has no body');
+          sseAbortRef.current = null;
+          setSseStreaming(false);
+          return;
+        }
+        const sequentialKind = classifyOas32SequentialMedia(contentType);
+        setSequentialStream({
+          kind: sequentialKind,
+          streaming: true,
+          truncated: false,
+          receivedBytes: 0,
+          droppedItems: 0,
+          completeSchema: { status: 'absent' },
+          items: [],
+        });
+        setSseStreaming(true);
+        setResponse({
+          status: res.status,
+          statusText: res.statusText,
+          method: built.method,
+          duration: durationMs,
+          contentType,
+          size: 0,
+          headers: responseHeaders,
+          rawText: '',
+          kind: 'text',
+        });
+        const displayedItems: ReturnType<typeof toSequentialDisplayedItem>[] = [];
+        const schemaSession =
+          currentSchemaEngineRef.current.status === 'ready' ? currentSchemaEngineRef.current.session : undefined;
+        try {
+          const sequentialResult = await consumeOas32SequentialResponse({
+            response: res,
+            contentType,
+            document: swaggerDoc,
+            operation,
+            session: schemaSession,
+            signal: abortController.signal,
+            onItem: (item) => {
+              if (!isCurrentDebugRequest()) return;
+              const displayed = toSequentialDisplayedItem(item);
+              displayedItems.push(displayed);
+              setSequentialStream((previous) => ({
+                kind: sequentialKind,
+                streaming: true,
+                truncated: false,
+                receivedBytes: previous?.receivedBytes ?? 0,
+                droppedItems: previous?.droppedItems ?? 0,
+                completeSchema: { status: 'absent' },
+                items: [...(previous?.items ?? []), displayed],
+              }));
+            },
+          });
+          const view = sequentialStreamFromConsumeResult(sequentialResult, {
+            kind: sequentialKind,
+            streaming: false,
+            truncated: sequentialResult.truncated,
+            receivedBytes: sequentialResult.receivedBytes,
+            droppedItems: sequentialResult.droppedItems,
+            completeSchema: sequentialResult.completeSchema,
+            items: displayedItems,
+          });
+          const historyBody = formatSequentialHistoryBody(view.items);
+          if (sequentialResult.termination === 'cancel') {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) => ({
+              ...abortEntry(entry, { durationMs: Date.now() - start }),
+              isSse: sequentialKind === 'sse',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              responseBody: historyBody || undefined,
+            }));
+          } else {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: sequentialResult.termination === 'eof' ? 'completed' : 'error',
+                httpStatus: res.status,
+                statusText: res.statusText,
+                durationMs: Date.now() - start,
+                isSse: sequentialKind === 'sse',
+                errorMessage: sequentialResult.termination === 'eof' ? undefined : sequentialResult.termination,
+                responseBody: historyBody || undefined,
+              }),
+            );
+          }
+          if (!isCurrentDebugRequest()) return;
+          setSequentialStream(view);
+          setResponse({
+            status: res.status,
+            statusText: res.statusText,
+            method: built.method,
+            duration: Date.now() - start,
+            contentType,
+            size: sequentialResult.receivedBytes,
+            headers: responseHeaders,
+            rawText: historyBody,
+            kind: 'text',
+          });
+        } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) => ({
+              ...abortEntry(entry, { durationMs: Date.now() - start }),
+              isSse: sequentialKind === 'sse',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              responseBody: formatSequentialHistoryBody(displayedItems) || undefined,
+            }));
+            if (!isCurrentDebugRequest()) return;
+          } else if (!isCurrentDebugRequest()) {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: 'error',
+                durationMs: Date.now() - start,
+                errorMessage: err instanceof Error ? err.message : String(err),
+                responseBody: formatSequentialHistoryBody(displayedItems) || undefined,
+              }),
+            );
+            return;
+          } else {
+            const msg = err instanceof Error ? err.message : String(err);
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: 'error',
+                httpStatus: res.status,
+                statusText: res.statusText,
+                durationMs: Date.now() - start,
+                errorMessage: msg,
+                responseBody: formatSequentialHistoryBody(displayedItems) || undefined,
+              }),
+            );
+            setError(msg);
+          }
+        } finally {
+          if (sseAbortRef.current === abortController) {
+            sseAbortRef.current = null;
+          }
+          setSseStreaming(false);
+        }
+        return;
+      }
 
       // SSE path: text/event-stream → stream via ReadableStream reader
       if (contentType.toLowerCase().includes('text/event-stream')) {
@@ -3999,6 +4191,7 @@ export default function ApiDebug() {
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
     setSseStreaming(false);
+    setSequentialStream((previous) => (previous ? { ...previous, streaming: false } : previous));
   };
 
   const handleReset = () => {
@@ -4913,6 +5106,7 @@ export default function ApiDebug() {
             operation={operation}
             swaggerDoc={swaggerDoc}
             sseEvents={sseEvents}
+            sequentialStream={sequentialStream}
             onSseAbort={handleSseAbort}
             sseStreaming={sseStreaming}
             schemaDiagnostic={responseSchemaDiagnostic}

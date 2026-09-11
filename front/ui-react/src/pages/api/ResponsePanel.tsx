@@ -15,6 +15,8 @@ import {
   responseBodyInstanceLabel,
   type ResponseBodySchemaDiagnostic,
 } from '../../schema/responseBodySchemaValidation';
+import type { Oas32SequentialSchemaStatus, Oas32SequentialTermination } from '../../schema/oas32SequentialResponse';
+import type { Oas32SequentialStreamView } from '../../schema/oas32SequentialView';
 
 const { Text } = Typography;
 
@@ -68,12 +70,50 @@ interface ResponsePanelProps {
   swaggerDoc?: SwaggerDoc | null;
   /** SSE events received so far; non-null means SSE mode */
   sseEvents?: SseEvent[] | null;
+  /** OAS 3.2 sequential media stream; non-null means sequential debug mode */
+  sequentialStream?: Oas32SequentialStreamView | null;
   /** callback to abort the SSE stream */
   onSseAbort?: () => void;
   /** true while SSE stream is still open */
   sseStreaming?: boolean;
   /** non-blocking OAS 3.1 response body diagnostic for the current request */
   schemaDiagnostic?: ResponseBodySchemaDiagnostic | null;
+}
+
+function sequentialItemSchemaLabel(status: Oas32SequentialSchemaStatus): string {
+  if (status.status === 'valid') return 'apiDebug.sequential.item.valid';
+  if (status.status === 'invalid') return 'apiDebug.sequential.item.invalid';
+  if (status.status === 'absent') return 'apiDebug.sequential.item.absent';
+  return 'apiDebug.sequential.item.skipped';
+}
+
+function sequentialCompleteSchemaLabel(status: Oas32SequentialSchemaStatus): string {
+  if (status.status === 'valid') return 'apiDebug.sequential.complete.valid';
+  if (status.status === 'invalid') return 'apiDebug.sequential.complete.invalid';
+  if (status.status === 'absent') return 'apiDebug.sequential.complete.absent';
+  if (status.reason === 'truncated') return 'apiDebug.sequential.complete.truncated';
+  if (status.reason === 'not-representable') return 'apiDebug.sequential.complete.not-representable';
+  return 'apiDebug.sequential.complete.unavailable';
+}
+
+function sequentialSchemaColor(status: Oas32SequentialSchemaStatus): string {
+  if (status.status === 'valid') return 'green';
+  if (status.status === 'invalid') return 'red';
+  if (status.status === 'skipped' && status.reason === 'truncated') return 'orange';
+  return 'default';
+}
+
+function sequentialKindLabel(kind: Oas32SequentialStreamView['kind']): string {
+  if (kind === 'sse') return 'apiDebug.sequential.kind.sse';
+  if (kind === 'jsonl') return 'apiDebug.sequential.kind.jsonl';
+  if (kind === 'json-seq') return 'apiDebug.sequential.kind.json-seq';
+  if (kind === 'multipart') return 'apiDebug.sequential.kind.multipart';
+  return 'apiDebug.sequential.kind.unknown';
+}
+
+function sequentialTerminationLabel(termination: Oas32SequentialTermination | undefined): string | undefined {
+  if (!termination) return undefined;
+  return `apiDebug.sequential.termination.${termination}`;
 }
 
 const statusColor = (status: number) => (status < 300 ? 'green' : status < 400 ? 'orange' : 'red');
@@ -190,6 +230,7 @@ export default function ResponsePanel({
   operation,
   swaggerDoc,
   sseEvents,
+  sequentialStream,
   onSseAbort,
   sseStreaming,
   schemaDiagnostic,
@@ -198,6 +239,7 @@ export default function ResponsePanel({
   const [activeKey, setActiveKey] = useState<string>('content');
   const [showDescription, setShowDescription] = useState(true);
   const sseLogRef = useRef<HTMLDivElement>(null);
+  const sequentialLogRef = useRef<HTMLDivElement>(null);
 
   // When a new response arrives, reset focus back to the Content tab so
   // the user sees the decoded body first.
@@ -211,6 +253,12 @@ export default function ResponsePanel({
       sseLogRef.current.scrollTop = sseLogRef.current.scrollHeight;
     }
   }, [sseEvents]);
+
+  useEffect(() => {
+    if (sequentialStream && sequentialLogRef.current) {
+      sequentialLogRef.current.scrollTop = sequentialLogRef.current.scrollHeight;
+    }
+  }, [sequentialStream]);
 
   const handleCopyRaw = () => {
     if (!response) return;
@@ -234,6 +282,14 @@ export default function ResponsePanel({
   const handleCopySseEvent = (event: SseEvent) => {
     copyToClipboard(
       event.data,
+      () => message.success(t('apiDebug.response.copied')),
+      () => message.error(t('apiDebug.response.copyFailed')),
+    );
+  };
+
+  const handleCopySequentialItem = (preview: string) => {
+    copyToClipboard(
+      preview,
       () => message.success(t('apiDebug.response.copied')),
       () => message.error(t('apiDebug.response.copyFailed')),
     );
@@ -276,7 +332,7 @@ export default function ResponsePanel({
     [response],
   );
 
-  if (!response && !error && sseEvents == null) return null;
+  if (!response && !error && sseEvents == null && sequentialStream == null) return null;
 
   return (
     <div>
@@ -288,6 +344,86 @@ export default function ResponsePanel({
           message={t('apiDebug.error.title')}
           description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>}
         />
+      )}
+
+      {sequentialStream != null && (
+        <div
+          data-sequential-kind={sequentialStream.kind}
+          data-sequential-termination={sequentialStream.termination ?? ''}
+          style={{ marginBottom: 16 }}
+        >
+          <Space wrap style={{ marginBottom: 8 }}>
+            <Tag color="blue">{t(sequentialKindLabel(sequentialStream.kind))}</Tag>
+            <Tag color={sequentialStream.streaming ? 'processing' : 'default'}>
+              {sequentialStream.streaming ? t('apiDebug.sequential.streaming') : t('apiDebug.sequential.done')}
+            </Tag>
+            <Tag>{t('apiDebug.sequential.itemCount', { count: sequentialStream.items.length })}</Tag>
+            {sequentialStream.termination ? (
+              <Tag>{t(sequentialTerminationLabel(sequentialStream.termination)!)}</Tag>
+            ) : null}
+            <Tag color={sequentialSchemaColor(sequentialStream.completeSchema)}>
+              {t(sequentialCompleteSchemaLabel(sequentialStream.completeSchema))}
+            </Tag>
+            {sequentialStream.truncated ? <Tag color="orange">{t('apiDebug.sequential.truncated')}</Tag> : null}
+            {sequentialStream.streaming && (
+              <Button size="small" danger icon={<StopOutlined />} onClick={onSseAbort}>
+                {t('apiDebug.sequential.abort')}
+              </Button>
+            )}
+          </Space>
+          <div
+            ref={sequentialLogRef}
+            style={{
+              background: '#0d1117',
+              borderRadius: 4,
+              padding: '8px 12px',
+              maxHeight: 400,
+              overflowY: 'auto',
+              fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
+              fontSize: 12,
+              lineHeight: 1.6,
+            }}
+          >
+            {sequentialStream.items.length === 0 ? (
+              <span style={{ color: '#8b949e' }}>{t('apiDebug.sequential.waiting')}</span>
+            ) : (
+              sequentialStream.items.map((item) => (
+                <div
+                  key={item.index}
+                  data-sequential-item={item.index}
+                  data-item-schema={item.itemSchema.status}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '44px 96px 140px minmax(0, 1fr) 28px',
+                    columnGap: 12,
+                    alignItems: 'start',
+                    borderBottom: '1px solid #21262d',
+                    padding: '2px 0',
+                  }}
+                >
+                  <span style={{ color: '#8b949e', textAlign: 'right', userSelect: 'none' }}>#{item.index + 1}</span>
+                  <span style={{ color: '#8b949e', userSelect: 'none' }}>{formatSseEventTime(item.timestamp)}</span>
+                  <Tag color={sequentialSchemaColor(item.itemSchema)} style={{ marginInlineEnd: 0 }}>
+                    {t(sequentialItemSchemaLabel(item.itemSchema))}
+                  </Tag>
+                  <span style={{ color: '#e6edf3', wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+                    {item.preview}
+                  </span>
+                  <Tooltip title={t('apiDebug.sequential.copyItem', { index: item.index + 1 })}>
+                    <Button
+                      aria-label={t('apiDebug.sequential.copyItem', { index: item.index + 1 })}
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopySequentialItem(item.preview)}
+                      size="small"
+                      style={{ color: '#8b949e', height: 24, padding: 0, width: 24 }}
+                      type="text"
+                    />
+                  </Tooltip>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {sseEvents != null && (
