@@ -228,7 +228,10 @@ export interface SecuritySchemeObject {
     password?: OAuth2Flow;
     clientCredentials?: OAuth2Flow;
     authorizationCode?: OAuth2Flow;
+    deviceAuthorization?: OAuth2Flow;
   };
+  oauth2MetadataUrl?: string;
+  deprecated?: boolean;
   // openIdConnect
   openIdConnectUrl?: string;
 }
@@ -236,6 +239,7 @@ export interface SecuritySchemeObject {
 /** OAuth2 flow 配置 */
 export interface OAuth2Flow {
   authorizationUrl?: string;
+  deviceAuthorizationUrl?: string;
   tokenUrl?: string;
   refreshUrl?: string;
   scopes?: Record<string, string>;

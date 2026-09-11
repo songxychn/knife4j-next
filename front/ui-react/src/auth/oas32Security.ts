@@ -411,7 +411,6 @@ export type Oas32SecurityCapabilityIssue =
   | 'browser-cookie-unwritable'
   | 'browser-forbidden-header'
   | 'invalid-transport-name'
-  | 'transport-implementation-limit'
   | 'transport-conflict';
 
 interface TransportField {
@@ -561,9 +560,6 @@ function prepareMember(member: Oas32SecurityMember, credentials?: AuthValues): P
   if (transport) {
     if (!transport.name || (transport.in !== 'query' && !headerName.test(transport.name)))
       issues.push('invalid-transport-name');
-    // Current core's ordinary-object assignment loses this legal field. This is
-    // an implementation gap, not an OAS/Fetch restriction; Phase 2 must close it.
-    if (transport.in !== 'cookie' && transport.name === '__proto__') issues.push('transport-implementation-limit');
     if (transport.in === 'cookie') issues.push('browser-cookie-unwritable');
     if (transport.in === 'header' && forbiddenHeader(transport.name)) issues.push('browser-forbidden-header');
   }

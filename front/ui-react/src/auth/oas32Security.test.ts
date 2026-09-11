@@ -911,21 +911,21 @@ describe('browser transport capability and AND conflicts', () => {
   );
 
   test.each(['header', 'query'] as const)(
-    'records the current core __proto__ %s assignment gap pending the Phase 2 wire fix',
+    'injects a legal apiKey named __proto__ on the %s wire after the J own-property fix',
     (place) => {
       const input = supplied([['A', keyCredential(place, '__proto__')]]);
       const coreOutput = authToHeaders(input, ['A']);
-      // Real current-core limitation, deliberately kept separate from normative/browser restrictions.
-      expect(Object.hasOwn(place === 'header' ? coreOutput.headers : coreOutput.queries, '__proto__')).toBe(false);
+      expect(Object.hasOwn(place === 'header' ? coreOutput.headers : coreOutput.queries, '__proto__')).toBe(true);
+      expect((place === 'header' ? coreOutput.headers : coreOutput.queries)['__proto__']).toBe('synthetic-value');
       const projection = projectionFor({ A: { type: 'apiKey', in: place, name: '__proto__' } }, [{ A: [] }]);
       const plan = planOas32Security(projection, input);
       expect(plan.branches[0].members[0]).toMatchObject({
         canDisplay: true,
-        canExecute: false,
-        issues: ['transport-implementation-limit'],
+        canExecute: true,
+        issues: [],
         member: { resolution: { status: 'resolved', scheme: { name: '__proto__' } } },
       });
-      expect(plan.securityKeys).toEqual([]);
+      expect(plan.securityKeys).toEqual(['A']);
     },
   );
 });

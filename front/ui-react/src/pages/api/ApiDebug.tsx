@@ -103,7 +103,8 @@ import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam, type GlobalParamScope, type ScopedGlobalParamItem } from '../../context/GlobalParamContext';
-import { useSchemaEngine } from '../../context/SchemaEngineContext';
+import { debugAuthFromOas32Plan, projectAndPlanOas32Security } from '../../auth/oas32SecurityUi';
+import { useSchemaEngine, useExternalResources } from '../../context/SchemaEngineContext';
 import { useSettings } from '../../context/SettingsContext';
 import { applyRouteProxyHeader } from '../../api/routeProxyHeader';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
@@ -2153,6 +2154,7 @@ export default function ApiDebug() {
   const { settings } = useSettings();
   const { effectiveParams, cookieSession } = useGlobalParam();
   const schemaEngine = useSchemaEngine();
+  const resources = useExternalResources();
   const groupContextPath = activeSwaggerGroup?.contextPath;
   const isOas32 = isOas32ExampleDocument(swaggerDoc);
   const server32 = useOas32ServerSelection({
@@ -2761,6 +2763,16 @@ export default function ApiDebug() {
     return keys.length > 0 ? keys : undefined;
   }, [operation]);
 
+  const [securityBranchIndex, setSecurityBranchIndex] = useState<number | undefined>();
+  useEffect(() => {
+    setSecurityBranchIndex(undefined);
+  }, [operation?.identity?.identity]);
+  const security32 = useMemo(
+    () =>
+      isOas32 ? projectAndPlanOas32Security(resources.snapshot, operation, authValues, securityBranchIndex) : null,
+    [authValues, isOas32, operation, resources.snapshot, securityBranchIndex],
+  );
+
   // ── 从 GlobalParamContext 转换为应用级与当前分组参数 ──
   const applicationParamValues = useMemo(
     () => globalParamValuesForScope(effectiveParams, 'application'),
@@ -3060,6 +3072,7 @@ export default function ApiDebug() {
   const buildPreview = (): RequestPreviewBuild => {
     if (isOas32 && serverOrPathUnavailable32) throw new Error(t('oas32.server.unavailable'));
     const formValues = collectFormValues();
+    const oas32Auth = isOas32 ? debugAuthFromOas32Plan(security32?.plan) : null;
     const built = applyRouteProxyHeader(
       coreBuildRequest({
         baseUrl,
@@ -3068,10 +3081,10 @@ export default function ApiDebug() {
         preserveMethodCase: Boolean(operation.identity),
         debugModel,
         formValues,
-        auth: authValues,
+        auth: oas32Auth ? oas32Auth.auth : authValues,
         applicationParams: applicationParamValues,
         globalParams: globalParamValues,
-        securityKeys,
+        securityKeys: oas32Auth ? oas32Auth.securityKeys : securityKeys,
       }),
       activeSwaggerGroup?.header,
       {
@@ -5007,6 +5020,42 @@ export default function ApiDebug() {
                     .join('; ')}
                 />
               )}
+            </div>
+          )}
+          {isOas32 && security32 && (
+            <div style={{ marginBottom: 12 }}>
+              {security32.plan.branches.length > 1 && (
+                <Radio.Group
+                  value={security32.plan.selectedIndex ?? 0}
+                  onChange={(event) => setSecurityBranchIndex(Number(event.target.value))}
+                  style={{ marginBottom: 8 }}
+                >
+                  {security32.plan.branches.map((branch) => (
+                    <Radio.Button key={branch.index} value={branch.index}>
+                      {branch.anonymous
+                        ? t('apiDebug.security.anonymous')
+                        : t('apiDebug.security.branch', { n: branch.index + 1 })}
+                    </Radio.Button>
+                  ))}
+                </Radio.Group>
+              )}
+              <Alert
+                type={
+                  security32.projection.status !== 'ready' ? 'error' : security32.plan.complete ? 'info' : 'warning'
+                }
+                showIcon
+                message={
+                  security32.projection.status !== 'ready'
+                    ? t('apiDebug.security.unavailable')
+                    : security32.projection.declaration === 'empty'
+                      ? t('apiDebug.security.empty')
+                      : security32.plan.branches[security32.plan.selectedIndex ?? 0]?.anonymous
+                        ? t('apiDebug.security.anonymousSelected')
+                        : security32.plan.complete
+                          ? t('apiDebug.security.selected')
+                          : t('apiDebug.security.incomplete')
+                }
+              />
             </div>
           )}
           <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
