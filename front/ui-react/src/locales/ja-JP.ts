@@ -51,6 +51,23 @@ const jaJP = {
   'schema.example32.diagnostics.QUERY_LEADING_DELIMITER': 'A query example must not begin with ? or &.',
   'schema.example32.diagnostics.MATRIX_LEADING_DELIMITER': 'A matrix example must include its leading semicolon.',
   'schema.example32.diagnostics.LABEL_LEADING_DELIMITER': 'A label example must include its leading dot.',
+  'schema.example32.diagnostics.XML_FRAGMENT': 'The result is an XML fragment, not a complete XML document.',
+  'schema.example32.diagnostics.ROUND_TRIP_AMBIGUOUS': 'This XML mapping cannot uniquely restore logical data.',
+  'schema.example32.diagnostics.UNSUPPORTED_MAPPING':
+    'Ambiguous composition or conditional schemas are not guessed into an XML mapping.',
+  'schema.example32.diagnostics.AMBIGUOUS_MAPPING':
+    'The reference and local content mapping is ambiguous; no XML was produced.',
+  'schema.example32.diagnostics.NAME_REQUIRED': 'This Schema location has no usable XML name.',
+  'schema.example32.diagnostics.INVALID_XML_NAME': 'The XML name is invalid.',
+  'schema.example32.diagnostics.INVALID_XML_CHARACTER': 'The data contains an illegal XML character.',
+  'schema.example32.diagnostics.INVALID_NAMESPACE_IRI': 'The XML namespace is not a non-relative IRI.',
+  'schema.example32.diagnostics.SCHEMA_UNAVAILABLE':
+    'No registered Schema location is available for XML serialization.',
+  'schema.example32.diagnostics.BUDGET_EXCEEDED': 'XML serialization exceeded its depth, node, or output budget.',
+  'schema.example32.diagnostics.INVALID_DATA': 'Logical data cannot be serialized with this XML Object.',
+  'schema.example32.diagnostics.UNMAPPED_DATA': 'Some logical data was not mapped to XML nodes.',
+  'schema.example32.diagnostics.ATTRIBUTE_WITHOUT_ELEMENT':
+    'An XML attribute has no parent element; no wrapper is invented.',
   // App / Layout
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI ドキュメント集約センター',

@@ -48,4 +48,15 @@ describe('schemaNodeTypeLabel', () => {
       'never',
     );
   });
+
+  test('appends XML nodeType without replacing the JSON Schema type', () => {
+    expect(
+      schemaNodeTypeLabel({
+        name: 'id',
+        type: 'integer',
+        required: false,
+        xml: { nodeType: 'attribute' },
+      }),
+    ).toBe('integer · xml:attribute');
+  });
 });

@@ -6,17 +6,17 @@ import { componentSchemaReference, createSchemaDisplayProjector } from './schema
 const retrievalUri = 'https://docs.knife4j.example/v3/api-docs';
 const sessions: SchemaDocumentSession[] = [];
 
-function openApiDocument(schemas: Record<string, unknown>): SwaggerDoc {
+function openApiDocument(schemas: Record<string, unknown>, openapi = '3.1.1'): SwaggerDoc {
   return {
-    openapi: '3.1.1',
+    openapi,
     info: { title: 'Schema projection fixture', version: '1.0.0' },
     paths: {},
     components: { schemas },
   } as SwaggerDoc;
 }
 
-async function projectorFor(schemas: Record<string, unknown>, options: { maxDepth?: number } = {}) {
-  const session = await createSchemaDocumentSession(openApiDocument(schemas), retrievalUri);
+async function projectorFor(schemas: Record<string, unknown>, options: { maxDepth?: number; openapi?: string } = {}) {
+  const session = await createSchemaDocumentSession(openApiDocument(schemas, options.openapi), retrievalUri);
   sessions.push(session);
   return createSchemaDisplayProjector(session, options);
 }
@@ -338,5 +338,36 @@ describe('SchemaDisplayProjector', () => {
       truncationReason: 'reference-unavailable',
     });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('projects 3.2 XML Object metadata from Schema locations, not opaque example payloads', async () => {
+    const projector = await projectorFor(
+      {
+        Pet: {
+          type: 'object',
+          xml: { name: 'Pet', namespace: 'urn:pets', prefix: 'p' },
+          examples: [{ xml: { nodeType: 'cdata' } }],
+          properties: {
+            id: { type: 'integer', xml: { nodeType: 'attribute' } },
+            nick: {
+              $ref: '#/components/schemas/Name',
+              xml: { name: 'alias' },
+            },
+            xml: { type: 'string' },
+          },
+        },
+        Name: { type: 'string', xml: { nodeType: 'element', name: 'Name' } },
+      },
+      { openapi: '3.2.0' },
+    );
+    const result = await projector.project(componentSchemaReference('Pet'));
+    expect(result.fields[0]).toMatchObject({
+      isRoot: true,
+      xml: { name: 'Pet', namespace: 'urn:pets', prefix: 'p' },
+    });
+    expect(result.fields.find((field) => field.name === 'id')?.xml).toEqual({ nodeType: 'attribute' });
+    expect(result.fields.find((field) => field.name === 'nick')?.xml).toEqual({ name: 'alias' });
+    expect(result.fields.find((field) => field.name === 'xml')).toMatchObject({ type: 'string' });
+    expect(result.fields.find((field) => field.name === 'xml')?.xml).toBeUndefined();
   });
 });

@@ -34,12 +34,26 @@ export function schemaNodeTypeLabel(node: SchemaFieldNode): string {
     else if (refName) label = `${refName}[]`;
     else if (item?.type) label = `${schemaNodeTypeLabel(item)}[]`;
     else label = 'array';
-    return nullable ? `${label} | null` : label;
+    return withXmlTypeLabel(nullable ? `${label} | null` : label, node);
   }
   if (refName) label = refName;
   // string+byte is the OAS representation of Java Byte — display as 'byte' for clarity
   else if (node.type === 'string' && node.format === 'byte') label = 'byte';
   else if (node.types && node.types.length > 0) label = node.types.join(' | ');
   else label = [node.type, node.format].filter(Boolean).join(' / ') || 'unknown';
-  return nullable && !label.split(' | ').includes('null') ? `${label} | null` : label;
+  const withNull = nullable && !label.split(' | ').includes('null') ? `${label} | null` : label;
+  return withXmlTypeLabel(withNull, node);
+}
+
+function withXmlTypeLabel(label: string, node: SchemaFieldNode): string {
+  const marker = node.xml?.nodeType
+    ? `xml:${node.xml.nodeType}`
+    : node.xml?.attribute
+      ? 'xml:attribute'
+      : node.xml?.wrapped
+        ? 'xml:wrapped'
+        : node.xml?.name
+          ? `xml:${node.xml.name}`
+          : undefined;
+  return marker ? `${label} · ${marker}` : label;
 }

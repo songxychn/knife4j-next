@@ -41,6 +41,7 @@ import {
   oas32ParameterContext,
   resolveOas32ParameterSchema,
 } from './oas32ParameterAdapter';
+import { attachOas32XmlExampleSerialization } from './oas32XmlExample';
 
 export interface OperationExampleTarget {
   readonly id: string;
@@ -65,6 +66,7 @@ export interface OperationExampleTarget {
   readonly unavailable?: true;
   readonly context: ExampleRepresentationContext;
   readonly parameter32?: Oas32Parameter;
+  readonly snapshot?: ResourceGraphSnapshot;
 }
 export interface OperationExampleCatalog {
   readonly targets: readonly OperationExampleTarget[];
@@ -443,7 +445,12 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
       }
     }
   }
-  return { targets, parameters, bodies, generation: snapshot.generation };
+  return {
+    targets: targets.map((target) => ({ ...target, snapshot })),
+    parameters,
+    bodies,
+    generation: snapshot.generation,
+  };
 }
 
 export function exampleDefaultTarget(targets: readonly OperationExampleTarget[]): OperationExampleTarget | undefined {
@@ -563,6 +570,17 @@ export async function evaluateOperationExample(
     if (!target.source && schemaResult.status === 'value' && isExampleData(schemaResult.value))
       representation = interpret({ dataValue: schemaResult.value });
   }
+  abort(options.signal);
+  representation = await attachOas32XmlExampleSerialization(representation, {
+    snapshot: target.snapshot,
+    session,
+    schemaLocation: target.schemaLocation
+      ? { ownerRetrievalUri: target.schemaLocation.ownerRetrievalUri, pointer: target.schemaLocation.pointer }
+      : undefined,
+    mediaType: target.mediaType ?? target.context.mediaType,
+    source: target.source || target.unavailable ? 'author' : 'candidate',
+    signal: options.signal,
+  });
   abort(options.signal);
   let serializedSchemaResult: SchemaExampleResult | undefined;
   if (

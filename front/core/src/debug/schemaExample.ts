@@ -18,6 +18,7 @@ import type {
   BuildSchemaExampleFn,
   BuildSchemaFieldTreeFn,
   SchemaFieldNode,
+  SchemaFieldXml,
   SchemaResolveContext,
   SchemaValue,
 } from './types';
@@ -26,6 +27,31 @@ import { resolveRef, resolveSchemaRef } from './resolveRef';
 // ─── 常量 ─────────────────────────────────────────────
 
 const DEFAULT_MAX_DEPTH = 8;
+
+/** Read XML Object metadata only from a Schema Object, never from example/data payloads. */
+export function schemaFieldXml(schema: unknown): SchemaFieldXml | undefined {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return undefined;
+  const xml = (schema as Record<string, unknown>).xml;
+  if (!xml || typeof xml !== 'object' || Array.isArray(xml)) return undefined;
+  const declared = xml as Record<string, unknown>;
+  const projected: SchemaFieldXml = {
+    ...(typeof declared.nodeType === 'string' ? { nodeType: declared.nodeType } : {}),
+    ...(typeof declared.name === 'string' ? { name: declared.name } : {}),
+    ...(typeof declared.namespace === 'string' ? { namespace: declared.namespace } : {}),
+    ...(typeof declared.prefix === 'string' ? { prefix: declared.prefix } : {}),
+    ...(typeof declared.attribute === 'boolean' ? { attribute: declared.attribute } : {}),
+    ...(typeof declared.wrapped === 'boolean' ? { wrapped: declared.wrapped } : {}),
+  };
+  return Object.keys(projected).length > 0 ? projected : undefined;
+}
+
+function withXml<T extends SchemaFieldNode>(node: T, ...schemas: unknown[]): T {
+  for (const schema of schemas) {
+    const xml = schemaFieldXml(schema);
+    if (xml) return { ...node, xml };
+  }
+  return node;
+}
 
 /** 按 type + format 推断的 primitive 默认值 */
 function primitiveExample(type: string | undefined, format: string | undefined): unknown {
@@ -521,23 +547,41 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
   const type = effectiveSchemaType(resolved);
   const types = normalizeTypes(resolved.type);
 
-  // 顶层 object → 展开 properties
+  // 顶层 object → 展开 properties；根 XML Object 单独占一行，不猜测字段名。
   if (type === 'object' || (type === 'unknown' && resolved.properties)) {
-    return objectToFieldNodes(resolved, ctx, ref);
+    const children = objectToFieldNodes(resolved, ctx, ref);
+    const xml = schemaFieldXml(resolved);
+    if (!xml) return children;
+    return [
+      {
+        name: '',
+        isRoot: true,
+        type: 'object',
+        types,
+        required: false,
+        xml,
+        description: typeof resolved.description === 'string' ? resolved.description : undefined,
+        refName: refToName(ref),
+      },
+      ...children,
+    ];
   }
 
   // 顶层 array → 返回 array 节点 + items 子节点
   if (type === 'array') {
-    const arrayNode: SchemaFieldNode = {
-      name: '',
-      isRoot: true,
-      type: 'array',
-      types,
-      format: typeof resolved.format === 'string' ? resolved.format : undefined,
-      required: false,
-      description: typeof resolved.description === 'string' ? resolved.description : undefined,
-      refName: refToName(ref),
-    };
+    const arrayNode: SchemaFieldNode = withXml(
+      {
+        name: '',
+        isRoot: true,
+        type: 'array',
+        types,
+        format: typeof resolved.format === 'string' ? resolved.format : undefined,
+        required: false,
+        description: typeof resolved.description === 'string' ? resolved.description : undefined,
+        refName: refToName(ref),
+      },
+      resolved,
+    );
     const prefixItems = Array.isArray(resolved.prefixItems) ? (resolved.prefixItems as SchemaValue[]) : [];
     const items = resolved.items as SchemaValue | undefined;
     if (ctx.depth + 1 < ctx.maxDepth) {
@@ -554,24 +598,27 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
 
   // 顶层 primitive → 返回单节点
   return [
-    {
-      name: '',
-      isRoot: true,
-      type,
-      types,
-      format: typeof resolved.format === 'string' ? resolved.format : undefined,
-      required: false,
-      description: typeof resolved.description === 'string' ? resolved.description : undefined,
-      default: resolved.default,
-      example: firstSchemaExample(resolved),
-      enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
-      constValue: resolved.const,
-      exclusiveMinimum: typeof resolved.exclusiveMinimum === 'number' ? resolved.exclusiveMinimum : undefined,
-      exclusiveMaximum: typeof resolved.exclusiveMaximum === 'number' ? resolved.exclusiveMaximum : undefined,
-      contentMediaType: typeof resolved.contentMediaType === 'string' ? resolved.contentMediaType : undefined,
-      contentEncoding: typeof resolved.contentEncoding === 'string' ? resolved.contentEncoding : undefined,
-      refName: refToName(ref),
-    },
+    withXml(
+      {
+        name: '',
+        isRoot: true,
+        type,
+        types,
+        format: typeof resolved.format === 'string' ? resolved.format : undefined,
+        required: false,
+        description: typeof resolved.description === 'string' ? resolved.description : undefined,
+        default: resolved.default,
+        example: firstSchemaExample(resolved),
+        enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
+        constValue: resolved.const,
+        exclusiveMinimum: typeof resolved.exclusiveMinimum === 'number' ? resolved.exclusiveMinimum : undefined,
+        exclusiveMaximum: typeof resolved.exclusiveMaximum === 'number' ? resolved.exclusiveMaximum : undefined,
+        contentMediaType: typeof resolved.contentMediaType === 'string' ? resolved.contentMediaType : undefined,
+        contentEncoding: typeof resolved.contentEncoding === 'string' ? resolved.contentEncoding : undefined,
+        refName: refToName(ref),
+      },
+      resolved,
+    ),
   ];
 }
 
@@ -663,19 +710,22 @@ function buildSingleFieldNode(
     const circularOwnDesc = typeof rawSchema.description === 'string' ? rawSchema.description : undefined;
     const circularRefDesc =
       circularTarget && typeof circularTarget.description === 'string' ? circularTarget.description : undefined;
-    return {
-      name,
-      type: 'object',
-      refName: refToName(rawSchema.$ref),
-      required,
-      truncated: true,
-      // Primary description: own description if present, otherwise fall back to ref target's description
-      description: circularOwnDesc ?? circularRefDesc,
-      // refDescription: only when field has own description AND ref target also has a different description
-      refDescription:
-        circularOwnDesc && circularRefDesc && circularRefDesc !== circularOwnDesc ? circularRefDesc : undefined,
-      refTitle: circularTarget && typeof circularTarget.title === 'string' ? circularTarget.title : undefined,
-    };
+    return withXml(
+      {
+        name,
+        type: 'object',
+        refName: refToName(rawSchema.$ref),
+        required,
+        truncated: true,
+        // Primary description: own description if present, otherwise fall back to ref target's description
+        description: circularOwnDesc ?? circularRefDesc,
+        // refDescription: only when field has own description AND ref target also has a different description
+        refDescription:
+          circularOwnDesc && circularRefDesc && circularRefDesc !== circularOwnDesc ? circularRefDesc : undefined,
+        refTitle: circularTarget && typeof circularTarget.title === 'string' ? circularTarget.title : undefined,
+      },
+      rawSchema,
+    );
   }
 
   const { schema: resolved, ref, truncated } = resolveSchema(rawSchema, ctx, { preserveComposition: true });
@@ -709,15 +759,19 @@ function buildSingleFieldNode(
 
   const composition = getComposition(resolved);
   if (composition) {
-    const node: SchemaFieldNode = {
-      name,
-      type: composition.kind,
-      required,
-      description,
-      refDescription,
-      refTitle,
-      refName: refToName(ref),
-    };
+    const node: SchemaFieldNode = withXml(
+      {
+        name,
+        type: composition.kind,
+        required,
+        description,
+        refDescription,
+        refTitle,
+        refName: refToName(ref),
+      },
+      rawSchema,
+      resolved,
+    );
     if (ctx.depth + 1 >= ctx.maxDepth) {
       node.truncated = true;
       return node;
@@ -726,33 +780,37 @@ function buildSingleFieldNode(
     return node;
   }
 
-  const node: SchemaFieldNode = {
-    name,
-    type: type === 'unknown' && resolved.properties ? 'object' : type,
-    types,
-    format,
-    required,
-    description,
-    refDescription,
-    refTitle,
-    default: resolved.default,
-    example: firstSchemaExample(resolved),
-    enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
-    constValue: resolved.const,
-    minLength: typeof resolved.minLength === 'number' ? resolved.minLength : undefined,
-    maxLength: typeof resolved.maxLength === 'number' ? resolved.maxLength : undefined,
-    minimum: typeof resolved.minimum === 'number' ? resolved.minimum : undefined,
-    maximum: typeof resolved.maximum === 'number' ? resolved.maximum : undefined,
-    exclusiveMinimum: typeof resolved.exclusiveMinimum === 'number' ? resolved.exclusiveMinimum : undefined,
-    exclusiveMaximum: typeof resolved.exclusiveMaximum === 'number' ? resolved.exclusiveMaximum : undefined,
-    contentMediaType: typeof resolved.contentMediaType === 'string' ? resolved.contentMediaType : undefined,
-    contentEncoding: typeof resolved.contentEncoding === 'string' ? resolved.contentEncoding : undefined,
-    pattern: typeof resolved.pattern === 'string' ? resolved.pattern : undefined,
-    readOnly: typeof resolved.readOnly === 'boolean' ? resolved.readOnly : undefined,
-    writeOnly: typeof resolved.writeOnly === 'boolean' ? resolved.writeOnly : undefined,
-    deprecated: typeof resolved.deprecated === 'boolean' ? resolved.deprecated : undefined,
-    refName: refToName(ref),
-  };
+  const node: SchemaFieldNode = withXml(
+    {
+      name,
+      type: type === 'unknown' && resolved.properties ? 'object' : type,
+      types,
+      format,
+      required,
+      description,
+      refDescription,
+      refTitle,
+      default: resolved.default,
+      example: firstSchemaExample(resolved),
+      enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
+      constValue: resolved.const,
+      minLength: typeof resolved.minLength === 'number' ? resolved.minLength : undefined,
+      maxLength: typeof resolved.maxLength === 'number' ? resolved.maxLength : undefined,
+      minimum: typeof resolved.minimum === 'number' ? resolved.minimum : undefined,
+      maximum: typeof resolved.maximum === 'number' ? resolved.maximum : undefined,
+      exclusiveMinimum: typeof resolved.exclusiveMinimum === 'number' ? resolved.exclusiveMinimum : undefined,
+      exclusiveMaximum: typeof resolved.exclusiveMaximum === 'number' ? resolved.exclusiveMaximum : undefined,
+      contentMediaType: typeof resolved.contentMediaType === 'string' ? resolved.contentMediaType : undefined,
+      contentEncoding: typeof resolved.contentEncoding === 'string' ? resolved.contentEncoding : undefined,
+      pattern: typeof resolved.pattern === 'string' ? resolved.pattern : undefined,
+      readOnly: typeof resolved.readOnly === 'boolean' ? resolved.readOnly : undefined,
+      writeOnly: typeof resolved.writeOnly === 'boolean' ? resolved.writeOnly : undefined,
+      deprecated: typeof resolved.deprecated === 'boolean' ? resolved.deprecated : undefined,
+      refName: refToName(ref),
+    },
+    rawSchema,
+    resolved,
+  );
 
   // 子字段展开
   // 达到 maxDepth 时只保留当前层，不再递归

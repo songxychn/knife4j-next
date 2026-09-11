@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
-import { collectOas32DocumentDiagnostics } from 'knife4j-core';
+import { collectOas32DocumentDiagnostics, buildRequest, buildCurl } from 'knife4j-core';
 import type { SwaggerDoc } from '../types/swagger';
 import {
   ExternalResourceLoader,
@@ -856,12 +856,13 @@ describe('OAS 3.2 XML serialization of known logical data', () => {
     );
     expect(generated.xml).toBe('<Root><value>A</value></Root>');
     expect(paired.representation.text).toBe(authored);
-    // G is still unconnected to this helper: XML data-only serialization remains unavailable in this phase.
     const data = await evaluateOperationExample(
       catalog.targets.find((target) => target.name === 'data')!,
       f.session,
     );
-    expect(data.representation.serialization).toBe('unavailable');
+    expect(data.representation.text).toBe('<Root><value>A</value></Root>');
+    expect(data.representation.serialization).toBe('valid');
+    expect(data.representation.diagnostics.map((item) => item.code)).not.toContain('CODEC_UNAVAILABLE');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('No external example fetching'));
     const remote = await evaluateOperationExample(
       catalog.targets.find((target) => target.name === 'remote')!,
@@ -877,6 +878,139 @@ describe('OAS 3.2 XML serialization of known logical data', () => {
       }),
     ).toMatchObject({ status: 'not-applicable' });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('fills XML request preview and cURL from the same data-only serialization', async () => {
+    const document = {
+      ...documentFor({
+        Root: {
+          type: 'object',
+          xml: { name: 'Root' },
+          properties: {
+            id: { type: 'integer', xml: { nodeType: 'attribute' } },
+            nodeType: { type: 'string' },
+            xml: { type: 'string' },
+            note: { type: 'string', xml: { nodeType: 'cdata' } },
+          },
+        },
+      }),
+      paths: {
+        '/xml': {
+          post: {
+            requestBody: {
+              required: true,
+              content: {
+                'application/xml': {
+                  schema: { $ref: '#/components/schemas/Root' },
+                  examples: {
+                    data: {
+                      dataValue: {
+                        id: 7,
+                        nodeType: 'cdata',
+                        xml: 'attribute',
+                        note: '<raw>',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '204': { description: 'ok' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    const f = await fixture(undefined, { document });
+    const operation = parseMenuTags(document, { retrievalUri: uri, resourceSnapshot: f.snapshot }).flatMap(
+      (tag) => tag.operations,
+    )[0];
+    const catalog = locateOperationExampleCatalog(document, operation);
+    const result = await evaluateOperationExample(
+      catalog.targets.find((target) => target.name === 'data')!,
+      f.session,
+    );
+    expect(result.representation.text).toBe(
+      '<Root id="7"><nodeType>cdata</nodeType><![CDATA[<raw>]]><xml>attribute</xml></Root>',
+    );
+    expect(result.representation.text).toContain('<nodeType>cdata</nodeType>');
+    expect(result.representation.text).toContain('<xml>attribute</xml>');
+    expect(result.representation.text).toContain('<![CDATA[<raw>]]>');
+    const xml = result.representation.text!;
+    const model = {
+      pathParams: [],
+      queryParams: [],
+      headerParams: [],
+      cookieParams: [],
+      bodyRequired: true,
+      bodyContents: [
+        {
+          mediaType: 'application/xml',
+          category: 'raw' as const,
+          schema: {},
+          fileFields: [],
+          fileFieldsMultiple: [],
+          jsonFields: [],
+        },
+      ],
+    };
+    const request = buildRequest({
+      baseUrl: 'https://api.example',
+      path: '/xml',
+      method: 'post',
+      debugModel: model,
+      formValues: {
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        cookieParams: {},
+        selectedContentType: 'application/xml',
+        serializedExampleBody: { mediaType: 'application/xml', text: xml },
+      },
+    });
+    expect(request.body).toBe(xml);
+    expect(request.headers['Content-Type']).toBe('application/xml');
+    expect(buildCurl(request)).toContain('<Root id="7">');
+    expect(
+      buildRequest({
+        baseUrl: 'https://api.example',
+        path: '/xml',
+        method: 'post',
+        debugModel: model,
+        formValues: {
+          pathParams: {},
+          queryParams: {},
+          headerParams: {},
+          cookieParams: {},
+          selectedContentType: 'application/xml',
+          body: xml,
+        },
+      }).body,
+    ).toBe(xml);
+  });
+
+  test.each(['3.0.4', '3.1.1'])('does not enumerate a 3.2 XML example catalog for %s', (version) => {
+    const document = {
+      openapi: version,
+      info: { title: 'Legacy XML', version: '1' },
+      paths: {
+        '/xml': {
+          post: {
+            requestBody: {
+              content: {
+                'application/xml': {
+                  schema: { type: 'object', xml: { name: 'Root' }, properties: { value: { type: 'string' } } },
+                  example: { value: 'A' },
+                },
+              },
+            },
+            responses: { '204': { description: 'ok' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    const operation = parseMenuTags(document, { retrievalUri: uri }).flatMap((tag) => tag.operations)[0];
+    expect(isOas32XmlVersion(version)).toBe(false);
+    expect(locateOperationExampleCatalog(document, operation).targets).toEqual([]);
   });
 
   test.each(['maxDepth', 'maxNodes', 'maxReferences', 'maxOutputBytes'] as const)(

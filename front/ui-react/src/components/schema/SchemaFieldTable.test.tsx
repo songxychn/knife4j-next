@@ -85,4 +85,17 @@ describe('schema field names', () => {
       .map((element) => element.props.children);
     expect(previewNames).toEqual(['schema.rootNode']);
   });
+
+  test('surfaces Schema XML Object metadata on the type tag', () => {
+    const tree = SchemaTypeLink({
+      node: {
+        name: 'id',
+        type: 'integer',
+        required: false,
+        xml: { nodeType: 'attribute', name: 'id', namespace: 'urn:pets' },
+      },
+    });
+    const tag = elements(tree).find((element) => element.type === 'Tag');
+    expect(tag?.props.children).toBe('integer · xml:attribute');
+  });
 });

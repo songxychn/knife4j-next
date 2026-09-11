@@ -49,6 +49,7 @@ export type {
   SchemaResolveContext,
   SchemaValue,
   SchemaFieldNode,
+  SchemaFieldXml,
   BuildSchemaExampleFn,
   BuildSchemaFieldTreeFn,
 } from './types';
@@ -155,7 +156,7 @@ export type {
 } from './parameterSerialization';
 
 // schemaExample
-export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';
+export { buildSchemaExample, buildSchemaFieldTree, schemaFieldXml } from './schemaExample';
 
 // mediaTypeExample
 export { buildMediaTypeExampleValue } from './mediaTypeExample';

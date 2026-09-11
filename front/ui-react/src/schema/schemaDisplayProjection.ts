@@ -1,4 +1,4 @@
-import type { SchemaFieldNode } from 'knife4j-core';
+import { schemaFieldXml, type SchemaFieldNode } from 'knife4j-core';
 import type { JsonValue, SchemaNode } from 'knife4j-schema-engine';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 
@@ -146,6 +146,7 @@ function firstExample(schema: { [key: string]: JsonValue }): unknown {
 }
 
 function schemaAnnotations(name: string, schema: { [key: string]: JsonValue }, required: boolean): SchemaFieldNode {
+  const xml = schemaFieldXml(schema);
   return {
     name,
     type: effectiveType(schema),
@@ -169,6 +170,7 @@ function schemaAnnotations(name: string, schema: { [key: string]: JsonValue }, r
     writeOnly: typeof schema.writeOnly === 'boolean' ? schema.writeOnly : undefined,
     deprecated: typeof schema.deprecated === 'boolean' ? schema.deprecated : undefined,
     constValue: schema.const,
+    ...(xml ? { xml } : {}),
   };
 }
 
@@ -288,6 +290,7 @@ function annotationOverlay(
     deprecated: own.deprecated ?? target.deprecated,
     contentMediaType: own.contentMediaType ?? target.contentMediaType,
     contentEncoding: own.contentEncoding ?? target.contentEncoding,
+    xml: own.xml ?? target.xml,
   };
 }
 
@@ -301,7 +304,8 @@ function rootFields(node: SchemaFieldNode): SchemaFieldNode[] {
     .split(' + ')
     .every((keyword) => COMPOSITION_KEYWORDS.includes(keyword as CompositionKeyword));
   if (node.type === 'object' || composition) {
-    return node.children ?? [];
+    const children = node.children ?? [];
+    return node.xml ? [{ ...node, isRoot: true, children: undefined }, ...children] : children;
   }
   return [{ ...node, isRoot: true }];
 }
