@@ -548,6 +548,16 @@ export type SchemaValue = Record<string, unknown> | boolean;
 export type SchemaFieldTruncationReason =
   'circular-reference' | 'max-depth' | 'projection-loss' | 'reference-unavailable';
 
+/** Schema XML Object 的展示投影；只来自 Schema 位置，不解释 opaque 数据同名字段。 */
+export interface SchemaFieldXml {
+  nodeType?: string;
+  name?: string;
+  namespace?: string;
+  prefix?: string;
+  attribute?: boolean;
+  wrapped?: boolean;
+}
+
 /** 字段树节点（用于文档展示） */
 export interface SchemaFieldNode {
   /** 字段名；根节点及合法的空字符串属性名均可能为空字符串。 */
@@ -596,6 +606,8 @@ export interface SchemaFieldNode {
   deprecated?: boolean;
   /** const 约束值。 */
   constValue?: unknown;
+  /** OAS XML Object（3.2 nodeType 与旧 attribute/wrapped），仅 Schema 声明。 */
+  xml?: SchemaFieldXml;
   /** boolean schema 原值；false 表示没有实例可满足该 schema。 */
   booleanSchema?: boolean;
   /** 当 type 为 $ref 指向的具名类型时，保留类型名便于 UI 提示 */

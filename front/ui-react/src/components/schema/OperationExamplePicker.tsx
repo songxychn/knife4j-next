@@ -13,6 +13,11 @@ import SchemaDiscriminatorPanel from './SchemaDiscriminatorPanel';
 import CodeBlock from '../../pages/api/CodeBlock';
 import type { ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import { describeSchemaDiscriminator, discriminatorLocationFromOpenApi } from '../../schema/schemaDiscriminatorView';
+import {
+  canApplyGeneratedExample,
+  materializeDiscriminatorGeneratedExample,
+  shouldCommitGeneratedExample,
+} from '../../schema/oas32XmlExample';
 
 export interface OperationExamplePickerProps {
   readonly targets: readonly OperationExampleTarget[];
@@ -113,28 +118,35 @@ export default function OperationExamplePicker({
           operationToken={operationToken ?? target.operationIdentity}
           onApplyGenerated={
             onApply && result && target.group.startsWith('body:')
-              ? (value) =>
-                  onApply(
-                    {
-                      ...result,
-                      authored: false,
-                      representation: {
-                        fields: {
-                          dataValue: true,
-                          serializedValue: false,
-                          externalValue: false,
-                          value: false,
-                        },
-                        data: value as never,
-                        dataSource: 'dataValue',
-                        text: JSON.stringify(value, null, 2),
-                        serialization: 'valid',
-                        pairing: 'absent',
-                        diagnostics: [],
-                      },
-                    },
-                    editRevision?.() ?? 0,
-                  )
+              ? (value, branchLocation) => {
+                  void (async () => {
+                    const revision = callbacks.current.editRevision?.() ?? 0;
+                    const representation = await materializeDiscriminatorGeneratedExample({
+                      value,
+                      snapshot: snapshot ?? target.snapshot,
+                      session,
+                      schemaLocation:
+                        branchLocation ??
+                        (target.schemaLocation
+                          ? {
+                              ownerRetrievalUri: target.schemaLocation.ownerRetrievalUri,
+                              pointer: target.schemaLocation.pointer,
+                            }
+                          : undefined),
+                      mediaType: target.mediaType ?? target.context.mediaType,
+                    });
+                    if (
+                      !shouldCommitGeneratedExample(
+                        revision,
+                        callbacks.current.editRevision?.() ?? 0,
+                        canApplyGeneratedExample(representation) ? representation : undefined,
+                      )
+                    ) {
+                      return;
+                    }
+                    callbacks.current.onApply?.({ ...result, authored: false, representation }, revision);
+                  })();
+                }
               : undefined
           }
         />

@@ -6,6 +6,7 @@ import { SchemaTypeLink } from './SchemaFieldTable';
 import CodeBlock from '../../pages/api/CodeBlock';
 import type { ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import {
+  discriminatorGenerationSchemaLocation,
   generateDiscriminatorCandidate,
   type DiscriminatorGenerationResult,
 } from '../../schema/schemaDiscriminatorGeneration';
@@ -35,7 +36,7 @@ export interface SchemaDiscriminatorPanelProps {
   readonly representation?: ExampleRepresentation;
   readonly missingPropertyValidated?: boolean;
   readonly operationToken: string;
-  readonly onApplyGenerated?: (value: unknown) => void;
+  readonly onApplyGenerated?: (value: unknown, schemaLocation?: { ownerRetrievalUri: string; pointer: string }) => void;
 }
 
 function targetPreviewNode(target: DiscriminatorTarget) {
@@ -210,12 +211,15 @@ export default function SchemaDiscriminatorPanel({
           </div>
         );
       })}
-      {generatedValue !== undefined && (
+      {generated && generatedValue !== undefined && (
         <div data-discriminator-generated="">
           <Typography.Text strong>{t('schema.discriminator.generated')}</Typography.Text>
           <CodeBlock code={JSON.stringify(generatedValue, null, 2)} />
           {onApplyGenerated && (
-            <Button size="small" onClick={() => onApplyGenerated(generatedValue)}>
+            <Button
+              size="small"
+              onClick={() => onApplyGenerated(generatedValue, discriminatorGenerationSchemaLocation(generated.result))}
+            >
               {t('schema.example32.apply')}
             </Button>
           )}

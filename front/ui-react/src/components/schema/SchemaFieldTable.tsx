@@ -178,6 +178,12 @@ function buildConstraintLines(node: SchemaFieldNode): string[] {
   if (node.exclusiveMaximum !== undefined) lines.push(`exclusiveMaximum: ${node.exclusiveMaximum}`);
   if (node.contentMediaType !== undefined) lines.push(`contentMediaType: ${node.contentMediaType}`);
   if (node.contentEncoding !== undefined) lines.push(`contentEncoding: ${node.contentEncoding}`);
+  if (node.xml?.nodeType) lines.push(`xml.nodeType: ${node.xml.nodeType}`);
+  if (node.xml?.name !== undefined) lines.push(`xml.name: ${node.xml.name}`);
+  if (node.xml?.namespace !== undefined) lines.push(`xml.namespace: ${node.xml.namespace}`);
+  if (node.xml?.prefix !== undefined) lines.push(`xml.prefix: ${node.xml.prefix}`);
+  if (node.xml?.attribute !== undefined) lines.push(`xml.attribute: ${String(node.xml.attribute)}`);
+  if (node.xml?.wrapped !== undefined) lines.push(`xml.wrapped: ${String(node.xml.wrapped)}`);
   if (node.pattern !== undefined) lines.push(`pattern: ${node.pattern}`);
   if (node.enum !== undefined && node.enum.length > 0) lines.push(`enum: ${node.enum.join(', ')}`);
   if (node.constValue !== undefined) lines.push(`const: ${JSON.stringify(node.constValue)}`);
