@@ -1,6 +1,7 @@
 import type { BuiltRequest } from 'knife4j-core';
 import type { DebugResponsePayload, SseEvent } from './ResponsePanel';
 import type { CookieParameterSource } from './cookieParameterSource';
+import type { Oas32SequentialStreamView } from '../../schema/oas32SequentialView';
 
 export interface DebugSessionState {
   response: DebugResponsePayload | null;
@@ -9,6 +10,7 @@ export interface DebugSessionState {
   /** Source of the sent request, independent of subsequent form edits. */
   builtRequestCookieSource?: CookieParameterSource;
   sseEvents: SseEvent[] | null;
+  sequentialStream?: Oas32SequentialStreamView | null;
 }
 
 const debugSessionStates = new Map<string, DebugSessionState>();
