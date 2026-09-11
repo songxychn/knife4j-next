@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.7.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前已发布 Go `v0.7.1`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 与发布版本
@@ -20,8 +20,14 @@ Go `v0.6.0` 将共享 React UI 的 OpenAPI 3.1.x 加载、Schema、调试诊断�
 Go module 需要 Go 1.22 或更高版本：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.1
 ```
+
+## v0.7.1
+
+Go 1.22 基线、module 路径、`Config`、`NewHandler` 与路由语义保持不变。
+相较于 `v0.7.0`，共享 React UI 修复 OAS 3.1 非 ASCII 分组名下入口文档自引用 `$ref`
+与 retrieval URI 身份错配，避免整篇接口降级（PR #798）。
 
 ## v0.7.0
 

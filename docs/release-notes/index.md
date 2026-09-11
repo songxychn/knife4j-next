@@ -12,7 +12,15 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.6.0 <Badge type="tip" text="最新" />
+### 5.6.1 <Badge type="tip" text="最新" />
+
+`5.6.1` 是基于 `5.6.0` 的向后兼容补丁版本，修复 OAS 3.1 文档在非 ASCII 分组名下把入口文档自引用 `$ref` 误判为未授权外部资源的问题。
+
+**OAS 3.1 资源身份（React UI）**
+
+- 登记与查找 http(s) Schema 身份时按 UTF-8 解码百分号路径，使中文等非 ASCII 分组的绝对自引用 `$ref` 与入口文档 retrieval URI 视为同一资源，不再触发外部资源拒绝与整篇接口降级（PR #798，issue #792）。
+
+### 5.6.0
 
 `5.6.0` 是基于 `5.5.0` 的向后兼容次版本，新增浏览器登录会话调试与目录交互能力，保持 Java 依赖矩阵和现有 OpenAPI 支持范围。
 
@@ -576,7 +584,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.3.3</version>
+    <version>5.6.1</version>
 </dependency>
 ```
 
