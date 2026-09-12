@@ -61,13 +61,13 @@ Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x fe
 | Offline documents | Separate 3.2 HTML / Markdown / Word snapshot | The 3.1 snapshot rejects 3.2 | [#782](https://github.com/songxychn/knife4j-next/issues/782) / [#804](https://github.com/songxychn/knife4j-next/pull/804) |
 | Host loading | WebJar `doc.html`, aggregation disk, Knife4x SpecURL | 3.2 uses specification fixtures, never relabeled springdoc output | [#783](https://github.com/songxychn/knife4j-next/issues/783) |
 
-Default Schema dialect:
+Schema dialects:
 
 ```yaml
 jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 ```
 
-SchemaEngine also executes `https://json-schema.org/draft/2020-12/schema`. `https://spec.openapis.org/oas/3.2/dialect/base` and other unregistered URIs are not treated as 3.1.
+An explicit official 3.2 dialect URI is executed as written. When root-level `jsonSchemaDialect` is **omitted**, SchemaEngine follows the OpenAPI prose default `https://spec.openapis.org/oas/3.1/dialect/base` and does not rewrite it as the 3.2 dialect. `https://spec.openapis.org/oas/3.2/dialect/base` and other unregistered URIs raise `UNSUPPORTED_DIALECT`; they are not silently treated as 3.1. SchemaEngine also executes `https://json-schema.org/draft/2020-12/schema`.
 
 ## 3.0 / 3.1 / 3.2 regression matrix
 
@@ -77,7 +77,7 @@ SchemaEngine also executes `https://json-schema.org/draft/2020-12/schema`. `http
 | Standard methods | No QUERY field | Same as 3.0 | Path Item adds `query` |
 | Custom methods | No `additionalOperations` | No | Case-preserving; reserved methods cannot be stored there |
 | A `query` field on a 3.1 document | — | Ignored | QUERY operation |
-| Schema dialect | OAS 3.0 Schema | `oas/3.1/dialect/base` | `oas/3.2/dialect/2025-09-17` |
+| Schema dialect | OAS 3.0 Schema | `oas/3.1/dialect/base` | Explicit `oas/3.2/dialect/2025-09-17`; omitted falls back to `oas/3.1/dialect/base` |
 | Examples | `value` / `externalValue` | Same, plus JSON Schema `examples` | Adds `dataValue` / `serializedValue` |
 | Change tracking | `oas3.0-v1` | `oas3.1-v1` | `oas3.2-v1` |
 | Offline export | 3.0 snapshot | 3.1 snapshot rejects 3.2 | 3.2 snapshot rejects 3.1 |
@@ -173,7 +173,7 @@ examples:
 
 ### Dialects
 
-When omitted, 3.2 uses `https://spec.openapis.org/oas/3.2/dialect/2025-09-17`, not the 3.1 `oas/3.1/dialect/base`.
+When `jsonSchemaDialect` is omitted, a 3.2 document still uses the prose default `https://spec.openapis.org/oas/3.1/dialect/base`. To execute the 3.2 dialect, declare `https://spec.openapis.org/oas/3.2/dialect/2025-09-17` explicitly. Unknown dialects, including `oas/3.2/dialect/base`, are rejected rather than treated as 3.1.
 
 ## Minimal valid fixtures
 
