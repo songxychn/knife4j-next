@@ -9,7 +9,7 @@ lang: en-US
 [中文契约](./openapi32) · [Download minimal JSON](/examples/openapi-3.2-minimal.json) · [Download minimal YAML](/examples/openapi-3.2-minimal.yaml)
 
 ::: warning Unpublished
-This page describes OpenAPI 3.2.x consumption on the `integration/oas32` branch. It is **not** a published Java `5.6.0` or Knife4x Go `v0.7.0` promise. Do not document 3.2 as a released capability until a maintainer merges the integration branch to `master` and ships a new release.
+This page describes OpenAPI 3.2.x consumption on the `integration/oas32` branch. It is **not** a published Java `5.6.1` or Knife4x Go `v0.7.1` promise. Do not document 3.2 as a released capability until a maintainer merges the integration branch to `master` and ships a new release.
 :::
 
 Published OpenAPI 3.0.x / 3.1.x contracts are unchanged; see [OpenAPI 3.1 Support and Migration](./openapi31-en). The Vue 3 UI remains OAS2-only. This page does not change starter defaults and does not upgrade springdoc or Java production dependencies.
@@ -21,8 +21,8 @@ OpenAPI defines its feature set at the `major.minor` level. `3.2.x` shares one *
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | No OAS 3 expansion |
-| OpenAPI 3.0.x | React | Published | Java `5.6.0` / Go `v0.7.0` |
-| OpenAPI 3.1.x | React | Published | Java `5.6.0` / Go `v0.7.0` |
+| OpenAPI 3.0.x | React | Published | Java `5.6.1` / Go `v0.7.1` |
+| OpenAPI 3.1.x | React | Published | Java `5.6.1` / Go `v0.7.1` |
 | OpenAPI 3.2.x | React | **Unpublished** (integration branch) | Full consumption of valid 3.2 documents; never treated as 3.1 |
 
 ## Specification fixtures versus generator output

@@ -6,7 +6,7 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调�
 ## 定位
 
 - 已发布版本只消费标准 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2
-- `integration/oas32` 可将合法 3.2 JSON 交给同一套 React UI；该能力未随 Go `v0.7.0` 发布
+- `integration/oas32` 可将合法 3.2 JSON 交给同一套 React UI；该能力未随 Go `v0.7.1` 发布
 - Go 核心只依赖标准库 `net/http`，不绑定 Gin、Echo、Chi 等 Web 框架
 - 与 Java 线 `knife4j-next` 同仓并共用 `front/ui-react` 与 `front/core`，但 module、版本和发布流程独立于 Java `5.x`
 - 宿主壳只负责嵌入静态 UI、注入配置和挂载路由，不复制前端业务逻辑
@@ -17,13 +17,13 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Go 当前公开版本为 `v0.7.0`，对应仓库 tag `knife4x/go/v0.7.0`；首个公开版本为
+Go 当前公开版本为 `v0.7.1`，对应仓库 tag `knife4x/go/v0.7.1`；首个公开版本为
 `v0.1.0`。tag 发布前可从仓库 checkout 直接运行 [Gin example](examples/gin/README.md)；
 发布状态与完整验收步骤见 [Go 发布清单](go/RELEASE.md)。
 
-`v0.7.0` 保持 Go Handler API 与路由语义，新增共享 React UI 的浏览器登录会话调试、
-枚举过滤和目录分组吸顶，并修复 Schema 根节点标签。OAS 3.1、JSON Schema 2020-12、
-受控资源图、调试诊断与导出能力从 `v0.6.0` 起提供。
+`v0.7.1` 保持 Go Handler API 与路由语义，修复 OAS 3.1 非 ASCII 分组名下自引用 `$ref`
+被误判为外部资源的问题。浏览器登录会话调试、枚举过滤和目录分组吸顶从 `v0.7.0` 起提供；
+OAS 3.1、JSON Schema 2020-12、受控资源图、调试诊断与导出能力从 `v0.6.0` 起提供。
 具体能力和限制见 [Go 版本说明](../docs/knife4x/index.md)；`v0.5.0` 的历史说明不包含这些后续改动。
 
 ## 快速开始

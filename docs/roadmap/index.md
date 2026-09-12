@@ -8,7 +8,7 @@ title: 路线图
 
 ---
 
-## 当前阶段：5.6.0 与 OpenAPI 3.1
+## 当前阶段：5.6.1 与 OpenAPI 3.1
 
 ### 已完成 ✅
 
@@ -70,7 +70,7 @@ OpenAPI 3.1 按“文档加载 → SchemaEngine → 展示与调试 → 受控�
 | 外部 Schema 资源 | ✅ | 默认拒绝、精确 URI 授权、无凭据请求、固定预算、可撤销 |
 | 可移植交付 | ✅ | 单接口 JSON 闭包、变化指纹、HTML / Markdown / DOC / DOCX 离线快照 |
 | springdoc 端到端 | ✅ | Boot 3 WebMVC/WebFlux 显式 3.1；Boot 4 WebMVC 默认/显式 3.1；Boot 2 保持 3.0 |
-| OpenAPI 3.2.x | 未发布 | 集成分支按 3.2 语义消费，不按 3.1 猜测处理；已发布 `5.6.0` 不含该能力。见 [OpenAPI 3.2 支持矩阵](../guide/openapi32) |
+| OpenAPI 3.2.x | 未发布 | 集成分支按 3.2 语义消费，不按 3.1 猜测处理；已发布 `5.6.1` 不含该能力。见 [OpenAPI 3.2 支持矩阵](../guide/openapi32) |
 
 支持矩阵、浏览器限制、迁移示例和最小有效夹具统一收录在
 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。这一里程碑从 Java `5.5.0` 起提供，Knife4x Go 版本单独发布。
@@ -82,7 +82,7 @@ OpenAPI 3.1 按“文档加载 → SchemaEngine → 展示与调试 → 受控�
 
 ## OpenAPI 3.2 集成分支（未发布）
 
-`integration/oas32` 正在接入 OpenAPI 3.2.x 完整消费。这不是 `5.6.0` 的发布承诺，也不自动合入 `master`。
+`integration/oas32` 正在接入 OpenAPI 3.2.x 完整消费。这不是 `5.6.1` 的发布承诺，也不自动合入 `master`。
 
 | 范围 | 状态 | 契约 |
 | --- | --- | --- |
