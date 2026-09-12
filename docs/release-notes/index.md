@@ -12,7 +12,29 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.6.1 <Badge type="tip" text="最新" />
+### 5.7.0 <Badge type="tip" text="最新" />
+
+`5.7.0` 是基于 `5.6.1` 的向后兼容次版本，发布 OpenAPI 3.2.x 文档消费能力，并保持现有 OpenAPI 3.0.x / 3.1.x、OAS2 兼容维护线和 Java 依赖矩阵。
+
+**OpenAPI 3.2 消费（React UI）**
+
+- 合法 3.2 文档走独立解析、资源图、Schema 会话、导出与变化跟踪，不降级成 3.1（总路线 [#767](https://github.com/songxychn/knife4j-next/issues/767)，验收 PR [#807](https://github.com/songxychn/knife4j-next/pull/807)）。
+- 支持 QUERY 固定字段、`additionalOperations` 自定义方法、层级 tags、server `name`、response `summary`、`dataValue` / `serializedValue`、`discriminator.defaultMapping`、XML `nodeType`、querystring、multipart 位置编码、顺序媒体，以及安全方案 URI 引用与 Device Authorization。
+- SchemaEngine 执行官方 3.2 方言与 JSON Schema 2020-12；根级 `jsonSchemaDialect` 省略时按 OpenAPI 正文默认使用 `oas/3.1/dialect/base`，未知方言拒绝执行（PR [#808](https://github.com/songxychn/knife4j-next/pull/808)）。
+- 单接口导出、HTML / Markdown / DOC / DOCX 离线快照与变化协议 `oas3.2-v1` 均与 3.0 / 3.1 基线隔离。
+- WebJar `doc.html`、聚合 disk 与 Knife4x SpecURL 可承载合法 3.2 JSON；starter 真实 `/v3/api-docs` 仍是当前 springdoc 的 3.0 / 3.1 输出，不把版本字符串改成 3.2 冒充生成。
+
+**调试体验（React UI）**
+
+- 调试页 OAS 3.2 Server 解析详情默认收起，只保留选择 Server 下拉；存在 diagnostics 时仍默认展开。
+
+**兼容范围与迁移**
+
+Java 生产依赖仍为 springdoc `1.8.0` / `2.8.9` / Boot4 `3.0.3`。本版本不升级生成器，也不改变 starter 默认配置。Vue3 UI 继续只维护 OAS2。支持矩阵、浏览器限制与最小夹具见 [OpenAPI 3.2 支持与迁移](https://knife4jnext.com/guide/openapi32)。
+
+> 外部资源仍受精确授权、CORS 与预算约束；浏览器不能直接设置 Cookie Header 或由 JavaScript 注入 mutualTLS 客户端证书，Webhook 仅作入站契约展示，不主动发送。示例生成不是通用 JSON Schema 求解器。
+
+### 5.6.1
 
 `5.6.1` 是基于 `5.6.0` 的向后兼容补丁版本，修复 OAS 3.1 文档在非 ASCII 分组名下把入口文档自引用 `$ref` 误判为未授权外部资源的问题。
 
@@ -584,7 +606,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.6.1</version>
+    <version>5.7.0</version>
 </dependency>
 ```
 

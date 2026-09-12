@@ -385,7 +385,16 @@ body {
   margin-top: 6px;
 }
 .knife4j-server-selection {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+}
+.knife4j-server-selection .ant-collapse {
+  margin-top: 4px;
+}
+.knife4j-server-selection .ant-collapse-header {
+  padding: 4px 0 !important;
+}
+.knife4j-server-selection .ant-collapse-content-box {
+  padding: 0 0 4px !important;
 }
 .knife4j-server-variable {
   display: flex;

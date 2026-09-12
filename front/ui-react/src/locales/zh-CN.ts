@@ -946,6 +946,7 @@ const zhCN = {
   'auth.modal401.close': '关闭',
   'oas32.responseUnavailable': '响应 {{status}} 尚未解析或目标类型无效，不能作为空响应展示。',
   'oas32.server.select': '选择 Server',
+  'oas32.server.details': '解析详情',
   'oas32.server.customUrl': '用户覆盖 URL',
   'oas32.server.source': '来源',
   'oas32.server.raw': '声明 URL',

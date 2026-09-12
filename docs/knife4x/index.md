@@ -6,14 +6,14 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.7.1`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前已发布 Go `v0.8.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
-::: info OpenAPI 3.1 与发布版本
+::: info OpenAPI 3.1 / 3.2 与发布版本
 Go `v0.6.0` 将共享 React UI 的 OpenAPI 3.1.x 加载、Schema、调试诊断、导出与变化提示纳入发布，
-完整边界见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。已发布入口只接受 OpenAPI 3.0.x / 3.1.x JSON，
-不支持 YAML 入口。`integration/oas32` 源码可经 `SpecURL` 承载合法 3.2 JSON，但 **Go `v0.7.1` 尚未发布该能力**；
-见 [OpenAPI 3.2 支持矩阵](/guide/openapi32)。下方 `v0.5.0` 及更早小节保留各自历史范围，不包含这些后续改动。
+完整边界见 [OpenAPI 3.1 支持与迁移](/guide/openapi31)。Go `v0.8.0` 将同一套 UI 的 OpenAPI 3.2.x
+消费纳入发布，见 [OpenAPI 3.2 支持矩阵](/guide/openapi32)。已发布入口接受 OpenAPI 3.0.x / 3.1.x / 3.2.x
+JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史范围，不包含这些后续改动。
 :::
 
 ## 安装
@@ -21,8 +21,15 @@ Go `v0.6.0` 将共享 React UI 的 OpenAPI 3.1.x 加载、Schema、调试诊断�
 Go module 需要 Go 1.22 或更高版本：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.1
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.0
 ```
+
+## v0.8.0
+
+Go 1.22 基线、module 路径、`Config`、`NewHandler` 与路由语义保持不变。
+相较于 `v0.7.1`，共享 React UI 发布 OpenAPI 3.2.x 消费：独立解析、资源图、Schema 会话、
+QUERY / 自定义方法、离线导出、变化协议 `oas3.2-v1`，以及调试页 Server 解析详情默认收起
+（总路线 #767，验收 PR #807）。入口仍不接受 YAML。
 
 ## v0.7.1
 
@@ -149,8 +156,8 @@ func main() {
 
 ## 使用边界
 
-- 已发布的 `v0.7.1` 只消费已有的 OpenAPI 3.0.x / 3.1.x JSON，不生成 spec，不支持 OAS2 / Swagger 2。
-- `integration/oas32` 源码可用同一 Handler 承载合法 3.2 JSON；该能力未随 `v0.7.1` 发布，限制见 [OpenAPI 3.2 支持矩阵](/guide/openapi32)。
+- 已发布的 `v0.8.0` 消费已有的 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON，不生成 spec，不支持 OAS2 / Swagger 2。
+- 同一 Handler 可经 `SpecURL` 承载合法 3.2 JSON；限制见 [OpenAPI 3.2 支持矩阵](/guide/openapi32)。入口仍不接受 YAML。
 - 只提供 `{BasePath}/doc.html` 入口，不为 `/` 或 `index.html` 增加重定向或 SPA fallback。
 - Go 核心只依赖标准库 `net/http`；Gin 是可运行示例，不是库依赖。
 - Go Handler 将配置注入 UI，Knife4x 不请求 Java 的 `/knife4j/config`。
