@@ -8,19 +8,20 @@ github.com/songxychn/knife4j-next/knife4x/go
 
 Knife4x 已发布版本只消费 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2。核心只依赖
 标准库 `net/http`；Gin 只是可运行的组合示例，不是库依赖。`integration/oas32` 源码可经 `SpecURL`
-承载合法 3.2 JSON，但 **`v0.7.0` 尚未发布该能力**；限制见
+承载合法 3.2 JSON，但 **`v0.7.1` 尚未发布该能力**；限制见
 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
-当前公开版本为 `v0.7.0`，对应仓库 tag `knife4x/go/v0.7.0`：
+当前公开版本为 `v0.7.1`，对应仓库 tag `knife4x/go/v0.7.1`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.7.1
 ```
 
-`v0.7.0` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
-新增浏览器登录会话调试、枚举输入过滤和目录分组吸顶，并修复 Schema 根节点标签。
-OAS 3.1、JSON Schema 2020-12、受控资源加载、调试诊断、导出与变化提示从 `v0.6.0` 起提供；
-OAS 3.0.x 继续沿用既有路径。版本明细见 [Go 版本说明](../../docs/knife4x/index.md)。
+`v0.7.1` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
+修复 OAS 3.1 非 ASCII 分组名下自引用 `$ref` 身份错配。浏览器登录会话调试、枚举输入过滤
+和目录分组吸顶从 `v0.7.0` 起提供；OAS 3.1、JSON Schema 2020-12、受控资源加载、调试诊断、
+导出与变化提示从 `v0.6.0` 起提供；OAS 3.0.x 继续沿用既有路径。版本明细见
+[Go 版本说明](../../docs/knife4x/index.md)。
 
 外部资源默认拒绝，须对已发现的精确 URI 授权；SchemaEngine 只使用已登记的资源，不自行联网。
 不执行未知方言或自定义词汇，不提供 Cookie jar 写入、主动 Webhook 调用或客户端证书注入。
@@ -76,7 +77,7 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 ```
 
 把顶层为 `openapi: 3.0.x`、`openapi: 3.1.x` 的 JSON 保存为当前目录的 `openapi.json`。
-集成分支上也可以放入合法 `openapi: 3.2.x` JSON；已发布 `v0.7.0` 不承诺 3.2。启动后打开
+集成分支上也可以放入合法 `openapi: 3.2.x` JSON；已发布 `v0.7.1` 不承诺 3.2。启动后打开
 <http://localhost:8080/doc.html>。
 
 `Config` 只有两个字段：

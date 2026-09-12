@@ -119,6 +119,86 @@ describe('resource graph and SchemaDocumentSession integration', () => {
     expect(JSON.stringify(entry)).toBe(entryBefore);
   });
 
+  test('projects OAS 3.1 fields for Chinese group names with absolute self $refs', async () => {
+    const groupName = 'Member接口文档';
+    const unicodeDocUri = `https://docs.knife4j.example/v3/api-docs/${groupName}`;
+    const encodedDocUri = new URL(unicodeDocUri).href;
+    const itemRef = { $ref: `${unicodeDocUri}#/components/schemas/Pet` };
+    const entry: SwaggerDoc = {
+      openapi: '3.1.0',
+      info: { title: 'Member API', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          post: {
+            requestBody: {
+              content: { 'application/json': { schema: itemRef } },
+            },
+            responses: {
+              '200': {
+                description: 'ok',
+                content: { 'application/json': { schema: itemRef } },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Pet: {
+            type: 'object',
+            required: ['id'],
+            properties: { id: { type: 'integer' } },
+            additionalProperties: false,
+          },
+        },
+      },
+    };
+    const entryBefore = JSON.stringify(entry);
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('same-document $ref must not be fetched');
+    });
+    const loader = new ExternalResourceLoader(entry, encodedDocUri, { pageUri, fetchImpl });
+    expect(loader.currentDiscovery().candidates).toEqual([]);
+    const snapshot = loader.currentSnapshot();
+    expect(snapshot.complete).toBe(true);
+    expect(snapshot.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'schema-ref', state: 'local', targetRetrievalUri: encodedDocUri }),
+      ]),
+    );
+
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new Error('SchemaEngine must remain registry-only'));
+    const session = await createSchemaDocumentSession(entry, encodedDocUri, {
+      resourceDocuments: schemaDocumentsFromResourceGraph(snapshot),
+    });
+    sessions.push(session);
+
+    const projector = createSchemaDisplayProjector(session);
+    const apiDoc = await projectApiDocSchemaRegions(
+      [
+        { key: REQUEST_BODY_REGION_KEY, schema: itemRef, mode: 'request' },
+        { key: responseSchemaRegionKey('200'), schema: itemRef, mode: 'response' },
+      ],
+      projector,
+    );
+    expect(apiDoc.failures).toEqual([]);
+    expect(apiDoc.regions).toEqual([
+      expect.objectContaining({
+        key: REQUEST_BODY_REGION_KEY,
+        fields: expect.arrayContaining([expect.objectContaining({ name: 'id', type: 'integer' })]),
+      }),
+      expect.objectContaining({
+        key: responseSchemaRegionKey('200'),
+        fields: expect.arrayContaining([expect.objectContaining({ name: 'id', type: 'integer' })]),
+      }),
+    ]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(entry)).toBe(entryBefore);
+  });
+
   test('keeps successful regions usable when another authorized resource fails', async () => {
     const goodUri = 'https://schemas.knife4j.example/good.json';
     const badUri = 'https://schemas.knife4j.example/bad.json';

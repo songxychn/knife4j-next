@@ -8,7 +8,7 @@ lang: en-US
 
 [中文契约](./openapi31) · [Download minimal JSON](/examples/openapi-3.1-minimal.json) · [Download minimal YAML](/examples/openapi-3.1-minimal.yaml)
 
-This page describes the OpenAPI 3.1 contract of Java `5.6.0`. See the
+This page describes the OpenAPI 3.1 contract of Java `5.6.1`. See the
 [release notes](../release-notes/) and [version reference](../reference/version-ref) for version-specific capabilities.
 Knife4x Go is versioned independently; see the [Go release notes](../knife4x/).
 This document does not change any starter or default setting.
@@ -19,7 +19,7 @@ OpenAPI defines its feature set at the `major.minor` level. `3.1.x` therefore sh
 patch-specific capability forks, and offline export reuses the shared version predicate instead of a private patch allowlist.
 Existing OpenAPI 3.0.x behavior remains available. OpenAPI 3.2.x consumption on the unpublished
 integration branch is documented in the [OpenAPI 3.2 support matrix](./openapi32-en); published
-`5.6.0` / Knife4x `v0.7.0` still ship the 3.1 contract on this page.
+`5.6.1` / Knife4x `v0.7.1` still ship the 3.1 contract on this page.
 
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |

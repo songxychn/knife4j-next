@@ -43,7 +43,7 @@ export default defineConfig({
       { text: '快速开始', link: '/guide/getting-started' },
       { text: '功能', link: '/guide/features' },
       { text: 'OpenAPI 3.1', link: '/guide/openapi31' },
-      { text: 'OpenAPI 3.2', link: '/guide/openapi32' },
+      { text: 'OpenAPI 3.2（未发布）', link: '/guide/openapi32' },
       { text: '迁移', link: '/guide/migration' },
       { text: 'Knife4x', link: '/knife4x/' },
       { text: '配置参考', link: '/reference/configuration' },
