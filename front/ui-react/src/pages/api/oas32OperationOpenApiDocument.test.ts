@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { collectOas32DocumentDiagnostics } from 'knife4j-core';
+import { collectOas32DocumentDiagnostics, parseLocalJsonPointer, resolveJsonPointerTokens } from 'knife4j-core';
 import { createSchemaEngine, OPENAPI_32_DIALECT } from 'knife4j-schema-engine';
 import { parse } from 'yaml';
 import { parseMenuTags } from '../../api/knife4jClient';
@@ -264,6 +264,107 @@ describe('buildOas32OperationOpenApiDocument', () => {
     expect(parse(yaml)).toMatchObject({ openapi: '3.2.0', $self: output.$self });
     expect(yaml).toContain('query:');
     expect(yaml).not.toContain('openapi: 3.1');
+  });
+
+  it('copies nested Encoding Media Type refs into components.mediaTypes', async () => {
+    const document = valid32({
+      paths: {
+        '/upload': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/mixed': { $ref: '#/components/mediaTypes/Multipart' },
+              },
+            },
+            responses: { 200: { description: 'ok' } },
+          },
+        },
+      },
+      components: {
+        mediaTypes: {
+          JsonString: { schema: { type: 'string' } },
+          Multipart: {
+            schema: {
+              type: 'array',
+              prefixItems: [{ type: 'string' }],
+              items: { type: 'array', items: { type: 'string' } },
+            },
+            prefixEncoding: [
+              {
+                contentType: 'text/plain',
+                headers: {
+                  'X-Part': { content: { 'text/plain': { $ref: '#/components/mediaTypes/JsonString' } } },
+                },
+              },
+            ],
+            itemEncoding: {
+              contentType: 'multipart/mixed',
+              itemEncoding: {
+                contentType: 'text/plain',
+                headers: {
+                  'X-Context': {
+                    content: { 'application/json': { $ref: '#/components/mediaTypes/JsonString' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const { snapshot } = snapshotOf(document);
+    const output = asReady(exportDocument(document, '/upload', 'post', snapshot)).document;
+    const mediaTypes = asRecord(asRecord(output.components)?.mediaTypes);
+    expect(String(asRecord(asRecord(mediaTypes?.JsonString)?.schema)?.$ref)).toMatch(/^urn:knife4j:oas32-schema:/);
+    const multipart = asRecord(mediaTypes?.Multipart);
+    const prefixHeader = asRecord(
+      asRecord(asRecord(asRecord((multipart?.prefixEncoding as unknown[])?.[0])?.headers)?.['X-Part'])?.content,
+    )?.['text/plain'];
+    const nestedHeader = asRecord(
+      asRecord(asRecord(asRecord(asRecord(multipart?.itemEncoding)?.itemEncoding)?.headers)?.['X-Context'])?.content,
+    )?.['application/json'];
+    expect(asRecord(prefixHeader)?.$ref).toBe('#/components/mediaTypes/JsonString');
+    expect(asRecord(nestedHeader)?.$ref).toBe('#/components/mediaTypes/JsonString');
+    await expectOfflineReload(output);
+  });
+
+  it('relocates additionalOperations link targets with path-item parameters', () => {
+    const document = valid32({
+      paths: {
+        '/selected': {
+          query: {
+            responses: {
+              200: {
+                description: 'ok',
+                links: {
+                  next: { operationRef: '#/paths/~1items~1%7Bid%7D/additionalOperations/COPY' },
+                },
+              },
+            },
+          },
+        },
+        '/items/{id}': {
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          additionalOperations: {
+            COPY: { operationId: 'copyItem', responses: { 200: { description: 'copied' } } },
+            Copy: { operationId: 'mustNotLeak', responses: { 200: { description: 'mixed' } } },
+          },
+        },
+      },
+    });
+    const { snapshot } = snapshotOf(document);
+    const output = asReady(exportDocument(document, '/selected', 'QUERY', snapshot)).document;
+    const selected = asRecord(asRecord(output.paths)?.['/selected'])?.query as JsonRecord;
+    const link = asRecord(asRecord(asRecord(asRecord(selected.responses)?.['200'])?.links)?.next);
+    const tokens = parseLocalJsonPointer(String(link?.operationRef)).tokens!;
+    expect(tokens.slice(-4)).toEqual(['paths', '/items/{id}', 'additionalOperations', 'COPY']);
+    const target = asRecord(resolveJsonPointerTokens(output, tokens).value);
+    const parent = asRecord(resolveJsonPointerTokens(output, tokens.slice(0, -2)).value);
+    expect(target?.operationId).toBe('copyItem');
+    expect(parent?.parameters).toMatchObject([{ name: 'id', in: 'path', required: true }]);
+    expect(asRecord(asRecord(parent?.additionalOperations)?.COPY)?.operationId).toBe('copyItem');
+    expect(asRecord(parent?.additionalOperations)?.Copy).toBeUndefined();
+    expect(parent?.query).toBeUndefined();
   });
 
   it('copies oauth2MetadataUrl as a portable URI without fetching it', () => {

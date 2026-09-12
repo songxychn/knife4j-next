@@ -220,6 +220,17 @@ function operationContextTokens(pointer: string, family: PortableFamily): string
   return null;
 }
 
+function pathItemOwnerTokens(operationPointerTokens: readonly string[]): string[] | null {
+  if (
+    operationPointerTokens.length >= 2 &&
+    operationPointerTokens[operationPointerTokens.length - 2] === 'additionalOperations'
+  ) {
+    return operationPointerTokens.slice(0, -2);
+  }
+  if (operationPointerTokens.length === 0) return null;
+  return operationPointerTokens.slice(0, -1);
+}
+
 function pointerUri(resourceUri: string, tokens: readonly string[]): string {
   return tokens.length === 0 ? resourceUri : new URL(pointerReference(tokens), resourceUri).href;
 }
@@ -330,7 +341,11 @@ function childKind(kind: CopyKind, key: string, family: PortableFamily): CopyKin
       if (family === '3.2' && key === 'itemEncoding') return 'encoding';
       return 'opaque';
     case 'encoding':
-      return key === 'headers' ? 'headers' : 'opaque';
+      if (key === 'headers') return 'headers';
+      if (family === '3.2' && key === 'encoding') return 'encodingMap';
+      if (family === '3.2' && key === 'prefixEncoding') return 'prefixEncoding';
+      if (family === '3.2' && key === 'itemEncoding') return 'encoding';
+      return 'opaque';
     case 'link':
       return key === 'server' ? 'server' : 'opaque';
     case 'securityScheme':
@@ -1110,11 +1125,10 @@ class Oas31OperationBundler {
     const source = asRecord(location.value);
     if (!output || !source) return copied;
 
-    const parent = this.location(
-      location.ownerRetrievalUri,
-      appendPointer('#', ...pointerTokens(location.pointer)!.slice(0, -1)),
-      location.implicitDocumentUri,
-    );
+    const parentTokens = pathItemOwnerTokens(pointerTokens(location.pointer) ?? []);
+    const parent = parentTokens
+      ? this.location(location.ownerRetrievalUri, appendPointer('#', ...parentTokens), location.implicitDocumentUri)
+      : null;
     const resolved = parent ? this.resolvePathItem(parent, new Set()) : null;
     if (!resolved) {
       this.block('LINK_OPERATION_CONTEXT_UNRESOLVED', location.pointer);
