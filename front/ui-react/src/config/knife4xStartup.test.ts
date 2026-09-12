@@ -103,7 +103,7 @@ describe('Knife4x startup', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('accepts OpenAPI 3 documents in Embed mode', async () => {
+  it('accepts OpenAPI 3.1 documents in Embed mode', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -116,6 +116,25 @@ describe('Knife4x startup', () => {
     const result = await fetchSwaggerDocForMode('/openapi.json', 'embed');
 
     expect(result.doc?.openapi).toBe('3.1.0');
+    expect(result.error).toBeNull();
+  });
+
+  it('accepts OpenAPI 3.2 documents in Embed mode without rewriting them as 3.1', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        documentResponse({
+          openapi: '3.2.0',
+          info: { title: 'demo', version: '1', summary: 'not springdoc' },
+          paths: { '/events': { query: {} } },
+        }),
+      ),
+    );
+
+    const result = await fetchSwaggerDocForMode('/openapi.json', 'embed');
+
+    expect(result.doc?.openapi).toBe('3.2.0');
+    expect(result.doc?.info?.summary).toBe('not springdoc');
     expect(result.error).toBeNull();
   });
 

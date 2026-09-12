@@ -26,9 +26,11 @@ workflow 的自动 tag 触发器只接收根级 `v*` tag，不接收 `knife4x/go
 具体变更见 [Go 版本说明](../../docs/knife4x/index.md)。
 
 Go 1.22 基线、module、`Config`、`NewHandler` 与路由语义保持不变。入口只消费已有的
-OpenAPI 3.0.x / 3.1.x JSON；OAS 3.2、未知方言与自定义词汇执行、Cookie jar 写入、
-主动 Webhook 调用和客户端证书注入不在范围内。外部资源保持默认拒绝、精确 URI 授权与
-registry-only 解析，完整限制见 [OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md)。
+OpenAPI 3.0.x / 3.1.x JSON；OAS 3.2 消费属于 `integration/oas32` 未发布能力，不是 `v0.7.0`
+的发布范围。未知方言与自定义词汇执行、Cookie jar 写入、主动 Webhook 调用和客户端证书注入
+仍不在范围内。外部资源保持默认拒绝、精确 URI 授权与 registry-only 解析，完整限制见
+[OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md) 和
+[OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
 ## 发布前门禁
 

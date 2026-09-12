@@ -37,6 +37,18 @@ public class OpenApi3UiResourceSmokeTest {
         assertReferencedWebjarAssets(docHtml);
     }
 
+    @Test
+    public void shouldPackageOas32ConsumptionAssetsWithStableIdentity() throws IOException {
+        String docHtml = readResource("META-INF/resources/doc.html");
+        Assert.assertTrue("doc.html should keep the WebJar entry",
+                docHtml.contains("webjars/knife4j-ui-react/assets/index.js"));
+        String indexJs = readResource("META-INF/resources/webjars/knife4j-ui-react/assets/index.js");
+        Assert.assertTrue("packaged UI should include the OAS 3.2 change-tracking snapshot id",
+                indexJs.contains("oas3.2-v1"));
+        Assert.assertTrue("packaged UI should include the OAS 3.2 dialect URI",
+                indexJs.contains("oas/3.2/dialect/2025-09-17"));
+    }
+
     private void assertReferencedWebjarAssets(String docHtml) {
         Matcher matcher = ASSET_REFERENCE.matcher(docHtml);
         int cssAssets = 0;

@@ -58,7 +58,8 @@ springdoc:
 
 Boot 4 / springdoc 3.0.3 的默认与显式 `OPENAPI_3_1` 路径都已经验证；显式配置有助于让意图不受依赖默认值变化影响。
 Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字符串。完整生成矩阵、JSON Schema 方言、
-外部资源授权和迁移示例见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。
+外部资源授权和迁移示例见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。当前生产依赖不会生成 OpenAPI 3.2；
+集成分支上的 3.2 **消费**契约见 [OpenAPI 3.2 支持矩阵](../guide/openapi32)。
 
 ::: warning 反向代理 / 网关放行
 当应用部署在网关或反向代理之后时，请确保 `/knife4j/config`（与 `/doc.html`、`/v3/api-docs/**`、`/swagger-ui/**`、`/webjars/**` 一起）能透传到后端。常见情况：
@@ -87,7 +88,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ✅ |
 | `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | ⚠️ |
 | `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | ⚠️ |
-| `knife4j.setting.enableVersion` | `boolean` | `false` | 提示新增和已变化的接口（OpenAPI 3.0.x / 3.1.x） | ✅ |
+| `knife4j.setting.enableVersion` | `boolean` | `false` | 提示新增和已变化的接口（OpenAPI 3.0.x / 3.1.x；集成分支另含未发布的 3.2.x） | ✅ |
 | `knife4j.setting.enableRequestCache` | `boolean` | `true` | 启用请求参数缓存 | ✅ |
 | `knife4j.setting.enableFilterMultipartApis` | `boolean` | `false` | 过滤 RequestMapping 多方法显示 | ✅ |
 | `knife4j.setting.enableFilterMultipartApiMethodType` | `String` | `"POST"` | 过滤方法类型 | ✅ |
@@ -110,7 +111,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 
 > `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
 
-> `enableVersion` 在 React UI 中使用浏览器本地基线比较当前 OpenAPI 3.0.x 或 3.1.x 文档。首次开启或缓存 schema 升级时只建立新基线；后续新增接口显示 `NEW`，Operation 或其可达组件/Schema 资源语义变化时显示变化标记。3.0 与 3.1 使用独立基线；3.1 只基于已加载的完整资源图计算，不会在指纹阶段联网。文档存在结构/本地引用诊断、外部资源未授权、加载/校验失败、超出安全预算或使用不支持的 Schema dialect 时会暂停跟踪并保留上一份完整基线。当前不支持 OpenAPI 3.2。
+> `enableVersion` 在 React UI 中使用浏览器本地基线比较当前 OpenAPI 3.0.x、3.1.x 或集成分支上的 3.2.x 文档。首次开启或缓存 schema 升级时只建立新基线；后续新增接口显示 `NEW`，Operation 或其可达组件/Schema 资源语义变化时显示变化标记。3.0、3.1 与 3.2 使用独立基线；3.1 / 3.2 只基于已加载的完整资源图计算，不会在指纹阶段联网。文档存在结构/本地引用诊断、外部资源未授权、加载/校验失败、超出安全预算或使用不支持的 Schema dialect 时会暂停跟踪并保留上一份完整基线。3.2 变化跟踪尚未随 Java `5.6.0` 发布，详见 [OpenAPI 3.2 支持矩阵](../guide/openapi32)。
 
 > 各配置项的功能说明和示例见 [功能详解](../guide/features#功能详解)。
 

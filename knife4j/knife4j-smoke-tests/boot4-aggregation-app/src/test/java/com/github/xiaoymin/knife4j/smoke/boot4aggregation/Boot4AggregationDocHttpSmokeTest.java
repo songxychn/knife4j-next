@@ -31,6 +31,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -90,11 +92,83 @@ public class Boot4AggregationDocHttpSmokeTest {
         Assert.assertTrue(swaggerInstance.body.contains("\"const\": \"user\""));
     }
 
+    @Test
+    public void shouldServeLabeledOpenApi32SpecificationFixtureAlongsideOpenApi31() throws IOException {
+        context = new SpringApplicationBuilder(TestAggregationApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "spring.main.banner-mode=off",
+                        "knife4j.enable-aggregation=true",
+                        "knife4j.disk.enable=true",
+                        "knife4j.disk.routes[0].name=聚合用户服务",
+                        "knife4j.disk.routes[0].location=classpath:swagger/user-service-openapi.json",
+                        "knife4j.disk.routes[0].swagger-version=3.0",
+                        "knife4j.disk.routes[0].service-path=/user-service",
+                        "knife4j.disk.routes[0].order=1",
+                        "knife4j.disk.routes[1].name=OAS 3.2 规范夹具",
+                        "knife4j.disk.routes[1].location=classpath:swagger/oas32-spec-fixture.json",
+                        "knife4j.disk.routes[1].swagger-version=3.0",
+                        "knife4j.disk.routes[1].service-path=/oas32-fixture",
+                        "knife4j.disk.routes[1].order=2",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(200, docHtml.statusCode);
+        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
+
+        HttpResponse swaggerConfig = get(port, "/v3/api-docs/swagger-config");
+        Assert.assertEquals(200, swaggerConfig.statusCode);
+        String swaggerConfigBody = swaggerConfig.body.replace("\\u003d", "=");
+        Assert.assertTrue(swaggerConfigBody.contains("聚合用户服务"));
+        Assert.assertTrue(swaggerConfigBody.contains("OAS 3.2 规范夹具"));
+        Assert.assertTrue(swaggerConfigBody.contains("/oas32-fixture/swagger-instance?group="));
+        Assert.assertTrue(swaggerConfigBody.contains("\"contextPath\":\"/oas32-fixture\""));
+
+        boolean sawOpenApi31 = false;
+        boolean sawOpenApi32 = false;
+        for (String swaggerInstanceUrl : extractSwaggerInstanceUrls(swaggerConfigBody)) {
+            HttpResponse swaggerInstance = get(port, swaggerInstanceUrl);
+            Assert.assertEquals(200, swaggerInstance.statusCode);
+            if (swaggerInstance.body.contains("\"openapi\": \"3.1.0\"")) {
+                sawOpenApi31 = true;
+                Assert.assertTrue(swaggerInstance.body.contains("Aggregated User Service"));
+            }
+            if (swaggerInstance.body.contains("\"openapi\": \"3.2.0\"")) {
+                sawOpenApi32 = true;
+                Assert.assertTrue(
+                        "3.2 disk route must serve the labeled specification fixture, not a relabeled springdoc document:\n"
+                                + swaggerInstance.body,
+                        swaggerInstance.body.contains("not a springdoc-generated document"));
+                Assert.assertTrue(swaggerInstance.body.contains("\"query\""));
+                Assert.assertTrue(swaggerInstance.body.contains("\"COPY\""));
+                Assert.assertTrue(swaggerInstance.body.contains("\"in\": \"querystring\""));
+                Assert.assertTrue(swaggerInstance.body.contains("text/event-stream"));
+            }
+        }
+        Assert.assertTrue("aggregation should still expose the OpenAPI 3.1 disk document", sawOpenApi31);
+        Assert.assertTrue("aggregation should expose the labeled OpenAPI 3.2 specification fixture", sawOpenApi32);
+    }
+
     private String extractSwaggerInstanceUrl(String swaggerConfigBody) {
         Matcher matcher = SWAGGER_INSTANCE_URL.matcher(swaggerConfigBody);
         Assert.assertTrue("swagger-config should expose a disk swagger-instance URL:\n" + swaggerConfigBody,
                 matcher.find());
         return matcher.group(1);
+    }
+
+    private List<String> extractSwaggerInstanceUrls(String swaggerConfigBody) {
+        Matcher matcher = SWAGGER_INSTANCE_URL.matcher(swaggerConfigBody);
+        List<String> urls = new ArrayList<String>();
+        while (matcher.find()) {
+            urls.add(matcher.group(1));
+        }
+        Assert.assertFalse("swagger-config should expose disk swagger-instance URLs:\n" + swaggerConfigBody,
+                urls.isEmpty());
+        return urls;
     }
 
     private HttpResponse get(int port, String path) throws IOException {

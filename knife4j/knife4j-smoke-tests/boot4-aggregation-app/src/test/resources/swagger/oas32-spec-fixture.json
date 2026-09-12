@@ -1,0 +1,322 @@
+{
+  "openapi": "3.2.0",
+  "$self": "https://fixtures.knife4j.example/oas32/host-acceptance.json",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.2/dialect/2025-09-17",
+  "info": {
+    "title": "Knife4j OAS 3.2 host acceptance",
+    "summary": "Normative synthetic fixture, not springdoc output",
+    "version": "1.0.0",
+    "description": "Labeled OpenAPI 3.2.0 specification fixture for host acceptance. This is not a springdoc-generated document."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "name": "local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "health",
+      "summary": "Health",
+      "kind": "nav"
+    },
+    {
+      "name": "events",
+      "parent": "health",
+      "kind": "nav",
+      "summary": "Events"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["health"],
+        "operationId": "getHealth",
+        "summary": "Host health check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                },
+                "examples": {
+                  "ok": {
+                    "dataValue": {
+                      "status": "ok",
+                      "note": null
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "query": {
+        "tags": ["events"],
+        "operationId": "queryEvents",
+        "summary": "Host QUERY events",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "querystring",
+            "content": {
+              "application/json": {
+                "$ref": "#/components/mediaTypes/Filter"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "summary": "Event stream",
+            "content": {
+              "text/event-stream": {
+                "itemSchema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session": {
+      "get": {
+        "tags": ["health"],
+        "operationId": "getSession",
+        "summary": "Host cookie session",
+        "parameters": [
+          {
+            "name": "SID",
+            "in": "cookie",
+            "style": "cookie",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/trace": {
+      "trace": {
+        "tags": ["health"],
+        "operationId": "traceProbe",
+        "summary": "Host TRACE probe",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/binary": {
+      "get": {
+        "tags": ["health"],
+        "operationId": "getCbor",
+        "summary": "Host unknown codec",
+        "responses": {
+          "200": {
+            "description": "CBOR payload",
+            "content": {
+              "application/cbor": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/cbor"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": ["health"],
+        "operationId": "getItem",
+        "summary": "Host get item",
+        "responses": {
+          "200": {
+            "description": "Item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Known"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Other"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "kind",
+                    "mapping": {
+                      "known": "Known"
+                    },
+                    "defaultMapping": "Other"
+                  }
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/XmlItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "additionalOperations": {
+        "COPY": {
+          "tags": ["health"],
+          "operationId": "copyItem",
+          "summary": "Host COPY item",
+          "responses": {
+            "204": {}
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "itemChanged": {
+      "post": {
+        "summary": "Inbound item changed",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Event"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "note": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "DeniedExternal": {
+        "$ref": "https://unapproved.knife4j.example/schema.json"
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          }
+        }
+      },
+      "Known": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "const": "known"
+          },
+          "id": {
+            "type": "integer"
+          }
+        }
+      },
+      "Other": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "not": {
+              "const": "known"
+            }
+          }
+        }
+      },
+      "XmlItem": {
+        "type": "object",
+        "xml": {
+          "nodeType": "element",
+          "name": "item"
+        },
+        "properties": {
+          "id": {
+            "type": "string",
+            "xml": {
+              "nodeType": "attribute"
+            }
+          },
+          "body": {
+            "type": "string",
+            "xml": {
+              "nodeType": "text"
+            }
+          }
+        }
+      }
+    },
+    "mediaTypes": {
+      "Filter": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Device": {
+        "type": "oauth2",
+        "oauth2MetadataUrl": "https://auth.example.test/.well-known/oauth-authorization-server",
+        "flows": {
+          "deviceAuthorization": {
+            "deviceAuthorizationUrl": "https://auth.example.test/device",
+            "tokenUrl": "https://auth.example.test/token",
+            "scopes": {
+              "read": "Read"
+            }
+          }
+        }
+      }
+    }
+  }
+}

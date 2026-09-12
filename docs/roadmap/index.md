@@ -70,12 +70,25 @@ OpenAPI 3.1 按“文档加载 → SchemaEngine → 展示与调试 → 受控�
 | 外部 Schema 资源 | ✅ | 默认拒绝、精确 URI 授权、无凭据请求、固定预算、可撤销 |
 | 可移植交付 | ✅ | 单接口 JSON 闭包、变化指纹、HTML / Markdown / DOC / DOCX 离线快照 |
 | springdoc 端到端 | ✅ | Boot 3 WebMVC/WebFlux 显式 3.1；Boot 4 WebMVC 默认/显式 3.1；Boot 2 保持 3.0 |
-| OpenAPI 3.2.x | — | 非当前目标，不按 3.1 猜测处理 |
+| OpenAPI 3.2.x | 未发布 | 集成分支按 3.2 语义消费，不按 3.1 猜测处理；已发布 `5.6.0` 不含该能力。见 [OpenAPI 3.2 支持矩阵](../guide/openapi32) |
 
 支持矩阵、浏览器限制、迁移示例和最小有效夹具统一收录在
 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。这一里程碑从 Java `5.5.0` 起提供，Knife4x Go 版本单独发布。
 父路线图 [#699](https://github.com/songxychn/knife4j-next/issues/699) 所列实现、端到端与文档子项已收敛；
-这不承诺 arbitrary custom vocabulary 的执行语义，也不将 OpenAPI 3.2 作为 3.1 处理。
+这不承诺 arbitrary custom vocabulary 的执行语义。OpenAPI 3.2.x 的未发布集成分支契约见
+[OpenAPI 3.2 支持矩阵](../guide/openapi32)，不会把 3.2 当作 3.1 处理。
+
+---
+
+## OpenAPI 3.2 集成分支（未发布）
+
+`integration/oas32` 正在接入 OpenAPI 3.2.x 完整消费。这不是 `5.6.0` 的发布承诺，也不自动合入 `master`。
+
+| 范围 | 状态 | 契约 |
+| --- | --- | --- |
+| 规范 3.2 夹具消费 | 集成分支 | React / WebJar / starter 合成入口 / Disk 聚合 / Knife4x SpecURL |
+| 真实 springdoc 3.2 生成 | 未做 | 当前 POM 仍为 1.8.0 / 2.8.9 / 3.0.3，只证明 3.0/3.1 生成 |
+| 用户矩阵与限制 | 集成分支文档 | [OpenAPI 3.2 支持矩阵](../guide/openapi32) |
 
 ---
 

@@ -56,6 +56,7 @@ describe('knife4jClient', () => {
   });
 
   it('distinguishes OpenAPI 3 from Swagger 2 documents', () => {
+    expect(isOpenApi3Document({ openapi: '3.2.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(true);
     expect(isOpenApi3Document({ openapi: '3.1.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(true);
     expect(isOpenApi3Document({ openapi: '3.0', info: { title: 'demo', version: '1' }, paths: {} })).toBe(true);
     expect(isOpenApi3Document({ openapi: '3.bad', info: { title: 'demo', version: '1' }, paths: {} })).toBe(false);
