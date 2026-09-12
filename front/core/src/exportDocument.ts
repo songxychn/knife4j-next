@@ -8,7 +8,7 @@
  */
 
 import { selectRequestBodyExample, selectResponseExamples } from './debug/operationExamples';
-import type { SchemaFieldTruncationReason } from './debug/types';
+import type { SchemaFieldTruncationReason, SchemaFieldXml } from './debug/types';
 
 export interface MdSchemaObject {
   type?: string | string[];
@@ -88,9 +88,66 @@ export interface ExportSchemaField {
   truncated: boolean;
   truncationReason?: SchemaFieldTruncationReason;
   depth: number;
+  /** OAS 3.2 Schema XML Object; legacy builders leave this unset. */
+  xml?: SchemaFieldXml;
 }
 
 export type ExportSchemaKind = 'object' | 'array' | 'primitive' | 'unknown';
+
+export interface ExportNote {
+  code: string;
+  detail?: string;
+}
+
+export interface ExportDiscriminator {
+  propertyName?: string;
+  mapping?: Record<string, string>;
+  defaultMapping?: string;
+}
+
+export interface ExportEncoding {
+  kind: 'named' | 'prefix' | 'item';
+  name?: string;
+  contentType?: string;
+  style?: string;
+  explode?: boolean;
+  allowReserved?: boolean;
+  nested?: ExportEncoding[];
+  notes?: ExportNote[];
+}
+
+export interface ExportServer {
+  url: string;
+  name?: string;
+  description?: string;
+  level?: string;
+  variables?: Array<{
+    name: string;
+    default: string;
+    enum?: string[];
+    description?: string;
+  }>;
+  notes?: ExportNote[];
+}
+
+export interface ExportSecurityScheme {
+  name: string;
+  type: string;
+  description?: string;
+  in?: string;
+  scheme?: string;
+  bearerFormat?: string;
+  oauth2MetadataUrl?: string;
+  openIdConnectUrl?: string;
+  deprecated?: boolean;
+  notes?: ExportNote[];
+}
+
+export interface ExportSecurityRequirement {
+  anonymous?: boolean;
+  schemes: Array<{ name: string; scopes: readonly string[] }>;
+  notes?: ExportNote[];
+}
 
 export interface ExportSchema {
   mediaType: string;
@@ -99,6 +156,14 @@ export interface ExportSchema {
   /** One-level projection retained for compact renderers. */
   shallowFields: ExportSchemaField[];
   fields: ExportSchemaField[];
+  /** OAS 3.2 complete vs sequential item schema; legacy builders leave this unset. */
+  role?: 'schema' | 'itemSchema';
+  xml?: SchemaFieldXml;
+  discriminator?: ExportDiscriminator;
+  itemSchema?: ExportSchema;
+  encodings?: ExportEncoding[];
+  sequentialKind?: string;
+  notes?: ExportNote[];
 }
 
 export interface ExportParameter {
@@ -112,11 +177,14 @@ export interface ExportParameter {
   schema?: ExportSchema;
   /** Directionally validated OAS 3.1 example; legacy builders leave this unset. */
   example?: ExportExample;
+  encodings?: ExportEncoding[];
+  notes?: ExportNote[];
 }
 
 export interface ExportExample {
   mediaType: string;
   value: string;
+  notes?: ExportNote[];
 }
 
 export interface ExportRequestBody {
@@ -124,6 +192,10 @@ export interface ExportRequestBody {
   required: boolean;
   schema?: ExportSchema;
   example?: ExportExample;
+  itemSchema?: ExportSchema;
+  encodings?: ExportEncoding[];
+  sequentialKind?: string;
+  notes?: ExportNote[];
 }
 
 export interface ExportResponse {
@@ -131,6 +203,12 @@ export interface ExportResponse {
   description: string;
   schema?: ExportSchema;
   example?: ExportExample;
+  /** OAS 3.2 Response.summary; legacy builders leave this unset. */
+  summary?: string;
+  itemSchema?: ExportSchema;
+  encodings?: ExportEncoding[];
+  sequentialKind?: string;
+  notes?: ExportNote[];
 }
 
 export interface ExportOperation {
@@ -144,6 +222,11 @@ export interface ExportOperation {
   parameters: ExportParameter[];
   requestBody?: ExportRequestBody;
   responses: ExportResponse[];
+  /** OAS 3.2 method provenance; additionalOperations keys stay verbatim. */
+  methodSource?: 'fixed' | 'additional' | 'unknown';
+  security?: ExportSecurityRequirement[];
+  servers?: ExportServer[];
+  notes?: ExportNote[];
 }
 
 export interface ExportTag {
@@ -151,6 +234,9 @@ export interface ExportTag {
   description: string;
   numberPath: readonly number[];
   operations: ExportOperation[];
+  summary?: string;
+  parent?: string;
+  kind?: string;
 }
 
 export interface ExportDocument {
@@ -158,6 +244,9 @@ export interface ExportDocument {
   version: string;
   description: string;
   tags: ExportTag[];
+  openapi?: string;
+  servers?: ExportServer[];
+  securitySchemes?: ExportSecurityScheme[];
 }
 
 export interface ExportOperationSource {
