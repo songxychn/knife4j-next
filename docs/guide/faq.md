@@ -199,6 +199,7 @@ connect-src 'self';
 - `knife4j.setting.enable-footer`
 - `knife4j.setting.enable-footer-custom` / `footer-custom-content`
 - `knife4j.setting.enable-request-cache`
+- `knife4j.setting.enable-version`
 - `knife4j.setting.enable-response-code`
 - `knife4j.setting.enable-dynamic-parameter`
 - `knife4j.setting.enable-home-custom` / `home-custom-location`
