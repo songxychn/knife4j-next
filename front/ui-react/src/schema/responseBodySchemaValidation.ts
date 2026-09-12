@@ -3,7 +3,7 @@ import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import { asOpenApiRecord, locateOperationRecord, type OpenApiRecord } from './openApiDocumentPointer';
 import { isJsonCompatibleMediaType } from './requestBodySchemaValidation';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
-import { isOas31SchemaDocument } from './schemaDocumentSession';
+import { isSchemaEngineDocument } from './schemaDocumentSession';
 import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
 import { locateOperationResponses, registeredObjectReference } from './registeredResponse';
 
@@ -246,7 +246,7 @@ export function prepareResponseBodySchemaEvaluation(
   options: PrepareResponseBodySchemaEvaluationOptions,
 ): ResponseBodySchemaPreparation {
   const { document, operation, statusCode, contentType, body, session } = options;
-  if (!isOas31SchemaDocument(document) || !operation) return { status: 'skipped', reason: 'version' };
+  if (!isSchemaEngineDocument(document) || !operation) return { status: 'skipped', reason: 'version' };
   if (!isJsonCompatibleMediaType(contentType)) return { status: 'skipped', reason: 'content-type' };
   if (body.trim() === '') return { status: 'skipped', reason: 'empty-body' };
 

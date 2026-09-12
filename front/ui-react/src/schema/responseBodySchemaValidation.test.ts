@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { EvaluationResult } from 'knife4j-schema-engine';
+import { parseMenuTags } from '../api/knife4jClient';
 import type { MenuOperation, OperationObject, SwaggerDoc } from '../types/swagger';
 import { createSchemaDocumentSession, type SchemaDocumentSession } from './schemaDocumentSession';
 import {
@@ -24,6 +25,21 @@ function menuOperation(path: string, operationObject: OperationObject, method = 
     operation: operationObject,
     source: 'path',
   };
+}
+
+function parsedOas32Operation(
+  document: SwaggerDoc,
+  path: string,
+  options: { method?: string; retrievalUri?: string } = {},
+): MenuOperation {
+  const method = options.method ?? 'GET';
+  const operation = parseMenuTags(document, {
+    retrievalUri: options.retrievalUri ?? 'https://fixtures.knife4j.example/openapi.json',
+  })
+    .flatMap((tag) => tag.operations)
+    .find((item) => item.path === path && item.method.toUpperCase() === method.toUpperCase());
+  if (!operation) throw new Error(`expected ${method} ${path}`);
+  return operation;
 }
 
 function documentWithResponses(responses: OperationObject['responses']): {
@@ -223,6 +239,17 @@ describe('response schema selection', () => {
       status: 'skipped',
       reason: 'version',
     });
+    const oas32Document = { ...document, openapi: '3.2.0' };
+    expect(
+      prepareResponseBodySchemaEvaluation({
+        ...base,
+        document: oas32Document,
+        operation: parsedOas32Operation(oas32Document, '/diagnostics'),
+      }),
+    ).toMatchObject({
+      status: 'ready',
+      reference: expect.stringContaining('/paths/~1diagnostics/get/responses/200/content/application~1json/schema'),
+    });
     expect(prepareResponseBodySchemaEvaluation({ ...base, contentType: 'text/plain' })).toEqual({
       status: 'skipped',
       reason: 'content-type',
@@ -296,6 +323,51 @@ describe('response schema evaluation', () => {
       ]),
     });
     await expect(evaluateResponseBodySchema(session, booleanFalse)).resolves.toMatchObject({ status: 'invalid' });
+  });
+
+  test('evaluates a 3.2 JSON response through the document session', async () => {
+    const { document } = documentWithResponses({
+      200: {
+        description: 'JSON envelope',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['ok'],
+              properties: { ok: { type: 'boolean' } },
+            },
+          },
+        },
+      },
+    });
+    document.openapi = '3.2.0';
+    const retrievalUri = 'https://fixtures.knife4j.example/oas32-responses.json';
+    const operation = parsedOas32Operation(document, '/diagnostics', { retrievalUri });
+    const session = await createSchemaDocumentSession(document, retrievalUri);
+    sessions.push(session);
+    const valid = prepareResponseBodySchemaEvaluation({
+      document,
+      operation,
+      session,
+      statusCode: 200,
+      contentType: 'application/json',
+      body: '{"ok":true}',
+    });
+    const invalid = prepareResponseBodySchemaEvaluation({
+      document,
+      operation,
+      session,
+      statusCode: 200,
+      contentType: 'application/json',
+      body: '{"ok":"no"}',
+    });
+    expect(valid).toMatchObject({ status: 'ready' });
+    expect(invalid).toMatchObject({ status: 'ready' });
+    if (valid.status !== 'ready' || invalid.status !== 'ready') {
+      throw new Error('expected 3.2 JSON response preparation');
+    }
+    await expect(evaluateResponseBodySchema(session, valid)).resolves.toEqual({ status: 'valid' });
+    await expect(evaluateResponseBodySchema(session, invalid)).resolves.toMatchObject({ status: 'invalid' });
   });
 
   test('caps nested issues, passes cancellation, and rejects stale request or session results', async () => {

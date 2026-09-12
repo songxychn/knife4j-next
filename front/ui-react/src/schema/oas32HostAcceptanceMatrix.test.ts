@@ -21,6 +21,7 @@ import {
 } from '../apiChange/apiChangeTracker';
 import { inspectUnsentBrowserSendFailure } from '../pages/api/apiDebugBrowserSend';
 import { browserRequestConstraint } from '../pages/api/browserRequestConstraints';
+import { evaluateResponseBodySchema, prepareResponseBodySchemaEvaluation } from './responseBodySchemaValidation';
 import { collectResolvedOas32ParameterInputs } from '../pages/api/oas32ParameterForm';
 import { visibleOperationModeKeys } from '../pages/api/operationRouting';
 import { buildOas32ExportSnapshot } from '../pages/document/oas32ExportSnapshot';
@@ -226,6 +227,42 @@ describe('OAS 3.2 host acceptance matrix', () => {
     await expect(session.evaluate('#/components/schemas/Health', { status: 'down' })).resolves.toMatchObject({
       valid: false,
     });
+    const health = operations.find(({ path, method }) => path === '/health' && method === 'GET');
+    const item = operations.find(({ path, method }) => path === '/items/{id}' && method === 'GET');
+    if (!health || !item) throw new Error('expected GET /health and GET /items/{id}');
+    const validHealth = prepareResponseBodySchemaEvaluation({
+      document: hostDocument,
+      operation: health,
+      session,
+      statusCode: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'ok', note: null }),
+    });
+    expect(validHealth).toMatchObject({ status: 'ready' });
+    if (validHealth.status !== 'ready') throw new Error('expected 3.2 JSON response schema preparation');
+    await expect(evaluateResponseBodySchema(session, validHealth)).resolves.toEqual({ status: 'valid' });
+    const invalidHealth = prepareResponseBodySchemaEvaluation({
+      document: hostDocument,
+      operation: health,
+      session,
+      statusCode: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'down' }),
+    });
+    expect(invalidHealth).toMatchObject({ status: 'ready' });
+    if (invalidHealth.status !== 'ready') throw new Error('expected invalid 3.2 JSON response preparation');
+    await expect(evaluateResponseBodySchema(session, invalidHealth)).resolves.toMatchObject({ status: 'invalid' });
+    const invalidItem = prepareResponseBodySchemaEvaluation({
+      document: hostDocument,
+      operation: item,
+      session,
+      statusCode: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ kind: 'known', id: 'not-an-integer' }),
+    });
+    expect(invalidItem).toMatchObject({ status: 'ready' });
+    if (invalidItem.status !== 'ready') throw new Error('expected discriminator JSON response preparation');
+    await expect(evaluateResponseBodySchema(session, invalidItem)).resolves.toMatchObject({ status: 'invalid' });
     session.dispose();
     await expect(
       createSchemaDocumentSession(

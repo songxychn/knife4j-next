@@ -60,13 +60,13 @@ Java 生产依赖仍为 springdoc `1.8.0` / `2.8.9` / Boot4 `3.0.3`。它们当�
 | 离线文档 | 独立 3.2 HTML / Markdown / Word 快照 | 3.1 快照拒绝 3.2 | [#782](https://github.com/songxychn/knife4j-next/issues/782) / [#804](https://github.com/songxychn/knife4j-next/pull/804) |
 | 宿主承载 | WebJar `doc.html`、聚合 disk、Knife4x SpecURL | 3.2 使用规范夹具，不伪装 springdoc 输出 | [#783](https://github.com/songxychn/knife4j-next/issues/783) |
 
-默认 Schema 方言：
+Schema 方言：
 
 ```yaml
 jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 ```
 
-SchemaEngine 还执行 `https://json-schema.org/draft/2020-12/schema`。`https://spec.openapis.org/oas/3.2/dialect/base` 与其它未登记 URI 不会被默认为 3.1。
+显式写出官方 3.2 方言时按该 URI 执行。根级 `jsonSchemaDialect` **省略**时，SchemaEngine 按 OpenAPI 正文默认使用 `https://spec.openapis.org/oas/3.1/dialect/base`，不会改写成 3.2 方言。`https://spec.openapis.org/oas/3.2/dialect/base` 与其它未登记 URI 会报 `UNSUPPORTED_DIALECT`，不会静默当成 3.1。SchemaEngine 还执行 `https://json-schema.org/draft/2020-12/schema`。
 
 ## 3.0 / 3.1 / 3.2 回归矩阵
 
@@ -76,7 +76,7 @@ SchemaEngine 还执行 `https://json-schema.org/draft/2020-12/schema`。`https:/
 | 标准方法 | 无 QUERY 固定字段 | 同 3.0 | Path Item 增加 `query` |
 | 自定义方法 | 无 `additionalOperations` | 无 | 保留大小写；保留方法不可放入该对象 |
 | `query` 字段出现在 3.1 文档 | — | 忽略，不当成 QUERY | 作为 QUERY 操作 |
-| Schema 方言 | OAS 3.0 Schema | `oas/3.1/dialect/base` | `oas/3.2/dialect/2025-09-17` |
+| Schema 方言 | OAS 3.0 Schema | `oas/3.1/dialect/base` | 显式 `oas/3.2/dialect/2025-09-17`；省略则回落 `oas/3.1/dialect/base` |
 | 示例 | `value` / `externalValue` | 同左并含 JSON Schema `examples` | 增加 `dataValue` / `serializedValue` |
 | 变化跟踪 | `oas3.0-v1` | `oas3.1-v1` | `oas3.2-v1` |
 | 离线导出 | 3.0 快照 | 3.1 快照拒绝 3.2 | 3.2 快照拒绝 3.1 |
@@ -172,7 +172,7 @@ examples:
 
 ### 方言
 
-未声明时，3.2 使用 `https://spec.openapis.org/oas/3.2/dialect/2025-09-17`，不是 3.1 的 `oas/3.1/dialect/base`。
+未声明 `jsonSchemaDialect` 时，3.2 文档仍使用正文默认 `https://spec.openapis.org/oas/3.1/dialect/base`。要按 3.2 方言执行，须显式写出 `https://spec.openapis.org/oas/3.2/dialect/2025-09-17`。未知方言（含 `oas/3.2/dialect/base`）会被拒绝，不会默认为 3.1。
 
 ## 最小有效夹具
 
