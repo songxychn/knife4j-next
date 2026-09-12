@@ -92,47 +92,49 @@ Java `5.7.0` 与 Knife4x Go `v0.8.0` 接入 OpenAPI 3.2.x 完整消费。真实 
 
 ---
 
-## React UI 对齐 Vue3 功能缺口清单
+## React / Vue3 相对 Vue2 的功能缺口 {#react-ui-coverage}
 
-以下表格对比本仓库 `front/vue3`（Vue 3，OAS2 starter 前端）与 `knife4j-ui-react`（React，OAS3 starter 前端）的功能覆盖。⬜ = 未实现，🔲 = 部分实现，✅ = 已实现。
+能力基线是 upstream Vue2（本仓库 `legacy/vue2`），不是本仓库的 Vue3 重写。`front/vue3`（OAS2 兼容维护）与 `front/ui-react`（OAS3 主线）都是维护者重写，各自可能漏掉 Vue2 能力。⬜ = 未实现，🔲 = 部分实现，✅ = 已实现。
 
-> 注：`front/vue3` 的功能基线与 upstream `legacy/vue2`（Vue 2）基本一致，下面 Vue3 列的状态等同于 upstream Vue2 的功能覆盖。
+Vue3 相对 Vue2 已确认并修复的回归：聚合路由头曾误写为 `knfie4j-gateway-request`（现已改回 `knife4j-gateway-request`）；侧边栏搜索曾失去 Tag 名称命中后展开全部子接口的行为（现已对齐 Vue2）。
 
 ### 核心功能
 
-| 功能 | Vue3 | React | 缺口说明 |
-| --- | --- | --- | --- |
-| 接口文档展示 | ✅ | ✅ | — |
-| 接口调试 | ✅ | ✅ | — |
-| 数据模型展示 | ✅ | ✅ | — |
-| 分组切换 | ✅ | ✅ | — |
-| 接口搜索 | ✅ | ✅ | — |
-| Authorize 鉴权 | ✅ | ✅ | React 支持 securitySchemes 动态渲染 + OAuth2 四种 flow 基础 token 获取/注入 |
-| 全局参数 | ✅ | ✅ | — |
-| 离线文档导出 | ✅ | 🔲 | React 支持 HTML/Word/Markdown/OpenAPI JSON，缺少 Word 模板自定义 |
-| 首页统计 | ✅ | ✅ | — |
+| 功能 | Vue2 基线 | Vue3 | React | 缺口说明 |
+| --- | --- | --- | --- | --- |
+| 接口文档展示 | ✅ | ✅ | ✅ | — |
+| 接口调试 | ✅ | ✅ | ✅ | — |
+| 数据模型展示 | ✅ | ✅ | ✅ | — |
+| 分组切换 | ✅ | ✅ | ✅ | — |
+| 接口搜索 | ✅ 当前分组；Tag 名称命中则展开全部子接口 | ✅ 已对齐 Vue2 | ✅ 当前分组 | 跨分组搜索不是 Vue2 能力 |
+| Authorize 鉴权 | ✅ | ✅ | ✅ | React 支持 securitySchemes 动态渲染 + OAuth2 四种 flow 基础 token 获取/注入 |
+| 全局参数 | ✅ | ✅ | ✅ | — |
+| 离线文档导出 | ✅ | ✅ | 🔲 | React 支持 HTML/Word/Markdown/OpenAPI JSON / YAML，缺少 Word 模板自定义 |
+| 首页统计 | ✅ | ✅ | ✅ | — |
 
 ### 调试页详细缺口
 
-| 功能 | Vue3 | React | 缺口说明 |
-| --- | --- | --- | --- |
-| multipart/form-data 文件上传 | ✅ | 🔲 | 基础表单可用，完整文件上传待优化 |
-| OAuth2 password/client_credentials | ✅ | ✅ | 基础 `tokenUrl` 换取 token 已实现 |
-| afterScript（请求后脚本） | ✅ | ⬜ | — |
+| 功能 | Vue2 基线 | Vue3 | React | 缺口说明 |
+| --- | --- | --- | --- | --- |
+| multipart/form-data 文件上传 | ✅ | ✅ | 🔲 | 基础表单可用，完整文件上传待优化 |
+| OAuth2 password/client_credentials | ✅ | ✅ | ✅ | 基础 `tokenUrl` 换取 token 已实现 |
+| afterScript（请求后脚本） | ✅ | ✅ | ⬜ | Vue2 / Vue3 有，React 暂无 |
+| 调试后刷新变量 | ✅ | ✅ | ⬜ | 对应 `enable-reload-cache-parameter` |
 
 ### 增强功能
 
-| 功能 | Vue3 | React | 缺口说明 |
-| --- | --- | --- | --- |
-| `@ApiSupport.order` Tag 排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
-| `@ApiSupport.author/authors` 展示 | ✅ | ✅ | 类级作者由后端回退写入 operation `x-author`，React 在接口详情页展示，不做 Tag 级聚合 |
-| `@ApiOperationSupport.order` 操作排序 | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
-| `@ApiOperationSupport.author/authors` 展示 | ✅ | ✅ | 后端合并为 operation `x-author`，React 展示非空作者字符串 |
-| 自定义 Markdown 文档 | ✅ | ✅ | React 读取 `x-openapi.x-markdownFiles` 并在侧边栏渲染 |
-| 自定义 Footer | ✅ | ✅ | React 读取 `enableFooterCustom` / `footerCustomContent` 并按 Markdown 安全渲染 |
-| 全局搜索（跨分组） | ✅ | 🔲 | React 仅搜索当前分组 |
-| TypeScript 代码生成 | ✅ | ✅ | React 操作页提供基础 JS / TypeScript 请求函数片段 |
-| Postman 导出 | ✅ | ⬜ | — |
+| 功能 | Vue2 基线 | Vue3 | React | 缺口说明 |
+| --- | --- | --- | --- | --- |
+| `@ApiSupport.order` Tag 排序 | ✅ | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
+| `@ApiSupport.author/authors` 展示 | ✅ | ✅ | ✅ | 类级作者由后端回退写入 operation `x-author`，React 在接口详情页展示，不做 Tag 级聚合 |
+| `@ApiOperationSupport.order` 操作排序 | ✅ | ✅ | ✅ | React 按 spec 中的 `x-order` 排序，缺失时保持原有排序策略 |
+| `@ApiOperationSupport.author/authors` 展示 | ✅ | ✅ | ✅ | 后端合并为 operation `x-author`，React 展示非空作者字符串 |
+| 自定义 Markdown 文档 | ✅ | ✅ | ✅ | React 读取 `x-openapi.x-markdownFiles` 并在侧边栏渲染 |
+| 自定义 Footer | ✅ | ✅ | ✅ | React 读取 `enableFooterCustom` / `footerCustomContent` 并按 Markdown 安全渲染 |
+| 接口变化提示 | ✅ 侧边栏小蓝点 | ✅ 同 Vue2 | ✅ NEW / 变化标记 | React 已实现，UX 不同于 Vue2 |
+| 请求参数缓存 | ✅ | ✅ | ✅ | React 已读取 `enable-request-cache` |
+| TypeScript 代码生成 | ✅ | ✅ | ✅ | React 操作页提供基础 JS / TypeScript 请求函数片段 |
+| OpenAPI 复制/下载 | ✅ 接口页 JSON | ✅ 同 Vue2 | ✅ JSON / YAML / 单接口闭包 | 三端都没有独立的 Postman Collection 导出器 |
 
 ### knife4j-core 已抽取模块
 
@@ -150,7 +152,7 @@ Java `5.7.0` 与 Knife4x Go `v0.8.0` 接入 OpenAPI 3.2.x 完整消费。真实 
 ## 优先级排序原则
 
 1. **稳定性优先**：Bug 修复和兼容性回归永远优先于新功能
-2. **调试能力对齐**：Vue3（OAS2 starter）能做的调试流程，React 也必须能做
+2. **调试能力对齐**：Vue2 基线能做的调试流程，React 也必须能做；Vue3 只作为 OAS2 兼容端口，不能单独充当能力基线
 3. **核心层先行**：knife4j-core 抽取完成后，UI 层改动才可控
 4. **小步快跑**：一个 PR 只做一件事，可独立验证和回滚
 5. **不破坏现有体验**：任何改动不能让 `doc.html` 用户降级
@@ -169,8 +171,7 @@ Java `5.7.0` 与 Knife4x Go `v0.8.0` 接入 OpenAPI 3.2.x 完整消费。真实 
 
 ## 下一步
 
-1. **继续补齐 `knife4j.setting.*` UI 开关联动**：React 前端已读取部分 `x-openapi.x-setting` 字段，剩余字段按功能逐项接入
-2. **补齐 Postman 导出**
-3. **补齐 multipart/form-data 文件上传细节**
+1. **继续补齐 `knife4j.setting.*` UI 开关联动**：React 前端已读取部分 `x-openapi.x-setting` 字段；仍缺 afterScript 与调试后刷新变量
+2. **补齐 multipart/form-data 文件上传细节**
 
 如果你想参与某个任务的实现，欢迎提 Issue 或 PR。详见 [GitHub 仓库](https://github.com/songxychn/knife4j-next)。

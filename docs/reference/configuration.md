@@ -107,7 +107,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态概要（状态码、说明、Schema 和 Media Type） | ✅ |
 | `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义 HTTP 状态码 | ✅ |
 
-> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的配置仍会由后端写入 extension，但 React 暂不消费。详见 [FAQ](../guide/faq#react-setting-not-effective)。
+> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的 `enableAfterScript` / `enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费；这两项存在于 Vue2 基线，并已移植到 Vue3。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
 > `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
 

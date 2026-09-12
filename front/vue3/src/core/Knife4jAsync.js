@@ -35,6 +35,7 @@
 import { message } from 'ant-design-vue';
 import md5 from 'js-md5';
 import KUtils from './utils';
+import { KNIFE4J_ROUTE_PROXY_HEADER } from './routeProxyHeader.js';
 import { marked } from 'marked';
 import async from 'async';
 import Knife4jOAS3ResponseExampleReader from './oas3/OAS3ResponseExampleReader';
@@ -764,7 +765,7 @@ SwaggerBootstrapUi.prototype.analysisApi = function (instance, forceReload = fal
       }
       if (KUtils.checkUndefined(this.currentInstance.header)) {
         // Knife4j自研Aggreration微服务聚合组件请求头
-        reqHeaders = Object.assign({}, reqHeaders, { 'knfie4j-gateway-request': that.currentInstance.header });
+        reqHeaders = Object.assign({}, reqHeaders, { [KNIFE4J_ROUTE_PROXY_HEADER]: that.currentInstance.header });
       }
       if (KUtils.checkUndefined(this.currentInstance.basicAuth)) {
         reqHeaders = Object.assign({}, reqHeaders, { 'knife4j-gateway-basic-request': that.currentInstance.basicAuth });

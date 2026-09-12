@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "check:i18n": "bun scripts/check-i18n.mjs",
+    "check:search-menu": "bun scripts/check-search-menu.mjs",
     "build": "vite build",
     "build:SpringDocOpenApi": "cross-env VITE_RELEASE_APP_TYPE=SpringDocOpenApi vite build",
     "build:Knife4jSpringUi": "cross-env VITE_RELEASE_APP_TYPE=Knife4jSpringUi vite build",

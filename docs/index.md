@@ -109,7 +109,7 @@ knife4j:
 完整更新列表见 [发布说明](/release-notes/)。
 
 ::: warning 关于新前端覆盖范围
-新 React 前端当前**仅覆盖部分** upstream 增强特性。它会读取部分 `knife4j.setting.*` UI 默认值，包括自定义 Footer、接口变化提示与后端注入的自定义首页 Markdown；但如果你依赖的是 `enable-after-script`、Postman 导出等 Vue 时代能力，请在切换到新前端前先查阅 [新前端覆盖范围](/roadmap/#react-ui-coverage)。`home-custom-path` 仍由后端读取，不是前端读取文件的入口。`knife4j-openapi2-ui` 由本仓库 `front/vue3` 构建，处于兼容维护状态，upstream 已有特性继续可用。
+能力基线是 upstream Vue2（`legacy/vue2`）。Vue3 与 React 都是维护者重写，各自可能漏掉 Vue2 能力。React 已读取部分 `knife4j.setting.*`（含自定义 Footer、接口变化提示、请求参数缓存与后端注入的自定义首页 Markdown）；仍缺 afterScript 与调试后刷新变量。三端都没有独立的 Postman Collection 导出器，请使用 OpenAPI 复制/下载。切换前端前先查阅 [相对 Vue2 的覆盖范围](/roadmap/#react-ui-coverage)。`home-custom-path` 仍由后端读取，不是前端读取文件的入口。`knife4j-openapi2-ui` 由本仓库 `front/vue3` 构建，处于 OAS2 兼容维护状态。
 :::
 
 ## 文档导航

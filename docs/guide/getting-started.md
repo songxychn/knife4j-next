@@ -178,8 +178,8 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 
 ::: info 何时选这条
 - 项目深度依赖 Springfox 专属注解（`@ApiOperationSupport(ignoreParameters/includeParameters)`、`@DynamicParameters`、`@DynamicResponseParameters`）。
-- 需要 upstream knife4j 文档上提到的完整 UI 能力（自定义首页、Postman 导出、版本小蓝点、afterScript）。
-- 这些特性在本 fork 的新 React 前端中尚未覆盖，但在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中完整保留。
+- 需要 Vue2 基线里的 afterScript 或调试后刷新变量（`enable-reload-cache-parameter`）。这两项已移植到本仓库 `front/vue3`，React 尚未覆盖。
+- 自定义首页、接口变化提示和 OpenAPI 复制/下载不是选这条的理由：React 已覆盖（变化提示是 NEW / 变化标记，不是 Vue2 小蓝点）。三端都没有独立的 Postman Collection 导出器。
 :::
 
 ### 依赖

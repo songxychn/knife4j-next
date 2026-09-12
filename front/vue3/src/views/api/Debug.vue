@@ -270,6 +270,7 @@
 <script>
 import qs from "qs"
 import KUtils from "@/core/utils";
+import { KNIFE4J_ROUTE_PROXY_HEADER } from "@/core/routeProxyHeader.js";
 import KEnvironment from "@/core/Environment"
 import constant from "@/store/constants";
 /* import EditorDebugShow from "./EditorDebugShow";
@@ -2128,7 +2129,7 @@ export default {
       // 判断是否routeProxy请求，基于Knife4j自研aggre聚合组件请求header
       // add by xiaoymin 2020年11月13日 21:33:18
       if (KUtils.checkUndefined(this.routeHeader)) {
-        headers["knfie4j-gateway-request"] = this.routeHeader;
+        headers[KNIFE4J_ROUTE_PROXY_HEADER] = this.routeHeader;
       }
       // Knife4jAggregationDesktop组件header
       if (this.swaggerInstance.desktop) {
@@ -3000,7 +3001,7 @@ export default {
       // 设置请求头
       var headers = this.debugHeaders();
       var ignoreHeaders = [];
-      ignoreHeaders.push("knfie4j-gateway-request");
+      ignoreHeaders.push(KNIFE4J_ROUTE_PROXY_HEADER);
       ignoreHeaders.push("knife4j-gateway-code");
       ignoreHeaders.push("Request-Origion");
       if (KUtils.checkUndefined(headers)) {

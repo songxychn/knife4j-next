@@ -47,7 +47,7 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 
 ## 主要能力
 
-- **接口分组与搜索**：让大型项目中的接口更容易查找、定位和理解。
+- **接口分组与搜索**：当前分组内查找接口。Vue2 / Vue3 在 Tag 名称命中时展开该 Tag 下全部子接口；React 搜索当前分组的 path / summary / tag。跨分组搜索不是 Vue2 能力。
 - **请求参数增强**：支持全局参数、参数缓存、请求过滤，以及 urlencoded / multipart Body 的动态文本字段。
 - **鉴权调试**：覆盖 Basic Auth、OAuth2 等常见接口调试场景。
 - **模型展示增强**：更友好地展示请求体、响应体和嵌套模型结构。
@@ -67,9 +67,11 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 
 ## 功能详解
 
-> 以下功能按**前端 UI 可用性**标注状态。✅ = React + Vue3 均可用；🔲 = 部分实现；⬜ = 未实现；❌ = 均暂不可用。
+> 以下功能按**前端 UI 可用性**标注。能力基线是 upstream Vue2（`legacy/vue2`）。Vue3 与 React 都是维护者重写，各自可能漏掉 Vue2 能力。
 >
-> 这里的 Vue3 指本仓库 `front/vue3`，打包进 `knife4j-openapi2-ui` webjar，面向 OAS2 starter；React 指 `front/ui-react`，打包进 `knife4j-openapi3-ui` webjar，面向 OAS3 starter。Vue3 处于兼容维护状态，React 为主线。
+> ✅ = 该前端可用；🔲 = 部分实现；⬜ = 未实现；❌ = 均暂不可用。
+>
+> Vue3 指本仓库 `front/vue3`，打包进 `knife4j-openapi2-ui`，面向 OAS2 兼容维护；React 指 `front/ui-react`，打包进 `knife4j-openapi3-ui`，面向 OAS3 主线。下文表格对比的是当前交付的两条线，不以 Vue3 代替 Vue2 基线。
 
 ### 离线文档导出
 
@@ -78,7 +80,7 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 | Markdown | ✅ | ✅ | 当前分组的完整 Markdown 文档 |
 | HTML | ✅ | ✅ | 当前分组的 HTML 离线文档 |
 | Word | ✅ | ✅ | 当前分组的 Word 文档 |
-| OpenAPI JSON | ✅ | ✅ | 当前分组的原始 OpenAPI 规范 JSON |
+| OpenAPI JSON | ✅ | ✅ | 当前分组的原始 OpenAPI 规范 JSON；React 另有 YAML 与单接口闭包 |
 | PDF | ❌ | ❌ | 暂未实现 |
 
 在 UI 界面中进入**文档管理 → 离线文档**，选择格式后点击下载即可。
@@ -188,7 +190,7 @@ Knife4j 提供 UI 端临时设置全局参数的功能，适用于后台全局 T
 AfterScript 功能允许在每个接口调试 Tab 中编写一段 JavaScript 脚本，当接口调用成功后自动执行。最典型的场景是**登录后自动设置全局 Token**。
 
 ::: warning ⚠️ React UI 暂不支持
-AfterScript 功能仅在 Vue3 UI（`knife4j-openapi2-spring-boot-starter` 打包的 `front/vue3`）中可用。React 新前端暂不支持。跟进进度见 [路线图](../roadmap/#react-ui-coverage)。
+AfterScript 存在于 Vue2 基线，并已移植到 Vue3 UI（`knife4j-openapi2-spring-boot-starter` 打包的 `front/vue3`）。React 新前端暂不支持。跟进进度见 [路线图](../roadmap/#react-ui-coverage)。
 :::
 
 #### 全局对象
@@ -296,7 +298,7 @@ knife4j:
 ```
 
 ::: warning React UI
-以上三项配置在 Vue3 UI（OAS2 starter）中生效。React 新前端也会读取后端注入的默认值并隐藏对应入口，但这只是 UI 开关，不是安全控制。
+以上三项配置在 Vue2 / Vue3（OAS2）中生效。React 新前端也会读取后端注入的默认值并隐藏对应入口，但这只是 UI 开关，不是安全控制。
 :::
 
 ### 请求参数缓存
@@ -313,13 +315,15 @@ knife4j:
 - 后端 `@Schema(example = "张飞")` 提供了 example 的字段，**始终使用 example 值**，不使用缓存。
 - 未提供 example 的字段，使用上次调试时填写的缓存值。
 
-::: warning ⚠️ React UI 暂不支持
-此配置仅在 Vue3 UI（OAS2 starter）中生效。React 新前端暂不读取。
+::: tip React UI
+`enable-request-cache` 在 Vue2 / Vue3 与 React 中均会生效。React 读取后端注入的默认值，用户在设置面板中的本地选择会覆盖该默认值。
 :::
 
 ### 接口版本控制
 
 Knife4j 使用浏览器 localStorage 记录接口基线，接口稳定身份为 HTTP Method + Path，不依赖可能变化或缺失的 `operationId`。
+
+Vue2 / Vue3（OAS2）开启 `enable-version` 后，侧边栏用小蓝点提示新增或变化接口。React 已实现同一配置，但 UX 不同：新增显示绿色 `NEW`，变化显示橙色标记。
 
 React UI 在 OpenAPI 3.0.x、3.1.x 以及 3.2.x 中提供以下行为：
 
@@ -381,10 +385,9 @@ Knife4j 支持将 JSR303（Bean Validation）注解（如 `@NotNull`、`@Size`�
 
 此功能在所有 starter 中均生效。
 
-### 导出 Postman
+### OpenAPI 复制 / 下载
 
-Vue3 UI（OAS2 starter）中每个接口详情页有 **Open** 选项卡，展示当前接口的 OpenAPI 规范结构，可一键复制后导入 Postman。
+Vue2 / Vue3 与 React 都没有独立的 Postman Collection 导出器。真实能力是复制或下载 OpenAPI 文档，再由 Postman 等工具自行导入。
 
-::: warning ❌ React UI 暂不支持
-导出 Postman 功能在 React 新前端中暂不可用。可替代方案：导出 OpenAPI JSON 后手动导入 Postman。
-:::
+- Vue2 / Vue3（OAS2）：接口详情页的 Open / OpenAPI 选项卡可复制或下载当前接口的 OpenAPI JSON。
+- React（OAS3）：同样支持 OpenAPI 复制/下载，并额外提供 YAML，以及单接口引用闭包导出。
