@@ -1039,6 +1039,7 @@ const jaJP = {
   'oas32.responseUnavailable':
     'レスポンス {{status}} は未解決または参照先の型が無効です。空のレスポンスとは異なります。',
   'oas32.server.select': 'Server を選択',
+  'oas32.server.details': '解決の詳細',
   'oas32.server.customUrl': 'カスタム URL',
   'oas32.server.source': 'ソース',
   'oas32.server.raw': '宣言 URL',

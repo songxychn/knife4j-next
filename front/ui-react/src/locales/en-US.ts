@@ -1033,6 +1033,7 @@ const enUS = {
   'oas32.responseUnavailable':
     'Response {{status}} is unresolved or has an invalid target type; it is not an empty response.',
   'oas32.server.select': 'Select Server',
+  'oas32.server.details': 'Resolution details',
   'oas32.server.customUrl': 'Custom override URL',
   'oas32.server.source': 'Source',
   'oas32.server.raw': 'Declared URL',

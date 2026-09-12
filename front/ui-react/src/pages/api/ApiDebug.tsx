@@ -38,6 +38,7 @@ import {
   AutoComplete,
   Button,
   Checkbox,
+  Collapse,
   Divider,
   Input,
   InputNumber,
@@ -5010,7 +5011,18 @@ export default function ApiDebug() {
                   </label>
                 ))}
               {server32.resolved ? (
-                <Oas32ServerDetails server={server32.resolved} override={server32.override} />
+                <Collapse
+                  ghost
+                  size="small"
+                  defaultActiveKey={server32.resolved.diagnostics.length > 0 ? ['details'] : []}
+                  items={[
+                    {
+                      key: 'details',
+                      label: t('oas32.server.details'),
+                      children: <Oas32ServerDetails server={server32.resolved} override={server32.override} />,
+                    },
+                  ]}
+                />
               ) : (
                 <Alert
                   type="warning"
