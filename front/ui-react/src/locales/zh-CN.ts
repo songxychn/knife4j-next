@@ -856,6 +856,7 @@ const zhCN = {
   'officeDoc.security': '安全方案',
   'officeDoc.servers': 'Servers',
   'officeDoc.itemSchema': 'itemSchema',
+  'officeDoc.sequentialKind': '顺序媒体',
   'officeDoc.encoding': 'Encoding',
   'officeDoc.notes': '说明',
   'officeDoc.fallbackTitle': 'API 文档',

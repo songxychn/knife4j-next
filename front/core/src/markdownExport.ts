@@ -130,6 +130,7 @@ export interface ApiMarkdownLabels {
   security?: string;
   servers?: string;
   itemSchema?: string;
+  sequentialKind?: string;
   encoding?: string;
   notes?: string;
   summary?: string;
@@ -165,6 +166,7 @@ const DEFAULT_LABELS: ResolvedApiMarkdownLabels = {
   security: 'Security',
   servers: 'Servers',
   itemSchema: 'itemSchema',
+  sequentialKind: 'Sequential media',
   encoding: 'Encoding',
   notes: 'Notes',
   summary: 'Summary',
@@ -283,6 +285,16 @@ function appendEncodingLines(
   lines.push('');
 }
 
+function appendSequentialKindLine(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  sequentialKind: string | undefined,
+): void {
+  if (!sequentialKind) return;
+  lines.push(`**${labels.sequentialKind}:** ${escape(sequentialKind)}`);
+  lines.push('');
+}
+
 function appendSchemaAddonLines(
   lines: string[],
   labels: ResolvedApiMarkdownLabels,
@@ -313,10 +325,7 @@ function appendSchemaAddonLines(
     lines.push(`**XML:** \`${escape(xml)}\``);
     lines.push('');
   }
-  if (schema.sequentialKind) {
-    lines.push(`**${labels.itemSchema}:** ${escape(schema.sequentialKind)}`);
-    lines.push('');
-  }
+  appendSequentialKindLine(lines, labels, schema.sequentialKind);
   appendEncodingLines(lines, labels, schema.encodings);
   appendNoteLines(lines, labels, schema.notes);
   if (schema.itemSchema) {
@@ -384,10 +393,7 @@ function appendMediaAddonLines(
     lines.push(`**${labels.summary}:** ${escape(body.summary)}`);
     lines.push('');
   }
-  if (body.sequentialKind) {
-    lines.push(`**${labels.itemSchema}:** ${escape(body.sequentialKind)}`);
-    lines.push('');
-  }
+  appendSequentialKindLine(lines, labels, body.sequentialKind);
   appendEncodingLines(lines, labels, body.encodings);
   appendNoteLines(lines, labels, body.notes);
   appendSchemaAddonLines(lines, labels, body.schema, headingLevel);
@@ -470,7 +476,13 @@ function renderExportOperationMarkdownInternal(
       for (const parameter of params) {
         const fields = parameter.schema?.fields ?? [];
         const example = parameter.example;
-        if (fields.length === 0 && example?.value === undefined) continue;
+        if (
+          fields.length === 0 &&
+          example?.value === undefined &&
+          !parameter.encodings?.length &&
+          !parameter.notes?.length
+        )
+          continue;
         lines.push('');
         lines.push(heading(sectionHeadingLevel + 1, `${labels.requestParameters} \`${escape(parameter.name)}\``));
         lines.push('');
@@ -512,6 +524,7 @@ function renderExportOperationMarkdownInternal(
     !requestBody?.schema &&
     requestExample?.value === undefined &&
     !requestBody?.itemSchema &&
+    !requestBody?.sequentialKind &&
     !requestBody?.notes?.length &&
     !requestBody?.encodings?.length
   ) {

@@ -53,7 +53,9 @@ import { buildOas31ExportSnapshot, Oas31ExportBudgetError } from './oas31ExportS
 import {
   buildOas32DegradedExportSnapshot,
   buildOas32ExportSnapshot,
+  collectOas32ExportResourceGraphIssues,
   Oas32ExportBudgetError,
+  selectOas32ExportResourceSnapshot,
 } from './oas32ExportSnapshot';
 
 const { Title, Paragraph } = Typography;
@@ -88,6 +90,7 @@ export interface OfficeDocLabels {
   security?: string;
   servers?: string;
   itemSchema?: string;
+  sequentialKind?: string;
   encoding?: string;
   notes?: string;
   markdown: ApiMarkdownLabels;
@@ -294,9 +297,9 @@ function renderOas32MediaExtras(
   }
   if (body.sequentialKind) {
     parts.push(
-      `<p style="margin:4px 0;font-size:13px;"><strong>${escapeHtml(labels.itemSchema ?? 'itemSchema')}</strong> <code>${escapeHtml(
-        body.sequentialKind,
-      )}</code></p>`,
+      `<p style="margin:4px 0;font-size:13px;"><strong>${escapeHtml(
+        labels.sequentialKind ?? 'Sequential media',
+      )}</strong> <code>${escapeHtml(body.sequentialKind)}</code></p>`,
     );
   }
   const encodings = formatEncodings(body.encodings);
@@ -520,6 +523,7 @@ function renderRequestBodySection(
     example?.value === undefined &&
     !requestBody?.notes?.length &&
     !requestBody?.itemSchema &&
+    !requestBody?.sequentialKind &&
     !requestBody?.encodings?.length
   ) {
     return '';
@@ -900,7 +904,8 @@ function docxOas32MediaExtras(
 ): (DocxParagraph | DocxTable)[] {
   if (!body) return [];
   const children: (DocxParagraph | DocxTable)[] = [];
-  if (body.sequentialKind) children.push(docxBullet(`${labels.itemSchema ?? 'itemSchema'} ${body.sequentialKind}`));
+  if (body.sequentialKind)
+    children.push(docxBullet(`${labels.sequentialKind ?? 'Sequential media'} ${body.sequentialKind}`));
   const encodings = formatEncodings(body.encodings);
   if (encodings.length) {
     children.push(docxHeadingLine(labels.encoding ?? 'Encoding'));
@@ -1109,6 +1114,7 @@ function docxRequestBodySection(
     example?.value === undefined &&
     !requestBody?.notes?.length &&
     !requestBody?.itemSchema &&
+    !requestBody?.sequentialKind &&
     !requestBody?.encodings?.length
   )
     return [];
@@ -1480,6 +1486,7 @@ export default function OfficeDoc() {
     security: t('officeDoc.security'),
     servers: t('officeDoc.servers'),
     itemSchema: t('officeDoc.itemSchema'),
+    sequentialKind: t('officeDoc.sequentialKind'),
     encoding: t('officeDoc.encoding'),
     notes: t('officeDoc.notes'),
     incompleteTitle: t(
@@ -1515,6 +1522,7 @@ export default function OfficeDoc() {
       security: t('officeDoc.security'),
       servers: t('officeDoc.servers'),
       itemSchema: t('officeDoc.itemSchema'),
+      sequentialKind: t('officeDoc.sequentialKind'),
       encoding: t('officeDoc.encoding'),
       notes: t('officeDoc.notes'),
       summary: t('home.description'),
@@ -1569,17 +1577,22 @@ export default function OfficeDoc() {
         });
       }
       try {
-        const snapshot = externalResources.snapshot;
-        const currentGraph =
-          snapshot?.entryRetrievalUri === schemaEngine.retrievalUri &&
-          externalResources.documentScope === snapshot.documentScope
-            ? snapshot
-            : undefined;
+        const graphSnapshot = externalResources.snapshot ?? undefined;
+        const graphRetrievalUri = schemaEngine.retrievalUri ?? undefined;
+        const graphDocumentScope = externalResources.documentScope ?? undefined;
+        const currentGraph = selectOas32ExportResourceSnapshot(graphSnapshot, graphRetrievalUri, graphDocumentScope);
         return await buildOas32ExportSnapshot(document, exportIdentity.tags, exportIdentity.session, {
           fallbackTitle: labels.fallbackTitle,
           signal,
-          initialIssues: resourceSnapshotIssues(),
-          retrievalUri: exportIdentity.retrievalUri ?? undefined,
+          initialIssues: collectOas32ExportResourceGraphIssues({
+            snapshot: graphSnapshot,
+            retrievalUri: graphRetrievalUri,
+            documentScope: graphDocumentScope,
+            graphStatus: externalResources.status,
+            registrationError: externalResources.registrationError,
+          }),
+          retrievalUri: exportIdentity.retrievalUri ?? graphRetrievalUri,
+          documentScope: graphDocumentScope,
           resourceSnapshot: currentGraph,
         });
       } catch (error) {

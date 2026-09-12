@@ -70,7 +70,56 @@ export interface BuildOas32ExportSnapshotOptions {
   readonly initialIssues?: readonly OfflineDocumentIssue[];
   readonly limits?: Oas32ExportSnapshotLimits;
   readonly retrievalUri?: string;
+  readonly documentScope?: string;
   readonly resourceSnapshot?: ResourceGraphSnapshot;
+}
+
+export interface Oas32ExportResourceGraphIssueOptions {
+  readonly snapshot?: ResourceGraphSnapshot;
+  readonly retrievalUri?: string;
+  readonly documentScope?: string;
+  readonly graphStatus?: string;
+  readonly registrationError?: { readonly code?: string } | null;
+}
+
+/**
+ * Accept a resource graph only when it still matches the current entry URI
+ * and, when provided, the current document scope. Callers must not fall back
+ * to a menu-cached snapshot after this returns undefined.
+ */
+export function selectOas32ExportResourceSnapshot(
+  snapshot: ResourceGraphSnapshot | undefined,
+  retrievalUri: string | undefined,
+  documentScope?: string,
+): ResourceGraphSnapshot | undefined {
+  if (!snapshot || !retrievalUri) return undefined;
+  if (snapshot.entryRetrievalUri !== retrievalUri) return undefined;
+  if (documentScope !== undefined && snapshot.documentScope !== documentScope) return undefined;
+  return snapshot;
+}
+
+export function collectOas32ExportResourceGraphIssues(
+  options: Oas32ExportResourceGraphIssueOptions,
+): OfflineDocumentIssue[] {
+  const current = selectOas32ExportResourceSnapshot(options.snapshot, options.retrievalUri, options.documentScope);
+  const issues: OfflineDocumentIssue[] = [];
+  if (options.snapshot && !current) {
+    issues.push({ code: 'GRAPH_STALE', severity: 'warning' });
+  } else if (
+    !current ||
+    current.complete === false ||
+    (options.graphStatus !== undefined && options.graphStatus !== 'ready')
+  ) {
+    issues.push({ code: 'RESOURCE_GRAPH_INCOMPLETE', severity: 'warning' });
+  }
+  if (options.registrationError) {
+    issues.push({
+      code: 'RESOURCE_REGISTRATION_FAILED',
+      severity: 'warning',
+      ...(options.registrationError.code === undefined ? {} : { keyword: options.registrationError.code }),
+    });
+  }
+  return issues;
 }
 
 type ExportBudgetDimension = 'operations' | 'projected-fields';
@@ -157,6 +206,17 @@ function diagnosticCode(error: unknown, fallback: string): string {
 
 function displayMethod(operation: MenuOperation): string {
   return operation.identity?.method ?? operation.method;
+}
+
+function executionExportNotes(operation: MenuOperation, method: string): ExportNote[] {
+  const notes: ExportNote[] = [];
+  if (operation.source && operation.source !== 'path') {
+    notes.push({ code: 'NON_EXECUTABLE_SOURCE', detail: operation.source });
+  }
+  if (method === 'QUERY' || operation.identity?.methodSource === 'additional') {
+    notes.push({ code: 'BROWSER_EXECUTION_UNSUPPORTED', detail: method });
+  }
+  return notes;
 }
 
 function operationLabel(operation: MenuOperation): string {
@@ -632,7 +692,19 @@ async function projectMedia(
   notes?: ExportNote[];
   example?: ExportExample;
 }> {
-  const followed = followLocation(context.snapshot, mediaLocation) ?? mediaLocation;
+  const followed = followLocation(context.snapshot, mediaLocation);
+  if (!followed) {
+    if (typeof asRecord(mediaLocation.value)?.$ref === 'string') {
+      context.issues.add({
+        code: 'MEDIA_TYPE_REFERENCE_UNAVAILABLE',
+        severity: 'warning',
+        operation: operationLabel(operation),
+        region,
+      });
+      return { notes: [{ code: 'MEDIA_TYPE_REFERENCE_UNAVAILABLE' }] };
+    }
+    return {};
+  }
   const media = asRecord(followed.value);
   if (!media) return {};
   const sequentialKind = classifyOas32SequentialMedia(mediaType);
@@ -685,7 +757,7 @@ async function projectMedia(
   } else if (sequentialKind !== 'unknown') {
     context.issues.add({
       code: 'ITEM_SCHEMA_ABSENT',
-      severity: 'info',
+      severity: 'warning',
       operation: operationLabel(operation),
       region,
     });
@@ -695,6 +767,7 @@ async function projectMedia(
     ...(owns(media, 'schema') || owns(media, 'itemSchema')
       ? []
       : [{ code: 'MEDIA_SCHEMA_ABSENT', detail: 'Media Type has neither schema nor itemSchema.' }]),
+    ...(sequentialKind === 'unknown' || owns(media, 'itemSchema') ? [] : [{ code: 'ITEM_SCHEMA_ABSENT' }]),
   ];
   const example = exampleFromMedia(
     media,
@@ -1167,13 +1240,7 @@ async function buildOperation(
   }
   const security = exportSecurity(context.snapshot, operation, context.issues);
   const servers = exportServers(context.document, operation, context.retrievalUri, context.issues);
-  const notes: ExportNote[] = [];
-  if (operation.source && operation.source !== 'path') {
-    notes.push({ code: 'NON_EXECUTABLE_SOURCE', detail: operation.source });
-  }
-  if (method === 'QUERY' || operation.identity?.methodSource === 'additional') {
-    notes.push({ code: 'BROWSER_EXECUTION_UNSUPPORTED', detail: method });
-  }
+  const notes = executionExportNotes(operation, method);
   return {
     title: operation.operation.summary?.trim() || `${method} ${operation.path}`,
     numberPath,
@@ -1311,6 +1378,7 @@ export function buildOas32FallbackExportDocument(
       numberPath: [tagIndex + 1],
       operations: tag.operations.map((operation, operationIndex) => {
         const method = displayMethod(operation);
+        const notes = executionExportNotes(operation, method);
         return {
           title: operation.operation.summary?.trim() || `${method} ${operation.path}`,
           numberPath: [tagIndex + 1, operationIndex + 1],
@@ -1346,6 +1414,7 @@ export function buildOas32FallbackExportDocument(
                 : {}),
             })),
           ...(operation.identity?.methodSource === undefined ? {} : { methodSource: operation.identity.methodSource }),
+          ...(notes.length ? { notes } : {}),
         };
       }),
     })),
@@ -1390,8 +1459,10 @@ export async function buildOas32ExportSnapshot(
     });
   });
   const retrievalUri = options.retrievalUri ?? session.retrievalUri;
-  const snapshot =
-    options.resourceSnapshot ?? flattened.find((entry) => entry.operation.resourceSnapshot)?.operation.resourceSnapshot;
+  const snapshot = selectOas32ExportResourceSnapshot(options.resourceSnapshot, retrievalUri, options.documentScope);
+  if (options.resourceSnapshot && !snapshot) {
+    issues.add({ code: 'GRAPH_STALE', severity: 'warning' });
+  }
   const projector = createSchemaDisplayProjector(session);
   const fields = new ProjectedFieldBudget(limits.maxProjectedFields);
   const context: OperationBuildContext = {

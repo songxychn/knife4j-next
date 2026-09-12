@@ -14,7 +14,9 @@ import { buildOas31ExportSnapshot } from './oas31ExportSnapshot';
 import {
   buildOas32DegradedExportSnapshot,
   buildOas32ExportSnapshot,
+  collectOas32ExportResourceGraphIssues,
   Oas32ExportBudgetError,
+  selectOas32ExportResourceSnapshot,
 } from './oas32ExportSnapshot';
 import { renderDocx, renderHtmlDoc, renderMarkdownDoc, renderWordDoc, type OfficeDocLabels } from './OfficeDoc';
 
@@ -168,6 +170,7 @@ const labels: OfficeDocLabels = {
   security: 'Security',
   servers: 'Servers',
   itemSchema: 'itemSchema',
+  sequentialKind: 'Sequential media',
   encoding: 'Encoding',
   notes: 'Notes',
   markdown: {
@@ -198,6 +201,7 @@ const labels: OfficeDocLabels = {
     security: 'Security',
     servers: 'Servers',
     itemSchema: 'itemSchema',
+    sequentialKind: 'Sequential media',
     encoding: 'Encoding',
     notes: 'Notes',
   },
@@ -221,6 +225,9 @@ function expectRenderedSemantics(output: string): void {
   expect(output).toContain('COPY');
   expect(output).toContain('Copy');
   expect(output).toContain('itemSchema');
+  expect(output).toContain('Sequential media');
+  expect(output).toContain('json-seq');
+  expect(output).not.toMatch(/itemSchema[:\s]+json-seq/);
   expect(output).toContain('defaultMapping');
   expect(output).toContain('text/plain');
   expect(output).toMatch(/nodeType/);
@@ -303,6 +310,9 @@ describe('OAS 3.2 offline export snapshot', () => {
     );
     expect(JSON.stringify(result.document)).not.toMatch(/Bearer ey|password|client_secret|Authorization:\s*Bearer/i);
     expect(result.document.tags[0]).toMatchObject({ summary: 'Event APIs', kind: 'nav' });
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'ITEM_SCHEMA_ABSENT' })]),
+    );
 
     const html = renderHtmlDoc(result, labels);
     const markdown = renderMarkdownDoc(result, labels);
@@ -332,9 +342,66 @@ describe('OAS 3.2 offline export snapshot', () => {
     expect(degraded.issues).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: 'SCHEMA_SESSION_UNAVAILABLE' })]),
     );
+    const query = degraded.document.tags[0].operations.find((operation) => operation.method === 'QUERY');
+    const copy = degraded.document.tags[0].operations.find((operation) => operation.method === 'COPY');
+    const mixed = degraded.document.tags[0].operations.find((operation) => operation.method === 'Copy');
+    expect(query?.notes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'BROWSER_EXECUTION_UNSUPPORTED', detail: 'QUERY' })]),
+    );
+    expect(copy?.notes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'BROWSER_EXECUTION_UNSUPPORTED', detail: 'COPY' })]),
+    );
+    expect(mixed?.notes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'BROWSER_EXECUTION_UNSUPPORTED', detail: 'Copy' })]),
+    );
     expect(renderHtmlDoc(degraded, { ...labels, incompleteTitle: 'INCOMPLETE SNAPSHOT' })).toContain(
       'INCOMPLETE SNAPSHOT',
     );
+    expect(renderHtmlDoc(degraded, labels)).toContain('BROWSER_EXECUTION_UNSUPPORTED');
+  });
+
+  test('labels sequential media separately from itemSchema when itemSchema is absent', async () => {
+    const document = valid32({
+      paths: {
+        '/stream': {
+          query: {
+            responses: {
+              '200': {
+                description: 'stream',
+                content: {
+                  'application/json-seq': { schema: { type: 'array' } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const { session, snapshot, fetchSpy } = await openSession(document);
+    const tags = parseMenuTags(document, { retrievalUri: ENTRY_URI, resourceSnapshot: snapshot });
+    const result = await buildOas32ExportSnapshot(document, tags, session, {
+      retrievalUri: ENTRY_URI,
+      resourceSnapshot: snapshot,
+    });
+    expect(result.complete).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'ITEM_SCHEMA_ABSENT', severity: 'warning' })]),
+    );
+    expect(result.document.tags[0].operations[0].responses[0].sequentialKind).toBe('json-seq');
+    expect(result.document.tags[0].operations[0].responses[0].notes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'ITEM_SCHEMA_ABSENT' })]),
+    );
+    const html = renderHtmlDoc(result, { ...labels, incompleteTitle: 'INCOMPLETE SNAPSHOT' });
+    const markdown = renderMarkdownDoc(result, labels);
+    expect(html).toContain('INCOMPLETE SNAPSHOT');
+    expect(html).toContain('Sequential media');
+    expect(html).toContain('json-seq');
+    expect(html).toContain('ITEM_SCHEMA_ABSENT');
+    expect(markdown).toContain('**Sequential media:** json-seq');
+    expect(markdown).toContain('ITEM_SCHEMA_ABSENT');
+    expect(html).not.toMatch(/<strong>itemSchema<\/strong>\s*<code>json-seq/);
+    expect(markdown).not.toMatch(/\*\*itemSchema:\*\* json-seq/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   test('changing only info and the 3.2 patch still exports the same operation identities', async () => {
@@ -394,11 +461,92 @@ describe('OAS 3.2 offline export snapshot', () => {
     const tags = parseMenuTags(document);
     const result = await buildOas32ExportSnapshot(document, tags, session, { retrievalUri: ENTRY_URI });
     expect(result.complete).toBe(false);
-    expect(
-      result.issues.some((issue) => issue.code === 'GRAPH_STALE' || issue.code === 'RESOURCE_GRAPH_INCOMPLETE'),
-    ).toBe(true);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_GRAPH_INCOMPLETE' })]),
+    );
+    expect(result.issues).not.toEqual(expect.arrayContaining([expect.objectContaining({ code: 'GRAPH_STALE' })]));
     expect(operationMethods(result)).toEqual(expect.arrayContaining(['QUERY', 'COPY', 'Copy']));
     expect(result.document.openapi).toBe('3.2.0');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('does not expand $ref closures from a menu-cached graph when the current snapshot is withheld', async () => {
+    const document = semanticsDocument();
+    const { session, snapshot, fetchSpy } = await openSession(document);
+    const tags = parseMenuTags(document, { retrievalUri: ENTRY_URI, resourceSnapshot: snapshot });
+    expect(tags.some((tag) => tag.operations.some((operation) => operation.resourceSnapshot))).toBe(true);
+    const result = await buildOas32ExportSnapshot(document, tags, session, { retrievalUri: ENTRY_URI });
+    const query = result.document.tags[0].operations.find((operation) => operation.method === 'QUERY')!;
+    expect(result.complete).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'RESOURCE_GRAPH_INCOMPLETE' })]),
+    );
+    expect(query.requestBody?.itemSchema).toBeUndefined();
+    expect(query.requestBody?.notes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'MEDIA_TYPE_REFERENCE_UNAVAILABLE' })]),
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('treats a document-scope mismatch as GRAPH_STALE and does not use the stale graph', async () => {
+    const document = semanticsDocument();
+    const { session, snapshot, fetchSpy } = await openSession(document);
+    const tags = parseMenuTags(document, { retrievalUri: ENTRY_URI, resourceSnapshot: snapshot });
+    const stale = { ...snapshot, documentScope: `${snapshot.documentScope}-other` };
+    expect(selectOas32ExportResourceSnapshot(stale, ENTRY_URI, snapshot.documentScope)).toBeUndefined();
+    expect(
+      collectOas32ExportResourceGraphIssues({
+        snapshot: stale,
+        retrievalUri: ENTRY_URI,
+        documentScope: snapshot.documentScope,
+        graphStatus: 'ready',
+      }),
+    ).toEqual([expect.objectContaining({ code: 'GRAPH_STALE', severity: 'warning' })]);
+    const result = await buildOas32ExportSnapshot(document, tags, session, {
+      retrievalUri: ENTRY_URI,
+      documentScope: snapshot.documentScope,
+      resourceSnapshot: stale,
+    });
+    const query = result.document.tags[0].operations.find((operation) => operation.method === 'QUERY')!;
+    expect(result.complete).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'GRAPH_STALE' })]));
+    expect(query.requestBody?.itemSchema).toBeUndefined();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test('records an unresolved Media Type $ref as incomplete instead of MEDIA_SCHEMA_ABSENT', async () => {
+    const document = valid32({
+      paths: {
+        '/payloads': {
+          post: {
+            requestBody: {
+              content: {
+                'application/json': { $ref: 'https://schemas.example.test/media.json' },
+              },
+            },
+            responses: { '200': { description: 'ok' } },
+          },
+        },
+      },
+    });
+    const { session, snapshot, fetchSpy } = await openSession(document);
+    const tags = parseMenuTags(document, { retrievalUri: ENTRY_URI, resourceSnapshot: snapshot });
+    const result = await buildOas32ExportSnapshot(document, tags, session, {
+      retrievalUri: ENTRY_URI,
+      resourceSnapshot: snapshot,
+    });
+    expect(result.complete).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'MEDIA_TYPE_REFERENCE_UNAVAILABLE', region: 'requestBody' }),
+      ]),
+    );
+    expect(result.document.tags[0].operations[0].requestBody?.notes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'MEDIA_TYPE_REFERENCE_UNAVAILABLE' })]),
+    );
+    expect(result.document.tags[0].operations[0].requestBody?.notes).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'MEDIA_SCHEMA_ABSENT' })]),
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

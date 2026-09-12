@@ -941,6 +941,7 @@ const jaJP = {
   'officeDoc.security': 'セキュリティ',
   'officeDoc.servers': 'Servers',
   'officeDoc.itemSchema': 'itemSchema',
+  'officeDoc.sequentialKind': 'シーケンシャルメディア',
   'officeDoc.encoding': 'Encoding',
   'officeDoc.notes': '注記',
   'officeDoc.fallbackTitle': 'API ドキュメント',

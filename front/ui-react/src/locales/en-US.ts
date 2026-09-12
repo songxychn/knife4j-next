@@ -936,6 +936,7 @@ const enUS = {
   'officeDoc.security': 'Security',
   'officeDoc.servers': 'Servers',
   'officeDoc.itemSchema': 'itemSchema',
+  'officeDoc.sequentialKind': 'Sequential media',
   'officeDoc.encoding': 'Encoding',
   'officeDoc.notes': 'Notes',
   'officeDoc.fallbackTitle': 'API Documentation',
