@@ -1,14 +1,14 @@
 ---
 title: OpenAPI 3.2 支持与迁移
-description: Knife4j Next 对 OpenAPI 3.2.x 的未发布支持矩阵、回归表、宿主承载、浏览器限制与迁移说明。
+description: Knife4j Next 对 OpenAPI 3.2.x 的支持矩阵、回归表、宿主承载、浏览器限制与迁移说明。
 ---
 
 # OpenAPI 3.2 支持与迁移
 
 [English contract](./openapi32-en) · [下载最小 JSON](/examples/openapi-3.2-minimal.json) · [下载最小 YAML](/examples/openapi-3.2-minimal.yaml)
 
-::: warning 未发布
-本文描述集成分支 `integration/oas32` 上的 OpenAPI 3.2.x 消费能力，**不是**已发布 Java `5.6.1` 或 Knife4x Go `v0.7.1` 的承诺。维护者将集成分支合入 `master` 并另行发版之前，不要把它写成当前发行版已经支持 3.2。
+::: info 已发布
+Java `5.7.0` 与 Knife4x Go `v0.8.0` 按本文消费合法 OpenAPI 3.2.x 文档。这不是 springdoc 生成 3.2 的承诺；当前生产依赖仍输出 3.0.x / 3.1.x。
 :::
 
 已发布的 OpenAPI 3.0.x / 3.1.x 契约不变，见 [OpenAPI 3.1 支持与迁移](./openapi31)。Vue3 UI 继续只维护 OAS2。本文不改变任何 starter 默认配置，也不升级 springdoc 或 Java 生产依赖。
@@ -20,9 +20,9 @@ OpenAPI 的功能集由 `major.minor` 定义。`3.2.x` 使用同一套 **OpenAPI
 | 文档版本 | UI | 状态 | 说明 |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | 兼容维护 | 不扩展 OAS 3 能力 |
-| OpenAPI 3.0.x | React | 已发布支持 | Java `5.6.1` / Go `v0.7.1` |
-| OpenAPI 3.1.x | React | 已发布支持 | Java `5.6.1` / Go `v0.7.1` |
-| OpenAPI 3.2.x | React | **未发布**（集成分支） | 合法 3.2 文档完整消费；不把 3.2 当 3.1 处理 |
+| OpenAPI 3.0.x | React | 已发布支持 | Java `5.7.0` / Go `v0.8.0` |
+| OpenAPI 3.1.x | React | 已发布支持 | Java `5.7.0` / Go `v0.8.0` |
+| OpenAPI 3.2.x | React | **已发布支持** | 合法 3.2 文档完整消费；不把 3.2 当 3.1 处理 |
 
 ## 规范夹具与生成器输出
 
@@ -38,7 +38,7 @@ Java 生产依赖仍为 springdoc `1.8.0` / `2.8.9` / Boot4 `3.0.3`。它们当�
 
 ## 产品能力矩阵
 
-除非行内另有说明，“支持”指集成分支上的完整 3.2.x feature set。
+除非行内另有说明，“支持”指已发布 Java `5.7.0` / Go `v0.8.0` 上的完整 3.2.x feature set。
 
 | 能力 | OAS 3.2 行为 | 边界 | 合入证据 |
 | --- | --- | --- | --- |
@@ -70,7 +70,7 @@ jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 
 ## 3.0 / 3.1 / 3.2 回归矩阵
 
-| 主题 | 3.0.x | 3.1.x | 3.2.x（未发布） |
+| 主题 | 3.0.x | 3.1.x | 3.2.x |
 | --- | --- | --- | --- |
 | 入口版本 | 既有 3.0 路径 | 既有 3.1 路径 | 独立 3.2 路径，不降级 |
 | 标准方法 | 无 QUERY 固定字段 | 同 3.0 | Path Item 增加 `query` |
@@ -102,7 +102,7 @@ OpenAPI 能表达的契约，不等于浏览器 JavaScript 都能发送。
 
 ## 宿主入口
 
-集成分支上的 React WebJar、starter、聚合 disk 与 Knife4x 可以**承载**合法 3.2 JSON：
+已发布的 React WebJar、starter、聚合 disk 与 Knife4x 可以**承载**合法 3.2 JSON：
 
 - `GET /doc.html` 仍返回 `webjars/knife4j-ui-react/`。
 - starter 的真实 `/v3/api-docs` 仍是当前 springdoc 的 3.0/3.1 输出；smoke 通过独立的 `/synthetic/oas32.json` 提供规范夹具，不改生成器版本字符串。

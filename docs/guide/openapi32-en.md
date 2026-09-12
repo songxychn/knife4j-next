@@ -1,6 +1,6 @@
 ---
 title: OpenAPI 3.2 Support and Migration
-description: Unpublished Knife4j Next support matrix, regression table, host loading, browser limits, and migration notes for OpenAPI 3.2.x.
+description: Knife4j Next support matrix, regression table, host loading, browser limits, and migration notes for OpenAPI 3.2.x.
 lang: en-US
 ---
 
@@ -8,8 +8,8 @@ lang: en-US
 
 [中文契约](./openapi32) · [Download minimal JSON](/examples/openapi-3.2-minimal.json) · [Download minimal YAML](/examples/openapi-3.2-minimal.yaml)
 
-::: warning Unpublished
-This page describes OpenAPI 3.2.x consumption on the `integration/oas32` branch. It is **not** a published Java `5.6.1` or Knife4x Go `v0.7.1` promise. Do not document 3.2 as a released capability until a maintainer merges the integration branch to `master` and ships a new release.
+::: info Published
+Java `5.7.0` and Knife4x Go `v0.8.0` consume valid OpenAPI 3.2.x documents as described here. This is not a promise that springdoc generates 3.2; current production dependencies still emit 3.0.x / 3.1.x.
 :::
 
 Published OpenAPI 3.0.x / 3.1.x contracts are unchanged; see [OpenAPI 3.1 Support and Migration](./openapi31-en). The Vue 3 UI remains OAS2-only. This page does not change starter defaults and does not upgrade springdoc or Java production dependencies.
@@ -21,9 +21,9 @@ OpenAPI defines its feature set at the `major.minor` level. `3.2.x` shares one *
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | No OAS 3 expansion |
-| OpenAPI 3.0.x | React | Published | Java `5.6.1` / Go `v0.7.1` |
-| OpenAPI 3.1.x | React | Published | Java `5.6.1` / Go `v0.7.1` |
-| OpenAPI 3.2.x | React | **Unpublished** (integration branch) | Full consumption of valid 3.2 documents; never treated as 3.1 |
+| OpenAPI 3.0.x | React | Published | Java `5.7.0` / Go `v0.8.0` |
+| OpenAPI 3.1.x | React | Published | Java `5.7.0` / Go `v0.8.0` |
+| OpenAPI 3.2.x | React | **Published** | Full consumption of valid 3.2 documents; never treated as 3.1 |
 
 ## Specification fixtures versus generator output
 
@@ -39,7 +39,7 @@ Java production dependencies remain springdoc `1.8.0` / `2.8.9` / Boot4 `3.0.3`.
 
 ## Product capability matrix
 
-Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x feature set on the integration branch.
+Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x feature set in published Java `5.7.0` / Go `v0.8.0`.
 
 | Capability | OAS 3.2 behavior | Boundary | Merged evidence |
 | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ An explicit official 3.2 dialect URI is executed as written. When root-level `js
 
 ## 3.0 / 3.1 / 3.2 regression matrix
 
-| Topic | 3.0.x | 3.1.x | 3.2.x (unpublished) |
+| Topic | 3.0.x | 3.1.x | 3.2.x |
 | --- | --- | --- | --- |
 | Entry version | Existing 3.0 path | Existing 3.1 path | Separate 3.2 path, never downgraded |
 | Standard methods | No QUERY field | Same as 3.0 | Path Item adds `query` |
@@ -103,7 +103,7 @@ An OpenAPI contract can describe more than browser JavaScript can send.
 
 ## Host entry points
 
-The integration-branch React WebJar, starter, aggregation disk routes, and Knife4x can **host** a valid 3.2 JSON document:
+The published React WebJar, starter, aggregation disk routes, and Knife4x can **host** a valid 3.2 JSON document:
 
 - `GET /doc.html` still serves `webjars/knife4j-ui-react/`.
 - A starter’s real `/v3/api-docs` remains current springdoc 3.0/3.1 output. Smoke tests serve the specification fixture on a separate `/synthetic/oas32.json` path and do not rewrite the generator version string.
