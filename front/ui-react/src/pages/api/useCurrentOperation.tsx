@@ -16,6 +16,17 @@ interface CurrentOperation {
   operation?: MenuOperation;
 }
 
+/** Path operations are change-tracked for 3.0/3.1/3.2. OAS 3.2 menus always carry identity. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function acknowledgeOpenedOperation(
+  operation: MenuOperation | undefined,
+  apiChangesReady: boolean,
+  acknowledgeOperation: (method: string, path: string) => void,
+): void {
+  if (!apiChangesReady || !operation || operation.source !== 'path') return;
+  acknowledgeOperation(operation.method, operation.path);
+}
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useCurrentOperation(): CurrentOperation {
   const { tag, operaterId } = useParams();
@@ -27,8 +38,7 @@ export function useCurrentOperation(): CurrentOperation {
   }, [menuTags, operaterId, tag]);
 
   useEffect(() => {
-    if (!apiChangesReady || !operation) return;
-    if (!operation.identity && operation.source !== 'webhook') acknowledgeOperation(operation.method, operation.path);
+    acknowledgeOpenedOperation(operation, apiChangesReady, acknowledgeOperation);
   }, [acknowledgeOperation, apiChangeScopeKey, apiChangesReady, operation]);
 
   return {

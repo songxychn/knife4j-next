@@ -1,4 +1,7 @@
 import {
+  collectOas32DocumentDiagnostics,
+  getOpenApiSpecificationFeatures,
+  getOpenApiStandardHttpMethods,
   isOpenApi31Version,
   OPENAPI_HTTP_METHODS,
   type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
@@ -6,9 +9,11 @@ import {
 import { buildOperationOpenApiDocument } from '../pages/api/operationOpenApiDocument';
 import {
   buildOas31OperationOpenApiDocument,
+  buildOas32OperationOpenApiDocument,
   type Oas31OperationExportBlocker,
 } from '../pages/api/oas31OperationOpenApiDocument';
 import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
+import { enumerateRegistryOperations } from '../schema/operationRegistry';
 import { KNIFE4J_STORAGE_PREFIXES } from '../storage/knife4jStorage';
 import type { SwaggerDoc } from '../types/swagger';
 import { sha256Hex, stableSerializeJson } from '../utils/stableJson';
@@ -38,9 +43,16 @@ export const API_CHANGE_BASELINE_VERSION = 2;
 export const API_CHANGE_BASELINE_MAX_BYTES = 1024 * 1024;
 export const OAS30_API_CHANGE_SNAPSHOT_VERSION = 'oas3.0-v1';
 export const OAS31_API_CHANGE_SNAPSHOT_VERSION = 'oas3.1-v1';
+export const OAS32_API_CHANGE_SNAPSHOT_VERSION = 'oas3.2-v1';
 
 export type ApiChangeSnapshotVersion =
-  typeof OAS30_API_CHANGE_SNAPSHOT_VERSION | typeof OAS31_API_CHANGE_SNAPSHOT_VERSION;
+  | typeof OAS30_API_CHANGE_SNAPSHOT_VERSION
+  | typeof OAS31_API_CHANGE_SNAPSHOT_VERSION
+  | typeof OAS32_API_CHANGE_SNAPSHOT_VERSION;
+
+const STANDARD_API_CHANGE_METHODS = new Set(
+  (getOpenApiStandardHttpMethods('3.2.0') ?? [...OPENAPI_HTTP_METHODS, 'query']).map((method) => method.toUpperCase()),
+);
 
 export type ApiChangeUnavailableReason =
   | 'preparing'
@@ -52,6 +64,7 @@ export type ApiChangeUnavailableReason =
   | 'snapshot-unavailable'
   | 'version-unsupported';
 
+/** Already-loaded resource graph used by OAS 3.1 and 3.2 fingerprinting. 3.2 ignores these documentDiagnostics. */
 export interface Oas31ApiChangeEnvironment {
   readonly status: 'preparing' | 'ready' | 'failed';
   readonly retrievalUri: string | null;
@@ -134,7 +147,9 @@ function compareText(left: string, right: string): number {
 }
 
 export function apiOperationIdentity(method: string, path: string): string {
-  return JSON.stringify([method.trim().toUpperCase(), path]);
+  const trimmed = method.trim();
+  const upper = trimmed.toUpperCase();
+  return JSON.stringify([STANDARD_API_CHANGE_METHODS.has(upper) ? upper : trimmed, path]);
 }
 
 export function buildApiChangeBaselineStorageKey(
@@ -331,10 +346,134 @@ function buildOas31ApiOperationFingerprints(
   };
 }
 
+function resourceEnvironmentUnavailable(
+  snapshotVersion: ApiChangeSnapshotVersion,
+  environment: Oas31ApiChangeEnvironment,
+): ApiChangeFingerprintBuildResult | null {
+  if (environment.status === 'preparing') {
+    return unavailable(snapshotVersion, 'preparing');
+  }
+  if (environment.status === 'failed') {
+    const reason =
+      environment.errorCode === 'UNSUPPORTED_DIALECT' || environment.errorCode === 'DIALECT_UNSUPPORTED'
+        ? 'dialect-unsupported'
+        : environment.errorCode && RESOURCE_BUDGET_FAILURES.has(environment.errorCode)
+          ? 'resource-budget'
+          : 'resource-failed';
+    return unavailable(snapshotVersion, reason);
+  }
+  if (!environment.retrievalUri || !environment.snapshot) {
+    return unavailable(snapshotVersion, 'snapshot-unavailable');
+  }
+  const graphReason = graphUnavailableReason(environment.snapshot);
+  if (graphReason) return unavailable(snapshotVersion, graphReason);
+  if (environment.snapshot.entryRetrievalUri !== environment.retrievalUri) {
+    return unavailable(snapshotVersion, 'snapshot-unavailable');
+  }
+  return null;
+}
+
 /**
- * Build versioned fingerprints for every executable path operation. OAS 3.1
- * consumes only a fixed, already-loaded graph generation and never owns a
- * loader or fetch path.
+ * OAS 3.2 fingerprints use portable semantic snapshots (`oas3.2-v1`) from an
+ * already-loaded graph. Structural validity comes from collectOas32DocumentDiagnostics;
+ * GroupContext metadata diagnostics are ignored unless snapshot construction fails.
+ */
+function buildOas32ApiOperationFingerprints(
+  swaggerDoc: SwaggerDoc,
+  environment: Oas31ApiChangeEnvironment | undefined,
+): ApiChangeFingerprintBuildResult {
+  if (collectOas32DocumentDiagnostics(swaggerDoc).length > 0) {
+    return unavailable(OAS32_API_CHANGE_SNAPSHOT_VERSION, 'document-invalid');
+  }
+  if (!environment) {
+    return unavailable(OAS32_API_CHANGE_SNAPSHOT_VERSION, 'preparing');
+  }
+  const environmentReason = resourceEnvironmentUnavailable(OAS32_API_CHANGE_SNAPSHOT_VERSION, environment);
+  if (environmentReason) return environmentReason;
+
+  const retrievalUri = environment.retrievalUri!;
+  const canonicalDoc = JSON.parse(stableSerializeJson(swaggerDoc)) as SwaggerDoc;
+  const canonicalSnapshot = canonicalResourceGraphSnapshot(environment.snapshot!);
+  const entryDocument = canonicalSnapshot.nodes.get(retrievalUri)?.document;
+  if (!entryDocument || stableSerializeJson(entryDocument) !== stableSerializeJson(canonicalDoc)) {
+    return unavailable(OAS32_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+  }
+
+  const enumerated = enumerateRegistryOperations(canonicalDoc, retrievalUri, canonicalSnapshot);
+  if (enumerated.diagnostic) {
+    return unavailable(OAS32_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+  }
+
+  const fingerprints = emptyFingerprintMap();
+  const exportContext = { retrievalUri, snapshot: canonicalSnapshot };
+  const pathOperations = enumerated.operations.filter((candidate) => candidate.source === 'path');
+  const applyExport = (
+    path: string,
+    method: string,
+    operationDocument: ReturnType<typeof buildOas32OperationOpenApiDocument>,
+  ): ApiChangeFingerprintBuildResult | null => {
+    if (!operationDocument) {
+      return unavailable(OAS32_API_CHANGE_SNAPSHOT_VERSION, 'snapshot-unavailable');
+    }
+    if (operationDocument.status === 'unavailable') {
+      if (operationNotFound(operationDocument.blockers)) return null;
+      return unavailable(
+        OAS32_API_CHANGE_SNAPSHOT_VERSION,
+        blockerUnavailableReason(operationDocument.blockers),
+        operationDocument.blockers,
+      );
+    }
+    fingerprints[apiOperationIdentity(method, path)] = fingerprintOperationDocument(operationDocument.document);
+    return null;
+  };
+
+  for (const operation of pathOperations) {
+    const blocked = applyExport(
+      operation.path,
+      operation.method,
+      buildOas32OperationOpenApiDocument(canonicalDoc, operation.path, operation.method, 'path', exportContext, {
+        source: 'path',
+        operationPointer: operation.operationPointer,
+        pathItemPointer: operation.pathItemPointer,
+        methodField: operation.methodField,
+        methodSource: operation.methodSource,
+        ownerRetrievalUri: operation.ownerRetrievalUri,
+      }),
+    );
+    if (blocked) return blocked;
+  }
+
+  const canonicalPaths = canonicalDoc.paths;
+  const enumeratedPaths = new Set(pathOperations.map((operation) => operation.path));
+  if (isRecord(canonicalPaths)) {
+    const standardMethods = getOpenApiStandardHttpMethods('3.2.0') ?? OPENAPI_HTTP_METHODS;
+    for (const path of Object.keys(canonicalPaths)
+      .filter((candidate) => candidate.startsWith('/') && !enumeratedPaths.has(candidate))
+      .sort()) {
+      const pathItem = canonicalPaths[path];
+      if (!isRecord(pathItem) || typeof pathItem.$ref !== 'string') continue;
+      for (const method of standardMethods) {
+        const blocked = applyExport(
+          path,
+          method,
+          buildOas32OperationOpenApiDocument(canonicalDoc, path, method, 'path', exportContext),
+        );
+        if (blocked) return blocked;
+      }
+    }
+  }
+
+  return {
+    status: 'ready',
+    snapshotVersion: OAS32_API_CHANGE_SNAPSHOT_VERSION,
+    fingerprints,
+  };
+}
+
+/**
+ * Build versioned fingerprints for every executable path operation. OAS 3.1/3.2
+ * consume only a fixed, already-loaded graph generation and never own a loader
+ * or fetch path. 3.2 uses `oas3.2-v1` and never hashes a 3.1 downgrade.
  */
 export function buildApiChangeFingerprintSnapshot(
   swaggerDoc: SwaggerDoc,
@@ -348,6 +487,9 @@ export function buildApiChangeFingerprintSnapshot(
   }
   if (isOpenApi31Version(swaggerDoc.openapi)) {
     return buildOas31ApiOperationFingerprints(swaggerDoc, oas31Environment);
+  }
+  if (getOpenApiSpecificationFeatures(swaggerDoc.openapi)?.family === '3.2') {
+    return buildOas32ApiOperationFingerprints(swaggerDoc, oas31Environment);
   }
   return unavailable(null, 'version-unsupported');
 }

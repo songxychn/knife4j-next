@@ -171,6 +171,8 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setState(nextState);
   }, []);
 
+  // OAS 3.2 reuses this already-loaded graph environment. Fingerprinting collects
+  // 3.2 structural diagnostics itself and does not treat metadata diagnostics as blockers.
   const oas31Environment = useMemo(
     () => oas31FingerprintEnvironment(schemaEngine, externalResources, documentDiagnostics),
     [documentDiagnostics, externalResources, schemaEngine],

@@ -13,6 +13,7 @@ import {
   API_CHANGE_BASELINE_VERSION,
   OAS30_API_CHANGE_SNAPSHOT_VERSION,
   OAS31_API_CHANGE_SNAPSHOT_VERSION,
+  OAS32_API_CHANGE_SNAPSHOT_VERSION,
   acknowledgeAllApiOperations,
   acknowledgeApiOperation,
   apiOperationIdentity,
@@ -250,6 +251,14 @@ async function buildOas31Fingerprints(
 }
 
 describe('API change fingerprints', () => {
+  it('canonicalizes standard methods and preserves additionalOperations spelling', () => {
+    expect(apiOperationIdentity('query', '/pets')).toBe(JSON.stringify(['QUERY', '/pets']));
+    expect(apiOperationIdentity('GET', '/pets')).toBe(JSON.stringify(['GET', '/pets']));
+    expect(apiOperationIdentity('COPY', '/files')).toBe(JSON.stringify(['COPY', '/files']));
+    expect(apiOperationIdentity('Copy', '/files')).toBe(JSON.stringify(['Copy', '/files']));
+    expect(apiOperationIdentity('COPY', '/files')).not.toBe(apiOperationIdentity('Copy', '/files'));
+  });
+
   it('uses a standard SHA-256 digest and stable object-key serialization', () => {
     expect(sha256Hex('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
     expect(stableSerializeJson({ b: 2, a: { d: 4, c: 3 } })).toBe('{"a":{"c":3,"d":4},"b":2}');
@@ -828,6 +837,10 @@ describe('API change baselines', () => {
       expect(buildApiChangeBaselineStorageKey(changed, OAS30_API_CHANGE_SNAPSHOT_VERSION)).not.toBe(originalKey);
     });
     expect(buildApiChangeBaselineStorageKey(IDENTITY, OAS31_API_CHANGE_SNAPSHOT_VERSION)).not.toBe(originalKey);
+    expect(buildApiChangeBaselineStorageKey(IDENTITY, OAS32_API_CHANGE_SNAPSHOT_VERSION)).not.toBe(originalKey);
+    expect(buildApiChangeBaselineStorageKey(IDENTITY, OAS32_API_CHANGE_SNAPSHOT_VERSION)).not.toBe(
+      buildApiChangeBaselineStorageKey(IDENTITY, OAS31_API_CHANGE_SNAPSHOT_VERSION),
+    );
   });
 
   it('safely rebuilds corrupt, old-version, wrong-document, and oversized caches', () => {
@@ -846,6 +859,7 @@ describe('API change baselines', () => {
       ),
     ).toBeNull();
     expect(parseApiChangeBaseline(serialized, IDENTITY, OAS31_API_CHANGE_SNAPSHOT_VERSION)).toBeNull();
+    expect(parseApiChangeBaseline(serialized, IDENTITY, OAS32_API_CHANGE_SNAPSHOT_VERSION)).toBeNull();
     expect(
       parseApiChangeBaseline(serialized, { ...IDENTITY, group: 'other' }, OAS30_API_CHANGE_SNAPSHOT_VERSION),
     ).toBeNull();

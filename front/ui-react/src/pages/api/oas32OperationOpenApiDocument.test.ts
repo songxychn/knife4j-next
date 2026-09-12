@@ -3,7 +3,11 @@ import { collectOas32DocumentDiagnostics, parseLocalJsonPointer, resolveJsonPoin
 import { createSchemaEngine, OPENAPI_32_DIALECT } from 'knife4j-schema-engine';
 import { parse } from 'yaml';
 import { parseMenuTags } from '../../api/knife4jClient';
-import { buildApiChangeFingerprintSnapshot } from '../../apiChange/apiChangeTracker';
+import {
+  apiOperationIdentity,
+  buildApiChangeFingerprintSnapshot,
+  OAS32_API_CHANGE_SNAPSHOT_VERSION,
+} from '../../apiChange/apiChangeTracker';
 import { ExternalResourceLoader, type ResourceGraphSnapshot } from '../../schema/externalResourceGraph';
 import type { SwaggerDoc } from '../../types/swagger';
 import {
@@ -426,11 +430,12 @@ describe('buildOas32OperationOpenApiDocument', () => {
     });
   });
 
-  it('keeps change fingerprints disabled for OAS 3.2', () => {
+  it('enables OAS 3.2 change fingerprints with oas3.2-v1 when the graph is complete', () => {
     const document = valid32({
       paths: { '/pets': { query: { responses: { 200: { description: 'ok' } } } } },
     });
-    const { snapshot } = snapshotOf(document);
+    const { snapshot, fetchSpy } = snapshotOf(document);
+    const requestsBeforeFingerprint = fetchSpy.mock.calls.length;
     expect(
       buildApiChangeFingerprintSnapshot(document, {
         status: 'ready',
@@ -438,7 +443,12 @@ describe('buildOas32OperationOpenApiDocument', () => {
         snapshot,
         documentDiagnostics: [],
       }),
-    ).toMatchObject({ status: 'unavailable', reason: 'version-unsupported' });
+    ).toMatchObject({
+      status: 'ready',
+      snapshotVersion: OAS32_API_CHANGE_SNAPSHOT_VERSION,
+      fingerprints: { [apiOperationIdentity('QUERY', '/pets')]: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) },
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(requestsBeforeFingerprint);
   });
 
   it('distinguishes the raw entry document from the single-operation portable snapshot', () => {
