@@ -3,13 +3,20 @@ import { Button, Space, Typography, Alert, Modal, message } from 'antd';
 import { FileTextOutlined, FileWordOutlined, FileMarkdownOutlined, CodeOutlined } from '@ant-design/icons';
 import {
   buildExportDocument,
+  getOpenApiSpecificationFeatures,
   renderExportDocumentMarkdown,
   type ApiMarkdownLabels,
+  type ExportEncoding,
+  type ExportNote,
   type ExportOperation,
   type ExportParameter,
   type ExportRequestBody,
   type ExportResponse,
+  type ExportSchema,
   type ExportSchemaField,
+  type ExportSecurityRequirement,
+  type ExportSecurityScheme,
+  type ExportServer,
 } from 'knife4j-core';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,6 +35,7 @@ import {
   LevelSuffix,
   ShadingType,
 } from 'docx';
+import { stringify } from 'yaml';
 import { useGroup } from '../../context/GroupContext';
 import { useExternalResources, useSchemaEngine } from '../../context/SchemaEngineContext';
 import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from '../../locales/language';
@@ -42,6 +50,13 @@ import {
   type OfflineDocumentSnapshot,
 } from './offlineDocumentSnapshot';
 import { buildOas31ExportSnapshot, Oas31ExportBudgetError } from './oas31ExportSnapshot';
+import {
+  buildOas32DegradedExportSnapshot,
+  buildOas32ExportSnapshot,
+  collectOas32ExportResourceGraphIssues,
+  Oas32ExportBudgetError,
+  selectOas32ExportResourceSnapshot,
+} from './oas32ExportSnapshot';
 
 const { Title, Paragraph } = Typography;
 
@@ -72,6 +87,12 @@ export interface OfficeDocLabels {
   incompleteTitle?: string;
   incompleteSummary?: (count: number) => string;
   incompleteMore?: (count: number) => string;
+  security?: string;
+  servers?: string;
+  itemSchema?: string;
+  sequentialKind?: string;
+  encoding?: string;
+  notes?: string;
   markdown: ApiMarkdownLabels;
 }
 
@@ -123,8 +144,22 @@ function methodColor(method: string): string {
     PATCH: '#50e3c2',
     HEAD: '#9012fe',
     OPTIONS: '#0d5aa7',
+    QUERY: '#1890ff',
+    COPY: '#722ed1',
   };
-  return map[method.toUpperCase()] ?? '#999';
+  return map[method] ?? map[method.toUpperCase()] ?? '#999999';
+}
+
+function docxMethodColor(method: string): string {
+  const hex = methodColor(method).replace('#', '');
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+    return hex
+      .split('')
+      .map((digit) => `${digit}${digit}`)
+      .join('');
+  }
+  return '999999';
 }
 
 function buildDocumentSnapshot(doc: SwaggerDoc, tags: MenuTag[], labels: OfficeDocLabels): OfflineDocumentSnapshot {
@@ -145,7 +180,7 @@ function renderedExportIssueLines(snapshot: OfflineDocumentSnapshot, labels: Off
 }
 
 function incompleteExportTitle(labels: OfficeDocLabels): string {
-  return labels.incompleteTitle ?? 'Incomplete OAS 3.1 export';
+  return labels.incompleteTitle ?? 'Incomplete export';
 }
 
 function incompleteExportSummary(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
@@ -167,6 +202,184 @@ function renderIncompleteHtml(snapshot: OfflineDocumentSnapshot, labels: OfficeD
 
 function formatOutlineNumber(numberPath: readonly number[]): string {
   return numberPath.join('.');
+}
+
+function formatNote(note: ExportNote): string {
+  return note.detail ? `${note.code}: ${note.detail}` : note.code;
+}
+
+function renderNotes(notes: readonly ExportNote[] | undefined): string {
+  if (!notes?.length) return '';
+  const items = notes.map((note) => `<li>${escapeHtml(formatNote(note))}</li>`).join('');
+  return `<ul class="export-notes" style="margin:6px 0;padding-left:20px;font-size:13px;color:#555;">${items}</ul>`;
+}
+
+function formatEncodings(encodings: readonly ExportEncoding[] | undefined): string[] {
+  return (encodings ?? []).map((encoding) =>
+    [
+      encoding.kind,
+      encoding.name ? `name=${encoding.name}` : undefined,
+      encoding.contentType ? `contentType=${encoding.contentType}` : undefined,
+      encoding.style ? `style=${encoding.style}` : undefined,
+      encoding.explode === undefined ? undefined : `explode=${String(encoding.explode)}`,
+      encoding.allowReserved === undefined ? undefined : `allowReserved=${encoding.allowReserved}`,
+      ...(encoding.notes ?? []).map((note) => formatNote(note)),
+    ]
+      .filter(Boolean)
+      .join(' '),
+  );
+}
+
+function renderOas32SchemaExtras(
+  schema: ExportSchema | undefined,
+  labels: OfficeDocLabels,
+  borderStyle: string,
+): string {
+  if (!schema) return '';
+  const parts: string[] = [];
+  if (schema.discriminator) {
+    const mapping = schema.discriminator.mapping
+      ? Object.entries(schema.discriminator.mapping)
+          .map(([key, value]) => `${key} → ${value}`)
+          .join(', ')
+      : '';
+    parts.push(
+      `<p style="margin:4px 0;font-size:13px;"><strong>Discriminator</strong> ${escapeHtml(
+        [
+          schema.discriminator.propertyName ? `propertyName=${schema.discriminator.propertyName}` : undefined,
+          schema.discriminator.defaultMapping ? `defaultMapping=${schema.discriminator.defaultMapping}` : undefined,
+          mapping ? `mapping: ${mapping}` : undefined,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      )}</p>`,
+    );
+  }
+  if (schema.xml && Object.values(schema.xml).some((value) => value !== undefined)) {
+    const xml = Object.entries(schema.xml)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => `${key}=${String(value)}`)
+      .join(' ');
+    parts.push(`<p style="margin:4px 0;font-size:13px;"><strong>XML</strong> <code>${escapeHtml(xml)}</code></p>`);
+  }
+  const encodings = formatEncodings(schema.encodings);
+  if (encodings.length) {
+    parts.push(
+      `<p style="margin:4px 0;font-size:13px;"><strong>${escapeHtml(labels.encoding ?? 'Encoding')}</strong></p><ul style="margin:4px 0;padding-left:20px;font-size:13px;">${encodings
+        .map((encoding) => `<li><code>${escapeHtml(encoding)}</code></li>`)
+        .join('')}</ul>`,
+    );
+  }
+  parts.push(renderNotes(schema.notes));
+  if (schema.itemSchema) {
+    parts.push(
+      `<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${escapeHtml(labels.itemSchema ?? 'itemSchema')} (${escapeHtml(
+        schema.itemSchema.mediaType,
+      )}) &nbsp;<span style="font-weight:400;color:#555;">${labels.type}: <code>${escapeHtml(
+        schema.itemSchema.typeDisplay,
+      )}</code></span></p>`,
+    );
+    if (schema.itemSchema.fields.length) parts.push(renderFieldTable(schema.itemSchema.fields, borderStyle, labels));
+    parts.push(renderOas32SchemaExtras(schema.itemSchema, labels, borderStyle));
+  }
+  return parts.join('');
+}
+
+function renderOas32MediaExtras(
+  body: ExportRequestBody | ExportResponse | undefined,
+  labels: OfficeDocLabels,
+  borderStyle: string,
+): string {
+  if (!body) return '';
+  const parts: string[] = [];
+  if ('summary' in body && body.summary) {
+    parts.push(`<p style="margin:4px 0;font-size:13px;color:#666;">${escapeHtml(body.summary)}</p>`);
+  }
+  if (body.sequentialKind) {
+    parts.push(
+      `<p style="margin:4px 0;font-size:13px;"><strong>${escapeHtml(
+        labels.sequentialKind ?? 'Sequential media',
+      )}</strong> <code>${escapeHtml(body.sequentialKind)}</code></p>`,
+    );
+  }
+  const encodings = formatEncodings(body.encodings);
+  if (encodings.length) {
+    parts.push(
+      `<p style="margin:4px 0;font-size:13px;"><strong>${escapeHtml(labels.encoding ?? 'Encoding')}</strong></p><ul style="margin:4px 0;padding-left:20px;font-size:13px;">${encodings
+        .map((encoding) => `<li><code>${escapeHtml(encoding)}</code></li>`)
+        .join('')}</ul>`,
+    );
+  }
+  parts.push(renderNotes(body.notes));
+  parts.push(renderOas32SchemaExtras(body.schema, labels, borderStyle));
+  if (body.itemSchema) {
+    parts.push(
+      `<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${escapeHtml(labels.itemSchema ?? 'itemSchema')} (${escapeHtml(
+        body.itemSchema.mediaType,
+      )}) &nbsp;<span style="font-weight:400;color:#555;">${labels.type}: <code>${escapeHtml(
+        body.itemSchema.typeDisplay,
+      )}</code></span></p>`,
+    );
+    if (body.itemSchema.fields.length) parts.push(renderFieldTable(body.itemSchema.fields, borderStyle, labels));
+    parts.push(renderOas32SchemaExtras(body.itemSchema, labels, borderStyle));
+  }
+  return parts.join('');
+}
+
+function renderSecurity(security: readonly ExportSecurityRequirement[] | undefined, labels: OfficeDocLabels): string {
+  if (!security?.length) return '';
+  const items = security
+    .map((requirement) => {
+      if (requirement.anonymous) return '<li><em>anonymous</em></li>';
+      const schemes = requirement.schemes
+        .map((scheme) =>
+          scheme.scopes.length
+            ? `<code>${escapeHtml(scheme.name)}</code> (${escapeHtml(scheme.scopes.join(', '))})`
+            : `<code>${escapeHtml(scheme.name)}</code>`,
+        )
+        .join(', ');
+      return `<li>${schemes}${renderNotes(requirement.notes)}</li>`;
+    })
+    .join('');
+  return `<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${escapeHtml(
+    labels.security ?? 'Security',
+  )}</p><ul style="margin:4px 0;padding-left:20px;font-size:13px;">${items}</ul>`;
+}
+
+function renderServers(servers: readonly ExportServer[] | undefined, labels: OfficeDocLabels): string {
+  if (!servers?.length) return '';
+  const items = servers
+    .map((server) => {
+      const meta = [server.name, server.level, server.description].filter(Boolean).join(' · ');
+      return `<li><code>${escapeHtml(server.url)}</code>${meta ? ` — ${escapeHtml(meta)}` : ''}${renderNotes(server.notes)}</li>`;
+    })
+    .join('');
+  return `<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${escapeHtml(
+    labels.servers ?? 'Servers',
+  )}</p><ul style="margin:4px 0;padding-left:20px;font-size:13px;">${items}</ul>`;
+}
+
+function renderSecuritySchemes(schemes: readonly ExportSecurityScheme[] | undefined, labels: OfficeDocLabels): string {
+  if (!schemes?.length) return '';
+  const items = schemes
+    .map((scheme) => {
+      const meta = [
+        scheme.type,
+        scheme.scheme,
+        scheme.in,
+        scheme.bearerFormat,
+        scheme.oauth2MetadataUrl ? `oauth2MetadataUrl=${scheme.oauth2MetadataUrl}` : undefined,
+        scheme.openIdConnectUrl ? `openIdConnectUrl=${scheme.openIdConnectUrl}` : undefined,
+        scheme.deprecated ? 'deprecated' : undefined,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      return `<li><code>${escapeHtml(scheme.name)}</code>${meta ? `: ${escapeHtml(meta)}` : ''}${renderNotes(scheme.notes)}</li>`;
+    })
+    .join('');
+  return `<p style="margin:8px 0 2px;font-size:13px;font-weight:600;">${escapeHtml(
+    labels.security ?? 'Security',
+  )}</p><ul style="margin:4px 0;padding-left:20px;font-size:13px;">${items}</ul>`;
 }
 
 function fieldPath(field: ExportSchemaField, labels: OfficeDocLabels): string {
@@ -258,7 +471,13 @@ function renderParameterDetails(
     .flatMap((parameter) => {
       const fields = parameter.schema?.fields ?? [];
       const example = parameter.example;
-      if (fields.length === 0 && example?.value === undefined) return [];
+      if (
+        fields.length === 0 &&
+        example?.value === undefined &&
+        !parameter.encodings?.length &&
+        !parameter.notes?.length
+      )
+        return [];
       const metadata = parameter.schema
         ? ` &nbsp;<span style="font-weight:400;color:#555;">${
             parameter.schema.mediaType
@@ -275,7 +494,18 @@ function renderParameterDetails(
           example?.value === undefined
             ? ''
             : renderHtmlExample(`${labels.requestExample}: ${parameter.name}`, example.mediaType, example.value)
-        }`,
+        }
+        ${renderOas32MediaExtras(
+          {
+            description: '',
+            required: false,
+            encodings: parameter.encodings,
+            notes: parameter.notes,
+            schema: parameter.schema,
+          },
+          labels,
+          borderStyle,
+        )}`,
       ];
     })
     .join('');
@@ -288,8 +518,17 @@ function renderRequestBodySection(
 ): string {
   const schema = requestBody?.schema;
   const example = requestBody?.example;
-  if (!schema && example?.value === undefined) return '';
-  const mediaType = schema?.mediaType ?? example?.mediaType ?? '';
+  if (
+    !schema &&
+    example?.value === undefined &&
+    !requestBody?.notes?.length &&
+    !requestBody?.itemSchema &&
+    !requestBody?.sequentialKind &&
+    !requestBody?.encodings?.length
+  ) {
+    return '';
+  }
+  const mediaType = schema?.mediaType ?? example?.mediaType ?? requestBody?.itemSchema?.mediaType ?? '';
   return `
     <p style="margin:6px 0 2px;font-size:13px;font-weight:600;">${labels.requestBody} (${escapeHtml(
       mediaType,
@@ -302,7 +541,8 @@ function renderRequestBodySection(
         : ''
     }
     ${schema?.fields.length ? renderFieldTable(schema.fields, borderStyle, labels) : ''}
-    ${example?.value !== undefined ? renderHtmlExample(labels.requestExample, example.mediaType, example.value) : ''}`;
+    ${example?.value !== undefined ? renderHtmlExample(labels.requestExample, example.mediaType, example.value) : ''}
+    ${renderOas32MediaExtras(requestBody, labels, borderStyle)}`;
 }
 
 function renderResponseSection(
@@ -325,7 +565,9 @@ function renderResponseSection(
           .map(
             (response) => `<tr>
               <td style="${borderStyle}"><code>${escapeHtml(response.statusCode)}</code></td>
-              <td style="${borderStyle}">${escapeHtml(response.description)}</td>
+              <td style="${borderStyle}">${escapeHtml(
+                [response.summary, response.description].filter(Boolean).join(' — '),
+              )}</td>
               <td style="${borderStyle}"><code>${escapeHtml(response.schema?.typeDisplay ?? '—')}</code></td>
             </tr>`,
           )
@@ -354,6 +596,7 @@ function renderResponseSection(
         ),
       );
     }
+    parts.push(renderOas32MediaExtras(response, labels, borderStyle));
   }
 
   return parts.join('');
@@ -376,6 +619,15 @@ function renderOperation(operation: ExportOperation, labels: OfficeDocLabels): s
       ${
         operation.description
           ? `<div style="padding:3px 12px;font-size:13px;color:#666;">${escapeHtml(operation.description)}</div>`
+          : ''
+      }
+      ${operation.notes?.length ? `<div style="padding:5px 12px;">${renderNotes(operation.notes)}</div>` : ''}
+      ${
+        operation.security?.length || operation.servers?.length
+          ? `<div style="padding:5px 12px;">${renderSecurity(operation.security, labels)}${renderServers(
+              operation.servers,
+              labels,
+            )}</div>`
           : ''
       }
       ${
@@ -401,6 +653,19 @@ export function renderHtmlDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeD
       return `
       <div style="margin-bottom:28px;">
         <h2 style="border-left:4px solid #00ab6d;padding-left:10px;margin:20px 0 10px;">${escapeHtml(tag.name)}</h2>
+        ${
+          tag.summary || tag.parent || tag.kind
+            ? `<p style="color:#666;margin-bottom:6px;font-size:13px;">${escapeHtml(
+                [
+                  tag.summary,
+                  tag.parent ? `parent=${tag.parent}` : undefined,
+                  tag.kind ? `kind=${tag.kind}` : undefined,
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+              )}</p>`
+            : ''
+        }
         ${tag.description ? `<p style="color:#666;margin-bottom:10px;">${escapeHtml(tag.description)}</p>` : ''}
         ${ops}
       </div>`;
@@ -430,6 +695,8 @@ export function renderHtmlDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeD
     <div class="info">
       <p><strong>${labels.version}:</strong> ${escapeHtml(model.version)}</p>
       ${model.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(model.description)}</p>` : ''}
+      ${renderServers(model.servers, labels)}
+      ${renderSecuritySchemes(model.securitySchemes, labels)}
     </div>
     ${renderIncompleteHtml(snapshot, labels)}
     ${sections}
@@ -491,6 +758,9 @@ export function renderWordDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeD
               ? `<p style="margin:2px 0;font-size:13px;color:#666;">${escapeHtml(operation.description)}</p>`
               : ''
           }
+          ${renderNotes(operation.notes)}
+          ${renderSecurity(operation.security, labels)}
+          ${renderServers(operation.servers, labels)}
           ${paramTable}
           ${bodyHtml}
           ${responseHtml}
@@ -501,6 +771,15 @@ export function renderWordDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeD
       <h1 style="border-left:4px solid #00ab6d;padding-left:8px;margin:20px 0 8px;">${formatOutlineNumber(
         tag.numberPath,
       )} ${escapeHtml(tag.name)}</h1>
+      ${
+        tag.summary || tag.parent || tag.kind
+          ? `<p style="color:#666;margin-bottom:6px;font-size:13px;">${escapeHtml(
+              [tag.summary, tag.parent ? `parent=${tag.parent}` : undefined, tag.kind ? `kind=${tag.kind}` : undefined]
+                .filter(Boolean)
+                .join(' · '),
+            )}</p>`
+          : ''
+      }
       ${tag.description ? `<p style="color:#666;margin-bottom:8px;">${escapeHtml(tag.description)}</p>` : ''}
       ${ops}`;
     })
@@ -522,6 +801,8 @@ export function renderWordDoc(snapshot: OfflineDocumentSnapshot, labels: OfficeD
   <p class="document-title">${escapeHtml(model.title)}</p>
   <p><strong>${labels.version}:</strong> ${escapeHtml(model.version)}</p>
   ${model.description ? `<p><strong>${labels.description}:</strong> ${escapeHtml(model.description)}</p>` : ''}
+  ${renderServers(model.servers, labels)}
+  ${renderSecuritySchemes(model.securitySchemes, labels)}
   ${renderIncompleteHtml(snapshot, labels)}
   <hr/>
   ${sections}
@@ -542,6 +823,161 @@ const THIN_BORDER = {
   left: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
   right: { style: BorderStyle.SINGLE, size: 1, color: '999999' },
 };
+
+function docxNotes(notes: readonly ExportNote[] | undefined): DocxParagraph[] {
+  return (notes ?? []).map(
+    (note) =>
+      new DocxParagraph({
+        children: [new TextRun({ text: `• ${formatNote(note)}`, size: 20, color: '555555' })],
+        spacing: { after: 20 },
+      }),
+  );
+}
+
+function docxBullet(text: string): DocxParagraph {
+  return new DocxParagraph({
+    children: [new TextRun({ text: `• ${text}`, size: 20, color: '555555' })],
+    spacing: { after: 20 },
+  });
+}
+
+function docxHeadingLine(text: string): DocxParagraph {
+  return new DocxParagraph({
+    children: [new TextRun({ text, bold: true, size: 22 })],
+    spacing: { before: 80, after: 20 },
+  });
+}
+
+function docxOas32SchemaExtras(
+  schema: ExportSchema | undefined,
+  labels: OfficeDocLabels,
+): (DocxParagraph | DocxTable)[] {
+  if (!schema) return [];
+  const children: (DocxParagraph | DocxTable)[] = [];
+  if (schema.discriminator) {
+    const mapping = schema.discriminator.mapping
+      ? Object.entries(schema.discriminator.mapping)
+          .map(([key, value]) => `${key} → ${value}`)
+          .join(', ')
+      : '';
+    children.push(
+      docxBullet(
+        [
+          'Discriminator',
+          schema.discriminator.propertyName ? `propertyName=${schema.discriminator.propertyName}` : undefined,
+          schema.discriminator.defaultMapping ? `defaultMapping=${schema.discriminator.defaultMapping}` : undefined,
+          mapping ? `mapping: ${mapping}` : undefined,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      ),
+    );
+  }
+  if (schema.xml && Object.values(schema.xml).some((value) => value !== undefined)) {
+    const xml = Object.entries(schema.xml)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => `${key}=${String(value)}`)
+      .join(' ');
+    children.push(docxBullet(`XML ${xml}`));
+  }
+  const encodings = formatEncodings(schema.encodings);
+  if (encodings.length) {
+    children.push(docxHeadingLine(labels.encoding ?? 'Encoding'));
+    encodings.forEach((encoding) => children.push(docxBullet(encoding)));
+  }
+  children.push(...docxNotes(schema.notes));
+  if (schema.itemSchema) {
+    children.push(
+      docxHeadingLine(
+        `${labels.itemSchema ?? 'itemSchema'} (${schema.itemSchema.mediaType}) ${labels.type}: ${schema.itemSchema.typeDisplay}`,
+      ),
+    );
+    if (schema.itemSchema.fields.length) children.push(docxFieldTable(schema.itemSchema.fields, labels));
+    children.push(...docxOas32SchemaExtras(schema.itemSchema, labels));
+  }
+  return children;
+}
+
+function docxOas32MediaExtras(
+  body: ExportRequestBody | ExportResponse | undefined,
+  labels: OfficeDocLabels,
+): (DocxParagraph | DocxTable)[] {
+  if (!body) return [];
+  const children: (DocxParagraph | DocxTable)[] = [];
+  if (body.sequentialKind)
+    children.push(docxBullet(`${labels.sequentialKind ?? 'Sequential media'} ${body.sequentialKind}`));
+  const encodings = formatEncodings(body.encodings);
+  if (encodings.length) {
+    children.push(docxHeadingLine(labels.encoding ?? 'Encoding'));
+    encodings.forEach((encoding) => children.push(docxBullet(encoding)));
+  }
+  children.push(...docxNotes(body.notes));
+  children.push(...docxOas32SchemaExtras(body.schema, labels));
+  if (body.itemSchema) {
+    children.push(
+      docxHeadingLine(
+        `${labels.itemSchema ?? 'itemSchema'} (${body.itemSchema.mediaType}) ${labels.type}: ${body.itemSchema.typeDisplay}`,
+      ),
+    );
+    if (body.itemSchema.fields.length) children.push(docxFieldTable(body.itemSchema.fields, labels));
+    children.push(...docxOas32SchemaExtras(body.itemSchema, labels));
+  }
+  return children;
+}
+
+function docxSecurity(
+  security: readonly ExportSecurityRequirement[] | undefined,
+  labels: OfficeDocLabels,
+): DocxParagraph[] {
+  if (!security?.length) return [];
+  const children = [docxHeadingLine(labels.security ?? 'Security')];
+  for (const requirement of security) {
+    if (requirement.anonymous) {
+      children.push(docxBullet('anonymous'));
+      continue;
+    }
+    const schemes = requirement.schemes
+      .map((scheme) => (scheme.scopes.length ? `${scheme.name} (${scheme.scopes.join(', ')})` : scheme.name))
+      .join(', ');
+    children.push(docxBullet(schemes || '_'));
+    children.push(...docxNotes(requirement.notes));
+  }
+  return children;
+}
+
+function docxServers(servers: readonly ExportServer[] | undefined, labels: OfficeDocLabels): DocxParagraph[] {
+  if (!servers?.length) return [];
+  const children = [docxHeadingLine(labels.servers ?? 'Servers')];
+  for (const server of servers) {
+    const meta = [server.name, server.level, server.description].filter(Boolean).join(' · ');
+    children.push(docxBullet(meta ? `${server.url} — ${meta}` : server.url));
+    children.push(...docxNotes(server.notes));
+  }
+  return children;
+}
+
+function docxSecuritySchemes(
+  schemes: readonly ExportSecurityScheme[] | undefined,
+  labels: OfficeDocLabels,
+): DocxParagraph[] {
+  if (!schemes?.length) return [];
+  const children = [docxHeadingLine(labels.security ?? 'Security')];
+  for (const scheme of schemes) {
+    const meta = [
+      scheme.type,
+      scheme.scheme,
+      scheme.in,
+      scheme.bearerFormat,
+      scheme.oauth2MetadataUrl,
+      scheme.openIdConnectUrl,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    children.push(docxBullet(meta ? `${scheme.name}: ${meta}` : scheme.name));
+    children.push(...docxNotes(scheme.notes));
+  }
+  return children;
+}
 
 function docxTextCell(text: string, opts?: { bold?: boolean; shading?: string }): DocxTableCell {
   return new DocxTableCell({
@@ -629,7 +1065,8 @@ function docxParameterDetails(
   return parameters.flatMap((parameter) => {
     const fields = parameter.schema?.fields ?? [];
     const example = parameter.example;
-    if (fields.length === 0 && example?.value === undefined) return [];
+    if (fields.length === 0 && example?.value === undefined && !parameter.encodings?.length && !parameter.notes?.length)
+      return [];
     const metadata = parameter.schema
       ? `${parameter.schema.mediaType ? `${labels.mediaType}: ${parameter.schema.mediaType}  ` : ''}${labels.type}: ${
           parameter.schema.typeDisplay
@@ -650,6 +1087,18 @@ function docxParameterDetails(
         ...docxExampleSection(`${labels.requestExample}: ${parameter.name}`, example.mediaType, example.value),
       );
     }
+    children.push(
+      ...docxOas32MediaExtras(
+        {
+          description: '',
+          required: false,
+          encodings: parameter.encodings,
+          notes: parameter.notes,
+          schema: parameter.schema,
+        },
+        labels,
+      ),
+    );
     return children;
   });
 }
@@ -660,8 +1109,16 @@ function docxRequestBodySection(
 ): (DocxParagraph | DocxTable)[] {
   const schema = requestBody?.schema;
   const example = requestBody?.example;
-  if (!schema && example?.value === undefined) return [];
-  const mediaType = schema?.mediaType ?? example?.mediaType ?? '';
+  if (
+    !schema &&
+    example?.value === undefined &&
+    !requestBody?.notes?.length &&
+    !requestBody?.itemSchema &&
+    !requestBody?.sequentialKind &&
+    !requestBody?.encodings?.length
+  )
+    return [];
+  const mediaType = schema?.mediaType ?? example?.mediaType ?? requestBody?.itemSchema?.mediaType ?? '';
   const children: (DocxParagraph | DocxTable)[] = [
     new DocxParagraph({
       children: [
@@ -688,6 +1145,7 @@ function docxRequestBodySection(
   if (example?.value !== undefined) {
     children.push(...docxExampleSection(labels.requestExample, example.mediaType, example.value));
   }
+  children.push(...docxOas32MediaExtras(requestBody, labels));
   return children;
 }
 
@@ -716,7 +1174,7 @@ function docxResponseSection(
       new DocxTableRow({
         children: [
           docxTextCell(response.statusCode),
-          docxTextCell(response.description),
+          docxTextCell([response.summary, response.description].filter(Boolean).join(' — ')),
           docxTextCell(response.schema?.typeDisplay ?? '—'),
         ],
       }),
@@ -746,6 +1204,7 @@ function docxResponseSection(
         docxFieldTable(schema.fields, labels),
       );
     }
+    children.push(...docxOas32MediaExtras(response, labels));
     if (response.example?.value !== undefined) {
       children.push(
         ...docxExampleSection(
@@ -805,6 +1264,8 @@ export async function renderDocx(snapshot: OfflineDocumentSnapshot, labels: Offi
       ),
     );
   }
+  children.push(...docxServers(model.servers, labels));
+  children.push(...docxSecuritySchemes(model.securitySchemes, labels));
   children.push(new DocxParagraph({ text: '' }));
 
   for (const tag of model.tags) {
@@ -816,6 +1277,27 @@ export async function renderDocx(snapshot: OfflineDocumentSnapshot, labels: Offi
         spacing: { before: 300, after: 100 },
       }),
     );
+    if (tag.summary || tag.parent || tag.kind) {
+      children.push(
+        new DocxParagraph({
+          children: [
+            new TextRun({
+              text: [
+                tag.summary,
+                tag.parent ? `parent=${tag.parent}` : undefined,
+                tag.kind ? `kind=${tag.kind}` : undefined,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+              italics: true,
+              color: '666666',
+              size: 22,
+            }),
+          ],
+          spacing: { after: 40 },
+        }),
+      );
+    }
     if (tag.description) {
       children.push(
         new DocxParagraph({
@@ -838,7 +1320,7 @@ export async function renderDocx(snapshot: OfflineDocumentSnapshot, labels: Offi
             new TextRun({
               text: `[${operation.method}] `,
               bold: true,
-              color: methodColor(operation.method).replace('#', ''),
+              color: docxMethodColor(operation.method),
               size: 24,
             }),
             new TextRun({ text: operation.path, font: 'Courier New', size: 24 }),
@@ -858,6 +1340,9 @@ export async function renderDocx(snapshot: OfflineDocumentSnapshot, labels: Offi
           }),
         );
       }
+      children.push(...docxNotes(operation.notes));
+      children.push(...docxSecurity(operation.security, labels));
+      children.push(...docxServers(operation.servers, labels));
 
       if (operation.parameters.length) {
         const paramHeader = new DocxTableRow({
@@ -956,6 +1441,7 @@ export default function OfficeDoc() {
     () => Object.freeze({ document: swaggerDoc, tags: menuTags, session: readySession, retrievalUri }),
     [menuTags, readySession, retrievalUri, swaggerDoc],
   );
+  const isOas32Document = getOpenApiSpecificationFeatures(swaggerDoc?.openapi)?.family === '3.2';
   const activeIdentityRef = useRef(exportIdentity);
 
   useEffect(() => {
@@ -997,7 +1483,15 @@ export default function OfficeDoc() {
     circularReference: t('officeDoc.circularReference'),
     truncated: t('officeDoc.truncated'),
     fallbackTitle: t('officeDoc.fallbackTitle'),
-    incompleteTitle: t('officeDoc.snapshot.incomplete.documentTitle'),
+    security: t('officeDoc.security'),
+    servers: t('officeDoc.servers'),
+    itemSchema: t('officeDoc.itemSchema'),
+    sequentialKind: t('officeDoc.sequentialKind'),
+    encoding: t('officeDoc.encoding'),
+    notes: t('officeDoc.notes'),
+    incompleteTitle: t(
+      isOas32Document ? 'officeDoc.snapshot.incomplete.documentTitle32' : 'officeDoc.snapshot.incomplete.documentTitle',
+    ),
     incompleteSummary: (count) => t('officeDoc.snapshot.incomplete.documentSummary', { count }),
     incompleteMore: (count) => t('officeDoc.snapshot.incomplete.more', { count }),
     markdown: {
@@ -1025,6 +1519,13 @@ export default function OfficeDoc() {
       no: t('schema.required.no'),
       status: t('apiDoc.col.statusCode'),
       schema: t('apiDoc.col.schema'),
+      security: t('officeDoc.security'),
+      servers: t('officeDoc.servers'),
+      itemSchema: t('officeDoc.itemSchema'),
+      sequentialKind: t('officeDoc.sequentialKind'),
+      encoding: t('officeDoc.encoding'),
+      notes: t('officeDoc.notes'),
+      summary: t('home.description'),
     },
   };
 
@@ -1059,17 +1560,65 @@ export default function OfficeDoc() {
 
   async function snapshotForDownload(signal: AbortSignal): Promise<OfflineDocumentSnapshot> {
     const document = exportIdentity.document!;
+    const family = getOpenApiSpecificationFeatures(document.openapi)?.family;
+    const sessionIssue = (): OfflineDocumentIssue => ({
+      code:
+        schemaEngine.status === 'loading'
+          ? 'SCHEMA_SESSION_LOADING'
+          : schemaEngine.status === 'error'
+            ? 'SCHEMA_SESSION_FAILED'
+            : 'SCHEMA_SESSION_UNAVAILABLE',
+      severity: 'warning',
+    });
+    if (family === '3.2') {
+      if (schemaEngine.status !== 'ready' || !exportIdentity.session) {
+        return buildOas32DegradedExportSnapshot(document, exportIdentity.tags, [sessionIssue()], {
+          fallbackTitle: labels.fallbackTitle,
+        });
+      }
+      try {
+        const graphSnapshot = externalResources.snapshot ?? undefined;
+        const graphRetrievalUri = schemaEngine.retrievalUri ?? undefined;
+        const graphDocumentScope = externalResources.documentScope ?? undefined;
+        const currentGraph = selectOas32ExportResourceSnapshot(graphSnapshot, graphRetrievalUri, graphDocumentScope);
+        return await buildOas32ExportSnapshot(document, exportIdentity.tags, exportIdentity.session, {
+          fallbackTitle: labels.fallbackTitle,
+          signal,
+          initialIssues: collectOas32ExportResourceGraphIssues({
+            snapshot: graphSnapshot,
+            retrievalUri: graphRetrievalUri,
+            documentScope: graphDocumentScope,
+            graphStatus: externalResources.status,
+            registrationError: externalResources.registrationError,
+          }),
+          retrievalUri: exportIdentity.retrievalUri ?? graphRetrievalUri,
+          documentScope: graphDocumentScope,
+          resourceSnapshot: currentGraph,
+        });
+      } catch (error) {
+        if (isAbortError(error)) throw error;
+        if (error instanceof Oas32ExportBudgetError) {
+          return createOfflineDocumentSnapshot(
+            {
+              title: document.info.title || labels.fallbackTitle,
+              version: document.info.version ?? '',
+              description: document.info.description ?? '',
+              tags: [],
+            },
+            [{ code: error.code, severity: 'warning', keyword: error.dimension }],
+          );
+        }
+        return buildOas32DegradedExportSnapshot(
+          document,
+          exportIdentity.tags,
+          [{ code: 'SNAPSHOT_BUILD_FAILED', severity: 'warning' }],
+          { fallbackTitle: labels.fallbackTitle },
+        );
+      }
+    }
     if (!isOas31SchemaDocument(document)) return buildDocumentSnapshot(document, exportIdentity.tags, labels);
     if (schemaEngine.status !== 'ready' || !exportIdentity.session) {
-      return degradedSnapshot({
-        code:
-          schemaEngine.status === 'loading'
-            ? 'SCHEMA_SESSION_LOADING'
-            : schemaEngine.status === 'error'
-              ? 'SCHEMA_SESSION_FAILED'
-              : 'SCHEMA_SESSION_UNAVAILABLE',
-        severity: 'warning',
-      });
+      return degradedSnapshot(sessionIssue());
     }
     try {
       return await buildOas31ExportSnapshot(document, exportIdentity.tags, exportIdentity.session, {
@@ -1114,7 +1663,7 @@ export default function OfficeDoc() {
         settle(false);
       };
       const modal = Modal.confirm({
-        title: t('officeDoc.snapshot.incomplete.title'),
+        title: t(isOas32Document ? 'officeDoc.snapshot.incomplete.title32' : 'officeDoc.snapshot.incomplete.title'),
         content: (
           <div>
             <Paragraph>
@@ -1193,6 +1742,16 @@ export default function OfficeDoc() {
     downloadBlob(JSON.stringify(swaggerDoc, null, 2), `${title}.openapi.json`, 'application/json;charset=utf-8');
   }
 
+  function handleDownloadOpenApiYaml() {
+    if (!swaggerDoc) return;
+    const title = swaggerDoc.info.title || 'api-docs';
+    downloadBlob(
+      stringify(swaggerDoc, { aliasDuplicateObjects: false }),
+      `${title}.openapi.yaml`,
+      'application/yaml;charset=utf-8',
+    );
+  }
+
   const noData = !loading && (!swaggerDoc || usingMock);
   const downloadDisabled = loading || !swaggerDoc || usingMock || exporting !== null;
 
@@ -1248,6 +1807,14 @@ export default function OfficeDoc() {
           loading={loading}
         >
           {t('officeDoc.btn.openapi')}
+        </Button>
+        <Button
+          icon={<CodeOutlined />}
+          onClick={handleDownloadOpenApiYaml}
+          disabled={downloadDisabled}
+          loading={loading}
+        >
+          {t('officeDoc.btn.openapiYaml')}
         </Button>
       </Space>
     </div>

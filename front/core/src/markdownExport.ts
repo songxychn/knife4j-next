@@ -9,8 +9,15 @@
 import { buildExportOperation } from './exportDocument';
 import type {
   ExportDocument,
+  ExportEncoding,
+  ExportNote,
   ExportOperation,
+  ExportRequestBody,
+  ExportResponse,
+  ExportSchema,
   ExportSchemaField,
+  ExportSecurityRequirement,
+  ExportServer,
   MdDocContext,
   MdOperationObject,
   MdRequestBodyObject,
@@ -119,6 +126,14 @@ export interface ApiMarkdownLabels {
   truncated?: string;
   /** Marker for a circular-reference truncation. */
   circularReference?: string;
+  /** OAS 3.2-only sections; omitted from 3.0/3.1 output when unset on the model. */
+  security?: string;
+  servers?: string;
+  itemSchema?: string;
+  sequentialKind?: string;
+  encoding?: string;
+  notes?: string;
+  summary?: string;
 }
 
 type ResolvedApiMarkdownLabels = Required<ApiMarkdownLabels>;
@@ -148,6 +163,13 @@ const DEFAULT_LABELS: ResolvedApiMarkdownLabels = {
   schema: 'Schema',
   truncated: 'Truncated',
   circularReference: 'Truncated',
+  security: 'Security',
+  servers: 'Servers',
+  itemSchema: 'itemSchema',
+  sequentialKind: 'Sequential media',
+  encoding: 'Encoding',
+  notes: 'Notes',
+  summary: 'Summary',
 };
 
 export type MarkdownOperationHeadingLevel = 1 | 2 | 3 | 4;
@@ -219,6 +241,176 @@ function fieldTable(
   );
 }
 
+function formatExportNotes(notes: readonly ExportNote[] | undefined): string[] {
+  return (notes ?? []).map((note) => (note.detail ? `${note.code}: ${note.detail}` : note.code));
+}
+
+function formatEncodings(encodings: readonly ExportEncoding[] | undefined): string[] {
+  return (encodings ?? []).map((encoding) => {
+    const parts = [
+      encoding.kind,
+      ...(encoding.name ? [`name=${encoding.name}`] : []),
+      ...(encoding.contentType ? [`contentType=${encoding.contentType}`] : []),
+      ...(encoding.style ? [`style=${encoding.style}`] : []),
+      ...(encoding.explode === undefined ? [] : [`explode=${String(encoding.explode)}`]),
+      ...(encoding.allowReserved === undefined ? [] : [`allowReserved=${String(encoding.allowReserved)}`]),
+      ...formatExportNotes(encoding.notes),
+    ];
+    const nested = formatEncodings(encoding.nested);
+    return nested.length ? `${parts.join(' ')} (${nested.join('; ')})` : parts.join(' ');
+  });
+}
+
+function appendNoteLines(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  notes: readonly ExportNote[] | undefined,
+): void {
+  const formatted = formatExportNotes(notes);
+  if (!formatted.length) return;
+  lines.push(`**${labels.notes}:** ${formatted.map((note) => escape(note)).join('; ')}`);
+  lines.push('');
+}
+
+function appendEncodingLines(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  encodings: readonly ExportEncoding[] | undefined,
+): void {
+  const formatted = formatEncodings(encodings);
+  if (!formatted.length) return;
+  lines.push(`**${labels.encoding}:**`);
+  lines.push('');
+  formatted.forEach((encoding) => lines.push(`- ${escape(encoding)}`));
+  lines.push('');
+}
+
+function appendSequentialKindLine(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  sequentialKind: string | undefined,
+): void {
+  if (!sequentialKind) return;
+  lines.push(`**${labels.sequentialKind}:** ${escape(sequentialKind)}`);
+  lines.push('');
+}
+
+function appendSchemaAddonLines(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  schema: ExportSchema | undefined,
+  headingLevel: number,
+): void {
+  if (!schema) return;
+  if (schema.discriminator) {
+    const discriminator = [
+      ...(schema.discriminator.propertyName ? [`propertyName=\`${schema.discriminator.propertyName}\``] : []),
+      ...(schema.discriminator.defaultMapping ? [`defaultMapping=\`${schema.discriminator.defaultMapping}\``] : []),
+    ];
+    const mapping = schema.discriminator.mapping
+      ? Object.entries(schema.discriminator.mapping)
+          .map(([key, value]) => `\`${key}\` → \`${value}\``)
+          .join(', ')
+      : '';
+    if (discriminator.length || mapping) {
+      lines.push(`**Discriminator:** ${[...discriminator, ...(mapping ? [`mapping: ${mapping}`] : [])].join(' · ')}`);
+      lines.push('');
+    }
+  }
+  if (schema.xml && Object.values(schema.xml).some((value) => value !== undefined)) {
+    const xml = Object.entries(schema.xml)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => `${key}=${String(value)}`)
+      .join(' ');
+    lines.push(`**XML:** \`${escape(xml)}\``);
+    lines.push('');
+  }
+  appendSequentialKindLine(lines, labels, schema.sequentialKind);
+  appendEncodingLines(lines, labels, schema.encodings);
+  appendNoteLines(lines, labels, schema.notes);
+  if (schema.itemSchema) {
+    lines.push(heading(headingLevel, labels.itemSchema));
+    lines.push('');
+    lines.push(
+      `**${labels.mediaType}:** \`${escape(schema.itemSchema.mediaType)}\` · **${labels.type}:** \`${escape(
+        markdownTypeDisplay(schema.itemSchema.typeDisplay),
+      )}\``,
+    );
+    lines.push('');
+    if (schema.itemSchema.fields.length) lines.push(fieldTable(schema.itemSchema.fields, labels));
+    appendSchemaAddonLines(lines, labels, schema.itemSchema, headingLevel + 1);
+  }
+}
+
+function appendSecurityLines(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  security: readonly ExportSecurityRequirement[] | undefined,
+): void {
+  if (!security?.length) return;
+  lines.push(`**${labels.security}:**`);
+  lines.push('');
+  security.forEach((requirement) => {
+    if (requirement.anonymous) {
+      lines.push(`- _anonymous_`);
+      return;
+    }
+    const schemes = requirement.schemes
+      .map((scheme) =>
+        scheme.scopes.length ? `\`${scheme.name}\` (${scheme.scopes.join(', ')})` : `\`${scheme.name}\``,
+      )
+      .join(', ');
+    lines.push(`- ${schemes || '_'}`);
+    formatExportNotes(requirement.notes).forEach((note) => lines.push(`  - ${escape(note)}`));
+  });
+  lines.push('');
+}
+
+function appendServerLines(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  servers: readonly ExportServer[] | undefined,
+): void {
+  if (!servers?.length) return;
+  lines.push(`**${labels.servers}:**`);
+  lines.push('');
+  servers.forEach((server) => {
+    const meta = [server.name, server.level, server.description].filter(Boolean).join(' · ');
+    lines.push(`- \`${escape(server.url)}\`${meta ? ` — ${escape(meta)}` : ''}`);
+    formatExportNotes(server.notes).forEach((note) => lines.push(`  - ${escape(note)}`));
+  });
+  lines.push('');
+}
+
+function appendMediaAddonLines(
+  lines: string[],
+  labels: ResolvedApiMarkdownLabels,
+  body: ExportRequestBody | ExportResponse | undefined,
+  headingLevel: number,
+): void {
+  if (!body) return;
+  if ('summary' in body && body.summary) {
+    lines.push(`**${labels.summary}:** ${escape(body.summary)}`);
+    lines.push('');
+  }
+  appendSequentialKindLine(lines, labels, body.sequentialKind);
+  appendEncodingLines(lines, labels, body.encodings);
+  appendNoteLines(lines, labels, body.notes);
+  appendSchemaAddonLines(lines, labels, body.schema, headingLevel);
+  if (body.itemSchema) {
+    lines.push(heading(headingLevel, labels.itemSchema));
+    lines.push('');
+    lines.push(
+      `**${labels.mediaType}:** \`${escape(body.itemSchema.mediaType)}\` · **${labels.type}:** \`${escape(
+        markdownTypeDisplay(body.itemSchema.typeDisplay),
+      )}\``,
+    );
+    lines.push('');
+    if (body.itemSchema.fields.length) lines.push(fieldTable(body.itemSchema.fields, labels));
+    appendSchemaAddonLines(lines, labels, body.itemSchema, headingLevel + 1);
+  }
+}
+
 /**
  * Generates a Markdown string for a single API operation.
  *
@@ -255,6 +447,11 @@ function renderExportOperationMarkdownInternal(
     lines.push(operation.description);
     lines.push('');
   }
+  if (!legacySingleOperation) {
+    appendSecurityLines(lines, labels, operation.security);
+    appendServerLines(lines, labels, operation.servers);
+    appendNoteLines(lines, labels, operation.notes);
+  }
 
   // Request Parameters
   lines.push(heading(sectionHeadingLevel, labels.requestParameters));
@@ -279,7 +476,13 @@ function renderExportOperationMarkdownInternal(
       for (const parameter of params) {
         const fields = parameter.schema?.fields ?? [];
         const example = parameter.example;
-        if (fields.length === 0 && example?.value === undefined) continue;
+        if (
+          fields.length === 0 &&
+          example?.value === undefined &&
+          !parameter.encodings?.length &&
+          !parameter.notes?.length
+        )
+          continue;
         lines.push('');
         lines.push(heading(sectionHeadingLevel + 1, `${labels.requestParameters} \`${escape(parameter.name)}\``));
         lines.push('');
@@ -293,7 +496,10 @@ function renderExportOperationMarkdownInternal(
           lines.push(metadata.join(' · '));
           lines.push('');
           if (fields.length > 0) lines.push(fieldTable(fields, labels));
+          appendSchemaAddonLines(lines, labels, parameter.schema, sectionHeadingLevel + 2);
         }
+        appendEncodingLines(lines, labels, parameter.encodings);
+        appendNoteLines(lines, labels, parameter.notes);
         if (example?.value !== undefined) {
           if (lines[lines.length - 1] !== '') lines.push('');
           lines.push(heading(sectionHeadingLevel + 2, labels.requestExample));
@@ -314,12 +520,19 @@ function renderExportOperationMarkdownInternal(
   lines.push('');
   const requestBody = operation.requestBody;
   const requestExample = legacySingleOperation ? undefined : requestBody?.example;
-  if (!requestBody?.schema && requestExample?.value === undefined) {
+  if (
+    !requestBody?.schema &&
+    requestExample?.value === undefined &&
+    !requestBody?.itemSchema &&
+    !requestBody?.sequentialKind &&
+    !requestBody?.notes?.length &&
+    !requestBody?.encodings?.length
+  ) {
     lines.push(`_${labels.noRequestBody}_`);
   } else {
     const schema = requestBody?.schema;
     if (!legacySingleOperation) {
-      const mediaType = schema?.mediaType ?? requestExample?.mediaType;
+      const mediaType = schema?.mediaType ?? requestExample?.mediaType ?? requestBody?.itemSchema?.mediaType;
       const metadata = [
         ...(mediaType ? [`**${labels.mediaType}:** \`${escape(mediaType)}\``] : []),
         ...(schema ? [`**${labels.type}:** \`${escape(markdownTypeDisplay(schema.typeDisplay))}\``] : []),
@@ -348,6 +561,7 @@ function renderExportOperationMarkdownInternal(
       lines.push('');
       appendExampleCodeBlock(lines, requestExample.value);
     }
+    if (!legacySingleOperation) appendMediaAddonLines(lines, labels, requestBody, sectionHeadingLevel + 1);
   }
   lines.push('');
 
@@ -385,6 +599,7 @@ function renderExportOperationMarkdownInternal(
           lines.push('');
           lines.push(fieldTable(fields, labels));
         }
+        appendMediaAddonLines(lines, labels, response, sectionHeadingLevel + 2);
         if (response.example?.value !== undefined) {
           lines.push('');
           lines.push(heading(sectionHeadingLevel + 1, `${labels.responseExample} \`${escape(response.statusCode)}\``));
@@ -424,9 +639,38 @@ export function renderExportDocumentMarkdown(
     sections.push(document.description);
     sections.push('');
   }
+  appendServerLines(sections, labels, document.servers);
+  if (document.securitySchemes?.length) {
+    sections.push(`**${labels.security}:**`);
+    sections.push('');
+    document.securitySchemes.forEach((scheme) => {
+      const meta = [
+        scheme.type,
+        scheme.scheme,
+        scheme.in,
+        scheme.bearerFormat,
+        scheme.oauth2MetadataUrl ? `oauth2MetadataUrl=${scheme.oauth2MetadataUrl}` : undefined,
+        scheme.openIdConnectUrl ? `openIdConnectUrl=${scheme.openIdConnectUrl}` : undefined,
+        ...(scheme.deprecated ? ['deprecated'] : []),
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      sections.push(`- \`${scheme.name}\`${meta ? `: ${escape(meta)}` : ''}`);
+      formatExportNotes(scheme.notes).forEach((note) => sections.push(`  - ${escape(note)}`));
+    });
+    sections.push('');
+  }
 
   for (const tag of document.tags) {
     sections.push(`# ${tag.name}`);
+    const tagMeta = [
+      tag.summary,
+      tag.parent ? `parent=${tag.parent}` : undefined,
+      tag.kind ? `kind=${tag.kind}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    if (tagMeta) sections.push(tagMeta);
     if (tag.description) sections.push(tag.description);
     sections.push('');
 

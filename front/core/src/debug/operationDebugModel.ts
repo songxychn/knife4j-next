@@ -1,3 +1,5 @@
+import { enumerateOpenApiOperations, type OpenApiOperation, type OperationSchemaDocuments } from '../openapiOperations';
+import { getOpenApiSpecificationFeatures } from '../openapiVersion';
 /**
  * OperationDebugModel — 从 OAS2/OAS3 operation 解析出统一的调试参数模型
  *
@@ -26,6 +28,10 @@ import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/docum
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 import { analyzeOas31FormBody } from './formBodyEncoding';
+import { analyzeOas32FormBody } from './oas32FormBodyEncoding';
+import { buildOas32ParameterCollection } from './oas32ParameterModel';
+import { oas32EditorParameter } from './oas32ParameterSerialization';
+import type { Oas32ParameterContext } from './oas32ParameterTypes';
 
 // ─── 内部类型 ─────────────────────────────────────────
 
@@ -78,9 +84,12 @@ interface OAS3RequestBody {
     string,
     {
       schema?: Record<string, unknown>;
+      itemSchema?: Record<string, unknown> | boolean;
       example?: unknown;
       examples?: Record<string, unknown>;
       encoding?: Record<string, unknown>;
+      prefixEncoding?: unknown;
+      itemEncoding?: unknown;
     }
   >;
   $ref?: string;
@@ -317,7 +326,7 @@ interface Oas31ParameterAnalysis {
   readonly diagnostic?: ParameterDocumentDiagnostic;
 }
 
-function analyzeOas31Parameter(
+export function analyzeOas31Parameter(
   param: OAS3Param,
   paramIn: ParamIn,
   doc: DocLike,
@@ -632,6 +641,20 @@ function extractMultipleFileFields(
   return multiple;
 }
 
+/** Schema-driven upload field names for named multipart/urlencoded analysis. */
+export function extractMultipartUploadFields(
+  schema: Record<string, unknown> | undefined,
+  encoding: Record<string, unknown> | undefined,
+  document: Record<string, unknown>,
+): { readonly fileFields: string[]; readonly multipleFileFields: string[] } {
+  const allowOas31Binary = isOpenApi31Version(document.openapi);
+  const doc = document as DocLike;
+  return {
+    fileFields: extractFileFields(schema, encoding, allowOas31Binary, doc),
+    multipleFileFields: extractMultipleFileFields(schema, encoding, allowOas31Binary, doc),
+  };
+}
+
 /**
  * 判断非 multipart requestBody 是否实际描述了文件上传字段。
  *
@@ -726,6 +749,12 @@ export interface BuildDebugModelOptions {
   isOAS2?: boolean;
   /** schema 解析上下文（maxDepth 等） */
   schemaCtx?: SchemaResolveContext;
+  /** Already enumerated location for 3.2, including custom methods and reference owners. */
+  operationIdentity?: OpenApiOperation;
+  /** Physical documents for already resolved 3.2 members; no loading or reference resolution. */
+  operationDocuments?: OperationSchemaDocuments;
+  /** C/D registry-only physical reference and Schema view readers for 3.2 parameters. */
+  parameterContext?: Oas32ParameterContext;
 }
 
 /**
@@ -736,6 +765,17 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   const useOas31ParameterPath = !isOAS2 && isOas31(doc);
 
   // 定位 PathItem 和 Operation
+  const identity =
+    options.operationIdentity ??
+    (getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
+      ? enumerateOpenApiOperations(doc as Record<string, unknown>).find(
+          (operation) =>
+            operation.source === 'path' &&
+            operation.path === path &&
+            (operation.method === method ||
+              (operation.methodSource === 'fixed' && operation.method === method.toUpperCase())),
+        )
+      : undefined);
   const rawPathItem = doc.paths?.[path];
   const useOas31PathResolution = !isOAS2 && isOpenApi31Version(doc.openapi);
   const resolvedPathOperation =
@@ -746,11 +786,16 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           doc as Record<string, unknown>,
         )
       : null;
-  const pathItem = useOas31PathResolution
-    ? (resolvedPathOperation?.pathItem as PathItemLike | undefined)
-    : rawPathItem
-      ? (dereference(rawPathItem as unknown as Record<string, unknown>, doc as Record<string, unknown>) as PathItemLike)
-      : undefined;
+  const pathItem = identity
+    ? (identity.pathItem as PathItemLike)
+    : useOas31PathResolution
+      ? (resolvedPathOperation?.pathItem as PathItemLike | undefined)
+      : rawPathItem
+        ? (dereference(
+            rawPathItem as unknown as Record<string, unknown>,
+            doc as Record<string, unknown>,
+          ) as PathItemLike)
+        : undefined;
   if (!pathItem) {
     return {
       pathParams: [],
@@ -762,9 +807,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     };
   }
 
-  const operation = resolvedPathOperation
-    ? (resolvedPathOperation.operation as OperationLike)
-    : (pathItem[method] as OperationLike | undefined);
+  const operation = identity
+    ? (identity.operation as OperationLike)
+    : resolvedPathOperation
+      ? (resolvedPathOperation.operation as OperationLike)
+      : (pathItem[method] as OperationLike | undefined);
   if (!operation) {
     return {
       pathParams: [],
@@ -776,15 +823,20 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     };
   }
 
-  const ctx: SchemaResolveContext = schemaCtx ?? { doc: doc as Record<string, unknown>, maxDepth: 8 };
+  const ctx: SchemaResolveContext = schemaCtx ?? {
+    doc: options.operationDocuments?.operation ?? (doc as Record<string, unknown>),
+    maxDepth: 8,
+  };
 
   // 合并 path-level parameters + operation-level parameters
   // operation 级参数覆盖 path 级（按 name+in 去重）
-  const allRawParams: Array<OAS3Param | OAS2Param> = (
-    resolvedPathOperation
-      ? (operation.parameters ?? [])
-      : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
-  ).map((parameter) => resolveParameter(parameter, doc));
+  const allRawParams: Array<OAS3Param | OAS2Param> =
+    !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
+      ? []
+      : (resolvedPathOperation || identity
+          ? (operation.parameters ?? [])
+          : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
+        ).map((parameter) => resolveParameter(parameter, doc));
 
   // 去重（同名同位置，后者覆盖前者）
   const paramMap = new Map<string, OAS3Param | OAS2Param>();
@@ -793,7 +845,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     const in_ = p.in ?? '';
     paramMap.set(`${in_}:${name}`, p);
   }
-  const uniqueParams = Array.from(paramMap.values());
+  const oas32Parameters =
+    !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2' && identity
+      ? buildOas32ParameterCollection(doc, identity, options.parameterContext)
+      : undefined;
+  const uniqueParams = oas32Parameters ? [] : Array.from(paramMap.values());
 
   // 分组
   const pathParams: DebugParam[] = [];
@@ -897,13 +953,14 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       ? analyzeOas31Parameter(raw as OAS3Param, paramIn, doc, ctx.maxDepth ?? 8)
       : undefined;
     if (oas31Analysis?.diagnostic) parameterDiagnostics.push(oas31Analysis.diagnostic);
+    const parameterDocument = options.operationDocuments?.parameters.get(`${paramIn}:${raw.name ?? ''}`) ?? ctx.doc;
     const rawSchema = raw.schema;
     const schema = oas31Analysis
       ? oas31Analysis.schema
       : rawSchema && typeof rawSchema === 'object'
         ? isOAS2
           ? dereference(rawSchema, doc as Record<string, unknown>)
-          : normalizeAllOfSchema(rawSchema, doc as Record<string, unknown>, ctx.maxDepth ?? 8)
+          : normalizeAllOfSchema(rawSchema, parameterDocument, ctx.maxDepth ?? 8)
         : undefined;
     const schemaObject = schemaRecord(schema);
     const type = extractType(raw, schema);
@@ -928,7 +985,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       format: (schemaObject?.format as string | undefined) ?? (raw as OAS2Param).format,
       default: parameterDefault,
       example: parameterExample,
-      enum: extractEnum(raw, schema, type, doc, isOAS2),
+      enum: extractEnum(raw, schema, type, parameterDocument, isOAS2),
       deprecated: raw.deprecated,
       readOnly: schemaObject?.readOnly as boolean | undefined,
       schema,
@@ -956,6 +1013,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
   // OAS3: requestBody
   if (!isOAS2 && operation.requestBody) {
+    const bodyCtx = options.operationDocuments ? { ...ctx, doc: options.operationDocuments.requestBody } : ctx;
     const rb = operation.requestBody.$ref
       ? (dereferenceReferenceObject(
           operation.requestBody as Record<string, unknown>,
@@ -971,7 +1029,9 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       );
 
       for (const [mediaType, mediaObj] of Object.entries(rb.content)) {
-        const schema = mediaObj.schema ? normalizeAllOfSchema(mediaObj.schema, ctx.doc, ctx.maxDepth ?? 8) : undefined;
+        const schema = mediaObj.schema
+          ? normalizeAllOfSchema(mediaObj.schema, bodyCtx.doc, bodyCtx.maxDepth ?? 8)
+          : undefined;
         const declaredCategory = classifyContentType(mediaType);
         const allowOas31Binary = isOas31(doc);
         const isMultipartFallback =
@@ -982,6 +1042,11 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
         const effectiveCategory: BodyContentType = isMultipartFallback ? 'multipart' : declaredCategory;
         const isMultipart = effectiveCategory === 'multipart';
         const encoding = mediaObj.encoding;
+        const isOas32 = getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2';
+        const itemSchema =
+          isOas32 && Object.prototype.hasOwnProperty.call(mediaObj, 'itemSchema')
+            ? (mediaObj.itemSchema as SchemaValue)
+            : undefined;
         const binary =
           effectiveCategory === 'raw' &&
           ((schema?.format === 'binary' &&
@@ -1006,21 +1071,56 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
                 document: doc as Record<string, unknown>,
               })
             : undefined;
+        const oas32Form =
+          isOas32 && !isMultipartFallback && (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+            ? analyzeOas32FormBody({
+                mediaType: effectiveMediaType,
+                schema,
+                itemSchema,
+                encoding,
+                prefixEncoding: mediaObj.prefixEncoding,
+                itemEncoding: mediaObj.itemEncoding,
+                fileFields: fileFields ?? [],
+                multipleFileFields: fileFieldsMultiple ?? [],
+                document: doc as Record<string, unknown>,
+              })
+            : undefined;
+        const oas32NamedForm =
+          isOas32 &&
+          oas32Form?.layout === 'named' &&
+          schema &&
+          !isMultipartFallback &&
+          (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+            ? analyzeOas31FormBody({
+                mediaType: effectiveMediaType,
+                schema,
+                encoding,
+                fileFields: fileFields ?? [],
+                multipleFileFields: fileFieldsMultiple ?? [],
+                document: doc as Record<string, unknown>,
+              })
+            : undefined;
+        const positionalFiles =
+          oas32Form?.layout === 'positional'
+            ? oas32Form.fields.filter((field) => field.file).map((field) => field.name)
+            : [];
 
         bodyContents.push({
           mediaType: effectiveMediaType,
           category: effectiveCategory,
           schema,
-          exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, ctx, { mediaType }),
+          itemSchema,
+          exampleValue: binary ? undefined : buildMediaTypeExampleValue(mediaObj, schema, bodyCtx, { mediaType }),
           binary: binary || undefined,
-          fileFields,
+          fileFields: positionalFiles.length > 0 ? [...(fileFields ?? []), ...positionalFiles] : fileFields,
           // 区分「单文件」与「多文件」语义（issue #251）：
           // fileFields 记录所有文件字段（兼容老消费方），fileFieldsMultiple 仅记录
           // 其中允许多选的子集。UI 层据此决定 `<Upload multiple>` 和 FormData
           // 组装时 append 几次。
           fileFieldsMultiple,
           jsonFields: isMultipart ? extractJsonEncodingFields(encoding) : undefined,
-          oas31Form,
+          oas31Form: oas31Form ?? oas32NamedForm,
+          oas32Form,
         });
       }
     }
@@ -1047,6 +1147,27 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     }
   }
 
+  if (oas32Parameters) {
+    pathParams.length = 0;
+    for (const parameter of oas32Parameters.parameters) {
+      if (parameter.in === 'querystring') continue;
+      const display = oas32EditorParameter(
+        parameter,
+        options.operationDocuments?.parameters.get(`${parameter.in}:${parameter.name}`),
+      );
+      const debugParam: DebugParam = {
+        ...display,
+        parameterSerialization: undefined,
+        schema: parameter.schema,
+        description: typeof parameter.raw.description === 'string' ? parameter.raw.description : display.description,
+      };
+      if (parameter.in === 'path') pathParams.push(debugParam);
+      if (parameter.in === 'query') queryParams.push(debugParam);
+      if (parameter.in === 'header') headerParams.push(debugParam);
+      if (parameter.in === 'cookie') cookieParams.push(debugParam);
+    }
+  }
+
   return {
     pathParams,
     queryParams,
@@ -1054,6 +1175,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     cookieParams,
     bodyContents,
     bodyRequired,
+    ...(oas32Parameters ? { oas32Parameters } : {}),
     ...(parameterDiagnostics.length > 0 ? { parameterDiagnostics } : {}),
   };
 }

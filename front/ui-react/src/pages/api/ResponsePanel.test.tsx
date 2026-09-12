@@ -46,7 +46,10 @@ vi.mock('react-i18next', () => ({
     t: (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key),
   }),
 }));
-vi.mock('knife4j-core', () => ({ buildCurl: vi.fn(() => 'curl fixture') }));
+vi.mock('knife4j-core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('knife4j-core')>()),
+  buildCurl: vi.fn(() => 'curl fixture'),
+}));
 vi.mock('./CodeBlock', () => ({ default: 'CodeBlock' }));
 vi.mock('../../utils/clipboard', () => ({ copyToClipboard: vi.fn() }));
 
@@ -239,5 +242,71 @@ describe('ResponsePanel diagnostic integration', () => {
       { key: 'x-trace-id', name: 'x-trace-id', value: 'trace-698' },
     ]);
     expect(response).toMatchObject({ status: 200, statusText: 'OK', rawText: '{"profile":{"name":1}}' });
+  });
+
+  test('renders OAS 3.2 sequential items with per-item and complete schema status', () => {
+    const tree = ResponsePanel({
+      response: {
+        status: 200,
+        statusText: 'OK',
+        method: 'GET',
+        duration: 12,
+        contentType: 'application/jsonl',
+        size: 20,
+        headers: { 'content-type': 'application/jsonl' },
+        rawText: '{"id":1}',
+        kind: 'text',
+      },
+      error: null,
+      builtRequest: null,
+      sequentialStream: {
+        kind: 'jsonl',
+        streaming: false,
+        termination: 'eof',
+        truncated: false,
+        receivedBytes: 20,
+        droppedItems: 0,
+        completeSchema: { status: 'valid' },
+        items: [
+          {
+            index: 0,
+            timestamp: 1,
+            complete: true,
+            preview: '{"id":1}',
+            itemSchema: { status: 'valid' },
+            diagnostics: [],
+          },
+          {
+            index: 1,
+            timestamp: 2,
+            complete: true,
+            preview: 'not-json',
+            itemSchema: { status: 'skipped', reason: 'unavailable' },
+            diagnostics: ['INVALID_JSON'],
+          },
+        ],
+      },
+    }) as unknown as TestElement;
+
+    const panel = findElement(tree, (element) => element.props['data-sequential-kind'] === 'jsonl');
+    expect(panel?.props['data-sequential-termination']).toBe('eof');
+    expect(
+      findElement(
+        tree,
+        (element) => element.props['data-sequential-item'] === 0 && element.props['data-item-schema'] === 'valid',
+      ),
+    ).not.toBeNull();
+    expect(
+      findElement(
+        tree,
+        (element) => element.type === 'Tag' && element.props.children === 'apiDebug.sequential.complete.valid',
+      ),
+    ).not.toBeNull();
+    expect(
+      findElement(
+        tree,
+        (element) => element.type === 'Tag' && element.props.children === 'apiDebug.sequential.item.skipped',
+      ),
+    ).not.toBeNull();
   });
 });

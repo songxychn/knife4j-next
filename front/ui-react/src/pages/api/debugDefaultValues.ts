@@ -1,14 +1,19 @@
 import {
   buildSchemaExample,
+  getOpenApiSpecificationFeatures,
   isJsonMediaType,
   isOpenApi31Version,
+  oas32FormFieldsFromInstance,
   parseOas31ParameterValue,
   resolveLocalJsonPointer,
   type BodyContent,
   type DebugParam,
   type Oas31FormPartHeader,
+  type Oas32FormField,
   type OperationDebugModel,
+  type ParameterInstance,
 } from 'knife4j-core';
+import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 
 export type ParamValueMap = Record<string, string>;
@@ -32,6 +37,8 @@ export interface SchemaFieldRow {
   contentTypes: readonly string[];
   partHeaders: readonly Oas31FormPartHeader[];
   schema?: JsonRecord;
+  contentTypeRequiresChoice?: boolean;
+  depth?: number;
 }
 
 export interface BodyContentDefaults {
@@ -58,7 +65,8 @@ function decodePointerPart(part: string): string {
 }
 
 function resolveLocalRef(ref: string | undefined, doc: SwaggerDoc | JsonRecord): unknown {
-  if (ref && isOpenApi31Version((doc as JsonRecord).openapi)) {
+  const family = getOpenApiSpecificationFeatures((doc as JsonRecord).openapi)?.family;
+  if (ref && (isOpenApi31Version((doc as JsonRecord).openapi) || family === '3.2')) {
     const resolved = resolveLocalJsonPointer(doc as JsonRecord, ref);
     return resolved.found ? resolved.value : undefined;
   }
@@ -88,6 +96,7 @@ function firstExamplesValue(examples: unknown, doc: SwaggerDoc | JsonRecord): un
       if (example !== undefined) return example;
       continue;
     }
+    if (resolved.dataValue !== undefined) return resolved.dataValue;
     if (resolved.value !== undefined) return resolved.value;
   }
   return undefined;
@@ -161,7 +170,7 @@ export function paramKey(param: DebugParam): string {
 }
 
 function operationObjectFromDoc(doc: SwaggerDoc, operation: MenuOperation): JsonRecord | undefined {
-  if (isOpenApi31Version(doc.openapi)) return operation.operation as unknown as JsonRecord;
+  if (operation.identity || isOpenApi31Version(doc.openapi)) return operation.operation as unknown as JsonRecord;
   const pathItem = doc.paths?.[operation.path] as JsonRecord | undefined;
   const fromDoc = pathItem?.[operation.method.toLowerCase()];
   return resolveRecord(fromDoc, doc) ?? (operation.operation as unknown as JsonRecord);
@@ -171,14 +180,15 @@ function rawParametersForOperation(doc: SwaggerDoc, operation: MenuOperation): M
   const map = new Map<string, JsonRecord>();
   const pathItem = doc.paths?.[operation.path] as JsonRecord | undefined;
   const operationObject = operationObjectFromDoc(doc, operation);
-  const rawParams = isOpenApi31Version(doc.openapi)
-    ? Array.isArray(operationObject?.parameters)
-      ? operationObject.parameters
-      : []
-    : [
-        ...(Array.isArray(pathItem?.parameters) ? pathItem.parameters : []),
-        ...(Array.isArray(operationObject?.parameters) ? operationObject.parameters : []),
-      ];
+  const rawParams =
+    operation.identity || isOpenApi31Version(doc.openapi)
+      ? Array.isArray(operationObject?.parameters)
+        ? operationObject.parameters
+        : []
+      : [
+          ...(Array.isArray(pathItem?.parameters) ? pathItem.parameters : []),
+          ...(Array.isArray(operationObject?.parameters) ? operationObject.parameters : []),
+        ];
 
   for (const rawParam of rawParams) {
     const param = resolveRecord(rawParam, doc);
@@ -224,7 +234,8 @@ export function buildInitialParamValues(
   doc: SwaggerDoc,
   operation: MenuOperation,
 ): ParamValueMap {
-  const rawParams = rawParametersForOperation(doc, operation);
+  const schemaDocuments = operationSchemaDocuments(doc, operation);
+  const rawParams = rawParametersForOperation(schemaDocuments.operation as unknown as SwaggerDoc, operation);
   const paramValues: ParamValueMap = {};
   const allParams = [
     ...debugModel.pathParams,
@@ -234,7 +245,7 @@ export function buildInitialParamValues(
   ];
   for (const param of allParams) {
     paramValues[paramKey(param)] = initialValueForDebugParam(param, {
-      doc,
+      doc: (schemaDocuments.parameters.get(paramKey(param)) ?? schemaDocuments.operation) as unknown as SwaggerDoc,
       rawParam: rawParams.get(paramKey(param)),
     });
   }
@@ -293,9 +304,17 @@ function initialPartHeaderValue(header: Oas31FormPartHeader): string {
 export function initialFormPartHeadersForContent(
   bodyContent: BodyContent | undefined,
 ): Record<string, Record<string, string>> {
-  if (!bodyContent?.oas31Form || bodyContent.category !== 'multipart') return {};
+  const form = bodyContent?.oas32Form ?? bodyContent?.oas31Form;
+  if (!form || bodyContent?.category !== 'multipart') return {};
+  const fields = bodyContent.oas32Form
+    ? flattenOas32Fields(bodyContent.oas32Form.fields).map((row) => ({
+        name: row.name,
+        encoding: { headers: row.partHeaders },
+        readOnly: false,
+      }))
+    : (bodyContent.oas31Form?.fields ?? []);
   return Object.fromEntries(
-    bodyContent.oas31Form.fields
+    fields
       .filter((field) => !field.readOnly && field.encoding.headers.length > 0)
       .map((field) => [
         field.name,
@@ -324,6 +343,7 @@ export function buildBodyContentDefaults(
   operation: MenuOperation,
   debugModel: OperationDebugModel,
 ): BodyContentDefaults {
+  doc = operationSchemaDocuments(doc, operation).requestBody as unknown as SwaggerDoc;
   const mediaObjects = mediaObjectsForOperation(doc, operation);
   const bodyByMediaType: Record<string, string> = {};
   const formFieldsByMediaType: Record<string, Record<string, string>> = {};
@@ -348,7 +368,91 @@ export function buildBodyContentDefaults(
   };
 }
 
+function rowFromOas32Field(field: Oas32FormField): SchemaFieldRow {
+  const schema = isRecord(field.schema) ? field.schema : undefined;
+  const contentTypes = field.encoding.contentTypes;
+  return {
+    name: field.name,
+    type: field.file ? 'file' : field.type,
+    format: field.format,
+    required: field.required,
+    description: typeof schema?.description === 'string' ? schema.description : undefined,
+    default: schema?.default,
+    example: schema?.example,
+    enum: Array.isArray(schema?.enum) ? schema.enum : undefined,
+    isFile: field.file,
+    isMultipleFile: field.multiple,
+    isJson: !field.file && field.encoding.kind === 'content' && contentTypes.some(isJsonMediaType),
+    structured: !field.file && (field.type === 'array' || field.type === 'object') && !field.nestedFields?.length,
+    contentTypes,
+    partHeaders: field.encoding.headers,
+    schema,
+    contentTypeRequiresChoice: field.contentTypeRequiresChoice,
+    depth: field.depth,
+  };
+}
+
+function flattenOas32Fields(fields: readonly Oas32FormField[]): SchemaFieldRow[] {
+  const rows: SchemaFieldRow[] = [];
+  for (const field of fields) {
+    if (field.readOnly || field.extraItem) continue;
+    if (field.nestedFields && field.nestedFields.length > 0) {
+      rows.push(...flattenOas32Fields(field.nestedFields));
+      continue;
+    }
+    rows.push(rowFromOas32Field(field));
+  }
+  return rows;
+}
+
+function extraPositionalName(parentId: string | undefined, index: number): string {
+  return parentId ? `${parentId}.${index}` : String(index);
+}
+
+export function extraPositionalSchemaFields(
+  bodyContent: BodyContent,
+  presentNames: readonly string[],
+): SchemaFieldRow[] {
+  if (!bodyContent.oas32Form) return [];
+  const present = new Set(presentNames);
+  const rows: SchemaFieldRow[] = [];
+  const addExtras = (template: Oas32FormField | undefined, prefixCount: number, parentId: string | undefined) => {
+    if (!template) return;
+    const extras = [...present]
+      .map((name) => {
+        if (parentId) {
+          if (!name.startsWith(`${parentId}.`)) return Number.NaN;
+          return Number(name.slice(parentId.length + 1).split('.')[0]);
+        }
+        return /^\d+$/.test(name) ? Number(name) : Number.NaN;
+      })
+      .filter((index) => Number.isInteger(index) && index >= prefixCount);
+    for (const index of [...new Set(extras)].sort((left, right) => left - right)) {
+      const name = extraPositionalName(parentId, index);
+      rows.push(rowFromOas32Field({ ...template, name, partId: name, extraItem: true }));
+    }
+  };
+  const walk = (fields: readonly Oas32FormField[]) => {
+    for (const field of fields) {
+      if (!field.nestedFields?.length) continue;
+      const nestedPrefix = field.nestedFields.filter((item) => !item.extraItem);
+      addExtras(
+        field.nestedFields.find((item) => item.extraItem),
+        nestedPrefix.length,
+        field.partId,
+      );
+      walk(nestedPrefix);
+    }
+  };
+  addExtras(bodyContent.oas32Form.extraItemTemplate, bodyContent.oas32Form.fields.length, undefined);
+  walk(bodyContent.oas32Form.fields);
+  return rows;
+}
+
 export function extractSchemaFields(bodyContent: BodyContent): SchemaFieldRow[] {
+  if (bodyContent.oas32Form) {
+    return flattenOas32Fields(bodyContent.oas32Form.fields);
+  }
   if (bodyContent.oas31Form) {
     return bodyContent.oas31Form.fields
       .filter((field) => !field.readOnly)
@@ -455,6 +559,18 @@ export function initialFieldValue(field: SchemaFieldRow, doc: SwaggerDoc | JsonR
   return '';
 }
 
+function logicalFormExample(mediaExample: unknown): ParameterInstance | undefined {
+  if (mediaExample === undefined) return undefined;
+  if (isRecord(mediaExample) && (hasOwn(mediaExample, 'dataValue') || hasOwn(mediaExample, 'serializedValue'))) {
+    return hasOwn(mediaExample, 'dataValue') ? (mediaExample.dataValue as ParameterInstance) : undefined;
+  }
+  return mediaExample as ParameterInstance;
+}
+
+function hasOwn(value: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
 function initialFormFieldsFor(
   bodyContent: BodyContent,
   doc: SwaggerDoc | JsonRecord,
@@ -465,6 +581,12 @@ function initialFormFieldsFor(
   const fields = extractSchemaFields(bodyContent);
   for (const field of fields) {
     initial[field.name] = initialFieldValue(field, doc);
+  }
+  if (bodyContent.oas32Form) {
+    const logical = logicalFormExample(mediaExample);
+    return logical === undefined
+      ? initial
+      : { ...initial, ...oas32FormFieldsFromInstance(bodyContent.oas32Form, logical) };
   }
   if (isRecord(mediaExample)) {
     for (const field of fields) {
@@ -487,8 +609,9 @@ export function mergeCachedFormFields(
 ): Record<string, string> {
   const next = initialFormFieldsForContent(bodyContent, defaults);
   const allowedFields = new Set(Object.keys(next));
+  const extraAllowed = bodyContent?.oas32Form?.layout === 'positional';
   for (const [key, value] of Object.entries(cached)) {
-    if (allowedFields.has(key)) {
+    if (allowedFields.has(key) || (extraAllowed && /^\d+(\.\d+)*$/.test(key))) {
       next[key] = value;
     }
   }

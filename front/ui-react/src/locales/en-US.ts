@@ -1,10 +1,102 @@
 const enUS = {
+  'schema.example32.serializedDataValidation': 'Validation of data decoded from serialization',
+  'schema.example32.diagnostics.UNSAFE_EXAMPLE_NUMBER':
+    'The serialization contains a number JavaScript cannot represent safely. The original text is retained; data validation is unavailable.',
+  'schema.example32.choose': 'Choose example',
+  'schema.example32.candidate': 'Schema candidate',
+  'schema.example32.apply': 'Apply to request',
+  'schema.example32.editFields': 'Switch to field input',
+  'schema.example32.layer.parameter': 'Parameter',
+  'schema.example32.layer.header': 'Header',
+  'schema.example32.layer.media': 'Media type',
+  'schema.example32.data': 'Logical data',
+  'schema.example32.serialized': 'Serialized text (sent verbatim)',
+  'schema.example32.external': 'External example location (not loaded or sent as a body)',
+  'schema.example32.checks': 'Data validation: {{data}}; decoding: {{serialization}}; pairing: {{pairing}}',
+  'schema.example32.diagnostic': 'Example diagnostics',
+  'schema.example32.status.valid': 'Passed',
+  'schema.example32.status.invalid': 'Failed',
+  'schema.example32.status.unavailable': 'Unavailable',
+  'schema.example32.status.absent': 'Not applicable / no data',
+  'schema.example32.diagnostics.EXAMPLE_FIELDS_CONFLICT': 'Example representation fields conflict.',
+  'schema.example32.diagnostics.SERIALIZED_VALUE_NOT_STRING': 'serializedValue must be a string.',
+  'schema.example32.diagnostics.EXTERNAL_VALUE_NOT_STRING': 'externalValue must be a string.',
+  'schema.example32.diagnostics.EXAMPLE_DATA_UNREPRESENTABLE':
+    'The example is not representable JSON data within the budget.',
+  'schema.example32.diagnostics.EXTERNAL_URI_UNAVAILABLE':
+    'The external location cannot be resolved against its owner document.',
+  'schema.example32.diagnostics.EXTERNAL_EXAMPLE_NOT_LOADED':
+    'External content is not loaded and cannot be validated or inserted into a request.',
+  'schema.example32.diagnostics.LEGACY_VALUE_IMPLEMENTATION_DEFINED':
+    'Legacy non-JSON value uses the existing codec; semantics may differ across tools.',
+  'schema.example32.diagnostics.CODEC_UNAVAILABLE':
+    'No serialization codec is available for this media type or data shape.',
+  'schema.example32.diagnostics.SERIALIZATION_NOT_VERIFIED':
+    'Author text is preserved; the current codec cannot unambiguously decode logical data.',
+  'schema.example32.diagnostics.SERIALIZATION_DECODE_FAILED': 'The current codec cannot parse this serialization.',
+  'schema.example32.diagnostics.EXAMPLE_PAIR_MISMATCH': 'dataValue and serializedValue represent different data.',
+  'schema.example32.diagnostics.EXAMPLE_REFERENCE_UNAVAILABLE':
+    'The example or media reference is unavailable in the typed resource registry.',
+  'schema.example32.diagnostics.EXAMPLE_SIZE_LIMIT': 'The example exceeds the size limit.',
+  'schema.example32.diagnostics.INVALID_JSON_SERIALIZATION': 'The serialization is not valid JSON.',
+  'schema.example32.diagnostics.PARAMETER_CODEC_UNAVAILABLE': 'No codec is available for this parameter.',
+  'schema.example32.diagnostics.INVALID_HEADER_SERIALIZATION':
+    'The header example contains forbidden control characters.',
+  'schema.example32.diagnostics.HEADER_NAME_IN_SERIALIZATION':
+    'A header example must not contain the HTTP header name.',
+  'schema.example32.diagnostics.INVALID_URI_SERIALIZATION':
+    'The URI example contains invalid characters or percent-encoding.',
+  'schema.example32.diagnostics.INVALID_PATH_SERIALIZATION':
+    'A path parameter example must not contain path or query separators.',
+  'schema.example32.diagnostics.QUERY_LEADING_DELIMITER': 'A query example must not begin with ? or &.',
+  'schema.example32.diagnostics.MATRIX_LEADING_DELIMITER': 'A matrix example must include its leading semicolon.',
+  'schema.example32.diagnostics.LABEL_LEADING_DELIMITER': 'A label example must include its leading dot.',
+  'schema.example32.diagnostics.XML_FRAGMENT': 'The result is an XML fragment, not a complete XML document.',
+  'schema.example32.diagnostics.ROUND_TRIP_AMBIGUOUS': 'This XML mapping cannot uniquely restore logical data.',
+  'schema.example32.diagnostics.UNSUPPORTED_MAPPING':
+    'Ambiguous composition or conditional schemas are not guessed into an XML mapping.',
+  'schema.example32.diagnostics.AMBIGUOUS_MAPPING':
+    'The reference and local content mapping is ambiguous; no XML was produced.',
+  'schema.example32.diagnostics.NAME_REQUIRED': 'This Schema location has no usable XML name.',
+  'schema.example32.diagnostics.INVALID_XML_NAME': 'The XML name is invalid.',
+  'schema.example32.diagnostics.INVALID_XML_CHARACTER': 'The data contains an illegal XML character.',
+  'schema.example32.diagnostics.INVALID_NAMESPACE_IRI': 'The XML namespace is not a non-relative IRI.',
+  'schema.example32.diagnostics.SCHEMA_UNAVAILABLE':
+    'No registered Schema location is available for XML serialization.',
+  'schema.example32.diagnostics.BUDGET_EXCEEDED': 'XML serialization exceeded its depth, node, or output budget.',
+  'schema.example32.diagnostics.INVALID_DATA': 'Logical data cannot be serialized with this XML Object.',
+  'schema.example32.diagnostics.UNMAPPED_DATA': 'Some logical data was not mapped to XML nodes.',
+  'schema.example32.diagnostics.ATTRIBUTE_WITHOUT_ELEMENT':
+    'An XML attribute has no parent element; no wrapper is invented.',
+  'schema.example32.diagnostics.VERSION_NOT_APPLICABLE': 'This XML serialization applies only to OpenAPI 3.2.x.',
+  'schema.example32.diagnostics.KNOWN_DATA_REQUIRED': 'Known logical data is required to produce XML.',
+  'schema.example32.diagnostics.SCHEMA_CONTEXT_MISMATCH':
+    'The Schema location does not match the current document session.',
+  'schema.example32.diagnostics.REFERENCE_UNAVAILABLE': 'The reference target is unavailable or unresolved.',
+  'schema.example32.diagnostics.REFERENCE_CYCLE': 'A reference cycle stopped XML serialization.',
+  'schema.example32.diagnostics.INVALID_XML_DECLARATION': 'The Schema xml object is not a valid declaration.',
+  'schema.example32.diagnostics.UNKNOWN_XML_DECLARATION': 'The xml object contains an unknown field.',
+  'schema.example32.diagnostics.RESERVED_NAMESPACE': 'A reserved XML namespace was used.',
+  'schema.example32.diagnostics.UNBOUND_PREFIX': 'The XML prefix is not bound to a namespace.',
+  'schema.example32.diagnostics.NAMESPACE_CONFLICT': 'XML namespace bindings conflict.',
+  'schema.example32.diagnostics.NAMESPACE_REBOUND': 'The namespace prefix is rebound on a descendant element.',
+  'schema.example32.diagnostics.ATTRIBUTE_NAMESPACE_REQUIRES_PREFIX': 'An attribute namespace requires a prefix.',
+  'schema.example32.diagnostics.DUPLICATE_ATTRIBUTE': 'Duplicate XML attributes were produced.',
+  'schema.example32.diagnostics.COMPLEX_TEXT_VALUE': 'Complex content cannot be serialized as a text node.',
+  'schema.example32.diagnostics.CANCELLED': 'XML serialization was cancelled.',
   // App / Layout
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI Hub',
   'app.tab.home': 'Home',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'Failed to load API docs',
+  'app.oas32Compatibility.title': 'This OAS 3.2 document has structure or reference diagnostics',
+  'apiDoc.link.unavailable': 'Target unavailable ({{status}})',
+  'app.operationLimit.title': 'Operation expansion reached a local limit; results are incomplete',
+  'app.operationLimit.description':
+    'Local limits are {{maxOperations}} operations and {{maxWork}} processing steps. Menus, search, statistics and Link targets may be incomplete. This is not an OpenAPI validity error.',
+  'apiDoc.link.readOnly': 'This loaded Link target is not mounted in the current entry document and is read-only.',
+  'apiDoc.definition.readOnly': 'This operation describes a callback or reusable definition and is read-only.',
   'app.oas31Compatibility.title': 'This OAS 3.1 document has structure or local-resolution diagnostics',
   'app.oas31Compatibility.description':
     '{{count}} item(s) violate structural constraints or cannot be resolved locally. Safe raw content remains available; ambiguous operations are omitted.',
@@ -43,7 +135,7 @@ const enUS = {
   'sidebar.apiChange.tagChanged': '~{{count}}',
   'sidebar.apiChange.unread': '{{count}} API(s) to review',
   'sidebar.apiChange.markAllRead': 'Mark all read',
-  'sidebar.apiChange.unavailable.preparing': 'Preparing the OAS 3.1 API change baseline…',
+  'sidebar.apiChange.unavailable.preparing': 'Preparing the API change baseline…',
   'sidebar.apiChange.unavailable.resourcePending':
     'API change tracking is paused until all external resources are authorized and loaded.',
   'sidebar.apiChange.unavailable.resourceBudget':
@@ -56,7 +148,7 @@ const enUS = {
     'API change tracking is paused because an external resource failed to load or validate. The previous baseline is kept.',
   'sidebar.apiChange.unavailable.snapshot':
     'API change tracking is paused because a complete Operation semantic closure could not be built.',
-  'sidebar.apiChange.unavailable.version': 'API change tracking supports OpenAPI 3.0.x and 3.1.x only.',
+  'sidebar.apiChange.unavailable.version': 'API change tracking supports OpenAPI 3.0.x, 3.1.x, and 3.2.x.',
   'markdownDoc.menu.group': 'Markdown Docs',
   markdownDocLoading: 'Loading document…',
   markdownDocNotFound: 'Document not found',
@@ -130,6 +222,51 @@ const enUS = {
     'Data model projection failed, so the compatibility field tree is retained. The original Schema is unchanged.',
   'schema.projection.degraded.description':
     '{{modelCount}} model(s) contain {{count}} semantic item(s) that cannot be fully projected as a field tree (models: {{models}}; keywords: {{keywords}}). The original Schema is unchanged.',
+  'schema.projection.loading.title32': 'Resolving OAS 3.2 data models',
+  'schema.projection.degraded.title32': 'Some OAS 3.2 data models use fallback display',
+  'schema.discriminator.title': 'Discriminator and polymorphic mapping',
+  'schema.discriminator.propertyName': 'Discriminator property',
+  'schema.discriminator.configuration': 'Composition',
+  'schema.discriminator.requirement': 'Property requirement',
+  'schema.discriminator.requirement.required': 'Proven required',
+  'schema.discriminator.requirement.proven-optional': 'Proven optional (defaultMapping required)',
+  'schema.discriminator.requirement.unknown': 'Required/optional cannot be proven statically',
+  'schema.discriminator.source.explicit': 'Explicit mapping',
+  'schema.discriminator.source.implicit': 'Implicit entry component name',
+  'schema.discriminator.source.default': 'defaultMapping',
+  'schema.discriminator.candidates': 'Composition branches',
+  'schema.discriminator.compositionVisible':
+    'The original oneOf / anyOf / allOf composition remains visible in the field table. Hints do not change validation.',
+  'schema.discriminator.state.resolved': 'Resolved',
+  'schema.discriminator.state.pending': 'Pending',
+  'schema.discriminator.state.failed': 'Failed',
+  'schema.discriminator.state.missing': 'Missing',
+  'schema.discriminator.state.wrong-kind': 'Target is not a Schema',
+  'schema.discriminator.state.unsupported-dialect': 'Unsupported Schema dialect',
+  'schema.discriminator.state.invalid': 'Invalid',
+  'schema.discriminator.hint': 'Selection hint (does not change Schema validation)',
+  'schema.discriminator.hint.selected': 'A mapping target is selected',
+  'schema.discriminator.hint.ambiguous': 'The target matches multiple branches; choose one',
+  'schema.discriminator.hint.unavailable': 'A selection hint is currently unavailable',
+  'schema.discriminator.hint.unsupported-configuration': 'The discriminator configuration is unsupported',
+  'schema.discriminator.hint.unmapped': 'No usable mapping',
+  'schema.discriminator.hint.no-data': 'The example has no logical data, so defaultMapping is not used',
+  'schema.discriminator.hint.not-applicable': 'This input is not applicable to discriminator selection',
+  'schema.discriminator.reason.explicit': 'Explicit mapping takes priority',
+  'schema.discriminator.reason.implicit': 'Implicit entry component name',
+  'schema.discriminator.reason.default-missing': 'Missing discriminator property; using defaultMapping',
+  'schema.discriminator.reason.default-unmapped': 'Unknown discriminator value; using defaultMapping',
+  'schema.discriminator.generate': 'Generate this mapping candidate',
+  'schema.discriminator.generate.unavailable': 'This candidate cannot be generated and is not treated as success.',
+  'schema.discriminator.generate.dynamicUnavailable':
+    'The candidate depends on runtime dynamic scope. Public APIs cannot prove complete authorization, so generation stays unavailable.',
+  'schema.discriminator.generate.ambiguous': 'Choose a single branch before generating.',
+  'schema.discriminator.generated': 'Generated candidate (does not rewrite authored examples)',
+  'schema.discriminator.preview.external':
+    'In-place preview of an external target; does not jump to the entry model of the same name',
+  'schema.discriminator.validationIndependent':
+    'Default mapping only provides selection/serialization hints and does not change JSON Schema validation results.',
+  'schema.discriminator.diagnostic': 'Discriminator diagnostic: {{code}}',
   'schema.example.loading.title': 'Generating the OAS 3.1 example',
   'schema.example.loading.description':
     'A candidate is shown or written into debug defaults only after the current Schema validates it.',
@@ -226,6 +363,8 @@ const enUS = {
   'apiDoc.schemaProjection.loading.description':
     'The compatibility request and response field trees are shown temporarily and will update when resolution completes.',
   'apiDoc.schemaProjection.degraded.title': 'Some OAS 3.1 API structures use fallback display',
+  'apiDoc.schemaProjection.loading.title32': 'Resolving OAS 3.2 API structures',
+  'apiDoc.schemaProjection.degraded.title32': 'Some OAS 3.2 API structures use fallback display',
   'apiDoc.schemaProjection.engineFallback.description':
     'SchemaEngine initialization failed, so the compatibility request and response field trees are retained. The original Schema is unchanged.',
   'apiDoc.schemaProjection.projectionFallback.description':
@@ -257,7 +396,7 @@ const enUS = {
   'apiOpenApi.download.failed': 'Failed to download OpenAPI JSON. Please try again.',
   'apiOpenApi.download.unsupported': 'This browser cannot download files. Copy the JSON and save it manually.',
   'apiOpenApi.download.versionUnsupported':
-    'Single-operation downloads support OpenAPI 3.0.x and 3.1.x. You can still view and copy this document.',
+    'Single-operation downloads support OpenAPI 3.0.x, 3.1.x, and 3.2.x. You can still view and copy this document.',
   'apiOpenApi.download.oas31Preparing':
     'Preparing the portable OAS 3.1 document. You can still view and copy the current content.',
   'apiOpenApi.download.oas31Unavailable':
@@ -266,6 +405,17 @@ const enUS = {
     'The reference closure is incomplete, so the portable OAS 3.1 document cannot be downloaded yet.',
   'apiOpenApi.download.oas31Blocked.desc':
     'Load the missing external resources or fix the following references. Preview and copy remain available.',
+  'apiOpenApi.download.oas32Preparing':
+    'Preparing the portable OAS 3.2 document. You can still view and copy the current content.',
+  'apiOpenApi.download.oas32Unavailable':
+    'A portable OAS 3.2 document is currently unavailable. You can still view and copy the current content.',
+  'apiOpenApi.download.oas32Blocked':
+    'The reference closure is incomplete, so the portable OAS 3.2 document cannot be downloaded yet.',
+  'apiOpenApi.download.oas32Blocked.desc':
+    'Load the missing external resources or fix the following references. Preview and copy remain available.',
+  'apiOpenApi.downloadYaml': 'Download YAML',
+  'apiOpenApi.downloadYaml.started': 'OpenAPI YAML download started',
+  'apiOpenApi.downloadYaml.failed': 'Failed to download OpenAPI YAML. Please try again.',
   'apiOpenApi.serialize.failed':
     'Unable to generate OpenAPI JSON for this operation. Check the API document and try again.',
 
@@ -302,12 +452,24 @@ const enUS = {
   'apiDebug.json.placeholder': 'Enter JSON',
   'apiDebug.tab.path': 'Path',
   'apiDebug.tab.query': 'Query',
+  'apiDebug.tab.querystring': 'Querystring',
   'apiDebug.tab.header': 'Header',
   'apiDebug.tab.cookie': 'Cookie',
   'apiDebug.tab.body': 'Body',
   'apiDebug.header.autoInject': 'Content-Type is auto-injected by the selected Body type (visible in cURL on send)',
   'apiDebug.noPathParams': 'No path parameters declared in the document',
   'apiDebug.noQueryParams': 'No query parameters declared in the document',
+  'apiDebug.querystring.title': 'Whole querystring',
+  'apiDebug.querystring.mediaType': 'Content media type: {{mediaType}}',
+  'apiDebug.querystring.kind.data': 'Logical JSON data',
+  'apiDebug.querystring.kind.media': 'Media text',
+  'apiDebug.querystring.kind.parameter': 'Encoded query component',
+  'apiDebug.querystring.emptyHint':
+    'An empty string still means the querystring is present; uncheck the field to omit the query component.',
+  'apiDebug.querystring.conflict':
+    'A whole querystring cannot be combined with application, group, custom, or auth query values. Remove the conflicting source before sending.',
+  'apiDebug.querystring.placeholder.media': 'Enter the full media text (may be empty)',
+  'apiDebug.querystring.placeholder.data': 'Enter JSON data for the querystring',
   'apiDebug.noHeaderParams': 'No header parameters',
   'apiDebug.noCookieParams': 'No cookie parameters declared in the document',
   'apiDebug.customParams.add': 'Add',
@@ -371,6 +533,31 @@ const enUS = {
   'apiDebug.formDiagnostic.FILE_REQUIRED': 'A required file is missing.',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': 'The selected file count does not satisfy the Schema.',
   'apiDebug.formDiagnostic.FILE_MEDIA_TYPE': 'The file media type does not match the encoding declaration.',
+  'apiDebug.formDiagnostic.ENCODING_CONFLICT':
+    'encoding cannot take effect together with prefixEncoding or itemEncoding.',
+  'apiDebug.formDiagnostic.ENCODING_IGNORED':
+    'This encoding field does not apply to the selected media type and was ignored.',
+  'apiDebug.formDiagnostic.POSITIONAL_SCHEMA_REQUIRED': 'Positional encoding requires an array schema or itemSchema.',
+  'apiDebug.formDiagnostic.HEADER_NOT_ALLOWED': 'This part header is not allowed for the current multipart subtype.',
+  'apiDebug.formDiagnostic.NESTING_UNSUPPORTED': 'Nested multipart exceeds the one supported nesting level.',
+  'apiDebug.formDiagnostic.STREAMING_UNSUPPORTED':
+    'Infinite multipart streams are unsupported; only a finite part list is materialized.',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_CHOICE_REQUIRED':
+    'Choose the part Content-Type explicitly; filename or first-item sniffing is not used.',
+  'apiDebug.formDiagnostic.AUTHORED_BOUNDARY_MISMATCH':
+    'Authored MIME text must keep the media-type boundary parameter as a pair.',
+  'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'A part would collide with the MIME delimiter and was rejected.',
+  'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'Multipart nesting exceeds the depth limit.',
+  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT':
+    'Request materialization was cancelled or exceeded its time budget.',
+  'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
+    'Browser FormData cannot represent this multipart structure; an explicit envelope or diagnostic boundary is used.',
+  'apiDebug.body.choosePartContentType': 'Part Content-Type',
+  'apiDebug.body.choosePartContentType.placeholder': 'Choose a media type',
+  'apiDebug.body.addPart': 'Add another part',
+  'apiDebug.preview.multipartWire': 'MIME bytes shared with cURL and the actual send',
+  'apiDebug.preview.multipartBodyFile':
+    'cURL uses --data-binary @knife4j-multipart-body.bin and must not regenerate the envelope with -F.',
   'apiDebug.responseSchemaValidation.title': 'Response body does not match the OAS 3.1 JSON Schema',
   'apiDebug.responseSchemaValidation.nonBlocking':
     'This diagnostic does not change the HTTP status, response body, headers, or request history.',
@@ -444,6 +631,35 @@ const enUS = {
   'apiDebug.sse.abort': 'Stop',
   'apiDebug.sse.waiting': 'Waiting for events\u2026',
   'apiDebug.sse.copyEvent': 'Copy event #{{index}}',
+  'apiDebug.sequential.streaming': 'Receiving sequential stream\u2026',
+  'apiDebug.sequential.done': 'Sequential stream ended',
+  'apiDebug.sequential.itemCount': '{{count}} records',
+  'apiDebug.sequential.abort': 'Stop',
+  'apiDebug.sequential.waiting': 'Waiting for the first record\u2026',
+  'apiDebug.sequential.copyItem': 'Copy record #{{index}}',
+  'apiDebug.sequential.truncated': 'Truncated; the complete schema is not reported as valid',
+  'apiDebug.sequential.kind.sse': 'SSE',
+  'apiDebug.sequential.kind.jsonl': 'JSONL',
+  'apiDebug.sequential.kind.json-seq': 'JSON-seq',
+  'apiDebug.sequential.kind.multipart': 'multipart',
+  'apiDebug.sequential.kind.unknown': 'Unknown media',
+  'apiDebug.sequential.termination.eof': 'Ended',
+  'apiDebug.sequential.termination.cancel': 'Cancelled',
+  'apiDebug.sequential.termination.timeout': 'Timed out',
+  'apiDebug.sequential.termination.idle-timeout': 'Idle timeout',
+  'apiDebug.sequential.termination.budget-bytes': 'Byte budget exceeded',
+  'apiDebug.sequential.termination.budget-items': 'Item budget exceeded',
+  'apiDebug.sequential.termination.network-error': 'Read failed',
+  'apiDebug.sequential.item.valid': 'itemSchema valid',
+  'apiDebug.sequential.item.invalid': 'itemSchema invalid',
+  'apiDebug.sequential.item.skipped': 'itemSchema skipped',
+  'apiDebug.sequential.item.absent': 'No itemSchema',
+  'apiDebug.sequential.complete.valid': 'Complete schema valid',
+  'apiDebug.sequential.complete.invalid': 'Complete schema invalid',
+  'apiDebug.sequential.complete.absent': 'No complete schema',
+  'apiDebug.sequential.complete.truncated': 'Complete schema skipped (truncated)',
+  'apiDebug.sequential.complete.not-representable': 'Complete payload is not representable',
+  'apiDebug.sequential.complete.unavailable': 'Complete schema unavailable',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': 'Value',
   'apiDebug.desc.default': 'Default: ',
@@ -462,6 +678,8 @@ const enUS = {
     'This OAS 3.1 body sends the selected file unchanged as {{contentType}}; it is not converted to text or multipart.',
   'apiDebug.body.browserMethodUnsupported':
     'The browser Fetch API cannot send a request body with {{method}}. Use the generated cURL command or change the operation method.',
+  'apiDebug.method.browserNormalized':
+    'Fetch changes {{method}} to {{normalized}} and cannot send the documented method. Preview and cURL preserve its spelling.',
   'apiDebug.method.browserUnsupported':
     'The browser Fetch API forbids {{method}} requests. Use the generated cURL command or another non-browser client.',
   'apiDebug.cookie.source': 'Cookie parameter source',
@@ -491,6 +709,10 @@ const enUS = {
   'apiDebug.tab.preview': 'Preview',
   'apiDebug.preview.method': 'Method:',
   'apiDebug.preview.url': 'Final URL:',
+  'apiDebug.preview.diagnostics': 'Parameter diagnostics',
+  'apiDebug.preview.diagnosticsBlocked': 'Blocks sending',
+  'apiDebug.preview.diagnosticsBrowser': 'Previewable, but the browser cannot send this request',
+  'apiDebug.preview.diagnosticsInfo': 'Capability boundary (not a successful send)',
   'apiDebug.preview.headers': 'Headers',
   'apiDebug.preview.query': 'Query',
   'apiDebug.preview.body': 'Body',
@@ -498,6 +720,7 @@ const enUS = {
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': 'Equivalent cURL',
   'apiDebug.preview.copyCurl': 'Copy cURL',
+  'apiDebug.preview.downloadMultipartBody': 'Download knife4j-multipart-body.bin',
   'apiDebug.preview.copyValue': 'Copy full value',
   'apiDebug.preview.expandValue': 'Expand',
   'apiDebug.preview.collapseValue': 'Collapse',
@@ -574,6 +797,36 @@ const enUS = {
   'auth.schemes.oauth2.obtaining': 'Obtaining...',
   'auth.schemes.oauth2.implicit': 'Implicit',
   'auth.schemes.oauth2.authorizationCode': 'Authorization Code',
+  'auth.schemes.oauth2.deviceAuthorization': 'Device Authorization',
+  'auth.schemes.oauth2.startDevice': 'Start device authorization',
+  'auth.schemes.oauth2.cancelDevice': 'Cancel device authorization',
+  'auth.schemes.oauth2.userCode': 'User code {{code}}',
+  'auth.schemes.oauth2.metadataUrl': 'OAuth metadata URL',
+  'auth.schemes.oauth2.metadataUrl.hint':
+    'Shown as a location only. It is not fetched and does not override authored endpoints.',
+  'auth.schemes.oauth2.endpoint.missing': 'This OAuth endpoint is not declared',
+  'auth.schemes.oauth2.endpoint.relative-without-base': 'A relative OAuth URL needs an executable API base first',
+  'auth.schemes.oauth2.endpoint.invalid': 'This OAuth endpoint cannot be used as a browser request',
+  'auth.schemes.oauth2.device.status.requesting': 'Requesting a device code',
+  'auth.schemes.oauth2.device.status.waiting': 'Waiting for the user to confirm',
+  'auth.schemes.oauth2.device.status.polling': 'Polling for a token',
+  'auth.schemes.oauth2.device.status.success': 'Token draft received; click Authorize to save it',
+  'auth.schemes.oauth2.device.status.denied': 'The user denied device authorization',
+  'auth.schemes.oauth2.device.status.expired': 'The device code expired',
+  'auth.schemes.oauth2.device.status.cancelled': 'Device authorization was cancelled',
+  'auth.schemes.oauth2.device.status.failed': 'Device authorization failed',
+  'auth.schemes.oauth2.device.status.local-limit': 'The local polling or time budget was reached',
+  'auth.schemes.deprecated': 'Deprecated',
+  'auth.schemes.unavailable': 'This security scheme is currently unavailable',
+  'apiDebug.security.branch': 'Option {{n}}',
+  'apiDebug.security.anonymous': 'Anonymous',
+  'apiDebug.security.anonymousSelected':
+    'This operation selected the anonymous branch; saved credentials are not injected',
+  'apiDebug.security.empty': 'This operation declares empty security; saved credentials are not injected',
+  'apiDebug.security.incomplete':
+    'The selected security branch is incomplete; the request can still be sent without claiming authorization',
+  'apiDebug.security.unavailable': 'This operation security declaration cannot be projected',
+  'apiDebug.security.selected': 'Only the selected security branch credentials are injected',
   'auth.btn.authorize': 'Save credential',
   'auth.schemes.mutualTLS.readOnly': 'mutualTLS security scheme recognized',
   'auth.schemes.mutualTLS.description':
@@ -676,16 +929,25 @@ const enUS = {
   'officeDoc.btn.word': 'Download Word (.doc)',
   'officeDoc.btn.markdown': 'Download Markdown',
   'officeDoc.btn.openapi': 'Download OpenAPI JSON',
+  'officeDoc.btn.openapiYaml': 'Download OpenAPI YAML',
   'officeDoc.response': 'Response',
   'officeDoc.circularReference': 'Circular reference',
   'officeDoc.truncated': 'Truncated',
+  'officeDoc.security': 'Security',
+  'officeDoc.servers': 'Servers',
+  'officeDoc.itemSchema': 'itemSchema',
+  'officeDoc.sequentialKind': 'Sequential media',
+  'officeDoc.encoding': 'Encoding',
+  'officeDoc.notes': 'Notes',
   'officeDoc.fallbackTitle': 'API Documentation',
   'officeDoc.snapshot.incomplete.title': 'This OAS 3.1 export is incomplete',
+  'officeDoc.snapshot.incomplete.title32': 'This OAS 3.2 export is incomplete',
   'officeDoc.snapshot.incomplete.description':
     '{{count}} semantic issue(s) affect the selected document. Cancel, or download a document that clearly records the degraded scope.',
   'officeDoc.snapshot.incomplete.confirm': 'Download incomplete document',
   'officeDoc.snapshot.incomplete.cancel': 'Cancel',
   'officeDoc.snapshot.incomplete.documentTitle': 'Incomplete OAS 3.1 export',
+  'officeDoc.snapshot.incomplete.documentTitle32': 'Incomplete OAS 3.2 export',
   'officeDoc.snapshot.incomplete.documentSummary': '{{count}} semantic issue(s) could not be represented completely.',
   'officeDoc.snapshot.incomplete.more': '{{count}} more issue(s)',
   'officeDoc.snapshot.failed': 'The offline document snapshot could not be created.',
@@ -710,7 +972,7 @@ const enUS = {
   'settings.enableRequestHistory':
     'Enable request history (Debug panel keeps recent requests per operation; apply to form)',
   'settings.enableResponseCode': 'Show the response status overview (status code, description, Schema, and Media Type)',
-  'settings.enableVersion': 'Highlight new and changed APIs (OpenAPI 3.0/3.1)',
+  'settings.enableVersion': 'Highlight new and changed APIs (OpenAPI 3.0/3.1/3.2)',
   'settings.enableDynamicParameter':
     'Enable dynamic form parameters (add undeclared text fields to urlencoded / multipart bodies)',
   'settings.enableFilterMultipartApis':
@@ -768,6 +1030,26 @@ const enUS = {
   'auth.modal401.description': 'The request was rejected with 401. Please configure your credentials below and resend.',
   'auth.modal401.resend': 'Resend',
   'auth.modal401.close': 'Close',
+  'oas32.responseUnavailable':
+    'Response {{status}} is unresolved or has an invalid target type; it is not an empty response.',
+  'oas32.server.select': 'Select Server',
+  'oas32.server.customUrl': 'Custom override URL',
+  'oas32.server.source': 'Source',
+  'oas32.server.raw': 'Declared URL',
+  'oas32.server.substituted': 'After substitution',
+  'oas32.server.resolved': 'Resolved URL',
+  'oas32.server.request': 'Request base URL',
+  'oas32.server.owner': 'Physical document location',
+  'oas32.server.unavailable':
+    'The selected Server cannot be used for requests. Check its declaration, variables and resolution status.',
+  'oas32.server.override.host': 'Product override: configured Host',
+  'oas32.server.override.gateway': 'Product override: gateway contextPath',
+  'oas32.server.override.custom': 'Product override: custom URL',
+  'oas32.server.level.operation': 'Operation Server',
+  'oas32.server.level.path-item': 'Path Item Server',
+  'oas32.server.level.root': 'Root document Server',
+  'oas32.server.level.default': 'Specification default Server /',
+  'oas32.server.changed': 'The Server or path changed. Send again using the current configuration.',
 } as const;
 
 export default enUS;

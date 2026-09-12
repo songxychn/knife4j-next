@@ -5,6 +5,8 @@ import {
   setKnife4jStorageItem,
 } from '../../storage/knife4jStorage';
 import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
+import type { SerializedExampleParameter } from 'knife4j-core';
+import { readOas32ParameterEntries, type Oas32ParameterEntries } from '../../schema/oas32ParameterAdapter';
 
 export const DEBUG_CACHE_VERSION = 1;
 
@@ -17,6 +19,9 @@ export interface DebugCacheCustomParamRow {
 }
 
 export interface DebugCacheState {
+  serializedExampleParameters?: Record<string, SerializedExampleParameter>;
+  oas32ParameterEntries?: Oas32ParameterEntries;
+  serializedExampleBodyMediaType?: string;
   version: typeof DEBUG_CACHE_VERSION;
   baseUrl: string;
   method: string;
@@ -27,6 +32,7 @@ export interface DebugCacheState {
   body: string;
   formFields: Record<string, string>;
   formPartHeaders: Record<string, Record<string, string>>;
+  formPartContentTypes?: Record<string, string>;
   rawMode: DebugCacheRawMode;
   customQueryParams: DebugCacheCustomParamRow[];
   customBodyParams: DebugCacheCustomParamRow[];
@@ -73,6 +79,17 @@ function readBooleanRecord(value: unknown): Record<string, boolean> {
   return result;
 }
 
+export function readExampleParameterInputs(value: unknown): Record<string, SerializedExampleParameter> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, input]) =>
+      isRecord(input) && typeof input.text === 'string' && (input.layer === 'parameter' || input.layer === 'media')
+        ? [[key, { text: input.text, layer: input.layer }]]
+        : [],
+    ),
+  );
+}
+
 function readNestedStringRecord(value: unknown): Record<string, Record<string, string>> {
   const result: Record<string, Record<string, string>> = {};
   if (!isRecord(value)) return result;
@@ -108,6 +125,15 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
   if (!isRecord(value) || value.version !== DEBUG_CACHE_VERSION) return null;
   return {
     version: DEBUG_CACHE_VERSION,
+    ...(isRecord(value.serializedExampleParameters)
+      ? { serializedExampleParameters: readExampleParameterInputs(value.serializedExampleParameters) }
+      : {}),
+    ...(isRecord(value.oas32ParameterEntries)
+      ? { oas32ParameterEntries: readOas32ParameterEntries(value.oas32ParameterEntries) }
+      : {}),
+    ...(typeof value.serializedExampleBodyMediaType === 'string'
+      ? { serializedExampleBodyMediaType: value.serializedExampleBodyMediaType }
+      : {}),
     baseUrl: readString(value.baseUrl),
     method: readString(value.method),
     path: readString(value.path),
@@ -117,6 +143,7 @@ function normalizeDebugCacheState(value: unknown): DebugCacheState | null {
     body: readString(value.body),
     formFields: readStringRecord(value.formFields),
     formPartHeaders: readNestedStringRecord(value.formPartHeaders),
+    formPartContentTypes: readStringRecord(value.formPartContentTypes),
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
     customBodyParams: readCustomRows(value.customBodyParams),

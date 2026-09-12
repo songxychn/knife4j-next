@@ -14,14 +14,15 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 ## 支持范围
 
 OpenAPI 的功能集由 `major.minor` 定义。`3.1.x` 因此使用同一套 **OpenAPI 3.1 feature set**，不按 patch 版本拆分能力，
-离线导出也复用统一版本判断，不维护私有 patch 白名单。已有 OpenAPI 3.0.x 路径继续保留，OpenAPI 3.2.x 不在当前范围。
+离线导出也复用统一版本判断，不维护私有 patch 白名单。已有 OpenAPI 3.0.x 路径继续保留。
+OpenAPI 3.2.x 的**未发布**集成分支消费契约见 [OpenAPI 3.2 支持矩阵](./openapi32)；已发布的 `5.6.1` / Knife4x `v0.7.1` 仍按本页的 3.1 范围交付。
 
 | 文档版本 | UI | 状态 | 说明 |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | 兼容维护 | 由 openapi2 starter 提供，不扩展 OAS 3.1 能力 |
 | OpenAPI 3.0.x | React | 支持 | 沿用既有解析、调试、导出与变化提示路径 |
 | OpenAPI 3.1.x | React | 支持 | 使用同一 feature set，并遵守下列产品边界 |
-| OpenAPI 3.2.x | React | 不支持 | 不猜测或降级成 3.1 处理 |
+| OpenAPI 3.2.x | React | 集成分支未发布 | 不猜测或降级成 3.1 处理；能力与限制见 [OpenAPI 3.2 支持矩阵](./openapi32) |
 
 ### springdoc 生成矩阵
 
@@ -49,7 +50,7 @@ Boot 2 / springdoc 1.8.0 仍生成 OAS 3.0，不能仅修改文档中的 `openap
 
 | 能力 | OAS 3.1.x 行为 | 关键边界 | 已合并证据 |
 | --- | --- | --- | --- |
-| 单文档与多文档加载 | 入口文档与受控跨文档资源使用同一 3.1 解析会话 | 3.2 文档拒绝进入 3.1 工作流 | [#682](https://github.com/songxychn/knife4j-next/pull/682)、[#689](https://github.com/songxychn/knife4j-next/pull/689)、[#727](https://github.com/songxychn/knife4j-next/pull/727) |
+| 单文档与多文档加载 | 入口文档与受控跨文档资源使用同一 3.1 解析会话 | 3.2 文档不进入 3.1 工作流；3.2 消费见[未发布矩阵](./openapi32) | [#682](https://github.com/songxychn/knife4j-next/pull/682)、[#689](https://github.com/songxychn/knife4j-next/pull/689)、[#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | 文档对象与 Webhook | 支持 `paths`、`components`、`webhooks` 与 3.1 Reference Object；三者至少声明一个 | Webhook 是入站契约，不等同于普通 Path 请求 | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
 | Schema 方言 | 使用 OAS 3.1 Base Dialect 与 JSON Schema Draft 2020-12 标准词汇 | 不把任意自定义方言解释为标准语义 | [#687](https://github.com/songxychn/knife4j-next/pull/687)、[#689](https://github.com/songxychn/knife4j-next/pull/689) |
 | 字段树与模型 | 支持 3.1 类型联合、布尔 Schema、`const`、条件与组合关键字、动态引用等 | 不执行自定义词汇；未知关键字、example 与 extension 的普通载荷保持 opaque，Schema 保留名不参与资源声明预扫描 | [#692](https://github.com/songxychn/knife4j-next/pull/692)、[#694](https://github.com/songxychn/knife4j-next/pull/694)、[#743](https://github.com/songxychn/knife4j-next/pull/743) |

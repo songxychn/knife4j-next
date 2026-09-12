@@ -47,6 +47,7 @@ function makeState(): DebugCacheState {
     formPartHeaders: {
       metadata: { 'X-Part-Trace': 'trace-1' },
     },
+    formPartContentTypes: {},
     rawMode: 'json',
     customQueryParams: [{ id: 'custom-query', name: 'debug', value: '1' }],
     customBodyParams: [
@@ -59,6 +60,48 @@ function makeState(): DebugCacheState {
 }
 
 describe('debugCache', () => {
+  it('restores raw example layer and empty body presence while discarding stale decoded instances', () => {
+    const storage = new MemoryStorage();
+    writeDebugCache(
+      'examples',
+      {
+        ...makeState(),
+        serializedExampleParameters: { 'query:q': { text: 'q=a%2Cb&q=', layer: 'parameter', instance: ['stale'] } },
+        serializedExampleBodyMediaType: 'text/plain',
+        body: '',
+      },
+      storage,
+    );
+    expect(readDebugCache('examples', storage)).toMatchObject({
+      serializedExampleParameters: { 'query:q': { text: 'q=a%2Cb&q=', layer: 'parameter' } },
+      serializedExampleBodyMediaType: 'text/plain',
+      body: '',
+    });
+    expect(readDebugCache('examples', storage)?.serializedExampleParameters?.['query:q']).not.toHaveProperty(
+      'instance',
+    );
+  });
+
+  it('restores OAS 3.2 editable entries without a schema session', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      debugCacheStorageKey('oas32'),
+      JSON.stringify({
+        ...makeState(),
+        oas32ParameterEntries: {
+          'querystring:whole': {
+            kind: 'media',
+            text: '',
+            enabled: true,
+            provenance: { id: 'editor', layer: 'media', session: { stale: true } },
+          },
+        },
+      }),
+    );
+    expect(readDebugCache('oas32', storage)?.oas32ParameterEntries).toEqual({
+      'querystring:whole': { kind: 'media', text: '', enabled: true },
+    });
+  });
   it('persists Cookie source per operation while preserving manual values and old cache semantics', () => {
     const storage = new MemoryStorage();
     const saved = { ...makeState(), cookieParameterSource: 'browser-session' as const };
@@ -125,6 +168,7 @@ describe('debugCache', () => {
       body: '{"name":"alice"}',
       formFields: { name: 'alice' },
       formPartHeaders: { metadata: { 'X-Part-Trace': 'trace-1' } },
+      formPartContentTypes: {},
       rawMode: 'text',
       customQueryParams: [{ id: 'q1', name: 'debug', value: '1' }],
       customBodyParams: [{ id: 'b1', name: 'folderId', value: '42' }],

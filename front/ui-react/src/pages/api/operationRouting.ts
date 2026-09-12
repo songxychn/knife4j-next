@@ -6,13 +6,12 @@ const OPERATION_MODE_KEYS: OperationModeKey[] = ['doc', 'debug', 'openapi', 'scr
 
 export function findMenuOperation(
   menuTags: MenuTag[],
-  encodedTag: string | undefined,
-  encodedOperationId: string | undefined,
+  routeTag: string | undefined,
+  routeOperationId: string | undefined,
 ): MenuOperation | undefined {
-  if (!encodedTag || !encodedOperationId) return undefined;
-  const routeTag = decodeURIComponent(encodedTag);
-  const routeOperationId = decodeURIComponent(encodedOperationId);
-  const menuTag = menuTags.find((item) => item.tag === routeTag);
+  // React Router has decoded path parameters once. A literal % or %41 is data here.
+  if (!routeTag || !routeOperationId) return undefined;
+  const menuTag = menuTags.find((item) => (item.routeId ?? item.tag) === routeTag);
   const exactMatch = menuTag?.operations.find((item) => {
     const routeId = item.routeId ?? item.operationId ?? item.path;
     return (
@@ -28,7 +27,7 @@ export function findMenuOperation(
   return menuTag?.operations.find(
     (item) =>
       item.operationId === routeOperationId ||
-      (item.source !== 'webhook' && !item.operationId && item.path === routeOperationId),
+      (!item.identity && item.source !== 'webhook' && !item.operationId && item.path === routeOperationId),
   );
 }
 
@@ -38,7 +37,7 @@ export function visibleOperationModeKeys(
   enableOpenApi: boolean,
 ): OperationModeKey[] {
   return OPERATION_MODE_KEYS.filter((key) => {
-    if (source === 'webhook' && (key === 'debug' || key === 'script')) return false;
+    if (source && source !== 'path' && (key === 'debug' || key === 'script')) return false;
     if (key === 'debug') return enableDebug;
     if (key === 'openapi') return enableOpenApi;
     return true;

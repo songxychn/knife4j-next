@@ -1,3 +1,5 @@
+import type { OpenApiOperation } from 'knife4j-core';
+import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
 /**
  * OpenAPI 数据类型定义
  * 兼容 OAS3（/v3/api-docs）和 Swagger2（/v2/api-docs）
@@ -81,12 +83,16 @@ export interface SwaggerInfo {
 }
 
 export interface SwaggerServer {
+  variables?: Record<string, { default: string; enum?: string[]; description?: string }>;
   url: string;
   name?: string;
   description?: string;
 }
 
 export interface SwaggerTag {
+  summary?: string;
+  parent?: string;
+  kind?: string;
   name: string;
   description?: string;
   /** Knife4j extension emitted from @ApiSupport.order. */
@@ -222,7 +228,10 @@ export interface SecuritySchemeObject {
     password?: OAuth2Flow;
     clientCredentials?: OAuth2Flow;
     authorizationCode?: OAuth2Flow;
+    deviceAuthorization?: OAuth2Flow;
   };
+  oauth2MetadataUrl?: string;
+  deprecated?: boolean;
   // openIdConnect
   openIdConnectUrl?: string;
 }
@@ -230,6 +239,7 @@ export interface SecuritySchemeObject {
 /** OAuth2 flow 配置 */
 export interface OAuth2Flow {
   authorizationUrl?: string;
+  deviceAuthorizationUrl?: string;
   tokenUrl?: string;
   refreshUrl?: string;
   scopes?: Record<string, string>;
@@ -342,13 +352,18 @@ export interface MenuOperation {
   deprecated?: boolean;
   operation: OperationObject;
   /** Path operations are executable; webhook operations are read-only inbound contracts. */
-  source?: 'path' | 'webhook';
+  source?: 'path' | 'webhook' | 'callback' | 'component' | 'link';
+  identity?: OpenApiOperation;
+  enumerationLimited?: boolean;
+  resourceSnapshot?: ResourceGraphSnapshot;
   /** Collision-safe identity used in the operation route. */
   routeId?: string;
 }
 
 export interface MenuTag {
   tag: string;
+  /** Opaque 3.2 routing segment; display names remain verbatim. */
+  routeId?: string;
   description?: string;
   operations: MenuOperation[];
 }

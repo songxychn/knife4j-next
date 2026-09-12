@@ -22,6 +22,9 @@ import type {
 } from './types';
 import { replaceSerializedPathParams, serializeOas31Parameters } from './parameterSerialization';
 import { serializeOas31FormBody } from './formBodyEncoding';
+import { authoredMultipartPlan, serializeOas32FormBody } from './oas32FormBodyEncoding';
+import { buildRequestWithOas32Parameters, oas32ParameterInputs, validateOas32Required } from './oas32ParameterRequest';
+import { serializeOas32Parameters } from './oas32ParameterSerialization';
 
 // ─── URL 构建 ─────────────────────────────────────────
 
@@ -103,8 +106,8 @@ function mergeHeaderLayers(layers: HeaderLayer[]): {
   headers: Record<string, string>;
   sources: Record<string, ParamSource>;
 } {
-  const result: Record<string, string> = {};
-  const resultSources: Record<string, ParamSource> = {};
+  const result: Record<string, string> = Object.create(null) as Record<string, string>;
+  const resultSources: Record<string, ParamSource> = Object.create(null) as Record<string, ParamSource>;
   const keysByLowercase = new Map<string, string>();
 
   for (const layer of layers) {
@@ -159,15 +162,11 @@ function appendCookieParams(
   if (pairs.length === 0) return headers;
   const existingKey = findHeaderKey(headers, 'Cookie');
   if (existingKey) {
-    return {
-      ...headers,
+    return Object.assign(Object.create(null) as Record<string, string>, headers, {
       [existingKey]: `${headers[existingKey]}; ${pairs.join('; ')}`,
-    };
+    });
   }
-  return {
-    ...headers,
-    Cookie: pairs.join('; '),
-  };
+  return Object.assign(Object.create(null) as Record<string, string>, headers, { Cookie: pairs.join('; ') });
 }
 
 function appendSerializedCookieParams(
@@ -178,16 +177,15 @@ function appendSerializedCookieParams(
   if (pairs.length === 0) return headers;
   const existingKey = findHeaderKey(headers, 'Cookie');
   if (existingKey) {
-    return {
-      ...headers,
+    return Object.assign(Object.create(null) as Record<string, string>, headers, {
       [existingKey]: `${headers[existingKey]}; ${pairs.join('; ')}`,
-    };
+    });
   }
-  return { ...headers, Cookie: pairs.join('; ') };
+  return Object.assign(Object.create(null) as Record<string, string>, headers, { Cookie: pairs.join('; ') });
 }
 
 function appendQueryPreviewValue(query: Record<string, QueryParamValue>, name: string, value: string): void {
-  const current = query[name];
+  const current = Object.prototype.hasOwnProperty.call(query, name) ? query[name] : undefined;
   if (current === undefined) query[name] = value;
   else if (Array.isArray(current)) current.push(value);
   else query[name] = [current, value];
@@ -209,8 +207,8 @@ export function authToHeaders(
   auth: AuthValues | undefined,
   securityKeys?: string[],
 ): { headers: Record<string, string>; queries: Record<string, string> } {
-  const headers: Record<string, string> = {};
-  const queries: Record<string, string> = {};
+  const headers: Record<string, string> = Object.create(null) as Record<string, string>;
+  const queries: Record<string, string> = Object.create(null) as Record<string, string>;
   if (!auth) return { headers, queries };
 
   // ── 1. Legacy 顶层字段 ──
@@ -291,8 +289,21 @@ export function validateRequired(
   form: DebugFormValues,
   parameterPresence?: Readonly<Record<string, boolean>>,
 ): ValidationError[] {
+  if (model.oas32Parameters) {
+    const plan = serializeOas32Parameters(model.oas32Parameters, oas32ParameterInputs(model.oas32Parameters, form));
+    return [
+      ...validateOas32Required(model.oas32Parameters, plan),
+      ...validateRequired(
+        { ...model, oas32Parameters: undefined, pathParams: [], queryParams: [], headerParams: [], cookieParams: [] },
+        form,
+        {},
+      ),
+    ];
+  }
   const errors: ValidationError[] = [];
-  const presence = parameterPresence ?? serializeOas31Parameters(model, form.oas31ParameterValues).presence;
+  const presence =
+    parameterPresence ??
+    serializeOas31Parameters(model, form.oas31ParameterValues, form.serializedExampleParameters).presence;
 
   const check = (params: typeof model.pathParams, values: Record<string, QueryParamValue>, in_: ParamIn) => {
     for (const param of params) {
@@ -301,7 +312,7 @@ export function validateRequired(
       const serializedPresence =
         param.parameterSerialization && Object.prototype.hasOwnProperty.call(presence, key) ? presence[key] : undefined;
       if (serializedPresence === true) continue;
-      const value = values[param.name];
+      const value = Object.prototype.hasOwnProperty.call(values, param.name) ? values[param.name] : undefined;
       if (
         serializedPresence === false ||
         value === undefined ||
@@ -330,7 +341,7 @@ export function validateRequired(
   // OAS 3.1 form files use the shared encoding plan so missing/cardinality
   // diagnostics participate in the same one-shot override as Schema issues.
   // Keep the historical hard-required behavior for OAS 3.0/OAS2.
-  if (current?.category === 'multipart' && current.schema && !current.oas31Form) {
+  if (current?.category === 'multipart' && current.schema && !current.oas31Form && !current.oas32Form) {
     const requiredFields = Array.isArray(current.schema.required) ? current.schema.required : [];
     const properties = current.schema.properties as Record<string, Record<string, unknown>> | undefined;
     const fileFields = new Set(current.fileFields ?? []);
@@ -351,11 +362,15 @@ export function validateRequired(
   }
 
   // body required — 根据当前选中的 content-type 决定从哪个字段判断
-  if (model.bodyRequired && current && !current.oas31Form) {
+  if (model.bodyRequired && current && !current.oas31Form && !current.oas32Form) {
     const category = current.category;
+    const hasExampleBody =
+      form.serializedExampleBody?.mediaType === selected && typeof form.serializedExampleBody.text === 'string';
 
     let bodyMissing = false;
-    if (current.binary) {
+    if (hasExampleBody && category !== 'multipart' && !current.binary) {
+      bodyMissing = false;
+    } else if (current.binary) {
       bodyMissing = !form.binaryBodyFileName;
     } else if (category === 'json' || category === 'raw') {
       bodyMissing = !form.body || form.body.trim() === '';
@@ -391,6 +406,8 @@ export interface BuildRequestOptions {
   path: string;
   /** HTTP 方法 */
   method: string;
+  /** Preserve the author-specified case for OAS 3.2 additional operations. */
+  preserveMethodCase?: boolean;
   /** 解析后的调试模型 */
   debugModel: OperationDebugModel;
   /** 用户填写的表单值 */
@@ -414,12 +431,17 @@ export interface BuildRequestOptions {
  * 构建最终请求对象
  */
 export function buildRequest(options: BuildRequestOptions): BuiltRequest {
+  if (options.debugModel.oas32Parameters) return buildRequestWithOas32Parameters(options, buildRequest);
   const { baseUrl, path, method, debugModel, formValues, globalParams, applicationParams, auth, securityKeys } =
     options;
 
   const parameterDiagnostic = debugModel.parameterDiagnostics?.[0];
   if (parameterDiagnostic) throw new Error(parameterDiagnostic.message);
-  const serializedParameters = serializeOas31Parameters(debugModel, formValues.oas31ParameterValues);
+  const serializedParameters = serializeOas31Parameters(
+    debugModel,
+    formValues.oas31ParameterValues,
+    formValues.serializedExampleParameters,
+  );
 
   // 1. path 替换
   const resolvedPath = replacePathParams(
@@ -444,19 +466,20 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     { values: serializedParameters.headers, source: 'interface', includeEmpty: true },
   ]);
   const mergedHeaders = headerMerge.headers;
-  const legacyCookieParams = { ...formValues.cookieParams };
+  const legacyCookieParams = Object.assign(Object.create(null) as Record<string, string>, formValues.cookieParams);
   for (const name of serializedParameters.consumedCookieNames) delete legacyCookieParams[name];
   const headersWithCookies = appendSerializedCookieParams(
     appendCookieParams(mergedHeaders, legacyCookieParams),
     serializedParameters.cookies,
   );
   // query 参数合并（所有分组共享 < 鉴权 < 当前分组 < 接口级）。query 名大小写敏感。
-  const mergedQuery: Record<string, QueryParamValue> = {
-    ...application.queries,
-    ...authResult.queries,
-    ...gp.queries,
-    ...formValues.queryParams,
-  };
+  const mergedQuery = Object.assign(
+    Object.create(null) as Record<string, QueryParamValue>,
+    application.queries,
+    authResult.queries,
+    gp.queries,
+    formValues.queryParams,
+  ) as Record<string, QueryParamValue>;
   for (const name of serializedParameters.consumedQueryNames) delete mergedQuery[name];
 
   // 3.5 sourceMap 追踪（仅当存在 applicationParams、auth 或 globalParams 时生成）
@@ -464,7 +487,7 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   let sourceMap: BuiltRequestSourceMap | undefined;
   if (hasMultiSource) {
     const headerSource = headerMerge.sources;
-    const querySource: Record<string, ParamSource> = {};
+    const querySource: Record<string, ParamSource> = Object.create(null) as Record<string, ParamSource>;
 
     // query 保持大小写敏感的精确 key，按合并优先级同步覆盖来源。
     for (const key of Object.keys(application.queries)) {
@@ -499,24 +522,57 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
     debugModel.bodyContents.find((candidate) => candidate.mediaType === selectedContentType) ??
     debugModel.bodyContents[0];
   const category = currentBody?.category ?? 'raw';
-  const formBodyPlan =
-    currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
-      ? serializeOas31FormBody(currentBody, {
-          formFields: formValues.formFields,
-          formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
-          fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
-          partHeaders: formValues.formPartHeaders,
-          bodyRequired: debugModel.bodyRequired,
-        })
+  const exampleBody =
+    formValues.serializedExampleBody?.mediaType === selectedContentType &&
+    typeof formValues.serializedExampleBody.text === 'string'
+      ? formValues.serializedExampleBody
       : undefined;
+  if (exampleBody && currentBody?.binary) throw new Error('This example requires a binary or multipart codec.');
+  if (exampleBody && category === 'multipart' && !currentBody?.oas32Form)
+    throw new Error('This example requires a binary or multipart codec.');
+  const formBodyPlan =
+    exampleBody && category === 'multipart' && currentBody?.oas32Form
+      ? authoredMultipartPlan(exampleBody.mediaType, exampleBody.text)
+      : !exampleBody && currentBody?.oas32Form && (category === 'urlencoded' || category === 'multipart')
+        ? serializeOas32FormBody(currentBody, {
+            formFields: formValues.formFields,
+            formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
+            fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
+            partHeaders: formValues.formPartHeaders,
+            partContentTypes: formValues.formPartContentTypes,
+            bodyRequired: debugModel.bodyRequired,
+          })
+        : !exampleBody && currentBody?.oas31Form && (category === 'urlencoded' || category === 'multipart')
+          ? serializeOas31FormBody(currentBody, {
+              formFields: formValues.formFields,
+              formFieldNamesToIncludeWhenEmpty: formValues.formFieldNamesToIncludeWhenEmpty,
+              fileFields: formValues.fileFields as Record<string, readonly unknown[]> | undefined,
+              partHeaders: formValues.formPartHeaders,
+              bodyRequired: debugModel.bodyRequired,
+            })
+          : undefined;
 
   // Keep explicit request bodies for every HTTP method in the pure model and
   // generated cURL. Browser callers reject GET / HEAD bodies before Fetch.
-  if (formBodyPlan?.kind === 'urlencoded') {
+  if (exampleBody && formBodyPlan?.kind === 'multipart' && formBodyPlan.wire === 'authored') {
+    body = formBodyPlan.authoredBody;
+    const authoredType = formBodyPlan.authoredContentType ?? formBodyPlan.mediaType;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
+      headersWithCookies['Content-Type'] = authoredType;
+  } else if (exampleBody) {
+    body = exampleBody.text;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
+      headersWithCookies['Content-Type'] = selectedContentType;
+  } else if (formBodyPlan?.kind === 'urlencoded') {
     body = formBodyPlan.body;
     if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined) {
       headersWithCookies['Content-Type'] = 'application/x-www-form-urlencoded';
     }
+  } else if (formBodyPlan?.kind === 'multipart' && formBodyPlan.wire === 'authored') {
+    body = formBodyPlan.authoredBody;
+    const authoredType = formBodyPlan.authoredContentType ?? formBodyPlan.mediaType;
+    if (findHeaderKey(headersWithCookies, 'Content-Type') === undefined)
+      headersWithCookies['Content-Type'] = authoredType;
   } else if (formBodyPlan?.kind === 'multipart') {
     body = JSON.stringify(
       formFieldsForRequest(formValues.formFields ?? {}, formValues.formFieldNamesToIncludeWhenEmpty),
@@ -549,21 +605,22 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   );
   const legacyQueryString = buildQueryString(mergedQuery, queryEncodings);
   const parameterQueryString = serializedParameters.query
-    .map((parameter) => `${parameter.encodedName}=${parameter.encodedValue}`)
+    .map((parameter) => `${parameter.encodedName}${parameter.hasEquals === false ? '' : '='}${parameter.encodedValue}`)
     .join('&');
   const queryString = [legacyQueryString, parameterQueryString].filter(Boolean).join('&');
   const url = `${baseUrl}${resolvedPath}${queryString ? `?${queryString}` : ''}`;
-  const previewQuery: Record<string, QueryParamValue> = { ...mergedQuery };
+  const previewQuery = Object.assign(Object.create(null) as Record<string, QueryParamValue>, mergedQuery);
   for (const parameter of serializedParameters.query) {
     appendQueryPreviewValue(previewQuery, parameter.name, parameter.value);
   }
 
   return {
     url,
-    method: method.toUpperCase(),
+    method: options.preserveMethodCase ? method : method.toUpperCase(),
     headers: headersWithCookies,
     query: previewQuery,
     body,
+    ...(exampleBody ? { explicitExampleBody: true } : {}),
     binaryBodyFileName: formValues.binaryBodyFileName,
     contentType: selectedContentType,
     sourceMap,
@@ -630,6 +687,8 @@ function multipartDisposition(part: MultipartPart): string {
   return part.kind === 'file' ? `${disposition}; filename="${mimeQuotedParameter(part.fileName)}"` : disposition;
 }
 
+export const OAS32_MULTIPART_CURL_BODY_FILE = 'knife4j-multipart-body.bin';
+
 /**
  * 从 BuiltRequest 生成等价 curl 命令
  *
@@ -640,22 +699,31 @@ export function buildCurl(req: BuiltRequest): string {
   const parts: string[] = [];
 
   parts.push('curl');
-  parts.push('-X', req.method);
+  if (req.curlPreserveUrl) parts.push('--globoff', '--path-as-is');
+  parts.push('-X', /^[A-Za-z]+$/.test(req.method) ? req.method : shellQuote(req.method));
 
   const plannedMultipart = req.formBodyPlan?.kind === 'multipart' ? req.formBodyPlan : undefined;
+  const encodedMultipart = plannedMultipart?.specFamily === '3.2';
   const legacyMultipart =
     plannedMultipart === undefined &&
     typeof req.contentType === 'string' &&
     multipartMediaTypeEssence(req.contentType) === 'multipart/form-data';
-  const isMultipart = plannedMultipart !== undefined || legacyMultipart;
+  const isMultipart = !encodedMultipart && (plannedMultipart !== undefined || legacyMultipart);
 
-  // headers（multipart 不带 Content-Type，让 curl 自动生成 boundary）
+  // headers（3.1 multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
     if (isMultipart && key.toLowerCase() === 'content-type') continue;
-    parts.push('-H', shellQuote(`${key}: ${value}`));
+    parts.push('-H', shellQuote(req.curlPreserveUrl && value === '' ? `${key};` : `${key}: ${value}`));
   }
 
-  if (plannedMultipart) {
+  if (encodedMultipart) {
+    const headerType = Object.entries(req.headers).find(([key]) => key.toLowerCase() === 'content-type')?.[1];
+    const contentType = headerType ?? plannedMultipart.authoredContentType ?? plannedMultipart.mediaType;
+    if (findHeaderKey(req.headers, 'Content-Type') === undefined && contentType) {
+      parts.push('-H', shellQuote(`Content-Type: ${contentType}`));
+    }
+    parts.push('--data-binary', shellQuote(`@${OAS32_MULTIPART_CURL_BODY_FILE}`));
+  } else if (plannedMultipart) {
     const contentType = multipartMediaTypeWithoutBoundary(plannedMultipart.mediaType);
     if (
       contentType &&
@@ -668,8 +736,13 @@ export function buildCurl(req: BuiltRequest): string {
     }
   }
 
-  if (plannedMultipart) {
+  if (encodedMultipart) {
+    // Complex MIME uses the same envelope file as preview and Fetch.
+  } else if (plannedMultipart) {
     for (const part of plannedMultipart.parts) {
+      if (part.kind === 'nested') {
+        throw new Error('Nested multipart cannot be represented by curl -F.');
+      }
       const attributes = ['='];
       if (part.kind === 'file') {
         attributes[0] += `@${curlFormQuoted(`/path/to/${part.fileName}`)}`;
@@ -713,7 +786,7 @@ export function buildCurl(req: BuiltRequest): string {
     parts.push('# TODO append file fields via: -F field=@/path/to/file');
   } else if (req.binaryBodyFileName) {
     parts.push('--data-binary', shellQuote(`@/path/to/${req.binaryBodyFileName}`));
-  } else if (req.body !== undefined && req.body !== '') {
+  } else if (req.body !== undefined && (req.body !== '' || req.explicitExampleBody)) {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
     parts.push('-d', shellQuote(req.body));
   }

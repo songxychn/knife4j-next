@@ -21,8 +21,9 @@ title: 兼容矩阵
 
 ::: info 发布版本与源码能力
 上表为 `5.6.1` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
-不应反向视为 `5.4.0` 等历史版本的能力。支持范围见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)，
-各版本变更以[发布说明](../release-notes/)为准。
+不应反向视为 `5.4.0` 等历史版本的能力。支持范围见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)。
+OpenAPI 3.2 目前只在集成分支 `integration/oas32` 提供，见 [OpenAPI 3.2 支持与迁移](../guide/openapi32)，
+**尚未**进入已发布 Java `5.6.1`。各版本变更以[发布说明](../release-notes/)为准。
 :::
 
 ## Starter 兼容矩阵
@@ -65,6 +66,10 @@ Boot 3 与 Boot 4 的 3.1 路径都经过真实 springdoc `/v3/api-docs`、Java 
 SchemaEngine 验证；Boot 2 的 springdoc 1.8.0 继续输出 3.0 文档。配置、产品能力和迁移边界见
 [OpenAPI 3.1 支持与迁移](../guide/openapi31)，端到端证据见
 [#737](https://github.com/songxychn/knife4j-next/pull/737)。
+
+当前生产 springdoc **不会**生成 OpenAPI 3.2。集成分支上的 3.2 消费使用标注来源的规范夹具，
+由 React WebJar、starter 合成入口、聚合 disk 与 Knife4x SpecURL 承载；不能把 3.0/3.1 快照的
+版本字符串改成 `3.2.0` 冒充真实 3.2 生成。详见 [OpenAPI 3.2 支持矩阵](../guide/openapi32)。
 
 ### Gateway & 聚合
 

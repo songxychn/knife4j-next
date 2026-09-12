@@ -105,7 +105,7 @@ knife4j:
 | --- | --- |
 | `name` | UI 中该分组的显示名称 |
 | `location` | 本地文件路径或 classpath 路径 |
-| `swagger-version` | `"2.0"` 或 `"3.0"` |
+| `swagger-version` | `"2.0"` 或 `"3.0"`。OpenAPI 3.2 文档仍使用 `"3.0"`（相对 Swagger 2 的 OpenAPI 3 家族标签）；文档自身的 `openapi` 字段才是 `3.2.0`。见 [OpenAPI 3.2 支持矩阵](./openapi32)。 |
 | `debug-url` | 在 UI 发起调试时请求真实落到的地址 |
 | `service-path` | 有 Gateway 前置时追加的 basePath（避免 UI 展示路径与实际不一致） |
 | `order` | 排序，越小越靠前 |

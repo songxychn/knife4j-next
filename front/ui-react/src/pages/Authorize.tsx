@@ -1,11 +1,17 @@
 import { Alert, Button, Card, Collapse, Input, message, Space, Spin, Tag, Typography } from 'antd';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 import type { SecuritySchemeObject, OAuth2Flow } from '../types/swagger';
 import { dereferenceOasReferenceObject, isOpenApi31Version, type SchemeValue } from 'knife4j-core';
 import { KNIFE4J_STORAGE_PREFIXES, setKnife4jSessionStorageItem } from '../storage/knife4jStorage';
+import { OAuthDeviceFlowForm } from '../auth/OAuthDeviceFlowForm';
+import { authorizeSchemeCards, resolveOas32OauthEndpoint } from '../auth/oas32SecurityUi';
+import { projectOas32Security } from '../auth/oas32Security';
+import { isOas32ExampleDocument } from '../schema/operationExampleCatalog';
+import { oas32RequestBaseUrl, resolveOas32OperationServers } from '../schema/oas32OperationServers';
+import { useExternalResources } from '../context/SchemaEngineContext';
 
 const { Text } = Typography;
 
@@ -49,6 +55,8 @@ function getOauth2Flows(scheme: SecuritySchemeObject): Array<{ flowType: string;
   if (scheme.flows.authorizationCode)
     result.push({ flowType: 'authorizationCode', flow: scheme.flows.authorizationCode });
   if (scheme.flows.implicit) result.push({ flowType: 'implicit', flow: scheme.flows.implicit });
+  if (scheme.flows.deviceAuthorization)
+    result.push({ flowType: 'deviceAuthorization', flow: scheme.flows.deviceAuthorization });
   return result;
 }
 
@@ -490,12 +498,14 @@ function OAuth2SchemeForm({
   securityKey,
   scheme,
   existingValue,
+  apiBase,
   onSave,
   onRemove,
 }: {
   securityKey: string;
   scheme: SecuritySchemeObject;
   existingValue: SchemeValue | undefined;
+  apiBase?: string;
   onSave: (key: string, value: SchemeValue) => void;
   onRemove: (key: string) => void;
 }) {
@@ -508,17 +518,44 @@ function OAuth2SchemeForm({
 
   return (
     <div style={{ marginBottom: 12 }}>
-      {flows.map(({ flowType, flow }) => (
-        <OAuth2FlowForm
-          key={flowType}
-          securityKey={securityKey}
-          flowType={flowType}
-          flow={flow}
-          existingValue={existingValue}
-          onSave={onSave}
-          onRemove={onRemove}
+      {scheme.oauth2MetadataUrl && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 8 }}
+          message={t('auth.schemes.oauth2.metadataUrl')}
+          description={
+            <Space direction="vertical" size={0}>
+              <Text copyable={{ text: scheme.oauth2MetadataUrl }}>{scheme.oauth2MetadataUrl}</Text>
+              <Text type="secondary">{t('auth.schemes.oauth2.metadataUrl.hint')}</Text>
+            </Space>
+          }
         />
-      ))}
+      )}
+      {flows.map(({ flowType, flow }) =>
+        flowType === 'deviceAuthorization' ? (
+          <OAuthDeviceFlowForm
+            key={flowType}
+            securityKey={securityKey}
+            flow={flow}
+            existingValue={existingValue}
+            apiBase={apiBase}
+            onSave={onSave}
+            onRemove={onRemove}
+          />
+        ) : (
+          <OAuth2FlowForm
+            key={flowType}
+            securityKey={securityKey}
+            flowType={flowType}
+            flow={flow}
+            existingValue={existingValue}
+            apiBase={apiBase}
+            onSave={onSave}
+            onRemove={onRemove}
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -528,6 +565,7 @@ function OAuth2FlowForm({
   flowType,
   flow,
   existingValue,
+  apiBase,
   onSave,
   onRemove,
 }: {
@@ -535,6 +573,7 @@ function OAuth2FlowForm({
   flowType: string;
   flow: OAuth2Flow;
   existingValue: SchemeValue | undefined;
+  apiBase?: string;
   onSave: (key: string, value: SchemeValue) => void;
   onRemove: (key: string) => void;
 }) {
@@ -572,11 +611,16 @@ function OAuth2FlowForm({
       authorizationCode: t('auth.schemes.oauth2.authorizationCode'),
     }[flowType] ?? flowType;
 
+  const tokenTarget =
+    apiBase === undefined ? { href: tokenUrl } : resolveOas32OauthEndpoint(tokenUrl || flow.tokenUrl, apiBase);
+  const authTarget =
+    apiBase === undefined ? { href: flow.authorizationUrl } : resolveOas32OauthEndpoint(flow.authorizationUrl, apiBase);
+
   // ── Popup-based flow (implicit / authorizationCode) ──────────────────────
   const handleOpenPopup = async () => {
-    const authUrl = flow.authorizationUrl;
+    const authUrl = 'href' in authTarget ? authTarget.href : undefined;
     if (!authUrl) {
-      message.error('authorizationUrl is not configured');
+      message.error(t('auth.schemes.oauth2.endpoint.relative-without-base'));
       return;
     }
     if (!clientId) {
@@ -601,7 +645,7 @@ function OAuth2FlowForm({
       });
 
       const config: OAuth2PopupConfig = {
-        tokenUrl: flow.tokenUrl,
+        tokenUrl: 'href' in tokenTarget ? tokenTarget.href : flow.tokenUrl,
         clientId,
         clientSecret: clientSecret || undefined,
         redirectUri,
@@ -626,12 +670,12 @@ function OAuth2FlowForm({
 
   // ── Direct token fetch (password / clientCredentials) ────────────────────
   const handleObtainToken = async () => {
-    if (!tokenUrl) return;
+    if (!('href' in tokenTarget) || !tokenTarget.href) return;
     const commitToken = asyncCommitGuard.begin();
     setObtaining(true);
     try {
       const result = await fetchOAuth2Token({
-        tokenUrl,
+        tokenUrl: tokenTarget.href,
         grantType: isPassword ? 'password' : 'client_credentials',
         username: isPassword ? username : undefined,
         password: isPassword ? password : undefined,
@@ -753,10 +797,29 @@ function OAuth2FlowForm({
 function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const { schemes, ready, setScheme, removeScheme, clearGroup } = useAuth();
-  const { swaggerDoc, activeGroup, loading: groupLoading, routeGroupReady } = useGroup();
+  const { swaggerDoc, activeGroup, loading: groupLoading, routeGroupReady, operationRetrievalUri } = useGroup();
+  const resources = useExternalResources();
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const securityProjection = useMemo(
+    () => (isOas32 && resources.snapshot ? projectOas32Security(resources.snapshot) : null),
+    [isOas32, resources.snapshot],
+  );
+  const apiBase = useMemo(() => {
+    if (!isOas32 || !swaggerDoc) return undefined;
+    const selected = resolveOas32OperationServers(swaggerDoc, null, operationRetrievalUri);
+    const executable = selected.resolutions.find((item) => item.executable)?.requestUrl;
+    return oas32RequestBaseUrl(executable) || undefined;
+  }, [isOas32, swaggerDoc, operationRetrievalUri]);
 
-  const securitySchemes = extractSecuritySchemes(swaggerDoc as unknown as Record<string, unknown> | null);
-  const schemeEntries = Object.entries(securitySchemes);
+  const extractedSchemes = extractSecuritySchemes(swaggerDoc as unknown as Record<string, unknown> | null);
+  const schemeCards = securityProjection
+    ? authorizeSchemeCards(securityProjection)
+    : Object.entries(extractedSchemes).map(([name, scheme]) => ({
+        name,
+        credentialKey: name,
+        scheme,
+        unavailable: false as const,
+      }));
 
   const handleSave = useCallback(
     (securityKey: string, value: SchemeValue) => {
@@ -788,7 +851,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
     );
   }
 
-  if (schemeEntries.length === 0) {
+  if (schemeCards.length === 0) {
     if (embedded) return null;
     return (
       <div id="knife4j-authorize" style={{ maxWidth: 1180, padding: 20, margin: '0 auto' }}>
@@ -804,73 +867,81 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
     );
   }
 
-  const collapseItems = schemeEntries.map(([securityKey, scheme]) => {
+  const collapseItems = schemeCards.map((card) => {
+    const securityKey = card.credentialKey;
+    const scheme = card.scheme as SecuritySchemeObject | undefined;
     const isAuthorized = !!schemes[securityKey];
     let schemeForm: React.ReactNode;
-    const schemeKind = securitySchemeUiKind(scheme);
+    if (!scheme || card.unavailable) {
+      schemeForm = <Alert type="warning" showIcon message={t('auth.schemes.unavailable')} />;
+    } else {
+      const schemeKind = securitySchemeUiKind(scheme);
 
-    if (schemeKind === 'apiKey') {
-      schemeForm = (
-        <ApiKeySchemeForm
-          securityKey={securityKey}
-          scheme={scheme}
-          existingValue={schemes[securityKey]}
-          onSave={handleSave}
-          onRemove={handleRemove}
-        />
-      );
-    } else if (schemeKind === 'http') {
-      if (scheme.scheme === 'bearer') {
+      if (schemeKind === 'apiKey') {
         schemeForm = (
-          <HttpBearerSchemeForm
+          <ApiKeySchemeForm
             securityKey={securityKey}
+            scheme={scheme}
             existingValue={schemes[securityKey]}
             onSave={handleSave}
             onRemove={handleRemove}
           />
         );
-      } else if (scheme.scheme === 'basic') {
+      } else if (schemeKind === 'http') {
+        if (scheme.scheme === 'bearer') {
+          schemeForm = (
+            <HttpBearerSchemeForm
+              securityKey={securityKey}
+              existingValue={schemes[securityKey]}
+              onSave={handleSave}
+              onRemove={handleRemove}
+            />
+          );
+        } else if (scheme.scheme === 'basic') {
+          schemeForm = (
+            <HttpBasicSchemeForm
+              securityKey={securityKey}
+              existingValue={schemes[securityKey]}
+              onSave={handleSave}
+              onRemove={handleRemove}
+            />
+          );
+        } else {
+          schemeForm = <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
+        }
+      } else if (schemeKind === 'oauth2') {
         schemeForm = (
-          <HttpBasicSchemeForm
+          <OAuth2SchemeForm
             securityKey={securityKey}
+            scheme={scheme}
             existingValue={schemes[securityKey]}
+            apiBase={apiBase}
             onSave={handleSave}
             onRemove={handleRemove}
+          />
+        );
+      } else if (schemeKind === 'mutualTLS') {
+        schemeForm = (
+          <Alert
+            type="info"
+            showIcon
+            message={t('auth.schemes.mutualTLS.readOnly')}
+            description={t('auth.schemes.mutualTLS.description')}
           />
         );
       } else {
         schemeForm = <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
       }
-    } else if (schemeKind === 'oauth2') {
-      schemeForm = (
-        <OAuth2SchemeForm
-          securityKey={securityKey}
-          scheme={scheme}
-          existingValue={schemes[securityKey]}
-          onSave={handleSave}
-          onRemove={handleRemove}
-        />
-      );
-    } else if (schemeKind === 'mutualTLS') {
-      schemeForm = (
-        <Alert
-          type="info"
-          showIcon
-          message={t('auth.schemes.mutualTLS.readOnly')}
-          description={t('auth.schemes.mutualTLS.description')}
-        />
-      );
-    } else {
-      schemeForm = <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
     }
 
     const label = (
       <Space>
-        <Text strong>{securityKey}</Text>
-        <Tag>{scheme.type}</Tag>
-        {scheme.type === 'http' && <Tag>{scheme.scheme}</Tag>}
+        <Text strong>{card.name}</Text>
+        {scheme && <Tag>{scheme.type}</Tag>}
+        {scheme?.type === 'http' && <Tag>{scheme.scheme}</Tag>}
+        {scheme?.deprecated && <Tag color="orange">{t('auth.schemes.deprecated')}</Tag>}
         {isAuthorized && <Tag color="green">✓</Tag>}
-        {scheme.description && (
+        {scheme?.description && (
           <Text type="secondary" style={{ fontSize: 12 }}>
             {scheme.description}
           </Text>
@@ -905,7 +976,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
           />
         </>
       )}
-      <Collapse items={collapseItems} defaultActiveKey={schemeEntries.map(([key]) => key)} />
+      <Collapse items={collapseItems} defaultActiveKey={schemeCards.map((card) => card.credentialKey)} />
       {Object.keys(schemes).length > 0 && (
         <Button danger onClick={handleClearAll} style={{ marginTop: 16 }}>
           {t('auth.btn.clearAll')}

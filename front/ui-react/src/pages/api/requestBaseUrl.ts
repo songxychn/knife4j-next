@@ -1,4 +1,5 @@
-import { isOpenApi31Version, resolvePathItemObject } from 'knife4j-core';
+import { getOpenApiSpecificationFeatures, isOpenApi31Version, resolvePathItemObject } from 'knife4j-core';
+import { oas32RequestBaseUrl, resolveOas32OperationServers } from '../../schema/oas32OperationServers';
 import type { MenuOperation, SwaggerDoc, SwaggerServer } from '../../types/swagger';
 
 export interface ResolveRequestBaseUrlOptions {
@@ -8,6 +9,7 @@ export interface ResolveRequestBaseUrlOptions {
   enableHostText: string;
   groupContextPath?: string;
   origin: string;
+  retrievalUri?: string;
 }
 
 export type RequestServerSource = 'gateway' | 'operation' | 'path' | 'document';
@@ -150,11 +152,27 @@ export function resolveRequestServerOptions({
   operation,
   groupContextPath,
   origin,
+  retrievalUri,
 }: Pick<
   ResolveRequestBaseUrlOptions,
-  'swaggerDoc' | 'operation' | 'groupContextPath' | 'origin'
+  'swaggerDoc' | 'operation' | 'groupContextPath' | 'origin' | 'retrievalUri'
 >): RequestServerOption[] {
-  const rawPathItem = operation ? swaggerDoc?.paths?.[operation.path] : undefined;
+  if (swaggerDoc && getOpenApiSpecificationFeatures(swaggerDoc.openapi)?.family === '3.2') {
+    const result: RequestServerOption[] = [];
+    const gateway = resolveGatewayContextBaseUrl(origin, groupContextPath);
+    if (gateway) result.push({ source: 'gateway', url: gateway, rawUrl: groupContextPath! });
+    const selected = resolveOas32OperationServers(swaggerDoc, operation, retrievalUri);
+    for (const server of selected.resolutions)
+      result.push({
+        source:
+          server.source.level === 'operation' ? 'operation' : server.source.level === 'path-item' ? 'path' : 'document',
+        url: oas32RequestBaseUrl(server.requestUrl),
+        rawUrl: server.rawUrl ?? '',
+        description: server.description,
+      });
+    return result;
+  }
+  const rawPathItem = operation?.identity?.pathItem ?? (operation ? swaggerDoc?.paths?.[operation.path] : undefined);
   const resolvedPathItem =
     swaggerDoc && rawPathItem && isOpenApi31Version(swaggerDoc.openapi)
       ? resolvePathItemObject(rawPathItem, swaggerDoc as unknown as Record<string, unknown>)
@@ -192,16 +210,19 @@ export function resolveRequestBaseUrl({
   enableHostText,
   groupContextPath,
   origin,
+  retrievalUri,
 }: ResolveRequestBaseUrlOptions): string {
   const hostOverride = enableHost ? enableHostText.trim() : '';
   if (hostOverride) {
     return normalizeRequestBaseUrl(hostOverride, origin);
   }
 
-  const serverUrl = resolveRequestServerOptions({ swaggerDoc, operation, groupContextPath, origin })[0]?.url;
+  const serverUrl = resolveRequestServerOptions({ swaggerDoc, operation, groupContextPath, origin, retrievalUri })[0]
+    ?.url;
   if (serverUrl) {
     return serverUrl;
   }
 
+  if (getOpenApiSpecificationFeatures(swaggerDoc?.openapi)?.family === '3.2') return '';
   return normalizeRequestBaseUrl(origin, origin);
 }

@@ -6,6 +6,7 @@ import {
   buildOperationOpenApiPreviewDocument,
   downloadOperationOpenApiJson,
   serializeOperationOpenApiDocument,
+  serializeOperationOpenApiYaml,
   supportsOperationOpenApiDownload,
 } from './operationOpenApiDocument';
 
@@ -641,6 +642,16 @@ describe('buildOperationOpenApiDocument', () => {
     expect(serializeOperationOpenApiDocument(result!)).toBe(JSON.stringify(result, null, 2));
   });
 
+  it('serializes the same closed 3.0 snapshot as YAML without aliases', () => {
+    const result = buildOperationOpenApiDocument(makeDocument(), '/pets/{petId}', 'get');
+    const yaml = serializeOperationOpenApiYaml(result);
+
+    expect(yaml).toContain('openapi: 3.0.3');
+    expect(yaml).not.toContain('&');
+    expect(yaml).toContain('/pets/{petId}');
+    expect(yaml).not.toContain('replacePet');
+  });
+
   it('surfaces JSON serialization failures', () => {
     expect(() => serializeOperationOpenApiDocument({ invalid: BigInt(1) })).toThrow(TypeError);
   });
@@ -752,6 +763,11 @@ describe('buildOperationOpenApiFilename', () => {
 
   it('preserves legal underscores from the operationId', () => {
     expect(buildOperationOpenApiFilename('get', '/pets', 'get__pet')).toBe('GET-get__pet.openapi.json');
+  });
+
+  it('can name a YAML download without changing the JSON default', () => {
+    expect(buildOperationOpenApiFilename('query', '/pets', 'queryPets', 'yaml')).toBe('QUERY-queryPets.openapi.yaml');
+    expect(buildOperationOpenApiFilename('query', '/pets', 'queryPets')).toBe('QUERY-queryPets.openapi.json');
   });
 });
 

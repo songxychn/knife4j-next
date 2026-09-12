@@ -10,6 +10,8 @@ export interface DirectionalSchemaProjection {
 }
 
 export interface DirectionalSchemaProjectionOptions {
+  /** Typed 3.2 analysis sources count references only in real Schema positions. */
+  readonly strictSchemaPositions?: boolean;
   /**
    * Properties that are intentionally outside JSON evaluation (for example
    * multipart files). They are removed from required/dependentRequired while
@@ -229,7 +231,7 @@ function collectOpenApiSchemaRoots(document: SwaggerDoc): SchemaRoot[] {
   return roots;
 }
 
-function schemaChildren(schema: JsonValue): Array<{ path: readonly string[]; schema: JsonSchema }> {
+function schemaChildren(schema: JsonValue, strict = false): Array<{ path: readonly string[]; schema: JsonSchema }> {
   if (!isRecord(schema)) return [];
   const children: Array<{ path: readonly string[]; schema: JsonSchema }> = [];
 
@@ -248,9 +250,10 @@ function schemaChildren(schema: JsonValue): Array<{ path: readonly string[]; sch
     });
   }
   for (const keyword of SCHEMA_VALUE_KEYS) {
+    if (strict && keyword === 'additionalItems') continue;
     const child = schema[keyword];
     if (isSchemaValue(child)) children.push({ path: [keyword], schema: child });
-    else if (keyword === 'items' && Array.isArray(child)) {
+    else if (!strict && keyword === 'items' && Array.isArray(child)) {
       child.forEach((item, index) => {
         if (isSchemaValue(item)) children.push({ path: [keyword, String(index)], schema: item });
       });
@@ -275,6 +278,10 @@ export function createDirectionalSchemaProjection(
   namespaceUri: string,
   options: DirectionalSchemaProjectionOptions = {},
 ): DirectionalSchemaProjection {
+  const referenceKeys = options.strictSchemaPositions ? new Set(['$ref', '$dynamicRef']) : REFERENCE_KEYS;
+  const schemaValueKeys = options.strictSchemaPositions
+    ? new Set([...SCHEMA_VALUE_KEYS].filter((key) => key !== 'additionalItems'))
+    : SCHEMA_VALUE_KEYS;
   const originalRetrieval = resourcePart(retrievalUri);
   const documentRecord = document as SwaggerDoc & { $id?: unknown };
   const originalDocumentResource =
@@ -335,6 +342,21 @@ export function createDirectionalSchemaProjection(
     sourceCosts.set(value, cost);
     return cost;
   };
+  const schemaReferenceCosts = new WeakMap<object, number>();
+  const schemaReferenceCost = (value: JsonValue): number => {
+    if (!isRecord(value)) return 0;
+    const cached = schemaReferenceCosts.get(value);
+    if (cached !== undefined) return cached;
+    const count =
+      Number(typeof value.$ref === 'string') +
+      Number(typeof value.$dynamicRef === 'string') +
+      schemaChildren(value, options.strictSchemaPositions).reduce(
+        (total, child) => total + schemaReferenceCost(child.schema),
+        0,
+      );
+    schemaReferenceCosts.set(value, count);
+    return count;
+  };
   let projectedNodes = 4;
   let projectedReferences = 0;
   const reserveProjectedClone = (schema: JsonValue, additionalNodes = 0): void => {
@@ -343,7 +365,8 @@ export function createDirectionalSchemaProjection(
     if (nextNodes > DIRECTIONAL_PROJECTION_LIMITS.maxNodes) {
       throw new DirectionalProjectionBudgetError('node', DIRECTIONAL_PROJECTION_LIMITS.maxNodes, nextNodes);
     }
-    const nextReferences = projectedReferences + cost.references;
+    const nextReferences =
+      projectedReferences + (options.strictSchemaPositions ? schemaReferenceCost(schema) : cost.references);
     if (nextReferences > DIRECTIONAL_PROJECTION_LIMITS.maxReferences) {
       throw new DirectionalProjectionBudgetError(
         'reference',
@@ -388,7 +411,9 @@ export function createDirectionalSchemaProjection(
     if (!isRecord(schema)) return;
     const localBase = typeof schema.$id === 'string' ? resolveResource(schema.$id, baseUri) : baseUri;
     if (typeof schema.$id === 'string') mappedResource(localBase);
-    schemaChildren(schema).forEach((child) => collectResources(child.schema, localBase, depth + 1));
+    schemaChildren(schema, options.strictSchemaPositions).forEach((child) =>
+      collectResources(child.schema, localBase, depth + 1),
+    );
   };
   roots.forEach((root) => collectResources(root.schema, originalDocumentResource));
 
@@ -466,7 +491,7 @@ export function createDirectionalSchemaProjection(
       }
     }
 
-    for (const child of schemaChildren(schema)) {
+    for (const child of schemaChildren(schema, options.strictSchemaPositions)) {
       collectLocations(
         child.schema,
         {
@@ -687,7 +712,7 @@ export function createDirectionalSchemaProjection(
         return { value: true, complete: true };
       }
       let complete = true;
-      for (const keyword of REFERENCE_KEYS) {
+      for (const keyword of referenceKeys) {
         if (typeof schema[keyword] !== 'string') continue;
         const target = resolveIndexedReference(keyword, schema[keyword] as string, localBase, localDynamicScope);
         if (target) {
@@ -763,7 +788,7 @@ export function createDirectionalSchemaProjection(
           }
         }
       }
-      for (const keyword of REFERENCE_KEYS) {
+      for (const keyword of referenceKeys) {
         if (typeof schema[keyword] !== 'string') continue;
         const target = resolveIndexedReference(keyword, schema[keyword] as string, localBase, localDynamicScope);
         if (target) {
@@ -958,7 +983,7 @@ export function createDirectionalSchemaProjection(
         result[key] = scopedLocation.projectedResource;
         continue;
       }
-      if (REFERENCE_KEYS.has(key) && typeof child === 'string') {
+      if (referenceKeys.has(key) && typeof child === 'string') {
         result[key] =
           (ignored.names.size > 0
             ? specializedReference(key, child, scopedLocation.originalResource, ignored, localDynamicScope)
@@ -1019,7 +1044,7 @@ export function createDirectionalSchemaProjection(
         });
         continue;
       }
-      if (SCHEMA_VALUE_KEYS.has(key)) {
+      if (schemaValueKeys.has(key)) {
         const cloneNested = (nested: unknown, suffix: readonly string[]): JsonValue =>
           isSchemaValue(nested)
             ? cloneSchema(

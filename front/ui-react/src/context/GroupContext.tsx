@@ -1,5 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { Oas31DocumentDiagnostic } from 'knife4j-core';
+import {
+  operationHttpMethod,
+  type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
+  type OperationEnumerationDiagnostic,
+} from 'knife4j-core';
 import { useLocation } from 'react-router-dom';
 import {
   getSchemas,
@@ -21,6 +25,9 @@ import {
   selectInitialGroupName,
 } from '../utils/groupRoute';
 import { useSettings } from './SettingsContext';
+import type { ResourceGraphSnapshot } from '../schema/externalResourceGraph';
+import { oas32MetadataDiagnostics } from '../schema/oas32MetadataDiagnostics';
+import { schemaDocumentRetrievalUri } from '../schema/schemaDocumentSession';
 
 // ---- 兼容旧接口的 ApiItem / ApiGroup 类型 ----
 
@@ -63,6 +70,8 @@ interface GroupContextValue {
   swaggerDoc: SwaggerDoc | null;
   swaggerUiConfig: SwaggerUiConfig | null;
   menuTags: MenuTag[];
+  operationRetrievalUri?: string;
+  operationEnumerationLimit?: OperationEnumerationDiagnostic;
   markdownDocs: MarkdownDocItem[];
   schemas: Record<string, SchemaObject>;
   loading: boolean;
@@ -73,6 +82,7 @@ interface GroupContextValue {
   groupError: LocalizedMessage | null;
   /** 对原始 OAS 3.1 文档执行的结构与兼容性诊断。 */
   documentDiagnostics: Oas31DocumentDiagnostic[];
+  setOperationResourceSnapshot?: (document: SwaggerDoc, snapshot: ResourceGraphSnapshot) => void;
 }
 
 const GroupContext = createContext<GroupContextValue | null>(null);
@@ -90,6 +100,16 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [usingMock, setUsingMock] = useState(false);
   const [groupError, setGroupError] = useState<LocalizedMessage | null>(null);
   const [documentDiagnostics, setDocumentDiagnostics] = useState<Oas31DocumentDiagnostic[]>([]);
+  const [operationResources, setOperationResources] = useState<{
+    document: SwaggerDoc;
+    snapshot: ResourceGraphSnapshot;
+  } | null>(null);
+  const setOperationResourceSnapshot = useCallback((document: SwaggerDoc, snapshot: ResourceGraphSnapshot) => {
+    setOperationResources({ document, snapshot });
+  }, []);
+  const activeSwaggerGroup = rawGroups.find((g) => g.name === activeGroupValue) ?? null;
+  const operationRetrievalUri = schemaDocumentRetrievalUri(activeSwaggerGroup?.url ?? '', activeGroupValue);
+  const operationSnapshot = operationResources?.document === swaggerDoc ? operationResources.snapshot : undefined;
   const knife4xBootstrap = useMemo(() => readKnife4xBootstrap(), []);
 
   // Knife4x 直接加载宿主注入的 spec；Java 模式保留现有 discovery 顺序。
@@ -186,24 +206,31 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [settings.operationsSorter, swaggerUiConfig]);
 
   // 派生数据
-  const menuTags: MenuTag[] = useMemo(
-    () =>
-      swaggerDoc
-        ? parseMenuTags(swaggerDoc, {
-            tagsSorter: effectiveTagsSorter,
-            operationsSorter: effectiveOperationsSorter,
-            filterMultipartApis: settings.enableFilterMultipartApis,
-            filterMultipartApiMethodType: settings.enableFilterMultipartApiMethodType,
-          })
-        : [],
-    [
-      swaggerDoc,
-      effectiveTagsSorter,
-      effectiveOperationsSorter,
-      settings.enableFilterMultipartApis,
-      settings.enableFilterMultipartApiMethodType,
-    ],
-  );
+  const { menuTags, operationEnumerationLimit } = useMemo(() => {
+    let operationEnumerationLimit: OperationEnumerationDiagnostic | undefined;
+    const menuTags = swaggerDoc
+      ? parseMenuTags(swaggerDoc, {
+          onOperationLimit: (diagnostic) => {
+            operationEnumerationLimit = diagnostic;
+          },
+          retrievalUri: operationRetrievalUri,
+          resourceSnapshot: operationSnapshot,
+          tagsSorter: effectiveTagsSorter,
+          operationsSorter: effectiveOperationsSorter,
+          filterMultipartApis: settings.enableFilterMultipartApis,
+          filterMultipartApiMethodType: settings.enableFilterMultipartApiMethodType,
+        })
+      : [];
+    return { menuTags, operationEnumerationLimit };
+  }, [
+    swaggerDoc,
+    operationRetrievalUri,
+    operationSnapshot,
+    effectiveTagsSorter,
+    effectiveOperationsSorter,
+    settings.enableFilterMultipartApis,
+    settings.enableFilterMultipartApiMethodType,
+  ]);
   const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
 
   const markdownDocs: MarkdownDocItem[] = useMemo(() => {
@@ -228,7 +255,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ? menuTags.flatMap((t) =>
               t.operations.map((op) => ({
                 key: `/${activeGroupValue}/${op.key}`,
-                method: op.method.toUpperCase(),
+                method: operationHttpMethod(op),
                 path: op.path,
                 summary: op.summary,
                 tag: t.tag,
@@ -247,8 +274,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     rawGroups.map((group) => group.name),
     activeGroupValue,
   );
-  const activeSwaggerGroup = rawGroups.find((g) => g.name === activeGroupValue) ?? null;
-
   const handleSetActiveGroup = useCallback(
     (value: string) => {
       setGroupError(null);
@@ -259,6 +284,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     },
     [activeGroupValue],
   );
+  const metadataDiagnostics = useMemo(() => oas32MetadataDiagnostics(swaggerDoc, menuTags), [swaggerDoc, menuTags]);
   const routeGroupReady = isRouteGroupReady(routeGroupName, activeGroupValue);
 
   return (
@@ -271,13 +297,16 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         swaggerDoc,
         swaggerUiConfig,
         menuTags,
+        operationRetrievalUri,
+        operationEnumerationLimit,
         markdownDocs,
         schemas,
         loading,
         routeGroupReady,
         usingMock,
         groupError,
-        documentDiagnostics,
+        documentDiagnostics: [...documentDiagnostics, ...metadataDiagnostics],
+        setOperationResourceSnapshot,
       }}
     >
       {children}

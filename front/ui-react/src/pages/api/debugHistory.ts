@@ -1,5 +1,7 @@
-import type { FormBodyEncodingPlan } from 'knife4j-core';
+import type { FormBodyEncodingPlan, SerializedExampleParameter } from 'knife4j-core';
+import { readExampleParameterInputs } from './debugCache';
 import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
+import { readOas32ParameterEntries, type Oas32ParameterEntries } from '../../schema/oas32ParameterAdapter';
 import {
   KNIFE4J_STORAGE_PREFIXES,
   getKnife4jStorageItemSnapshot,
@@ -26,6 +28,9 @@ export interface DebugHistoryCustomParamRow {
 
 /** Snapshot of form state sufficient to re-apply into the debug panel. */
 export interface DebugHistoryFormSnapshot {
+  serializedExampleParameters?: Record<string, SerializedExampleParameter>;
+  oas32ParameterEntries?: Oas32ParameterEntries;
+  serializedExampleBodyMediaType?: string;
   baseUrl: string;
   method: string;
   path: string;
@@ -36,6 +41,8 @@ export interface DebugHistoryFormSnapshot {
   formFields: Record<string, string>;
   /** Multipart Encoding Object Header Object editor values. */
   formPartHeaders?: Record<string, Record<string, string>>;
+  /** Explicit per-part Content-Type choices; never inferred from filename. */
+  formPartContentTypes?: Record<string, string>;
   rawMode: DebugHistoryRawMode;
   customQueryParams: DebugHistoryCustomParamRow[];
   customBodyParams: DebugHistoryCustomParamRow[];
@@ -354,8 +361,21 @@ export function buildMultipartHistoryBody(
 
 /** Persist only multipart plan metadata and redact sensitive per-part headers. */
 export function buildOas31MultipartHistoryBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
-  return JSON.stringify(
-    plan.parts.map((part) => ({
+  const formatPart = (part: (typeof plan.parts)[number]): Record<string, unknown> => {
+    if (part.kind === 'nested') {
+      return {
+        name: part.name,
+        contentType: part.contentType,
+        headers: Object.fromEntries(
+          Object.entries(part.headers).map(([name, value]) => [
+            name,
+            isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : value,
+          ]),
+        ),
+        parts: part.parts.map(formatPart),
+      };
+    }
+    return {
       name: part.name,
       ...(part.kind === 'file'
         ? {
@@ -370,10 +390,9 @@ export function buildOas31MultipartHistoryBody(plan: Extract<FormBodyEncodingPla
           isSensitiveHeaderName(name) ? DEBUG_HISTORY_MASK : value,
         ]),
       ),
-    })),
-    null,
-    2,
-  );
+    };
+  };
+  return JSON.stringify(plan.parts.map(formatPart), null, 2);
 }
 
 function truncateStringRecord(fields: Record<string, string>): Record<string, string> {
@@ -412,7 +431,34 @@ export function prepareFormSnapshot(snapshot: DebugHistoryFormSnapshot): DebugHi
     body: truncateBody(snapshot.body).text,
     formFields: truncateStringRecord(snapshot.formFields),
     formPartHeaders: prepareFormPartHeaders(snapshot.formPartHeaders),
+    formPartContentTypes: snapshot.formPartContentTypes
+      ? truncateStringRecord(snapshot.formPartContentTypes)
+      : undefined,
     paramValues: truncateStringRecord(snapshot.paramValues),
+    ...(snapshot.serializedExampleParameters
+      ? {
+          serializedExampleParameters: Object.fromEntries(
+            Object.entries(readExampleParameterInputs(snapshot.serializedExampleParameters))
+              .filter(
+                ([key]) =>
+                  !key.startsWith('cookie:') && !(key.startsWith('header:') && isSensitiveHeaderName(key.slice(7))),
+              )
+              .map(([key, input]) => [key, { ...input, text: truncateBody(input.text).text }]),
+          ),
+        }
+      : {}),
+    ...(snapshot.oas32ParameterEntries
+      ? {
+          oas32ParameterEntries: Object.fromEntries(
+            Object.entries(readOas32ParameterEntries(snapshot.oas32ParameterEntries))
+              .filter(
+                ([key]) =>
+                  !key.startsWith('cookie:') && !(key.startsWith('header:') && isSensitiveHeaderName(key.slice(7))),
+              )
+              .map(([key, entry]) => [key, { ...entry, text: truncateBody(entry.text).text }]),
+          ),
+        }
+      : {}),
     customBodyParams: truncateCustomRows(snapshot.customBodyParams),
     customHeaders: sanitizeCustomRows(snapshot.customHeaders),
     customCookies: sanitizeCustomCookieRows(snapshot.customCookies),
@@ -442,6 +488,15 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
   const fileFieldNames = readStringArrayRecord(value.fileFieldNames);
   return prepareFormSnapshot({
     baseUrl: readString(value.baseUrl),
+    ...(isRecord(value.serializedExampleParameters)
+      ? { serializedExampleParameters: readExampleParameterInputs(value.serializedExampleParameters) }
+      : {}),
+    ...(isRecord(value.oas32ParameterEntries)
+      ? { oas32ParameterEntries: readOas32ParameterEntries(value.oas32ParameterEntries) }
+      : {}),
+    ...(typeof value.serializedExampleBodyMediaType === 'string'
+      ? { serializedExampleBodyMediaType: value.serializedExampleBodyMediaType }
+      : {}),
     method: readString(value.method),
     path: readString(value.path),
     paramValues: readStringRecord(value.paramValues),
@@ -450,6 +505,9 @@ function normalizeFormSnapshot(value: unknown): DebugHistoryFormSnapshot | undef
     body: readString(value.body),
     formFields: readStringRecord(value.formFields),
     formPartHeaders: readNestedStringRecord(value.formPartHeaders),
+    formPartContentTypes: isRecord(value.formPartContentTypes)
+      ? readStringRecord(value.formPartContentTypes)
+      : undefined,
     rawMode: readRawMode(value.rawMode),
     customQueryParams: readCustomRows(value.customQueryParams),
     customBodyParams: readCustomRows(value.customBodyParams),

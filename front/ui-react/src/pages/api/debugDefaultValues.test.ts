@@ -505,4 +505,48 @@ describe('debugDefaultValues', () => {
       metadata: { 'X-Part-Trace': 'manual' },
     });
   });
+
+  it('fills OAS 3.2 nested positional fields from dataValue without a second encoder', () => {
+    const doc: SwaggerDoc = {
+      openapi: '3.2.0',
+      info: { title: 'T', version: '1' },
+      paths: {
+        '/submit': {
+          post: {
+            requestBody: {
+              content: {
+                'multipart/mixed': {
+                  schema: {
+                    type: 'array',
+                    prefixItems: [{ type: 'array', prefixItems: [{ type: 'string' }, { type: 'integer' }] }],
+                  },
+                  prefixEncoding: [
+                    {
+                      contentType: 'multipart/mixed',
+                      prefixEncoding: [{ contentType: 'text/plain' }, { contentType: 'text/plain' }],
+                    },
+                  ],
+                  examples: {
+                    nested: {
+                      dataValue: [['alpha', 7]],
+                      serializedValue: '--keep-me\r\nContent-Type: multipart/mixed\r\n\r\ninner\r\n--keep-me--\r\n',
+                    },
+                  },
+                },
+              },
+            },
+            responses: { '204': { description: 'accepted' } },
+          },
+        },
+      },
+    };
+    const debugModel = buildOperationDebugModel({ doc, path: '/submit', method: 'post' });
+    const bodyContent = debugModel.bodyContents[0];
+    const defaults = buildBodyContentDefaults(doc, operationFrom(doc, '/submit', 'post'), debugModel);
+    expect(extractSchemaFields(bodyContent).map((field) => field.name)).toEqual(['0.0', '0.1']);
+    expect(initialFormFieldsForContent(bodyContent, defaults)).toEqual({
+      '0.0': 'alpha',
+      '0.1': '7',
+    });
+  });
 });

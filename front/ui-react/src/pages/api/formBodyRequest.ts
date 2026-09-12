@@ -1,4 +1,4 @@
-import type { FormBodyEncodingPlan, MultipartFilePart, MultipartPart } from 'knife4j-core';
+import type { FormBodyEncodingPlan, MultipartFilePart, MultipartNestedPart, MultipartPart } from 'knife4j-core';
 
 export interface MaterializedMultipartBody {
   readonly body: FormData | Blob;
@@ -9,6 +9,7 @@ export interface MaterializedMultipartBody {
 
 export interface MaterializeMultipartBodyOptions {
   readonly boundaryFactory?: () => string;
+  readonly signal?: AbortSignal;
 }
 
 type FileMap = Readonly<Record<string, readonly File[]>>;
@@ -28,8 +29,10 @@ function fileForPart(part: MultipartFilePart, files: FileMap): File {
 }
 
 function canUseNativeFormData(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>, files: FileMap): boolean {
+  if (plan.specFamily === '3.2' || plan.wire === 'authored') return false;
   if (normalizedMediaType(plan.mediaType) !== 'multipart/form-data') return false;
   for (const part of plan.parts) {
+    if (part.kind === 'nested' || !part.name) return false;
     if (hasHeaders(part)) return false;
     if (part.kind === 'text') {
       if (normalizedMediaType(part.contentType) !== 'text/plain') return false;
@@ -90,45 +93,158 @@ function topLevelContentType(mediaType: string, boundary: string): string {
   return `${withoutBoundary}; boundary=${boundary}`;
 }
 
+function partContainsBoundary(part: MultipartPart, boundary: string): boolean {
+  if (part.kind === 'text') return part.value.includes(`--${boundary}`);
+  if (part.kind === 'nested') return part.parts.some((child) => partContainsBoundary(child, boundary));
+  return part.fileName.includes(`--${boundary}`);
+}
+
+function pickBoundary(
+  parts: readonly MultipartPart[],
+  factory: () => string,
+  signal: AbortSignal | undefined,
+  reserved: ReadonlySet<string> = new Set(),
+): string {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (signal?.aborted) throw new Error('Multipart materialization was cancelled.');
+    const generated = factory();
+    if (!generated || /[\r\n"]/u.test(generated)) throw new Error('Multipart boundary is invalid.');
+    const boundary = reserved.has(generated) ? `${generated}-${attempt + 1}` : generated;
+    if (reserved.has(boundary) || /[\r\n"]/u.test(boundary)) continue;
+    if (parts.some((part) => partContainsBoundary(part, boundary))) {
+      if (!reserved.has(generated)) throw new Error('Multipart boundary collides with part contents.');
+      continue;
+    }
+    return boundary;
+  }
+  throw new Error('Multipart boundary collides with part contents.');
+}
+
+function dispositionHeader(part: MultipartPart): string | undefined {
+  const declared = Object.entries(part.headers).find(([name]) => name.toLowerCase() === 'content-disposition');
+  if (declared) return declared[1];
+  if (part.kind === 'file' && !part.name) {
+    return `attachment; filename="${safeQuotedHeaderParameter(part.fileName)}"`;
+  }
+  if (!part.name) return undefined;
+  let value = `form-data; name="${safeQuotedHeaderParameter(part.name)}"`;
+  if (part.kind === 'file') value += `; filename="${safeQuotedHeaderParameter(part.fileName)}"`;
+  return value;
+}
+
+function encodeParts(
+  parts: readonly MultipartPart[],
+  files: FileMap,
+  boundary: string,
+  boundaryFactory: () => string,
+  signal: AbortSignal | undefined,
+  reserved: ReadonlySet<string>,
+): BlobPart[] {
+  const chunks: BlobPart[] = [];
+  for (const part of parts) {
+    if (signal?.aborted) throw new Error('Multipart materialization was cancelled.');
+    let header = `--${boundary}\r\n`;
+    const disposition = dispositionHeader(part);
+    if (disposition) header += safeHeaderLine('Content-Disposition', disposition);
+    let contentType = part.contentType;
+    let nestedChunks: BlobPart[] | undefined;
+    if (part.kind === 'nested') {
+      const innerReserved = new Set(reserved);
+      innerReserved.add(boundary);
+      const innerBoundary = pickBoundary(part.parts, boundaryFactory, signal, innerReserved);
+      contentType = topLevelContentType(part.contentType || 'multipart/mixed', innerBoundary);
+      nestedChunks = encodeParts(part.parts, files, innerBoundary, boundaryFactory, signal, innerReserved);
+    }
+    if (contentType) header += safeHeaderLine('Content-Type', contentType);
+    for (const [name, value] of Object.entries(part.headers)) {
+      if (name.toLowerCase() === 'content-disposition' || name.toLowerCase() === 'content-type') continue;
+      header += safeHeaderLine(name, value);
+    }
+    header += '\r\n';
+    chunks.push(header);
+    if (part.kind === 'nested' && nestedChunks) chunks.push(...nestedChunks);
+    else if (part.kind === 'file') chunks.push(fileForPart(part, files));
+    else if (part.kind === 'text') chunks.push(part.value);
+    chunks.push('\r\n');
+  }
+  chunks.push(`--${boundary}--\r\n`);
+  return chunks;
+}
+
 /**
  * Materialize the immutable core plan without inspecting file bytes.
  * Native FormData is used when it can express the plan exactly; typed/custom
  * parts use a Blob MIME envelope so per-part headers remain truthful.
+ * OAS 3.2 never silently downgrades to a flat FormData envelope.
  */
 export function materializeMultipartBody(
   plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>,
   files: FileMap,
   options: MaterializeMultipartBodyOptions = {},
 ): MaterializedMultipartBody {
+  if (options.signal?.aborted) throw new Error('Multipart materialization was cancelled.');
+  if (plan.wire === 'authored') {
+    if (plan.authoredBody === undefined) throw new Error('Authored multipart body is missing.');
+    return {
+      body: new Blob([plan.authoredBody]),
+      contentType: plan.authoredContentType ?? plan.mediaType,
+      mode: 'encoded',
+    };
+  }
   if (canUseNativeFormData(plan, files)) {
     const formData = new FormData();
     for (const part of plan.parts) {
       if (part.kind === 'text') formData.append(part.name, part.value);
-      else formData.append(part.name, fileForPart(part, files));
+      else if (part.kind === 'file') formData.append(part.name, fileForPart(part, files));
     }
     return { body: formData, mode: 'form-data' };
   }
 
-  const boundary = (options.boundaryFactory ?? defaultBoundary)();
-  if (!boundary || /[\r\n"]/u.test(boundary)) throw new Error('Multipart boundary is invalid.');
-  const chunks: BlobPart[] = [];
-  for (const part of plan.parts) {
-    let header = `--${boundary}\r\nContent-Disposition: form-data; name="${safeQuotedHeaderParameter(part.name)}"`;
-    if (part.kind === 'file') {
-      header += `; filename="${safeQuotedHeaderParameter(part.fileName)}"`;
-    }
-    header += '\r\n';
-    if (part.contentType) header += safeHeaderLine('Content-Type', part.contentType);
-    for (const [name, value] of Object.entries(part.headers)) header += safeHeaderLine(name, value);
-    header += '\r\n';
-    chunks.push(header);
-    chunks.push(part.kind === 'file' ? fileForPart(part, files) : part.value);
-    chunks.push('\r\n');
-  }
-  chunks.push(`--${boundary}--\r\n`);
+  const factory = options.boundaryFactory ?? defaultBoundary;
+  const reserved = new Set<string>();
+  const boundary = pickBoundary(plan.parts, factory, options.signal, reserved);
+  reserved.add(boundary);
   return {
-    body: new Blob(chunks),
+    body: new Blob(encodeParts(plan.parts, files, boundary, factory, options.signal, reserved)),
     contentType: topLevelContentType(plan.mediaType, boundary),
     mode: 'encoded',
   };
+}
+
+export function multipartPlanNeedsEncodedEnvelope(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): boolean {
+  return (
+    plan.specFamily === '3.2' ||
+    plan.wire === 'authored' ||
+    plan.parts.some((part) => part.kind === 'nested' || !part.name)
+  );
+}
+
+export function nestedPart(part: MultipartPart): part is MultipartNestedPart {
+  return part.kind === 'nested';
+}
+
+function fileSnapshotKey(files: FileMap): unknown {
+  return Object.entries(files).map(([name, list]) => [
+    name,
+    list.map((file) => [file.name, file.size, file.type, file.lastModified]),
+  ]);
+}
+
+/** Stable identity for reusing one MIME envelope across preview renders and send. */
+export function multipartMaterializationKey(
+  plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>,
+  files: FileMap,
+): string {
+  return JSON.stringify({ plan, files: fileSnapshotKey(files) });
+}
+
+export function reuseMaterializedMultipartBody(
+  cache: { key: string; value: MaterializedMultipartBody } | null,
+  plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>,
+  files: FileMap,
+  options?: MaterializeMultipartBodyOptions,
+): { key: string; value: MaterializedMultipartBody } {
+  const key = multipartMaterializationKey(plan, files);
+  if (cache?.key === key) return cache;
+  return { key, value: materializeMultipartBody(plan, files, options) };
 }

@@ -79,4 +79,26 @@ describe('buildSchemaFieldTree — constraint field pass-through', () => {
     expect(node.minimum).toBeUndefined();
     expect(node.maximum).toBeUndefined();
   });
+
+  test('projects Schema XML Object metadata and keeps a payload xml property as data', () => {
+    const nodes = buildSchemaFieldTree(
+      {
+        type: 'object',
+        xml: { name: 'Pet', namespace: 'urn:pets' },
+        properties: {
+          id: { type: 'integer', xml: { attribute: true } },
+          xml: { type: 'string' },
+        },
+        examples: [{ xml: { nodeType: 'cdata' } }],
+      },
+      ctx(),
+    );
+    expect(nodes[0]).toMatchObject({
+      isRoot: true,
+      xml: { name: 'Pet', namespace: 'urn:pets' },
+    });
+    expect(nodes.find((node) => node.name === 'id')?.xml).toEqual({ attribute: true });
+    expect(nodes.find((node) => node.name === 'xml')).toMatchObject({ type: 'string' });
+    expect(nodes.find((node) => node.name === 'xml')?.xml).toBeUndefined();
+  });
 });

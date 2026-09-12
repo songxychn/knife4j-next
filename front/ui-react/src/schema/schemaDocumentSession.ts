@@ -4,8 +4,10 @@ import type {
   SchemaEngineErrorCode,
   SchemaEngineErrorDetails,
   SchemaNode,
+  SchemaDocumentRegistrationContext,
 } from 'knife4j-schema-engine';
-import { isOpenApi31Version } from 'knife4j-core';
+import { getOpenApiSpecificationFeatures, isOpenApi31Version } from 'knife4j-core';
+import { resolveUri } from 'knife4j-schema-engine/uri';
 import type { SwaggerDoc } from '../types/swagger';
 import {
   createDirectionalSchemaProjection,
@@ -52,11 +54,13 @@ export interface CreateSchemaDocumentSessionOptions {
   loadEngine?: () => Promise<SchemaEngineModule>;
   /** Complete, policy-validated graph documents; this option never carries a loader or fetch capability. */
   resourceDocuments?: readonly SchemaDocumentResource[];
+  registrationContext?: SchemaDocumentRegistrationContext;
 }
 
 export interface SchemaDocumentResource {
   readonly document: unknown;
   readonly retrievalUri: string;
+  readonly context?: SchemaDocumentRegistrationContext;
 }
 
 export type SchemaDocumentSessionFactory = (
@@ -107,6 +111,12 @@ export function schemaDocumentRetrievalUri(sourceUrl: string, groupName: string,
 
 export function isOas31SchemaDocument(document: SwaggerDoc | null): document is SwaggerDoc {
   return isOpenApi31Version(document?.openapi);
+}
+
+/** Engine activation only; other product consumers keep their existing gates. */
+export function isSchemaEngineDocument(document: SwaggerDoc | null): document is SwaggerDoc {
+  const family = getOpenApiSpecificationFeatures(document?.openapi)?.family;
+  return family === '3.1' || family === '3.2';
 }
 
 export function schemaReferenceUri(retrievalUri: string, reference: string): string {
@@ -173,13 +183,16 @@ export async function createSchemaDocumentSession(
 
   const engine = engineModule.createSchemaEngine();
   const documents = new Map<string, unknown>();
+  const uses32 = getOpenApiSpecificationFeatures(document.openapi)?.family === '3.2';
+  const registrations = [
+    { document, retrievalUri, context: options.registrationContext },
+    ...(options.resourceDocuments ?? []).filter((resource) => resource.retrievalUri !== retrievalUri),
+  ]
+    .map((resource) => (uses32 ? { ...resource, document: structuredClone(resource.document) } : resource))
+    .sort((left, right) => left.retrievalUri.localeCompare(right.retrievalUri));
   try {
-    const registrations = [
-      { document, retrievalUri },
-      ...(options.resourceDocuments ?? []).filter((resource) => resource.retrievalUri !== retrievalUri),
-    ].sort((left, right) => left.retrievalUri.localeCompare(right.retrievalUri));
     for (const resource of registrations) {
-      await engine.registerDocument(resource.document, resource.retrievalUri);
+      await engine.registerDocument(resource.document, resource.retrievalUri, resource.context);
       documents.set(resource.retrievalUri, structuredClone(resource.document));
       assertNotAborted(options.signal);
     }
@@ -247,10 +260,31 @@ export async function createSchemaDocumentSession(
         ignoredNames.length === 0
           ? projectionNamespace
           : new URL(`variant-${projectionVariantSequence++}/`, projectionNamespace).href;
-      const projection = createDirectionalSchemaProjection(document, retrievalUri, direction, namespace, {
-        ignoredProperties: reference && ignoredNames.length > 0 ? [{ reference, names: ignoredNames }] : undefined,
-      });
-      await engine.registerDocument(projection.document, projection.retrievalUri);
+      const source32 = uses32 ? engineModule.createOpenApi32ProjectionSource(registrations, retrievalUri) : undefined;
+      const sourceReference = source32 && reference ? source32.referenceFor(reference) : reference;
+      const projected = createDirectionalSchemaProjection(
+        (source32?.document ?? document) as SwaggerDoc,
+        source32?.retrievalUri ?? retrievalUri,
+        direction,
+        namespace,
+        {
+          ignoredProperties:
+            sourceReference && ignoredNames.length > 0
+              ? [{ reference: sourceReference, names: ignoredNames }]
+              : undefined,
+          strictSchemaPositions: uses32,
+        },
+      );
+      const projection = source32
+        ? { ...projected, referenceFor: (value: string) => projected.referenceFor(source32.referenceFor(value)) }
+        : projected;
+      await engine.registerDocument(
+        projection.document,
+        projection.retrievalUri,
+        uses32
+          ? engineModule.openApi32SchemaRegistrationContext(projection.document, projection.retrievalUri)
+          : undefined,
+      );
       return projection;
     });
     projections.set(key, pending);
@@ -262,9 +296,18 @@ export async function createSchemaDocumentSession(
 
   const session: SchemaDocumentSession = Object.freeze({
     retrievalUri,
-    resolve: (reference: string) => runOperation(() => engine.resolve(schemaReferenceUri(retrievalUri, reference))),
+    resolve: (reference: string) =>
+      runOperation(() =>
+        engine.resolve(uses32 ? resolveUri(reference, retrievalUri) : schemaReferenceUri(retrievalUri, reference)),
+      ),
     evaluate: (reference: string, instance: unknown, evaluationOptions?: EvaluationOptions) =>
-      runOperation(() => engine.evaluate(schemaReferenceUri(retrievalUri, reference), instance, evaluationOptions)),
+      runOperation(() =>
+        engine.evaluate(
+          uses32 ? resolveUri(reference, retrievalUri) : schemaReferenceUri(retrievalUri, reference),
+          instance,
+          evaluationOptions,
+        ),
+      ),
     dispose: () => {
       if (disposed) return;
       disposed = true;

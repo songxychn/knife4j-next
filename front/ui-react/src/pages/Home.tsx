@@ -1,5 +1,8 @@
+import Oas32ServerDetails from '../components/Oas32ServerDetails';
+import { resolveOas32OperationServers } from '../schema/oas32OperationServers';
+import { getOpenApiSpecificationFeatures } from 'knife4j-core';
 import { type ReactNode, useMemo } from 'react';
-import { Card, Col, Empty, Progress, Row, Space, Spin, Tag, theme, Tooltip, Typography } from 'antd';
+import { Alert, Card, Col, Empty, Progress, Row, Space, Spin, Tag, theme, Tooltip, Typography } from 'antd';
 import {
   ApiOutlined,
   CloudServerOutlined,
@@ -19,12 +22,11 @@ import { useGroup } from '../context/GroupContext';
 import { useSettings } from '../context/SettingsContext';
 import DescriptionText from '../components/DescriptionText';
 import Markdown from '../components/Markdown';
-import type { SwaggerServer } from '../types/swagger';
 import { getCustomHomeMarkdown } from '../utils/knife4jSettings';
 import knife4jMark from '../assets/logo/knife4j-next-mark.svg';
 import { currentHomeOrigin, normalizeHomeHost, resolveHomeHostLabel, resolveHomeServers } from './homeServerInfo';
 import { collectSpecificationExtensions, type DisplayExtension } from './homeSpecificationExtensions';
-import { buildHomeStats, HOME_HTTP_METHODS, type HomeHttpMethod } from './homeStats';
+import { buildHomeStats, type HomeHttpMethod } from './homeStats';
 
 const { Title, Text, Paragraph, Link } = Typography;
 
@@ -45,13 +47,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export default function Home() {
   const { t } = useTranslation();
-  const { activeSwaggerGroup, swaggerDoc, menuTags, loading } = useGroup();
+  const { activeSwaggerGroup, operationRetrievalUri, swaggerDoc, menuTags, loading } = useGroup();
   const { settings } = useSettings();
   const { token } = theme.useToken();
   const customHomeMarkdown = getCustomHomeMarkdown(settings);
   const pageOrigin = currentHomeOrigin();
 
-  const servers = useMemo<SwaggerServer[]>(() => resolveHomeServers(swaggerDoc, pageOrigin), [pageOrigin, swaggerDoc]);
+  const servers = useMemo(
+    () => resolveHomeServers(swaggerDoc, pageOrigin, operationRetrievalUri),
+    [pageOrigin, swaggerDoc, operationRetrievalUri],
+  );
+  const serverMetadata32 = useMemo(
+    () =>
+      swaggerDoc && getOpenApiSpecificationFeatures(swaggerDoc.openapi)?.family === '3.2'
+        ? resolveOas32OperationServers(swaggerDoc, null, operationRetrievalUri)
+        : null,
+    [swaggerDoc, operationRetrievalUri],
+  );
 
   const stats = useMemo(() => buildHomeStats(swaggerDoc, menuTags), [swaggerDoc, menuTags]);
 
@@ -366,45 +378,50 @@ export default function Home() {
             size="small"
           >
             <Row gutter={[12, 12]}>
-              {HOME_HTTP_METHODS.filter((m) => stats.counts[m] > 0).map((m) => {
-                const c = stats.counts[m];
-                const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
-                return (
-                  <Col key={m} xs={12} sm={8} md={6} lg={6} xl={6}>
-                    <div
-                      style={{
-                        padding: '10px 12px',
-                        border: `1px solid ${token.colorBorderSecondary}`,
-                        borderRadius: 8,
-                        background: token.colorFillQuaternary,
-                      }}
-                    >
+              {Object.keys(stats.counts)
+                .filter((m) => stats.counts[m] > 0)
+                .map((m) => {
+                  const c = stats.counts[m];
+                  const pct = stats.total > 0 ? Math.round((c / stats.total) * 100) : 0;
+                  return (
+                    <Col key={m} xs={12} sm={8} md={6} lg={6} xl={6}>
                       <div
                         style={{
-                          alignItems: 'center',
-                          display: 'flex',
-                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          border: `1px solid ${token.colorBorderSecondary}`,
+                          borderRadius: 8,
+                          background: token.colorFillQuaternary,
                         }}
                       >
-                        <Tag color={METHOD_COLORS[m]} style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}>
-                          {m.toUpperCase()}
-                        </Tag>
-                        <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
+                        <div
+                          style={{
+                            alignItems: 'center',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Tag
+                            color={METHOD_COLORS[m.toLowerCase()] ?? '#999'}
+                            style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}
+                          >
+                            {swaggerDoc.openapi?.startsWith('3.2.') ? m : m.toUpperCase()}
+                          </Tag>
+                          <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
+                        </div>
+                        <Progress
+                          percent={pct}
+                          showInfo={false}
+                          strokeColor={METHOD_COLORS[m.toLowerCase()] ?? '#999'}
+                          size="small"
+                          style={{ marginTop: 8, marginBottom: 0 }}
+                        />
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {pct}%
+                        </Text>
                       </div>
-                      <Progress
-                        percent={pct}
-                        showInfo={false}
-                        strokeColor={METHOD_COLORS[m]}
-                        size="small"
-                        style={{ marginTop: 8, marginBottom: 0 }}
-                      />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {pct}%
-                      </Text>
-                    </div>
-                  </Col>
-                );
-              })}
+                    </Col>
+                  );
+                })}
               {stats.total === 0 && (
                 <Col span={24}>
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('home.noOperations')} />
@@ -492,56 +509,68 @@ export default function Home() {
                     {sourceRows.map((row) => renderMetaRow(row.key, row.label, row.icon, row.value, true))}
                   </>
                 )}
-                {servers.length > 0 && (
+                {(servers.length > 0 || Boolean(serverMetadata32?.diagnostics.length)) && (
                   <>
                     {renderMetaRow(
                       'servers',
                       'home.meta.servers',
                       <CloudServerOutlined />,
                       <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                        {servers.map((s, idx) => (
-                          <Tooltip
-                            key={`${s.url}-${idx}`}
-                            title={
-                              s.description ? (
-                                <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                                  {s.description}
-                                </span>
-                              ) : undefined
-                            }
-                          >
-                            <span style={{ display: 'block' }}>
-                              {s.name && (
-                                <Text strong style={{ display: 'block', fontSize: 12, overflowWrap: 'anywhere' }}>
-                                  {s.name}
-                                </Text>
-                              )}
-                              <span
-                                style={{
-                                  display: 'block',
-                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                  fontSize: 12,
-                                  overflowWrap: 'anywhere',
-                                }}
-                              >
-                                {s.url}
-                              </span>
-                              {s.description && (
-                                <DescriptionText
-                                  type="secondary"
+                        {serverMetadata32?.diagnostics.map((diagnostic) => (
+                          <Alert
+                            type="warning"
+                            key={diagnostic.pointer}
+                            message={diagnostic.code}
+                            description={diagnostic.reason}
+                          />
+                        ))}
+                        {servers.map((s, idx) =>
+                          s.resolution ? (
+                            <Oas32ServerDetails key={s.resolution.source.key} server={s.resolution} />
+                          ) : (
+                            <Tooltip
+                              key={`${s.url}-${idx}`}
+                              title={
+                                s.description ? (
+                                  <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                                    {s.description}
+                                  </span>
+                                ) : undefined
+                              }
+                            >
+                              <span style={{ display: 'block' }}>
+                                {s.name && (
+                                  <Text strong style={{ display: 'block', fontSize: 12, overflowWrap: 'anywhere' }}>
+                                    {s.name}
+                                  </Text>
+                                )}
+                                <span
                                   style={{
                                     display: 'block',
+                                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                                     fontSize: 12,
-                                    lineHeight: '18px',
                                     overflowWrap: 'anywhere',
                                   }}
                                 >
-                                  {s.description}
-                                </DescriptionText>
-                              )}
-                            </span>
-                          </Tooltip>
-                        ))}
+                                  {s.url}
+                                </span>
+                                {s.description && (
+                                  <DescriptionText
+                                    type="secondary"
+                                    style={{
+                                      display: 'block',
+                                      fontSize: 12,
+                                      lineHeight: '18px',
+                                      overflowWrap: 'anywhere',
+                                    }}
+                                  >
+                                    {s.description}
+                                  </DescriptionText>
+                                )}
+                              </span>
+                            </Tooltip>
+                          ),
+                        )}
                       </Space>,
                     )}
                   </>

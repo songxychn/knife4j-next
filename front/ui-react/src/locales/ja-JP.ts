@@ -1,10 +1,102 @@
 const jaJP = {
+  'schema.example32.serializedDataValidation': 'シリアル化テキストをデコードしたデータの検証',
+  'schema.example32.diagnostics.UNSAFE_EXAMPLE_NUMBER':
+    'JavaScript で安全に表現できない数値があります。原文を保持しますが、データは検証できません。',
+  'schema.example32.choose': '例を選択',
+  'schema.example32.candidate': 'Schema の候補',
+  'schema.example32.apply': 'リクエストに適用',
+  'schema.example32.editFields': 'フィールド入力に切り替え',
+  'schema.example32.layer.parameter': 'パラメータ',
+  'schema.example32.layer.header': 'ヘッダー',
+  'schema.example32.layer.media': 'メディアタイプ',
+  'schema.example32.data': '論理データ',
+  'schema.example32.serialized': 'シリアル化テキスト（そのまま送信）',
+  'schema.example32.external': '外部の例の場所（未読込・本文として送信しません）',
+  'schema.example32.checks': 'データ検証：{{data}}、デコード：{{serialization}}、整合性：{{pairing}}',
+  'schema.example32.diagnostic': '例の診断',
+  'schema.example32.status.valid': '成功',
+  'schema.example32.status.invalid': '不一致',
+  'schema.example32.status.unavailable': '検証不可',
+  'schema.example32.status.absent': '対象外・データなし',
+  'schema.example32.diagnostics.EXAMPLE_FIELDS_CONFLICT': 'Example representation fields conflict.',
+  'schema.example32.diagnostics.SERIALIZED_VALUE_NOT_STRING': 'serializedValue must be a string.',
+  'schema.example32.diagnostics.EXTERNAL_VALUE_NOT_STRING': 'externalValue must be a string.',
+  'schema.example32.diagnostics.EXAMPLE_DATA_UNREPRESENTABLE':
+    'The example is not representable JSON data within the budget.',
+  'schema.example32.diagnostics.EXTERNAL_URI_UNAVAILABLE':
+    'The external location cannot be resolved against its owner document.',
+  'schema.example32.diagnostics.EXTERNAL_EXAMPLE_NOT_LOADED':
+    'External content is not loaded and cannot be validated or inserted into a request.',
+  'schema.example32.diagnostics.LEGACY_VALUE_IMPLEMENTATION_DEFINED':
+    'Legacy non-JSON value uses the existing codec; semantics may differ across tools.',
+  'schema.example32.diagnostics.CODEC_UNAVAILABLE':
+    'No serialization codec is available for this media type or data shape.',
+  'schema.example32.diagnostics.SERIALIZATION_NOT_VERIFIED':
+    'Author text is preserved; the current codec cannot unambiguously decode logical data.',
+  'schema.example32.diagnostics.SERIALIZATION_DECODE_FAILED': 'The current codec cannot parse this serialization.',
+  'schema.example32.diagnostics.EXAMPLE_PAIR_MISMATCH': 'dataValue and serializedValue represent different data.',
+  'schema.example32.diagnostics.EXAMPLE_REFERENCE_UNAVAILABLE':
+    'The example or media reference is unavailable in the typed resource registry.',
+  'schema.example32.diagnostics.EXAMPLE_SIZE_LIMIT': 'The example exceeds the size limit.',
+  'schema.example32.diagnostics.INVALID_JSON_SERIALIZATION': 'The serialization is not valid JSON.',
+  'schema.example32.diagnostics.PARAMETER_CODEC_UNAVAILABLE': 'No codec is available for this parameter.',
+  'schema.example32.diagnostics.INVALID_HEADER_SERIALIZATION':
+    'The header example contains forbidden control characters.',
+  'schema.example32.diagnostics.HEADER_NAME_IN_SERIALIZATION':
+    'A header example must not contain the HTTP header name.',
+  'schema.example32.diagnostics.INVALID_URI_SERIALIZATION':
+    'The URI example contains invalid characters or percent-encoding.',
+  'schema.example32.diagnostics.INVALID_PATH_SERIALIZATION':
+    'A path parameter example must not contain path or query separators.',
+  'schema.example32.diagnostics.QUERY_LEADING_DELIMITER': 'A query example must not begin with ? or &.',
+  'schema.example32.diagnostics.MATRIX_LEADING_DELIMITER': 'A matrix example must include its leading semicolon.',
+  'schema.example32.diagnostics.LABEL_LEADING_DELIMITER': 'A label example must include its leading dot.',
+  'schema.example32.diagnostics.XML_FRAGMENT': 'The result is an XML fragment, not a complete XML document.',
+  'schema.example32.diagnostics.ROUND_TRIP_AMBIGUOUS': 'This XML mapping cannot uniquely restore logical data.',
+  'schema.example32.diagnostics.UNSUPPORTED_MAPPING':
+    'Ambiguous composition or conditional schemas are not guessed into an XML mapping.',
+  'schema.example32.diagnostics.AMBIGUOUS_MAPPING':
+    'The reference and local content mapping is ambiguous; no XML was produced.',
+  'schema.example32.diagnostics.NAME_REQUIRED': 'This Schema location has no usable XML name.',
+  'schema.example32.diagnostics.INVALID_XML_NAME': 'The XML name is invalid.',
+  'schema.example32.diagnostics.INVALID_XML_CHARACTER': 'The data contains an illegal XML character.',
+  'schema.example32.diagnostics.INVALID_NAMESPACE_IRI': 'The XML namespace is not a non-relative IRI.',
+  'schema.example32.diagnostics.SCHEMA_UNAVAILABLE':
+    'No registered Schema location is available for XML serialization.',
+  'schema.example32.diagnostics.BUDGET_EXCEEDED': 'XML serialization exceeded its depth, node, or output budget.',
+  'schema.example32.diagnostics.INVALID_DATA': 'Logical data cannot be serialized with this XML Object.',
+  'schema.example32.diagnostics.UNMAPPED_DATA': 'Some logical data was not mapped to XML nodes.',
+  'schema.example32.diagnostics.ATTRIBUTE_WITHOUT_ELEMENT':
+    'An XML attribute has no parent element; no wrapper is invented.',
+  'schema.example32.diagnostics.VERSION_NOT_APPLICABLE': 'This XML serialization applies only to OpenAPI 3.2.x.',
+  'schema.example32.diagnostics.KNOWN_DATA_REQUIRED': 'Known logical data is required to produce XML.',
+  'schema.example32.diagnostics.SCHEMA_CONTEXT_MISMATCH':
+    'The Schema location does not match the current document session.',
+  'schema.example32.diagnostics.REFERENCE_UNAVAILABLE': 'The reference target is unavailable or unresolved.',
+  'schema.example32.diagnostics.REFERENCE_CYCLE': 'A reference cycle stopped XML serialization.',
+  'schema.example32.diagnostics.INVALID_XML_DECLARATION': 'The Schema xml object is not a valid declaration.',
+  'schema.example32.diagnostics.UNKNOWN_XML_DECLARATION': 'The xml object contains an unknown field.',
+  'schema.example32.diagnostics.RESERVED_NAMESPACE': 'A reserved XML namespace was used.',
+  'schema.example32.diagnostics.UNBOUND_PREFIX': 'The XML prefix is not bound to a namespace.',
+  'schema.example32.diagnostics.NAMESPACE_CONFLICT': 'XML namespace bindings conflict.',
+  'schema.example32.diagnostics.NAMESPACE_REBOUND': 'The namespace prefix is rebound on a descendant element.',
+  'schema.example32.diagnostics.ATTRIBUTE_NAMESPACE_REQUIRES_PREFIX': 'An attribute namespace requires a prefix.',
+  'schema.example32.diagnostics.DUPLICATE_ATTRIBUTE': 'Duplicate XML attributes were produced.',
+  'schema.example32.diagnostics.COMPLEX_TEXT_VALUE': 'Complex content cannot be serialized as a text node.',
+  'schema.example32.diagnostics.CANCELLED': 'XML serialization was cancelled.',
   // App / Layout
   'app.brand': 'Knife4j Next',
   'app.header.title': 'OpenAPI ドキュメント集約センター',
   'app.tab.home': 'ホーム',
   'app.footer': 'Apache License 2.0 | Copyright 2019-2026 Knife4j Next Contributors',
   'app.groupError.title': 'API ドキュメントを読み込めません',
+  'app.oas32Compatibility.title': 'この OAS 3.2 文書には構造または参照の診断があります',
+  'apiDoc.link.unavailable': 'ターゲットは利用できません（{{status}}）',
+  'app.operationLimit.title': '操作の展開がローカル上限に達したため、表示は不完全です',
+  'app.operationLimit.description':
+    'ローカル上限は {{maxOperations}} 操作、{{maxWork}} 処理ステップです。メニュー、検索、統計、Link 先に欠落がある可能性があります。OpenAPI 仕様エラーではありません。',
+  'apiDoc.link.readOnly': '読み込み済みの Link 先です。現在の文書にはマウントされていないため、閲覧のみ可能です。',
+  'apiDoc.definition.readOnly': 'この操作はコールバックまたは再利用可能な定義を表し、読み取り専用です。',
   'app.oas31Compatibility.title': 'この OAS 3.1 ドキュメントには構造またはローカル解決の診断があります',
   'app.oas31Compatibility.description':
     '{{count}} 件が構造制約に違反しているか、ローカルで安全に解決できません。安全な元データは表示し、曖昧な操作は省略します。',
@@ -46,7 +138,7 @@ const jaJP = {
   'sidebar.apiChange.tagChanged': '~{{count}}',
   'sidebar.apiChange.unread': '未確認の API：{{count}} 件',
   'sidebar.apiChange.markAllRead': 'すべて既読',
-  'sidebar.apiChange.unavailable.preparing': 'OAS 3.1 の API 変更ベースラインを準備しています…',
+  'sidebar.apiChange.unavailable.preparing': 'API 変更ベースラインを準備しています…',
   'sidebar.apiChange.unavailable.resourcePending':
     '外部リソースをすべて許可して読み込むまで、API 変更追跡を一時停止します。',
   'sidebar.apiChange.unavailable.resourceBudget':
@@ -59,7 +151,7 @@ const jaJP = {
     '外部リソースの読み込みまたは検証に失敗したため、API 変更追跡を一時停止し、以前のベースラインを保持します。',
   'sidebar.apiChange.unavailable.snapshot':
     'Operation の完全な意味的クロージャを構築できないため、API 変更追跡を一時停止します。',
-  'sidebar.apiChange.unavailable.version': 'API 変更追跡は OpenAPI 3.0.x と 3.1.x のみ対応しています。',
+  'sidebar.apiChange.unavailable.version': 'API 変更追跡は OpenAPI 3.0.x、3.1.x、3.2.x に対応しています。',
   'markdownDoc.menu.group': 'Markdown ドキュメント',
   markdownDocLoading: 'ドキュメントを読み込み中…',
   markdownDocNotFound: 'ドキュメントが見つかりません',
@@ -133,6 +225,50 @@ const jaJP = {
     'データモデルの投影に失敗したため、互換フィールドツリーを維持しています。元の Schema は変更されていません。',
   'schema.projection.degraded.description':
     '{{modelCount}} 件のモデルに、フィールドツリーへ完全には投影できない {{count}} 件のセマンティクスがあります（モデル：{{models}}、キーワード：{{keywords}}）。元の Schema は変更されていません。',
+  'schema.projection.loading.title32': 'OAS 3.2 データモデルを解析しています',
+  'schema.projection.degraded.title32': '一部の OAS 3.2 データモデルを縮退表示しています',
+  'schema.discriminator.title': 'ディスクリミネータと多態マッピング',
+  'schema.discriminator.propertyName': '判別プロパティ',
+  'schema.discriminator.configuration': '合成方法',
+  'schema.discriminator.requirement': '判別プロパティの制約',
+  'schema.discriminator.requirement.required': '必須であることが証明済み',
+  'schema.discriminator.requirement.proven-optional': '任意であることが証明済み（defaultMapping が必要）',
+  'schema.discriminator.requirement.unknown': '必須か任意かを静的に証明できない',
+  'schema.discriminator.source.explicit': '明示的な mapping',
+  'schema.discriminator.source.implicit': '暗黙のエントリコンポーネント名',
+  'schema.discriminator.source.default': 'defaultMapping',
+  'schema.discriminator.candidates': '合成ブランチ',
+  'schema.discriminator.compositionVisible':
+    '元の oneOf / anyOf / allOf 合成はフィールド表で引き続き確認できます。ヒントは検証結果を書き換えません。',
+  'schema.discriminator.state.resolved': '解決済み',
+  'schema.discriminator.state.pending': '未読込',
+  'schema.discriminator.state.failed': '読込失敗',
+  'schema.discriminator.state.missing': '欠落',
+  'schema.discriminator.state.wrong-kind': '対象が Schema ではない',
+  'schema.discriminator.state.unsupported-dialect': '未対応の Schema 方言',
+  'schema.discriminator.state.invalid': '無効',
+  'schema.discriminator.hint': '選択ヒント（Schema 検証は変更しません）',
+  'schema.discriminator.hint.selected': 'マッピング対象を選択済み',
+  'schema.discriminator.hint.ambiguous': '対象が複数ブランチに一致するため、明示的に選んでください',
+  'schema.discriminator.hint.unavailable': '現在は選択ヒントを提示できません',
+  'schema.discriminator.hint.unsupported-configuration': 'ディスクリミネータ設定は未対応です',
+  'schema.discriminator.hint.unmapped': '利用できるマッピングがありません',
+  'schema.discriminator.hint.no-data': '例に論理データがないため defaultMapping は使いません',
+  'schema.discriminator.hint.not-applicable': 'この入力はディスクリミネータ選択の対象外です',
+  'schema.discriminator.reason.explicit': '明示的な mapping を優先',
+  'schema.discriminator.reason.implicit': '暗黙のエントリコンポーネント名',
+  'schema.discriminator.reason.default-missing': '判別プロパティ欠落のため defaultMapping を使用',
+  'schema.discriminator.reason.default-unmapped': '未知の判別値のため defaultMapping を使用',
+  'schema.discriminator.generate': 'このマッピング候補を生成',
+  'schema.discriminator.generate.unavailable': 'この候補は生成できません。成功した扱いにはしません。',
+  'schema.discriminator.generate.dynamicUnavailable':
+    '候補は実行時の dynamic scope に依存します。公開 API では完全な認可を証明できないため、生成は unavailable のままです。',
+  'schema.discriminator.generate.ambiguous': '生成する前にブランチを一つ選んでください。',
+  'schema.discriminator.generated': '生成した候補（作成者の例は書き換えません）',
+  'schema.discriminator.preview.external': '外部ターゲットをその場でプレビューし、エントリの同名モデルへは移動しません',
+  'schema.discriminator.validationIndependent':
+    'デフォルトマッピングは選択/シリアル化のヒントのみで、JSON Schema の検証結果は変えません。',
+  'schema.discriminator.diagnostic': 'ディスクリミネータ診断：{{code}}',
   'schema.example.loading.title': 'OAS 3.1 のサンプルを生成しています',
   'schema.example.loading.description':
     '候補は現在の Schema で検証された後にのみ表示され、デバッグの初期値へ反映されます。',
@@ -230,6 +366,8 @@ const jaJP = {
   'apiDoc.schemaProjection.loading.description':
     '現在は互換リクエスト・レスポンスフィールドツリーを表示しており、解析完了後に自動更新されます。',
   'apiDoc.schemaProjection.degraded.title': '一部の OAS 3.1 API 構造を縮退表示しています',
+  'apiDoc.schemaProjection.loading.title32': 'OAS 3.2 API 構造を解析しています',
+  'apiDoc.schemaProjection.degraded.title32': '一部の OAS 3.2 API 構造を縮退表示しています',
   'apiDoc.schemaProjection.engineFallback.description':
     'SchemaEngine の初期化に失敗したため、互換リクエスト・レスポンスフィールドツリーを維持しています。元の Schema は変更されていません。',
   'apiDoc.schemaProjection.projectionFallback.description':
@@ -263,7 +401,7 @@ const jaJP = {
   'apiOpenApi.download.unsupported':
     'このブラウザーはファイルのダウンロードに対応していません。JSON をコピーして手動で保存してください。',
   'apiOpenApi.download.versionUnsupported':
-    '単一オペレーションのダウンロードは OpenAPI 3.0.x と 3.1.x に対応しています。このドキュメントは引き続き表示・コピーできます。',
+    '単一オペレーションのダウンロードは OpenAPI 3.0.x、3.1.x、3.2.x に対応しています。このドキュメントは引き続き表示・コピーできます。',
   'apiOpenApi.download.oas31Preparing':
     'ポータブルな OAS 3.1 ドキュメントを準備しています。現在の内容は引き続き表示・コピーできます。',
   'apiOpenApi.download.oas31Unavailable':
@@ -272,6 +410,17 @@ const jaJP = {
     '参照クロージャが不完全なため、ポータブルな OAS 3.1 ドキュメントはまだダウンロードできません。',
   'apiOpenApi.download.oas31Blocked.desc':
     '不足している外部リソースを読み込むか、次の参照を修正してください。プレビューとコピーは引き続き利用できます。',
+  'apiOpenApi.download.oas32Preparing':
+    'ポータブルな OAS 3.2 ドキュメントを準備しています。現在の内容は引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas32Unavailable':
+    '現在、ポータブルな OAS 3.2 ドキュメントを生成できません。現在の内容は引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas32Blocked':
+    '参照クロージャが不完全なため、ポータブルな OAS 3.2 ドキュメントはまだダウンロードできません。',
+  'apiOpenApi.download.oas32Blocked.desc':
+    '不足している外部リソースを読み込むか、次の参照を修正してください。プレビューとコピーは引き続き利用できます。',
+  'apiOpenApi.downloadYaml': 'YAML をダウンロード',
+  'apiOpenApi.downloadYaml.started': 'OpenAPI YAML のダウンロードを開始しました',
+  'apiOpenApi.downloadYaml.failed': 'OpenAPI YAML をダウンロードできませんでした。もう一度お試しください。',
   'apiOpenApi.serialize.failed':
     'この API の OpenAPI JSON を生成できませんでした。API ドキュメントを確認して、もう一度お試しください。',
 
@@ -310,6 +459,7 @@ const jaJP = {
   'apiDebug.json.placeholder': 'JSON を入力してください',
   'apiDebug.tab.path': 'Path',
   'apiDebug.tab.query': 'Query',
+  'apiDebug.tab.querystring': 'Querystring',
   'apiDebug.tab.header': 'Header',
   'apiDebug.tab.cookie': 'Cookie',
   'apiDebug.tab.body': 'Body',
@@ -317,6 +467,17 @@ const jaJP = {
     'Content-Type は選択した Body タイプに応じて自動付与されます（送信時の cURL で確認できます）',
   'apiDebug.noPathParams': 'ドキュメントに path パラメータは定義されていません',
   'apiDebug.noQueryParams': 'ドキュメントに query パラメータは定義されていません',
+  'apiDebug.querystring.title': 'クエリ文字列全体',
+  'apiDebug.querystring.mediaType': 'Content のメディアタイプ：{{mediaType}}',
+  'apiDebug.querystring.kind.data': '論理 JSON データ',
+  'apiDebug.querystring.kind.media': 'メディアテキスト',
+  'apiDebug.querystring.kind.parameter': '符号化済みクエリ成分',
+  'apiDebug.querystring.emptyHint':
+    '空文字でも querystring は存在します。クエリ成分を省略するにはチェックを外してください。',
+  'apiDebug.querystring.conflict':
+    'クエリ文字列全体は、アプリケーション、グループ、カスタム、認証の query と同時に使えません。送信前に衝突する値を削除してください。',
+  'apiDebug.querystring.placeholder.media': 'メディアテキスト全体を入力（空でも可）',
+  'apiDebug.querystring.placeholder.data': 'querystring の JSON データを入力',
   'apiDebug.noHeaderParams': 'header パラメータはありません',
   'apiDebug.noCookieParams': 'ドキュメントに cookie パラメータは定義されていません',
   'apiDebug.customParams.add': '追加',
@@ -380,6 +541,31 @@ const jaJP = {
   'apiDebug.formDiagnostic.FILE_REQUIRED': '必須ファイルがありません。',
   'apiDebug.formDiagnostic.FILE_CARDINALITY': '選択したファイル数が Schema 制約を満たしていません。',
   'apiDebug.formDiagnostic.FILE_MEDIA_TYPE': 'ファイルのメディアタイプが encoding 宣言と一致しません。',
+  'apiDebug.formDiagnostic.ENCODING_CONFLICT': 'encoding は prefixEncoding / itemEncoding と同時に有効になりません。',
+  'apiDebug.formDiagnostic.ENCODING_IGNORED':
+    'この encoding フィールドは選択中のメディアタイプに適用されないため無視されました。',
+  'apiDebug.formDiagnostic.POSITIONAL_SCHEMA_REQUIRED':
+    '位置エンコーディングには配列 schema または itemSchema が必要です。',
+  'apiDebug.formDiagnostic.HEADER_NOT_ALLOWED': 'この part Header は現在の multipart サブタイプでは許可されません。',
+  'apiDebug.formDiagnostic.NESTING_UNSUPPORTED': 'ネストされた multipart がサポートする 1 階層を超えています。',
+  'apiDebug.formDiagnostic.STREAMING_UNSUPPORTED':
+    '無限の multipart ストリームはサポートしません。有限の part リストのみを実体化します。',
+  'apiDebug.formDiagnostic.CONTENT_TYPE_CHOICE_REQUIRED':
+    'part の Content-Type を明示的に選択してください。ファイル名や先頭項目からの推定はしません。',
+  'apiDebug.formDiagnostic.AUTHORED_BOUNDARY_MISMATCH':
+    '著者の MIME 原文はメディアタイプの boundary パラメータと対で保持する必要があります。',
+  'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'part 内容が区切り文字と衝突するため生成を拒否しました。',
+  'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'multipart のネスト深度が制限を超えています。',
+  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT':
+    'リクエスト実体化がキャンセルされたか、時間予算を超えました。',
+  'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
+    'ブラウザ FormData ではこの multipart 構造を表せないため、明示的なエンベロープまたは診断境界を使います。',
+  'apiDebug.body.choosePartContentType': 'Part Content-Type',
+  'apiDebug.body.choosePartContentType.placeholder': 'メディアタイプを選択',
+  'apiDebug.body.addPart': '後続 part を追加',
+  'apiDebug.preview.multipartWire': 'cURL / 実送信と同一の MIME バイト',
+  'apiDebug.preview.multipartBodyFile':
+    'cURL は --data-binary @knife4j-multipart-body.bin を使い、-F で別エンベロープを再生成してはなりません。',
   'apiDebug.responseSchemaValidation.title': 'レスポンスボディが OAS 3.1 JSON Schema に適合していません',
   'apiDebug.responseSchemaValidation.nonBlocking':
     'この診断は HTTP ステータス、レスポンス本文、Header、リクエスト履歴を変更しません。',
@@ -452,6 +638,35 @@ const jaJP = {
   'apiDebug.sse.abort': '停止',
   'apiDebug.sse.waiting': 'イベント待機中…',
   'apiDebug.sse.copyEvent': '{{index}} 件目のイベントをコピー',
+  'apiDebug.sequential.streaming': 'シーケンシャルストリーム受信中…',
+  'apiDebug.sequential.done': 'シーケンシャルストリームが終了しました',
+  'apiDebug.sequential.itemCount': '{{count}} 件のレコード',
+  'apiDebug.sequential.abort': '停止',
+  'apiDebug.sequential.waiting': '最初のレコードを待機中…',
+  'apiDebug.sequential.copyItem': '{{index}} 件目のレコードをコピー',
+  'apiDebug.sequential.truncated': '切り詰められたため、完全 schema は valid と判定しません',
+  'apiDebug.sequential.kind.sse': 'SSE',
+  'apiDebug.sequential.kind.jsonl': 'JSONL',
+  'apiDebug.sequential.kind.json-seq': 'JSON-seq',
+  'apiDebug.sequential.kind.multipart': 'multipart',
+  'apiDebug.sequential.kind.unknown': '不明なメディア',
+  'apiDebug.sequential.termination.eof': '正常終了',
+  'apiDebug.sequential.termination.cancel': 'キャンセル',
+  'apiDebug.sequential.termination.timeout': 'タイムアウト',
+  'apiDebug.sequential.termination.idle-timeout': 'アイドルタイムアウト',
+  'apiDebug.sequential.termination.budget-bytes': 'バイト上限',
+  'apiDebug.sequential.termination.budget-items': '件数上限',
+  'apiDebug.sequential.termination.network-error': '読み取り失敗',
+  'apiDebug.sequential.item.valid': 'itemSchema valid',
+  'apiDebug.sequential.item.invalid': 'itemSchema invalid',
+  'apiDebug.sequential.item.skipped': 'itemSchema 未評価',
+  'apiDebug.sequential.item.absent': 'itemSchema なし',
+  'apiDebug.sequential.complete.valid': '完全 schema valid',
+  'apiDebug.sequential.complete.invalid': '完全 schema invalid',
+  'apiDebug.sequential.complete.absent': '完全 schema なし',
+  'apiDebug.sequential.complete.truncated': '切り詰めのため完全 schema をスキップ',
+  'apiDebug.sequential.complete.not-representable': '完全ペイロードを表現できないためスキップ',
+  'apiDebug.sequential.complete.unavailable': '完全 schema を利用できません',
   'apiDebug.col.header': 'Header',
   'apiDebug.col.headerValue': '値',
   'apiDebug.desc.default': 'デフォルト：',
@@ -470,6 +685,8 @@ const jaJP = {
     'この OAS 3.1 リクエストボディは、選択したファイルを {{contentType}} としてそのまま送信します。テキストや multipart には変換しません。',
   'apiDebug.body.browserMethodUnsupported':
     'ブラウザーの Fetch API は {{method}} リクエストにボディを送信できません。生成された cURL を使用するか、操作メソッドを変更してください。',
+  'apiDebug.method.browserNormalized':
+    'ブラウザーは {{method}} を {{normalized}} に変換するため、文書のメソッドで送信できません。プレビューと cURL は元の値を保持します。',
   'apiDebug.method.browserUnsupported':
     'ブラウザーの Fetch API は {{method}} リクエストを禁止しています。生成された cURL またはブラウザー以外のクライアントを使用してください。',
   'apiDebug.cookie.source': 'Cookie パラメータの取得元',
@@ -499,6 +716,10 @@ const jaJP = {
   'apiDebug.tab.preview': 'プレビュー',
   'apiDebug.preview.method': 'メソッド：',
   'apiDebug.preview.url': '最終 URL：',
+  'apiDebug.preview.diagnostics': 'パラメータ診断',
+  'apiDebug.preview.diagnosticsBlocked': '送信を阻止',
+  'apiDebug.preview.diagnosticsBrowser': 'プレビューは可能ですが、ブラウザーではこの要求を送信できません',
+  'apiDebug.preview.diagnosticsInfo': '能力境界（送信成功を意味しません）',
   'apiDebug.preview.headers': 'Headers',
   'apiDebug.preview.query': 'Query',
   'apiDebug.preview.body': 'リクエストボディ',
@@ -506,6 +727,7 @@ const jaJP = {
   'apiDebug.preview.noBody': '—',
   'apiDebug.preview.curl': '同等の cURL',
   'apiDebug.preview.copyCurl': 'cURL をコピー',
+  'apiDebug.preview.downloadMultipartBody': 'knife4j-multipart-body.bin をダウンロード',
   'apiDebug.preview.copyValue': '完全な値をコピー',
   'apiDebug.preview.expandValue': '展開',
   'apiDebug.preview.collapseValue': '折りたたむ',
@@ -582,6 +804,33 @@ const jaJP = {
   'auth.schemes.oauth2.obtaining': '取得中...',
   'auth.schemes.oauth2.implicit': 'インプリシット方式',
   'auth.schemes.oauth2.authorizationCode': '認可コード方式',
+  'auth.schemes.oauth2.deviceAuthorization': 'デバイス認可',
+  'auth.schemes.oauth2.startDevice': 'デバイス認可を開始',
+  'auth.schemes.oauth2.cancelDevice': 'デバイス認可をキャンセル',
+  'auth.schemes.oauth2.userCode': 'ユーザーコード {{code}}',
+  'auth.schemes.oauth2.metadataUrl': 'OAuth メタデータ URL',
+  'auth.schemes.oauth2.metadataUrl.hint': '位置の表示のみです。自動取得せず、文書のエンドポイントも上書きしません。',
+  'auth.schemes.oauth2.endpoint.missing': 'この OAuth エンドポイントは宣言されていません',
+  'auth.schemes.oauth2.endpoint.relative-without-base': '相対 OAuth URL には実行可能な API ベースが必要です',
+  'auth.schemes.oauth2.endpoint.invalid': 'この OAuth エンドポイントはブラウザ要求に使えません',
+  'auth.schemes.oauth2.device.status.requesting': 'デバイスコードを要求しています',
+  'auth.schemes.oauth2.device.status.waiting': 'ユーザーの確認を待っています',
+  'auth.schemes.oauth2.device.status.polling': 'トークンをポーリングしています',
+  'auth.schemes.oauth2.device.status.success': 'トークン下書きを受け取りました。認可をクリックして保存してください',
+  'auth.schemes.oauth2.device.status.denied': 'ユーザーがデバイス認可を拒否しました',
+  'auth.schemes.oauth2.device.status.expired': 'デバイスコードの期限が切れました',
+  'auth.schemes.oauth2.device.status.cancelled': 'デバイス認可をキャンセルしました',
+  'auth.schemes.oauth2.device.status.failed': 'デバイス認可に失敗しました',
+  'auth.schemes.oauth2.device.status.local-limit': 'ローカルのポーリングまたは時間上限に達しました',
+  'auth.schemes.deprecated': '非推奨',
+  'auth.schemes.unavailable': 'このセキュリティスキームは現在利用できません',
+  'apiDebug.security.branch': '方式 {{n}}',
+  'apiDebug.security.anonymous': '匿名',
+  'apiDebug.security.anonymousSelected': 'この操作は匿名ブランチを選択しており、保存済み資格情報は注入しません',
+  'apiDebug.security.empty': 'この操作は空のセキュリティを宣言しており、保存済み資格情報は注入しません',
+  'apiDebug.security.incomplete': '選択中のセキュリティブランチは未完了です。送信はできますが認可済みとはみなしません',
+  'apiDebug.security.unavailable': 'この操作のセキュリティ宣言を投影できません',
+  'apiDebug.security.selected': '選択中のセキュリティブランチの資格情報のみを注入します',
   'auth.btn.authorize': '認証情報を保存',
   'auth.schemes.mutualTLS.readOnly': 'mutualTLS セキュリティスキームを認識しました',
   'auth.schemes.mutualTLS.description':
@@ -685,16 +934,25 @@ const jaJP = {
   'officeDoc.btn.word': 'Word (.doc) をダウンロード',
   'officeDoc.btn.markdown': 'Markdown をダウンロード',
   'officeDoc.btn.openapi': 'OpenAPI JSON をダウンロード',
+  'officeDoc.btn.openapiYaml': 'OpenAPI YAML をダウンロード',
   'officeDoc.response': 'レスポンス',
   'officeDoc.circularReference': '循環参照',
   'officeDoc.truncated': '打ち切り',
+  'officeDoc.security': 'セキュリティ',
+  'officeDoc.servers': 'Servers',
+  'officeDoc.itemSchema': 'itemSchema',
+  'officeDoc.sequentialKind': 'シーケンシャルメディア',
+  'officeDoc.encoding': 'Encoding',
+  'officeDoc.notes': '注記',
   'officeDoc.fallbackTitle': 'API ドキュメント',
   'officeDoc.snapshot.incomplete.title': 'この OAS 3.1 エクスポートは不完全です',
+  'officeDoc.snapshot.incomplete.title32': 'この OAS 3.2 エクスポートは不完全です',
   'officeDoc.snapshot.incomplete.description':
     '選択したドキュメントに {{count}} 件のセマンティックな問題があります。キャンセルするか、縮退範囲を明記した不完全なドキュメントをダウンロードしてください。',
   'officeDoc.snapshot.incomplete.confirm': '不完全なドキュメントをダウンロード',
   'officeDoc.snapshot.incomplete.cancel': 'キャンセル',
   'officeDoc.snapshot.incomplete.documentTitle': '不完全な OAS 3.1 エクスポート',
+  'officeDoc.snapshot.incomplete.documentTitle32': '不完全な OAS 3.2 エクスポート',
   'officeDoc.snapshot.incomplete.documentSummary': '{{count}} 件のセマンティックな問題を完全には表現できませんでした。',
   'officeDoc.snapshot.incomplete.more': 'ほか {{count}} 件',
   'officeDoc.snapshot.failed': 'オフラインドキュメントのスナップショットを作成できませんでした。',
@@ -720,7 +978,7 @@ const jaJP = {
   'settings.enableRequestHistory':
     'リクエスト履歴を有効化（デバッグ画面で API ごとに直近のリクエストを記録し、フォームへ適用可能）',
   'settings.enableResponseCode': 'レスポンスステータス概要（ステータスコード、説明、Schema、Media Type）を表示',
-  'settings.enableVersion': '新規・変更された API を通知（OpenAPI 3.0/3.1）',
+  'settings.enableVersion': '新規・変更された API を通知（OpenAPI 3.0/3.1/3.2）',
   'settings.enableDynamicParameter':
     '動的フォームパラメータを有効化（urlencoded / multipart Body にドキュメント未定義のテキストフィールドを追加）',
   'settings.enableFilterMultipartApis':
@@ -778,6 +1036,26 @@ const jaJP = {
   'auth.modal401.description': 'リクエストが 401 で拒否されました。以下で認証情報を設定してから再送信してください。',
   'auth.modal401.resend': '再送信',
   'auth.modal401.close': '閉じる',
+  'oas32.responseUnavailable':
+    'レスポンス {{status}} は未解決または参照先の型が無効です。空のレスポンスとは異なります。',
+  'oas32.server.select': 'Server を選択',
+  'oas32.server.customUrl': 'カスタム URL',
+  'oas32.server.source': 'ソース',
+  'oas32.server.raw': '宣言 URL',
+  'oas32.server.substituted': '変数置換後',
+  'oas32.server.resolved': '解決 URL',
+  'oas32.server.request': 'リクエスト base URL',
+  'oas32.server.owner': '実際のドキュメント位置',
+  'oas32.server.unavailable':
+    '選択した Server ではリクエストを送信できません。宣言、変数、解決状態を確認してください。',
+  'oas32.server.override.host': '製品設定による上書き: Host',
+  'oas32.server.override.gateway': '製品設定による上書き: ゲートウェイ contextPath',
+  'oas32.server.override.custom': '製品設定による上書き: カスタム URL',
+  'oas32.server.level.operation': 'Operation Server',
+  'oas32.server.level.path-item': 'Path Item Server',
+  'oas32.server.level.root': 'ルートドキュメント Server',
+  'oas32.server.level.default': '仕様のデフォルト Server /',
+  'oas32.server.changed': 'Server またはパスが変更されました。現在の設定で再送信してください。',
 } as const;
 
 export default jaJP;

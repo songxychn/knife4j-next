@@ -22,6 +22,7 @@ import {
   type ApiChangeUnavailableReason,
 } from '../apiChange/apiChangeTracker';
 import Markdown from '../components/Markdown';
+import { oas32TagMenu, oas32TagPresentationParents } from '../schema/oas32TagMenu';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: '#61affe',
@@ -63,7 +64,7 @@ function methodTag(method: string) {
         overflow: 'hidden',
       }}
     >
-      {method.toUpperCase()}
+      {method}
     </span>
   );
 }
@@ -96,17 +97,24 @@ interface SidebarSearchMenuProps {
 }
 
 const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMenuClick, collapsed = false }) => {
-  const { activeGroup, menuTags, markdownDocs, schemas } = useGroup();
+  const { activeGroup, swaggerDoc, menuTags, markdownDocs, schemas } = useGroup();
   const { effectiveParams } = useGlobalParam();
   const { settings } = useSettings();
   const apiChanges = useApiChanges();
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState('');
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const navigation32 = useMemo(
+    () => oas32TagMenu(swaggerDoc, menuTags, activeGroup.apis, searchText),
+    [swaggerDoc, menuTags, activeGroup.apis, searchText],
+  );
+  const tagKey = (name: string) => `tag-${name}`;
 
   // Reset search text when switching groups to prevent stale queries from one
   // group contaminating filter results in another (issue #285 / upstream #833).
   useEffect(() => {
     setSearchText('');
+    setOpenKeys([]);
   }, [activeGroup.value]);
 
   useEffect(() => {
@@ -224,18 +232,35 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     }
     const tagDescMap = new Map(menuTags.map((t) => [t.tag, t.description]));
 
-    filteredByTag.forEach((apis, tag) => {
-      const tagDesc = tagDescMap.get(tag);
+    const nodesByName = new Map(navigation32?.nodes.map((node) => [node.name, node]));
+    const tagItems = new Map<string, NonNullable<MenuProps['items']>[number]>();
+    const visibleTags = navigation32
+      ? new Map(navigation32.nodes.map((node) => [node.name, node.operations]))
+      : filteredByTag;
+    visibleTags.forEach((apis, tag) => {
+      const node = nodesByName.get(tag);
+      const tagDesc = node ? node.declaration?.description : tagDescMap.get(tag);
+      const displayName = node ? (
+        <span
+          className="knife4j-tag-metadata"
+          title={`${node.label} · name: ${JSON.stringify(tag)}${node.kind === undefined ? '' : ` · kind: ${node.kind}`}`}
+        >
+          <span>{highlightText(node.label || JSON.stringify(tag), q)}</span>
+          <small>{`name: ${JSON.stringify(tag)}${node.kind === undefined ? '' : ` · kind: ${node.kind}`}${node.parentName === undefined ? '' : ` · parent: ${JSON.stringify(node.parentName)}`}`}</small>
+        </span>
+      ) : (
+        tag
+      );
       const tagName = tagDesc ? (
         <Tooltip
           title={<Markdown source={tagDesc} preserveLineBreaks />}
           placement="right"
           styles={{ root: { maxWidth: 400 } }}
         >
-          <span>{tag}</span>
+          <span>{displayName}</span>
         </Tooltip>
       ) : (
-        tag
+        displayName
       );
       let addedCount = 0;
       let changedCount = 0;
@@ -256,16 +281,19 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         </span>
       );
 
-      items.push({
-        key: `tag-${tag}`,
+      const item = {
+        key: tagKey(tag),
         className: 'knife4j-sidebar-api-tag',
+        ...(node && !collapsed
+          ? { style: { '--knife4j-tag-indent': `${Math.min(node.depth, 5) * 10 + 24}px` } as React.CSSProperties }
+          : {}),
         icon: <ApiOutlined />,
         label: labelContent,
         children: apis.map((api) => {
           const status = apiChanges.statuses[apiOperationIdentity(api.method, api.path)];
           return {
             key: api.key,
-            title: `${api.method.toUpperCase()} ${api.summary}`,
+            title: `${api.method} ${api.summary}`,
             label: (
               <span
                 style={{
@@ -291,8 +319,24 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
             ),
           };
         }),
-      });
+      };
+      tagItems.set(tag, item);
+      if (!navigation32) items.push(item);
     });
+    if (navigation32 && collapsed) {
+      // Compact popups use a flat tag index, preserving every filtered tag,
+      // its exact parent metadata and only its own direct APIs.
+      items.push(...navigation32.nodes.map((node) => tagItems.get(node.name)!));
+    } else if (navigation32) {
+      // Iteratively wire the already derived graph; there is no recursive builder.
+      const parents = oas32TagPresentationParents(navigation32);
+      for (const node of navigation32.nodes) {
+        const parentName = parents.get(node.name);
+        const parent = parentName === undefined ? undefined : tagItems.get(parentName);
+        if (parent && 'children' in parent) parent.children!.push(tagItems.get(node.name)!);
+        else items.push(tagItems.get(node.name)!);
+      }
+    }
 
     if (markdownDocs.length > 0) {
       items.push({
@@ -320,6 +364,8 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
   }, [
     activeGroup.value,
     filteredByTag,
+    navigation32,
+    collapsed,
     effectiveParams,
     markdownDocs,
     menuTags,
@@ -394,6 +440,17 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         theme="dark"
         mode="inline"
         inlineCollapsed={collapsed}
+        {...(navigation32 && !collapsed
+          ? {
+              inlineIndent: 10,
+              openKeys: searchText.trim()
+                ? navigation32.nodes
+                    .filter((node) => node.children.length || node.operations.length)
+                    .map((node) => tagKey(node.name))
+                : openKeys,
+              onOpenChange: setOpenKeys,
+            }
+          : {})}
         selectedKeys={[selectedKey]}
         onClick={onMenuClick}
         items={menuItems}

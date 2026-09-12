@@ -7,6 +7,8 @@
  * - 纯数据，无框架依赖、无浏览器 API
  */
 
+import type { Oas32ParameterCollection, Oas32ParameterInput, Oas32ParameterPlan } from './oas32ParameterTypes';
+
 // ─── 参数模型 ─────────────────────────────────────────
 
 /** 参数位置（统一 OAS2 + OAS3） */
@@ -108,7 +110,19 @@ export interface FormBodyDiagnostic {
     | 'FORM_BUDGET_EXCEEDED'
     | 'FILE_REQUIRED'
     | 'FILE_CARDINALITY'
-    | 'FILE_MEDIA_TYPE';
+    | 'FILE_MEDIA_TYPE'
+    | 'ENCODING_CONFLICT'
+    | 'ENCODING_IGNORED'
+    | 'POSITIONAL_SCHEMA_REQUIRED'
+    | 'HEADER_NOT_ALLOWED'
+    | 'NESTING_UNSUPPORTED'
+    | 'STREAMING_UNSUPPORTED'
+    | 'CONTENT_TYPE_CHOICE_REQUIRED'
+    | 'AUTHORED_BOUNDARY_MISMATCH'
+    | 'BOUNDARY_INJECTION'
+    | 'FORM_DEPTH_EXCEEDED'
+    | 'FORM_MATERIALIZATION_TIMEOUT'
+    | 'FORMDATA_UNREPRESENTABLE';
   readonly message: string;
   readonly fieldName?: string;
   readonly headerName?: string;
@@ -152,6 +166,28 @@ export interface Oas31FormField {
   readonly encoding: Oas31FormFieldEncoding;
 }
 
+/** OAS 3.2 named or positional multipart/urlencoded editor field. */
+export interface Oas32FormField extends Oas31FormField {
+  readonly partId: string;
+  readonly layout: 'named' | 'positional';
+  readonly depth: number;
+  readonly itemSchema?: SchemaValue;
+  readonly nestedFields?: readonly Oas32FormField[];
+  readonly nestedMediaType?: string;
+  readonly contentTypeRequiresChoice?: boolean;
+  readonly extraItem?: boolean;
+}
+
+export interface Oas32FormBodyModel {
+  readonly layout: 'named' | 'positional';
+  readonly mediaType: string;
+  readonly fields: readonly Oas32FormField[];
+  readonly extraItemTemplate?: Oas32FormField;
+  readonly streaming: boolean;
+  readonly schemaAppliesTo: 'complete' | 'items' | 'both';
+  readonly diagnostics: readonly FormBodyDiagnostic[];
+}
+
 /** OAS 3.1-only analysis kept beside the legacy BodyContent shape. */
 export interface Oas31FormBodyModel {
   readonly fields: readonly Oas31FormField[];
@@ -192,12 +228,18 @@ export interface BodyContent {
   jsonFields?: string[];
   /** Present only for OAS 3.1 urlencoded / declared multipart request bodies. */
   oas31Form?: Oas31FormBodyModel;
+  /** Present only for OAS 3.2 urlencoded / declared multipart request bodies. */
+  oas32Form?: Oas32FormBodyModel;
+  /** OAS 3.2 Media Type itemSchema; applies to each sequential item, not the complete payload. */
+  itemSchema?: SchemaValue;
 }
 
 // ─── OperationDebugModel ──────────────────────────────
 
 /** 从一个 operation 解析出的调试模型 */
 export interface OperationDebugModel {
+  /** Explicit 3.2 path; the legacy four-location display arrays do not establish collection completeness. */
+  oas32Parameters?: Oas32ParameterCollection;
   /** path 参数 */
   pathParams: DebugParam[];
   /** query 参数 */
@@ -219,14 +261,24 @@ export interface OperationDebugModel {
 /** query 参数值；数组会按 OAS3 query 参数的 style / explode 规则序列化。 */
 export type QueryParamValue = string | string[];
 
+/** OAS 3.2 author text, explicitly distinguished from logical editor values. */
+export interface SerializedExampleParameter {
+  readonly text: string;
+  readonly layer: 'parameter' | 'media';
+  readonly instance?: ParameterInstance;
+}
+
 /** requestBuilder 的用户填写输入 */
 export interface DebugFormValues {
+  oas32ParameterInputs?: Readonly<Record<string, Oas32ParameterInput>>;
   pathParams: Record<string, string>;
   queryParams: Record<string, QueryParamValue>;
   headerParams: Record<string, string>;
   cookieParams: Record<string, string>;
   /** Raw editor values for declared OAS 3.1 parameters, keyed by `${in}:${name}`. */
   oas31ParameterValues?: Record<string, string>;
+  serializedExampleParameters?: Readonly<Record<string, SerializedExampleParameter>>;
+  serializedExampleBody?: { readonly mediaType: string; readonly text: string };
   /** 当前选中的 content-type */
   selectedContentType?: string;
   /** body 文本（已序列化，用于 json/raw 模式） */
@@ -246,6 +298,8 @@ export interface DebugFormValues {
   jsonFields?: string[];
   /** Raw values for Encoding Object Header Objects: field name -> header name -> editor value. */
   formPartHeaders?: Record<string, Record<string, string>>;
+  /** Explicit per-part Content-Type chosen by the user; never inferred from filename. */
+  formPartContentTypes?: Record<string, string>;
 }
 
 /** File metadata consumed by the pure planner without reading file bytes. */
@@ -259,6 +313,8 @@ export interface FormBodyInputLimits {
   readonly maxFieldBytes?: number;
   readonly maxTotalBytes?: number;
   readonly maxParts?: number;
+  readonly maxDepth?: number;
+  readonly maxMaterializationMs?: number;
 }
 
 export interface SerializeOas31FormBodyInput {
@@ -266,8 +322,11 @@ export interface SerializeOas31FormBodyInput {
   readonly formFieldNamesToIncludeWhenEmpty?: readonly string[];
   readonly fileFields?: Readonly<Record<string, readonly unknown[]>>;
   readonly partHeaders?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly partContentTypes?: Readonly<Record<string, string>>;
   readonly bodyRequired?: boolean;
   readonly limits?: FormBodyInputLimits;
+  readonly signal?: AbortSignal;
+  readonly now?: () => number;
 }
 
 export interface UrlencodedFormEntry {
@@ -298,7 +357,16 @@ export interface MultipartFilePart {
   readonly headers: Readonly<Record<string, string>>;
 }
 
-export type MultipartPart = MultipartTextPart | MultipartFilePart;
+export interface MultipartNestedPart {
+  readonly kind: 'nested';
+  readonly sourceField: string;
+  readonly name: string;
+  readonly contentType: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly parts: readonly MultipartPart[];
+}
+
+export type MultipartPart = MultipartTextPart | MultipartFilePart | MultipartNestedPart;
 
 export type FormBodyEncodingPlan =
   | {
@@ -316,6 +384,10 @@ export type FormBodyEncodingPlan =
       readonly instance: Readonly<Record<string, ParameterInstance>>;
       readonly ignoredProperties: readonly string[];
       readonly diagnostics: readonly FormBodyDiagnostic[];
+      readonly specFamily?: '3.2';
+      readonly wire?: 'parts' | 'authored';
+      readonly authoredBody?: string;
+      readonly authoredContentType?: string;
     };
 
 /** 全局参数来源 */
@@ -391,6 +463,10 @@ export interface AuthValues {
 
 /** requestBuilder 输出 */
 export interface BuiltRequest {
+  /** Final parameter result shared by preview, validation and dispatch. */
+  oas32ParameterPlan?: Oas32ParameterPlan;
+  /** Avoid cURL URI globbing and path normalization for the 3.2 final URL. */
+  curlPreserveUrl?: boolean;
   /** 最终请求 URL（已替换 path 参数、已拼接 query） */
   url: string;
   /** HTTP 方法 */
@@ -401,6 +477,8 @@ export interface BuiltRequest {
   query: Record<string, QueryParamValue>;
   /** 请求体（原始字符串，或 FormData 引用 — 后者由 UI 层处理） */
   body?: string;
+  /** Includes an explicitly authored empty body in cURL and Fetch. */
+  explicitExampleBody?: boolean;
   /** 整段二进制请求体所选文件名，用于校验、预览和 cURL 占位。 */
   binaryBodyFileName?: string;
   /** Content-Type */
@@ -444,7 +522,7 @@ export interface ValidationError {
   /** 参数名 */
   name: string;
   /** 参数位置 */
-  in: ParamIn | 'body';
+  in: ParamIn | 'querystring' | 'body';
   /** 错误信息 */
   message: string;
   /**
@@ -469,6 +547,16 @@ export type SchemaValue = Record<string, unknown> | boolean;
 
 export type SchemaFieldTruncationReason =
   'circular-reference' | 'max-depth' | 'projection-loss' | 'reference-unavailable';
+
+/** Schema XML Object 的展示投影；只来自 Schema 位置，不解释 opaque 数据同名字段。 */
+export interface SchemaFieldXml {
+  nodeType?: string;
+  name?: string;
+  namespace?: string;
+  prefix?: string;
+  attribute?: boolean;
+  wrapped?: boolean;
+}
 
 /** 字段树节点（用于文档展示） */
 export interface SchemaFieldNode {
@@ -518,6 +606,8 @@ export interface SchemaFieldNode {
   deprecated?: boolean;
   /** const 约束值。 */
   constValue?: unknown;
+  /** OAS XML Object（3.2 nodeType 与旧 attribute/wrapped），仅 Schema 声明。 */
+  xml?: SchemaFieldXml;
   /** boolean schema 原值；false 表示没有实例可满足该 schema。 */
   booleanSchema?: boolean;
   /** 当 type 为 $ref 指向的具名类型时，保留类型名便于 UI 提示 */

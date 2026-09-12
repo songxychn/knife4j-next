@@ -1,14 +1,14 @@
 import {
   OPENAPI_HTTP_METHODS,
+  getOpenApiSpecificationFeatures,
   isOpenApi31Version,
   resolvePathItemOperation,
-  type OpenApiHttpMethod,
 } from 'knife4j-core';
 import type { MenuTag, PathItemObject, SwaggerDoc } from '../types/swagger';
 
 export const HOME_HTTP_METHODS = OPENAPI_HTTP_METHODS;
 
-export type HomeHttpMethod = OpenApiHttpMethod;
+export type HomeHttpMethod = string;
 
 export interface HomeTagStats {
   tag: string;
@@ -50,6 +50,34 @@ export function buildHomeStats(swaggerDoc: SwaggerDoc | null | undefined, menuTa
     };
   }
 
+  if (getOpenApiSpecificationFeatures(swaggerDoc.openapi)?.family === '3.2') {
+    const operations = [
+      ...new Map(
+        menuTags
+          .flatMap((tag) => tag.operations)
+          .map((operation) => [operation.identity?.identity ?? operation.key, operation]),
+      ).values(),
+    ];
+    const methodCounts: Record<string, number> = Object.create(null);
+    for (const operation of operations) methodCounts[operation.method] = (methodCounts[operation.method] ?? 0) + 1;
+    return {
+      total: operations.length,
+      counts: methodCounts,
+      deprecatedCount: operations.filter((operation) => operation.deprecated).length,
+      pathCount: new Set(
+        operations.filter((operation) => operation.source === 'path').map((operation) => operation.path),
+      ).size,
+      topTags: menuTags
+        .filter((tag) => tag.operations.length)
+        .map((tag) => ({
+          tag: tag.tag,
+          count: tag.operations.length,
+          deprecated: tag.operations.filter((operation) => operation.deprecated).length,
+        }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
   let total = 0;
   let deprecatedCount = 0;
   let pathCount = 0;
@@ -79,7 +107,7 @@ export function buildHomeStats(swaggerDoc: SwaggerDoc | null | undefined, menuTa
       if (seenWebhooks.has(identity)) return;
       seenWebhooks.add(identity);
       const method = operation.method as HomeHttpMethod;
-      if (!HOME_HTTP_METHODS.includes(method)) return;
+      if (!(HOME_HTTP_METHODS as readonly string[]).includes(method)) return;
       counts[method]++;
       total++;
       if (operation.deprecated) deprecatedCount++;

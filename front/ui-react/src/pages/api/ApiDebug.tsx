@@ -1,3 +1,37 @@
+import { parseOas32UrlTemplate } from 'knife4j-core';
+import { oas32MetadataDiagnostics } from '../../schema/oas32MetadataDiagnostics';
+import Oas32ServerDetails from '../../components/Oas32ServerDetails';
+import { useOas32ServerSelection } from './useOas32ServerSelection';
+import { operationHttpMethod } from 'knife4j-core';
+import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
+import {
+  exampleDebugModel,
+  isOas32ExampleDocument,
+  locateOperationExampleCatalog,
+  type OperationExampleResult,
+} from '../../schema/operationExampleCatalog';
+import {
+  evaluateOas32ParameterPlan,
+  oas32ExampleParameterEntry,
+  oas32ParameterContext,
+  type Oas32ParameterEntries,
+  type Oas32ParameterEntry,
+  type Oas32ParameterSchemaIssue,
+} from '../../schema/oas32ParameterAdapter';
+import {
+  collectResolvedOas32ParameterInputs,
+  editableOas32ParameterEntries,
+  oas32DiagnosticMessages,
+  oas32PreviewDiagnostics,
+  oas32QuerystringMediaType,
+  oas32QuerystringParameter,
+  previewOas32DisplayPath,
+  restoreOas32ParameterEntries,
+  serializedExampleParameterForKey,
+  serializedExampleParametersFromEntries,
+} from './oas32ParameterForm';
+import { useOperationExampleDefaults } from '../../schema/useOperationExampleDefaults';
+import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -25,6 +59,7 @@ import {
 import {
   CopyOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   PlusOutlined,
   ReloadOutlined,
   SendOutlined,
@@ -57,6 +92,8 @@ import {
   replaceSerializedPathParams,
   serializeOas31Parameters,
   validateRequired,
+  type Oas32ParameterDiagnostic,
+  oas32FormFieldsFromInstance,
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
@@ -66,7 +103,8 @@ import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam, type GlobalParamScope, type ScopedGlobalParamItem } from '../../context/GlobalParamContext';
-import { useSchemaEngine } from '../../context/SchemaEngineContext';
+import { debugAuthFromOas32Plan, projectAndPlanOas32Security } from '../../auth/oas32SecurityUi';
+import { useSchemaEngine, useExternalResources } from '../../context/SchemaEngineContext';
 import { useSettings } from '../../context/SettingsContext';
 import { applyRouteProxyHeader } from '../../api/routeProxyHeader';
 import ResponsePanel, { type DebugResponsePayload, type SseEvent } from './ResponsePanel';
@@ -117,6 +155,9 @@ import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState 
 import {
   buildRequestPreviewSafely,
   buildPreviewCurl,
+  formatRequestPreviewBody,
+  resolveSendPreview,
+  triggerMultipartBodyDownload,
   type RequestPreviewBuild,
   type RequestPreviewBuildResult,
 } from './requestPreviewBuild';
@@ -126,6 +167,7 @@ import {
   buildBodyContentDefaults,
   buildInitialParamValues,
   extractSchemaFields,
+  extraPositionalSchemaFields,
   initialBodyValueForContent,
   initialFormFieldsForContent,
   initialFormPartHeadersForContent,
@@ -137,7 +179,7 @@ import {
   type ParamValueMap,
   type SchemaFieldRow,
 } from './debugDefaultValues';
-import { materializeMultipartBody } from './formBodyRequest';
+import { multipartPlanNeedsEncodedEnvelope, reuseMaterializedMultipartBody } from './formBodyRequest';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import {
@@ -148,14 +190,15 @@ import {
   isNullableOas31Parameter,
   isOas31RequiredParameterError,
 } from './oas31ParameterForm';
-import {
-  effectiveCookieParameterSource,
-  hasExplicitCookieHeader,
-  type CookieParameterSource,
-} from './cookieParameterSource';
+import { effectiveCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
 import { formatByteSize, readResponseBlob, type ResponseBodyProgress } from './responseBodyProgress';
 import { customRowsToRecord, mergeCustomBodyParams, reservedBodyFieldNames } from './customParamRows';
 import { browserRequestConstraint } from './browserRequestConstraints';
+import {
+  discardUnsentDebugResponse,
+  inspectUnsentBrowserSendFailure,
+  unsentBrowserSendFailureTab,
+} from './apiDebugBrowserSend';
 import {
   consumeRequestBodySchemaOverride,
   effectiveRequestContentType,
@@ -177,6 +220,17 @@ import {
   responseBodySchemaResultIsCurrent,
   type ResponseBodySchemaDiagnostic,
 } from '../../schema/responseBodySchemaValidation';
+import {
+  consumeOas32SequentialResponse,
+  shouldConsumeOas32SequentialResponse,
+} from '../../schema/oas32SequentialResponse';
+import { classifyOas32SequentialMedia } from '../../schema/oas32SequentialMedia';
+import {
+  formatSequentialHistoryBody,
+  sequentialStreamFromConsumeResult,
+  toSequentialDisplayedItem,
+  type Oas32SequentialStreamView,
+} from '../../schema/oas32SequentialView';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
 import {
   emptyOas31BodyContentDefaults,
@@ -218,7 +272,8 @@ type RequestSchemaDiagnosticIssue =
       readonly keyword: string;
       readonly absoluteKeywordLocation: string;
     }
-  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & ParameterSchemaIssue);
+  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & ParameterSchemaIssue)
+  | ({ readonly kind: 'invalid-schema'; readonly target: 'parameter' } & Oas32ParameterSchemaIssue);
 
 type PendingSchemaOverride = {
   readonly preview: RequestPreviewBuild;
@@ -974,6 +1029,8 @@ interface BodyTabProps {
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   formPartHeaders: Record<string, Record<string, string>>;
   setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
+  formPartContentTypes: Record<string, string>;
+  setFormPartContentTypes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   enableDynamicParameter: boolean;
   customBodyParams: CustomParamRow[];
   setCustomBodyParams: (rows: CustomParamRow[]) => void;
@@ -994,6 +1051,8 @@ function BodyTab({
   setFormFields,
   formPartHeaders,
   setFormPartHeaders,
+  formPartContentTypes,
+  setFormPartContentTypes,
   enableDynamicParameter,
   customBodyParams,
   setCustomBodyParams,
@@ -1020,6 +1079,7 @@ function BodyTab({
     if (target) {
       setFormFields(initialFormFieldsForContent(target, bodyDefaults));
       setFormPartHeaders(initialFormPartHeadersForContent(target));
+      setFormPartContentTypes({});
       setCustomBodyParams([]);
       // 重置 fileFields
       fileFieldsRef.current = {};
@@ -1062,7 +1122,7 @@ function BodyTab({
                   : bc.category === 'urlencoded'
                     ? 'x-www-form-urlencoded'
                     : bc.category === 'multipart'
-                      ? 'multipart/form-data'
+                      ? bc.mediaType.split(';', 1)[0].trim() || 'multipart'
                       : bc.binary
                         ? 'binary'
                         : 'raw'}
@@ -1094,6 +1154,8 @@ function BodyTab({
           setFormFields={setFormFields}
           formPartHeaders={formPartHeaders}
           setFormPartHeaders={setFormPartHeaders}
+          formPartContentTypes={formPartContentTypes}
+          setFormPartContentTypes={setFormPartContentTypes}
           fileFieldsRef={fileFieldsRef}
         />
       )}
@@ -1254,6 +1316,8 @@ interface MultipartFormProps {
   setFormFields: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   formPartHeaders: Record<string, Record<string, string>>;
   setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
+  formPartContentTypes: Record<string, string>;
+  setFormPartContentTypes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
 }
 
@@ -1263,11 +1327,26 @@ function MultipartForm({
   setFormFields,
   formPartHeaders,
   setFormPartHeaders,
+  formPartContentTypes,
+  setFormPartContentTypes,
   fileFieldsRef,
 }: MultipartFormProps) {
   const { t } = useTranslation();
   const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>({});
-  const fields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
+  const declaredFields = useMemo(() => extractSchemaFields(bodyContent), [bodyContent]);
+  const extraFields = useMemo(
+    () =>
+      extraPositionalSchemaFields(bodyContent, [
+        ...Object.keys(formFields),
+        ...Object.keys(fileListMap),
+        ...Object.keys(formPartContentTypes),
+      ]),
+    [bodyContent, formFields, fileListMap, formPartContentTypes],
+  );
+  const fields = useMemo(() => {
+    const seen = new Set(declaredFields.map((field) => field.name));
+    return [...declaredFields, ...extraFields.filter((field) => !seen.has(field.name))];
+  }, [declaredFields, extraFields]);
 
   const updateField = (name: string, value: string) => {
     setFormFields((prev) => ({ ...prev, [name]: value }));
@@ -1288,6 +1367,21 @@ function MultipartForm({
       if (f.originFileObj) files.push(f.originFileObj);
     }
     fileFieldsRef.current[name] = files;
+  };
+
+  const addExtraPart = () => {
+    const prefixCount = bodyContent.oas32Form?.fields.length ?? 0;
+    const present = [...Object.keys(formFields), ...Object.keys(fileListMap), ...Object.keys(formPartContentTypes)]
+      .filter((name) => /^\d+$/.test(name))
+      .map(Number)
+      .filter((index) => index >= prefixCount);
+    const next = present.length > 0 ? Math.max(...present) + 1 : prefixCount;
+    const name = String(next);
+    setFormFields((prev) => ({ ...prev, [name]: prev[name] ?? '' }));
+  };
+
+  const updatePartContentType = (name: string, value: string) => {
+    setFormPartContentTypes((prev) => ({ ...prev, [name]: value }));
   };
 
   const columns: ColumnsType<SchemaFieldRow> = [
@@ -1379,6 +1473,19 @@ function MultipartForm({
         return (
           <Space direction="vertical" size={6} style={{ width: '100%' }}>
             {editor}
+            {record.contentTypeRequiresChoice && (
+              <AutoComplete
+                size="small"
+                value={formPartContentTypes[record.name] ?? ''}
+                options={record.contentTypes
+                  .filter((mediaType) => !mediaType.includes('*'))
+                  .map((mediaType) => ({ value: mediaType }))}
+                onChange={(value) => updatePartContentType(record.name, value)}
+                placeholder={t('apiDebug.body.choosePartContentType.placeholder')}
+                aria-label={t('apiDebug.body.choosePartContentType')}
+                style={{ width: '100%' }}
+              />
+            )}
             {record.partHeaders.map((header) => (
               <Input
                 key={header.name}
@@ -1421,7 +1528,16 @@ function MultipartForm({
     },
   ];
 
-  return <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />;
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />
+      {bodyContent.oas32Form?.extraItemTemplate && (
+        <Button size="small" icon={<PlusOutlined />} onClick={addExtraPart}>
+          {t('apiDebug.body.addPart')}
+        </Button>
+      )}
+    </Space>
+  );
 }
 
 // ─── Raw Editor ───────────────────────────────────────
@@ -1567,29 +1683,38 @@ function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] 
 interface PreviewTabPanelProps {
   result: RequestPreviewBuildResult;
   onCopyText: (text: string) => void;
+  onDownloadMultipartBody?: (body: Blob) => void;
 }
 
 function formatMultipartPlanBody(plan: Extract<FormBodyEncodingPlan, { kind: 'multipart' }>): string {
-  return JSON.stringify(
-    plan.parts.map((part) =>
-      part.kind === 'file'
-        ? {
-            name: part.name,
-            file: part.fileName,
-            ...(part.fileSize === undefined ? {} : { size: part.fileSize }),
-            contentType: part.contentType,
-            headers: part.headers,
-          }
-        : {
-            name: part.name,
-            value: part.value,
-            contentType: part.contentType,
-            headers: part.headers,
-          },
-    ),
-    null,
-    2,
-  );
+  const formatPart = (part: (typeof plan.parts)[number]): Record<string, unknown> => {
+    if (part.kind === 'nested') {
+      return {
+        name: part.name,
+        contentType: part.contentType,
+        headers: part.headers,
+        parts: part.parts.map(formatPart),
+      };
+    }
+    return part.kind === 'file'
+      ? {
+          name: part.name,
+          file: part.fileName,
+          ...(part.fileSize === undefined ? {} : { size: part.fileSize }),
+          contentType: part.contentType,
+          headers: part.headers,
+        }
+      : {
+          name: part.name,
+          value: part.value,
+          contentType: part.contentType,
+          headers: part.headers,
+        };
+  };
+  if (plan.wire === 'authored') {
+    return plan.authoredBody ?? '';
+  }
+  return JSON.stringify(plan.parts.map(formatPart), null, 2);
 }
 
 function applyMaterializedMultipartContentType(headers: Record<string, string>, contentType: string | undefined): void {
@@ -1599,24 +1724,50 @@ function applyMaterializedMultipartContentType(headers: Record<string, string>, 
   if (contentType) headers['Content-Type'] = contentType;
 }
 
-function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
+function oas32PreviewDiagnosticAlertType(diagnostic: Oas32ParameterDiagnostic): 'error' | 'warning' | 'info' {
+  if (diagnostic.blocks === 'all') return 'error';
+  if (diagnostic.blocks === 'browser') return 'warning';
+  return 'info';
+}
+
+function oas32PreviewDiagnosticTitle(diagnostic: Oas32ParameterDiagnostic): string {
+  if (diagnostic.blocks === 'all') return 'apiDebug.preview.diagnosticsBlocked';
+  if (diagnostic.blocks === 'browser') return 'apiDebug.preview.diagnosticsBrowser';
+  return 'apiDebug.preview.diagnosticsInfo';
+}
+
+function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: PreviewTabPanelProps) {
   const { t } = useTranslation();
+  const [wireText, setWireText] = useState<string>();
+  const materialized = result.ok ? result.value.materializedMultipart : undefined;
+  useEffect(() => {
+    if (!result.ok || materialized?.mode !== 'encoded' || !(materialized.body instanceof Blob)) {
+      setWireText(undefined);
+      return;
+    }
+    let cancelled = false;
+    void materialized.body.text().then((value) => {
+      if (!cancelled) setWireText(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [result, materialized]);
   if (!result.ok) {
     return <Alert type="error" showIcon message={t('apiDebug.error.title')} description={result.error} />;
   }
   const { built, curl, cookieParameterSource } = result.value;
   const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
-  const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/form-data');
-  const previewBody = multipartPlan ? formatMultipartPlanBody(multipartPlan) : built.body;
-  const hasBody = previewBody !== undefined && previewBody !== '';
-
-  const prettyJson = (raw: string): string => {
-    try {
-      return JSON.stringify(JSON.parse(raw), null, 2);
-    } catch {
-      return raw;
-    }
-  };
+  const encodedMultipart = materialized?.mode === 'encoded';
+  const isMultipart = Boolean(multipartPlan) || built.contentType.toLowerCase().includes('multipart/');
+  const previewBody = encodedMultipart
+    ? (wireText ?? '')
+    : multipartPlan
+      ? formatMultipartPlanBody(multipartPlan)
+      : built.body;
+  const hasBody =
+    encodedMultipart || (previewBody !== undefined && (previewBody !== '' || built.explicitExampleBody === true));
+  const parameterDiagnostics = oas32PreviewDiagnostics(built);
 
   const headerPairs = Object.entries(built.headers);
   const queryPairs = Object.entries(built.query);
@@ -1679,6 +1830,21 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
         </Space>
         <pre style={previewBoxStyle}>{built.url}</pre>
       </div>
+
+      {parameterDiagnostics.length > 0 && (
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          <Text strong>{t('apiDebug.preview.diagnostics')}</Text>
+          {parameterDiagnostics.map((diagnostic, index) => (
+            <Alert
+              key={`${diagnostic.code}:${diagnostic.key ?? ''}:${index}`}
+              type={oas32PreviewDiagnosticAlertType(diagnostic)}
+              showIcon
+              message={t(oas32PreviewDiagnosticTitle(diagnostic))}
+              description={`${diagnostic.code}: ${diagnostic.message}`}
+            />
+          ))}
+        </Space>
+      )}
 
       {/* Headers */}
       <div>
@@ -1773,10 +1939,18 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
 
       {/* Body */}
       <div>
-        <Text strong>{isMultipart ? t('apiDebug.preview.bodyMultipart') : t('apiDebug.preview.body')}</Text>
+        <Text strong>
+          {encodedMultipart
+            ? t('apiDebug.preview.multipartWire')
+            : isMultipart
+              ? t('apiDebug.preview.bodyMultipart')
+              : t('apiDebug.preview.body')}
+        </Text>
         {hasBody ? (
           <pre style={previewBoxStyle}>
-            {built.contentType.includes('json') ? prettyJson(previewBody ?? '') : (previewBody ?? '')}
+            {encodedMultipart
+              ? (wireText ?? '')
+              : formatRequestPreviewBody(previewBody ?? '', built.contentType, built.explicitExampleBody)}
           </pre>
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
@@ -1796,11 +1970,23 @@ function PreviewTabPanel({ result, onCopyText }: PreviewTabPanelProps) {
             style={{ marginBottom: 8 }}
           />
         )}
+        {encodedMultipart && (
+          <Alert type="info" showIcon message={t('apiDebug.preview.multipartBodyFile')} style={{ marginBottom: 8 }} />
+        )}
         <Space style={{ marginBottom: 4 }}>
           <Text strong>{t('apiDebug.preview.curl')}</Text>
           <Button size="small" onClick={() => onCopyText(curl)}>
             {t('apiDebug.preview.copyCurl')}
           </Button>
+          {encodedMultipart && materialized?.body instanceof Blob && (
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => onDownloadMultipartBody?.(materialized.body as Blob)}
+            >
+              {t('apiDebug.preview.downloadMultipartBody')}
+            </Button>
+          )}
         </Space>
         <pre style={{ ...previewBoxStyle, maxHeight: 260 }}>{curl}</pre>
       </div>
@@ -1831,6 +2017,7 @@ interface InitialDebugState {
   body: string;
   formFields: Record<string, string>;
   formPartHeaders: Record<string, Record<string, string>>;
+  formPartContentTypes: Record<string, string>;
   rawMode: RawMode;
   customQueryParams: CustomParamRow[];
   customBodyParams: CustomParamRow[];
@@ -1861,9 +2048,10 @@ function buildInitialDebugState(
 
   const firstBody = debugModel.bodyContents[0];
   return {
-    cookieParameterSource: isOas31SchemaDocument(swaggerDoc) ? 'browser-session' : 'explicit',
+    cookieParameterSource:
+      isOas31SchemaDocument(swaggerDoc) || isOas32ExampleDocument(swaggerDoc) ? 'browser-session' : 'explicit',
     baseUrl,
-    method: operation.method.toUpperCase(),
+    method: operationHttpMethod(operation),
     path: operation.path,
     paramValues,
     paramEnabled,
@@ -1871,6 +2059,7 @@ function buildInitialDebugState(
     body: initialBodyValueForContent(firstBody, bodyDefaults),
     formFields: initialFormFieldsForContent(firstBody, bodyDefaults),
     formPartHeaders: initialFormPartHeadersForContent(firstBody),
+    formPartContentTypes: {},
     rawMode: inferRawMode(firstBody),
     customQueryParams: [],
     customBodyParams: [],
@@ -1919,10 +2108,11 @@ function restoreInitialDebugStateFromCache(
   cached: DebugCacheState | null,
   debugModel: OperationDebugModel,
   bodyDefaults: BodyContentDefaults,
+  preserveMethodCase = false,
 ): InitialDebugState {
   if (!cached) return initial;
 
-  const cachedMethod = cached.method.toUpperCase();
+  const cachedMethod = preserveMethodCase ? cached.method : cached.method.toUpperCase();
   const cachedBody = debugModel.bodyContents.find(
     (bodyContent) => bodyContent.mediaType === cached.selectedContentType,
   );
@@ -1933,7 +2123,7 @@ function restoreInitialDebugStateFromCache(
     ...initial,
     cookieParameterSource: cached.cookieParameterSource ?? 'explicit',
     baseUrl: cached.baseUrl || initial.baseUrl,
-    method: DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
+    method: cachedMethod === initial.method || DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
     path: cached.path || initial.path,
     paramValues: mergeCachedStringRecord(initial.paramValues, cached.paramValues),
     paramEnabled: mergeCachedBooleanRecord(initial.paramEnabled, cached.paramEnabled),
@@ -1945,6 +2135,7 @@ function restoreInitialDebugStateFromCache(
     formPartHeaders: restoreCachedBody
       ? mergeCachedFormPartHeaders(selectedBody, cached.formPartHeaders)
       : initialFormPartHeadersForContent(selectedBody),
+    formPartContentTypes: restoreCachedBody ? { ...(cached.formPartContentTypes ?? {}) } : {},
     rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
     customQueryParams: cached.customQueryParams,
     customBodyParams: restoreCachedBody ? cached.customBodyParams : [],
@@ -1959,17 +2150,30 @@ export default function ApiDebug() {
   const { t } = useTranslation();
   const { group, tag, operaterId } = useParams();
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
-  const { activeSwaggerGroup, routeGroupReady } = useGroup();
+  const { activeSwaggerGroup, operationRetrievalUri, routeGroupReady } = useGroup();
   const { settings } = useSettings();
   const { effectiveParams, cookieSession } = useGlobalParam();
   const schemaEngine = useSchemaEngine();
+  const resources = useExternalResources();
   const groupContextPath = activeSwaggerGroup?.contextPath;
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const server32 = useOas32ServerSelection({
+    document: isOas32 ? swaggerDoc : null,
+    operation,
+    retrievalUri: operationRetrievalUri,
+    session: schemaEngine.session,
+    enableHost: settings.enableHost,
+    host: settings.enableHostText,
+    contextPath: groupContextPath,
+  });
   const operationMethod = operation?.method;
   const operationPath = operation?.path;
   const debugCacheKey = useMemo(() => {
     if (!group || !tag || !operaterId || !operationMethod || !operationPath) return null;
-    return [group, tag, operaterId, operationMethod, operationPath].join('|');
-  }, [group, operaterId, operationMethod, operationPath, tag]);
+    return operation?.identity
+      ? JSON.stringify([group, operation.identity.identity])
+      : [group, tag, operaterId, operationMethod, operationPath].join('|');
+  }, [group, operaterId, operationMethod, operationPath, tag, operation]);
   const defaultBaseUrl = useMemo(
     () =>
       resolveRequestBaseUrl({
@@ -1999,9 +2203,30 @@ export default function ApiDebug() {
       }),
     [groupContextPath, operation, swaggerDoc, t],
   );
-  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const [legacyBaseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const baseUrl = isOas32 ? server32.baseUrl : legacyBaseUrl;
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/');
+  const pathDiagnostics32 = useMemo(
+    () =>
+      isOas32 && operation
+        ? [
+            ...oas32MetadataDiagnostics(swaggerDoc, [{ tag: '', operations: [operation] }]),
+            ...(operation.source === 'path'
+              ? parseOas32UrlTemplate(path, 'path', {
+                  ownerRetrievalUri: operation.identity?.ownerRetrievalUri ?? '',
+                  pointer: operation.identity?.mountPointer ?? '',
+                }).diagnostics.map((diagnostic) => ({
+                  code: diagnostic.code,
+                  path: diagnostic.pointer,
+                  reason: diagnostic.reason,
+                }))
+              : []),
+          ]
+        : [],
+    [isOas32, swaggerDoc, operation, path],
+  );
+  const serverOrPathUnavailable32 = !server32.executable || pathDiagnostics32.length > 0;
   const [paramValues, setParamValues] = useState<ParamValueMap>({});
   // enabled state: keyed by paramKey; empty optional OAS 3.1 params start omitted.
   const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
@@ -2011,26 +2236,44 @@ export default function ApiDebug() {
   const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
   const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
   const [cookieParameterSource, setCookieParameterSource] = useState<CookieParameterSource>('explicit');
+  const exampleCatalog32 = useMemo(
+    () => (isOas32 && swaggerDoc && operation ? locateOperationExampleCatalog(swaggerDoc, operation) : null),
+    [isOas32, swaggerDoc, operation],
+  );
+  const exampleSession32 = isOas32 && schemaEngine.status === 'ready' ? schemaEngine.session : undefined;
+  const defaults32 = useOperationExampleDefaults(exampleCatalog32, exampleSession32);
+  const [oas32ParameterEntries, setOas32ParameterEntries] = useState<Oas32ParameterEntries>({});
+  const serializedParams32 = useMemo(
+    () => serializedExampleParametersFromEntries(oas32ParameterEntries),
+    [oas32ParameterEntries],
+  );
+  const [serializedBodyMedia32, setSerializedBodyMedia32] = useState<string>();
+  const appliedDefaults32 = useRef<ReadonlyMap<string, OperationExampleResult> | null>(null);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
-    return buildOperationDebugModel({
+    const model = buildOperationDebugModel({
       doc: swaggerDoc as unknown as Record<string, unknown>,
+      operationDocuments: operation.identity ? operationSchemaDocuments(swaggerDoc, operation) : undefined,
+      operationIdentity: operation.identity,
+      parameterContext: isOas32 ? oas32ParameterContext(operation) : undefined,
       path: operation.path,
       method: operation.method,
       isOAS2: Boolean((swaggerDoc as unknown as Record<string, unknown>).swagger),
     });
-  }, [operation, swaggerDoc]);
+    return exampleCatalog32 ? exampleDebugModel(model, exampleCatalog32) : model;
+  }, [exampleCatalog32, isOas32, operation, swaggerDoc]);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
-  const effectiveCookieSource = effectiveCookieParameterSource(isOas31, cookieParameterSource);
+  const cookieSessionEnabled = isOas31 || isOas32;
+  const effectiveCookieSource = effectiveCookieParameterSource(cookieSessionEnabled, cookieParameterSource);
   const synchronousBodyDefaults = useMemo(
     () =>
-      !isOas31 && swaggerDoc && operation && debugModel
+      !isOas31 && !isOas32 && swaggerDoc && operation && debugModel
         ? buildBodyContentDefaults(swaggerDoc, operation, debugModel)
         : EMPTY_BODY_CONTENT_DEFAULTS,
-    [debugModel, isOas31, operation, swaggerDoc],
+    [debugModel, isOas31, isOas32, operation, swaggerDoc],
   );
   const emptyOas31Defaults = useMemo(() => emptyOas31BodyContentDefaults(debugModel), [debugModel]);
-  const initialBodyDefaults = isOas31 ? emptyOas31Defaults : synchronousBodyDefaults;
+  const initialBodyDefaults = isOas31 || isOas32 ? emptyOas31Defaults : synchronousBodyDefaults;
   const oas31ExampleIdentity = useMemo<Oas31DebugExampleIdentity | null>(
     () =>
       isOas31 && schemaEngine.status === 'ready' && operation && swaggerDoc
@@ -2063,7 +2306,20 @@ export default function ApiDebug() {
     }
     return null;
   }, [debugModel, isOas31, oas31ExampleIdentity, oas31ExampleState, operation, schemaEngine, swaggerDoc]);
-  const bodyDefaults = activeOas31Examples?.defaults ?? initialBodyDefaults;
+  const bodyDefaults = useMemo(
+    () =>
+      defaults32
+        ? {
+            bodyByMediaType: Object.fromEntries(
+              [...defaults32.values()]
+                .filter((value) => value.target.group.startsWith('body:'))
+                .map((value) => [value.target.mediaType!, value.representation.text ?? '']),
+            ),
+            formFieldsByMediaType: emptyOas31Defaults.formFieldsByMediaType,
+          }
+        : (activeOas31Examples?.defaults ?? initialBodyDefaults),
+    [defaults32, emptyOas31Defaults, activeOas31Examples, initialBodyDefaults],
+  );
   const [loading, setLoading] = useState(false);
   const [responseProgress, setResponseProgress] = useState<ResponseBodyProgress | null>(null);
   const [response, setResponse] = useState<DebugResponsePayload | null>(null);
@@ -2072,6 +2328,7 @@ export default function ApiDebug() {
   const [builtRequestCookieSource, setBuiltRequestCookieSource] = useState<CookieParameterSource>('explicit');
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
   const [sseStreaming, setSseStreaming] = useState(false);
+  const [sequentialStream, setSequentialStream] = useState<Oas32SequentialStreamView | null>(null);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
   const currentSchemaEngineRef = useRef(schemaEngine);
@@ -2090,8 +2347,14 @@ export default function ApiDebug() {
   const [selectedContentType, setSelectedContentType] = useState('');
   const [formFields, setFormFields] = useState<Record<string, string>>({});
   const [formPartHeaders, setFormPartHeaders] = useState<Record<string, Record<string, string>>>({});
+  const [formPartContentTypes, setFormPartContentTypes] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const binaryBodyFileRef = useRef<File | null>(null);
+  const displayedPreviewRef = useRef<RequestPreviewBuildResult | null>(null);
+  const multipartMaterializationRef = useRef<{
+    key: string;
+    value: NonNullable<RequestPreviewBuild['materializedMultipart']>;
+  } | null>(null);
   const [rawMode, setRawMode] = useState<RawMode>('text');
   const [resetNonce, setResetNonce] = useState(0);
   const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
@@ -2148,6 +2411,9 @@ export default function ApiDebug() {
   }, [debugCacheKey, settings.enableRequestHistory]);
 
   const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
+    setOas32ParameterEntries({});
+    setSerializedBodyMedia32(undefined);
+    appliedDefaults32.current = null;
     setCookieParameterSource(initial.cookieParameterSource);
     setBaseUrl(initial.baseUrl);
     setMethod(initial.method);
@@ -2158,6 +2424,7 @@ export default function ApiDebug() {
     setBody(initial.body);
     setFormFields(initial.formFields);
     setFormPartHeaders(initial.formPartHeaders);
+    setFormPartContentTypes(initial.formPartContentTypes);
     fileFieldsRef.current = {};
     binaryBodyFileRef.current = null;
     setRawMode(initial.rawMode);
@@ -2168,6 +2435,7 @@ export default function ApiDebug() {
     setBuiltRequest(null);
     setBuiltRequestCookieSource('explicit');
     setSseEvents(null);
+    setSequentialStream(null);
     setSseStreaming(false);
     setResponseProgress(null);
     setValidationErrors([]);
@@ -2181,7 +2449,13 @@ export default function ApiDebug() {
   useEffect(() => {
     if (!initialDebugState || !debugModel) return;
     const cached = settings.enableRequestCache && debugCacheKey !== null ? readDebugCache(debugCacheKey) : null;
-    const nextInitial = restoreInitialDebugStateFromCache(initialDebugState, cached, debugModel, initialBodyDefaults);
+    const nextInitial = restoreInitialDebugStateFromCache(
+      initialDebugState,
+      cached,
+      debugModel,
+      initialBodyDefaults,
+      Boolean(operation?.identity),
+    );
     skipNextDebugCacheWriteRef.current = true;
     debugDefaultEditRevisionRef.current = cached === null ? 0 : 1;
     appliedOas31ExampleIdentityRef.current = null;
@@ -2191,18 +2465,35 @@ export default function ApiDebug() {
     setSseStreaming(false);
     const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
     applyInitialDebugState(nextInitial, { resetActiveTab: true });
+    if (isOas32 && cached) {
+      setOas32ParameterEntries(
+        restoreOas32ParameterEntries(cached.oas32ParameterEntries, cached.serializedExampleParameters),
+      );
+      setSerializedBodyMedia32(cached.serializedExampleBodyMediaType);
+    }
     setLoading(false);
     setResponse(cachedSession?.response ?? null);
     setError(cachedSession?.error ?? null);
     setBuiltRequest(cachedSession?.builtRequest ?? null);
     setBuiltRequestCookieSource(cachedSession?.builtRequestCookieSource ?? 'explicit');
     setSseEvents(cachedSession?.sseEvents ?? null);
+    setSequentialStream(
+      cachedSession?.sequentialStream ? { ...cachedSession.sequentialStream, streaming: false } : null,
+    );
     setHydratedDebugCacheKey(debugCacheKey);
-  }, [debugCacheKey, debugModel, initialBodyDefaults, initialDebugState, settings.enableRequestCache]);
+  }, [
+    debugCacheKey,
+    debugModel,
+    initialBodyDefaults,
+    initialDebugState,
+    settings.enableRequestCache,
+    operation?.identity,
+    isOas32,
+  ]);
 
   useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
-    if (!response && !error && !builtRequest && sseEvents === null) {
+    if (!response && !error && !builtRequest && sseEvents === null && sequentialStream === null) {
       removeDebugSessionState(debugCacheKey);
       return;
     }
@@ -2212,8 +2503,18 @@ export default function ApiDebug() {
       builtRequest,
       builtRequestCookieSource,
       sseEvents,
+      sequentialStream: sequentialStream ? { ...sequentialStream, streaming: false } : sequentialStream,
     });
-  }, [builtRequest, builtRequestCookieSource, debugCacheKey, error, hydratedDebugCacheKey, response, sseEvents]);
+  }, [
+    builtRequest,
+    builtRequestCookieSource,
+    debugCacheKey,
+    error,
+    hydratedDebugCacheKey,
+    response,
+    sseEvents,
+    sequentialStream,
+  ]);
 
   useEffect(() => {
     if (!settings.enableRequestCache || debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) {
@@ -2226,6 +2527,13 @@ export default function ApiDebug() {
     writeDebugCache(debugCacheKey, {
       version: DEBUG_CACHE_VERSION,
       cookieParameterSource: effectiveCookieSource,
+      ...(isOas32
+        ? {
+            serializedExampleParameters: serializedParams32,
+            oas32ParameterEntries: editableOas32ParameterEntries(oas32ParameterEntries),
+            serializedExampleBodyMediaType: serializedBodyMedia32,
+          }
+        : {}),
       baseUrl,
       method,
       path,
@@ -2235,6 +2543,7 @@ export default function ApiDebug() {
       body,
       formFields,
       formPartHeaders,
+      formPartContentTypes,
       rawMode,
       customQueryParams,
       customBodyParams,
@@ -2252,6 +2561,7 @@ export default function ApiDebug() {
     debugCacheKey,
     formFields,
     formPartHeaders,
+    formPartContentTypes,
     method,
     paramEnabled,
     paramValues,
@@ -2260,7 +2570,60 @@ export default function ApiDebug() {
     selectedContentType,
     settings.enableRequestCache,
     hydratedDebugCacheKey,
+    isOas32,
+    serializedParams32,
+    serializedBodyMedia32,
+    oas32ParameterEntries,
   ]);
+
+  useEffect(() => {
+    if (
+      !defaults32 ||
+      appliedDefaults32.current === defaults32 ||
+      debugDefaultEditRevisionRef.current !== 0 ||
+      hydratedDebugCacheKey !== debugCacheKey
+    )
+      return;
+    const entries: Record<string, (typeof oas32ParameterEntries)[string]> = Object.create(null);
+    const values: Record<string, string> = {};
+    const enabled: Record<string, boolean> = {};
+    for (const result of defaults32.values()) {
+      if (result.target.parameterKey) {
+        const entry = oas32ExampleParameterEntry(result, debugDefaultEditRevisionRef.current);
+        if (entry) {
+          entries[result.target.parameterKey] = entry;
+          values[result.target.parameterKey] = entry.text;
+          enabled[result.target.parameterKey] = true;
+        }
+      } else if (
+        result.target.mediaType === selectedContentType &&
+        result.target.context.bodyContent?.category === 'multipart' &&
+        result.representation.data !== undefined &&
+        result.target.context.bodyContent.oas32Form &&
+        result.representation.serialization !== 'invalid' &&
+        !result.representation.external
+      ) {
+        setSerializedBodyMedia32(undefined);
+        setFormFields(
+          oas32FormFieldsFromInstance(result.target.context.bodyContent.oas32Form, result.representation.data),
+        );
+      } else if (
+        result.target.mediaType === selectedContentType &&
+        result.representation.text !== undefined &&
+        result.representation.serialization !== 'invalid' &&
+        !result.representation.external &&
+        !result.target.context.bodyContent?.binary &&
+        result.target.context.bodyContent?.category !== 'multipart'
+      ) {
+        setBody(result.representation.text);
+        setSerializedBodyMedia32(selectedContentType);
+      }
+    }
+    setOas32ParameterEntries(entries);
+    setParamValues((previous) => ({ ...previous, ...values }));
+    setParamEnabled((previous) => ({ ...previous, ...enabled }));
+    appliedDefaults32.current = defaults32;
+  }, [defaults32, hydratedDebugCacheKey, debugCacheKey, selectedContentType, resetNonce]);
 
   const setBodyFromUser = useCallback((next: string) => {
     debugDefaultEditRevisionRef.current += 1;
@@ -2280,7 +2643,26 @@ export default function ApiDebug() {
     [],
   );
 
+  const setFormPartContentTypesFromUser = useCallback((next: React.SetStateAction<Record<string, string>>) => {
+    debugDefaultEditRevisionRef.current += 1;
+    setFormPartContentTypes(next);
+  }, []);
+
   const updateValue = (param: DebugParam, next: string) => {
+    debugDefaultEditRevisionRef.current += 1;
+    const key = paramKey(param);
+    setOas32ParameterEntries((previous) => {
+      const current = previous[key];
+      return {
+        ...previous,
+        [key]: {
+          kind: current?.kind ?? 'editor',
+          text: next,
+          enabled: paramEnabled[key] !== false,
+          ...(current && 'data' in current ? { data: current.data } : {}),
+        },
+      };
+    });
     setParamValues((prev) => ({ ...prev, [paramKey(param)]: next }));
   };
 
@@ -2299,17 +2681,32 @@ export default function ApiDebug() {
     // 如果 path 已不包含任何占位符，说明用户手动编辑了 URL，直接显示
     const hasPlaceholders = debugModel.pathParams.some((p) => path.includes(`{${p.name}}`));
     if (!hasPlaceholders) return path;
+    if (debugModel.oas32Parameters) {
+      return previewOas32DisplayPath(
+        path,
+        debugModel.oas32Parameters,
+        oas32ParameterEntries,
+        paramValues,
+        paramEnabled,
+        effectiveCookieSource,
+        debugDefaultEditRevisionRef.current,
+      );
+    }
     const legacyPath = replacePathParams(path, pathParamValues);
     try {
       const oas31Values = collectOas31ParameterValues(debugModel, paramValues, paramEnabled, effectiveCookieSource);
-      const serializedPath = serializeOas31Parameters(debugModel, oas31Values).path;
+      const serializedPath = serializeOas31Parameters(
+        debugModel,
+        oas31Values,
+        Object.fromEntries(Object.entries(serializedParams32).filter(([key]) => paramEnabled[key] !== false)),
+      ).path;
       return replaceSerializedPathParams(legacyPath, serializedPath);
     } catch {
       // The canonical preview reports the precise serialization diagnostic.
       // Keep the editable URL field usable while the value is incomplete.
       return legacyPath;
     }
-  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource]);
+  }, [path, debugModel, paramEnabled, paramValues, effectiveCookieSource, serializedParams32, oas32ParameterEntries]);
 
   /** 用户在 URL 输入框中修改路径时，反向同步到对应的 path 参数值 */
   const handlePathInputChange = (newPath: string) => {
@@ -2366,6 +2763,16 @@ export default function ApiDebug() {
     return keys.length > 0 ? keys : undefined;
   }, [operation]);
 
+  const [securityBranchIndex, setSecurityBranchIndex] = useState<number | undefined>();
+  useEffect(() => {
+    setSecurityBranchIndex(undefined);
+  }, [operation?.identity?.identity]);
+  const security32 = useMemo(
+    () =>
+      isOas32 ? projectAndPlanOas32Security(resources.snapshot, operation, authValues, securityBranchIndex) : null,
+    [authValues, isOas32, operation, resources.snapshot, securityBranchIndex],
+  );
+
   // ── 从 GlobalParamContext 转换为应用级与当前分组参数 ──
   const applicationParamValues = useMemo(
     () => globalParamValuesForScope(effectiveParams, 'application'),
@@ -2389,7 +2796,9 @@ export default function ApiDebug() {
   };
 
   const paramColumnsFor = (params: DebugParam[]): ColumnsType<DebugParam> => {
-    const browserSession = params.some((parameter) => isBrowserSessionParameter(parameter, effectiveCookieSource));
+    const browserSession = params.some((parameter) =>
+      isBrowserSessionParameter(parameter, effectiveCookieSource, { declaredCookies: isOas32 }),
+    );
     const paramKeys = params.map(paramKey);
     const selection = resolveApiDebugParamSelection(paramKeys, paramEnabled);
     const selectAllLabel = t(selection.checked ? 'apiDebug.params.deselectAll' : 'apiDebug.params.selectAll');
@@ -2403,9 +2812,10 @@ export default function ApiDebug() {
               checked={selection.checked}
               indeterminate={selection.indeterminate}
               disabled={paramKeys.length === 0}
-              onChange={(event) =>
-                setParamEnabled((current) => setApiDebugParamsEnabled(current, paramKeys, event.target.checked))
-              }
+              onChange={(event) => {
+                debugDefaultEditRevisionRef.current += 1;
+                setParamEnabled((current) => setApiDebugParamsEnabled(current, paramKeys, event.target.checked));
+              }}
             />
           </Tooltip>
         ),
@@ -2414,12 +2824,13 @@ export default function ApiDebug() {
         render: (_value: unknown, record: DebugParam) => (
           <Checkbox
             checked={paramEnabled[paramKey(record)] !== false}
-            onChange={(e) =>
+            onChange={(e) => {
+              debugDefaultEditRevisionRef.current += 1;
               setParamEnabled((prev) => ({
                 ...prev,
                 [paramKey(record)]: e.target.checked,
-              }))
-            }
+              }));
+            }}
           />
         ),
       },
@@ -2454,8 +2865,15 @@ export default function ApiDebug() {
         key: 'value',
         width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.value,
         render: (_value: string, record: DebugParam) =>
-          isBrowserSessionParameter(record, effectiveCookieSource) ? (
+          isBrowserSessionParameter(record, effectiveCookieSource, { declaredCookies: isOas32 }) ? (
             <Text type="secondary">{t('apiDebug.cookie.sessionValue')}</Text>
+          ) : serializedExampleParameterForKey(oas32ParameterEntries, paramKey(record)) ? (
+            <Input.TextArea
+              aria-label={`${record.name} serializedValue`}
+              value={paramValues[paramKey(record)] ?? ''}
+              onChange={(event) => updateValue(record, event.target.value)}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+            />
           ) : (
             <ParamInput
               param={record}
@@ -2557,6 +2975,7 @@ export default function ApiDebug() {
 
   /** 获取最终 effective content-type */
   const getEffectiveContentType = (): string => {
+    if (isOas32 && serializedBodyMedia32 === selectedContentType) return selectedContentType;
     const category = getCurrentCategory();
     const currentBody = debugModel.bodyContents.find((b) => b.mediaType === selectedContentType);
     if (category === 'json') {
@@ -2604,6 +3023,7 @@ export default function ApiDebug() {
     const partHeaderSnapshot = Object.fromEntries(
       Object.entries(formPartHeaders).map(([fieldName, headers]) => [fieldName, { ...headers }]),
     );
+    const partContentTypeSnapshot = { ...formPartContentTypes };
 
     return {
       pathParams: collectForIn(debugModel.pathParams),
@@ -2611,6 +3031,31 @@ export default function ApiDebug() {
       headerParams: { ...extraHeaders, ...specHeaders },
       cookieParams: effectiveCookieSource === 'browser-session' ? {} : { ...extraCookieParams, ...specCookieParams },
       ...(Object.keys(oas31ParameterValues).length > 0 ? { oas31ParameterValues } : {}),
+      ...(isOas32 && debugModel.oas32Parameters
+        ? {
+            oas32ParameterInputs: collectResolvedOas32ParameterInputs(
+              debugModel.oas32Parameters,
+              oas32ParameterEntries,
+              paramValues,
+              paramEnabled,
+              effectiveCookieSource,
+              debugDefaultEditRevisionRef.current,
+              exampleSession32,
+            ),
+            ...(serializedBodyMedia32 === selectedContentType
+              ? { serializedExampleBody: { mediaType: getEffectiveContentType(), text: body } }
+              : {}),
+          }
+        : isOas32
+          ? {
+              serializedExampleParameters: Object.fromEntries(
+                Object.entries(serializedParams32).filter(([key]) => paramEnabled[key] !== false),
+              ),
+              ...(serializedBodyMedia32 === selectedContentType
+                ? { serializedExampleBody: { mediaType: getEffectiveContentType(), text: body } }
+                : {}),
+            }
+          : {}),
       selectedContentType: getEffectiveContentType(),
       body: category === 'json' || category === 'raw' ? body : undefined,
       binaryBodyFileName: currentBody?.binary ? binaryBodyFileRef.current?.name : undefined,
@@ -2619,23 +3064,27 @@ export default function ApiDebug() {
       fileFields: fileSnapshot,
       jsonFields: category === 'multipart' ? (currentBody?.jsonFields ?? []) : undefined,
       formPartHeaders: category === 'multipart' ? partHeaderSnapshot : undefined,
+      formPartContentTypes: category === 'multipart' ? partContentTypeSnapshot : undefined,
     };
   };
 
   /** 基于当前表单构建 BuiltRequest（不发请求，仅用于预览/curl/发送共用） */
   const buildPreview = (): RequestPreviewBuild => {
+    if (isOas32 && serverOrPathUnavailable32) throw new Error(t('oas32.server.unavailable'));
     const formValues = collectFormValues();
+    const oas32Auth = isOas32 ? debugAuthFromOas32Plan(security32?.plan) : null;
     const built = applyRouteProxyHeader(
       coreBuildRequest({
         baseUrl,
         path,
         method,
+        preserveMethodCase: Boolean(operation.identity),
         debugModel,
         formValues,
-        auth: authValues,
+        auth: oas32Auth ? oas32Auth.auth : authValues,
         applicationParams: applicationParamValues,
         globalParams: globalParamValues,
-        securityKeys,
+        securityKeys: oas32Auth ? oas32Auth.securityKeys : securityKeys,
       }),
       activeSwaggerGroup?.header,
       {
@@ -2643,13 +3092,34 @@ export default function ApiDebug() {
         contextPath: groupContextPath,
       },
     );
-    const curl = buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'));
+    const curlWithoutEnvelope = buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'));
+    const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
+    if (isOas32 && getCurrentCategory() === 'multipart' && !multipartPlan) {
+      throw new Error(t('apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE'));
+    }
+    const files = (formValues.fileFields ?? {}) as Record<string, File[]>;
+    const materializedMultipart =
+      multipartPlan && (isOas32 || multipartPlanNeedsEncodedEnvelope(multipartPlan))
+        ? (multipartMaterializationRef.current = reuseMaterializedMultipartBody(
+            multipartMaterializationRef.current,
+            multipartPlan,
+            files,
+          )).value
+        : undefined;
+    if (materializedMultipart?.contentType) {
+      applyMaterializedMultipartContentType(built.headers, materializedMultipart.contentType);
+      built.contentType = materializedMultipart.contentType;
+    }
+    const curl = materializedMultipart
+      ? buildPreviewCurl(built, effectiveCookieSource, t('apiDebug.cookie.sessionCurl'))
+      : curlWithoutEnvelope;
     return {
       formValues,
       built,
       curl,
       cookieParameterSource: effectiveCookieSource,
       credentials: cookieSession.credentials,
+      materializedMultipart,
     };
   };
 
@@ -2667,6 +3137,13 @@ export default function ApiDebug() {
       method,
       path,
       cookieParameterSource: effectiveCookieSource,
+      ...(isOas32
+        ? {
+            serializedExampleParameters: serializedParams32,
+            oas32ParameterEntries: editableOas32ParameterEntries(oas32ParameterEntries),
+            serializedExampleBodyMediaType: serializedBodyMedia32,
+          }
+        : {}),
       paramValues: { ...paramValues },
       paramEnabled: { ...paramEnabled },
       selectedContentType,
@@ -2675,6 +3152,7 @@ export default function ApiDebug() {
       formPartHeaders: Object.fromEntries(
         Object.entries(formPartHeaders).map(([fieldName, headers]) => [fieldName, { ...headers }]),
       ),
+      formPartContentTypes: { ...formPartContentTypes },
       rawMode,
       customQueryParams: customQueryParams.map((row) => ({ ...row })),
       customBodyParams: customBodyParams.map((row) => ({ ...row })),
@@ -2715,8 +3193,13 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     const snap = entry.formSnapshot;
     if (snap) {
+      setOas32ParameterEntries(
+        restoreOas32ParameterEntries(snap.oas32ParameterEntries, snap.serializedExampleParameters),
+      );
+      setSerializedBodyMedia32(snap.serializedExampleBodyMediaType);
       setCookieParameterSource(snap.cookieParameterSource ?? 'explicit');
-      setBaseUrl(snap.baseUrl);
+      if (isOas32) server32.restoreOverride(snap.baseUrl);
+      else setBaseUrl(snap.baseUrl);
       setMethod(snap.method);
       setPath(snap.path);
       setParamValues(snap.paramValues);
@@ -2738,6 +3221,7 @@ export default function ApiDebug() {
         ]),
       );
       setFormPartHeaders(mergeCachedFormPartHeaders(snapshotBodyContent, restoredPartHeaders));
+      setFormPartContentTypes({ ...(snap.formPartContentTypes ?? {}) });
       setRawMode(snap.rawMode);
       setCustomQueryParams(snap.customQueryParams);
       setCustomBodyParams(snap.customBodyParams);
@@ -2768,7 +3252,10 @@ export default function ApiDebug() {
       return;
     }
 
-    setBaseUrl(entry.baseUrl);
+    setOas32ParameterEntries({});
+    setSerializedBodyMedia32(undefined);
+    if (isOas32) server32.restoreOverride(entry.baseUrl);
+    else setBaseUrl(entry.baseUrl);
     setCookieParameterSource('explicit');
     setMethod(entry.method);
     setPath(entry.path);
@@ -2790,15 +3277,43 @@ export default function ApiDebug() {
 
   const handleSend = async (options: HandleSendOptions = {}) => {
     if (!debugModel) return;
+    const failWithoutFetch = (message: string, tab?: string) => {
+      if (tab) setActiveTab(tab);
+      discardUnsentDebugResponse(response);
+      sseAbortRef.current?.abort();
+      sseAbortRef.current = null;
+      setSseStreaming(false);
+      setResponse(null);
+      setSseEvents(null);
+      setSequentialStream(null);
+      setResponseSchemaDiagnostic(null);
+      setError(message);
+    };
+    if (isOas32 && serverOrPathUnavailable32) {
+      failWithoutFetch(t('oas32.server.unavailable'));
+      return;
+    }
     setError(null);
+    if (isOas32 && options.prepared) {
+      const current = buildRequestPreviewSafely(buildPreview);
+      if (
+        !current.ok ||
+        current.value.built.url !== options.prepared.built.url ||
+        current.value.built.method !== options.prepared.built.method
+      ) {
+        failWithoutFetch(t('oas32.server.changed'));
+        return;
+      }
+    }
 
-    const previewResult: RequestPreviewBuildResult = options.prepared
-      ? { ok: true, value: options.prepared }
-      : buildRequestPreviewSafely(buildPreview);
+    const previewResult: RequestPreviewBuildResult = resolveSendPreview(
+      options.prepared,
+      displayedPreviewRef.current,
+      buildPreview,
+    );
     if (!previewResult.ok) {
       setValidationErrors([]);
-      setActiveTab(debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
-      setError(previewResult.error);
+      failWithoutFetch(previewResult.error, debugModel.parameterDiagnostics?.[0]?.in ?? 'query');
       return;
     }
     const {
@@ -2806,6 +3321,7 @@ export default function ApiDebug() {
       built,
       cookieParameterSource: requestCookieSource = 'explicit',
       credentials = 'same-origin',
+      materializedMultipart: preparedMultipart,
     } = previewResult.value;
 
     // required 校验 — 用 core 侧统一校验，并携带定位 key
@@ -2813,6 +3329,7 @@ export default function ApiDebug() {
       debugModel,
       validateRequired(debugModel, formValues, built.parameterPresence),
       requestCookieSource,
+      { declaredCookies: isOas32 },
     );
     const requiredParameterErrors = isOas31SchemaDocument(swaggerDoc)
       ? errors.filter((error) => isOas31RequiredParameterError(debugModel, error))
@@ -2820,11 +3337,11 @@ export default function ApiDebug() {
     const blockingRequiredErrors = errors.filter((error) => !requiredParameterErrors.includes(error));
     setValidationErrors(errors);
     if (blockingRequiredErrors.length > 0) {
-      // 定位到第一个错误所在 Tab
       const first = blockingRequiredErrors[0];
-      const nextTab = first.in === 'body' ? 'body' : first.in;
-      setActiveTab(nextTab);
-      setError(blockingRequiredErrors.map((e) => e.message).join('\n'));
+      failWithoutFetch(
+        blockingRequiredErrors.map((e) => e.message).join('\n'),
+        first.in === 'body' ? 'body' : first.in,
+      );
       return;
     }
 
@@ -2838,32 +3355,54 @@ export default function ApiDebug() {
     const isBinaryBody = Boolean(activeBodyContent?.binary);
     // core 的 multipart built.body 是已经按发送规则过滤后的文本 part 映射，
     // 历史、cURL 和真实 FormData 共用它，避免在 UI 层维护第二套过滤逻辑。
-    const multipartTextFields = isMultipart ? (JSON.parse(built.body ?? '{}') as Record<string, string>) : {};
+    const multipartTextFields =
+      isMultipart && multipartPlan?.wire !== 'authored'
+        ? (() => {
+            try {
+              return JSON.parse(built.body ?? '{}') as Record<string, string>;
+            } catch {
+              return {};
+            }
+          })()
+        : {};
     const multipartFiles = (formValues.fileFields ?? {}) as Record<string, File[]>;
     const hasMultipartFile = Object.values(multipartFiles).some((files) => files.length > 0);
     const hasBodyInput = isMultipart
-      ? (multipartPlan?.parts.length ?? Object.keys(multipartTextFields).length) > 0 || hasMultipartFile
+      ? multipartPlan?.wire === 'authored'
+        ? Boolean(multipartPlan.authoredBody)
+        : (multipartPlan?.parts.length ?? Object.keys(multipartTextFields).length) > 0 || hasMultipartFile
       : isBinaryBody
         ? binaryBodyFileRef.current !== null
-        : built.body !== undefined && built.body !== '';
-    const browserConstraint = browserRequestConstraint(
-      built.method,
+        : built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true);
+    const hardFailure = inspectUnsentBrowserSendFailure({
+      built,
       hasBodyInput,
-      built.hasExplicitCookieParameters === true || (isOas31 && hasExplicitCookieHeader(built.headers)),
-    );
-    if (browserConstraint === 'unsupported-method') {
-      setActiveTab('preview');
-      setError(t('apiDebug.method.browserUnsupported', { method: built.method }));
-      return;
-    }
-    if (browserConstraint === 'unsupported-body') {
-      setActiveTab('body');
-      setError(t('apiDebug.body.browserMethodUnsupported', { method: built.method }));
-      return;
-    }
-    if (browserConstraint === 'unsupported-cookie') {
-      setActiveTab('cookie');
-      setError(t('apiDebug.cookie.browserUnsupported'));
+      cookieSessionCapable: isOas31 || isOas32,
+      isOas32,
+    });
+    if (hardFailure) {
+      let message: string;
+      switch (hardFailure.kind) {
+        case 'unsupported-method':
+          message = t('apiDebug.method.browserUnsupported', { method: built.method });
+          break;
+        case 'normalized-method':
+          message = t('apiDebug.method.browserNormalized', {
+            method: built.method,
+            normalized: built.method.toUpperCase(),
+          });
+          break;
+        case 'unsupported-body':
+          message = t('apiDebug.body.browserMethodUnsupported', { method: built.method });
+          break;
+        case 'unsupported-cookie':
+          message = t('apiDebug.cookie.browserUnsupported');
+          break;
+        case 'oas32-browser':
+          message = oas32DiagnosticMessages(hardFailure.diagnostics);
+          break;
+      }
+      failWithoutFetch(message, unsentBrowserSendFailureTab(hardFailure));
       return;
     }
 
@@ -3000,9 +3539,51 @@ export default function ApiDebug() {
         }
       }
 
+      if (isOas32 && built.oas32ParameterPlan && exampleSession32) {
+        const controller = new AbortController();
+        schemaValidationAbortRef.current = controller;
+        setSchemaValidating(true);
+        try {
+          const planIssues = await evaluateOas32ParameterPlan(
+            built.oas32ParameterPlan,
+            exampleSession32,
+            controller.signal,
+          );
+          if (!isCurrentValidation()) return;
+          if (planIssues.length > 0) {
+            totalDiagnosticIssues += planIssues.length;
+            diagnosticIssues.push(
+              ...planIssues.map((issue): RequestSchemaDiagnosticIssue => ({
+                ...issue,
+                kind: 'invalid-schema',
+                target: 'parameter',
+              })),
+            );
+          }
+        } catch (reason) {
+          const code =
+            reason && typeof reason === 'object' && 'code' in reason
+              ? String((reason as { code?: string }).code)
+              : undefined;
+          if (controller.signal.aborted || code === 'OPERATION_ABORTED' || !isCurrentValidation()) return;
+          const detail = reason instanceof Error ? reason.message : String(reason);
+          void message.warning(t('apiDebug.schemaValidation.engineFailed', { message: detail }));
+        } finally {
+          if (schemaValidationAbortRef.current === controller) {
+            schemaValidationAbortRef.current = null;
+            setSchemaValidating(false);
+          }
+        }
+        if (!isCurrentValidation()) return;
+      } else if (isOas32 && built.oas32ParameterPlan && schemaEngine.status !== 'ready') {
+        const detail =
+          schemaEngine.status === 'error' ? schemaEngine.error.message : t('apiDebug.schemaValidation.engineNotReady');
+        void message.warning(t('apiDebug.schemaValidation.engineFailed', { message: detail }));
+      }
+
       if (diagnosticIssues.length > 0) {
         const first = diagnosticIssues[0];
-        setActiveTab(first.target === 'body' ? 'body' : first.in);
+        setActiveTab(first.target === 'body' ? 'body' : first.in === 'querystring' ? 'querystring' : first.in);
         setPendingSchemaOverride({
           preview: previewResult.value,
           debugCacheKey: validationDebugCacheKey,
@@ -3029,17 +3610,19 @@ export default function ApiDebug() {
       // multipart: built.body only represents text fields and cannot carry filenames.
       // Persist the sent text parts + filename/size placeholders (binary content is never stored).
       const historyBody = isMultipart
-        ? multipartPlan
-          ? buildOas31MultipartHistoryBody(multipartPlan)
-          : buildMultipartHistoryBody(
-              multipartTextFields,
-              Object.fromEntries(
-                Object.entries(multipartFiles).map(([name, fileList]) => [
-                  name,
-                  fileList.map((file) => ({ name: file.name, size: file.size })),
-                ]),
-              ),
-            )
+        ? multipartPlan?.wire === 'authored'
+          ? multipartPlan.authoredBody
+          : multipartPlan
+            ? buildOas31MultipartHistoryBody(multipartPlan)
+            : buildMultipartHistoryBody(
+                multipartTextFields,
+                Object.fromEntries(
+                  Object.entries(multipartFiles).map(([name, fileList]) => [
+                    name,
+                    fileList.map((file) => ({ name: file.name, size: file.size })),
+                  ]),
+                ),
+              )
         : isBinaryBody && binaryBodyFileRef.current
           ? JSON.stringify({ file: binaryBodyFileRef.current.name, size: binaryBodyFileRef.current.size })
           : built.body;
@@ -3082,6 +3665,7 @@ export default function ApiDebug() {
     }
     setResponse(null);
     setSseEvents(null);
+    setSequentialStream(null);
     setSseStreaming(false);
     setBuiltRequest(built);
     setBuiltRequestCookieSource(requestCookieSource);
@@ -3100,10 +3684,14 @@ export default function ApiDebug() {
         signal: abortController.signal,
       };
 
-      if (multipartPlan) {
-        const materialized = materializeMultipartBody(multipartPlan, multipartFiles);
-        init.body = materialized.body;
-        applyMaterializedMultipartContentType(init.headers as Record<string, string>, materialized.contentType);
+      if (isOas32 && isMultipart && !preparedMultipart && !multipartPlan) {
+        throw new Error(t('apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE'));
+      }
+      if (preparedMultipart) {
+        init.body = preparedMultipart.body;
+        applyMaterializedMultipartContentType(init.headers as Record<string, string>, preparedMultipart.contentType);
+      } else if (multipartPlan && (isOas32 || multipartPlanNeedsEncodedEnvelope(multipartPlan))) {
+        throw new Error(t('apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE'));
       } else if (isMultipart) {
         // 构建 FormData
         const fd = new FormData();
@@ -3145,7 +3733,7 @@ export default function ApiDebug() {
       } else if (isBinaryBody && binaryBodyFileRef.current) {
         init.body = binaryBodyFileRef.current;
       } else {
-        if (built.body !== undefined && built.body !== '') {
+        if (built.body !== undefined && (built.body !== '' || built.explicitExampleBody === true)) {
           init.body = built.body;
         }
       }
@@ -3158,6 +3746,170 @@ export default function ApiDebug() {
 
       const contentType = responseHeaders['content-type'] ?? '';
       const durationMs = Date.now() - start;
+
+      if (shouldConsumeOas32SequentialResponse(Boolean(isOas32), contentType)) {
+        if (!isCurrentDebugRequest()) {
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'completed',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs,
+              responseBody: '[sequential] superseded by another request',
+            }),
+          );
+          return;
+        }
+        setLoading(false);
+        if (!res.body) {
+          finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+            completeEntry(entry, {
+              status: 'error',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              durationMs,
+              errorMessage: 'Sequential response has no body',
+            }),
+          );
+          setError('Sequential response has no body');
+          sseAbortRef.current = null;
+          setSseStreaming(false);
+          return;
+        }
+        const sequentialKind = classifyOas32SequentialMedia(contentType);
+        setSequentialStream({
+          kind: sequentialKind,
+          streaming: true,
+          truncated: false,
+          receivedBytes: 0,
+          droppedItems: 0,
+          completeSchema: { status: 'absent' },
+          items: [],
+        });
+        setSseStreaming(true);
+        setResponse({
+          status: res.status,
+          statusText: res.statusText,
+          method: built.method,
+          duration: durationMs,
+          contentType,
+          size: 0,
+          headers: responseHeaders,
+          rawText: '',
+          kind: 'text',
+        });
+        const displayedItems: ReturnType<typeof toSequentialDisplayedItem>[] = [];
+        const schemaSession =
+          currentSchemaEngineRef.current.status === 'ready' ? currentSchemaEngineRef.current.session : undefined;
+        try {
+          const sequentialResult = await consumeOas32SequentialResponse({
+            response: res,
+            contentType,
+            document: swaggerDoc,
+            operation,
+            session: schemaSession,
+            signal: abortController.signal,
+            onItem: (item) => {
+              if (!isCurrentDebugRequest()) return;
+              const displayed = toSequentialDisplayedItem(item);
+              displayedItems.push(displayed);
+              setSequentialStream((previous) => ({
+                kind: sequentialKind,
+                streaming: true,
+                truncated: false,
+                receivedBytes: previous?.receivedBytes ?? 0,
+                droppedItems: previous?.droppedItems ?? 0,
+                completeSchema: { status: 'absent' },
+                items: [...(previous?.items ?? []), displayed],
+              }));
+            },
+          });
+          const view = sequentialStreamFromConsumeResult(sequentialResult, {
+            kind: sequentialKind,
+            streaming: false,
+            truncated: sequentialResult.truncated,
+            receivedBytes: sequentialResult.receivedBytes,
+            droppedItems: sequentialResult.droppedItems,
+            completeSchema: sequentialResult.completeSchema,
+            items: displayedItems,
+          });
+          const historyBody = formatSequentialHistoryBody(view.items);
+          if (sequentialResult.termination === 'cancel') {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) => ({
+              ...abortEntry(entry, { durationMs: Date.now() - start }),
+              isSse: sequentialKind === 'sse',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              responseBody: historyBody || undefined,
+            }));
+          } else {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: sequentialResult.termination === 'eof' ? 'completed' : 'error',
+                httpStatus: res.status,
+                statusText: res.statusText,
+                durationMs: Date.now() - start,
+                isSse: sequentialKind === 'sse',
+                errorMessage: sequentialResult.termination === 'eof' ? undefined : sequentialResult.termination,
+                responseBody: historyBody || undefined,
+              }),
+            );
+          }
+          if (!isCurrentDebugRequest()) return;
+          setSequentialStream(view);
+          setResponse({
+            status: res.status,
+            statusText: res.statusText,
+            method: built.method,
+            duration: Date.now() - start,
+            contentType,
+            size: sequentialResult.receivedBytes,
+            headers: responseHeaders,
+            rawText: historyBody,
+            kind: 'text',
+          });
+        } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) => ({
+              ...abortEntry(entry, { durationMs: Date.now() - start }),
+              isSse: sequentialKind === 'sse',
+              httpStatus: res.status,
+              statusText: res.statusText,
+              responseBody: formatSequentialHistoryBody(displayedItems) || undefined,
+            }));
+            if (!isCurrentDebugRequest()) return;
+          } else if (!isCurrentDebugRequest()) {
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: 'error',
+                durationMs: Date.now() - start,
+                errorMessage: err instanceof Error ? err.message : String(err),
+                responseBody: formatSequentialHistoryBody(displayedItems) || undefined,
+              }),
+            );
+            return;
+          } else {
+            const msg = err instanceof Error ? err.message : String(err);
+            finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, (entry) =>
+              completeEntry(entry, {
+                status: 'error',
+                httpStatus: res.status,
+                statusText: res.statusText,
+                durationMs: Date.now() - start,
+                errorMessage: msg,
+                responseBody: formatSequentialHistoryBody(displayedItems) || undefined,
+              }),
+            );
+            setError(msg);
+          }
+        } finally {
+          if (sseAbortRef.current === abortController) {
+            sseAbortRef.current = null;
+          }
+          setSseStreaming(false);
+        }
+        return;
+      }
 
       // SSE path: text/event-stream → stream via ReadableStream reader
       if (contentType.toLowerCase().includes('text/event-stream')) {
@@ -3452,6 +4204,7 @@ export default function ApiDebug() {
     sseAbortRef.current?.abort();
     sseAbortRef.current = null;
     setSseStreaming(false);
+    setSequentialStream((previous) => (previous ? { ...previous, streaming: false } : previous));
   };
 
   const handleReset = () => {
@@ -3506,7 +4259,15 @@ export default function ApiDebug() {
 
   // 每次渲染都实时重建一次，保证预览与当前表单同步；非法规范组合转成可见错误。
   const previewResult = buildRequestPreviewSafely(buildPreview);
+  displayedPreviewRef.current = previewResult;
   const previewBuilt = previewResult.ok ? previewResult.value.built : undefined;
+  const methodConstraint = operation.identity ? browserRequestConstraint(method, false) : null;
+  const methodConstraintMessage =
+    methodConstraint === 'normalized-method'
+      ? t('apiDebug.method.browserNormalized', { method, normalized: method.toUpperCase() })
+      : methodConstraint === 'unsupported-method'
+        ? t('apiDebug.method.browserUnsupported', { method })
+        : null;
   const injectedGlobalHeaders: InjectedGlobalParamRow[] = previewBuilt
     ? Object.entries(previewBuilt.headers)
         .filter(([name]) => {
@@ -3550,10 +4311,122 @@ export default function ApiDebug() {
       (oas31ExampleState.status === 'loading' &&
         sameOas31DebugExampleIdentity(oas31ExampleState.identity, oas31ExampleIdentity)));
 
+  const applyExample32 = (result: OperationExampleResult, revision: number) => {
+    if (
+      revision !== debugDefaultEditRevisionRef.current ||
+      result.session !== exampleSession32 ||
+      !exampleCatalog32 ||
+      result.target.generation !== exampleCatalog32.generation ||
+      !exampleCatalog32.targets.includes(result.target)
+    )
+      return;
+    debugDefaultEditRevisionRef.current += 1;
+    const key = result.target.parameterKey;
+    if (key) {
+      const entry = oas32ExampleParameterEntry(result, debugDefaultEditRevisionRef.current);
+      setOas32ParameterEntries((previous) => {
+        const next = { ...previous };
+        if (entry) next[key] = entry;
+        else delete next[key];
+        return next;
+      });
+      setParamValues((previous) => ({ ...previous, [key]: entry?.text ?? '' }));
+      setParamEnabled((previous) => ({ ...previous, [key]: !!entry }));
+    } else if (result.target.group.startsWith('body:')) {
+      const bodyContent = result.target.context.bodyContent;
+      const isMultipartBody = bodyContent?.category === 'multipart';
+      const authoredMultipart =
+        Boolean(isOas32) &&
+        isMultipartBody &&
+        result.representation.fields.serializedValue &&
+        result.representation.text !== undefined &&
+        !result.representation.external &&
+        result.representation.serialization !== 'invalid';
+      const usable =
+        result.representation.text !== undefined &&
+        !result.representation.external &&
+        result.representation.serialization !== 'invalid' &&
+        !bodyContent?.binary &&
+        !isMultipartBody;
+      setSelectedContentType(result.target.mediaType ?? '');
+      setFormPartContentTypes({});
+      if (authoredMultipart) {
+        setSerializedBodyMedia32(result.target.mediaType);
+        setBody(result.representation.text!);
+        setFormFields({});
+      } else if (usable) {
+        setSerializedBodyMedia32(result.target.mediaType);
+        setBody(result.representation.text!);
+        setFormFields({});
+      } else if (isOas32 && isMultipartBody && result.representation.data !== undefined && bodyContent?.oas32Form) {
+        setSerializedBodyMedia32(undefined);
+        setBody('');
+        setFormFields(oas32FormFieldsFromInstance(bodyContent.oas32Form, result.representation.data));
+      } else {
+        setSerializedBodyMedia32(undefined);
+        setBody('');
+        setFormFields({});
+      }
+      setRawMode(inferRawMode(bodyContent));
+    }
+  };
+  const renderExamplePickers32 = (location: string) =>
+    !exampleCatalog32
+      ? null
+      : [
+          ...new Set(
+            exampleCatalog32.targets
+              .filter(
+                (target) =>
+                  target.direction === 'request' &&
+                  (location === 'body'
+                    ? target.group === `body:${selectedContentType}`
+                    : target.parameterKey?.startsWith(`${location}:`)),
+              )
+              .map((target) => target.group),
+          ),
+        ].map((group) => (
+          <OperationExamplePicker
+            key={group}
+            targets={exampleCatalog32.targets.filter((target) => target.group === group)}
+            session={exampleSession32}
+            snapshot={operation?.resourceSnapshot}
+            operationToken={operation?.identity?.identity ?? operation?.key}
+            onApply={applyExample32}
+            editRevision={() => debugDefaultEditRevisionRef.current}
+          />
+        ));
+
   const pathParams = debugModel.pathParams.filter((param) => !param.readOnly);
   const queryParams = debugModel.queryParams.filter((param) => !param.readOnly);
   const headerParams = debugModel.headerParams.filter((param) => !param.readOnly);
   const cookieParams = debugModel.cookieParams.filter((param) => !param.readOnly);
+  const querystringParameter = oas32QuerystringParameter(debugModel.oas32Parameters);
+  const querystringMediaType = oas32QuerystringMediaType(querystringParameter);
+  const querystringEntry = querystringParameter ? oas32ParameterEntries[querystringParameter.key] : undefined;
+  const querystringKind = querystringEntry?.kind ?? (querystringMediaType?.includes('json') ? 'data' : 'media');
+  const updateQuerystringEntry = (patch: Partial<Oas32ParameterEntry>) => {
+    if (!querystringParameter) return;
+    debugDefaultEditRevisionRef.current += 1;
+    setOas32ParameterEntries((previous) => {
+      const current = previous[querystringParameter.key];
+      return {
+        ...previous,
+        [querystringParameter.key]: {
+          kind: patch.kind ?? current?.kind ?? querystringKind,
+          text: patch.text ?? current?.text ?? '',
+          enabled: patch.enabled ?? current?.enabled ?? true,
+          ...(current && 'data' in current ? { data: current.data } : {}),
+        },
+      };
+    });
+  };
+  const querystringConflict =
+    (!previewResult.ok && /querystring|QUERYSTRING_SOURCE_CONFLICT/i.test(previewResult.error)) ||
+    (previewBuilt?.oas32ParameterPlan?.diagnostics.some(
+      (diagnostic) => diagnostic.code === 'QUERYSTRING_SOURCE_CONFLICT',
+    ) ??
+      false);
 
   const tabItems = [
     {
@@ -3561,16 +4434,19 @@ export default function ApiDebug() {
       label: `${t('apiDebug.tab.path')} (${debugModel.pathParams.length})`,
       disabled: false,
       children: (
-        <Table
-          size="small"
-          dataSource={pathParams}
-          columns={paramColumnsFor(pathParams)}
-          pagination={false}
-          rowKey={paramKey}
-          tableLayout="fixed"
-          scroll={PARAM_TABLE_SCROLL}
-          locale={{ emptyText: t('apiDebug.noPathParams') }}
-        />
+        <>
+          {renderExamplePickers32('path')}
+          <Table
+            size="small"
+            dataSource={pathParams}
+            columns={paramColumnsFor(pathParams)}
+            pagination={false}
+            rowKey={paramKey}
+            tableLayout="fixed"
+            scroll={PARAM_TABLE_SCROLL}
+            locale={{ emptyText: t('apiDebug.noPathParams') }}
+          />
+        </>
       ),
     },
     {
@@ -3583,6 +4459,7 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {renderExamplePickers32('query')}
           {(queryParams.length > 0 || injectedGlobalQueries.length === 0) && (
             <Table
               size="small"
@@ -3604,9 +4481,74 @@ export default function ApiDebug() {
             rows={customQueryParams}
             onChange={setCustomQueryParams}
           />
+          {querystringParameter && querystringConflict && (
+            <Alert type="error" showIcon message={t('apiDebug.querystring.conflict')} style={{ marginTop: 12 }} />
+          )}
         </>
       ),
     },
+    ...(querystringParameter
+      ? [
+          {
+            key: 'querystring',
+            label: `${t('apiDebug.tab.querystring')} (1)`,
+            disabled: false,
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {renderExamplePickers32('querystring')}
+                {querystringConflict && <Alert type="error" showIcon message={t('apiDebug.querystring.conflict')} />}
+                <Space wrap>
+                  <Checkbox
+                    checked={querystringEntry?.enabled !== false}
+                    onChange={(event) => updateQuerystringEntry({ enabled: event.target.checked })}
+                  >
+                    {t('apiDebug.querystring.title')}
+                  </Checkbox>
+                  {querystringMediaType && (
+                    <Text type="secondary">
+                      {t('apiDebug.querystring.mediaType', { mediaType: querystringMediaType })}
+                    </Text>
+                  )}
+                </Space>
+                <Alert type="info" showIcon message={t('apiDebug.querystring.emptyHint')} />
+                <Radio.Group
+                  value={querystringKind}
+                  optionType="button"
+                  options={[
+                    { value: 'data', label: t('apiDebug.querystring.kind.data') },
+                    { value: 'media', label: t('apiDebug.querystring.kind.media') },
+                    { value: 'parameter', label: t('apiDebug.querystring.kind.parameter') },
+                  ]}
+                  onChange={(event) =>
+                    updateQuerystringEntry({ kind: event.target.value as Oas32ParameterEntry['kind'] })
+                  }
+                />
+                {querystringKind === 'data' ? (
+                  <CodeEditor
+                    value={querystringEntry?.text ?? ''}
+                    onChange={(next) => updateQuerystringEntry({ text: next, kind: 'data', enabled: true })}
+                    language="json"
+                  />
+                ) : (
+                  <Input.TextArea
+                    aria-label={t('apiDebug.querystring.title')}
+                    value={querystringEntry?.text ?? ''}
+                    placeholder={t('apiDebug.querystring.placeholder.media')}
+                    autoSize={{ minRows: 3, maxRows: 10 }}
+                    onChange={(event) =>
+                      updateQuerystringEntry({
+                        text: event.target.value,
+                        kind: querystringKind,
+                        enabled: true,
+                      })
+                    }
+                  />
+                )}
+              </Space>
+            ),
+          },
+        ]
+      : []),
     {
       key: 'header',
       label: `${t('apiDebug.tab.header')} (${
@@ -3617,6 +4559,7 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {renderExamplePickers32('header')}
           {(headerParams.length > 0 || injectedGlobalHeaders.length === 0) && (
             <Table
               size="small"
@@ -3653,7 +4596,8 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
-          {isOas31 && (
+          {renderExamplePickers32('cookie')}
+          {cookieSessionEnabled && (
             <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }}>
               <Space wrap>
                 <Text strong>{t('apiDebug.cookie.source')}</Text>
@@ -3721,6 +4665,7 @@ export default function ApiDebug() {
       disabled: false,
       children: (
         <>
+          {renderExamplePickers32('body')}
           {bodyExampleLoading && (
             <Alert
               type="info"
@@ -3733,26 +4678,92 @@ export default function ApiDebug() {
           {currentBodyExampleResult && (
             <SchemaExampleNotice result={currentBodyExampleResult} style={{ marginBottom: 12 }} />
           )}
-          <BodyTab
-            key={resetNonce}
-            debugModel={debugModel}
-            bodyDefaults={bodyDefaults}
-            body={body}
-            setBody={setBodyFromUser}
-            selectedContentType={selectedContentType}
-            setSelectedContentType={setSelectedContentType}
-            formFields={formFields}
-            setFormFields={setFormFieldsFromUser}
-            formPartHeaders={formPartHeaders}
-            setFormPartHeaders={setFormPartHeadersFromUser}
-            enableDynamicParameter={settings.enableDynamicParameter}
-            customBodyParams={customBodyParams}
-            setCustomBodyParams={setCustomBodyParams}
-            fileFieldsRef={fileFieldsRef}
-            binaryBodyFileRef={binaryBodyFileRef}
-            rawMode={rawMode}
-            setRawMode={setRawMode}
-          />
+          {serializedBodyMedia32 === selectedContentType ? (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Space>
+                <Select
+                  aria-label={t('apiDebug.body.contentType')}
+                  value={selectedContentType}
+                  options={debugModel.bodyContents.map((content) => ({
+                    value: content.mediaType,
+                    label: content.mediaType,
+                  }))}
+                  onChange={(media) => {
+                    debugDefaultEditRevisionRef.current += 1;
+                    setSelectedContentType(media);
+                    const next = defaults32?.get(`body:${media}`);
+                    const usable =
+                      next?.representation.text !== undefined &&
+                      next.representation.serialization !== 'invalid' &&
+                      !next.representation.external &&
+                      !next.target.context.bodyContent?.binary &&
+                      next.target.context.bodyContent?.category !== 'multipart';
+                    setSerializedBodyMedia32(usable ? media : undefined);
+                    setBody(usable ? next.representation.text! : '');
+                    setRawMode(inferRawMode(debugModel.bodyContents.find((content) => content.mediaType === media)));
+                  }}
+                />
+                <Button
+                  onClick={() => {
+                    debugDefaultEditRevisionRef.current += 1;
+                    setSerializedBodyMedia32(undefined);
+                  }}
+                >
+                  {t('schema.example32.editFields')}
+                </Button>
+              </Space>
+              <Typography.Text>{t('schema.example32.serialized')}</Typography.Text>
+              <CodeEditor
+                value={body}
+                onChange={setBodyFromUser}
+                language={getCurrentCategory() === 'json' ? 'json' : 'text'}
+              />
+            </Space>
+          ) : (
+            <BodyTab
+              key={resetNonce}
+              debugModel={debugModel}
+              bodyDefaults={bodyDefaults}
+              body={body}
+              setBody={setBodyFromUser}
+              selectedContentType={selectedContentType}
+              setSelectedContentType={(media) => {
+                debugDefaultEditRevisionRef.current += 1;
+                setSelectedContentType(media);
+                const next = defaults32?.get(`body:${media}`);
+                if (
+                  next?.representation.text !== undefined &&
+                  next.representation.serialization !== 'invalid' &&
+                  !next.representation.external &&
+                  !next.target.context.bodyContent?.binary &&
+                  next.target.context.bodyContent?.category !== 'multipart'
+                )
+                  setBody(next.representation.text);
+                setSerializedBodyMedia32(
+                  next?.representation.text !== undefined &&
+                    next.representation.serialization !== 'invalid' &&
+                    !next.representation.external &&
+                    !next.target.context.bodyContent?.binary &&
+                    next.target.context.bodyContent?.category !== 'multipart'
+                    ? media
+                    : undefined,
+                );
+              }}
+              formFields={formFields}
+              setFormFields={setFormFieldsFromUser}
+              formPartHeaders={formPartHeaders}
+              setFormPartHeaders={setFormPartHeadersFromUser}
+              formPartContentTypes={formPartContentTypes}
+              setFormPartContentTypes={setFormPartContentTypesFromUser}
+              enableDynamicParameter={settings.enableDynamicParameter}
+              customBodyParams={customBodyParams}
+              setCustomBodyParams={setCustomBodyParams}
+              fileFieldsRef={fileFieldsRef}
+              binaryBodyFileRef={binaryBodyFileRef}
+              rawMode={rawMode}
+              setRawMode={setRawMode}
+            />
+          )}
         </>
       ),
     },
@@ -3760,22 +4771,30 @@ export default function ApiDebug() {
       key: 'preview',
       label: t('apiDebug.tab.preview'),
       disabled: false,
-      children: <PreviewTabPanel result={previewResult} onCopyText={handleCopyPreviewText} />,
+      children: (
+        <PreviewTabPanel
+          result={previewResult}
+          onCopyText={handleCopyPreviewText}
+          onDownloadMultipartBody={triggerMultipartBodyDownload}
+        />
+      ),
     },
   ];
 
   const defaultTab =
     debugModel.pathParams.length > 0
       ? 'path'
-      : debugModel.queryParams.length > 0 || injectedGlobalQueries.length > 0
-        ? 'query'
-        : debugModel.headerParams.length > 0 || injectedGlobalHeaders.length > 0
-          ? 'header'
-          : debugModel.cookieParams.length > 0
-            ? 'cookie'
-            : debugModel.bodyContents.length > 0
-              ? 'body'
-              : 'preview';
+      : querystringParameter
+        ? 'querystring'
+        : debugModel.queryParams.length > 0 || injectedGlobalQueries.length > 0
+          ? 'query'
+          : debugModel.headerParams.length > 0 || injectedGlobalHeaders.length > 0
+            ? 'header'
+            : debugModel.cookieParams.length > 0
+              ? 'cookie'
+              : debugModel.bodyContents.length > 0
+                ? 'body'
+                : 'preview';
   const currentActiveTab = activeTab ?? defaultTab;
   const responsePercent =
     responseProgress?.totalBytes === null || responseProgress === null
@@ -3815,7 +4834,8 @@ export default function ApiDebug() {
           schemaValidationRevisionRef.current += 1;
           const first = pendingSchemaOverride?.issues[0];
           setPendingSchemaOverride(null);
-          if (first) setActiveTab(first.target === 'body' ? 'body' : first.in);
+          if (first)
+            setActiveTab(first.target === 'body' ? 'body' : first.in === 'querystring' ? 'querystring' : first.in);
         }}
         onOk={() => {
           const pending = pendingSchemaOverride;
@@ -3932,24 +4952,144 @@ export default function ApiDebug() {
             </Title>
           </Space>
 
+          {pathDiagnostics32.map((diagnostic) => (
+            <Alert
+              key={`${diagnostic.code}:${diagnostic.path}`}
+              type="warning"
+              message={diagnostic.code}
+              description={`${diagnostic.path}: ${diagnostic.reason}`}
+              style={{ marginBottom: 8 }}
+            />
+          ))}
+          {methodConstraintMessage && (
+            <Alert type="warning" showIcon message={methodConstraintMessage} style={{ marginBottom: 12 }} />
+          )}
+          {isOas32 && (
+            <div className="knife4j-server-selection">
+              <Select
+                aria-label={t('oas32.server.select')}
+                value={server32.key || undefined}
+                onChange={server32.select}
+                style={{ width: '100%' }}
+                options={[
+                  ...(server32.declarations?.resolutions.map((server, index) => ({
+                    value: server.source.key,
+                    label: `${server.name ?? `Server ${index + 1}`} · ${server.rawUrl ?? t('oas32.server.unavailable')}`,
+                  })) ?? []),
+                  ...server32.overrides.map((override) => ({
+                    value: override.key,
+                    label: t(`oas32.server.override.${override.source}`),
+                  })),
+                ]}
+              />
+              {server32.override === 'custom' && (
+                <Input
+                  aria-label={t('oas32.server.customUrl')}
+                  value={server32.custom}
+                  onChange={(event) => server32.setCustom(event.target.value)}
+                />
+              )}
+              {!server32.override &&
+                server32.resolved?.variables.map((variable) => (
+                  <label className="knife4j-server-variable" key={variable.name}>
+                    <span>{variable.name}</span>
+                    {variable.enum ? (
+                      <Select
+                        aria-label={variable.name}
+                        value={variable.value}
+                        options={variable.enum.map((value) => ({ value, label: value }))}
+                        onChange={(value) => server32.setVariable(variable.name, value)}
+                      />
+                    ) : (
+                      <Input
+                        aria-label={variable.name}
+                        value={variable.value ?? ''}
+                        onChange={(event) => server32.setVariable(variable.name, event.target.value)}
+                      />
+                    )}
+                  </label>
+                ))}
+              {server32.resolved ? (
+                <Oas32ServerDetails server={server32.resolved} override={server32.override} />
+              ) : (
+                <Alert
+                  type="warning"
+                  message={t('oas32.server.unavailable')}
+                  description={server32.declarations?.diagnostics
+                    .map((diagnostic) => `${diagnostic.code}: ${diagnostic.reason}`)
+                    .join('; ')}
+                />
+              )}
+            </div>
+          )}
+          {isOas32 && security32 && (
+            <div style={{ marginBottom: 12 }}>
+              {security32.plan.branches.length > 1 && (
+                <Radio.Group
+                  value={security32.plan.selectedIndex ?? 0}
+                  onChange={(event) => setSecurityBranchIndex(Number(event.target.value))}
+                  style={{ marginBottom: 8 }}
+                >
+                  {security32.plan.branches.map((branch) => (
+                    <Radio.Button key={branch.index} value={branch.index}>
+                      {branch.anonymous
+                        ? t('apiDebug.security.anonymous')
+                        : t('apiDebug.security.branch', { n: branch.index + 1 })}
+                    </Radio.Button>
+                  ))}
+                </Radio.Group>
+              )}
+              <Alert
+                type={
+                  security32.projection.status !== 'ready' ? 'error' : security32.plan.complete ? 'info' : 'warning'
+                }
+                showIcon
+                message={
+                  security32.projection.status !== 'ready'
+                    ? t('apiDebug.security.unavailable')
+                    : security32.projection.declaration === 'empty'
+                      ? t('apiDebug.security.empty')
+                      : security32.plan.branches[security32.plan.selectedIndex ?? 0]?.anonymous
+                        ? t('apiDebug.security.anonymousSelected')
+                        : security32.plan.complete
+                          ? t('apiDebug.security.selected')
+                          : t('apiDebug.security.incomplete')
+                }
+              />
+            </div>
+          )}
           <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
             <Select
               value={method}
               onChange={setMethod}
               style={{ width: 110, flex: '0 0 110px' }}
-              options={Array.from(DEBUG_HTTP_METHODS).map((item) => ({
+              options={Array.from(
+                new Set([
+                  ...(operation.identity ? [operationHttpMethod(operation), 'QUERY'] : []),
+                  ...DEBUG_HTTP_METHODS,
+                ]),
+              ).map((item) => ({
                 value: item,
                 label: item,
               }))}
             />
-            <AutoComplete
-              value={baseUrl}
-              title={baseUrl}
-              onChange={setBaseUrl}
-              options={requestServerSelectOptions}
-              filterOption={false}
-              style={{ flex: '0 1 420px', minWidth: 320 }}
-            />
+            {isOas32 ? (
+              <Input
+                aria-label={t('oas32.server.request')}
+                value={baseUrl}
+                readOnly
+                style={{ flex: '0 1 420px', minWidth: 0 }}
+              />
+            ) : (
+              <AutoComplete
+                value={baseUrl}
+                title={baseUrl}
+                onChange={setBaseUrl}
+                options={requestServerSelectOptions}
+                filterOption={false}
+                style={{ flex: '0 1 420px', minWidth: 320 }}
+              />
+            )}
             <Input
               value={displayPath}
               title={displayPath}
@@ -3960,11 +5100,18 @@ export default function ApiDebug() {
               type="primary"
               icon={<SendOutlined />}
               onClick={() => void handleSend()}
+              disabled={Boolean(methodConstraintMessage) || (isOas32 && serverOrPathUnavailable32)}
               loading={loading || schemaValidating}
             >
               {t('apiDebug.send')}
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                if (isOas32) server32.reset();
+                handleReset();
+              }}
+            >
               {t('apiDebug.reset')}
             </Button>
           </Space.Compact>
@@ -4008,6 +5155,7 @@ export default function ApiDebug() {
             operation={operation}
             swaggerDoc={swaggerDoc}
             sseEvents={sseEvents}
+            sequentialStream={sequentialStream}
             onSseAbort={handleSseAbort}
             sseStreaming={sseStreaming}
             schemaDiagnostic={responseSchemaDiagnostic}

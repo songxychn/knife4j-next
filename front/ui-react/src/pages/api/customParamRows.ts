@@ -1,4 +1,4 @@
-import type { BodyContent } from 'knife4j-core';
+import type { BodyContent, Oas32FormField } from 'knife4j-core';
 import type { DebugCacheCustomParamRow } from './debugCache';
 
 export function customRowsToRecord(rows: DebugCacheCustomParamRow[]): Record<string, string> {
@@ -34,11 +34,27 @@ function customBodyRowsToRecord(rows: DebugCacheCustomParamRow[]): Record<string
  * they are absent from the current values (for example readOnly fields or an
  * older history snapshot). File/JSON side tables are included defensively.
  */
+function collectOas32FieldNames(fields: readonly Oas32FormField[]): string[] {
+  const names: string[] = [];
+  for (const field of fields) {
+    names.push(field.name, field.partId);
+    if (field.nestedFields) names.push(...collectOas32FieldNames(field.nestedFields));
+  }
+  return names;
+}
+
 export function reservedBodyFieldNames(bodyContent: BodyContent | undefined): Set<string> {
   const names = new Set<string>([...(bodyContent?.fileFields ?? []), ...(bodyContent?.jsonFields ?? [])]);
   const properties = bodyContent?.schema?.properties;
   if (properties && typeof properties === 'object' && !Array.isArray(properties)) {
     for (const name of Object.keys(properties)) names.add(name);
+  }
+  if (bodyContent?.oas32Form) {
+    for (const name of collectOas32FieldNames(bodyContent.oas32Form.fields)) names.add(name);
+    if (bodyContent.oas32Form.extraItemTemplate) {
+      names.add(bodyContent.oas32Form.extraItemTemplate.name);
+      names.add(bodyContent.oas32Form.extraItemTemplate.partId);
+    }
   }
   return names;
 }

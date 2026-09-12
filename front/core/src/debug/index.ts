@@ -22,8 +22,11 @@ export type {
   Oas31FormFieldEncoding,
   Oas31FormField,
   Oas31FormBodyModel,
+  Oas32FormField,
+  Oas32FormBodyModel,
   OperationDebugModel,
   DebugFormValues,
+  SerializedExampleParameter,
   QueryParamValue,
   GlobalParamValues,
   SchemeValue,
@@ -40,18 +43,55 @@ export type {
   UrlencodedFormEntry,
   MultipartTextPart,
   MultipartFilePart,
+  MultipartNestedPart,
   MultipartPart,
   FormBodyEncodingPlan,
   SchemaResolveContext,
   SchemaValue,
   SchemaFieldNode,
+  SchemaFieldXml,
   BuildSchemaExampleFn,
   BuildSchemaFieldTreeFn,
 } from './types';
 
+export type {
+  Oas32ParamIn,
+  Oas32ParameterDiagnostic,
+  Oas32ParameterContext,
+  Oas32Parameter,
+  Oas32ParameterCollection,
+  Oas32ParameterProvenance,
+  Oas32ParameterInput,
+  Oas32CookiePair,
+  Oas32ParameterResult,
+  Oas32ParameterPlan,
+} from './oas32ParameterTypes';
+export { buildOas32ParameterCollection } from './oas32ParameterModel';
+export {
+  encodeOas32ParameterValue,
+  serializeOas32Parameter,
+  serializeOas32Parameters,
+} from './oas32ParameterSerialization';
+export {
+  Oas32ParameterRequestError,
+  replaceOas32PathParameters,
+  oas32ParameterInputs,
+  validateOas32Required,
+  oas32BrowserRequestDiagnostics,
+  assertOas32BrowserRequest,
+} from './oas32ParameterRequest';
+
 // OAS 3.1 form request bodies
 export { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
 export type { AnalyzeOas31FormBodyOptions } from './formBodyEncoding';
+export {
+  analyzeOas32FormBody,
+  serializeOas32FormBody,
+  authoredMultipartPlan,
+  oas32FormFieldsFromInstance,
+  mediaTypeBoundary,
+} from './oas32FormBodyEncoding';
+export type { AnalyzeOas32FormBodyOptions } from './oas32FormBodyEncoding';
 
 // resolveRef
 export {
@@ -63,7 +103,7 @@ export {
 } from './resolveRef';
 
 // operationDebugModel
-export { buildOperationDebugModel } from './operationDebugModel';
+export { buildOperationDebugModel, analyzeOas31Parameter, extractMultipartUploadFields } from './operationDebugModel';
 export type { BuildDebugModelOptions } from './operationDebugModel';
 
 // requestBuilder
@@ -76,6 +116,7 @@ export {
   validateRequired,
   buildRequest,
   buildCurl,
+  OAS32_MULTIPART_CURL_BODY_FILE,
   buildUrlencodedBody,
 } from './requestBuilder';
 export type { BuildRequestOptions } from './requestBuilder';
@@ -88,10 +129,26 @@ export {
   isTextMediaType,
   isSupportedParameterContentType,
   parameterKey,
+  parseJsonParameterValue,
   parseOas31ParameterValue,
   replaceSerializedPathParams,
   serializeOas31Parameters,
 } from './parameterSerialization';
+
+export {
+  interpretExampleObject,
+  serializeExampleData,
+  exampleParameterInput,
+  exampleHasOwn,
+  isExampleData,
+} from './exampleRepresentation';
+export type {
+  ExampleLayer,
+  ExampleCheck,
+  ExampleDiagnostic,
+  ExampleRepresentation,
+  ExampleRepresentationContext,
+} from './exampleRepresentation';
 export type {
   SerializedCookieParameter,
   SerializedOas31Parameters,
@@ -99,7 +156,7 @@ export type {
 } from './parameterSerialization';
 
 // schemaExample
-export { buildSchemaExample, buildSchemaFieldTree } from './schemaExample';
+export { buildSchemaExample, buildSchemaFieldTree, schemaFieldXml } from './schemaExample';
 
 // mediaTypeExample
 export { buildMediaTypeExampleValue } from './mediaTypeExample';

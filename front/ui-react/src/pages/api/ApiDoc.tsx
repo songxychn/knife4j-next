@@ -1,3 +1,7 @@
+import { useNavigate } from 'react-router-dom';
+import { useGroup } from '../../context/GroupContext';
+import { operationSchemaDocuments, operationResponseLinks, resolveOperationLink } from '../../schema/operationRegistry';
+import { operationHttpMethod } from 'knife4j-core';
 import { Alert, Badge, Button, Space, Spin, Table, Tabs, Tag, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -28,6 +32,9 @@ import Markdown from '../../components/Markdown';
 import { copyToClipboard } from '../../utils/clipboard';
 import SchemaFieldTable, { SchemaTypeLink } from '../../components/schema/SchemaFieldTable';
 import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
+import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
+import SchemaDiscriminatorPanel from '../../components/schema/SchemaDiscriminatorPanel';
+import { isOas32ExampleDocument, locateOperationExampleCatalog } from '../../schema/operationExampleCatalog';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
 import { operationAuthors } from './operationAuthor';
@@ -35,6 +42,12 @@ import { firstRequestMedia, requestBodyExample, responseExamples } from './apiDo
 import { useSettings } from '../../context/SettingsContext';
 import { useSchemaEngine } from '../../context/SchemaEngineContext';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
+import {
+  attachDiscriminatorMappingFields,
+  describeSchemaDiscriminator,
+  discriminatorLocationFromOpenApi,
+  preferredDiscriminatorSchemaLocation,
+} from '../../schema/schemaDiscriminatorView';
 import { createSchemaDisplayProjector } from '../../schema/schemaDisplayProjection';
 import { locateOperationResponses, responseForDisplay } from '../../schema/registeredResponse';
 import { resolveResponseOverviewVisibility } from './responseOverview';
@@ -81,6 +94,8 @@ interface ParamRow {
 }
 
 interface ResponseRow {
+  summary?: string;
+  unavailable?: boolean;
   key: string;
   statusCode: string;
   description: string;
@@ -257,8 +272,8 @@ function resolveApiDocOperation(rawOperation: OperationObject, swaggerDoc: Swagg
   };
 }
 
-function projectionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to project OAS 3.1 ApiDoc schemas.';
+function projectionErrorMessage(error: unknown, family: '3.1' | '3.2'): string {
+  return error instanceof Error ? error.message : `Unable to project OAS ${family} ApiDoc schemas.`;
 }
 
 function projectionRegionLabel(regionKey: string, t: TFunction): string {
@@ -267,18 +282,22 @@ function projectionRegionLabel(regionKey: string, t: TFunction): string {
   return regionKey;
 }
 
-function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction) {
+function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction, family: '3.1' | '3.2') {
+  const titleKey =
+    family === '3.2' ? 'apiDoc.schemaProjection.loading.title32' : 'apiDoc.schemaProjection.loading.title';
+  const degradedKey =
+    family === '3.2' ? 'apiDoc.schemaProjection.degraded.title32' : 'apiDoc.schemaProjection.degraded.title';
   if (notice.kind === 'loading') {
     return {
       type: 'info' as const,
-      title: t('apiDoc.schemaProjection.loading.title'),
+      title: t(titleKey),
       description: t('apiDoc.schemaProjection.loading.description'),
     };
   }
   if (notice.kind === 'fallback') {
     return {
       type: 'warning' as const,
-      title: t('apiDoc.schemaProjection.degraded.title'),
+      title: t(degradedKey),
       description: t(
         notice.reason === 'engine'
           ? 'apiDoc.schemaProjection.engineFallback.description'
@@ -292,7 +311,7 @@ function projectionNoticeContent(notice: ApiDocSchemaViewNotice, t: TFunction) {
   const keywords = `${visibleKeywords.join(', ')}${notice.keywords.length > visibleKeywords.length ? ', …' : ''}`;
   return {
     type: 'warning' as const,
-    title: t('apiDoc.schemaProjection.degraded.title'),
+    title: t(degradedKey),
     description: t('apiDoc.schemaProjection.degraded.description', {
       count: notice.issueCount,
       regionCount: notice.regionCount,
@@ -326,19 +345,45 @@ export default function ApiDoc() {
 }
 
 function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; operation: MenuOperation }) {
+  const navigate = useNavigate();
+  const { activeGroup, menuTags } = useGroup();
+  const responseLinks = operationResponseLinks(operation).map((link) => ({
+    ...link,
+    target: resolveOperationLink(
+      menuTags.flatMap((tag) => tag.operations),
+      link.location,
+      operation.resourceSnapshot,
+    ),
+  }));
   const { t } = useTranslation();
   const { settings } = useSettings();
   const schemaEngine = useSchemaEngine();
-  const op = useMemo(() => resolveApiDocOperation(operation.operation, swaggerDoc), [operation.operation, swaggerDoc]);
+  const isOas32 = isOas32ExampleDocument(swaggerDoc);
+  const exampleCatalog32 = useMemo(() => locateOperationExampleCatalog(swaggerDoc, operation), [swaggerDoc, operation]);
+  const exampleGroups32 = [...new Set(exampleCatalog32.targets.map((target) => target.group))];
+  const snapshot32 = operation.resourceSnapshot;
+  const renderExample32 = (group: string) => (
+    <OperationExamplePicker
+      targets={exampleCatalog32.targets.filter((target) => target.group === group)}
+      session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+      snapshot={snapshot32}
+      operationToken={operation.identity?.identity ?? operation.key}
+    />
+  );
+  const schemaDocuments = useMemo(() => operationSchemaDocuments(swaggerDoc, operation), [swaggerDoc, operation]);
+  const op = useMemo(
+    () => resolveApiDocOperation(operation.operation, schemaDocuments.operation as unknown as SwaggerDoc),
+    [operation.operation, schemaDocuments],
+  );
 
-  const method = operation.method.toUpperCase();
+  const method = operationHttpMethod(operation);
 
   const handleCopyMarkdown = () => {
     const md = generateApiMarkdown({
       method,
       path: operation.path,
       operation: op,
-      docContext: swaggerDoc,
+      docContext: schemaDocuments.operation as unknown as SwaggerDoc,
       labels: {
         deprecated: t('apiDoc.markdown.deprecated'),
         requestParameters: t('apiDoc.requestParams'),
@@ -453,7 +498,10 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       (parameter as ParameterObject & { $ref?: string }).$ref ??
       (typeof parameter.schema === 'object' ? parameter.schema.$ref : undefined);
     const { refDescription, refTitle } = ref
-      ? resolveRefMeta(ref, swaggerDoc as unknown as Record<string, unknown>)
+      ? resolveRefMeta(
+          ref,
+          schemaDocuments.parameters.get(`${parameter.in}:${parameter.name}`) ?? schemaDocuments.operation,
+        )
       : {};
     return {
       key: `${parameter.in}-${parameter.name}-${index}`,
@@ -468,7 +516,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   });
   const bodySchema = useMemo(() => firstRequestSchema(op.requestBody, op.parameters), [op.parameters, op.requestBody]);
   const registeredResponses = useMemo(() => {
-    if (!isOas31SchemaDocument(swaggerDoc)) return null;
+    if (!isOas31SchemaDocument(swaggerDoc) && !isOas32) return null;
     const session =
       schemaEngine.status === 'ready' && schemaEngine.document === swaggerDoc ? schemaEngine.session : undefined;
     return locateOperationResponses(swaggerDoc, operation, session).map(({ statusCode, location }) => ({
@@ -476,7 +524,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       unavailable: location === null,
       response: location ? responseForDisplay(location, session) : {},
     }));
-  }, [operation, schemaEngine, swaggerDoc]);
+  }, [isOas32, operation, schemaEngine, swaggerDoc]);
   const responses: ResponseRow[] = useMemo(
     () =>
       (
@@ -502,31 +550,43 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         return {
           key: statusCode,
           statusCode,
+          summary: isOas32 && typeof response.summary === 'string' ? response.summary : undefined,
+          unavailable: registeredResponses?.find((record) => record.statusCode === statusCode)?.unavailable,
           description: response.description ?? '',
           schema: responseSchema(response),
           mediaType: responseMediaType(response),
           headers,
         };
       }),
-    [op.responses, registeredResponses, swaggerDoc],
+    [isOas32, op.responses, registeredResponses, swaggerDoc],
   );
   const legacySchemaRegions = useMemo(() => {
     const regions: Array<{ key: string; fields: SchemaFieldNode[] }> = [];
     if (bodySchema !== undefined) {
       regions.push({
         key: REQUEST_BODY_REGION_KEY,
-        fields: prepareApiDocSchemaFields(schemaToFieldNodes(bodySchema, swaggerDoc), 'request', op),
+        fields: prepareApiDocSchemaFields(
+          schemaToFieldNodes(bodySchema, schemaDocuments.requestBody as unknown as SwaggerDoc),
+          'request',
+          op,
+        ),
       });
     }
     for (const response of responses) {
       if (response.schema === undefined) continue;
       regions.push({
         key: responseSchemaRegionKey(response.key),
-        fields: prepareApiDocSchemaFields(schemaToFieldNodes(response.schema, swaggerDoc), 'response'),
+        fields: prepareApiDocSchemaFields(
+          schemaToFieldNodes(
+            response.schema,
+            (schemaDocuments.responses.get(response.key) ?? schemaDocuments.operation) as unknown as SwaggerDoc,
+          ),
+          'response',
+        ),
       });
     }
     return regions;
-  }, [bodySchema, op, responses, swaggerDoc]);
+  }, [bodySchema, op, responses, schemaDocuments]);
   const projectionTargets = useMemo<ApiDocSchemaProjectionTarget[]>(() => {
     const targets: ApiDocSchemaProjectionTarget[] = [];
     if (bodySchema !== undefined) {
@@ -559,6 +619,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   );
   const [projectionState, setProjectionState] = useState<ApiDocSchemaProjectionState>(IDLE_SCHEMA_PROJECTION_STATE);
   const isOas31 = isOas31SchemaDocument(swaggerDoc);
+  const usesEngineSchemaProjection = isOas31 || isOas32;
   const exampleIdentity = useMemo<ApiDocExampleIdentity | null>(
     () =>
       isOas31 && schemaEngine.status === 'ready'
@@ -574,7 +635,12 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const [exampleState, setExampleState] = useState<ApiDocExampleState>(IDLE_EXAMPLE_STATE);
 
   useEffect(() => {
-    if (!isOas31 || projectionTargets.length === 0 || schemaEngine.status !== 'ready' || !projectionIdentity) {
+    if (
+      !usesEngineSchemaProjection ||
+      projectionTargets.length === 0 ||
+      schemaEngine.status !== 'ready' ||
+      !projectionIdentity
+    ) {
       setProjectionState(IDLE_SCHEMA_PROJECTION_STATE);
       return;
     }
@@ -591,12 +657,12 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         setProjectionState({
           status: 'error',
           identity: projectionIdentity,
-          message: projectionErrorMessage(error),
+          message: projectionErrorMessage(error, isOas32 ? '3.2' : '3.1'),
         });
       });
 
     return () => controller.abort();
-  }, [isOas31, projectionIdentity, projectionTargets, schemaEngine]);
+  }, [isOas32, projectionIdentity, projectionTargets, schemaEngine, usesEngineSchemaProjection]);
 
   useEffect(() => {
     if (!isOas31 || schemaEngine.status !== 'ready' || !exampleIdentity) {
@@ -624,17 +690,53 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   const schemaView = useMemo(
     () =>
       selectApiDocSchemaView({
-        isOas31,
+        isOas31: usesEngineSchemaProjection,
         hasTargets: projectionTargets.length > 0,
         engineStatus: schemaEngine.status,
         currentIdentity: projectionIdentity,
         projectionState,
         legacyFields: legacySchemaRegions,
       }),
-    [isOas31, legacySchemaRegions, projectionIdentity, projectionState, projectionTargets.length, schemaEngine.status],
+    [
+      legacySchemaRegions,
+      projectionIdentity,
+      projectionState,
+      projectionTargets.length,
+      schemaEngine.status,
+      usesEngineSchemaProjection,
+    ],
   );
   const bodyFields = schemaView.fieldsByRegion[REQUEST_BODY_REGION_KEY] ?? [];
-  const projectionNotice = schemaView.notice ? projectionNoticeContent(schemaView.notice, t) : null;
+  const projectionNotice = schemaView.notice
+    ? projectionNoticeContent(schemaView.notice, t, isOas32 ? '3.2' : '3.1')
+    : null;
+  const requestMediaType = firstRequestMedia(op.requestBody)?.mediaType;
+  const bodyDiscriminator = useMemo(() => {
+    if (!isOas32 || !snapshot32) return undefined;
+    const location = preferredDiscriminatorSchemaLocation(exampleCatalog32.targets, {
+      role: 'body',
+      mediaType: requestMediaType,
+    });
+    const described = discriminatorLocationFromOpenApi(snapshot32, location);
+    return described ? describeSchemaDiscriminator(snapshot32, described) : undefined;
+  }, [exampleCatalog32.targets, isOas32, requestMediaType, snapshot32]);
+  const bodyFieldsWithDiscriminator = bodyDiscriminator
+    ? attachDiscriminatorMappingFields(bodyFields, bodyDiscriminator)
+    : bodyFields;
+  const responseDiscriminators = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof describeSchemaDiscriminator>>();
+    if (!isOas32 || !snapshot32) return map;
+    for (const row of responses) {
+      const location = preferredDiscriminatorSchemaLocation(exampleCatalog32.targets, {
+        role: 'response',
+        statusCode: row.statusCode,
+        mediaType: row.mediaType,
+      });
+      const described = discriminatorLocationFromOpenApi(snapshot32, location);
+      if (described) map.set(row.key, describeSchemaDiscriminator(snapshot32, described));
+    }
+    return map;
+  }, [exampleCatalog32.targets, isOas32, responses, snapshot32]);
   const relatedModelNames = (() => {
     const refs = new Set<string>();
     (op.parameters ?? []).forEach((parameter) => collectSchemaRefs(parameter.schema, swaggerDoc, refs));
@@ -665,10 +767,9 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
     oas31Examples === null &&
     (schemaEngine.status === 'loading' ||
       (exampleState.status === 'loading' && sameApiDocExampleIdentity(exampleState.identity, exampleIdentity)));
-  const requestExample = isOas31
-    ? null
-    : requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
-  const respExamples = isOas31 ? [] : responseExamples(op.responses, swaggerDoc);
+  const requestExample =
+    isOas31 || isOas32 ? null : requestBodyExample(op.requestBody, bodySchema as SchemaObject | undefined, swaggerDoc);
+  const respExamples = isOas31 || isOas32 ? [] : responseExamples(op.responses, swaggerDoc);
   const oas31RequestExample = oas31Examples?.request;
   const renderOas31Example = (selection: NonNullable<typeof oas31RequestExample>) => {
     const code =
@@ -719,10 +820,45 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         </Space>
       </div>
 
+      {(operation.source === 'callback' || operation.source === 'component') && (
+        <Alert type="info" showIcon message={t('apiDoc.definition.readOnly')} style={{ marginBottom: 8 }} />
+      )}
+      {operation.source === 'link' && (
+        <Alert
+          type="info"
+          showIcon
+          message={t('apiDoc.link.readOnly')}
+          description={`${operation.identity?.ownerRetrievalUri ?? ''}${operation.identity?.operationPointer ?? ''}`}
+          style={{ marginBottom: 8 }}
+        />
+      )}
       {operation.source === 'webhook' && (
         <Alert type="info" showIcon message={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
       )}
 
+      {responseLinks.length > 0 && (
+        <Space wrap style={{ marginBottom: 8 }}>
+          <Text>Links:</Text>
+          {responseLinks.map((link) =>
+            link.target.status === 'resolved' ? (
+              <Button
+                key={link.name}
+                size="small"
+                onClick={() => {
+                  if (link.target.status === 'resolved')
+                    navigate(`/${encodeURIComponent(activeGroup.value)}/${link.target.operation.key}/doc`);
+                }}
+              >
+                {link.name}: {operationHttpMethod(link.target.operation)} {link.target.operation.path}
+              </Button>
+            ) : (
+              <Text key={link.name} type="secondary">
+                {link.name}: {t('apiDoc.link.unavailable', { status: link.target.status })}
+              </Text>
+            ),
+          )}
+        </Space>
+      )}
       {registeredResponses?.some((response) => response.unavailable) && (
         <Alert
           type="warning"
@@ -813,6 +949,15 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         locale={{ emptyText: t('apiDoc.noParams') }}
       />
 
+      {isOas32 && (
+        <Tabs
+          size="small"
+          items={exampleGroups32
+            .filter((group) => group.startsWith('parameter:'))
+            .map((group) => ({ key: group, label: group.slice(10), children: renderExample32(group) }))}
+        />
+      )}
+
       <Title level={5} style={{ marginTop: 24 }}>
         {t('apiDoc.requestBody')}
       </Title>
@@ -821,15 +966,36 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           <Markdown source={op.requestBody.description} preserveLineBreaks />
         </div>
       )}
-      {bodySchema !== undefined || requestExample !== null || oas31RequestExample !== undefined || exampleLoading ? (
+      {bodySchema !== undefined ||
+      requestExample !== null ||
+      oas31RequestExample !== undefined ||
+      exampleLoading ||
+      (isOas32 && exampleCatalog32.bodies.length > 0) ? (
         <Tabs
           size="small"
           items={[
             {
               key: 'schema',
               label: t('apiDoc.tab.schema'),
-              children: <SchemaFieldTable fields={bodyFields} emptyText={t('apiDoc.body.notExpandable')} />,
+              children: (
+                <>
+                  <SchemaDiscriminatorPanel
+                    metadata={bodyDiscriminator}
+                    snapshot={snapshot32}
+                    session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+                    operationToken={operation.identity?.identity ?? operation.key}
+                  />
+                  <SchemaFieldTable fields={bodyFieldsWithDiscriminator} emptyText={t('apiDoc.body.notExpandable')} />
+                </>
+              ),
             },
+            ...exampleGroups32
+              .filter((group) => group.startsWith('body:'))
+              .map((group) => ({
+                key: group,
+                label: `${t('apiDoc.tab.requestExample')} ${group.slice(5)}`,
+                children: renderExample32(group),
+              })),
             ...(isOas31 && oas31RequestExample
               ? [
                   {
@@ -903,6 +1069,8 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                       row.schema === undefined
                         ? []
                         : (schemaView.fieldsByRegion[responseSchemaRegionKey(row.key)] ?? []);
+                    const metadata = responseDiscriminators.get(row.key);
+                    const tableFields = metadata ? attachDiscriminatorMappingFields(fields, metadata) : fields;
                     return (
                       <div key={row.key} style={{ marginBottom: 16 }}>
                         {(responseOverviewVisibility.showStatusCode || responseOverviewVisibility.showDetails) && (
@@ -910,6 +1078,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                             {responseOverviewVisibility.showStatusCode && <Tag color={color}>{row.statusCode}</Tag>}
                             {responseOverviewVisibility.showDetails && (
                               <>
+                                {row.summary && <Text strong>{row.summary}</Text>}
                                 {row.description && (
                                   <DescriptionText type="secondary" style={{ fontSize: 13 }}>
                                     {row.description}
@@ -921,7 +1090,24 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                             )}
                           </Space>
                         )}
-                        <SchemaFieldTable fields={fields} emptyText={t('apiDoc.response.notExpandable')} />
+                        {row.unavailable ? (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            message={t('oas32.responseUnavailable', { status: row.statusCode })}
+                          />
+                        ) : (
+                          <>
+                            <SchemaDiscriminatorPanel
+                              metadata={metadata}
+                              snapshot={snapshot32}
+                              session={schemaEngine.status === 'ready' ? schemaEngine.session : undefined}
+                              direction="response"
+                              operationToken={`${operation.identity?.identity ?? operation.key}:${row.statusCode}`}
+                            />
+                            <SchemaFieldTable fields={tableFields} emptyText={t('apiDoc.response.notExpandable')} />
+                          </>
+                        )}
                         {row.headers.length > 0 && (
                           <div style={{ marginTop: 12 }}>
                             <Text strong>{t('apiDebug.response.headers')}</Text>
@@ -942,6 +1128,13 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
               </div>
             ),
           },
+          ...exampleGroups32
+            .filter((group) => group.startsWith('response:'))
+            .map((group) => ({
+              key: group,
+              label: `${t('apiDoc.tab.responseExample')} ${group.slice(9)}`,
+              children: renderExample32(group),
+            })),
           ...(isOas31
             ? (oas31Examples?.responses ?? []).map((selection) => ({
                 key: `resp-${selection.statusCode}`,

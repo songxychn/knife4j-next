@@ -1,10 +1,14 @@
 import type { SchemaResolveContext } from './types';
 import { resolveRef } from './resolveRef';
 import { buildSchemaExample } from './schemaExample';
+import { getOpenApiSpecificationFeatures } from '../openapiVersion';
+import { interpretExampleObject } from './exampleRepresentation';
+import { parseLocalJsonPointer, resolveLocalJsonPointer } from '../openapi31/document';
 
 interface MediaTypeExampleSource {
   example?: unknown;
   examples?: Record<string, unknown>;
+  encoding?: Record<string, unknown>;
 }
 
 interface MediaTypeExampleOptions {
@@ -54,12 +58,68 @@ function firstExamplesValue(
   return undefined;
 }
 
+/** This convenience API has no registry. Only known local component positions are resolvable here. */
+function resolveOas32Example(example: unknown, doc: Record<string, unknown>): Record<string, unknown> | undefined {
+  const seen = new Set<string>();
+  let current = example;
+  for (let depth = 0; depth <= 20; depth++) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined;
+    const object = current as Record<string, unknown>;
+    if (typeof object.$ref !== 'string') return object;
+    const parsed = parseLocalJsonPointer(object.$ref);
+    if (
+      !parsed.valid ||
+      parsed.tokens?.length !== 3 ||
+      parsed.tokens[0] !== 'components' ||
+      parsed.tokens[1] !== 'examples' ||
+      seen.has(object.$ref)
+    )
+      return undefined;
+    seen.add(object.$ref);
+    const resolved = resolveLocalJsonPointer(doc, object.$ref);
+    if (!resolved.found) return undefined;
+    current = resolved.value;
+  }
+  return undefined;
+}
+
 export function buildMediaTypeExampleValue(
   mediaObj: MediaTypeExampleSource | undefined,
   schema: Record<string, unknown> | undefined,
   ctx: SchemaResolveContext,
   options: MediaTypeExampleOptions = {},
 ): string | undefined {
+  if (getOpenApiSpecificationFeatures(ctx.doc.openapi)?.family === '3.2') {
+    const authored =
+      mediaObj && hasOwn(mediaObj as Record<string, unknown>, 'example')
+        ? [{ value: mediaObj.example }]
+        : Object.values(mediaObj?.examples ?? {}).map((example) => resolveOas32Example(example, ctx.doc));
+    const selected =
+      authored.find(
+        (example) => example && ['dataValue', 'serializedValue', 'value'].some((field) => hasOwn(example, field)),
+      ) ?? authored.find((example) => example && hasOwn(example, 'externalValue'));
+    const mediaType = options.mediaType ?? '';
+    const exampleContext = {
+      layer: 'media' as const,
+      mediaType,
+      encoding: mediaObj?.encoding,
+      bodyContent: {
+        mediaType,
+        category:
+          mediaType.split(';', 1)[0].trim().toLowerCase() === 'application/x-www-form-urlencoded'
+            ? ('urlencoded' as const)
+            : mediaType.split(';', 1)[0].trim().toLowerCase().startsWith('multipart/')
+              ? ('multipart' as const)
+              : ('raw' as const),
+        schema,
+      },
+    };
+    if (selected) return interpretExampleObject(selected, exampleContext).text;
+    if (authored.some((example) => !example)) return undefined;
+    return schema
+      ? interpretExampleObject({ dataValue: buildSchemaExample(schema, ctx) }, exampleContext).text
+      : undefined;
+  }
   if (mediaObj) {
     const mediaRecord = mediaObj as Record<string, unknown>;
     if (hasOwn(mediaRecord, 'example')) {

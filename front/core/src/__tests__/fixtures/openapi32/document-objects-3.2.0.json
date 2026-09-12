@@ -1,0 +1,169 @@
+{
+  "openapi": "3.2.0",
+  "$self": "https://example.test/descriptions/main.json",
+  "info": { "title": "OAS 3.2 structure fixture", "version": "1" },
+  "servers": [
+    {
+      "url": "https://api.example.test/{stage}",
+      "name": "Synthetic",
+      "variables": { "stage": { "default": "test", "enum": ["test", "demo"] } }
+    }
+  ],
+  "tags": [
+    { "name": "items", "summary": "Items", "kind": "nav" },
+    { "name": "search", "parent": "items", "kind": "custom-kind" }
+  ],
+  "paths": {
+    "/items/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "$ref": "#/components/parameters/Trace" }
+      ],
+      "query": {
+        "tags": ["search"],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "querystring",
+            "content": { "application/json": { "$ref": "#/components/mediaTypes/Filter" } }
+          },
+          { "name": "session", "in": "cookie", "style": "cookie", "explode": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "content": { "application/json": { "$ref": "#/components/mediaTypes/Filter" } } },
+        "responses": {
+          "200": {
+            "summary": "Events",
+            "content": { "text/event-stream": { "itemSchema": { "$ref": "#/components/schemas/Event" } } },
+            "headers": {
+              "x-context": { "content": { "application/json": { "$ref": "#/components/mediaTypes/JsonString" } } }
+            }
+          },
+          "204": {},
+          "4XX": { "$ref": "#/components/responses/Failure", "summary": "Failed request" }
+        },
+        "callbacks": {
+          "updated": {
+            "https://callback.example.test/events/{$request.path.id}": { "post": {} },
+            "x-description": { "query": "opaque" }
+          }
+        },
+        "security": [{ "#/components/securitySchemes/Device": ["read"] }]
+      },
+      "additionalOperations": { "COPY": {}, "Copy": {}, "x-PING": {} }
+    },
+    "/shared": { "$ref": "#/components/pathItems/Shared" },
+    "/link-target": {
+      "post": {
+        "parameters": [
+          { "name": "number", "in": "query", "schema": { "type": "integer" } },
+          { "name": "enabled", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "object", "in": "query", "style": "deepObject", "schema": { "type": "object" } }
+        ],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object" } } } }
+      }
+    },
+    "x-data": { "query": "opaque", "$ref": "#/not-a-reference" }
+  },
+  "webhooks": { "x-updated": { "post": {} } },
+  "components": {
+    "schemas": {
+      "Event": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "string" },
+          "event": { "type": "string" },
+          "id": { "type": "string" },
+          "retry": { "type": "integer" }
+        }
+      },
+      "Known": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "known" } } },
+      "Other": { "type": "object", "properties": { "kind": { "not": { "const": "known" } } } },
+      "Item": {
+        "oneOf": [{ "$ref": "#/components/schemas/Known" }, { "$ref": "#/components/schemas/Other" }],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": { "known": "#/components/schemas/Known" },
+          "defaultMapping": "#/components/schemas/Other"
+        }
+      },
+      "Xml": {
+        "type": "array",
+        "xml": { "nodeType": "element", "name": "items", "namespace": "urn:example:节点" },
+        "prefixItems": [
+          { "type": "string", "xml": { "nodeType": "text" } },
+          {
+            "type": "object",
+            "xml": { "name": "item" },
+            "properties": {
+              "id": { "type": "string", "xml": { "nodeType": "attribute" } },
+              "body": { "type": "string", "xml": { "nodeType": "cdata" } }
+            }
+          }
+        ]
+      },
+      "Any": true,
+      "None": false
+    },
+    "parameters": {
+      "Trace": { "name": "X-Trace", "in": "header", "schema": { "type": "string" } }
+    },
+    "responses": { "Failure": {} },
+    "headers": { "Context": { "content": { "application/json": { "$ref": "#/components/mediaTypes/JsonString" } } } },
+    "examples": {
+      "x-literal": {
+        "dataValue": { "$ref": "#/missing", "xml": { "nodeType": "not-an-xml-node" } },
+        "serializedValue": "{\"$ref\":\"#/missing\",\"xml\":{\"nodeType\":\"not-an-xml-node\"}}"
+      },
+      "Text": { "dataValue": "hello", "serializedValue": "hello" }
+    },
+    "links": {
+      "Next": {
+        "operationRef": "#/paths/~1link-target/post",
+        "parameters": { "number": 42, "enabled": true, "object": { "xml": "opaque", "$ref": "#/missing" } },
+        "requestBody": { "$ref": "#/missing" }
+      }
+    },
+    "pathItems": { "Shared": { "get": {} } },
+    "securitySchemes": {
+      "Device": {
+        "type": "oauth2",
+        "deprecated": false,
+        "oauth2MetadataUrl": "https://auth.example.test/.well-known/oauth-authorization-server",
+        "flows": {
+          "deviceAuthorization": {
+            "deviceAuthorizationUrl": "https://auth.example.test/device",
+            "tokenUrl": "https://auth.example.test/token",
+            "scopes": { "read": "Read" }
+          }
+        }
+      }
+    },
+    "mediaTypes": {
+      "Filter": {
+        "schema": { "type": "object", "properties": { "limit": { "type": "integer" } } },
+        "examples": { "Small": { "dataValue": { "limit": 2 } } }
+      },
+      "JsonString": { "schema": { "type": "string" } },
+      "Alias": { "$ref": "#/components/mediaTypes/Filter" },
+      "Multipart": {
+        "schema": {
+          "type": "array",
+          "prefixItems": [{ "type": "string" }],
+          "items": { "type": "array", "items": { "type": "string" } }
+        },
+        "prefixEncoding": [
+          { "contentType": "text/plain", "headers": { "X-Part": { "schema": { "type": "string" } } } }
+        ],
+        "itemEncoding": {
+          "contentType": "multipart/mixed",
+          "itemEncoding": {
+            "contentType": "text/plain",
+            "headers": {
+              "X-Context": { "content": { "application/json": { "$ref": "#/components/mediaTypes/JsonString" } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

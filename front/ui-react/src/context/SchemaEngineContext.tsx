@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
   ExternalResourceLoader,
   schemaDocumentsFromResourceGraph,
+  schemaRegistrationContextFromResourceGraph,
   type ResourceCandidate,
   type ResourceDiagnostic,
   type ResourceGrant,
@@ -9,7 +10,7 @@ import {
 } from '../schema/externalResourceGraph';
 import { readRememberedResourceGrants, rememberResourceGrants } from '../schema/resourceGrantStorage';
 import {
-  isOas31SchemaDocument,
+  isSchemaEngineDocument,
   schemaDocumentRetrievalUri,
   SchemaDocumentSessionManager,
   toSchemaDocumentFailure,
@@ -123,7 +124,7 @@ function selectedCandidateKeys(runtime: ActiveResourceRuntime, resourceKeys: rea
 }
 
 export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { activeSwaggerGroup, swaggerDoc, loading, routeGroupReady } = useGroup();
+  const { activeSwaggerGroup, swaggerDoc, loading, routeGroupReady, setOperationResourceSnapshot } = useGroup();
   const managerRef = useRef<SchemaDocumentSessionManager | null>(null);
   const runtimeRef = useRef<ActiveResourceRuntime | null>(null);
   const revisionRef = useRef(0);
@@ -142,10 +143,12 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
     ): Promise<void> => {
       const isCurrentOperation = (): boolean => isCurrent(runtime) && runtime.operationRevision === operationRevision;
       if (!isCurrentOperation()) return;
+      setOperationResourceSnapshot?.(runtime.document, snapshot);
       setState({ status: 'loading', retrievalUri: runtime.retrievalUri, session: null, error: null });
       try {
         const result = await managerRef.current!.open(runtime.document, runtime.retrievalUri, {
           resourceDocuments: schemaDocumentsFromResourceGraph(snapshot),
+          registrationContext: schemaRegistrationContextFromResourceGraph(snapshot, runtime.retrievalUri),
         });
         if (!isCurrentOperation() || result.status === 'stale') return;
         setState({
@@ -182,7 +185,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       }
     },
-    [isCurrent],
+    [isCurrent, setOperationResourceSnapshot],
   );
 
   const applyGraphOperation = useCallback(
@@ -261,7 +264,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
     revisionRef.current += 1;
     runtimeRef.current?.loader.dispose();
     runtimeRef.current = null;
-    if (loading || !routeGroupReady || !isOas31SchemaDocument(swaggerDoc) || !activeSwaggerGroup) {
+    if (loading || !routeGroupReady || !isSchemaEngineDocument(swaggerDoc) || !activeSwaggerGroup) {
       manager.clear();
       setState(INACTIVE_STATE);
       setResources(INACTIVE_RESOURCES);

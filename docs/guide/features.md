@@ -54,6 +54,7 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 - **网关聚合**：适合 Spring Cloud Gateway、多服务、多分组的文档统一展示。
 - **离线交付**：支持将接口文档导出为离线格式，方便评审、归档和交付。
 - **OpenAPI 3.1**：React 主线对 3.1.x 使用同一加载、JSON Schema 2020-12、调试诊断、导出与变化提示契约；详见 [OpenAPI 3.1 支持与迁移](./openapi31)。
+- **OpenAPI 3.2（未发布）**：`integration/oas32` 源码可按 3.2 语义消费合法文档，不降级为 3.1；已发布 `5.6.1` 不含该能力。详见 [OpenAPI 3.2 支持矩阵](./openapi32)。
 - **访问控制**：支持生产环境禁用、基础访问控制和文档入口保护。
 
 ## 适合哪些场景
@@ -86,6 +87,7 @@ OpenAPI 3.1 导出会先冻结当前文档与已授权 Schema 资源的不可变
 用户需要取消导出，或明确接受带原因标记的降级结果；各格式渲染器不会自行联网补取资源。
 快照入口复用统一的 OpenAPI 3.1.x 版本判断，不按 patch 版本分叉能力。
 完整边界见 [OpenAPI 3.1 支持与迁移](./openapi31#产品能力矩阵)。
+集成分支上的 OpenAPI 3.2 使用独立离线快照，尚未随 `5.6.1` 发布，见 [OpenAPI 3.2 支持矩阵](./openapi32)。
 
 ::: tip PDF 替代方案
 目前可先导出 Markdown，再用 [Typora](https://typora.io/) 等工具转换 PDF。
@@ -319,14 +321,14 @@ knife4j:
 
 Knife4j 使用浏览器 localStorage 记录接口基线，接口稳定身份为 HTTP Method + Path，不依赖可能变化或缺失的 `operationId`。
 
-React UI 在 OpenAPI 3.0.x 与 3.1.x 中提供以下行为：
+React UI 在 OpenAPI 3.0.x、3.1.x 以及集成分支上的 3.2.x 中提供以下行为：
 
 - 第一次开启只建立当前基线，不会把已有接口全部标为新增。
 - 新增接口显示绿色 `NEW`；已有接口的请求参数、RequestBody、Responses、安全要求、扩展或可达 Schema 发生变化时显示橙色变化标记。
 - Tag 会汇总其下待确认的接口；打开接口的 Doc、Debug、OpenAPI 或 Script 子页会将该接口标记为已读，也可以在侧边栏将当前 Group 全部标记为已读。
 - 基线按当前 Origin、`doc.html` 应用路径、Group 和 api-docs 地址隔离，只保存在当前浏览器中，不会上传到服务端。
 - 设置页中的“清理请求缓存”或“重置全部本地数据”会重置接口版本提示基线。
-- OpenAPI 3.1 只有在外部 Schema 资源图完整时才生成语义指纹，且与 3.0 基线隔离；当前只跟踪 `paths` 操作，不跟踪 Webhook 或字段级 diff。
+- OpenAPI 3.1 / 3.2 只有在外部 Schema 资源图完整时才生成语义指纹，且与 3.0 以及彼此的基线隔离；当前只跟踪 `paths` 操作，不跟踪 Webhook 或字段级 diff。3.2 使用 `oas3.2-v1`，属于未发布的集成分支能力。
 
 ```yaml
 knife4j:
@@ -337,7 +339,8 @@ knife4j:
 
 ::: warning OpenAPI 版本范围
 React 对 OpenAPI 3.1 使用独立的资源图与 Schema 语义生成指纹，不会在资源缺失时生成弱化结果。
-OpenAPI 3.2 尚不支持；Vue3 UI 继续保留 OAS2 兼容实现。详见 [OpenAPI 3.1 支持与迁移](./openapi31)。
+集成分支上的 OpenAPI 3.2 使用另一套 `oas3.2-v1` 基线，同样要求完整资源图；该能力尚未随 `5.6.1` 发布。
+Vue3 UI 继续保留 OAS2 兼容实现。详见 [OpenAPI 3.1 支持与迁移](./openapi31) 和 [OpenAPI 3.2 支持矩阵](./openapi32)。
 :::
 
 ### 清除缓存
