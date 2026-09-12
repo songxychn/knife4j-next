@@ -232,6 +232,87 @@ describe('shared export model Markdown rendering', () => {
     expect(markdown).toContain('MARKDOWN_RESPONSE_EXAMPLE_643');
   });
 
+  test('renders additive OAS 3.2 notes without changing 3.0/3.1 operations that omit them', () => {
+    const base = buildExportDocument(doc, tags);
+    const baseMarkdown = renderExportDocumentMarkdown(base);
+    expect(baseMarkdown).not.toContain('itemSchema');
+    expect(baseMarkdown).not.toContain('**Encoding:**');
+    expect(baseMarkdown).not.toContain('**Security:**');
+    const annotated = structuredClone(base);
+    annotated.securitySchemes = [
+      {
+        name: 'https://auth.example.test/schemes/bearer.json',
+        type: 'http',
+        scheme: 'bearer',
+      },
+    ];
+    annotated.tags[0].operations[0].method = 'QUERY';
+    annotated.tags[0].operations[0].notes = [{ code: 'BROWSER_EXECUTION_UNSUPPORTED', detail: 'QUERY' }];
+    annotated.tags[0].operations[0].security = [
+      { schemes: [{ name: 'https://auth.example.test/schemes/bearer.json', scopes: [] }] },
+    ];
+    annotated.tags[0].operations[0].requestBody = {
+      ...annotated.tags[0].operations[0].requestBody!,
+      sequentialKind: 'json-seq',
+      encodings: [{ kind: 'prefix', contentType: 'text/plain' }],
+      itemSchema: {
+        mediaType: 'application/json-seq',
+        typeDisplay: 'integer',
+        kind: 'primitive',
+        shallowFields: [],
+        fields: [],
+        role: 'itemSchema',
+      },
+    };
+    annotated.tags[0].operations[0].responses[0].schema = {
+      ...annotated.tags[0].operations[0].responses[0].schema!,
+      xml: { nodeType: 'cdata' },
+      discriminator: {
+        propertyName: 'kind',
+        mapping: { known: 'Known' },
+        defaultMapping: 'Other',
+      },
+    };
+    const markdown = renderExportDocumentMarkdown(annotated);
+    expect(markdown).toContain('**QUERY**');
+    expect(markdown).toContain('https://auth.example.test/schemes/bearer.json');
+    expect(markdown).toContain('BROWSER_EXECUTION_UNSUPPORTED: QUERY');
+    expect(markdown).toContain('**Sequential media:** json-seq');
+    expect(markdown).toContain('itemSchema');
+    expect(markdown).not.toMatch(/\*\*itemSchema:\*\* json-seq/);
+    expect(markdown).toContain('prefix contentType=text/plain');
+    expect(markdown).toContain('nodeType=cdata');
+    expect(markdown).toContain('defaultMapping=`Other`');
+  });
+
+  test('renders encoding-only and note-only parameters that have no expandable fields', () => {
+    const annotated = structuredClone(buildExportDocument(doc, tags));
+    annotated.tags[0].operations[0].parameters.push(
+      {
+        name: 'filter',
+        location: 'querystring',
+        required: false,
+        typeDisplay: '-',
+        compactTypeDisplay: '-',
+        description: '',
+        encodings: [{ kind: 'prefix', contentType: 'text/plain' }],
+      },
+      {
+        name: 'trace',
+        location: 'query',
+        required: false,
+        typeDisplay: '-',
+        compactTypeDisplay: '-',
+        description: '',
+        notes: [{ code: 'PARAMETER_NOTE_ONLY' }],
+      },
+    );
+    const markdown = renderExportDocumentMarkdown(annotated);
+    expect(markdown).toContain('`filter`');
+    expect(markdown).toContain('prefix contentType=text/plain');
+    expect(markdown).toContain('PARAMETER_NOTE_ONLY');
+  });
+
   test('renders example-only and empty values with localized labels and a safe Markdown fence', () => {
     const markdown = renderExportDocumentMarkdown(
       buildExportDocument({ info: { title: 'Examples', version: '1' } }, [

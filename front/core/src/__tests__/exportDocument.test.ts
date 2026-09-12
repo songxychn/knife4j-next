@@ -142,7 +142,8 @@ describe('buildExportDocument', () => {
   });
 
   test('extracts parameters and recursively flattens request and response schemas', () => {
-    const operation = buildExportDocument(doc, tags, { fallbackTitle: 'Fallback API' }).tags[0].operations[0];
+    const result = buildExportDocument(doc, tags, { fallbackTitle: 'Fallback API' });
+    const operation = result.tags[0].operations[0];
 
     expect(operation).toMatchObject({
       method: 'POST',
@@ -195,6 +196,14 @@ describe('buildExportDocument', () => {
       description: 'Machine error code',
       truncated: false,
     });
+    expect(operation.methodSource).toBeUndefined();
+    expect(operation.notes).toBeUndefined();
+    expect(operation.security).toBeUndefined();
+    expect(operation.requestBody?.itemSchema).toBeUndefined();
+    expect(operation.requestBody?.encodings).toBeUndefined();
+    expect(result.openapi).toBeUndefined();
+    expect(result.servers).toBeUndefined();
+    expect(result.securitySchemes).toBeUndefined();
   });
 
   test('keeps OAS 3.1 boolean parameter schemas representable in offline exports', () => {
