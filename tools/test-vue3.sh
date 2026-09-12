@@ -5,6 +5,7 @@ cd "$(dirname "$0")/../front/vue3"
 
 bun install --frozen-lockfile
 bun run check:i18n
+bun run check:search-menu
 bun run build:Knife4jSpringUi
 
 required_files=(

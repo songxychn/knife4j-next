@@ -55,6 +55,7 @@ const logo = './knife4j-next-mark.svg';
 import GlobalHeader from "@/components/GlobalHeader/index.vue";
 import GlobalFooter from "@/components/GlobalFooter/index.vue";
 import KUtils from "@/core/utils";
+import { filterMenuBySearchKey } from "@/core/searchMenu.js";
 import SwaggerBootstrapUi from "@/core/Knife4jAsync.js";
 import { findComponentsByPath, findMenuByKey } from "@/components/utils/Knife4jUtils";
 import { urlToList } from "@/components/utils/pathTools";
@@ -451,42 +452,10 @@ onUpdated(() => {
 })
 
 function searchKey(key) {
-  //根据输入搜索
-  if (KUtils.strNotBlank(key)) {
-    const tmpMenu = []
-    const regx = ".*?" + key + ".*"
-    //console.log(this.cacheMenuData);
-    cacheMenuData.value.forEach(function (menu) {
-      if (KUtils.arrNotEmpty(menu.children)) {
-        //遍历children
-        const tmpChildrens = []
-        menu.children.forEach(function (children) {
-          const urlflag = KUtils.searchMatch(regx, children.url)
-          const sumflag = KUtils.searchMatch(regx, children.name)
-          const desflag = KUtils.searchMatch(regx, children.description)
-          if (urlflag || sumflag || desflag) {
-            tmpChildrens.push(children);
-          }
-        });
-        if (tmpChildrens.length > 0) {
-          const tmpObj = {
-            groupName: menu.groupName,
-            groupId: menu.groupId,
-            key: menu.key,
-            name: menu.name,
-            icon: menu.icon,
-            path: menu.path,
-            hasNew: menu.hasNew,
-            authority: menu.authority,
-            children: tmpChildrens
-          }
-          if (tmpMenu.filter(t => t.key === tmpObj.key).length == 0) {
-            tmpMenu.push(tmpObj);
-          }
-        }
-      }
-    });
-    state.localMenuData = tmpMenu;
+  //根据输入搜索，Tag 名称命中时展开全部子接口，对齐 Vue2
+  const tmpMenu = filterMenuBySearchKey(cacheMenuData.value, key, KUtils)
+  if (tmpMenu) {
+    state.localMenuData = tmpMenu
   }
 }
 

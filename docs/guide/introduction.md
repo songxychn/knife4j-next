@@ -58,7 +58,7 @@ upstream 文档里列出的增强特性在本 fork 的实际实现状态，前�
 | Springfox 专属增强在 OAS3 中不处理 | `@DynamicParameters`、`@DynamicResponseParameters`、`@ApiOperationSupport(ignoreParameters/includeParameters)` 等 | 迁到 OpenAPI3 时改用实体类或标准 OpenAPI 注解替代 |
 | 后端实现，新 React 前端已读取部分默认值 | `knife4j.setting.language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-footer-custom`、`footer-custom-content`、`enable-request-cache`、`enable-home-custom`、`home-custom-location`、`swagger-model-name` 等 | 这些是 UI 开关，不替代后端安全控制；本地设置面板选择优先 |
 | React UI 已补齐或重做 | OAuth2 四种 flow 基础鉴权、HTML/Word/Markdown/OpenAPI JSON 离线导出、`tags-sorter` / `operations-sorter`、`x-openapi.x-markdownFiles` 自定义文档、自定义 Footer、自定义首页、基础 JS/TS 代码片段 | 优先以本仓库文档和实际 demo 为准 |
-| 仍未覆盖 | Postman 导出、afterScript 等 | 等待后续迭代；重度依赖这些能力时暂时使用 openapi2 starter + 本仓库 Vue 3 UI |
+| 仍未覆盖 | afterScript、调试后刷新变量（`enable-reload-cache-parameter`） | 这些能力在 Vue2 基线与 Vue3 端口中存在，React 尚未覆盖。三端都没有独立的 Postman Collection 导出器；OpenAPI 复制/下载才是真实能力 |
 
 完整对应关系见 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
 
@@ -68,12 +68,12 @@ upstream 文档里列出的增强特性在本 fork 的实际实现状态，前�
 
 | UI webjar | 打包的前端 | 对应 starter |
 | --- | --- | --- |
-| `knife4j-openapi2-ui` | 本仓库 `front/vue3` 构建产物（兼容维护，功能较完整） | `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter` |
+| `knife4j-openapi2-ui` | 本仓库 `front/vue3` 构建产物（兼容维护；能力对齐 Vue2，不是新的功能基线） | `knife4j-openapi2-spring-boot-starter`、`knife4j-aggregation-spring-boot-starter` |
 | `knife4j-openapi3-ui` | React 新前端（从 Preview 起集成，为主线） | `knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`、`knife4j-openapi3-boot4-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter`、`knife4j-aggregation-boot4-spring-boot-starter`、`knife4j-gateway-spring-boot-starter`、`knife4j-gateway-webmvc-spring-boot-starter`、`knife4j-gateway-boot4-spring-boot-starter` |
 
 所以：
 
-- 用 **Springfox + OpenAPI2** 走 `openapi2-starter`，UI 是本仓库 `front/vue3` 的构建产物（兼容维护），继续提供 upstream 已有功能。
+- 用 **Springfox + OpenAPI2** 走 `openapi2-starter`，UI 是本仓库 `front/vue3` 的构建产物（兼容维护），目标是对齐 upstream Vue2 已有能力，而不是扩张新功能。
 - 用 **springdoc-openapi + OpenAPI3** 走 `openapi3-starter`、`openapi3-jakarta-starter` 或 Boot4 专用 starter，UI 是 **新 React 版本**（覆盖见上表），不熟悉行为请同时参考 [FAQ](./faq)。
 
 ## 版本规则与维护节奏

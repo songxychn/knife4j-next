@@ -135,7 +135,7 @@ public class UserController {
 3. `http://localhost:8080/v3/api-docs` 返回原始 OpenAPI JSON。
 
 ::: warning 新前端配置覆盖范围
-React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-footer-custom`、`footer-custom-content`、`enable-request-cache`、`enable-home-custom`、`home-custom-location`、`swagger-model-name`。`enable-version`、`enable-after-script` 等 Vue 时代能力仍暂不生效；`home-custom-path` 仍只由后端读取并注入 Markdown 内容。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective) 与 [路线图 / 新前端覆盖范围](../roadmap/#react-ui-coverage)。
+React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-footer-custom`、`footer-custom-content`、`enable-request-cache`、`enable-version`、`enable-home-custom`、`home-custom-location`、`swagger-model-name`。`enable-version` 已接通，UX 是 NEW / 变化标记，不同于 Vue2 小蓝点。仍缺 afterScript 与调试后刷新变量（`enable-reload-cache-parameter`）。`home-custom-path` 仍只由后端读取并注入 Markdown 内容。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective) 与 [相对 Vue2 的覆盖范围](../roadmap/#react-ui-coverage)。
 :::
 
 ---
@@ -178,8 +178,8 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 
 ::: info 何时选这条
 - 项目深度依赖 Springfox 专属注解（`@ApiOperationSupport(ignoreParameters/includeParameters)`、`@DynamicParameters`、`@DynamicResponseParameters`）。
-- 需要 upstream knife4j 文档上提到的完整 UI 能力（自定义首页、Postman 导出、版本小蓝点、afterScript）。
-- 这些特性在本 fork 的新 React 前端中尚未覆盖，但在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中完整保留。
+- 需要 Vue2 基线里的 afterScript 或调试后刷新变量（`enable-reload-cache-parameter`）。这两项已移植到本仓库 `front/vue3`，React 尚未覆盖。
+- 自定义首页、接口变化提示和 OpenAPI 复制/下载不是选这条的理由：React 已覆盖（变化提示是 NEW / 变化标记，不是 Vue2 小蓝点）。三端都没有独立的 Postman Collection 导出器。
 :::
 
 ### 依赖
