@@ -20,7 +20,11 @@
 | `front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
 | `front/vue3` | `./tools/test-vue3.sh` | 构建并检查 `doc.html` / webjars |
 | `docs/**` | `./tools/test-docs.sh` | 文档站构建 |
-| 跨多区域 | `./tools/test-all.sh` | 依次跑上述（含 vue3） |
+| `knife4x/go/**`、`knife4x/examples/gin/**` | `./tools/test-knife4x-go.sh` | Go 与 Gin 示例验证 |
+| 跨多区域 | 受影响区域标准脚本的并集 | 包含生成物与消费方影响，不因跨两个区域就默认跑全套 |
+| 全区域变更 / 整体验收 | `./tools/test-all.sh` | Java、React/core、Vue3、文档站、Go 及 UI 生成物一致性 |
+
+选择区域时可用 `git diff --name-only <base> <head> | ./tools/ci-changes.sh` 核对 CI 影响范围；消费方与生成物相关门禁仍按对应契约执行。仅修改 `AGENTS.md`、`.agent/**` 等流程文案且分类全部为 false 时，核对实际 diff、运行 `git diff --check <base> <head>` 并完成独立措辞审查，无需运行产品测试。验证通过后，仅在新变更、失败或未解决的风险影响验证结论时补跑相关检查。
 
 强制：
 
@@ -92,7 +96,7 @@ PicGo / PicList 必须已启动，并已选中可用的默认图床配置；脚�
 gh pr checks <N> --watch
 ```
 
-CI 红：同分支修，再等。全绿且审查结论具备后，才标 `status:review`。
+CI 红：先按下文「验证失败时」确认原因；本任务引入且在授权范围内的失败，同分支修复后重新验证和等待当前 head 的 CI。全绿且审查结论具备后，才标 `status:review`。
 
 PR 至少写清：关联 issue、范围、验证命令与结果、风险。
 
