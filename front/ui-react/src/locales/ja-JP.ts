@@ -401,7 +401,7 @@ const jaJP = {
   'apiOpenApi.download.unsupported':
     'このブラウザーはファイルのダウンロードに対応していません。JSON をコピーして手動で保存してください。',
   'apiOpenApi.download.versionUnsupported':
-    '単一オペレーションのダウンロードは OpenAPI 3.0.x と 3.1.x に対応しています。このドキュメントは引き続き表示・コピーできます。',
+    '単一オペレーションのダウンロードは OpenAPI 3.0.x、3.1.x、3.2.x に対応しています。このドキュメントは引き続き表示・コピーできます。',
   'apiOpenApi.download.oas31Preparing':
     'ポータブルな OAS 3.1 ドキュメントを準備しています。現在の内容は引き続き表示・コピーできます。',
   'apiOpenApi.download.oas31Unavailable':
@@ -410,6 +410,17 @@ const jaJP = {
     '参照クロージャが不完全なため、ポータブルな OAS 3.1 ドキュメントはまだダウンロードできません。',
   'apiOpenApi.download.oas31Blocked.desc':
     '不足している外部リソースを読み込むか、次の参照を修正してください。プレビューとコピーは引き続き利用できます。',
+  'apiOpenApi.download.oas32Preparing':
+    'ポータブルな OAS 3.2 ドキュメントを準備しています。現在の内容は引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas32Unavailable':
+    '現在、ポータブルな OAS 3.2 ドキュメントを生成できません。現在の内容は引き続き表示・コピーできます。',
+  'apiOpenApi.download.oas32Blocked':
+    '参照クロージャが不完全なため、ポータブルな OAS 3.2 ドキュメントはまだダウンロードできません。',
+  'apiOpenApi.download.oas32Blocked.desc':
+    '不足している外部リソースを読み込むか、次の参照を修正してください。プレビューとコピーは引き続き利用できます。',
+  'apiOpenApi.downloadYaml': 'YAML をダウンロード',
+  'apiOpenApi.downloadYaml.started': 'OpenAPI YAML のダウンロードを開始しました',
+  'apiOpenApi.downloadYaml.failed': 'OpenAPI YAML をダウンロードできませんでした。もう一度お試しください。',
   'apiOpenApi.serialize.failed':
     'この API の OpenAPI JSON を生成できませんでした。API ドキュメントを確認して、もう一度お試しください。',
 
@@ -923,6 +934,7 @@ const jaJP = {
   'officeDoc.btn.word': 'Word (.doc) をダウンロード',
   'officeDoc.btn.markdown': 'Markdown をダウンロード',
   'officeDoc.btn.openapi': 'OpenAPI JSON をダウンロード',
+  'officeDoc.btn.openapiYaml': 'OpenAPI YAML をダウンロード',
   'officeDoc.response': 'レスポンス',
   'officeDoc.circularReference': '循環参照',
   'officeDoc.truncated': '打ち切り',

@@ -1,6 +1,8 @@
 import {
   OPENAPI_HTTP_METHODS,
   escapeJsonPointerSegment,
+  getOpenApiSpecificationFeatures,
+  getOpenApiStandardHttpMethods,
   isOpenApi31Version,
   parseLocalJsonPointer,
   resolveJsonPointerTokens,
@@ -49,6 +51,8 @@ type CopyKind =
   | 'callback'
   | 'encodingMap'
   | 'encoding'
+  | 'prefixEncoding'
+  | 'additionalOperations'
   | 'securityScheme'
   | 'oauthFlows'
   | 'oauthFlow';
@@ -63,7 +67,10 @@ type ReferenceTargetKind =
   | 'example'
   | 'link'
   | 'callback'
+  | 'mediaType'
   | 'securityScheme';
+
+type PortableFamily = '3.1' | '3.2';
 
 export type Oas31OperationExportBlockerCode =
   | 'GRAPH_STALE'
@@ -96,6 +103,20 @@ export interface Oas31OperationExportContext {
   readonly snapshot: ResourceGraphSnapshot;
 }
 
+export interface Oas32OperationExportIdentity {
+  readonly source?: SourceKind | 'callback' | 'component' | 'link';
+  readonly operationPointer?: string;
+  readonly pathItemPointer?: string;
+  readonly methodField?: string;
+  readonly methodSource?: 'fixed' | 'additional' | 'unknown';
+  readonly ownerRetrievalUri?: string;
+}
+
+export type Oas32OperationExportBlockerCode = Oas31OperationExportBlockerCode;
+export type Oas32OperationExportBlocker = Oas31OperationExportBlocker;
+export type Oas32OperationExportResult = Oas31OperationExportResult;
+export type Oas32OperationExportContext = Oas31OperationExportContext;
+
 interface LocatedValue {
   readonly ownerRetrievalUri: string;
   /** OpenAPI document used for implicit connections such as security names and operationId. */
@@ -116,8 +137,12 @@ interface LocatedResource {
 
 const PATH_ITEM_FIELDS = ['summary', 'description', 'servers', 'parameters'] as const;
 const HTTP_METHODS = OPENAPI_HTTP_METHODS as readonly string[];
+const OAS_32_STANDARD_METHODS: readonly string[] = [
+  ...(getOpenApiStandardHttpMethods('3.2.0') ?? [...HTTP_METHODS, 'query']),
+];
 const COMPONENT_NAME = /^[A-Za-z0-9._-]+$/;
 const OAS_31_BASE_DIALECT = 'https://spec.openapis.org/oas/3.1/dialect/base';
+const OAS_32_BASE_DIALECT = 'https://spec.openapis.org/oas/3.2/dialect/2025-09-17';
 const JSON_SCHEMA_2020_12 = 'https://json-schema.org/draft/2020-12/schema';
 const REF_TARGETS_FIELD = 'x-knife4j-operation-ref-targets';
 const REF_TARGETS_FIELD_PATTERN = /^x-knife4j-operation-ref-targets(?:-(?:[2-9]|[1-9]\d+))?$/;
@@ -179,17 +204,20 @@ function isPortableReferenceTarget(tokens: readonly string[]): boolean {
   return tokens.length >= 2 && REF_TARGETS_FIELD_PATTERN.test(tokens[0]) && REF_TARGET_NAME_PATTERN.test(tokens[1]);
 }
 
-function operationContextTokens(pointer: string): string[] | null {
+function operationContextTokens(pointer: string, family: PortableFamily): string[] | null {
   const sourceTokens = pointerTokens(pointer);
   if (!sourceTokens) return null;
   const tokens =
-    sourceTokens.length === 5 && isPortableReferenceTarget(sourceTokens) ? sourceTokens.slice(2) : sourceTokens;
-  return tokens.length === 3 &&
-    ['paths', 'webhooks'].includes(tokens[0]) &&
-    (tokens[0] !== 'paths' || tokens[1].startsWith('/')) &&
-    HTTP_METHODS.includes(tokens[2])
-    ? tokens
-    : null;
+    sourceTokens.length >= 5 && isPortableReferenceTarget(sourceTokens) ? sourceTokens.slice(2) : sourceTokens;
+  if (!['paths', 'webhooks'].includes(tokens[0]) || (tokens[0] === 'paths' && !tokens[1].startsWith('/'))) {
+    return null;
+  }
+  const methods = family === '3.2' ? OAS_32_STANDARD_METHODS : HTTP_METHODS;
+  if (tokens.length === 3 && methods.includes(tokens[2])) return tokens;
+  if (family === '3.2' && tokens.length === 4 && tokens[2] === 'additionalOperations' && tokens[3].length > 0) {
+    return tokens;
+  }
+  return null;
 }
 
 function pointerUri(resourceUri: string, tokens: readonly string[]): string {
@@ -224,7 +252,7 @@ function uniqueExtensionField(source: JsonRecord, preferred: string): string {
   return `${preferred}-${suffix}`;
 }
 
-function referenceTargetKind(kind: CopyKind): ReferenceTargetKind | null {
+function referenceTargetKind(kind: CopyKind, family: PortableFamily): ReferenceTargetKind | null {
   switch (kind) {
     case 'pathItem':
     case 'operation':
@@ -237,6 +265,8 @@ function referenceTargetKind(kind: CopyKind): ReferenceTargetKind | null {
     case 'callback':
     case 'securityScheme':
       return kind;
+    case 'mediaType':
+      return family === '3.2' ? 'mediaType' : null;
     default:
       return null;
   }
@@ -257,14 +287,16 @@ function referenceAnnotationFields(kind: ReferenceTargetKind): ReadonlySet<strin
   return NO_REFERENCE_ANNOTATIONS;
 }
 
-function childKind(kind: CopyKind, key: string): CopyKind {
+function childKind(kind: CopyKind, key: string, family: PortableFamily): CopyKind {
+  const methods = family === '3.2' ? OAS_32_STANDARD_METHODS : HTTP_METHODS;
   switch (kind) {
     case 'info':
       if (key === 'contact') return 'contact';
       if (key === 'license') return 'license';
       return 'opaque';
     case 'pathItem':
-      if (HTTP_METHODS.includes(key)) return 'operation';
+      if (methods.includes(key)) return 'operation';
+      if (family === '3.2' && key === 'additionalOperations') return 'additionalOperations';
       if (key === 'parameters') return 'parameters';
       if (key === 'servers') return 'servers';
       return 'opaque';
@@ -279,6 +311,7 @@ function childKind(kind: CopyKind, key: string): CopyKind {
     case 'parameter':
     case 'header':
       if (key === 'schema') return 'schema';
+      if (family === '3.2' && key === 'itemSchema') return 'schema';
       if (key === 'content') return 'content';
       if (key === 'examples') return 'examples';
       return 'opaque';
@@ -290,9 +323,11 @@ function childKind(kind: CopyKind, key: string): CopyKind {
       if (key === 'links') return 'links';
       return 'opaque';
     case 'mediaType':
-      if (key === 'schema') return 'schema';
+      if (key === 'schema' || (family === '3.2' && key === 'itemSchema')) return 'schema';
       if (key === 'examples') return 'examples';
       if (key === 'encoding') return 'encodingMap';
+      if (family === '3.2' && key === 'prefixEncoding') return 'prefixEncoding';
+      if (family === '3.2' && key === 'itemEncoding') return 'encoding';
       return 'opaque';
     case 'encoding':
       return key === 'headers' ? 'headers' : 'opaque';
@@ -321,6 +356,8 @@ function mapValueKind(kind: CopyKind): CopyKind | null {
       return 'callback';
     case 'encodingMap':
       return 'encoding';
+    case 'additionalOperations':
+      return 'operation';
     case 'oauthFlows':
       return 'oauthFlow';
     default:
@@ -332,11 +369,14 @@ class Oas31OperationBundler {
   private readonly source: JsonRecord;
   private readonly snapshot: ResourceGraphSnapshot;
   private readonly entryRetrievalUri: string;
+  private readonly family: PortableFamily;
+  private readonly standardMethods: readonly string[];
   private readonly edgeIndex = new Map<string, ResourceGraphEdge[]>();
   private readonly blockers = new Map<string, Oas31OperationExportBlocker>();
   private readonly referenceTargets = record();
   private readonly schemaResources = record();
   private readonly securitySchemes = record();
+  private readonly mediaTypes = record();
   private readonly referenceNames = new Map<string, string>();
   private readonly schemaResourceNames = new Map<string, string>();
   private readonly schemaResourceValues = new Map<string, JsonRecord>();
@@ -345,14 +385,18 @@ class Oas31OperationBundler {
   private readonly includedSparsePointers = new Map<string, Set<string>>();
   private readonly securityNames = new Map<string, string>();
   private readonly usedSecurityNames = new Set<string>();
+  private readonly usedMediaTypeNames = new Set<string>();
+  private readonly mediaTypeNames = new Map<string, string>();
   private readonly refTargetsField: string;
   private readonly schemaResourcesField: string;
   private topOperationIdentity = '';
 
-  public constructor(source: JsonRecord, context: Oas31OperationExportContext) {
+  public constructor(source: JsonRecord, context: Oas31OperationExportContext, family: PortableFamily) {
     this.source = source;
     this.snapshot = context.snapshot;
     this.entryRetrievalUri = context.retrievalUri;
+    this.family = family;
+    this.standardMethods = family === '3.2' ? OAS_32_STANDARD_METHODS : HTTP_METHODS;
     this.refTargetsField = uniqueExtensionField(source, REF_TARGETS_FIELD);
     this.schemaResourcesField = uniqueExtensionField(source, PORTABLE_SCHEMA_RESOURCES_EXTENSION);
     context.snapshot.edges.forEach((edge) => {
@@ -363,7 +407,12 @@ class Oas31OperationBundler {
     });
   }
 
-  public build(path: string, method: string, sourceKind: SourceKind): Oas31OperationExportResult {
+  public build(
+    path: string,
+    method: string,
+    sourceKind: SourceKind,
+    identity?: Oas32OperationExportIdentity,
+  ): Oas31OperationExportResult {
     const entryNode = this.snapshot.nodes.get(this.entryRetrievalUri);
     if (
       this.snapshot.entryRetrievalUri !== this.entryRetrievalUri ||
@@ -374,19 +423,21 @@ class Oas31OperationBundler {
       return this.unavailable();
     }
 
-    const collection = sourceKind === 'webhook' ? 'webhooks' : 'paths';
-    const rawPathItem = this.location(this.entryRetrievalUri, appendPointer('#', collection, path));
+    const rawPathItem = this.locateRawPathItem(path, sourceKind, identity);
     if (!rawPathItem || !asRecord(rawPathItem.value)) {
-      this.block('OPERATION_NOT_FOUND', appendPointer('#', collection, path));
+      this.block('OPERATION_NOT_FOUND', rawPathItem?.pointer ?? this.mountPathItemPointer(path, sourceKind, identity));
       return this.unavailable();
     }
     const resolvedPathItem = this.resolvePathItem(rawPathItem, new Set());
-    const normalizedMethod = method.toLowerCase();
-    const operation = resolvedPathItem?.fields.get(normalizedMethod);
-    if (!resolvedPathItem || !operation) {
-      this.block('OPERATION_NOT_FOUND', appendPointer(rawPathItem.pointer, normalizedMethod));
+    const selected = this.locateOperation(resolvedPathItem, method, identity);
+    if (!resolvedPathItem || !selected) {
+      this.block(
+        'OPERATION_NOT_FOUND',
+        identity?.operationPointer ?? appendPointer(rawPathItem.pointer, this.fallbackMethodField(method, identity)),
+      );
       return this.unavailable();
     }
+    const { operation, placement } = selected;
     if (!asRecord(operation.value)) {
       this.block('REFERENCE_TARGET_INVALID', operation.pointer);
       return this.unavailable();
@@ -406,10 +457,20 @@ class Oas31OperationBundler {
     resolvedPathItem.fields.forEach((located, field) => {
       if (field.startsWith('x-')) outputPathItem[field] = this.copyValue(located, 'opaque');
     });
-    outputPathItem[normalizedMethod] = this.copyValue(operation, 'operation');
+    if (placement.mode === 'additional') {
+      const additional = record();
+      additional[placement.field] = this.copyValue(operation, 'operation');
+      outputPathItem.additionalOperations = additional;
+    } else {
+      outputPathItem[placement.field] = this.copyValue(operation, 'operation');
+    }
 
     const output = record();
     output.openapi = this.source.openapi;
+    if (this.family === '3.2' && owns(this.source, '$self')) {
+      const selfLocation = this.childLocation(this.entryLocation(), '$self', this.source.$self);
+      output.$self = typeof this.source.$self === 'string' ? this.copyPortableUri(selfLocation) : this.source.$self;
+    }
     output.info = this.copyValue(this.childLocation(this.entryLocation(), 'info', this.source.info), 'info');
     if (typeof this.source.jsonSchemaDialect === 'string') {
       output.jsonSchemaDialect = this.copyPortableUri(
@@ -424,9 +485,7 @@ class Oas31OperationBundler {
         output[key] = this.copyValue(this.childLocation(this.entryLocation(), key, value), 'opaque');
     });
 
-    const items = record();
-    items[path] = outputPathItem;
-    output[collection] = items;
+    this.writeMountedPathItem(output, path, sourceKind, identity, outputPathItem);
 
     const operationRecord = operation.value as JsonRecord;
     if (!owns(operationRecord, 'security') && owns(this.source, 'security')) {
@@ -435,7 +494,12 @@ class Oas31OperationBundler {
       );
     }
 
-    if (Object.keys(this.securitySchemes).length > 0) output.components = { securitySchemes: this.securitySchemes };
+    if (Object.keys(this.securitySchemes).length > 0 || Object.keys(this.mediaTypes).length > 0) {
+      const components = asRecord(output.components) ?? record();
+      if (Object.keys(this.securitySchemes).length > 0) components.securitySchemes = this.securitySchemes;
+      if (Object.keys(this.mediaTypes).length > 0) components.mediaTypes = this.mediaTypes;
+      output.components = components;
+    }
     if (Object.keys(this.referenceTargets).length > 0) output[this.refTargetsField] = this.referenceTargets;
     if (Object.keys(this.schemaResources).length > 0) {
       output[this.schemaResourcesField] = {
@@ -451,6 +515,98 @@ class Oas31OperationBundler {
       .forEach(([pointer, value]) => this.assignAt(output, pointerTokens(pointer)!, value));
 
     return this.blockers.size > 0 ? this.unavailable() : { status: 'ready', document: output };
+  }
+
+  private mountSource(
+    sourceKind: SourceKind,
+    identity?: Oas32OperationExportIdentity,
+  ): SourceKind | 'callback' | 'component' | 'link' {
+    return identity?.source ?? sourceKind;
+  }
+
+  private mountPathItemPointer(path: string, sourceKind: SourceKind, identity?: Oas32OperationExportIdentity): string {
+    const source = this.mountSource(sourceKind, identity);
+    if (source === 'path' || source === 'webhook') {
+      return appendPointer('#', source === 'webhook' ? 'webhooks' : 'paths', path);
+    }
+    return identity?.pathItemPointer ?? '#';
+  }
+
+  private locateRawPathItem(
+    path: string,
+    sourceKind: SourceKind,
+    identity?: Oas32OperationExportIdentity,
+  ): LocatedValue | null {
+    const source = this.mountSource(sourceKind, identity);
+    if (source === 'path' || source === 'webhook') {
+      return this.location(
+        this.entryRetrievalUri,
+        appendPointer('#', source === 'webhook' ? 'webhooks' : 'paths', path),
+      );
+    }
+    if (!identity?.pathItemPointer) return null;
+    return this.location(identity.ownerRetrievalUri ?? this.entryRetrievalUri, identity.pathItemPointer);
+  }
+
+  private fallbackMethodField(method: string, identity?: Oas32OperationExportIdentity): string {
+    if (identity?.methodField) return identity.methodField;
+    const lowered = method.toLowerCase();
+    return this.standardMethods.includes(lowered) ? lowered : method;
+  }
+
+  private locateOperation(
+    resolvedPathItem: LocatedPathItem | null,
+    method: string,
+    identity?: Oas32OperationExportIdentity,
+  ): { operation: LocatedValue; placement: { mode: 'fixed' | 'additional'; field: string } } | null {
+    if (!resolvedPathItem) return null;
+
+    const lookupAdditional = (field: string) => {
+      const additionalLocation = resolvedPathItem.fields.get('additionalOperations');
+      const additional = asRecord(additionalLocation?.value);
+      if (!additionalLocation || !additional || !owns(additional, field)) return null;
+      return {
+        operation: this.childLocation(additionalLocation, field, additional[field]),
+        placement: { mode: 'additional' as const, field },
+      };
+    };
+    const lookupFixed = (field: string) => {
+      const located = resolvedPathItem.fields.get(field);
+      return located ? { operation: located, placement: { mode: 'fixed' as const, field } } : null;
+    };
+
+    if (identity?.methodSource === 'additional') return lookupAdditional(identity.methodField ?? method);
+    if (identity?.methodSource === 'fixed') {
+      return lookupFixed(identity.methodField ?? method.toLowerCase());
+    }
+    if (identity?.methodField) {
+      return lookupFixed(identity.methodField) ?? lookupAdditional(identity.methodField);
+    }
+    const lowered = method.toLowerCase();
+    if (this.standardMethods.includes(lowered)) return lookupFixed(lowered) ?? lookupAdditional(method);
+    return lookupAdditional(method);
+  }
+
+  private writeMountedPathItem(
+    output: JsonRecord,
+    path: string,
+    sourceKind: SourceKind,
+    identity: Oas32OperationExportIdentity | undefined,
+    outputPathItem: JsonRecord,
+  ): void {
+    const source = this.mountSource(sourceKind, identity);
+    if (source === 'path' || source === 'webhook') {
+      const items = record();
+      items[path] = outputPathItem;
+      output[source === 'webhook' ? 'webhooks' : 'paths'] = items;
+      return;
+    }
+    const tokens = identity?.pathItemPointer ? pointerTokens(identity.pathItemPointer) : null;
+    if (!tokens || tokens.length === 0) {
+      this.block('OPERATION_NOT_FOUND', identity?.pathItemPointer ?? '#');
+      return;
+    }
+    this.assignAt(output, tokens, outputPathItem);
   }
 
   private entryLocation(): LocatedValue {
@@ -551,6 +707,14 @@ class Oas31OperationBundler {
   }
 
   private targetLocationQuiet(edge: ResourceGraphEdge, implicitDocumentUri?: string): LocatedValue | null {
+    if (this.family === '3.2' && edge.target) {
+      return this.location(
+        edge.target.ownerRetrievalUri,
+        edge.target.pointer,
+        implicitDocumentUri ?? edge.target.ownerRetrievalUri,
+      );
+    }
+
     const anchor = this.snapshot.anchorTargets.get(normalizedAnchorUri(edge.resolvedUri));
     if (anchor) {
       return this.location(anchor.ownerRetrievalUri, anchor.pointer, implicitDocumentUri ?? anchor.ownerRetrievalUri);
@@ -638,7 +802,9 @@ class Oas31OperationBundler {
       return key === 'url';
     }
     if (kind === 'example') return key === 'externalValue';
-    if (kind === 'securityScheme') return key === 'openIdConnectUrl';
+    if (kind === 'securityScheme') {
+      return key === 'openIdConnectUrl' || (this.family === '3.2' && key === 'oauth2MetadataUrl');
+    }
     // OAuth flow URLs are API references, resolved against the selected Server.
     // Keeping them relative preserves every server/variable choice now that
     // Server URLs themselves have been made portable.
@@ -694,9 +860,18 @@ class Oas31OperationBundler {
           else rememberUnresolved(edge);
         }
       }
-      HTTP_METHODS.forEach((method) => {
+      this.standardMethods.forEach((method) => {
         if (owns(pathItem, method)) visitOperation(this.childLocation(location, method, pathItem[method]));
       });
+      if (this.family === '3.2') {
+        const additional = asRecord(pathItem.additionalOperations);
+        if (additional) {
+          const additionalLocation = this.childLocation(location, 'additionalOperations', additional);
+          Object.entries(additional).forEach(([name, operation]) => {
+            visitOperation(this.childLocation(additionalLocation, name, operation));
+          });
+        }
+      }
     };
 
     const visitCallback = (location: LocatedValue): void => {
@@ -759,13 +934,16 @@ class Oas31OperationBundler {
     const value = location.value;
     if (value === null || typeof value !== 'object') return value;
     if (Array.isArray(value)) {
-      const itemKind: CopyKind = kind === 'parameters' ? 'parameter' : kind === 'servers' ? 'server' : kind;
+      let itemKind: CopyKind = kind;
+      if (kind === 'parameters') itemKind = 'parameter';
+      else if (kind === 'servers') itemKind = 'server';
+      else if (kind === 'prefixEncoding') itemKind = 'encoding';
       return value.map((item, index) => this.copyValue(this.childLocation(location, index, item), itemKind));
     }
 
     const source = value as JsonRecord;
     const output = record();
-    const targetKind = referenceTargetKind(kind);
+    const targetKind = referenceTargetKind(kind, this.family);
     if (targetKind && typeof source.$ref === 'string') {
       const reference = this.childLocation(location, '$ref', source.$ref);
       output.$ref = this.copyReference(reference, targetKind, ['reference-object'], true);
@@ -813,7 +991,7 @@ class Oas31OperationBundler {
       } else if (kind === 'operation' && key === 'security') {
         output[key] = this.copySecurityRequirements(nested);
       } else {
-        output[key] = this.copyValue(nested, key.startsWith('x-') ? 'opaque' : childKind(kind, key));
+        output[key] = this.copyValue(nested, key.startsWith('x-') ? 'opaque' : childKind(kind, key, this.family));
       }
     });
 
@@ -841,7 +1019,7 @@ class Oas31OperationBundler {
     const resolved = this.resolvePathItem(location, new Set());
     const output = record();
     resolved?.fields.forEach((located, key) => {
-      output[key] = this.copyValue(located, key.startsWith('x-') ? 'opaque' : childKind('pathItem', key));
+      output[key] = this.copyValue(located, key.startsWith('x-') ? 'opaque' : childKind('pathItem', key, this.family));
     });
     return output;
   }
@@ -871,8 +1049,11 @@ class Oas31OperationBundler {
     const key = `${targetKind}\n${this.locationKey(target)}`;
     const existing = this.referenceNames.get(key);
     if (existing) return existing;
+    if (this.family === '3.2' && targetKind === 'mediaType') {
+      return this.storeMediaTypeTarget(target, sourcePointer, edge);
+    }
 
-    const operationTokens = targetKind === 'operation' ? operationContextTokens(target.pointer) : null;
+    const operationTokens = targetKind === 'operation' ? operationContextTokens(target.pointer, this.family) : null;
     if (targetKind === 'operation' && !operationTokens) {
       // A pointer into arbitrary extension data can legally select an Operation,
       // but it does not establish a callable path/method context for relocation.
@@ -888,6 +1069,35 @@ class Oas31OperationBundler {
       targetKind === 'operation'
         ? this.copyOperationTarget(target, operationTokens!)
         : this.copyValue(target, targetKind);
+    const copiedRecord = asRecord(copied);
+    if (!copiedRecord) this.block('REFERENCE_TARGET_INVALID', sourcePointer, edge);
+    else Object.assign(placeholder, copiedRecord);
+    return reference;
+  }
+
+  private storeMediaTypeTarget(target: LocatedValue, sourcePointer: string, edge?: ResourceGraphEdge): string {
+    const key = `mediaType\n${this.locationKey(target)}`;
+    const existing = this.mediaTypeNames.get(key);
+    if (existing) return existing;
+
+    const tokens = pointerTokens(target.pointer);
+    const preferred =
+      tokens &&
+      tokens.length === 3 &&
+      tokens[0] === 'components' &&
+      tokens[1] === 'mediaTypes' &&
+      COMPONENT_NAME.test(tokens[2])
+        ? tokens[2]
+        : 'Media';
+    let name = preferred;
+    let suffix = 2;
+    while (this.usedMediaTypeNames.has(name)) name = `${preferred}-${suffix++}`;
+    this.usedMediaTypeNames.add(name);
+    const reference = pointerReference(['components', 'mediaTypes', name]);
+    this.mediaTypeNames.set(key, reference);
+    const placeholder = record();
+    this.mediaTypes[name] = placeholder;
+    const copied = this.copyValue(target, 'mediaType');
     const copiedRecord = asRecord(copied);
     if (!copiedRecord) this.block('REFERENCE_TARGET_INVALID', sourcePointer, edge);
     else Object.assign(placeholder, copiedRecord);
@@ -913,7 +1123,10 @@ class Oas31OperationBundler {
     const pathItem = record();
     resolved.fields.forEach((located, field) => {
       if (PATH_ITEM_FIELDS.includes(field as (typeof PATH_ITEM_FIELDS)[number]) || field.startsWith('x-')) {
-        pathItem[field] = this.copyValue(located, field.startsWith('x-') ? 'opaque' : childKind('pathItem', field));
+        pathItem[field] = this.copyValue(
+          located,
+          field.startsWith('x-') ? 'opaque' : childKind('pathItem', field, this.family),
+        );
       }
     });
     if (!owns(source, 'servers')) {
@@ -922,6 +1135,14 @@ class Oas31OperationBundler {
       if (servers) output.servers = this.copyValue(servers, 'servers');
       else if (root) output.servers = this.copyDocumentServers(root);
       else this.block('LINK_OPERATION_CONTEXT_UNRESOLVED', location.pointer);
+    }
+    if (tokens.length >= 2 && tokens[tokens.length - 2] === 'additionalOperations') {
+      const additional = record();
+      additional[tokens[tokens.length - 1]] = output;
+      pathItem.additionalOperations = additional;
+      const container = record();
+      this.assignAt(container, tokens.slice(0, -2), pathItem);
+      return container;
     }
     pathItem[tokens[tokens.length - 1]] = output;
     const container = record();
@@ -937,34 +1158,47 @@ class Oas31OperationBundler {
       if (!requirementRecord) return this.copyValue(requirementLocation, 'opaque');
       const output = record();
       Object.entries(requirementRecord).forEach(([name, scopes]) => {
-        const outputName = this.ensureSecurityScheme(
-          location.implicitDocumentUri,
-          name,
-          appendPointer(requirementLocation.pointer, name),
-        );
-        output[outputName] = this.copyValue(this.childLocation(requirementLocation, name, scopes), 'opaque');
+        const keyLocation = this.childLocation(requirementLocation, name, scopes);
+        const outputName = this.ensureSecurityScheme(keyLocation, name);
+        output[outputName] = this.copyValue(keyLocation, 'opaque');
       });
       return output;
     });
   }
 
-  private ensureSecurityScheme(ownerRetrievalUri: string, name: string, sourcePointer: string): string {
-    const identity = `${ownerRetrievalUri}\n${name}`;
+  private ensureSecurityScheme(requirementKey: LocatedValue, name: string): string {
+    const identity = `${requirementKey.implicitDocumentUri}\n${name}`;
     const existing = this.securityNames.get(identity);
     if (existing) return existing;
 
-    let outputName = name;
+    const preferredName = this.family === '3.2' && !COMPONENT_NAME.test(name) ? 'UriScheme' : name;
+    let outputName = preferredName;
     let suffix = 2;
-    while (this.usedSecurityNames.has(outputName)) outputName = `${name}-${suffix++}`;
+    while (this.usedSecurityNames.has(outputName)) outputName = `${preferredName}-${suffix++}`;
     this.usedSecurityNames.add(outputName);
     this.securityNames.set(identity, outputName);
 
-    const location = this.location(ownerRetrievalUri, appendPointer('#', 'components', 'securitySchemes', name));
-    if (!location || !asRecord(location.value)) {
-      this.block('SECURITY_SCHEME_MISSING', sourcePointer);
+    const location = this.location(
+      requirementKey.implicitDocumentUri,
+      appendPointer('#', 'components', 'securitySchemes', name),
+    );
+    if (location && asRecord(location.value)) {
+      this.securitySchemes[outputName] = this.copyValue(location, 'securityScheme');
       return outputName;
     }
-    this.securitySchemes[outputName] = this.copyValue(location, 'securityScheme');
+    if (this.family === '3.2') {
+      const edge = this.edgeAt(requirementKey.ownerRetrievalUri, requirementKey.pointer, ['security-requirement']);
+      if (!this.usableEdge(edge, requirementKey.pointer)) return outputName;
+      const target = this.targetLocation(edge);
+      if (!target || !asRecord(target.value)) {
+        this.block('SECURITY_SCHEME_MISSING', requirementKey.pointer, edge);
+        return outputName;
+      }
+      this.securitySchemes[outputName] = this.copyValue(target, 'securityScheme');
+      return outputName;
+    }
+
+    this.block('SECURITY_SCHEME_MISSING', requirementKey.pointer);
     return outputName;
   }
 
@@ -1032,11 +1266,38 @@ class Oas31OperationBundler {
     return selected;
   }
 
+  private isOpenApiDocumentResource(resource: LocatedResource): boolean {
+    return (
+      resource.target.pointer === '#' &&
+      this.snapshot.nodes.get(resource.target.ownerRetrievalUri)?.documentKind === 'openapi'
+    );
+  }
+
+  private schemaSiteResource(location: LocatedValue): LocatedResource {
+    const node = this.snapshot.nodes.get(location.ownerRetrievalUri);
+    return {
+      uri: `urn:knife4j:oas32-schema:${sha256Hex(this.locationKey(location))}`,
+      target: {
+        ownerRetrievalUri: location.ownerRetrievalUri,
+        pointer: location.pointer,
+        evaluationBaseUri: node?.documentBaseUri ?? location.ownerRetrievalUri,
+      },
+      location,
+    };
+  }
+
   private ensureSchemaLocation(location: LocatedValue): string | null {
-    const resource = this.containingResource(location);
+    let resource = this.containingResource(location);
     if (!resource) {
       this.block('REFERENCE_TARGET_MISSING', location.pointer);
       return null;
+    }
+    if (
+      this.family === '3.2' &&
+      this.isOpenApiDocumentResource(resource) &&
+      location.pointer !== resource.target.pointer
+    ) {
+      resource = this.schemaSiteResource(location);
     }
     const root = this.ensureSchemaResource(resource);
     const relative = relativePointerTokens(resource.target.pointer, location.pointer);
@@ -1063,7 +1324,7 @@ class Oas31OperationBundler {
     }
 
     const node = this.snapshot.nodes.get(resource.target.ownerRetrievalUri);
-    const sparse = node?.documentKind === 'openapi' && resource.target.pointer === '#';
+    const sparse = this.family !== '3.2' && node?.documentKind === 'openapi' && resource.target.pointer === '#';
     const dialect = this.effectiveDialect(resource);
     if (sparse) {
       placeholder.$schema = dialect;
@@ -1126,7 +1387,11 @@ class Oas31OperationBundler {
     if (selectedDialect) return selectedDialect;
     const document = asRecord(this.sourceDocument(resource.target.ownerRetrievalUri));
     if (typeof document?.jsonSchemaDialect === 'string') return document.jsonSchemaDialect;
-    if (typeof document?.openapi === 'string') return OAS_31_BASE_DIALECT;
+    if (typeof document?.openapi === 'string') {
+      return getOpenApiSpecificationFeatures(document.openapi)?.family === '3.2'
+        ? OAS_32_BASE_DIALECT
+        : OAS_31_BASE_DIALECT;
+    }
     if (typeof asRecord(resource.location.value)?.$schema === 'string') {
       return asRecord(resource.location.value)!.$schema as string;
     }
@@ -1213,6 +1478,18 @@ class Oas31OperationBundler {
         if (targetLocation) outputMapping[name] = this.ensureSchemaLocation(targetLocation) ?? target;
       });
     }
+    if (this.family === '3.2' && typeof discriminator?.defaultMapping === 'string' && outputDiscriminator) {
+      const target = discriminator.defaultMapping;
+      if (COMPONENT_NAME.test(target)) {
+        const targetLocation = this.location(
+          location.ownerRetrievalUri,
+          appendPointer('#', 'components', 'schemas', target),
+        );
+        if (targetLocation) {
+          outputDiscriminator.defaultMapping = this.ensureSchemaLocation(targetLocation) ?? target;
+        }
+      }
+    }
     return output;
   }
 }
@@ -1230,5 +1507,24 @@ export function buildOas31OperationOpenApiDocument(
 ): Oas31OperationExportResult | null {
   const source = asRecord(swaggerDoc);
   if (!source || !isOpenApi31Version(source.openapi) || !asRecord(source.info)) return null;
-  return new Oas31OperationBundler(source, context).build(path, method, sourceKind);
+  return new Oas31OperationBundler(source, context, '3.1').build(path, method, sourceKind);
+}
+
+/**
+ * Build a portable OAS 3.2 single-operation document from one immutable graph
+ * generation. The builder is synchronous and never owns a loader or fetch path.
+ */
+export function buildOas32OperationOpenApiDocument(
+  swaggerDoc: SwaggerDoc,
+  path: string,
+  method: string,
+  sourceKind: SourceKind,
+  context: Oas32OperationExportContext,
+  identity?: Oas32OperationExportIdentity,
+): Oas32OperationExportResult | null {
+  const source = asRecord(swaggerDoc);
+  if (!source || getOpenApiSpecificationFeatures(source.openapi)?.family !== '3.2' || !asRecord(source.info)) {
+    return null;
+  }
+  return new Oas31OperationBundler(source, context, '3.2').build(path, method, sourceKind, identity);
 }
