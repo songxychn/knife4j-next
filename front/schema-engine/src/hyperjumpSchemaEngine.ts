@@ -107,6 +107,7 @@ interface RegisteredDocument {
   metaFailure?: SchemaEngineError;
   processingDocuments?: Map<string, Set<SchemaDocument>>;
   referencesGeneration?: number;
+  compileGate?: Promise<void>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -633,6 +634,17 @@ function referencedResourceFrom(error: unknown): string | undefined {
   return undefined;
 }
 
+function clearHyperjumpValidated(document: SchemaDocument): void {
+  const seen = new Set<SchemaDocument>();
+  const visit = (entry: SchemaDocument): void => {
+    if (seen.has(entry)) return;
+    seen.add(entry);
+    (entry as SchemaDocument & { validated?: boolean }).validated = false;
+    for (const nested of Object.values(entry.embedded ?? {})) visit(nested as SchemaDocument);
+  };
+  visit(document);
+}
+
 function asEngineError(error: unknown, operationUri: string): SchemaEngineError {
   if (error instanceof SchemaEngineError) return error;
   const resourceUri = referencedResourceFrom(error);
@@ -921,6 +933,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     const generation = this.generation;
     try {
       const resource = await this.getResource(normalizedSchemaUri, schemaUri);
+      this.assertLegacyMetaFailure(this.registrationOwning(resource, normalizedSchemaUri));
       this.assertGeneration(generation);
       const resourceSchema = toSchema(resource, { includeDialect: 'always', includeEmbedded: true }) as JsonValue;
       return {
@@ -968,16 +981,10 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
             await getSchema(indexed.registration.oas32!.physicalRetrievalUri),
           )
         : await this.getResource(normalizedSchemaUri, schemaUri);
-      const key = canonicalUri(resource);
-      let compiled = this.compiled.get(key);
-      if (!compiled) {
-        compiled = compile(resource);
-        this.compiled.set(key, compiled);
-        compiled.catch(() => {
-          if (this.compiled.get(key) === compiled) this.compiled.delete(key);
-        });
-      }
-      const validator = await compiled;
+      const registration = indexed?.registration ?? this.registrationOwning(resource, normalizedSchemaUri);
+      this.assertLegacyMetaFailure(registration);
+      const validator = await this.compileForEvaluation(registration, resource, Boolean(indexed));
+      this.assertLegacyMetaFailure(registration);
       this.assertGeneration(generation);
       budget.assertWithinBudget();
 
@@ -1013,6 +1020,15 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         // The retry guard belongs to the failing registration, never to unrelated owners.
         for (const registration of this.documents.values())
           if (registration.oas32 && !registration.metaFailure) registration.metaValidated = false;
+      }
+      if (!indexed) {
+        const failed =
+          this.documents.get(withoutFragment(normalizedSchemaUri)) ??
+          this.resources.get(withoutFragment(normalizedSchemaUri));
+        if (failed && !failed.oas32) {
+          this.captureLegacyMetaFailure(failed, undefined, error);
+          if (failed.metaFailure) throw failed.metaFailure;
+        }
       }
       throw indexed ? this.openApi32Error(error, normalizedSchemaUri) : asEngineError(error, normalizedSchemaUri);
     }
@@ -1241,6 +1257,66 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         if (dependency) pending.push(dependency);
       }
     }
+  }
+
+  private async compileForEvaluation(
+    registration: RegisteredDocument | undefined,
+    resource: Browser<SchemaDocument>,
+    indexed: boolean,
+  ): Promise<CompiledSchema> {
+    if (indexed || !registration || registration.oas32) return this.compileCached(resource, undefined);
+    const previous = registration.compileGate ?? Promise.resolve();
+    let release = (): void => undefined;
+    registration.compileGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    try {
+      await previous;
+      this.assertLegacyMetaFailure(registration);
+      return await this.compileCached(resource, registration);
+    } finally {
+      release();
+    }
+  }
+
+  private compileCached(
+    resource: Browser<SchemaDocument>,
+    registration: RegisteredDocument | undefined,
+  ): Promise<CompiledSchema> {
+    const key = canonicalUri(resource);
+    let compiled = this.compiled.get(key);
+    if (!compiled) {
+      compiled = compile(resource);
+      this.compiled.set(key, compiled);
+      compiled.catch((error) => {
+        if (this.compiled.get(key) === compiled) this.compiled.delete(key);
+        this.captureLegacyMetaFailure(registration, resource.document, error);
+      });
+    }
+    return compiled;
+  }
+
+  private registrationOwning(resource: Browser<SchemaDocument>, schemaUri: string): RegisteredDocument | undefined {
+    return (
+      this.resources.get(withoutFragment(schemaUri)) ??
+      this.resources.get(withoutFragment(resource.document.baseUri)) ??
+      this.resources.get(withoutFragment(canonicalUri(resource)))
+    );
+  }
+
+  private assertLegacyMetaFailure(registration: RegisteredDocument | undefined): void {
+    if (registration && !registration.oas32 && registration.metaFailure) throw registration.metaFailure;
+  }
+
+  private captureLegacyMetaFailure(
+    registration: RegisteredDocument | undefined,
+    document: SchemaDocument | undefined,
+    error: unknown,
+  ): void {
+    if (!registration || registration.oas32 || registration.metaFailure) return;
+    if (!findCause(error, InvalidSchemaError)) return;
+    if (document) clearHyperjumpValidated(document);
+    registration.metaFailure = asEngineError(error, registration.retrievalUri);
   }
 
   private invalidateCompiledSchemas(): void {

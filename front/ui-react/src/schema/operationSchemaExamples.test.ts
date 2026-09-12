@@ -24,10 +24,12 @@ function currentOperation(document: SwaggerDoc): MenuOperation {
 }
 
 function exampleDocument(openapi = '3.1.2'): SwaggerDoc {
+  // Component keys stay within OAS 3.1 `^[a-zA-Z0-9.\-_]+$`. Slash names are
+  // illegal and must not be used to exercise JSON Pointer encoding.
   const operation: OperationObject = {
-    requestBody: { $ref: '#/components/requestBodies/Message~1Body' },
+    requestBody: { $ref: '#/components/requestBodies/Message.Body' },
     responses: {
-      200: { $ref: '#/components/responses/Message~1Response' },
+      200: { $ref: '#/components/responses/Message.Response' },
       201: {
         description: 'created',
         content: {
@@ -44,21 +46,21 @@ function exampleDocument(openapi = '3.1.2'): SwaggerDoc {
     paths: { '/messages': { post: operation } },
     components: {
       examples: {
-        'Message/Example': { value: { kind: 'authored', text: 'from example object' } },
+        'Message.Example': { value: { kind: 'authored', text: 'from example object' } },
       },
       requestBodies: {
-        'Message/Body': {
+        'Message.Body': {
           content: {
             'text/plain': { schema: { type: 'string' } },
             'application/json': {
               schema: { $ref: '#/components/schemas/Message' },
-              examples: { authored: { $ref: '#/components/examples/Message~1Example' } },
+              examples: { authored: { $ref: '#/components/examples/Message.Example' } },
             },
           },
         },
       },
       responses: {
-        'Message/Response': {
+        'Message.Response': {
           description: 'ok',
           content: {
             'application/json': {
@@ -104,11 +106,11 @@ describe('operation example targets', () => {
     expect(requestTargets).toEqual([
       expect.objectContaining({
         mediaType: 'text/plain',
-        schemaReference: '#/components/requestBodies/Message~1Body/content/text~1plain/schema',
+        schemaReference: '#/components/requestBodies/Message.Body/content/text~1plain/schema',
       }),
       expect.objectContaining({
         mediaType: 'application/json',
-        schemaReference: '#/components/requestBodies/Message~1Body/content/application~1json/schema',
+        schemaReference: '#/components/requestBodies/Message.Body/content/application~1json/schema',
         explicit: [{ source: 'example-object', value: { kind: 'authored', text: 'from example object' } }],
       }),
     ]);
@@ -116,7 +118,7 @@ describe('operation example targets', () => {
       expect.objectContaining({
         statusCode: '200',
         mediaType: 'application/json',
-        schemaReference: '#/components/responses/Message~1Response/content/application~1json/schema',
+        schemaReference: '#/components/responses/Message.Response/content/application~1json/schema',
         explicit: [{ source: 'media-example', value: { kind: 'authored', text: 'from media' } }],
       }),
       expect.objectContaining({

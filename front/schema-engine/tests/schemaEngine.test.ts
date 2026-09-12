@@ -11,6 +11,7 @@ import {
   JSON_SCHEMA_2020_12,
   OPENAPI_31_BASE_DIALECT,
   SchemaEngineError,
+  createSchemaEngine,
   type SchemaEngine,
 } from '../src';
 
@@ -762,6 +763,128 @@ describe('OpenAPI 3.1 and resource policy', () => {
         'https://fixtures.knife4j.example/invalid-anchor',
       ),
     ).rejects.toMatchObject({ code: 'INVALID_DOCUMENT' });
+  });
+});
+
+describe('OpenAPI 3.1 meta-validation retry', () => {
+  const invalidXmlDocument = {
+    openapi: '3.1.2',
+    info: { title: 'Metadata rejection probe', version: '1' },
+    components: {
+      schemas: {
+        Model: {
+          $id: 'https://synthetic.example.test/model',
+          type: 'object',
+          xml: { name: 42 },
+        },
+        Other: { type: 'string' },
+      },
+    },
+  } as const;
+  const validXmlDocument = {
+    openapi: '3.1.2',
+    info: { title: 'Metadata rejection probe', version: '1' },
+    components: {
+      schemas: {
+        Model: {
+          $id: 'https://synthetic.example.test/model',
+          type: 'object',
+          xml: { name: 'Model' },
+        },
+        Other: { type: 'string' },
+      },
+    },
+  } as const;
+
+  test('keeps illegal XML metadata rejected across public API retries', async () => {
+    const engine = createSchemaEngine();
+    engines.push(engine);
+    const retrievalUri = 'https://synthetic.example.test/retry-openapi.json';
+    await engine.registerDocument(
+      {
+        openapi: '3.1.2',
+        info: { title: 'Metadata rejection probe', version: '1' },
+        components: {
+          schemas: { Model: { type: 'object', xml: { name: 42 } } },
+        },
+      },
+      retrievalUri,
+    );
+    const schemaUri = `${retrievalUri}#/components/schemas/Model`;
+    await expect(engine.evaluate(schemaUri, {})).rejects.toMatchObject({
+      code: 'SCHEMA_RESOLUTION_FAILED',
+      name: 'SchemaEngineError',
+    });
+    await expect(engine.evaluate(schemaUri, {})).rejects.toMatchObject({
+      code: 'SCHEMA_RESOLUTION_FAILED',
+      name: 'SchemaEngineError',
+    });
+  });
+
+  test('does not bypass a failed registration through aliases, pointers, or concurrent evaluate', async () => {
+    const engine = createEngine();
+    const retrievalUri = 'https://synthetic.example.test/alias-openapi.json';
+    const healthyUri = 'https://synthetic.example.test/healthy-openapi.json';
+    await engine.registerDocument(
+      {
+        openapi: '3.1.2',
+        info: { title: 'Healthy sibling', version: '1' },
+        components: { schemas: { Model: { type: 'object' } } },
+      },
+      healthyUri,
+    );
+    await engine.registerDocument(structuredClone(invalidXmlDocument), retrievalUri);
+
+    const modelUri = `${retrievalUri}#/components/schemas/Model`;
+    const otherUri = `${retrievalUri}#/components/schemas/Other`;
+    const aliasUri = 'https://synthetic.example.test/model';
+    const [first, second] = await Promise.allSettled([engine.evaluate(modelUri, {}), engine.evaluate(aliasUri, {})]);
+    expect(first).toMatchObject({ status: 'rejected', reason: { code: 'SCHEMA_RESOLUTION_FAILED' } });
+    expect(second).toMatchObject({ status: 'rejected', reason: { code: 'SCHEMA_RESOLUTION_FAILED' } });
+    for (const uri of [modelUri, otherUri, aliasUri, modelUri]) {
+      await expect(engine.evaluate(uri, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+    }
+    await expect(engine.resolve(modelUri)).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+    await expect(engine.evaluate(`${healthyUri}#/components/schemas/Model`, {})).resolves.toMatchObject({
+      valid: true,
+    });
+  });
+
+  test('recovers after unregister, corrected registration, and dispose isolation', async () => {
+    const engine = createEngine();
+    const retrievalUri = 'https://synthetic.example.test/recover-openapi.json';
+    const schemaUri = `${retrievalUri}#/components/schemas/Model`;
+    await engine.registerDocument(structuredClone(invalidXmlDocument), retrievalUri);
+    await expect(engine.evaluate(schemaUri, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+    engine.unregisterDocument(retrievalUri);
+    await engine.registerDocument(structuredClone(validXmlDocument), retrievalUri);
+    await expect(engine.evaluate(schemaUri, {})).resolves.toMatchObject({ valid: true });
+    await expect(engine.evaluate(`${retrievalUri}#/components/schemas/Other`, 'ok')).resolves.toMatchObject({
+      valid: true,
+    });
+    engine.dispose();
+
+    const next = createEngine();
+    await next.registerDocument(structuredClone(invalidXmlDocument), retrievalUri);
+    await expect(next.evaluate(schemaUri, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+    await expect(next.evaluate(schemaUri, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+  });
+
+  test('does not permanently cache a time budget or mid-flight abort as a meta-schema failure', async () => {
+    const engine = createEngine();
+    const retrievalUri = 'https://synthetic.example.test/recoverable-openapi.json';
+    const schemaUri = `${retrievalUri}#/components/schemas/Model`;
+    await engine.registerDocument(structuredClone(validXmlDocument), retrievalUri);
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const budgeted = engine.evaluate(schemaUri, {});
+    now.mockReturnValue(2000);
+    await expect(budgeted).rejects.toMatchObject({ code: 'EVALUATION_BUDGET_EXCEEDED' });
+    now.mockRestore();
+    const controller = new AbortController();
+    const aborted = engine.evaluate(schemaUri, {}, { signal: controller.signal });
+    controller.abort();
+    await expect(aborted).rejects.toMatchObject({ code: 'OPERATION_ABORTED' });
+    await expect(engine.evaluate(schemaUri, {})).resolves.toMatchObject({ valid: true });
   });
 });
 
