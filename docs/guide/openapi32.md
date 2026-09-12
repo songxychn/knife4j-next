@@ -8,7 +8,7 @@ description: Knife4j Next 对 OpenAPI 3.2.x 的支持矩阵、回归表、宿主
 [English contract](./openapi32-en) · [下载最小 JSON](/examples/openapi-3.2-minimal.json) · [下载最小 YAML](/examples/openapi-3.2-minimal.yaml)
 
 ::: info 已发布
-Java `5.7.0` 与 Knife4x Go `v0.8.0` 按本文消费合法 OpenAPI 3.2.x 文档。这不是 springdoc 生成 3.2 的承诺；当前生产依赖仍输出 3.0.x / 3.1.x。
+Java `5.7.1` 与 Knife4x Go `v0.8.1` 按本文消费合法 OpenAPI 3.2.x 文档。这不是 springdoc 生成 3.2 的承诺；当前生产依赖仍输出 3.0.x / 3.1.x。
 :::
 
 已发布的 OpenAPI 3.0.x / 3.1.x 契约不变，见 [OpenAPI 3.1 支持与迁移](./openapi31)。Vue3 UI 继续只维护 OAS2。本文不改变任何 starter 默认配置，也不升级 springdoc 或 Java 生产依赖。
@@ -20,8 +20,8 @@ OpenAPI 的功能集由 `major.minor` 定义。`3.2.x` 使用同一套 **OpenAPI
 | 文档版本 | UI | 状态 | 说明 |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | 兼容维护 | 不扩展 OAS 3 能力 |
-| OpenAPI 3.0.x | React | 已发布支持 | Java `5.7.0` / Go `v0.8.0` |
-| OpenAPI 3.1.x | React | 已发布支持 | Java `5.7.0` / Go `v0.8.0` |
+| OpenAPI 3.0.x | React | 已发布支持 | Java `5.7.1` / Go `v0.8.1` |
+| OpenAPI 3.1.x | React | 已发布支持 | Java `5.7.1` / Go `v0.8.1` |
 | OpenAPI 3.2.x | React | **已发布支持** | 合法 3.2 文档完整消费；不把 3.2 当 3.1 处理 |
 
 ## 规范夹具与生成器输出
@@ -38,7 +38,7 @@ Java 生产依赖仍为 springdoc `1.8.0` / `2.8.9` / Boot4 `3.0.3`。它们当�
 
 ## 产品能力矩阵
 
-除非行内另有说明，“支持”指已发布 Java `5.7.0` / Go `v0.8.0` 上的完整 3.2.x feature set。
+除非行内另有说明，“支持”指已发布 Java `5.7.1` / Go `v0.8.1` 上的完整 3.2.x feature set。
 
 | 能力 | OAS 3.2 行为 | 边界 | 合入证据 |
 | --- | --- | --- | --- |
