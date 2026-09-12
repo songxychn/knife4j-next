@@ -11,14 +11,15 @@ Knife4x 已发布版本消费 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON 文档，不生
 交给同一套 React UI；限制见
 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
-当前公开版本为 `v0.8.0`，对应仓库 tag `knife4x/go/v0.8.0`：
+当前公开版本为 `v0.8.1`，对应仓库 tag `knife4x/go/v0.8.1`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.1
 ```
 
-`v0.8.0` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
-发布 OpenAPI 3.2.x 消费。OAS 3.1 非 ASCII 分组名下自引用 `$ref` 身份修复从 `v0.7.1`
+`v0.8.1` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
+修复 OAS 3.1 SchemaEngine 元校验失败后再次评估可能错误放行。OpenAPI 3.2.x 消费从 `v0.8.0`
+起提供；OAS 3.1 非 ASCII 分组名下自引用 `$ref` 身份修复从 `v0.7.1`
 起提供；浏览器登录会话调试、枚举输入过滤和目录分组吸顶从 `v0.7.0` 起提供；OAS 3.1、
 JSON Schema 2020-12、受控资源加载、调试诊断、导出与变化提示从 `v0.6.0` 起提供；
 OAS 3.0.x 继续沿用既有路径。版本明细见
@@ -78,7 +79,7 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 ```
 
 把顶层为 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` 的 JSON 保存为当前目录的 `openapi.json`。
-已发布 `v0.8.0` 可加载合法 3.2 JSON。启动后打开
+已发布 `v0.8.1` 可加载合法 3.2 JSON。启动后打开
 <http://localhost:8080/doc.html>。
 
 `Config` 只有两个字段：

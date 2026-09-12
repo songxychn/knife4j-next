@@ -17,11 +17,11 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Go 当前公开版本为 `v0.8.0`，对应仓库 tag `knife4x/go/v0.8.0`；首个公开版本为
+Go 当前公开版本为 `v0.8.1`，对应仓库 tag `knife4x/go/v0.8.1`；首个公开版本为
 `v0.1.0`。tag 发布前可从仓库 checkout 直接运行 [Gin example](examples/gin/README.md)；
 发布状态与完整验收步骤见 [Go 发布清单](go/RELEASE.md)。
 
-`v0.8.0` 保持 Go Handler API 与路由语义，发布 OpenAPI 3.2.x 文档消费。OAS 3.1 非 ASCII
+`v0.8.1` 保持 Go Handler API 与路由语义，修复 OAS 3.1 SchemaEngine 元校验失败后再次评估可能错误放行。OpenAPI 3.2.x 文档消费从 `v0.8.0` 起提供。OAS 3.1 非 ASCII
 分组自引用修复从 `v0.7.1` 起提供；浏览器登录会话调试、枚举过滤和目录分组吸顶从 `v0.7.0`
 起提供；OAS 3.1、JSON Schema 2020-12、受控资源图、调试诊断与导出能力从 `v0.6.0` 起提供。
 具体能力和限制见 [Go 版本说明](../docs/knife4x/index.md)；`v0.5.0` 的历史说明不包含这些后续改动。

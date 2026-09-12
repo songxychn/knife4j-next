@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.7.0 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.7.1 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.7.0 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.7.1 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -46,7 +46,7 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.8.0
+::: tip Knife4x Go v0.8.1
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -68,7 +68,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.0</version>
+    <version>5.7.1</version>
 </dependency>
 ```
 
@@ -78,7 +78,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.0</version>
+    <version>5.7.1</version>
 </dependency>
 ```
 
@@ -97,13 +97,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.7.0 版本亮点 <Badge type="tip" text="最新" />
+## 5.7.1 版本亮点 <Badge type="tip" text="最新" />
 
-`5.7.0` 发布 OpenAPI 3.2.x 文档消费；具体支持范围、浏览器限制与生成器边界见
-[OpenAPI 3.2 支持与迁移](/guide/openapi32)。
+`5.7.1` 修复 OAS 3.1 SchemaEngine 元校验失败后再次评估可能错误放行的问题；OpenAPI 3.2 消费仍从 `5.7.0` 起提供。具体支持范围与浏览器限制见
+[OpenAPI 3.1 支持与迁移](/guide/openapi31)。
 
-- 合法 3.2 文档走独立解析、调试、导出与变化跟踪，不降级成 3.1
-- QUERY、自定义方法、server `name`、`dataValue` 等 3.2 字段按规范消费
+- 同一次登记内对非法 Schema 元数据的拒绝保持稳定，重试或别名指针不能绕过已失败的元校验
+- 预算、中止失败仍可恢复；修正文档后重新登记可恢复
 - 真实 `/v3/api-docs` 仍是当前 springdoc 的 3.0 / 3.1 输出
 
 完整更新列表见 [发布说明](/release-notes/)。

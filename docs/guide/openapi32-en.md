@@ -9,7 +9,7 @@ lang: en-US
 [中文契约](./openapi32) · [Download minimal JSON](/examples/openapi-3.2-minimal.json) · [Download minimal YAML](/examples/openapi-3.2-minimal.yaml)
 
 ::: info Published
-Java `5.7.0` and Knife4x Go `v0.8.0` consume valid OpenAPI 3.2.x documents as described here. This is not a promise that springdoc generates 3.2; current production dependencies still emit 3.0.x / 3.1.x.
+Java `5.7.1` and Knife4x Go `v0.8.1` consume valid OpenAPI 3.2.x documents as described here. This is not a promise that springdoc generates 3.2; current production dependencies still emit 3.0.x / 3.1.x.
 :::
 
 Published OpenAPI 3.0.x / 3.1.x contracts are unchanged; see [OpenAPI 3.1 Support and Migration](./openapi31-en). The Vue 3 UI remains OAS2-only. This page does not change starter defaults and does not upgrade springdoc or Java production dependencies.
@@ -21,8 +21,8 @@ OpenAPI defines its feature set at the `major.minor` level. `3.2.x` shares one *
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | No OAS 3 expansion |
-| OpenAPI 3.0.x | React | Published | Java `5.7.0` / Go `v0.8.0` |
-| OpenAPI 3.1.x | React | Published | Java `5.7.0` / Go `v0.8.0` |
+| OpenAPI 3.0.x | React | Published | Java `5.7.1` / Go `v0.8.1` |
+| OpenAPI 3.1.x | React | Published | Java `5.7.1` / Go `v0.8.1` |
 | OpenAPI 3.2.x | React | **Published** | Full consumption of valid 3.2 documents; never treated as 3.1 |
 
 ## Specification fixtures versus generator output
@@ -39,7 +39,7 @@ Java production dependencies remain springdoc `1.8.0` / `2.8.9` / Boot4 `3.0.3`.
 
 ## Product capability matrix
 
-Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x feature set in published Java `5.7.0` / Go `v0.8.0`.
+Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x feature set in published Java `5.7.1` / Go `v0.8.1`.
 
 | Capability | OAS 3.2 behavior | Boundary | Merged evidence |
 | --- | --- | --- | --- |

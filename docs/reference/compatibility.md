@@ -13,14 +13,14 @@ title: 兼容矩阵
 
 | 维度 | 版本 |
 | --- | --- |
-| knife4j-next | `5.7.0` |
+| knife4j-next | `5.7.1` |
 | Java 最低版本 | `1.8`（openapi2 / openapi3 非 Jakarta）；`17`（Jakarta / Boot4） |
 | Springfox | `2.10.5`（openapi2 starter） |
 | springdoc-openapi | `1.8.0`（Boot 2.x）；`2.8.9`（Boot 3.x Jakarta）；`3.0.3`（Boot 4.x） |
 | 前端 UI | React（openapi3 starter，打包 `front/ui-react`）；Vue 3（openapi2 starter，打包本仓库 `front/vue3`） |
 
 ::: info 发布版本与源码能力
-上表为 `5.7.0` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
+上表为 `5.7.1` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
 OpenAPI 3.2 消费从 Java `5.7.0` 起提供，
 不应反向视为 `5.4.0` 等历史版本的能力。支持范围见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)
 和 [OpenAPI 3.2 支持与迁移](../guide/openapi32)。

@@ -12,7 +12,15 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.0 <Badge type="tip" text="最新" />
+### 5.7.1 <Badge type="tip" text="最新" />
+
+`5.7.1` 是基于 `5.7.0` 的向后兼容补丁版本，修复 OAS 3.1 SchemaEngine 在元校验失败后再次评估可能错误放行的问题。
+
+**SchemaEngine 元校验（React UI）**
+
+- 同一次登记内对非法 Schema 元数据保持稳定拒绝；重试、别名或不同指针不能绕过已失败的元校验。仅粘滞 `InvalidSchemaError`，预算 / `AbortSignal` 失败可恢复，`unregister` / `dispose` 或修正后重新登记可恢复（PR [#810](https://github.com/songxychn/knife4j-next/pull/810)，issue [#786](https://github.com/songxychn/knife4j-next/issues/786)）。
+
+### 5.7.0
 
 `5.7.0` 是基于 `5.6.1` 的向后兼容次版本，发布 OpenAPI 3.2.x 文档消费能力，并保持现有 OpenAPI 3.0.x / 3.1.x、OAS2 兼容维护线和 Java 依赖矩阵。
 
@@ -606,7 +614,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.0</version>
+    <version>5.7.1</version>
 </dependency>
 ```
 
