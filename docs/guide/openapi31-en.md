@@ -17,14 +17,16 @@ This document does not change any starter or default setting.
 
 OpenAPI defines its feature set at the `major.minor` level. `3.1.x` therefore shares one **OpenAPI 3.1 feature set** without
 patch-specific capability forks, and offline export reuses the shared version predicate instead of a private patch allowlist.
-Existing OpenAPI 3.0.x behavior remains available; OpenAPI 3.2.x is out of scope.
+Existing OpenAPI 3.0.x behavior remains available. OpenAPI 3.2.x consumption on the unpublished
+integration branch is documented in the [OpenAPI 3.2 support matrix](./openapi32-en); published
+`5.6.0` / Knife4x `v0.7.0` still ship the 3.1 contract on this page.
 
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | Provided by the openapi2 starters; no OAS 3.1 expansion |
 | OpenAPI 3.0.x | React | Supported | Existing parsing, debugging, export, and change-tracking paths remain |
 | OpenAPI 3.1.x | React | Supported | Shares one feature set, subject to the boundaries below |
-| OpenAPI 3.2.x | React | Unsupported | Never guessed or treated as 3.1 |
+| OpenAPI 3.2.x | React | Unpublished on the integration branch | Never guessed or treated as 3.1; see the [OpenAPI 3.2 matrix](./openapi32-en) |
 
 ### springdoc generation matrix
 
@@ -52,7 +54,7 @@ Unless a row says otherwise, “supported” below means the complete OpenAPI 3.
 
 | Capability | OAS 3.1.x behavior | Boundary | Merged evidence |
 | --- | --- | --- | --- |
-| Single and multi-document loading | The entry document and controlled cross-document resources share one 3.1 parsing session | A 3.2 document does not enter the 3.1 workflow | [#682](https://github.com/songxychn/knife4j-next/pull/682), [#689](https://github.com/songxychn/knife4j-next/pull/689), [#727](https://github.com/songxychn/knife4j-next/pull/727) |
+| Single and multi-document loading | The entry document and controlled cross-document resources share one 3.1 parsing session | A 3.2 document does not enter the 3.1 workflow; unpublished 3.2 consumption is in the [3.2 matrix](./openapi32-en) | [#682](https://github.com/songxychn/knife4j-next/pull/682), [#689](https://github.com/songxychn/knife4j-next/pull/689), [#727](https://github.com/songxychn/knife4j-next/pull/727) |
 | Document objects and Webhooks | Supports `paths`, `components`, `webhooks`, and 3.1 Reference Objects; at least one of the three fields must be declared | A Webhook is an inbound contract, not a regular Path request | [#717](https://github.com/songxychn/knife4j-next/pull/717) |
 | Schema dialect | OAS 3.1 Base Dialect and the standard JSON Schema Draft 2020-12 vocabularies | Arbitrary custom dialects are not assigned invented semantics | [#687](https://github.com/songxychn/knife4j-next/pull/687), [#689](https://github.com/songxychn/knife4j-next/pull/689) |
 | Field tree and models | Handles union types, boolean schemas, `const`, conditional/composition keywords, and dynamic references | Custom vocabularies are not executed; ordinary unknown-keyword, example, and extension payloads remain opaque, so Schema control names do not enter resource-declaration pre-scan | [#692](https://github.com/songxychn/knife4j-next/pull/692), [#694](https://github.com/songxychn/knife4j-next/pull/694), [#743](https://github.com/songxychn/knife4j-next/pull/743) |

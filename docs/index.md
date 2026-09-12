@@ -36,6 +36,10 @@ features:
     details: 5.6.0 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
+  - title: OpenAPI 3.2（未发布）
+    details: integration/oas32 可按 3.2 语义消费合法文档；已发布 5.6.0 不含该能力，也不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    link: /guide/openapi32
+    linkText: 支持矩阵
   - title: Gateway 与多服务聚合
     details: Gateway starter 覆盖 Boot 3.x WebFlux / Server Web MVC 与 Boot 4.x WebFlux，支持 DISCOVER / MANUAL 两种策略；aggregation starter 覆盖 Boot 2.x、3.x、4.x，提供 disk / cloud / nacos / eureka / polaris 五种聚合模式。
     link: /guide/gateway

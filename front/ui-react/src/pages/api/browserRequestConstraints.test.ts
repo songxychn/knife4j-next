@@ -15,4 +15,11 @@ describe('browserRequestConstraint', () => {
   it('blocks an explicit Cookie parameter instead of letting Fetch silently drop it', () => {
     expect(browserRequestConstraint('GET', false, true)).toBe('unsupported-cookie');
   });
+
+  it('allows QUERY and COPY while still blocking TRACE', () => {
+    expect(browserRequestConstraint('QUERY', false)).toBeNull();
+    expect(browserRequestConstraint('COPY', false)).toBeNull();
+    expect(browserRequestConstraint('Copy', false)).toBeNull();
+    expect(browserRequestConstraint('TRACE', false)).toBe('unsupported-method');
+  });
 });

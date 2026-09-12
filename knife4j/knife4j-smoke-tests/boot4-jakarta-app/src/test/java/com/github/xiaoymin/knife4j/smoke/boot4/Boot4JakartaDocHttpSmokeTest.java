@@ -39,6 +39,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -52,6 +53,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.function.RequestPredicates;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.RouterFunctions;
+import org.springframework.web.servlet.function.ServerResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -152,6 +157,47 @@ public class Boot4JakartaDocHttpSmokeTest {
         Assert.assertFalse(document.path("paths").path("/oas31/multipart").path("post").isMissingNode());
         assertOas31MatrixContract(document);
         assertMatchesOas31Fixture(document, "boot4-mvc-springdoc-3.0.3.json", port);
+    }
+
+    @Test
+    public void shouldServeLabeledOpenApi32FixtureBesideSpringdoc31WithoutRelabelingGeneratorOutput() throws IOException {
+        context = new SpringApplicationBuilder(Oas32HostApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "springdoc.api-docs.version=OPENAPI_3_1",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(200, docHtml.statusCode);
+        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        Assert.assertEquals("3.1.0", OBJECT_MAPPER.readTree(apiDocs.body).path("openapi").asText());
+        Assert.assertFalse("starter /v3/api-docs remains springdoc 3.1 and must not be rewritten as 3.2",
+                apiDocs.body.contains("\"openapi\":\"3.2") || apiDocs.body.contains("\"openapi\": \"3.2"));
+
+        HttpResponse swaggerConfig = get(port, "/v3/api-docs/swagger-config");
+        Assert.assertEquals(200, swaggerConfig.statusCode);
+        Assert.assertTrue(swaggerConfig.body.contains("/v3/api-docs"));
+        Assert.assertFalse(swaggerConfig.body.contains("/synthetic/oas32.json"));
+
+        HttpResponse fixture = get(port, "/synthetic/oas32.json");
+        Assert.assertEquals(200, fixture.statusCode);
+        JsonNode document32 = OBJECT_MAPPER.readTree(fixture.body);
+        Assert.assertEquals("3.2.0", document32.path("openapi").asText());
+        Assert.assertTrue(
+                "synthetic starter path must serve the labeled specification fixture, not a relabeled springdoc document:\n"
+                        + fixture.body,
+                fixture.body.contains("not a springdoc-generated document"));
+        Assert.assertTrue(fixture.body.contains("\"query\""));
+        Assert.assertTrue(fixture.body.contains("\"COPY\""));
+        Assert.assertTrue(fixture.body.contains("Host QUERY events"));
     }
 
     @Test
@@ -443,7 +489,7 @@ public class Boot4JakartaDocHttpSmokeTest {
         }
     }
 
-    private Path findRepositoryRoot() {
+    private static Path findRepositoryRoot() {
         Path current = Paths.get("").toAbsolutePath();
         while (current != null) {
             if (Files.isDirectory(current.resolve("front/ui-react")) && Files.isDirectory(current.resolve("knife4j"))) {
@@ -503,6 +549,24 @@ public class Boot4JakartaDocHttpSmokeTest {
 
         public static void main(String[] args) {
             SpringApplication.run(Oas31MatrixApplication.class, args);
+        }
+    }
+
+    @EnableKnife4j
+    @SpringBootConfiguration
+    @EnableAutoConfiguration
+    public static class Oas32HostApplication {
+
+        @Bean
+        RouterFunction<ServerResponse> labeledOpenApi32Fixture() {
+            return RouterFunctions.route(RequestPredicates.GET("/synthetic/oas32.json"), request -> {
+                Path fixture = findRepositoryRoot()
+                        .resolve("front/ui-react/src/test-fixtures/oas32-normative/host-acceptance-3.2.0.json");
+                byte[] payload = Files.readAllBytes(fixture);
+                return ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(payload);
+            });
         }
     }
 

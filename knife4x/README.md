@@ -5,7 +5,8 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调�
 
 ## 定位
 
-- 只消费标准 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2 或 OAS 3.2
+- 已发布版本只消费标准 OpenAPI 3.0.x / 3.1.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2
+- `integration/oas32` 可将合法 3.2 JSON 交给同一套 React UI；该能力未随 Go `v0.7.0` 发布
 - Go 核心只依赖标准库 `net/http`，不绑定 Gin、Echo、Chi 等 Web 框架
 - 与 Java 线 `knife4j-next` 同仓并共用 `front/ui-react` 与 `front/core`，但 module、版本和发布流程独立于 Java `5.x`
 - 宿主壳只负责嵌入静态 UI、注入配置和挂载路由，不复制前端业务逻辑
@@ -47,8 +48,9 @@ go run . -base-path /internal
 不会成为业务 API base URL。
 
 从 `gin-swagger` 切换前，请先阅读
-[迁移说明](go/MIGRATING_FROM_GIN_SWAGGER.md)：Knife4x 只接受 JSON 顶层
+[迁移说明](go/MIGRATING_FROM_GIN_SWAGGER.md)：已发布 Knife4x 只接受 JSON 顶层
 `openapi: 3.0.x` 或 `openapi: 3.1.x` 的文档，不能直接加载 Swagger 2 / OAS2。
+集成分支上的 3.2 承载见 [OpenAPI 3.2 支持矩阵](../docs/guide/openapi32.md)。
 
 ## 当前目录
 
