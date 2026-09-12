@@ -1,6 +1,8 @@
 import { matchRoutes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
-import type { MenuTag } from '../../types/swagger';
+import { describe, expect, it, vi } from 'vitest';
+import type { MenuOperation, MenuTag } from '../../types/swagger';
+import type { OpenApiOperation } from 'knife4j-core';
+import { acknowledgeOpenedOperation } from './useCurrentOperation';
 import { findMenuOperation, visibleOperationModeKeys } from './operationRouting';
 
 function findThroughRouter(menuTags: MenuTag[], tag: string, operationId: string) {
@@ -138,5 +140,48 @@ describe('OAS 3.1 operation routing', () => {
   it('keeps webhook contracts read-only', () => {
     expect(visibleOperationModeKeys('webhook', true, true)).toEqual(['doc', 'openapi']);
     expect(visibleOperationModeKeys('path', true, true)).toEqual(['doc', 'debug', 'openapi', 'script']);
+  });
+});
+
+describe('opening an operation acknowledges API changes', () => {
+  const identity = { identity: 'op' } as OpenApiOperation;
+
+  function operation(partial: Partial<MenuOperation>): MenuOperation {
+    return {
+      key: 'events/op',
+      path: '/read',
+      method: 'GET',
+      summary: 'Read',
+      operation: {},
+      source: 'path',
+      ...partial,
+    };
+  }
+
+  it('acknowledges OAS 3.0/3.1 path operations that have no identity', () => {
+    const acknowledge = vi.fn();
+    acknowledgeOpenedOperation(operation({ identity: undefined }), true, acknowledge);
+    expect(acknowledge).toHaveBeenCalledWith('GET', '/read');
+  });
+
+  it('acknowledges OAS 3.2 path operations that always carry identity, preserving method case', () => {
+    const acknowledge = vi.fn();
+    acknowledgeOpenedOperation(operation({ method: 'QUERY', path: '/read', identity }), true, acknowledge);
+    acknowledgeOpenedOperation(operation({ method: 'COPY', path: '/methods', identity }), true, acknowledge);
+    acknowledgeOpenedOperation(operation({ method: 'Copy', path: '/methods', identity }), true, acknowledge);
+    expect(acknowledge.mock.calls).toEqual([
+      ['QUERY', '/read'],
+      ['COPY', '/methods'],
+      ['Copy', '/methods'],
+    ]);
+  });
+
+  it('does not acknowledge webhooks, unreadiness, or missing operations', () => {
+    const acknowledge = vi.fn();
+    acknowledgeOpenedOperation(operation({ source: 'webhook', identity }), true, acknowledge);
+    acknowledgeOpenedOperation(operation({ source: 'webhook' }), true, acknowledge);
+    acknowledgeOpenedOperation(operation({ identity }), false, acknowledge);
+    acknowledgeOpenedOperation(undefined, true, acknowledge);
+    expect(acknowledge).not.toHaveBeenCalled();
   });
 });
