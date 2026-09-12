@@ -28,6 +28,7 @@ import {
   LevelSuffix,
   ShadingType,
 } from 'docx';
+import { stringify } from 'yaml';
 import { useGroup } from '../../context/GroupContext';
 import { useExternalResources, useSchemaEngine } from '../../context/SchemaEngineContext';
 import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from '../../locales/language';
@@ -1193,6 +1194,16 @@ export default function OfficeDoc() {
     downloadBlob(JSON.stringify(swaggerDoc, null, 2), `${title}.openapi.json`, 'application/json;charset=utf-8');
   }
 
+  function handleDownloadOpenApiYaml() {
+    if (!swaggerDoc) return;
+    const title = swaggerDoc.info.title || 'api-docs';
+    downloadBlob(
+      stringify(swaggerDoc, { aliasDuplicateObjects: false }),
+      `${title}.openapi.yaml`,
+      'application/yaml;charset=utf-8',
+    );
+  }
+
   const noData = !loading && (!swaggerDoc || usingMock);
   const downloadDisabled = loading || !swaggerDoc || usingMock || exporting !== null;
 
@@ -1248,6 +1259,14 @@ export default function OfficeDoc() {
           loading={loading}
         >
           {t('officeDoc.btn.openapi')}
+        </Button>
+        <Button
+          icon={<CodeOutlined />}
+          onClick={handleDownloadOpenApiYaml}
+          disabled={downloadDisabled}
+          loading={loading}
+        >
+          {t('officeDoc.btn.openapiYaml')}
         </Button>
       </Space>
     </div>

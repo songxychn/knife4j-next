@@ -396,7 +396,7 @@ const enUS = {
   'apiOpenApi.download.failed': 'Failed to download OpenAPI JSON. Please try again.',
   'apiOpenApi.download.unsupported': 'This browser cannot download files. Copy the JSON and save it manually.',
   'apiOpenApi.download.versionUnsupported':
-    'Single-operation downloads support OpenAPI 3.0.x and 3.1.x. You can still view and copy this document.',
+    'Single-operation downloads support OpenAPI 3.0.x, 3.1.x, and 3.2.x. You can still view and copy this document.',
   'apiOpenApi.download.oas31Preparing':
     'Preparing the portable OAS 3.1 document. You can still view and copy the current content.',
   'apiOpenApi.download.oas31Unavailable':
@@ -405,6 +405,17 @@ const enUS = {
     'The reference closure is incomplete, so the portable OAS 3.1 document cannot be downloaded yet.',
   'apiOpenApi.download.oas31Blocked.desc':
     'Load the missing external resources or fix the following references. Preview and copy remain available.',
+  'apiOpenApi.download.oas32Preparing':
+    'Preparing the portable OAS 3.2 document. You can still view and copy the current content.',
+  'apiOpenApi.download.oas32Unavailable':
+    'A portable OAS 3.2 document is currently unavailable. You can still view and copy the current content.',
+  'apiOpenApi.download.oas32Blocked':
+    'The reference closure is incomplete, so the portable OAS 3.2 document cannot be downloaded yet.',
+  'apiOpenApi.download.oas32Blocked.desc':
+    'Load the missing external resources or fix the following references. Preview and copy remain available.',
+  'apiOpenApi.downloadYaml': 'Download YAML',
+  'apiOpenApi.downloadYaml.started': 'OpenAPI YAML download started',
+  'apiOpenApi.downloadYaml.failed': 'Failed to download OpenAPI YAML. Please try again.',
   'apiOpenApi.serialize.failed':
     'Unable to generate OpenAPI JSON for this operation. Check the API document and try again.',
 
@@ -918,6 +929,7 @@ const enUS = {
   'officeDoc.btn.word': 'Download Word (.doc)',
   'officeDoc.btn.markdown': 'Download Markdown',
   'officeDoc.btn.openapi': 'Download OpenAPI JSON',
+  'officeDoc.btn.openapiYaml': 'Download OpenAPI YAML',
   'officeDoc.response': 'Response',
   'officeDoc.circularReference': 'Circular reference',
   'officeDoc.truncated': 'Truncated',

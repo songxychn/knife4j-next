@@ -121,13 +121,50 @@ describe('buildOpenApiViewState', () => {
   });
 
   it('keeps newer unsupported versions previewable but not downloadable', () => {
-    const document = { ...oas31Document(), openapi: '3.2.0' } as SwaggerDoc;
+    const document = { ...oas31Document(), openapi: '3.3.0' } as SwaggerDoc;
     const state = buildOpenApiViewState(document, operation(), { status: 'unavailable' });
 
     expect(state).toMatchObject({
       status: 'ready',
       downloadable: false,
       notice: { kind: 'version-unsupported' },
+    });
+  });
+
+  it('enables a portable OAS 3.2 operation download without using the 3.1 notice kinds', () => {
+    const document = {
+      openapi: '3.2.0',
+      info: { title: 'Pets', version: '1.0.0' },
+      paths: {
+        '/pets': {
+          query: {
+            operationId: 'queryPets',
+            responses: { 200: { description: 'ok' } },
+          },
+        },
+      },
+    } as SwaggerDoc;
+    const state = buildOpenApiViewState(
+      document,
+      { ...operation(), method: 'QUERY', operation: document.paths!['/pets'].query! },
+      readyAvailability(document),
+    );
+
+    expect(state).toMatchObject({ status: 'ready', downloadable: true, notice: null });
+    const output = JSON.parse(state.status === 'ready' ? state.json : '{}');
+    expect(output.openapi).toBe('3.2.0');
+    expect(output).toHaveProperty('paths./pets.query');
+    expect(output.paths['/pets'].get).toBeUndefined();
+  });
+
+  it('keeps OAS 3.2 preview when the graph is not ready', () => {
+    const document = { ...oas31Document(), openapi: '3.2.0' } as SwaggerDoc;
+    const state = buildOpenApiViewState(document, operation(), { status: 'unavailable' });
+
+    expect(state).toMatchObject({
+      status: 'ready',
+      downloadable: false,
+      notice: { kind: 'oas32-unavailable' },
     });
   });
 });

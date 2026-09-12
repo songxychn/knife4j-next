@@ -5,6 +5,7 @@ import {
   resolveJsonPointerTokens,
   resolvePathItemObject,
 } from 'knife4j-core';
+import { stringify } from 'yaml';
 import type { SwaggerDoc } from '../../types/swagger';
 
 type OpenApiRecord = Record<string, unknown>;
@@ -610,7 +611,20 @@ export function serializeOperationOpenApiDocument(document: OpenApiRecord): stri
   return serialized;
 }
 
-export function buildOperationOpenApiFilename(method: string, path: string, operationId?: string): string {
+export function serializeOperationOpenApiYaml(document: unknown): string {
+  const serialized = stringify(document, { aliasDuplicateObjects: false });
+  if (typeof serialized !== 'string' || serialized.length === 0) {
+    throw new TypeError('Unable to serialize the OpenAPI document as YAML');
+  }
+  return serialized;
+}
+
+export function buildOperationOpenApiFilename(
+  method: string,
+  path: string,
+  operationId?: string,
+  format: 'json' | 'yaml' = 'json',
+): string {
   const identity = operationId?.trim() || path.trim() || 'operation';
   let safeCharacters = '';
   let previousCharacterWasIllegal = false;
@@ -625,14 +639,18 @@ export function buildOperationOpenApiFilename(method: string, path: string, oper
     previousCharacterWasIllegal = illegal;
   });
   const stem = safeCharacters.replace(/\s+/g, '_').replace(/^[. ]+|[. ]+$/g, '');
-  return `${stem || 'operation'}.openapi.json`;
+  return `${stem || 'operation'}.openapi.${format === 'yaml' ? 'yaml' : 'json'}`;
 }
 
 /**
  * Start a browser download. Returns false when the required browser APIs are
  * unavailable; runtime failures are left to the caller to report.
  */
-export function downloadOperationOpenApiJson(content: string, filename: string): boolean {
+export function downloadOperationOpenApiJson(
+  content: string,
+  filename: string,
+  mimeType = 'application/json;charset=utf-8',
+): boolean {
   if (
     typeof Blob === 'undefined' ||
     typeof document === 'undefined' ||
@@ -648,7 +666,7 @@ export function downloadOperationOpenApiJson(content: string, filename: string):
   const anchor = document.createElement('a');
   if (!('download' in anchor) || typeof anchor.click !== 'function') return false;
 
-  const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+  const blob = new Blob([content], { type: mimeType });
   const objectUrl = URL.createObjectURL(blob);
   const revokeObjectURL = URL.revokeObjectURL.bind(URL);
 
