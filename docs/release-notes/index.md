@@ -12,7 +12,22 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.1 <Badge type="tip" text="最新" />
+### 5.7.2 <Badge type="tip" text="最新" />
+
+`5.7.2` 是基于 `5.7.1` 的向后兼容补丁版本，修复 Vue3 网关路由头拼写与 Tag 名称搜索展开，并按 Vue2 能力基线澄清文档缺口。
+
+**Vue3（OAS2 兼容维护）**
+
+- 聚合调试发送的网关路由头从错误拼写 `knfie4j-gateway-request` 改回 `knife4j-gateway-request`，与 Vue2、React 及 Java `RouteDispatcher` 对齐（PR [#813](https://github.com/songxychn/knife4j-next/pull/813)）。
+- 侧边栏搜索在 Tag 名称命中时展开该 Tag 全部子接口，对齐 Vue2 `searchKey` 行为（PR [#813](https://github.com/songxychn/knife4j-next/pull/813)）。
+
+**文档**
+
+- 以 `legacy/vue2` 为能力基线重写缺口表述：React 已实现的 `enable-version` / `enable-request-cache`、三端均无独立 Postman Collection 导出器、跨分组搜索不是 Vue2 能力等（PR [#813](https://github.com/songxychn/knife4j-next/pull/813)）。
+
+OpenAPI 3.1 / 3.2 消费契约与 Java 依赖基线不变。Knife4x Go 仍为 `v0.8.1`，本版本不发布 Go 补丁。
+
+### 5.7.1
 
 `5.7.1` 是基于 `5.7.0` 的向后兼容补丁版本，修复 OAS 3.1 SchemaEngine 在元校验失败后再次评估可能错误放行的问题。
 
@@ -614,7 +629,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.1</version>
+    <version>5.7.2</version>
 </dependency>
 ```
 

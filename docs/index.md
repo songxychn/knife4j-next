@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.7.1 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.7.2 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.7.1 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.7.2 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -68,7 +68,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.1</version>
+    <version>5.7.2</version>
 </dependency>
 ```
 
@@ -78,7 +78,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.1</version>
+    <version>5.7.2</version>
 </dependency>
 ```
 
@@ -97,14 +97,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.7.1 版本亮点 <Badge type="tip" text="最新" />
+## 5.7.2 版本亮点 <Badge type="tip" text="最新" />
 
-`5.7.1` 修复 OAS 3.1 SchemaEngine 元校验失败后再次评估可能错误放行的问题；OpenAPI 3.2 消费仍从 `5.7.0` 起提供。具体支持范围与浏览器限制见
-[OpenAPI 3.1 支持与迁移](/guide/openapi31)。
+`5.7.2` 修复 Vue3 网关路由头拼写与 Tag 名称搜索展开，并按 Vue2 能力基线澄清文档缺口。OpenAPI 3.1 / 3.2 消费仍从 `5.7.0` 起提供。
 
-- 同一次登记内对非法 Schema 元数据的拒绝保持稳定，重试或别名指针不能绕过已失败的元校验
-- 预算、中止失败仍可恢复；修正文档后重新登记可恢复
-- 真实 `/v3/api-docs` 仍是当前 springdoc 的 3.0 / 3.1 输出
+- Vue3 聚合调试发送正确的 `knife4j-gateway-request`，与 Vue2、React 及 Java 路由契约对齐
+- 侧边栏搜索在 Tag 名称命中时展开该 Tag 全部子接口，对齐 Vue2
+- 文档以 `legacy/vue2` 为能力基线，纠正 React 已实现项与 Postman / 跨分组搜索等误述
 
 完整更新列表见 [发布说明](/release-notes/)。
 
