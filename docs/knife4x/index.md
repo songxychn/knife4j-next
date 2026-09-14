@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.8.1`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前已发布 Go `v0.8.2`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 / 3.2 与发布版本
@@ -21,8 +21,13 @@ JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史
 Go module 需要 Go 1.22 或更高版本：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.1
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.2
 ```
+
+## v0.8.2
+
+Go 1.22 基线、module 路径、`Config`、`NewHandler` 与路由语义保持不变。
+相较于 `v0.8.1`，共享 React UI 修复 OAS 3.2 标签菜单重复名称（PR #817）、首页服务地址明细默认折叠（PR #818），以及窄窗口首页统计卡片与外壳横向溢出（PR #820）。
 
 ## v0.8.1
 
@@ -162,7 +167,7 @@ func main() {
 
 ## 使用边界
 
-- 已发布的 `v0.8.1` 消费已有的 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON，不生成 spec，不支持 OAS2 / Swagger 2。
+- 已发布的 `v0.8.2` 消费已有的 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON，不生成 spec，不支持 OAS2 / Swagger 2。
 - 同一 Handler 可经 `SpecURL` 承载合法 3.2 JSON；限制见 [OpenAPI 3.2 支持矩阵](/guide/openapi32)。入口仍不接受 YAML。
 - 只提供 `{BasePath}/doc.html` 入口，不为 `/` 或 `index.html` 增加重定向或 SPA fallback。
 - Go 核心只依赖标准库 `net/http`；Gin 是可运行示例，不是库依赖。
