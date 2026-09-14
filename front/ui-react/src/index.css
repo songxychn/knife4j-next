@@ -13,6 +13,58 @@ body {
   min-height: 610px;
 }
 
+/* Width constraints also apply below the desktop region-scrolling breakpoint. */
+.knife4j-main-layout.ant-layout,
+.knife4j-main-header.ant-layout-header,
+.knife4j-main-content.ant-layout-content,
+.knife4j-main-content-inner,
+.knife4j-workspace-tabs.ant-tabs,
+.knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder {
+  min-width: 0;
+}
+
+.knife4j-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knife4j-header-actions {
+  flex: 0 0 auto;
+}
+
+.knife4j-home {
+  container: knife4j-home / inline-size;
+}
+
+.knife4j-home-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.knife4j-home-stat-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Keep each card at least 180px wide, regardless of the resizable sidebar. */
+@container knife4j-home (min-width: 376px) {
+  .knife4j-home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container knife4j-home (min-width: 768px) {
+  .knife4j-home-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 #knife4j-api-debug-page {
   min-height: calc(100vh - 120px);
 }
@@ -263,43 +315,27 @@ body {
 
   .knife4j-main-layout.ant-layout {
     height: 100%;
-    min-width: 0;
     min-height: 0;
     overflow: hidden;
   }
 
   .knife4j-main-header.ant-layout-header {
-    min-width: 0;
     flex: 0 0 auto;
     overflow: hidden;
-  }
-
-  .knife4j-header-title {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .knife4j-header-actions {
-    flex: 0 0 auto;
   }
 
   .knife4j-main-content.ant-layout-content {
-    min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
     overflow: hidden;
   }
 
   .knife4j-main-content-inner {
-    min-width: 0;
     min-height: 0;
     overflow: hidden;
   }
 
   .knife4j-workspace-tabs.ant-tabs {
-    min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
     overflow: hidden;
@@ -310,7 +346,6 @@ body {
   }
 
   .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder {
-    min-width: 0;
     min-height: 0;
     overflow: auto;
   }

@@ -184,8 +184,8 @@ export default function Home() {
   ];
 
   const renderSummaryCard = (item: (typeof summaryCards)[number]) => (
-    <Card hoverable size="small" styles={{ body: { padding: 16, height: 88 } }}>
-      <Space size={12} align="start" style={{ width: '100%', minWidth: 0 }}>
+    <Card hoverable size="small" styles={{ body: { padding: 16, minHeight: 88 } }}>
+      <div className="knife4j-home-stat-content">
         <span
           style={{
             display: 'inline-flex',
@@ -203,7 +203,7 @@ export default function Home() {
           {item.icon}
         </span>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <Text type="secondary" style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
+          <Text type="secondary" style={{ display: 'block', fontSize: 13, marginBottom: 6, whiteSpace: 'nowrap' }}>
             {item.label}
           </Text>
           <Tooltip title={typeof item.value === 'string' ? item.value : undefined}>
@@ -222,7 +222,7 @@ export default function Home() {
             </div>
           </Tooltip>
         </div>
-      </Space>
+      </div>
     </Card>
   );
 
@@ -279,7 +279,7 @@ export default function Home() {
   );
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="knife4j-home" style={{ padding: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -361,13 +361,11 @@ export default function Home() {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 4 }}>
+      <div className="knife4j-home-stats">
         {summaryCards.map((item) => (
-          <Col key={item.key} xs={24} sm={12} md={6}>
-            {renderSummaryCard(item)}
-          </Col>
+          <div key={item.key}>{renderSummaryCard(item)}</div>
         ))}
-      </Row>
+      </div>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         {/* Method distribution */}
