@@ -12,7 +12,19 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.2 <Badge type="tip" text="最新" />
+### 5.7.3 <Badge type="tip" text="最新" />
+
+`5.7.3` 是基于 `5.7.2` 的向后兼容补丁版本，修复 React UI 的 OAS 3.2 标签菜单重复名称、首页服务地址明细默认展开导致的布局拥挤，以及窄窗口首页统计卡片与外壳横向溢出。同步发布 Knife4x Go `v0.8.2`。
+
+**React UI（OAS3）**
+
+- OAS 3.2 标签菜单优先显示 `summary`，缺省时显示 `name`；仅当当前可见标签展示标题相同时补充原始名称以区分，避免普通标签同时显示为名称和 `name: "..."` 重复行（PR [#817](https://github.com/songxychn/knife4j-next/pull/817)，issue [#816](https://github.com/songxychn/knife4j-next/issues/816)）。
+- 首页服务地址默认展示名称、最终地址和描述，将来源、声明 URL、替换结果、解析地址及文档位置收进默认折叠的解析详情，缓解双 Server / 长 URL 撑高布局（PR [#818](https://github.com/songxychn/knife4j-next/pull/818)，issue [#815](https://github.com/songxychn/knife4j-next/issues/815)）。
+- 窄窗口下统计卡片按首页内容区宽度切换列数，并约束外壳宽度，避免 768px 分屏窗口横向溢出（PR [#820](https://github.com/songxychn/knife4j-next/pull/820)，issue [#819](https://github.com/songxychn/knife4j-next/issues/819)）。
+
+OpenAPI 3.1 / 3.2 消费契约与 Java 依赖基线不变。Knife4x Go 同步发布 `v0.8.2`，纳入同一套共享 React UI 修复。
+
+### 5.7.2
 
 `5.7.2` 是基于 `5.7.1` 的向后兼容补丁版本，修复 Vue3 网关路由头拼写与 Tag 名称搜索展开，并按 Vue2 能力基线澄清文档缺口。
 
@@ -629,7 +641,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.2</version>
+    <version>5.7.3</version>
 </dependency>
 ```
 
