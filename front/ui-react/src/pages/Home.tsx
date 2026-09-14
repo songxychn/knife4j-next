@@ -1,4 +1,4 @@
-import Oas32ServerDetails from '../components/Oas32ServerDetails';
+import HomeServerSummary from './HomeServerSummary';
 import { resolveOas32OperationServers } from '../schema/oas32OperationServers';
 import { getOpenApiSpecificationFeatures } from 'knife4j-core';
 import { type ReactNode, useMemo } from 'react';
@@ -237,7 +237,14 @@ export default function Home() {
         borderBottom: `1px solid ${token.colorBorderSecondary}`,
       }}
     >
-      <Space size={6} style={{ minWidth: 0, color: token.colorTextSecondary }}>
+      <Space
+        size={6}
+        style={{
+          minWidth: 0,
+          color: token.colorTextSecondary,
+          alignSelf: key === 'servers' && serverMetadata32 ? 'start' : undefined,
+        }}
+      >
         <span style={{ color: token.colorPrimary }}>{icon}</span>
         <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
           {t(label)}
@@ -526,7 +533,7 @@ export default function Home() {
                         ))}
                         {servers.map((s, idx) =>
                           s.resolution ? (
-                            <Oas32ServerDetails key={s.resolution.source.key} server={s.resolution} />
+                            <HomeServerSummary key={s.resolution.source.key} server={s.resolution} />
                           ) : (
                             <Tooltip
                               key={`${s.url}-${idx}`}
