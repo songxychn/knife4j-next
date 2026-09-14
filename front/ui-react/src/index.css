@@ -384,6 +384,27 @@ body {
 .knife4j-server-details .ant-alert {
   margin-top: 6px;
 }
+.knife4j-home-server {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  padding-bottom: 12px;
+}
+.knife4j-home-server > .ant-typography {
+  display: block;
+}
+.knife4j-home-server-url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.knife4j-home-server .ant-alert {
+  margin-top: 6px;
+}
+.knife4j-home-server .ant-collapse-header {
+  padding: 4px 0 !important;
+}
+.knife4j-home-server .ant-collapse-content-box {
+  padding: 0 !important;
+}
 .knife4j-server-selection {
   margin-bottom: 8px;
 }

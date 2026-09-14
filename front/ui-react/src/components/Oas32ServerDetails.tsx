@@ -2,7 +2,15 @@ import { Alert, Space, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { Oas32ResolvedServer } from '../schema/oas32ServerResolution';
 
-export default function Oas32ServerDetails({ server, override }: { server: Oas32ResolvedServer; override?: string }) {
+export default function Oas32ServerDetails({
+  server,
+  override,
+  showDiagnostics = true,
+}: {
+  server: Oas32ResolvedServer;
+  override?: string;
+  showDiagnostics?: boolean;
+}) {
   const { t } = useTranslation();
   const rows = [
     [
@@ -43,15 +51,16 @@ export default function Oas32ServerDetails({ server, override }: { server: Oas32
           ))}
         </Space>
       )}
-      {server.diagnostics.map((diagnostic, index) => (
-        <Alert
-          key={`${diagnostic.code}:${diagnostic.pointer}:${index}`}
-          type="warning"
-          showIcon
-          message={diagnostic.code}
-          description={`${diagnostic.pointer}: ${diagnostic.reason}`}
-        />
-      ))}
+      {showDiagnostics &&
+        server.diagnostics.map((diagnostic, index) => (
+          <Alert
+            key={`${diagnostic.code}:${diagnostic.pointer}:${index}`}
+            type="warning"
+            showIcon
+            message={diagnostic.code}
+            description={`${diagnostic.pointer}: ${diagnostic.reason}`}
+          />
+        ))}
     </div>
   );
 }
