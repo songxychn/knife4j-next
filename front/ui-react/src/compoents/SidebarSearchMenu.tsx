@@ -233,6 +233,11 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     const tagDescMap = new Map(menuTags.map((t) => [t.tag, t.description]));
 
     const nodesByName = new Map(navigation32?.nodes.map((node) => [node.name, node]));
+    const labelCounts = new Map<string, number>();
+    navigation32?.nodes.forEach((node) => {
+      const label = node.label || JSON.stringify(node.name);
+      labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+    });
     const tagItems = new Map<string, NonNullable<MenuProps['items']>[number]>();
     const visibleTags = navigation32
       ? new Map(navigation32.nodes.map((node) => [node.name, node.operations]))
@@ -240,28 +245,38 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
     visibleTags.forEach((apis, tag) => {
       const node = nodesByName.get(tag);
       const tagDesc = node ? node.declaration?.description : tagDescMap.get(tag);
+      const label = node ? node.label || JSON.stringify(tag) : tag;
       const displayName = node ? (
-        <span
-          className="knife4j-tag-metadata"
-          title={`${node.label} · name: ${JSON.stringify(tag)}${node.kind === undefined ? '' : ` · kind: ${node.kind}`}`}
-        >
-          <span>{highlightText(node.label || JSON.stringify(tag), q)}</span>
-          <small>{`name: ${JSON.stringify(tag)}${node.kind === undefined ? '' : ` · kind: ${node.kind}`}${node.parentName === undefined ? '' : ` · parent: ${JSON.stringify(node.parentName)}`}`}</small>
+        <span className="knife4j-tag-metadata">
+          <span>{highlightText(label, q)}</span>
+          {(labelCounts.get(label) ?? 0) > 1 && <small>{`name: ${JSON.stringify(tag)}`}</small>}
         </span>
       ) : (
         tag
       );
-      const tagName = tagDesc ? (
-        <Tooltip
-          title={<Markdown source={tagDesc} preserveLineBreaks />}
-          placement="right"
-          styles={{ root: { maxWidth: 400 } }}
-        >
-          <span>{displayName}</span>
-        </Tooltip>
-      ) : (
-        displayName
-      );
+      const tagName =
+        tagDesc || node ? (
+          <Tooltip
+            title={
+              <>
+                {tagDesc && <Markdown source={tagDesc} preserveLineBreaks />}
+                {node && (
+                  <div style={{ overflowWrap: 'anywhere' }}>
+                    <div>{`name: ${JSON.stringify(tag)}`}</div>
+                    {node.kind !== undefined && <div>{`kind: ${node.kind}`}</div>}
+                    {node.parentName !== undefined && <div>{`parent: ${JSON.stringify(node.parentName)}`}</div>}
+                  </div>
+                )}
+              </>
+            }
+            placement="right"
+            styles={{ root: { maxWidth: 400 } }}
+          >
+            <span>{displayName}</span>
+          </Tooltip>
+        ) : (
+          displayName
+        );
       let addedCount = 0;
       let changedCount = 0;
       apis.forEach((api) => {

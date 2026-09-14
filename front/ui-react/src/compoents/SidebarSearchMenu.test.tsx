@@ -191,3 +191,120 @@ describe('SidebarSearchMenu OAS 3.2 change identity', () => {
     expect(texts(status)).toContain('sidebar.apiChange.unavailable.resourcePending');
   });
 });
+
+describe('SidebarSearchMenu tag presentation', () => {
+  function loadTags(
+    tags: Array<{ name: string; summary?: string; description?: string; parent?: string; kind?: string }>,
+    openapi = '3.2.0',
+  ) {
+    const document = {
+      openapi,
+      info: { title: 'Tag presentation', version: '1' },
+      tags,
+      paths: Object.fromEntries(
+        tags.map((tag, index) => [
+          `/example/${index}`,
+          {
+            get: { tags: [tag.name], responses: { '200': { description: 'OK' } } },
+          },
+        ]),
+      ),
+    } as SwaggerDoc;
+    expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+    const menuTags = parseMenuTags(document);
+    state.group = {
+      activeGroup: {
+        value: 'tags',
+        label: 'tags',
+        apis: menuTags.flatMap((tag) =>
+          tag.operations.map((operation) => ({
+            key: operation.key,
+            method: operationHttpMethod(operation),
+            path: operation.path,
+            summary: operation.summary,
+            tag: tag.tag,
+          })),
+        ),
+      },
+      swaggerDoc: document,
+      menuTags,
+      markdownDocs: [],
+      schemas: {},
+    };
+    state.apiChanges.statuses = {};
+    state.apiChanges.ready = true;
+    state.apiChanges.unavailableReason = null;
+  }
+
+  function tagItems(tree: Element): Array<{ key: string; label: unknown; children?: unknown[] }> {
+    const found: Array<{ key: string; label: unknown; children?: unknown[] }> = [];
+    const visit = (value: unknown) => {
+      if (!value || typeof value !== 'object') return;
+      const item = value as { key?: string; className?: string; label: unknown };
+      if (item.className === 'knife4j-sidebar-api-tag' && item.key) found.push(item as (typeof found)[number]);
+      Object.values(value).forEach(visit);
+    };
+    visit(tree);
+    return found;
+  }
+
+  function visibleTexts(value: unknown): string[] {
+    if (typeof value === 'string') return [value];
+    if (Array.isArray(value)) return value.flatMap(visibleTexts);
+    if (value && typeof value === 'object' && 'props' in value) return visibleTexts((value as Element).props.children);
+    return [];
+  }
+
+  it('shows an ordinary OAS 3.2 tag name only once', () => {
+    loadTags([{ name: '1.扩展项目API', description: 'ExtProjectAPI' }]);
+    const item = tagItems(renderSidebar())[0];
+    expect(visibleTexts(item.label)).toEqual(['1.扩展项目API']);
+    const markdown: Element[] = [];
+    walk(item.label, (element) => {
+      if (element.type === 'Markdown') markdown.push(element);
+    });
+    expect(markdown[0].props.source).toBe('ExtProjectAPI');
+  });
+
+  it('uses summary for display and retains the exact name in a tooltip', () => {
+    loadTags([{ name: 'internal-name', summary: '展示标题' }]);
+    const item = tagItems(renderSidebar())[0];
+    expect(item.key).toBe('tag-internal-name');
+    expect(visibleTexts(item.label)).toEqual(['展示标题']);
+    const hints: unknown[] = [];
+    walk(item.label, (element) => {
+      if (element.type === 'Tooltip') hints.push(element.props.title);
+    });
+    expect(hints.flatMap(texts)).toContain('name: "internal-name"');
+  });
+
+  it('disambiguates equal displayed labels, including summary/name collisions', () => {
+    loadTags([{ name: 'first', summary: '共享标题' }, { name: '共享标题' }, { name: 'third', summary: '共享标题' }]);
+    const items = tagItems(renderSidebar());
+    expect(items).toHaveLength(3);
+    for (const item of items) {
+      expect(visibleTexts(item.label)).toEqual(['共享标题', `name: ${JSON.stringify(item.key.slice(4))}`]);
+    }
+  });
+
+  it('keeps nesting and metadata without a permanent field list', () => {
+    loadTags([{ name: 'parent' }, { name: 'child', parent: 'parent', kind: 'audience' }]);
+    const items = tagItems(renderSidebar());
+    const parent = items.find((item) => item.key === 'tag-parent')!;
+    const child = items.find((item) => item.key === 'tag-child')!;
+    expect(parent.children).toContain(child);
+    expect(visibleTexts(child.label)).toEqual(['child']);
+    const hints: unknown[] = [];
+    walk(child.label, (element) => {
+      if (element.type === 'Tooltip') hints.push(element.props.title);
+    });
+    expect(hints.flatMap(texts)).toEqual(
+      expect.arrayContaining(['name: "child"', 'kind: audience', 'parent: "parent"']),
+    );
+  });
+
+  it('preserves the OAS 3.1 tag presentation', () => {
+    loadTags([{ name: 'Existing tag', description: 'Existing description' }], '3.1.0');
+    expect(visibleTexts(tagItems(renderSidebar())[0].label)).toEqual(['Existing tag']);
+  });
+});
