@@ -356,7 +356,7 @@ body {
   }
 }
 
-/* OAS 3.2 metadata keeps names visible and caps indentation at narrow widths. */
+/* OAS 3.2 tags show name hints only for ambiguous labels and cap indentation. */
 .knife4j-tag-metadata {
   display: flex;
   flex-direction: column;
