@@ -246,6 +246,8 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
       const node = nodesByName.get(tag);
       const tagDesc = node ? node.declaration?.description : tagDescMap.get(tag);
       const label = node ? node.label || JSON.stringify(tag) : tag;
+      const showName = !!node && label !== tag;
+      const showMetadata = showName || node?.kind !== undefined || node?.parentName !== undefined;
       const displayName = node ? (
         <span className="knife4j-tag-metadata">
           <span>{highlightText(label, q)}</span>
@@ -255,14 +257,14 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         tag
       );
       const tagName =
-        tagDesc || node ? (
+        tagDesc || showMetadata ? (
           <Tooltip
             title={
               <>
                 {tagDesc && <Markdown source={tagDesc} preserveLineBreaks />}
-                {node && (
+                {node && showMetadata && (
                   <div style={{ overflowWrap: 'anywhere' }}>
-                    <div>{`name: ${JSON.stringify(tag)}`}</div>
+                    {showName && <div>{`name: ${JSON.stringify(tag)}`}</div>}
                     {node.kind !== undefined && <div>{`kind: ${node.kind}`}</div>}
                     {node.parentName !== undefined && <div>{`parent: ${JSON.stringify(node.parentName)}`}</div>}
                   </div>
