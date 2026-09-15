@@ -276,6 +276,10 @@ const jaJP = {
   'schema.example.explicitInvalid.description':
     '元のサンプルを保持します。Knife4j が作成者の内容を暗黙に修正することはありません。',
   'schema.example.explicitInvalid.issue': '元のサンプルを保持します。{{path}} は {{keyword}} 制約を満たしていません。',
+  'schema.example.invalidDocument.title': '文書の Schema に誤りがあるため、サンプルを検証できません',
+  'schema.example.invalidDocument.description':
+    '文書内の Schema がメタ検証に失敗しました。失敗した箇所の一部を以下に示します。現在の JSON サンプルの構文エラーを意味するものではありません。既存のサンプル内容は保持されます。',
+  'schema.example.invalidDocument.keyword': 'Schema キーワード：{{keyword}}',
   'schema.example.validationUnavailable.title': 'サンプルを検証できません',
   'schema.example.validationUnavailable.description':
     '作成者のサンプルは保持しますが、未検証の OAS 3.1 候補は生成しません。',

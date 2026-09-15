@@ -23,7 +23,7 @@ import {
 import { fromJs } from '@hyperjump/json-schema/instance/experimental';
 import { isIriReference, normalizeIri, parseIri, resolveIri, toAbsoluteIri } from '@hyperjump/uri';
 import { EvaluationBudgetPlugin, inspectJsonValue, normalizeLimits } from './budgets';
-import { SchemaEngineError } from './errors';
+import { SchemaEngineError, type SchemaMetaIssue } from './errors';
 import { OAS32_DOCUMENT_WRAPPER, OAS32_SCHEMA_ADAPTER, registerOpenApi32Dialects } from './openapi32Dialect';
 import {
   OpenApi32Registration,
@@ -1219,13 +1219,18 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         // Cache completed Schema validity, never an in-flight operation's budget
         // or AbortSignal. Concurrent callers may validate with independent limits.
         const documents = new Set([...registration.processingDocuments!.values()].flatMap((copies) => [...copies]));
-        const schemas: { schema: unknown; dialect: string }[] = context.metaRoots.map((schema) => ({
-          schema,
+        const schemas: { schema: unknown; dialect: string; pointer: string }[] = context.metaRoots.map((root) => ({
+          ...root,
           dialect: OAS32_SCHEMA_ADAPTER,
         }));
-        for (const document of documents) schemas.push({ schema: document.root, dialect: document.dialectId });
+        for (const document of documents)
+          schemas.push({
+            schema: document.root,
+            dialect: document.dialectId,
+            pointer: context.resourcePointers.get(document.baseUri) ?? '#',
+          });
         const validators = new Map<string, CompiledSchema>();
-        for (const { schema, dialect } of schemas) {
+        for (const { schema, dialect, pointer } of schemas) {
           budget.assertWithinBudget();
           let validator = validators.get(dialect);
           if (!validator) {
@@ -1238,10 +1243,41 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
           });
           budget.assertWithinBudget();
           if (!result.valid) {
+            // BASIC locations address the Schema as an instance of its meta-schema.
+            // Keep only authored field paths; upstream keyword URIs/values may be private.
+            const schemaIssues = new Map<string, SchemaMetaIssue>();
+            const visit = (unit: OutputUnit): void => {
+              budget.assertWithinBudget();
+              if (schemaIssues.size >= 10) return;
+              if (unit.errors?.length) {
+                unit.errors.forEach(visit);
+                return;
+              }
+              const field = `${pointer}${decodeURIComponent(normalizeInstanceLocation(unit.instanceLocation))}`;
+              let owner = field;
+              while (!context.locations.has(owner) && owner.includes('/'))
+                owner = owner.slice(0, owner.lastIndexOf('/'));
+              const keyword =
+                field
+                  .slice(owner.length + 1)
+                  .split('/')[0]
+                  ?.replace(/~1/g, '/')
+                  .replace(/~0/g, '~') ?? '';
+              // Directional consumers filter these arrays. Report the authored
+              // keyword, never a copied array index that may name another value.
+              const diagnosticPointer =
+                keyword === 'required' || keyword === 'dependentRequired' ? `${owner}/${keyword}` : field;
+              if (!schemaIssues.has(diagnosticPointer))
+                schemaIssues.set(
+                  diagnosticPointer,
+                  Object.freeze({ documentUri: registration.retrievalUri, pointer: diagnosticPointer, keyword }),
+                );
+            };
+            result.errors?.forEach(visit);
             const failure = new SchemaEngineError(
               'SCHEMA_RESOLUTION_FAILED',
-              'OpenAPI 3.2 Schema meta-validation failed.',
-              { uri: registration.retrievalUri },
+              'The OpenAPI 3.2 document contains an invalid Schema; example validation is unavailable.',
+              { uri: registration.retrievalUri, schemaIssues: Object.freeze([...schemaIssues.values()]) },
             );
             registration.metaFailure = failure;
             throw failure;

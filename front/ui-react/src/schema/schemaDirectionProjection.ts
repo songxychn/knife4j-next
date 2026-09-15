@@ -7,6 +7,7 @@ export interface DirectionalSchemaProjection {
   readonly document: JsonValue;
   readonly retrievalUri: string;
   referenceFor(reference: string): string;
+  sourcePointerFor(pointer: string): string | undefined;
 }
 
 export interface DirectionalSchemaProjectionOptions {
@@ -1098,5 +1099,13 @@ export function createDirectionalSchemaProjection(
     document: projectionDocument,
     retrievalUri: projectedRetrieval,
     referenceFor: (reference: string): string => rewriteReference(reference, originalRetrieval),
+    sourcePointerFor: (pointer: string): string | undefined => {
+      for (const root of roots) {
+        const prefix = `#/$defs/${decodeURIComponent(pointerToken(root.key))}`;
+        if (pointer === prefix || pointer.startsWith(`${prefix}/`))
+          return `#/${root.path.map((token) => decodeURIComponent(pointerToken(token))).join('/')}${pointer.slice(prefix.length)}`;
+      }
+      return undefined;
+    },
   });
 }

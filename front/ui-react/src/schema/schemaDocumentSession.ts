@@ -5,6 +5,7 @@ import type {
   SchemaEngineErrorDetails,
   SchemaNode,
   SchemaDocumentRegistrationContext,
+  SchemaMetaIssue,
 } from 'knife4j-schema-engine';
 import { getOpenApiSpecificationFeatures, isOpenApi31Version } from 'knife4j-core';
 import { resolveUri } from 'knife4j-schema-engine/uri';
@@ -244,13 +245,16 @@ export async function createSchemaDocumentSession(
   projectionSessionSequence += 1;
   const projectionSessionId = globalThis.crypto?.randomUUID?.() ?? `session-${projectionSessionSequence}`;
   const projectionNamespace = `https://knife4j.invalid/schema-projections/${projectionSessionId}/`;
-  const projections = new Map<string, Promise<DirectionalSchemaProjection>>();
+  type SessionProjection = DirectionalSchemaProjection & {
+    publicSchemaIssue?: (issue: SchemaMetaIssue) => SchemaMetaIssue | undefined;
+  };
+  const projections = new Map<string, Promise<SessionProjection>>();
   let projectionVariantSequence = 0;
   const ensureProjection = (
     direction: SchemaEvaluationDirection,
     reference?: string,
     ignoredProperties?: readonly string[],
-  ): Promise<DirectionalSchemaProjection> => {
+  ): Promise<SessionProjection> => {
     const ignoredNames = Array.from(new Set(ignoredProperties ?? [])).sort();
     const key = JSON.stringify([direction, reference ?? '', ignoredNames]);
     const existing = projections.get(key);
@@ -275,8 +279,17 @@ export async function createSchemaDocumentSession(
           strictSchemaPositions: uses32,
         },
       );
-      const projection = source32
-        ? { ...projected, referenceFor: (value: string) => projected.referenceFor(source32.referenceFor(value)) }
+      const projection: SessionProjection = source32
+        ? {
+            ...projected,
+            referenceFor: (value: string) => projected.referenceFor(source32.referenceFor(value)),
+            publicSchemaIssue: (issue) => {
+              if (issue.documentUri !== projected.retrievalUri) return issue;
+              const pointer = projected.sourcePointerFor(issue.pointer);
+              const source = pointer && source32.sourceLocationFor(pointer);
+              return source ? { ...source, keyword: issue.keyword } : undefined;
+            },
+          }
         : projected;
       await engine.registerDocument(
         projection.document,
@@ -325,7 +338,25 @@ export async function createSchemaDocumentSession(
       ignoredProperties,
     );
     if (evaluationOptions?.signal?.aborted) throw new DOMException('Schema evaluation was aborted.', 'AbortError');
-    return runOperation(() => engine.evaluate(projection.referenceFor(reference), instance, evaluationOptions));
+    try {
+      return await runOperation(() => engine.evaluate(projection.referenceFor(reference), instance, evaluationOptions));
+    } catch (error) {
+      if (
+        error instanceof engineModule.SchemaEngineError &&
+        error.details.schemaIssues &&
+        projection.publicSchemaIssue
+      ) {
+        const schemaIssues = error.details.schemaIssues.flatMap((issue) => {
+          const source = projection.publicSchemaIssue!(issue);
+          return source ? [Object.freeze(source)] : [];
+        });
+        throw new engineModule.SchemaEngineError(error.code, error.message, {
+          uri: schemaIssues[0]?.documentUri ?? retrievalUri,
+          schemaIssues: Object.freeze(schemaIssues),
+        });
+      }
+      throw error;
+    }
   });
   return session;
 }

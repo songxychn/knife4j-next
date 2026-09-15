@@ -209,7 +209,7 @@ export class OpenApi32Registration {
   readonly physicalResources = new Map<string, string>();
   readonly resourcePointers = new Map<string, string>();
   readonly references: OpenApi32Reference[] = [];
-  readonly metaRoots: JsonValue[] = [];
+  readonly metaRoots: { schema: JsonValue; pointer: string }[] = [];
   private readonly roots: string[] = [];
   private readonly processingLocations = new Map<string, OpenApi32SchemaLocation>();
 
@@ -377,7 +377,12 @@ export class OpenApi32Registration {
       const schema = schemaValueAt(value, reference.source.pointer) as Record<string, unknown>;
       schema[reference.keyword] = this.physicalReference(reference, isBuiltIn);
     }
-    this.metaRoots.push(...this.roots.map((pointer) => structuredClone(schemaValueAt(value, pointer)) as JsonValue));
+    this.metaRoots.push(
+      ...this.roots.map((pointer) => ({
+        schema: structuredClone(schemaValueAt(value, pointer)) as JsonValue,
+        pointer,
+      })),
+    );
     if (record(value)) {
       value.$id = this.locations.get('#')?.physicalResource ?? this.physicalRootUri;
       // Complete OAS documents and OAS fragments are containers, not Schema Objects.
@@ -487,6 +492,7 @@ export interface OpenApi32ProjectionSource {
   readonly document: JsonValue;
   readonly retrievalUri: string;
   referenceFor(reference: string): string;
+  sourceLocationFor(pointer: string): { documentUri: string; pointer: string } | undefined;
 }
 
 /**
@@ -509,6 +515,7 @@ export function createOpenApi32ProjectionSource(
   const locations = new Map<OpenApi32SchemaLocation, { resource: string; pointer: string }>();
   const clones = new Map<OpenApi32SchemaLocation, Record<string, unknown>>();
   const schemas: Record<string, JsonValue> = Object.create(null);
+  const sourceRoots: { prefix: string; documentUri: string; pointer: string }[] = [];
   const referenceForNode = (node: OpenApi32SchemaLocation): string => {
     const location = locations.get(node)!;
     return `${location.resource}${location.pointer ? `#${encodedPointer(location.pointer)}` : ''}`;
@@ -531,6 +538,11 @@ export function createOpenApi32ProjectionSource(
       const clone = structuredClone(root.value);
       const direct = root === directRoot && record(clone);
       const prefix = direct ? '' : `/$defs/root${rootIndex}`;
+      sourceRoots.push({
+        prefix: `#/components/schemas/document${index}${prefix}`,
+        documentUri: context.retrievalUri,
+        pointer: root.pointer,
+      });
       if (direct) schemas[`document${index}`] = clone;
       else (container.$defs as Record<string, JsonValue>)[`root${rootIndex}`] = clone;
       for (const node of groups.get(root.pointer)!) {
@@ -579,6 +591,12 @@ export function createOpenApi32ProjectionSource(
       components: { schemas },
     },
     retrievalUri: 'urn:knife4j-internal:oas32:projection-source',
+    sourceLocationFor: (pointer: string) => {
+      const root = sourceRoots.find((entry) => pointer === entry.prefix || pointer.startsWith(`${entry.prefix}/`));
+      return root
+        ? { documentUri: root.documentUri, pointer: `${root.pointer}${pointer.slice(root.prefix.length)}` }
+        : undefined;
+    },
     referenceFor: (reference: string): string => {
       const uri = resolveUri(reference, entryRetrievalUri);
       const target = lookup(uri);
