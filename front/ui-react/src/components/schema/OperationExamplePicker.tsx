@@ -112,6 +112,9 @@ export default function OperationExamplePicker({
           </Button>
         )}
       </Space>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        {t('schema.example32.representationHelp')}
+      </Typography.Paragraph>
       {target.description && (
         <Typography.Paragraph style={{ marginBottom: 0 }}>{target.description}</Typography.Paragraph>
       )}

@@ -10,6 +10,8 @@ const jaJP = {
   'schema.example32.layer.header': 'ヘッダー',
   'schema.example32.layer.media': 'メディアタイプ',
   'schema.example32.data': '論理データ',
+  'schema.example32.representationHelp':
+    '論理データはフィールドの確認と Schema 検証に使います。送信原文は作成者が指定した、またはデータから生成されたシリアライズ済みテキストで、空白やエスケープを保持します。リクエスト例を適用すると利用可能な原文が使われ、実際の送信内容はデバッグ画面の内容に従います。',
   'schema.example32.showSerialized': '送信原文を表示（同じ例）',
   'schema.example32.serialized': 'シリアル化テキスト（そのまま送信）',
   'schema.example32.external': '外部の例の場所（未読込・本文として送信しません）',

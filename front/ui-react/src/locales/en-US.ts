@@ -10,6 +10,8 @@ const enUS = {
   'schema.example32.layer.header': 'Header',
   'schema.example32.layer.media': 'Media type',
   'schema.example32.data': 'Logical data',
+  'schema.example32.representationHelp':
+    'Logical data is used to inspect fields and validate against the Schema. Wire text is the serialized form supplied by the author or generated from the data, preserving whitespace and escapes. Applying a request example uses the available wire text; the final request reflects the content in the debugger.',
   'schema.example32.showSerialized': 'View wire text (same example)',
   'schema.example32.serialized': 'Serialized text (sent verbatim)',
   'schema.example32.external': 'External example location (not loaded or sent as a body)',

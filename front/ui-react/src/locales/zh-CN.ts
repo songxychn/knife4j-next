@@ -10,6 +10,8 @@ const zhCN = {
   'schema.example32.layer.header': 'Header 层',
   'schema.example32.layer.media': '媒体层',
   'schema.example32.data': '逻辑数据',
+  'schema.example32.representationHelp':
+    '逻辑数据用于查看字段和 Schema 校验。发送原文是作者提供或由数据生成的序列化文本，保留空白、转义等写法；应用请求示例时使用可用原文，实际发送以调试区内容为准。',
   'schema.example32.showSerialized': '查看发送原文（同一示例）',
   'schema.example32.serialized': '序列化文本（原样发送）',
   'schema.example32.external': '外部示例位置（未加载，不作为正文）',
