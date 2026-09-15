@@ -255,6 +255,14 @@ describe('SidebarSearchMenu tag presentation', () => {
     return [];
   }
 
+  function tooltipTitles(value: unknown): unknown[] {
+    const titles: unknown[] = [];
+    walk(value, (element) => {
+      if (element.type === 'Tooltip') titles.push(element.props.title);
+    });
+    return titles;
+  }
+
   it('shows an ordinary OAS 3.2 tag name only once', () => {
     loadTags([{ name: '1.扩展项目API', description: 'ExtProjectAPI' }]);
     const item = tagItems(renderSidebar())[0];
@@ -264,6 +272,12 @@ describe('SidebarSearchMenu tag presentation', () => {
       if (element.type === 'Markdown') markdown.push(element);
     });
     expect(markdown[0].props.source).toBe('ExtProjectAPI');
+    expect(tooltipTitles(item.label).flatMap(texts)).not.toContain('name: "1.扩展项目API"');
+  });
+
+  it.each([undefined, '', 'ordinary'])('omits an empty tooltip when summary is %s', (summary) => {
+    loadTags([{ name: 'ordinary', ...(summary === undefined ? {} : { summary }) }]);
+    expect(tooltipTitles(tagItems(renderSidebar())[0].label)).toEqual([]);
   });
 
   it('uses summary for display and retains the exact name in a tooltip', () => {
@@ -298,13 +312,30 @@ describe('SidebarSearchMenu tag presentation', () => {
     walk(child.label, (element) => {
       if (element.type === 'Tooltip') hints.push(element.props.title);
     });
-    expect(hints.flatMap(texts)).toEqual(
-      expect.arrayContaining(['name: "child"', 'kind: audience', 'parent: "parent"']),
-    );
+    expect(hints.flatMap(texts)).toEqual(expect.arrayContaining(['kind: audience', 'parent: "parent"']));
+    expect(hints.flatMap(texts)).not.toContain('name: "child"');
   });
 
-  it('preserves the OAS 3.1 tag presentation', () => {
-    loadTags([{ name: 'Existing tag', description: 'Existing description' }], '3.1.0');
-    expect(visibleTexts(tagItems(renderSidebar())[0].label)).toEqual(['Existing tag']);
+  it('retains kind metadata without a description or parent', () => {
+    loadTags([{ name: 'audience', kind: 'audience' }]);
+    expect(tooltipTitles(tagItems(renderSidebar())[0].label).flatMap(texts)).toEqual(['kind: audience']);
+  });
+
+  it('retains parent metadata without a description or kind', () => {
+    loadTags([{ name: 'parent' }, { name: 'child', parent: 'parent' }]);
+    const item = tagItems(renderSidebar()).find((item) => item.key === 'tag-child')!;
+    expect(tooltipTitles(item.label).flatMap(texts)).toEqual(['parent: "parent"']);
+  });
+
+  it.each(['3.0.3', '3.1.0'])('preserves the OAS %s tag presentation', (openapi) => {
+    loadTags([{ name: 'Existing tag', description: 'Existing description' }], openapi);
+    const item = tagItems(renderSidebar())[0];
+    expect(visibleTexts(item.label)).toEqual(['Existing tag']);
+    const markdown: Element[] = [];
+    walk(tooltipTitles(item.label), (element) => {
+      if (element.type === 'Markdown') markdown.push(element);
+    });
+    expect(markdown[0].props.source).toBe('Existing description');
+    expect(tooltipTitles(item.label).flatMap(texts)).toEqual([]);
   });
 });
