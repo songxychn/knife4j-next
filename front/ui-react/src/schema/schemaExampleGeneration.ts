@@ -1,4 +1,5 @@
 import type { EvaluationIssue, EvaluationResult, JsonValue, SchemaNode } from 'knife4j-schema-engine';
+import { toSchemaDocumentFailure } from './schemaDocumentSession';
 import { evaluateSchemaDocumentDirectionally, type SchemaDocumentSession } from './schemaDocumentSession';
 
 export type SchemaExampleDirection = 'request' | 'response';
@@ -37,6 +38,7 @@ export interface SchemaExampleDiagnostic {
   readonly message?: string;
   readonly issues?: readonly SchemaExampleIssue[];
   readonly totalIssues?: number;
+  readonly schemaIssues?: import('knife4j-schema-engine').SchemaEngineErrorDetails['schemaIssues'];
 }
 
 export type SchemaExampleResult =
@@ -1101,6 +1103,14 @@ function unavailableMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Schema evaluation is unavailable.';
 }
 
+function unavailableDiagnostic(
+  code: 'EVALUATION_UNAVAILABLE' | 'SCHEMA_UNAVAILABLE',
+  error: unknown,
+): SchemaExampleDiagnostic {
+  const { schemaIssues } = toSchemaDocumentFailure(error).details;
+  return { code, message: unavailableMessage(error), ...(schemaIssues ? { schemaIssues } : {}) };
+}
+
 function isRecoverableResolutionFailure(error: unknown): boolean {
   return (
     error !== null &&
@@ -1186,7 +1196,7 @@ async function evaluateAuthoredCandidate(
       source: candidate.source,
       authored: true,
       validation: 'unavailable',
-      diagnostics: [{ code: 'EVALUATION_UNAVAILABLE', message: unavailableMessage(error) }],
+      diagnostics: [unavailableDiagnostic('EVALUATION_UNAVAILABLE', error)],
     };
   }
 }
@@ -1219,13 +1229,13 @@ export async function generateSchemaExample(
         source: explicit.source,
         authored: true,
         validation: 'unavailable',
-        diagnostics: [{ code: 'SCHEMA_UNAVAILABLE', message: unavailableMessage(error) }],
+        diagnostics: [unavailableDiagnostic('SCHEMA_UNAVAILABLE', error)],
       };
     }
     return {
       status: 'none',
       reason: 'schema-unavailable',
-      diagnostics: [{ code: 'SCHEMA_UNAVAILABLE', message: unavailableMessage(error) }],
+      diagnostics: [unavailableDiagnostic('SCHEMA_UNAVAILABLE', error)],
     };
   }
 
@@ -1298,7 +1308,7 @@ export async function generateSchemaExample(
       return {
         status: 'none',
         reason: 'evaluation-unavailable',
-        diagnostics: [{ code: 'EVALUATION_UNAVAILABLE', message: unavailableMessage(error) }],
+        diagnostics: [unavailableDiagnostic('EVALUATION_UNAVAILABLE', error)],
       };
     }
   }

@@ -17,6 +17,37 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
   const { t } = useTranslation();
   if (result.status === 'value' && result.validation === 'valid') return null;
 
+  const schemaDiagnostics = result.diagnostics.filter((diagnostic) => diagnostic.schemaIssues !== undefined);
+  if (schemaDiagnostics.length) {
+    const issues = schemaDiagnostics.flatMap((diagnostic) => diagnostic.schemaIssues ?? []);
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message={t('schema.example.invalidDocument.title')}
+        description={
+          <div>
+            <div>{t('schema.example.invalidDocument.description')}</div>
+            {issues.length > 0 && (
+              <ul style={{ margin: '8px 0 0', paddingInlineStart: 20, overflowWrap: 'anywhere' }}>
+                {issues.map((issue) => (
+                  <li key={`${issue.documentUri}:${issue.pointer}`}>
+                    <div>{issue.documentUri}</div>
+                    <code>{issue.pointer}</code>
+                    {issue.keyword && (
+                      <div>{t('schema.example.invalidDocument.keyword', { keyword: issue.keyword })}</div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        }
+        style={style}
+      />
+    );
+  }
+
   if (result.diagnostics.some((diagnostic) => diagnostic.code === 'EXAMPLE_REFERENCE_UNAVAILABLE')) {
     return (
       <Alert

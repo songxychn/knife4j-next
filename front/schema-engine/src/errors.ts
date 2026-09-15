@@ -16,11 +16,19 @@ export type SchemaEngineErrorCode =
   | 'ENGINE_STATE_CHANGED'
   | 'ENGINE_DISPOSED';
 
+/** A field in the authored document, not an instance or a processing resource. */
+export interface SchemaMetaIssue {
+  readonly documentUri: string;
+  readonly pointer: string;
+  readonly keyword: string;
+}
+
 export interface SchemaEngineErrorDetails {
   uri?: string;
   resourceUri?: string;
   limit?: number;
   actual?: number;
+  schemaIssues?: readonly SchemaMetaIssue[];
 }
 
 export class SchemaEngineError extends Error {
