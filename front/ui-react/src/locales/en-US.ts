@@ -10,7 +10,13 @@ const enUS = {
   'schema.example32.layer.header': 'Header',
   'schema.example32.layer.media': 'Media type',
   'schema.example32.data': 'Logical data',
-  'schema.example32.serialized': 'Serialized text (sent verbatim)',
+  'schema.example32.dataHelp':
+    'Logical data is the structured example used to inspect fields and validate against the Schema.',
+  'schema.example32.serializedHelp':
+    'Wire text is the serialized form supplied by the author or generated from the logical data, preserving whitespace and escapes. Applying a request example uses the available wire text; the final request reflects the content in the debugger.',
+  'schema.example32.helpLabel': 'Help for {{name}}',
+  'schema.example32.showSerialized': 'View wire text (same example)',
+  'schema.example32.serialized': 'Wire text',
   'schema.example32.external': 'External example location (not loaded or sent as a body)',
   'schema.example32.checks': 'Data validation: {{data}}; decoding: {{serialization}}; pairing: {{pairing}}',
   'schema.example32.diagnostic': 'Example diagnostics',

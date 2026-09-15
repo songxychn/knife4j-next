@@ -1,5 +1,7 @@
+import { isJsonMediaType } from 'knife4j-core';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Select, Space, Typography } from 'antd';
+import { Alert, Button, Select, Space, Tooltip, Typography } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import {
   evaluateOperationExample,
@@ -70,6 +72,17 @@ export default function OperationExamplePicker({
   }, [target, session]);
   const result = state && state.target === target && state.session === session ? state.result : undefined;
   const representation = result?.representation;
+  // Reuse the representation's safe decode/pairing checks; presentation must never reserialize author text.
+  const collapseSerialized =
+    target?.layer === 'media' &&
+    isJsonMediaType(target.mediaType ?? target.context.mediaType ?? '') &&
+    !target.itemSchemaLocation &&
+    representation?.data !== undefined &&
+    representation.text !== undefined &&
+    !representation.external &&
+    representation.serialization === 'valid' &&
+    (representation.pairing === 'valid' || representation.pairing === 'absent') &&
+    representation.diagnostics.length === 0;
   if (!target) return null;
   const discriminator = snapshot
     ? (() => {
@@ -77,6 +90,30 @@ export default function OperationExamplePicker({
         return location ? describeSchemaDiscriminator(snapshot, location) : undefined;
       })()
     : undefined;
+  const renderHelp = (kind: 'data' | 'serialized') => (
+    <Tooltip title={t(`schema.example32.${kind}Help`)} trigger={['hover', 'focus']}>
+      <Button
+        type="text"
+        size="small"
+        aria-label={t('schema.example32.helpLabel', { name: t(`schema.example32.${kind}`) })}
+        icon={<QuestionCircleOutlined style={{ opacity: 0.65 }} />}
+        styles={{ icon: { display: 'flex' } }}
+        style={{ width: 20, height: 20, padding: 0 }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      />
+    </Tooltip>
+  );
+  const renderLabel = (kind: 'data' | 'serialized', label: 'data' | 'serialized' | 'showSerialized' = kind) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+      <Typography.Text strong style={{ lineHeight: 'normal' }}>
+        {t(`schema.example32.${label}`)}
+      </Typography.Text>
+      {renderHelp(kind)}
+    </span>
+  );
   return (
     <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} data-example-group={target.group}>
       <Space wrap>
@@ -192,18 +229,27 @@ export default function OperationExamplePicker({
       )}
       {representation && Object.prototype.hasOwnProperty.call(representation, 'data') && (
         <>
-          <Typography.Text strong>{t('schema.example32.data')}</Typography.Text>
+          {renderLabel('data')}
           <CodeBlock code={JSON.stringify(representation.data, null, 2)} />
         </>
       )}
-      {representation?.text !== undefined && (
-        <>
-          <Typography.Text strong>{t('schema.example32.serialized')}</Typography.Text>
-          <CodeBlock code={representation.text} />
-        </>
-      )}
+      {representation?.text !== undefined &&
+        (collapseSerialized ? (
+          <details key={target.id}>
+            <summary style={{ cursor: 'pointer' }}>{renderLabel('serialized', 'showSerialized')}</summary>
+            <CodeBlock code={representation.text} />
+          </details>
+        ) : (
+          <>
+            {renderLabel('serialized')}
+            <CodeBlock code={representation.text} />
+          </>
+        ))}
       {representation?.serialized !== undefined && representation.text === undefined && (
-        <CodeBlock code={representation.serialized} />
+        <>
+          {renderLabel('serialized')}
+          <CodeBlock code={representation.serialized} />
+        </>
       )}
       <Typography.Text type="secondary" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
         {target.sourceLocation.ownerRetrievalUri}
