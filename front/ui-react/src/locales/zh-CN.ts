@@ -10,6 +10,7 @@ const zhCN = {
   'schema.example32.layer.header': 'Header 层',
   'schema.example32.layer.media': '媒体层',
   'schema.example32.data': '逻辑数据',
+  'schema.example32.showSerialized': '查看发送原文（同一示例）',
   'schema.example32.serialized': '序列化文本（原样发送）',
   'schema.example32.external': '外部示例位置（未加载，不作为正文）',
   'schema.example32.checks': '数据校验：{{data}}；序列化解析：{{serialization}}；配对一致性：{{pairing}}',

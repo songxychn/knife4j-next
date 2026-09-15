@@ -10,6 +10,7 @@ const enUS = {
   'schema.example32.layer.header': 'Header',
   'schema.example32.layer.media': 'Media type',
   'schema.example32.data': 'Logical data',
+  'schema.example32.showSerialized': 'View wire text (same example)',
   'schema.example32.serialized': 'Serialized text (sent verbatim)',
   'schema.example32.external': 'External example location (not loaded or sent as a body)',
   'schema.example32.checks': 'Data validation: {{data}}; decoding: {{serialization}}; pairing: {{pairing}}',

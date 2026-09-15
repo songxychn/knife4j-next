@@ -1,3 +1,4 @@
+import { isJsonMediaType } from 'knife4j-core';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Select, Space, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
@@ -70,6 +71,17 @@ export default function OperationExamplePicker({
   }, [target, session]);
   const result = state && state.target === target && state.session === session ? state.result : undefined;
   const representation = result?.representation;
+  // Reuse the representation's safe decode/pairing checks; presentation must never reserialize author text.
+  const collapseSerialized =
+    target?.layer === 'media' &&
+    isJsonMediaType(target.mediaType ?? target.context.mediaType ?? '') &&
+    !target.itemSchemaLocation &&
+    representation?.data !== undefined &&
+    representation.text !== undefined &&
+    !representation.external &&
+    representation.serialization === 'valid' &&
+    (representation.pairing === 'valid' || representation.pairing === 'absent') &&
+    representation.diagnostics.length === 0;
   if (!target) return null;
   const discriminator = snapshot
     ? (() => {
@@ -196,12 +208,20 @@ export default function OperationExamplePicker({
           <CodeBlock code={JSON.stringify(representation.data, null, 2)} />
         </>
       )}
-      {representation?.text !== undefined && (
-        <>
-          <Typography.Text strong>{t('schema.example32.serialized')}</Typography.Text>
-          <CodeBlock code={representation.text} />
-        </>
-      )}
+      {representation?.text !== undefined &&
+        (collapseSerialized ? (
+          <details key={target.id}>
+            <summary style={{ cursor: 'pointer' }}>
+              <Typography.Text strong>{t('schema.example32.showSerialized')}</Typography.Text>
+            </summary>
+            <CodeBlock code={representation.text} />
+          </details>
+        ) : (
+          <>
+            <Typography.Text strong>{t('schema.example32.serialized')}</Typography.Text>
+            <CodeBlock code={representation.text} />
+          </>
+        ))}
       {representation?.serialized !== undefined && representation.text === undefined && (
         <CodeBlock code={representation.serialized} />
       )}

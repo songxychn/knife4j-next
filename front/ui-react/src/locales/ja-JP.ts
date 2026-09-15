@@ -10,6 +10,7 @@ const jaJP = {
   'schema.example32.layer.header': 'ヘッダー',
   'schema.example32.layer.media': 'メディアタイプ',
   'schema.example32.data': '論理データ',
+  'schema.example32.showSerialized': '送信原文を表示（同じ例）',
   'schema.example32.serialized': 'シリアル化テキスト（そのまま送信）',
   'schema.example32.external': '外部の例の場所（未読込・本文として送信しません）',
   'schema.example32.checks': 'データ検証：{{data}}、デコード：{{serialization}}、整合性：{{pairing}}',
