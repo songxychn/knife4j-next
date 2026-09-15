@@ -30,8 +30,10 @@ vi.mock('antd', () => ({
   Button: 'Button',
   Select: 'Select',
   Space: 'Space',
+  Tooltip: 'Tooltip',
   Typography: { Text: 'Text', Paragraph: 'Paragraph' },
 }));
+vi.mock('@ant-design/icons', () => ({ QuestionCircleOutlined: 'QuestionCircleOutlined' }));
 vi.mock('../../pages/api/CodeBlock', () => ({ default: 'CodeBlock' }));
 vi.mock('./SchemaExampleNotice', () => ({ default: 'SchemaExampleNotice' }));
 vi.mock('./SchemaDiscriminatorPanel', () => ({ default: 'SchemaDiscriminatorPanel' }));

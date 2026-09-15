@@ -1,6 +1,7 @@
 import { isJsonMediaType } from 'knife4j-core';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Select, Space, Typography } from 'antd';
+import { Alert, Button, Select, Space, Tooltip, Typography } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import {
   evaluateOperationExample,
@@ -89,6 +90,21 @@ export default function OperationExamplePicker({
         return location ? describeSchemaDiscriminator(snapshot, location) : undefined;
       })()
     : undefined;
+  const renderHelp = (kind: 'data' | 'serialized') => (
+    <Tooltip title={t(`schema.example32.${kind}Help`)} trigger={['hover', 'focus']}>
+      <Button
+        type="text"
+        size="small"
+        aria-label={t('schema.example32.helpLabel', { name: t(`schema.example32.${kind}`) })}
+        icon={<QuestionCircleOutlined style={{ opacity: 0.65 }} />}
+        style={{ width: 20, height: 20, padding: 0, marginInlineStart: 4, verticalAlign: 'middle' }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      />
+    </Tooltip>
+  );
   return (
     <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} data-example-group={target.group}>
       <Space wrap>
@@ -112,9 +128,6 @@ export default function OperationExamplePicker({
           </Button>
         )}
       </Space>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-        {t('schema.example32.representationHelp')}
-      </Typography.Paragraph>
       {target.description && (
         <Typography.Paragraph style={{ marginBottom: 0 }}>{target.description}</Typography.Paragraph>
       )}
@@ -207,7 +220,10 @@ export default function OperationExamplePicker({
       )}
       {representation && Object.prototype.hasOwnProperty.call(representation, 'data') && (
         <>
-          <Typography.Text strong>{t('schema.example32.data')}</Typography.Text>
+          <Typography.Text strong>
+            {t('schema.example32.data')}
+            {renderHelp('data')}
+          </Typography.Text>
           <CodeBlock code={JSON.stringify(representation.data, null, 2)} />
         </>
       )}
@@ -215,18 +231,30 @@ export default function OperationExamplePicker({
         (collapseSerialized ? (
           <details key={target.id}>
             <summary style={{ cursor: 'pointer' }}>
-              <Typography.Text strong>{t('schema.example32.showSerialized')}</Typography.Text>
+              <Typography.Text strong>
+                {t('schema.example32.showSerialized')}
+                {renderHelp('serialized')}
+              </Typography.Text>
             </summary>
             <CodeBlock code={representation.text} />
           </details>
         ) : (
           <>
-            <Typography.Text strong>{t('schema.example32.serialized')}</Typography.Text>
+            <Typography.Text strong>
+              {t('schema.example32.serialized')}
+              {renderHelp('serialized')}
+            </Typography.Text>
             <CodeBlock code={representation.text} />
           </>
         ))}
       {representation?.serialized !== undefined && representation.text === undefined && (
-        <CodeBlock code={representation.serialized} />
+        <>
+          <Typography.Text strong>
+            {t('schema.example32.serialized')}
+            {renderHelp('serialized')}
+          </Typography.Text>
+          <CodeBlock code={representation.serialized} />
+        </>
       )}
       <Typography.Text type="secondary" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
         {target.sourceLocation.ownerRetrievalUri}
