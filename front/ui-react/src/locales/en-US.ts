@@ -276,6 +276,10 @@ const enUS = {
     'The original example is preserved. Knife4j does not silently rewrite authored content.',
   'schema.example.explicitInvalid.issue':
     'The original example is preserved; {{path}} did not satisfy the {{keyword}} constraint.',
+  'schema.example.invalidDocument.title': 'Invalid document Schema; example validation is unavailable',
+  'schema.example.invalidDocument.description':
+    'A Schema in the document failed meta-validation. Some failing locations are listed below. This does not indicate a JSON syntax error in the current example; existing example content is preserved.',
+  'schema.example.invalidDocument.keyword': 'Schema keyword: {{keyword}}',
   'schema.example.validationUnavailable.title': 'Example validation is unavailable',
   'schema.example.validationUnavailable.description':
     'Authored examples are preserved, but Knife4j will not create an unvalidated OAS 3.1 candidate.',

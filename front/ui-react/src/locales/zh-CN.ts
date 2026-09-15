@@ -245,6 +245,10 @@ const zhCN = {
   'schema.example.explicitInvalid.title': '作者提供的示例不符合当前 Schema',
   'schema.example.explicitInvalid.description': '示例按原值保留，Knife4j 不会静默修正作者内容。',
   'schema.example.explicitInvalid.issue': '示例按原值保留；{{path}} 未通过 {{keyword}} 约束。',
+  'schema.example.invalidDocument.title': '文档 Schema 有误，示例验证不可用',
+  'schema.example.invalidDocument.description':
+    '文档中的 Schema 未通过规范校验；以下列出部分失败位置。这不表示当前 JSON 示例有语法错误，已有示例内容会保留。',
+  'schema.example.invalidDocument.keyword': 'Schema 关键字：{{keyword}}',
   'schema.example.validationUnavailable.title': '示例验证暂不可用',
   'schema.example.validationUnavailable.description': '作者示例会保留，但不会生成未经验证的 OAS 3.1 候选。',
   'schema.example.referenceUnavailable.title': '作者示例引用暂不可用',
