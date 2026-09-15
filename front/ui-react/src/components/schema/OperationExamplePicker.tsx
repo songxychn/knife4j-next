@@ -97,13 +97,22 @@ export default function OperationExamplePicker({
         size="small"
         aria-label={t('schema.example32.helpLabel', { name: t(`schema.example32.${kind}`) })}
         icon={<QuestionCircleOutlined style={{ opacity: 0.65 }} />}
-        style={{ width: 20, height: 20, padding: 0, marginInlineStart: 4, verticalAlign: 'middle' }}
+        styles={{ icon: { display: 'flex' } }}
+        style={{ width: 20, height: 20, padding: 0 }}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
         }}
       />
     </Tooltip>
+  );
+  const renderLabel = (kind: 'data' | 'serialized', label: 'data' | 'serialized' | 'showSerialized' = kind) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+      <Typography.Text strong style={{ lineHeight: 'normal' }}>
+        {t(`schema.example32.${label}`)}
+      </Typography.Text>
+      {renderHelp(kind)}
+    </span>
   );
   return (
     <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} data-example-group={target.group}>
@@ -220,39 +229,25 @@ export default function OperationExamplePicker({
       )}
       {representation && Object.prototype.hasOwnProperty.call(representation, 'data') && (
         <>
-          <Typography.Text strong>
-            {t('schema.example32.data')}
-            {renderHelp('data')}
-          </Typography.Text>
+          {renderLabel('data')}
           <CodeBlock code={JSON.stringify(representation.data, null, 2)} />
         </>
       )}
       {representation?.text !== undefined &&
         (collapseSerialized ? (
           <details key={target.id}>
-            <summary style={{ cursor: 'pointer' }}>
-              <Typography.Text strong>
-                {t('schema.example32.showSerialized')}
-                {renderHelp('serialized')}
-              </Typography.Text>
-            </summary>
+            <summary style={{ cursor: 'pointer' }}>{renderLabel('serialized', 'showSerialized')}</summary>
             <CodeBlock code={representation.text} />
           </details>
         ) : (
           <>
-            <Typography.Text strong>
-              {t('schema.example32.serialized')}
-              {renderHelp('serialized')}
-            </Typography.Text>
+            {renderLabel('serialized')}
             <CodeBlock code={representation.text} />
           </>
         ))}
       {representation?.serialized !== undefined && representation.text === undefined && (
         <>
-          <Typography.Text strong>
-            {t('schema.example32.serialized')}
-            {renderHelp('serialized')}
-          </Typography.Text>
+          {renderLabel('serialized')}
           <CodeBlock code={representation.serialized} />
         </>
       )}
