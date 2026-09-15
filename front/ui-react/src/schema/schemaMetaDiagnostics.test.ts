@@ -168,3 +168,45 @@ test('reports the registered external document as the source of a copied Schema 
     ],
   });
 });
+
+test.each([
+  ['request', 'readOnly', 'required'],
+  ['request', 'readOnly', 'dependentRequired'],
+  ['response', 'writeOnly', 'required'],
+  ['response', 'writeOnly', 'dependentRequired'],
+] as const)(
+  'locates the %s %s filtered %s keyword without misidentifying an array element',
+  async (direction, annotation, keyword) => {
+    const uri = 'https://example.test/filtered.json';
+    session = await createSchemaDocumentSession(
+      {
+        openapi: '3.2.0',
+        info: { title: 'Filtered diagnostic', version: '1' },
+        components: {
+          schemas: {
+            Bad: {
+              type: 'object',
+              properties: { ro: { type: 'string', [annotation]: true } },
+              [keyword]: keyword === 'required' ? ['ro', 123] : { other: ['ro', 123] },
+            },
+          },
+        },
+      } as unknown as SwaggerDoc,
+      uri,
+    );
+    const result = await generateSchemaExample(session, '#/components/schemas/Bad', {
+      direction,
+      explicit: [{ source: 'example-object', value: { other: 'one' } }],
+    });
+    expect(result).toMatchObject({
+      status: 'value',
+      value: { other: 'one' },
+      validation: 'unavailable',
+      diagnostics: [
+        {
+          schemaIssues: [{ documentUri: uri, pointer: `#/components/schemas/Bad/${keyword}`, keyword }],
+        },
+      ],
+    });
+  },
+);

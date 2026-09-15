@@ -1263,10 +1263,14 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
                   .split('/')[0]
                   ?.replace(/~1/g, '/')
                   .replace(/~0/g, '~') ?? '';
-              if (!schemaIssues.has(field))
+              // Directional consumers filter these arrays. Report the authored
+              // keyword, never a copied array index that may name another value.
+              const diagnosticPointer =
+                keyword === 'required' || keyword === 'dependentRequired' ? `${owner}/${keyword}` : field;
+              if (!schemaIssues.has(diagnosticPointer))
                 schemaIssues.set(
-                  field,
-                  Object.freeze({ documentUri: registration.retrievalUri, pointer: field, keyword }),
+                  diagnosticPointer,
+                  Object.freeze({ documentUri: registration.retrievalUri, pointer: diagnosticPointer, keyword }),
                 );
             };
             result.errors?.forEach(visit);
