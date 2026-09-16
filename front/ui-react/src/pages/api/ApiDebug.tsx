@@ -1974,22 +1974,34 @@ function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: Previe
         {encodedMultipart && (
           <Alert type="info" showIcon message={t('apiDebug.preview.multipartBodyFile')} style={{ marginBottom: 8 }} />
         )}
-        <Space style={{ marginBottom: 4 }}>
-          <Text strong>{t('apiDebug.preview.curl')}</Text>
-          <Button size="small" onClick={() => onCopyText(curl)}>
-            {t('apiDebug.preview.copyCurl')}
-          </Button>
-          {encodedMultipart && materialized?.body instanceof Blob && (
-            <Button
-              size="small"
-              icon={<DownloadOutlined />}
-              onClick={() => onDownloadMultipartBody?.(materialized.body as Blob)}
-            >
-              {t('apiDebug.preview.downloadMultipartBody')}
-            </Button>
-          )}
-        </Space>
-        <pre style={{ ...previewBoxStyle, maxHeight: 260 }}>{curl}</pre>
+        <Collapse
+          ghost
+          size="small"
+          items={[
+            {
+              key: 'curl',
+              label: <Text strong>{t('apiDebug.preview.curl')}</Text>,
+              styles: { header: { padding: 0 }, body: { padding: '8px 0 0' } },
+              extra: (
+                <Space onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                  <Button size="small" onClick={() => onCopyText(curl)}>
+                    {t('apiDebug.preview.copyCurl')}
+                  </Button>
+                  {encodedMultipart && materialized?.body instanceof Blob && (
+                    <Button
+                      size="small"
+                      icon={<DownloadOutlined />}
+                      onClick={() => onDownloadMultipartBody?.(materialized.body as Blob)}
+                    >
+                      {t('apiDebug.preview.downloadMultipartBody')}
+                    </Button>
+                  )}
+                </Space>
+              ),
+              children: <pre style={{ ...previewBoxStyle, lineHeight: '20px', maxHeight: 144 }}>{curl}</pre>,
+            },
+          ]}
+        />
       </div>
     </Space>
   );

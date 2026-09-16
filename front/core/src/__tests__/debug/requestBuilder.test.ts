@@ -978,11 +978,11 @@ describe('buildCurl', () => {
       contentType: '',
     });
 
-    expect(curl).toContain('curl');
-    expect(curl).toContain('-X');
-    expect(curl).toContain('GET');
-    expect(curl).toContain('Authorization: Bearer tok');
-    expect(curl).toContain("'http://localhost:8080/users/42?page=1'");
+    expect(curl.split('\n')).toEqual([
+      'curl -X GET \\',
+      "  -H 'Authorization: Bearer tok' \\",
+      "  'http://localhost:8080/users/42?page=1'",
+    ]);
   });
 
   test('generates curl for POST request with body', () => {
@@ -1025,7 +1025,7 @@ describe('buildCurl', () => {
 
     expect(curl).toContain("'Cookie: session=a; token=$(printf injected); note=it'\\''s'");
     expect(curl).toContain("'https://api.example.test/items?q=it'\\''s$(printf injected)'");
-    expect(curl).not.toContain('-H \\\n  Cookie:');
+    expect(curl).not.toContain('-H Cookie:');
   });
 
   test('no -d flag when body is empty', () => {
@@ -1087,8 +1087,8 @@ describe('buildCurl', () => {
       contentType: 'multipart/mixed',
     });
 
-    expect(curl).toContain("-H \\\n  'Content-Type: multipart/mixed'");
-    expect(curl).toContain('-d \\\n  \'{"legacy":"body"}\'');
+    expect(curl).toContain("-H 'Content-Type: multipart/mixed'");
+    expect(curl).toContain('-d \'{"legacy":"body"}\'');
     expect(curl).not.toContain('-F');
     expect(curl).not.toContain('TODO append file fields');
   });
@@ -1105,7 +1105,7 @@ describe('buildCurl', () => {
     });
 
     expect(curl).toContain(`Content-Type: ${contentType}`);
-    expect(curl).toContain("-d \\\n  'legacy body'");
+    expect(curl).toContain("-d 'legacy body'");
     expect(curl).not.toContain('-F');
   });
 

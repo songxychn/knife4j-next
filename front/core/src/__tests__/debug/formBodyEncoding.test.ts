@@ -273,7 +273,7 @@ describe('OAS 3.1 form body encoding', () => {
       formBodyPlan: plan,
     });
 
-    expect(curl).toContain("-H \\\n  'Content-Type: multipart/mixed'");
+    expect(curl).toContain("-H 'Content-Type: multipart/mixed'");
     expect(curl).toContain('headers="Content-Disposition: form-data; name=\\"note\\""');
   });
 

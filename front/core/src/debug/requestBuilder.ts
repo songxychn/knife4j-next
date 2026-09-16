@@ -698,9 +698,9 @@ export const OAS32_MULTIPART_CURL_BODY_FILE = 'knife4j-multipart-body.bin';
 export function buildCurl(req: BuiltRequest): string {
   const parts: string[] = [];
 
-  parts.push('curl');
-  if (req.curlPreserveUrl) parts.push('--globoff', '--path-as-is');
-  parts.push('-X', /^[A-Za-z]+$/.test(req.method) ? req.method : shellQuote(req.method));
+  const method = /^[A-Za-z]+$/.test(req.method) ? req.method : shellQuote(req.method);
+  parts.push(`curl${req.curlPreserveUrl ? ' --globoff --path-as-is' : ''} -X ${method}`);
+  const addOption = (option: string, value: string) => parts.push(`${option} ${value}`);
 
   const plannedMultipart = req.formBodyPlan?.kind === 'multipart' ? req.formBodyPlan : undefined;
   const encodedMultipart = plannedMultipart?.specFamily === '3.2';
@@ -713,16 +713,16 @@ export function buildCurl(req: BuiltRequest): string {
   // headers（3.1 multipart 不带 Content-Type，让 curl 自动生成 boundary）
   for (const [key, value] of Object.entries(req.headers)) {
     if (isMultipart && key.toLowerCase() === 'content-type') continue;
-    parts.push('-H', shellQuote(req.curlPreserveUrl && value === '' ? `${key};` : `${key}: ${value}`));
+    addOption('-H', shellQuote(req.curlPreserveUrl && value === '' ? `${key};` : `${key}: ${value}`));
   }
 
   if (encodedMultipart) {
     const headerType = Object.entries(req.headers).find(([key]) => key.toLowerCase() === 'content-type')?.[1];
     const contentType = headerType ?? plannedMultipart.authoredContentType ?? plannedMultipart.mediaType;
     if (findHeaderKey(req.headers, 'Content-Type') === undefined && contentType) {
-      parts.push('-H', shellQuote(`Content-Type: ${contentType}`));
+      addOption('-H', shellQuote(`Content-Type: ${contentType}`));
     }
-    parts.push('--data-binary', shellQuote(`@${OAS32_MULTIPART_CURL_BODY_FILE}`));
+    addOption('--data-binary', shellQuote(`@${OAS32_MULTIPART_CURL_BODY_FILE}`));
   } else if (plannedMultipart) {
     const contentType = multipartMediaTypeWithoutBoundary(plannedMultipart.mediaType);
     if (
@@ -732,7 +732,7 @@ export function buildCurl(req: BuiltRequest): string {
     ) {
       // Native curl can generate only the bare multipart/form-data header;
       // preserve every other declared parameter while curl appends boundary.
-      parts.push('-H', shellQuote(`Content-Type: ${contentType}`));
+      addOption('-H', shellQuote(`Content-Type: ${contentType}`));
     }
   }
 
@@ -754,7 +754,7 @@ export function buildCurl(req: BuiltRequest): string {
       for (const [name, value] of Object.entries(part.headers)) {
         attributes.push(`headers=${curlFormQuoted(`${name}: ${value}`)}`);
       }
-      parts.push('-F', shellQuote(attributes.join(';')));
+      addOption('-F', shellQuote(attributes.join(';')));
     }
   } else if (isMultipart) {
     // multipart：尝试从 body（若为 JSON 字段映射）拆出字段，否则给占位注释
@@ -775,9 +775,9 @@ export function buildCurl(req: BuiltRequest): string {
         if (value === undefined) continue;
         if (jsonFieldSet.has(name)) {
           // JSON-encoded part: append ;type=application/json
-          parts.push('-F', shellQuote(`${name}=${String(value)};type=application/json`));
+          addOption('-F', shellQuote(`${name}=${String(value)};type=application/json`));
         } else {
-          parts.push('-F', shellQuote(`${name}=${String(value)}`));
+          addOption('-F', shellQuote(`${name}=${String(value)}`));
         }
       }
     }
@@ -785,10 +785,10 @@ export function buildCurl(req: BuiltRequest): string {
     // 若没有注入则仅提示用户手动追加 -F field=@/path/to/file）
     parts.push('# TODO append file fields via: -F field=@/path/to/file');
   } else if (req.binaryBodyFileName) {
-    parts.push('--data-binary', shellQuote(`@/path/to/${req.binaryBodyFileName}`));
+    addOption('--data-binary', shellQuote(`@/path/to/${req.binaryBodyFileName}`));
   } else if (req.body !== undefined && (req.body !== '' || req.explicitExampleBody)) {
     // 对 body 中的特殊字符做 shell 转义（单引号包裹，内部单引号转义）
-    parts.push('-d', shellQuote(req.body));
+    addOption('-d', shellQuote(req.body));
   }
 
   // URL（用单引号包裹防止 shell 解析）
