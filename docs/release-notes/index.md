@@ -12,7 +12,20 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.3 <Badge type="tip" text="最新" />
+### 5.7.4 <Badge type="tip" text="最新" />
+
+`5.7.4` 是基于 `5.7.3` 的向后兼容补丁版本，修复 React UI 的 OAS 3.2 标签 Tooltip 重复名称，改进 OAS 3.2 文档 Schema 元校验错误定位，并改进普通 JSON 示例默认展示与调试 JSON 响应折叠。同步发布 Knife4x Go `v0.8.3`。
+
+**React UI（OAS3）**
+
+- OAS 3.2 标签 Tooltip：菜单显示标题与原始 `name` 相同时不再重复展示名称；无描述及其他元数据时不创建 Tooltip（PR [#826](https://github.com/songxychn/knife4j-next/pull/826)，issue [#823](https://github.com/songxychn/knife4j-next/issues/823)）。
+- OAS 3.2 文档 Schema 元校验失败时给出原始文档 URI、JSON Pointer 与 Schema 关键字定位，并修复方向过滤后诊断索引误定位（PR [#828](https://github.com/songxychn/knife4j-next/pull/828)，issue [#824](https://github.com/songxychn/knife4j-next/issues/824)）。
+- 普通 JSON 单示例默认展示逻辑数据，通过「查看发送原文（同一示例）」查看发送文本，并保留标题旁说明（PR [#827](https://github.com/songxychn/knife4j-next/pull/827)，issue [#825](https://github.com/songxychn/knife4j-next/issues/825)）。
+- 调试普通 JSON 响应增加节点折叠、默认展开第一层、字段说明列与悬浮高亮；等价 cURL 默认折叠并优化排版（PR [#830](https://github.com/songxychn/knife4j-next/pull/830)，issue [#829](https://github.com/songxychn/knife4j-next/issues/829)）。
+
+OpenAPI 3.1 / 3.2 消费契约与 Java 依赖基线不变。Knife4x Go 同步发布 `v0.8.3`，纳入同一套共享 React UI 变更。
+
+### 5.7.3
 
 `5.7.3` 是基于 `5.7.2` 的向后兼容补丁版本，修复 React UI 的 OAS 3.2 标签菜单重复名称、首页服务地址明细默认展开导致的布局拥挤，以及窄窗口首页统计卡片与外壳横向溢出。同步发布 Knife4x Go `v0.8.2`。
 
@@ -641,7 +654,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.3</version>
+    <version>5.7.4</version>
 </dependency>
 ```
 

@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.7.3 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.7.4 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.7.3 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.7.4 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -46,7 +46,7 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.8.2
+::: tip Knife4x Go v0.8.3
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -68,7 +68,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.3</version>
+    <version>5.7.4</version>
 </dependency>
 ```
 
@@ -78,7 +78,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.3</version>
+    <version>5.7.4</version>
 </dependency>
 ```
 
@@ -97,13 +97,14 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.7.3 版本亮点 <Badge type="tip" text="最新" />
+## 5.7.4 版本亮点 <Badge type="tip" text="最新" />
 
-`5.7.3` 修复 OAS 3.2 标签菜单重复名称、首页服务地址明细默认展开导致的布局拥挤，以及窄窗口首页统计卡片与外壳横向溢出。OpenAPI 3.1 / 3.2 消费仍从 `5.7.0` 起提供。同步发布 Knife4x Go `v0.8.2`。
+`5.7.4` 修复 OAS 3.2 标签 Tooltip 重复名称、改进文档 Schema 元校验错误定位，并改进普通 JSON 示例默认展示与调试 JSON 响应折叠。OpenAPI 3.1 / 3.2 消费仍从 `5.7.0` 起提供。同步发布 Knife4x Go `v0.8.3`。
 
-- OAS 3.2 标签菜单优先显示 `summary`，缺省时显示 `name`，仅在展示标题冲突时补充原始名称
-- 首页服务地址明细默认折叠，缓解双 Server / 长 URL 撑高布局
-- 窄窗口下统计卡片按内容区宽度换列，并约束外壳，避免横向溢出
+- OAS 3.2 标签 Tooltip 在显示标题与原始 `name` 相同时不再重复名称，无额外信息时不创建提示
+- OAS 3.2 文档 Schema 元校验失败给出 URI / JSON Pointer / 关键字定位，并修正方向过滤后的诊断索引
+- 普通 JSON 单示例默认展示逻辑数据，保留查看发送原文入口及说明
+- 调试 JSON 响应增加节点折叠、默认展开第一层、字段说明列与悬浮高亮，并优化等价 cURL 折叠排版
 
 完整更新列表见 [发布说明](/release-notes/)。
 
