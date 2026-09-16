@@ -108,7 +108,7 @@ describe('OAS 3.2 operation consumers', () => {
           formValues: { pathParams: {}, queryParams: {}, headerParams: {}, cookieParams: {} },
         });
         expect(built.method).toBe(method);
-        expect(buildCurl(built)).toContain(`  ${method} `);
+        expect(buildCurl(built)).toContain(`-X ${method} `);
       }
       expect(visibleOperationModeKeys('callback', true, true)).toEqual(['doc', 'openapi']);
       expect(visibleOperationModeKeys('component', true, true)).toEqual(['doc', 'openapi']);

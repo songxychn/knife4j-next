@@ -54,6 +54,7 @@ vi.mock('./CodeBlock', () => ({ default: 'CodeBlock' }));
 vi.mock('../../utils/clipboard', () => ({ copyToClipboard: vi.fn() }));
 
 import ResponsePanel, { ResponseSchemaDiagnosticAlert } from './ResponsePanel';
+import ResponseJsonViewer from './ResponseJsonViewer';
 import type { DebugResponsePayload } from './ResponsePanel';
 import { copyToClipboard } from '../../utils/clipboard';
 import { readDebugSessionState, removeDebugSessionState, writeDebugSessionState } from './debugSessionState';
@@ -140,6 +141,43 @@ describe('ResponseSchemaDiagnosticAlert', () => {
 });
 
 describe('ResponsePanel diagnostic integration', () => {
+  test.each([true, false])(
+    'JSON uses the foldable viewer with descriptions=%s and retains raw copy',
+    (showDescription) => {
+      const response: DebugResponsePayload = {
+        status: 200,
+        statusText: 'OK',
+        method: 'GET',
+        duration: 1,
+        contentType: 'application/json',
+        size: 20,
+        headers: {},
+        rawText: '{"items":[{"id":1}]}',
+        kind: 'json',
+      };
+      const tree = ResponsePanel({ response, error: null, builtRequest: null });
+      const tabs = findElement(tree, (element) => element.type === 'Tabs');
+      const items = tabs?.props.items as Array<{ key: string; children: TestElement }>;
+      const content = items.find((item) => item.key === 'content')!.children;
+      const descMap = new Map([['items', '资源列表']]);
+      const rendered = (content.type as (props: Record<string, unknown>) => unknown)({
+        ...content.props,
+        descMap,
+        showDescription,
+        hasDescriptions: true,
+      });
+      const viewer = findElement(rendered, (element) => element.type === ResponseJsonViewer);
+      expect(viewer?.props).toMatchObject({ response, descMap, showDescription });
+      expect(items.find((item) => item.key === 'raw')?.children.props.children).toBe(response.rawText);
+      const copy = findElement(
+        tree,
+        (element) => element.type === 'Button' && element.props.children === 'apiDebug.response.copyRaw',
+      );
+      (copy!.props.onClick as () => void)();
+      expect(copyToClipboard).toHaveBeenLastCalledWith(response.rawText, expect.any(Function), expect.any(Function));
+    },
+  );
+
   test.each([
     ['browser-session', '# apiDebug.cookie.sessionCurl\ncurl fixture'],
     ['explicit', 'curl fixture'],
