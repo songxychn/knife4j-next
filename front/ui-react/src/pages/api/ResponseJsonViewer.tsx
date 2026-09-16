@@ -38,6 +38,7 @@ class DescriptionWidget extends WidgetType {
     const span = document.createElement('span');
     span.className = 'response-json-description';
     span.textContent = this.description;
+    span.title = this.description;
     return span;
   }
 }
@@ -83,7 +84,16 @@ function descriptionExtension(text: string, descMap: Map<string, string>) {
 }
 
 const theme = EditorView.theme({
-  '&': { fontSize: '13px', background: '#f6f8fa', color: '#24292e', borderRadius: '4px' },
+  '&': {
+    fontSize: '13px',
+    background: '#f6f8fa',
+    color: '#24292e',
+    borderRadius: '4px',
+    '--response-description-width': '200px',
+  },
+  '@media (max-width: 600px)': {
+    '&': { '--response-description-width': '140px' },
+  },
   '.cm-scroller': {
     maxHeight: '400px',
     overflow: 'auto',
@@ -91,17 +101,23 @@ const theme = EditorView.theme({
   },
   '.cm-content': { padding: '12px 0' },
   '.cm-line': { paddingRight: '16px' },
+  '&.response-json-annotated .cm-line': {
+    position: 'relative',
+    paddingRight: 'calc(var(--response-description-width) + 32px)',
+  },
   '.cm-gutters': { background: '#f6f8fa', border: 'none', color: '#667085' },
   '.cm-foldGutter .cm-gutterElement': { padding: '0 6px', cursor: 'pointer' },
   '.response-json-description': {
-    display: 'inline-block',
-    verticalAlign: 'top',
-    marginLeft: '24px',
+    position: 'absolute',
+    top: '0',
+    right: '16px',
+    width: 'var(--response-description-width)',
+    boxSizing: 'border-box',
     paddingLeft: '12px',
     borderLeft: '1px solid #d9d9d9',
-    maxWidth: '320px',
-    whiteSpace: 'pre-wrap',
-    overflowWrap: 'anywhere',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     fontFamily: 'system-ui, sans-serif',
     fontSize: '12px',
     color: '#8c8c8c',
@@ -124,7 +140,13 @@ export default function ResponseJsonViewer({
   const descriptions = useMemo(() => new Compartment(), []);
   const model = useMemo(() => prepareResponseJson(response.rawText), [response.rawText]);
   const annotations = useMemo(
-    () => (model.valid && showDescription ? descriptionExtension(model.text, descMap) : []),
+    () =>
+      model.valid && showDescription
+        ? [
+            EditorView.editorAttributes.of({ class: 'response-json-annotated' }),
+            descriptionExtension(model.text, descMap),
+          ]
+        : [],
     [model, descMap, showDescription],
   );
 
