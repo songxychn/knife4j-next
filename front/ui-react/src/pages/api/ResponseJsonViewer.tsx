@@ -26,12 +26,15 @@ import { firstLevelFoldEffects, prepareResponseJson } from './responseJsonFoldin
 import CodeBlock from './CodeBlock';
 
 class DescriptionWidget extends WidgetType {
-  constructor(readonly description: string) {
+  constructor(
+    readonly description: string,
+    readonly indentation: number,
+  ) {
     super();
   }
 
   eq(other: DescriptionWidget) {
-    return other.description === this.description;
+    return other.description === this.description && other.indentation === this.indentation;
   }
 
   toDOM() {
@@ -39,6 +42,7 @@ class DescriptionWidget extends WidgetType {
     span.className = 'response-json-description';
     span.textContent = this.description;
     span.title = this.description;
+    span.dataset.indentation = String(this.indentation);
     return span;
   }
 }
@@ -47,7 +51,9 @@ function descriptionExtension(text: string, descMap: Map<string, string>) {
   let position = 0;
   const annotations = annotateJsonWithDescriptions(text, descMap).flatMap((line) => {
     position += line.code.length;
-    const result = line.description ? [{ position, description: line.description }] : [];
+    const result = line.description
+      ? [{ position, description: line.description, indentation: line.code.length - line.code.trimStart().length }]
+      : [];
     position++;
     return result;
   });
@@ -57,12 +63,12 @@ function descriptionExtension(text: string, descMap: Map<string, string>) {
       folds.set(from, to);
     });
     return Decoration.set(
-      annotations.map(({ position, description }) => {
+      annotations.map(({ position, description, indentation }) => {
         const foldedEnd = folds.get(position);
         // A folded container's description belongs after its closing bracket,
         // while an expanded container keeps the annotation on its opening line.
         const anchor = foldedEnd === undefined ? position : view.state.doc.lineAt(foldedEnd).to;
-        return Decoration.widget({ widget: new DescriptionWidget(description), side: 1 }).range(anchor);
+        return Decoration.widget({ widget: new DescriptionWidget(description, indentation), side: 1 }).range(anchor);
       }),
       true,
     );
@@ -72,11 +78,45 @@ function descriptionExtension(text: string, descMap: Map<string, string>) {
       decorations: DecorationSet;
       constructor(view: EditorView) {
         this.decorations = decorate(view);
+        this.align(view);
       }
       update(update: ViewUpdate) {
         if (foldedRanges(update.state) !== foldedRanges(update.startState)) {
           this.decorations = decorate(update.view);
         }
+        if (
+          update.geometryChanged ||
+          update.viewportChanged ||
+          foldedRanges(update.state) !== foldedRanges(update.startState)
+        ) {
+          this.align(update.view);
+        }
+      }
+      align(view: EditorView) {
+        // Use actual rendered code width, including CJK text and folded nodes.
+        // Short lines share a nearby tab stop that follows their indentation;
+        // long lines retain a minimum gap instead of overlapping the annotation.
+        view.requestMeasure({
+          key: this,
+          read: () =>
+            Array.from(view.dom.querySelectorAll<HTMLElement>('.response-json-description')).map((note) => {
+              const line = note.closest<HTMLElement>('.cm-line')!;
+              const range = document.createRange();
+              range.setStart(line, 0);
+              range.setEndBefore(note);
+              const codeEnd = range.getBoundingClientRect().right;
+              const codeStart = line.getBoundingClientRect().left + parseFloat(getComputedStyle(line).paddingLeft);
+              const column = codeStart + (28 + Number(note.dataset.indentation)) * view.defaultCharacterWidth;
+              return { note, margin: Math.max(12, column - codeEnd) };
+            }),
+          write: (measurements) => {
+            for (const { note, margin } of measurements) {
+              if (Math.abs((parseFloat(note.style.marginLeft) || 0) - margin) > 0.5) {
+                note.style.marginLeft = `${margin}px`;
+              }
+            }
+          },
+        });
       }
     },
     { decorations: (plugin) => plugin.decorations },
@@ -101,16 +141,12 @@ const theme = EditorView.theme({
   },
   '.cm-content': { padding: '12px 0' },
   '.cm-line': { paddingRight: '16px' },
-  '&.response-json-annotated .cm-line': {
-    position: 'relative',
-    paddingRight: 'calc(var(--response-description-width) + 32px)',
-  },
   '.cm-gutters': { background: '#f6f8fa', border: 'none', color: '#667085' },
   '.cm-foldGutter .cm-gutterElement': { padding: '0 6px', cursor: 'pointer' },
   '.response-json-description': {
-    position: 'absolute',
-    top: '0',
-    right: '16px',
+    display: 'inline-block',
+    verticalAlign: 'top',
+    marginLeft: '12px',
     width: 'var(--response-description-width)',
     boxSizing: 'border-box',
     paddingLeft: '12px',
@@ -140,13 +176,7 @@ export default function ResponseJsonViewer({
   const descriptions = useMemo(() => new Compartment(), []);
   const model = useMemo(() => prepareResponseJson(response.rawText), [response.rawText]);
   const annotations = useMemo(
-    () =>
-      model.valid && showDescription
-        ? [
-            EditorView.editorAttributes.of({ class: 'response-json-annotated' }),
-            descriptionExtension(model.text, descMap),
-          ]
-        : [],
+    () => (model.valid && showDescription ? descriptionExtension(model.text, descMap) : []),
     [model, descMap, showDescription],
   );
 
