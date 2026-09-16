@@ -3,12 +3,12 @@ import { Alert, Button, Checkbox, Space, Table, Tabs, Tag, Tooltip, Typography, 
 import { CopyOutlined, DownloadOutlined, StopOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { copyToClipboard } from '../../utils/clipboard';
-import { buildSchemaDescriptionMap, annotateJsonWithDescriptions } from '../../utils/schemaDescription';
+import { buildSchemaDescriptionMap } from '../../utils/schemaDescription';
 import type { BuiltRequest } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import type { CookieParameterSource } from './cookieParameterSource';
 import { buildPreviewCurl } from './requestPreviewBuild';
-import CodeBlock from './CodeBlock';
+import ResponseJsonViewer from './ResponseJsonViewer';
 import { formatSseEventTime } from './sseEventTime';
 import { formatByteSize } from './responseBodyProgress';
 import {
@@ -128,15 +128,6 @@ const METHOD_COLORS: Record<string, string> = {
   OPTIONS: 'default',
 };
 
-/** Try to pretty-print JSON; fall back to raw text on parse failure. */
-function prettyJson(raw: string): string {
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
 /** Extract the schema of the first 2xx response from the operation. */
 function firstSuccessResponseSchema(
   operation?: MenuOperation,
@@ -175,51 +166,6 @@ const preStyle: React.CSSProperties = {
   margin: 0,
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-all',
-};
-
-const annotatedJsonPreStyle: React.CSSProperties = {
-  ...preStyle,
-  whiteSpace: 'pre',
-  wordBreak: 'normal',
-  lineHeight: 1.55,
-};
-
-const jsonLineStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(180px, 320px)',
-  columnGap: 16,
-  alignItems: 'stretch',
-  width: '100%',
-  minWidth: 0,
-};
-
-/** Monospace, normal color — matches the surrounding <pre>. */
-const jsonCodeStyle: React.CSSProperties = {
-  fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
-  color: '#24292e',
-  whiteSpace: 'pre-wrap',
-  overflowWrap: 'anywhere',
-  wordBreak: 'break-word',
-  minWidth: 0,
-};
-
-/**
- * Schema description annotation — rendered in a fixed column to the right of
- * a separator, similar to the Vue/Ace print-margin placement.
- */
-const jsonDescStyle: React.CSSProperties = {
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Helvetica, Arial, sans-serif",
-  fontSize: 12,
-  color: '#8c8c8c',
-  userSelect: 'none',
-  borderLeft: '1px solid #d9d9d9',
-  paddingLeft: 12,
-  minHeight: '1.55em',
-  lineHeight: 1.55,
-  whiteSpace: 'pre-wrap',
-  overflowWrap: 'break-word',
-  minWidth: 0,
 };
 
 export default function ResponsePanel({
@@ -668,7 +614,7 @@ export function ResponseSchemaDiagnosticAlert({
  * Content rendering dispatch based on the pre-classified `kind`:
  *  - `image`  → inline <img> preview using the object URL
  *  - `binary` → download link (browsers cannot display it inline)
- *  - `json`   → syntax-highlighted JSON via CodeBlock with optional schema description annotations
+ *  - `json`   → foldable JSON with optional schema description annotations
  *  - `text`   → plain text / html source in <pre>
  */
 function ContentTab({
@@ -717,36 +663,6 @@ function ContentTab({
   }
 
   if (response.kind === 'json') {
-    const pretty = prettyJson(response.rawText);
-    const lines = showDescription ? annotateJsonWithDescriptions(pretty, descMap) : null;
-
-    // When description annotations are active, fall back to the annotated <pre> renderer
-    // so inline comments can be styled differently from the JSON code.
-    if (lines) {
-      return (
-        <div>
-          {hasDescriptions && (
-            <div style={{ marginBottom: 6 }}>
-              <Checkbox checked={showDescription} onChange={onToggleDescription}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {t('apiDebug.response.showDescription')}
-                </Text>
-              </Checkbox>
-            </div>
-          )}
-          <pre style={annotatedJsonPreStyle}>
-            {lines.map((line, i) => (
-              <span key={i} style={jsonLineStyle}>
-                <span style={jsonCodeStyle}>{line.code}</span>
-                <span style={jsonDescStyle}>{line.description ?? ''}</span>
-                {i < lines.length - 1 ? '\n' : ''}
-              </span>
-            ))}
-          </pre>
-        </div>
-      );
-    }
-
     return (
       <div>
         {hasDescriptions && (
@@ -758,7 +674,7 @@ function ContentTab({
             </Checkbox>
           </div>
         )}
-        <CodeBlock code={pretty} />
+        <ResponseJsonViewer response={response} descMap={descMap} showDescription={showDescription} />
       </div>
     );
   }
