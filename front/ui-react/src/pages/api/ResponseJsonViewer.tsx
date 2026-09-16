@@ -141,6 +141,14 @@ const theme = EditorView.theme({
   },
   '.cm-content': { padding: '12px 0' },
   '.cm-line': { paddingRight: '16px' },
+  '@media (hover: hover)': {
+    '.cm-line:hover': { backgroundColor: '#e6f4ff' },
+    '.cm-line:hover .response-json-description': {
+      color: '#0958d9',
+      borderLeftColor: '#69b1ff',
+      fontWeight: '600',
+    },
+  },
   '.cm-gutters': { background: '#f6f8fa', border: 'none', color: '#667085' },
   '.cm-foldGutter .cm-gutterElement': { padding: '0 6px', cursor: 'pointer' },
   '.response-json-description': {
