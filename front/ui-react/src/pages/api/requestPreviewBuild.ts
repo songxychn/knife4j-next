@@ -1,4 +1,5 @@
 import { buildCurl, OAS32_MULTIPART_CURL_BODY_FILE, type BuiltRequest, type DebugFormValues } from 'knife4j-core';
+import { prepareJsonDocument } from '../../utils/jsonFolding';
 import type { MaterializedMultipartBody } from './formBodyRequest';
 import type { CookieParameterSource } from './cookieParameterSource';
 
@@ -15,11 +16,7 @@ export type RequestPreviewBuildResult = { ok: true; value: RequestPreviewBuild }
 
 export function formatRequestPreviewBody(raw: string, contentType: string, preserveText = false): string {
   if (preserveText || !contentType.includes('json')) return raw;
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
+  return prepareJsonDocument(raw).text;
 }
 
 export function buildPreviewCurl(built: BuiltRequest, source: CookieParameterSource, sessionNote: string): string {

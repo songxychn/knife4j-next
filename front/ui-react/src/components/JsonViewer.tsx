@@ -11,7 +11,6 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { json } from '@codemirror/lang-json';
 import {
   defaultHighlightStyle,
   foldGutter,
@@ -22,7 +21,7 @@ import {
   unfoldAll,
 } from '@codemirror/language';
 import { annotateJsonWithDescriptions } from '../utils/schemaDescription';
-import { firstLevelFoldEffects, type JsonDocument } from '../utils/jsonFolding';
+import { firstLevelFoldEffects, foldableJsonLanguage, type JsonDocument } from '../utils/jsonFolding';
 
 class DescriptionWidget extends WidgetType {
   constructor(
@@ -206,7 +205,7 @@ export default function JsonViewer({
         EditorState.lineSeparator.of('\n'),
         EditorView.editable.of(false),
         EditorView.contentAttributes.of({ tabindex: '0', 'aria-label': ariaLabel ?? t('json.viewer') }),
-        json(),
+        foldableJsonLanguage,
         syntaxHighlighting(defaultHighlightStyle),
         foldService.of((_state, from) => foldByLine.get(from) ?? null),
         foldGutter(),

@@ -1,6 +1,18 @@
 import { jsonLanguage } from '@codemirror/lang-json';
 import { EditorState } from '@codemirror/state';
-import { foldEffect, foldedRanges, unfoldEffect } from '@codemirror/language';
+import { foldEffect, foldedRanges, unfoldEffect, foldInside, foldNodeProp } from '@codemirror/language';
+
+/** JSON's default foldInside also folds whitespace-only empty containers. */
+export const foldableJsonLanguage = jsonLanguage.configure({
+  props: [
+    foldNodeProp.add({
+      'Object Array': (node) => {
+        const content = node.firstChild?.nextSibling;
+        return content && content.name !== '}' && content.name !== ']' ? foldInside(node) : null;
+      },
+    }),
+  ],
+});
 
 export interface JsonFoldRange {
   readonly from: number;

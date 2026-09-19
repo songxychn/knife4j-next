@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { EditorState } from '@codemirror/state';
-import { codeFolding, foldedRanges } from '@codemirror/language';
-import { prepareJsonDocument, firstLevelFoldEffects } from './jsonFolding';
+import { codeFolding, foldedRanges, foldable, foldService } from '@codemirror/language';
+import { prepareJsonDocument, firstLevelFoldEffects, foldableJsonLanguage } from './jsonFolding';
 
 describe('shared JSON display folding', () => {
   test('formats compact JSON without rounding numbers, removing duplicate keys or changing escapes', () => {
@@ -55,6 +55,26 @@ describe('shared JSON display folding', () => {
       expect(state.doc.sliceString(from - 1, from)).toBe('[');
       expect(state.doc.sliceString(to, to + 1)).toBe(']');
     });
+  });
+
+  test.each(['{\n}', '[\n]', '{\r\n\t}'])('language fallback offers no fold for empty wire JSON: %s', (raw) => {
+    const model = prepareJsonDocument(raw, true);
+    const state = EditorState.create({
+      doc: model.text,
+      extensions: [
+        EditorState.lineSeparator.of('\n'),
+        foldableJsonLanguage,
+        foldService.of((_state, from) => model.folds.find((range) => range.lineStart === from) ?? null),
+      ],
+    });
+    expect(foldable(state, 0, state.doc.line(1).to)).toBeNull();
+  });
+
+  test('editable JSON language still folds non-empty containers', () => {
+    const state = EditorState.create({ doc: '{\n  "items": [\n    1\n  ]\n}', extensions: [foldableJsonLanguage] });
+    expect(foldable(state, 0, state.doc.line(1).to)).not.toBeNull();
+    const line = state.doc.line(2);
+    expect(foldable(state, line.from, line.to)).not.toBeNull();
   });
 
   test('keeps a compact wire representation untouched', () => {

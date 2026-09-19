@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, placeholder } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { json } from '@codemirror/lang-json';
+import { foldableJsonLanguage } from '../utils/jsonFolding';
 import { xml } from '@codemirror/lang-xml';
 import {
   bracketMatching,
@@ -69,7 +69,7 @@ export default function CodeEditor({
 
   const buildExtensions = useCallback(
     (onChange: (v: string) => void) => {
-      const langExt = language === 'json' ? json() : language === 'xml' ? xml() : [];
+      const langExt = language === 'json' ? foldableJsonLanguage : language === 'xml' ? xml() : [];
       return [
         lineNumbers(),
         drawSelection(),
