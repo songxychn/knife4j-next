@@ -237,18 +237,18 @@ export default function OperationExamplePicker({
         (collapseSerialized ? (
           <details key={target.id}>
             <summary style={{ cursor: 'pointer' }}>{renderLabel('serialized', 'showSerialized')}</summary>
-            <CodeBlock code={representation.text} />
+            <CodeBlock code={representation.text} preserveText />
           </details>
         ) : (
           <>
             {renderLabel('serialized')}
-            <CodeBlock code={representation.text} />
+            <CodeBlock code={representation.text} preserveText />
           </>
         ))}
       {representation?.serialized !== undefined && representation.text === undefined && (
         <>
           {renderLabel('serialized')}
-          <CodeBlock code={representation.serialized} />
+          <CodeBlock code={representation.serialized} preserveText />
         </>
       )}
       <Typography.Text type="secondary" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
