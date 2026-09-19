@@ -8,7 +8,8 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
-| `5.7.4` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，React UI 示例、诊断与调试响应补丁 |
+| `5.7.5` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | 当前版本，React UI JSON 示例与预览折叠补丁 |
+| `5.7.4` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | React UI 示例、诊断与调试响应补丁 |
 | `5.7.3` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | React UI 标签菜单与首页布局补丁 |
 | `5.7.2` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | Vue3 网关头与 Tag 搜索补丁 |
 | `5.7.1` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | OAS 3.1 SchemaEngine 元校验失败重试补丁 |
@@ -48,11 +49,11 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.7.4` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.7.4`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.7.4`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.7.4` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.7.4`。
+> `5.7.5` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.7.5`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.7.5`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.7.5` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.7.5`。
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.7.4` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.7.5` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -103,7 +104,8 @@ title: 版本对照
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.7.4` | 当前版本：包含已合并兼容/安全修复、Boot 3.4/3.5/4.0 兼容、OAS 3.1 支持、OpenAPI 3.2.x 文档消费、SchemaEngine 元校验失败重试、Vue3 网关头与 Tag 搜索、React UI 标签菜单与首页布局，以及示例展示、Schema 诊断与调试 JSON 响应补丁 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.7.5` | 当前版本：包含已合并兼容/安全修复、Boot 3.4/3.5/4.0 兼容、OAS 3.1 支持、OpenAPI 3.2.x 文档消费、SchemaEngine 元校验失败重试、Vue3 网关头与 Tag 搜索、React UI 标签菜单与首页布局、示例展示、Schema 诊断与调试 JSON 响应，以及 JSON 示例与预览层级折叠补丁 |
+| `4.5.0` | `5.7.4` | React UI 示例展示、Schema 诊断与调试 JSON 响应补丁 |
 | `4.5.0` | `5.7.3` | React UI 标签菜单与首页布局补丁 |
 | `4.5.0` | `5.7.2` | Vue3 网关头与 Tag 搜索补丁 |
 | `4.5.0` | `5.7.1` | OAS 3.1 SchemaEngine 元校验失败重试补丁 |

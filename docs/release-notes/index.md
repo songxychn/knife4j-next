@@ -12,7 +12,18 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.4 <Badge type="tip" text="最新" />
+### 5.7.5 <Badge type="tip" text="最新" />
+
+`5.7.5` 是基于 `5.7.4` 的向后兼容补丁版本，统一 React UI 的 JSON 示例与预览层级折叠体验，并修正请求预览词法保真与空容器折叠。同步发布 Knife4x Go `v0.8.4`。
+
+**React UI（OAS3）**
+
+- 请求/响应 JSON 示例、调试逻辑数据与 OpenAPI 原文统一为层级折叠：根层展开、非空子容器默认折叠，支持逐节点展开、全部展开和收起到第一层；JSON 请求预览接入同一查看器，JSON Body 编辑器补齐逐节点折叠（PR [#833](https://github.com/songxychn/knife4j-next/pull/833)，issue [#832](https://github.com/songxychn/knife4j-next/issues/832)）。
+- 普通 JSON 展示通过词法 token 排版，保留大整数、重复键和转义；发送原文及显式请求预览保留原始空白；空对象/数组不提供折叠操作（同上）。
+
+OpenAPI 3.1 / 3.2 消费契约与 Java 依赖基线不变。Knife4x Go 同步发布 `v0.8.4`，纳入同一套共享 React UI 变更。
+
+### 5.7.4
 
 `5.7.4` 是基于 `5.7.3` 的向后兼容补丁版本，修复 React UI 的 OAS 3.2 标签 Tooltip 重复名称，改进 OAS 3.2 文档 Schema 元校验错误定位，并改进普通 JSON 示例默认展示与调试 JSON 响应折叠。同步发布 Knife4x Go `v0.8.3`。
 
@@ -654,7 +665,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.4</version>
+    <version>5.7.5</version>
 </dependency>
 ```
 
