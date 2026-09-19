@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, placeholder } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { json } from '@codemirror/lang-json';
+import { foldableJsonLanguage } from '../utils/jsonFolding';
 import { xml } from '@codemirror/lang-xml';
-import { bracketMatching, syntaxHighlighting, defaultHighlightStyle, indentOnInput } from '@codemirror/language';
+import {
+  bracketMatching,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  indentOnInput,
+  foldGutter,
+  foldKeymap,
+} from '@codemirror/language';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 
 export type CodeEditorLanguage = 'json' | 'xml' | 'text';
@@ -62,7 +69,7 @@ export default function CodeEditor({
 
   const buildExtensions = useCallback(
     (onChange: (v: string) => void) => {
-      const langExt = language === 'json' ? json() : language === 'xml' ? xml() : [];
+      const langExt = language === 'json' ? foldableJsonLanguage : language === 'xml' ? xml() : [];
       return [
         lineNumbers(),
         drawSelection(),
@@ -73,6 +80,7 @@ export default function CodeEditor({
         bracketMatching(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         langExt,
+        ...(language === 'json' ? [foldGutter(), keymap.of(foldKeymap)] : []),
         baseTheme,
         ...(placeholderText ? [placeholder(placeholderText)] : []),
         EditorView.updateListener.of((update) => {

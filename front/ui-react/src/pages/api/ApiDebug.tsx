@@ -97,6 +97,7 @@ import {
   oas32FormFieldsFromInstance,
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
+import CodeBlock from './CodeBlock';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import DescriptionText from '../../components/DescriptionText';
 import RevealableValue from '../../components/RevealableValue';
@@ -1948,11 +1949,15 @@ function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: Previe
               : t('apiDebug.preview.body')}
         </Text>
         {hasBody ? (
-          <pre style={previewBoxStyle}>
-            {encodedMultipart
-              ? (wireText ?? '')
-              : formatRequestPreviewBody(previewBody ?? '', built.contentType, built.explicitExampleBody)}
-          </pre>
+          encodedMultipart || !built.contentType.includes('json') ? (
+            <pre style={previewBoxStyle}>{encodedMultipart ? (wireText ?? '') : (previewBody ?? '')}</pre>
+          ) : (
+            <CodeBlock
+              code={formatRequestPreviewBody(previewBody ?? '', built.contentType, built.explicitExampleBody)}
+              preserveText
+              maxHeight={320}
+            />
+          )
         ) : (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
             {t('apiDebug.preview.noBody')}

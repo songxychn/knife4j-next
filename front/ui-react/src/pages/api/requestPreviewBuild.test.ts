@@ -7,6 +7,15 @@ describe('buildRequestPreviewSafely', () => {
       expect(formatRequestPreviewBody(text, 'application/json', true)).toBe(text);
     expect(formatRequestPreviewBody('{ "n": 0 }\n', 'application/json')).toBe('{\n  "n": 0\n}');
   });
+  it('formats handwritten JSON previews without changing numbers, repeated keys or escapes', () => {
+    const raw = String.raw`{"n":9007199254740993,"dup":1,"dup":2,"escaped":"\u0061","overflow":1e400}`;
+    expect(formatRequestPreviewBody(raw, 'application/json')).toBe(
+      '{\n  "n": 9007199254740993,\n  "dup": 1,\n  "dup": 2,\n  "escaped": "\\u0061",\n  "overflow": 1e400\n}',
+    );
+    expect(formatRequestPreviewBody(raw, 'application/json', true)).toBe(raw);
+    expect(formatRequestPreviewBody('{"invalid":', 'application/json')).toBe('{"invalid":');
+    expect(formatRequestPreviewBody(raw, 'text/plain')).toBe(raw);
+  });
   it('returns an error instead of throwing for unsupported parameter serialization', () => {
     const result = buildRequestPreviewSafely(() => {
       throw new Error('Unsupported OAS3 query array serialization');
