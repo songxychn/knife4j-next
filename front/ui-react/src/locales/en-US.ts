@@ -688,6 +688,8 @@ const enUS = {
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': 'Beautify',
   'apiDebug.body.beautifyFailed': 'Beautify failed. Check that the body is valid {{contentType}}.',
+  'apiDebug.body.markupBeautifyUnsupported':
+    'XML/HTML formatting is currently unavailable to preserve the meaning of the request body.',
   'apiDebug.body.file': 'File',
   'apiDebug.body.selectFile': 'Select File',
   'apiDebug.body.binaryHint':

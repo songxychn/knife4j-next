@@ -208,6 +208,20 @@ interface PendingKnife4jWebStorageValue {
 const pendingWebStorageValues = new WeakMap<object, Map<string, PendingKnife4jWebStorageValue>>();
 const fallbackMutationTails = new WeakMap<object, Promise<void>>();
 
+interface QueuedStorageSnapshot {
+  storage: object;
+  key: string;
+  leaseStorage: Knife4jWebStorage;
+  lockManager: Knife4jStorageLockManager | null;
+  snapshot: Knife4jStorageItemSnapshot;
+  started: boolean;
+  superseded: boolean;
+}
+
+// Only adjacent full snapshots may replace one another. Public mutations seal
+// this slot before any await, preserving deletion and read-modify-write order.
+let queuedStorageSnapshot: QueuedStorageSnapshot | undefined;
+
 function cancelResetLeaseExpiry(storage?: Knife4jWebStorage | null, generation?: string): void {
   if (
     resetLeaseExpiryTimer === null ||
@@ -992,13 +1006,26 @@ export function getKnife4jStorageItemSnapshot(
 }
 
 /** Persist one registered value while sharing the same reset/mutation lock. */
-export async function persistKnife4jStorageItem(
+export function persistKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
   key: string,
   value: string,
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
   expectedSnapshot?: Knife4jStorageItemSnapshot,
+): Promise<boolean> {
+  queuedStorageSnapshot = undefined;
+  return persistStorageItem(storage, key, value, lockManager, leaseStorage, expectedSnapshot);
+}
+
+async function persistStorageItem(
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
+  key: string,
+  value: string,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  expectedSnapshot?: Knife4jStorageItemSnapshot,
+  startWrite?: () => boolean,
 ): Promise<boolean> {
   try {
     if (expectedSnapshot?.resetActive) return false;
@@ -1010,7 +1037,7 @@ export async function persistKnife4jStorageItem(
     );
     if (!(await waitForRequestCacheWriteTurn(leaseStorage, requestCacheCanWrite.generation))) return false;
     if (!resetCanWrite()) return false;
-    const persisted = await trackKnife4jStorageWrite(
+    const persisted = await trackStorageWrite(
       async (canWrite) => {
         const retainsWriteFence = () => canWrite() && resetCanWrite() && requestCacheCanWrite();
         if (!retainsWriteFence()) return false;
@@ -1021,6 +1048,7 @@ export async function persistKnife4jStorageItem(
       },
       lockManager,
       leaseStorage,
+      startWrite,
     );
     return persisted === true;
   } catch {
@@ -1031,6 +1059,9 @@ export async function persistKnife4jStorageItem(
 /**
  * Queue a registered Web Storage write, expose its latest value locally
  * immediately, and resolve only after durable persistence succeeds or fails.
+ * Adjacent compatible snapshots that are still queued are superseded. Their
+ * promises resolve false because those values were not persisted; the surviving
+ * snapshot reports its own persistence result.
  */
 export function setKnife4jStorageItem(
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>,
@@ -1041,6 +1072,7 @@ export function setKnife4jStorageItem(
   expectedSnapshot?: Knife4jStorageItemSnapshot,
 ): Promise<boolean> {
   if (!leaseStorage) {
+    queuedStorageSnapshot = undefined;
     try {
       storage.setItem(key, value);
       return Promise.resolve(true);
@@ -1072,8 +1104,37 @@ export function setKnife4jStorageItem(
     generation: writeSnapshot.resetGeneration,
     requestCacheGeneration: writeSnapshot.requestCacheGeneration,
   });
-  return persistKnife4jStorageItem(storage, key, value, lockManager, leaseStorage, writeSnapshot).finally(() => {
+  const previous = queuedStorageSnapshot;
+  if (
+    previous &&
+    !previous.started &&
+    previous.storage === storage &&
+    previous.key === key &&
+    previous.leaseStorage === leaseStorage &&
+    previous.lockManager === lockManager &&
+    previous.snapshot.resetGeneration === writeSnapshot.resetGeneration &&
+    previous.snapshot.requestCacheGeneration === writeSnapshot.requestCacheGeneration
+  ) {
+    previous.superseded = true;
+  }
+  const queued: QueuedStorageSnapshot = {
+    storage,
+    key,
+    leaseStorage,
+    lockManager,
+    snapshot: writeSnapshot,
+    started: false,
+    superseded: false,
+  };
+  queuedStorageSnapshot = queued;
+  const startWrite = () => {
+    if (queued.superseded) return false;
+    queued.started = true;
+    return true;
+  };
+  return persistStorageItem(storage, key, value, lockManager, leaseStorage, writeSnapshot, startWrite).finally(() => {
     if (pending.get(key)?.writeId === writeId) pending.delete(key);
+    if (queuedStorageSnapshot === queued) queuedStorageSnapshot = undefined;
   });
 }
 
@@ -1094,6 +1155,7 @@ export async function updateKnife4jStorageItem(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
 ): Promise<Knife4jStorageItemUpdateResult> {
+  queuedStorageSnapshot = undefined;
   const failed = (): Knife4jStorageItemUpdateResult => ({ persisted: false, value: null });
   try {
     if (!leaseStorage) {
@@ -1137,6 +1199,7 @@ export function setKnife4jSessionStorageItem(
   value: string,
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
 ): boolean {
+  queuedStorageSnapshot = undefined;
   const canWrite = createKnife4jStorageWriteFence(leaseStorage);
   if (!canWrite()) return false;
   storage.setItem(key, value);
@@ -1153,6 +1216,7 @@ export async function removeKnife4jStorageItem(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
   expectedResetSnapshot?: Knife4jStorageResetSnapshot,
 ): Promise<boolean> {
+  queuedStorageSnapshot = undefined;
   try {
     if (!leaseStorage) {
       storage.removeItem(key);
@@ -1204,12 +1268,25 @@ export function withKnife4jStorageWriteLock<T>(
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
   onCoordinationError?: (error: unknown) => void,
 ): Promise<T | undefined> {
+  queuedStorageSnapshot = undefined;
+  return withStorageWriteLock(write, lockManager, leaseStorage, onCoordinationError);
+}
+
+function withStorageWriteLock<T>(
+  write: (canWrite: () => boolean) => Promise<T>,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  onCoordinationError?: (error: unknown) => void,
+  startWrite: () => boolean = () => true,
+): Promise<T | undefined> {
   const canWrite = createKnife4jStorageWriteFence(leaseStorage);
-  const guardedWrite = () => (canWrite() ? write(canWrite) : undefined);
+  const guardedWrite = () => (startWrite() && canWrite() ? write(canWrite) : undefined);
   if (!lockManager) {
     if (!leaseStorage) return Promise.resolve().then(guardedWrite);
     return enqueueFallbackMutation(leaseStorage, () =>
-      runWithFallbackMutationLease(write, canWrite, leaseStorage, onCoordinationError),
+      startWrite()
+        ? runWithFallbackMutationLease(write, canWrite, leaseStorage, onCoordinationError)
+        : Promise.resolve(undefined),
     );
   }
   return lockManager.request(KNIFE4J_STORAGE_RESET_LOCK, { mode: 'exclusive' }, guardedWrite);
@@ -1264,9 +1341,19 @@ export function trackKnife4jStorageWrite<T>(
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
   leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
 ): Promise<T | undefined> {
+  queuedStorageSnapshot = undefined;
+  return trackStorageWrite(write, lockManager, leaseStorage);
+}
+
+function trackStorageWrite<T>(
+  write: (canWrite: () => boolean) => Promise<T>,
+  lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
+  leaseStorage: Knife4jWebStorage | null = browserStorage('localStorage'),
+  startWrite?: () => boolean,
+): Promise<T | undefined> {
   if (allLocalDataCleanupCount > 0) return Promise.resolve(undefined);
 
-  const pending = withKnife4jStorageWriteLock(write, lockManager, leaseStorage);
+  const pending = withStorageWriteLock(write, lockManager, leaseStorage, undefined, startWrite);
   pendingKnife4jStorageWrites.add(pending);
   void pending.then(
     () => pendingKnife4jStorageWrites.delete(pending),
@@ -1810,6 +1897,7 @@ export async function clearRegisteredKnife4jStorage(
   adapters: Knife4jStorageAdapters,
   lockManager: Knife4jStorageLockManager | null = browserStorageLockManager(),
 ): Promise<Knife4jStorageCleanupResult> {
+  queuedStorageSnapshot = undefined;
   const guardsAsyncWrites = scope === 'all-local-data';
   if (guardsAsyncWrites) {
     allLocalDataCleanupCount += 1;

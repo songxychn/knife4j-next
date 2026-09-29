@@ -1,7 +1,16 @@
+import {
+  DEBUG_HTTP_METHODS,
+  buildInitialDebugState,
+  inferRawMode,
+  restoreInitialDebugStateFromCache,
+  type InitialDebugState,
+} from './debugFormState';
+import { useDebugFormState, type DebugFormState } from './useDebugFormState';
 import { parseOas32UrlTemplate } from 'knife4j-core';
 import { oas32MetadataDiagnostics } from '../../schema/oas32MetadataDiagnostics';
 import Oas32ServerDetails from '../../components/Oas32ServerDetails';
 import { useOas32ServerSelection } from './useOas32ServerSelection';
+import { useBodyBeautify } from './useBodyBeautify';
 import { operationHttpMethod } from 'knife4j-core';
 import OperationExamplePicker from '../../components/schema/OperationExamplePicker';
 import {
@@ -14,7 +23,6 @@ import {
   evaluateOas32ParameterPlan,
   oas32ExampleParameterEntry,
   oas32ParameterContext,
-  type Oas32ParameterEntries,
   type Oas32ParameterEntry,
   type Oas32ParameterSchemaIssue,
 } from '../../schema/oas32ParameterAdapter';
@@ -86,7 +94,6 @@ import type {
   ValidationError,
 } from 'knife4j-core';
 import {
-  OPENAPI_HTTP_METHODS,
   buildOperationDebugModel,
   buildRequest as coreBuildRequest,
   replacePathParams,
@@ -124,7 +131,6 @@ import {
   writeDebugCache,
   type DebugCacheCustomParamRow,
   type DebugCacheRawMode,
-  type DebugCacheState,
 } from './debugCache';
 import {
   DEBUG_HISTORY_MASK,
@@ -167,25 +173,21 @@ import { copyToClipboard } from '../../utils/clipboard';
 import {
   EMPTY_BODY_CONTENT_DEFAULTS,
   buildBodyContentDefaults,
-  buildInitialParamValues,
   extractSchemaFields,
   extraPositionalSchemaFields,
   initialBodyValueForContent,
   initialFormFieldsForContent,
   initialFormPartHeadersForContent,
-  mergeCachedFormFields,
   mergeCachedFormPartHeaders,
   paramKey,
   stringifyDebugValue,
   type BodyContentDefaults,
-  type ParamValueMap,
   type SchemaFieldRow,
 } from './debugDefaultValues';
 import { multipartPlanNeedsEncodedEnvelope, reuseMaterializedMultipartBody } from './formBodyRequest';
 import { API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS, apiDebugParamTableScrollX } from './apiDebugParamTableLayout';
 import { resolveApiDebugParamSelection, setApiDebugParamsEnabled } from './apiDebugParamSelection';
 import {
-  buildInitialParamEnabled,
   collectOas31ParameterValues,
   filterRequiredErrorsForCookieSource,
   isBrowserSessionParameter,
@@ -428,246 +430,6 @@ const RAW_CONTENT_TYPES: Record<RawMode, string> = {
   xml: 'application/xml',
   html: 'text/html',
 };
-
-const HTML_VOID_TAGS = new Set([
-  'area',
-  'base',
-  'br',
-  'col',
-  'embed',
-  'hr',
-  'img',
-  'input',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'wbr',
-]);
-
-function formatJsonBody(value: string): string | undefined {
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2);
-  } catch {
-    return undefined;
-  }
-}
-
-function formatTaggedBody(value: string, mode: 'xml' | 'html'): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return trimmed;
-
-  // For XML, use DOMParser to validate well-formedness (existing behaviour).
-  // For HTML, also use DOMParser as a safety net: if the content parses as
-  // HTML without a <parsererror> body child, we can safely reformat it.
-  // If parsing fails, the content likely contains bare < or > in text/script/attribute
-  // contexts that would be corrupted by naive tokenisation — return undefined so
-  // the caller leaves the body untouched (see ChatGPT review on PR #357).
-  if (typeof DOMParser !== 'undefined') {
-    const mimeType = mode === 'xml' ? 'application/xml' : 'text/html';
-    const doc = new DOMParser().parseFromString(trimmed, mimeType);
-    if (mode === 'xml') {
-      // XML mode: parsererror element indicates malformed markup.
-      if (doc.getElementsByTagName('parsererror').length > 0) return undefined;
-    } else {
-      // HTML mode: DOMParser always succeeds, but <parsererror> in the parsed
-      // body signals real parse failure for our purposes.
-      const pe = doc.querySelector('parsererror');
-      if (pe && pe.textContent && pe.textContent.trim().length > 0) {
-        // Check whether the error is substantive (not just a warning about
-        // harmless HTML quirks). A real failure means we should not reformat.
-        const errorText = pe.textContent.trim();
-        if (/unable to parse|fatal|syntax|error/i.test(errorText)) return undefined;
-      }
-    }
-  }
-
-  // Improved tokenisation: split on tag boundaries while preserving angle
-  // brackets that appear inside text content (e.g. "if (a < b)" in scripts,
-  // or "a > b" in attribute values). The regex matches:
-  //   - complete tags:       </tag>, <tag>, <tag/>, <?...?>, <!...>
-  //   - NOT bare < or > that are part of text content
-  // eslint-disable-next-line no-useless-escape
-  const tagSplitRe = /(<\/?[A-Za-z][^>]*>|<\?[^\?]*\?>|<!\[CDATA\[[\s\S]*?]]>)/;
-  const parts = trimmed.split(tagSplitRe);
-
-  let indent = 0;
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const part of parts) {
-    if (!part) continue;
-
-    const isClosingTag = /^<\//.test(part);
-    const isDeclaration = /^<\?/.test(part) || /^<!/.test(part);
-    const tagMatch = part.match(/^<([A-Za-z][^\s/>]*)/);
-    const tagName = tagMatch?.[1].toLowerCase();
-    const isVoidTag = mode === 'html' && tagName !== undefined && HTML_VOID_TAGS.has(tagName);
-    const isSelfClosing = /\/>$/.test(part) || isVoidTag;
-    const isOpeningTag = /^<[A-Za-z]/.test(part) && !isClosingTag && !isDeclaration && !isSelfClosing;
-
-    if (isClosingTag) indent = Math.max(indent - 1, 0);
-
-    if (isOpeningTag || isSelfClosing || isClosingTag || isDeclaration) {
-      // Flush any accumulated text content before handling a tag
-      if (currentLine.trim()) {
-        lines.push(`${'  '.repeat(indent)}${currentLine.trim()}`);
-        currentLine = '';
-      }
-      lines.push(`${'  '.repeat(indent)}${part}`);
-      if (isOpeningTag && !isDeclaration) indent += 1;
-    } else {
-      // Text content: accumulate on the current line (preserves inline < >)
-      currentLine += part;
-    }
-  }
-
-  // Flush any remaining text content
-  if (currentLine.trim()) {
-    lines.push(`${'  '.repeat(indent)}${currentLine.trim()}`);
-  }
-
-  return lines.length > 0 ? lines.join('\n') : undefined;
-}
-
-function formatJavaScriptBody(value: string): string | undefined {
-  const input = value.trim();
-  if (!input) return input;
-
-  let indent = 0;
-  let output = '';
-  let quote: '"' | "'" | '`' | null = null;
-  let escaped = false;
-  let lineComment = false;
-  let blockComment = false;
-  let invalid = false;
-
-  const appendIndent = () => {
-    output += '  '.repeat(indent);
-  };
-  const appendNewline = () => {
-    output = output.trimEnd();
-    output += '\n';
-    appendIndent();
-  };
-
-  for (let i = 0; i < input.length; i += 1) {
-    const char = input[i];
-    const next = input[i + 1];
-
-    if (lineComment) {
-      output += char;
-      if (char === '\n') {
-        lineComment = false;
-        appendIndent();
-      }
-      continue;
-    }
-
-    if (blockComment) {
-      output += char;
-      if (char === '*' && next === '/') {
-        output += next;
-        i += 1;
-        blockComment = false;
-      }
-      continue;
-    }
-
-    if (quote) {
-      output += char;
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === quote) {
-        quote = null;
-      }
-      continue;
-    }
-
-    if (char === '/' && next === '/') {
-      output = output.trimEnd();
-      output += output.endsWith('\n') ? '//' : ' //';
-      i += 1;
-      lineComment = true;
-      continue;
-    }
-
-    if (char === '/' && next === '*') {
-      output = output.trimEnd();
-      output += output.endsWith('\n') ? '/*' : ' /*';
-      i += 1;
-      blockComment = true;
-      continue;
-    }
-
-    if (char === '"' || char === "'" || char === '`') {
-      quote = char;
-      output += char;
-      continue;
-    }
-
-    if (char === '{') {
-      output = output.trimEnd();
-      output += ' {\n';
-      indent += 1;
-      appendIndent();
-      continue;
-    }
-
-    if (char === '}') {
-      output = output.trimEnd();
-      if (indent === 0) {
-        invalid = true;
-      } else {
-        indent -= 1;
-      }
-      output += `\n${'  '.repeat(indent)}}`;
-      if (next !== ';' && next !== ',' && next !== ')' && next !== undefined) {
-        appendNewline();
-      }
-      continue;
-    }
-
-    if (char === ';') {
-      output = output.trimEnd();
-      output += ';';
-      if (next !== undefined) appendNewline();
-      continue;
-    }
-
-    if (char === ',') {
-      output = output.trimEnd();
-      output += ', ';
-      continue;
-    }
-
-    if (/\s/.test(char)) {
-      if (output && !/\s$/.test(output)) output += ' ';
-      continue;
-    }
-
-    output += char;
-  }
-
-  if (invalid || quote || blockComment || indent !== 0) return undefined;
-
-  return output
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .filter((line, index, lines) => line.trim() || index === lines.length - 1)
-    .join('\n')
-    .trim();
-}
-
-function formatBodyByRawMode(value: string, mode: RawMode): string | undefined {
-  if (mode === 'json') return formatJsonBody(value);
-  if (mode === 'xml' || mode === 'html') return formatTaggedBody(value, mode);
-  if (mode === 'javascript') return formatJavaScriptBody(value);
-  return undefined;
-}
 
 // ─── Custom headers section ───────────────────────────
 
@@ -1065,6 +827,19 @@ function BodyTab({
 }: BodyTabProps) {
   const { t } = useTranslation();
   const bodyContents = debugModel.bodyContents;
+  const handleBeautify = useBodyBeautify({
+    body,
+    rawMode,
+    identity: debugModel,
+    contentType: selectedContentType,
+    onFormatted: setBody,
+    onFailure: () =>
+      message.warning(
+        rawMode === 'xml' || rawMode === 'html'
+          ? t('apiDebug.body.markupBeautifyUnsupported')
+          : t('apiDebug.body.beautifyFailed', { contentType: RAW_CONTENT_TYPES[rawMode] }),
+      ),
+  });
 
   if (bodyContents.length === 0) {
     return <Alert type="info" message={t('apiDebug.noBody')} showIcon />;
@@ -1095,16 +870,6 @@ function BodyTab({
       }
       setRawMode(inferRawMode(target));
     }
-  };
-
-  // ── Body Beautify ──
-  const handleBeautify = () => {
-    const formatted = formatBodyByRawMode(body, rawMode);
-    if (formatted !== undefined) {
-      setBody(formatted);
-      return;
-    }
-    message.warning(t('apiDebug.body.beautifyFailed', { contentType: RAW_CONTENT_TYPES[rawMode] }));
   };
 
   return (
@@ -2024,142 +1789,11 @@ const previewBoxStyle: React.CSSProperties = {
   wordBreak: 'break-all',
 };
 
-interface InitialDebugState {
-  cookieParameterSource: CookieParameterSource;
-  baseUrl: string;
-  method: string;
-  path: string;
-  paramValues: ParamValueMap;
-  paramEnabled: Record<string, boolean>;
-  selectedContentType: string;
-  body: string;
-  formFields: Record<string, string>;
-  formPartHeaders: Record<string, Record<string, string>>;
-  formPartContentTypes: Record<string, string>;
-  rawMode: RawMode;
-  customQueryParams: CustomParamRow[];
-  customBodyParams: CustomParamRow[];
-  customHeaders: CustomParamRow[];
-  customCookies: CustomParamRow[];
-}
-
-function inferRawMode(bodyContent: BodyContent | undefined): RawMode {
-  if (bodyContent?.category === 'json') return 'json';
-  if (bodyContent?.category !== 'raw') return 'text';
-  const mediaType = bodyContent.mediaType;
-  if (mediaType.includes('json')) return 'json';
-  if (mediaType.includes('xml')) return 'xml';
-  if (mediaType.includes('html')) return 'html';
-  if (mediaType.includes('javascript')) return 'javascript';
-  return 'text';
-}
-
-function buildInitialDebugState(
-  debugModel: OperationDebugModel,
-  operation: NonNullable<ReturnType<typeof useCurrentOperation>['operation']>,
-  swaggerDoc: NonNullable<ReturnType<typeof useCurrentOperation>['swaggerDoc']>,
-  baseUrl: string,
-  bodyDefaults: BodyContentDefaults,
-): InitialDebugState {
-  const paramValues = buildInitialParamValues(debugModel, swaggerDoc, operation);
-  const paramEnabled = buildInitialParamEnabled(debugModel, paramValues);
-
-  const firstBody = debugModel.bodyContents[0];
-  return {
-    cookieParameterSource:
-      isOas31SchemaDocument(swaggerDoc) || isOas32ExampleDocument(swaggerDoc) ? 'browser-session' : 'explicit',
-    baseUrl,
-    method: operationHttpMethod(operation),
-    path: operation.path,
-    paramValues,
-    paramEnabled,
-    selectedContentType: firstBody?.mediaType ?? '',
-    body: initialBodyValueForContent(firstBody, bodyDefaults),
-    formFields: initialFormFieldsForContent(firstBody, bodyDefaults),
-    formPartHeaders: initialFormPartHeadersForContent(firstBody),
-    formPartContentTypes: {},
-    rawMode: inferRawMode(firstBody),
-    customQueryParams: [],
-    customBodyParams: [],
-    customHeaders: [],
-    customCookies: [],
-  };
-}
-
-const DEBUG_HTTP_METHODS = new Set(OPENAPI_HTTP_METHODS.map((method) => method.toUpperCase()));
-
 function requestServerSourceLabel(source: RequestServerSource, t: ReturnType<typeof useTranslation>['t']): string {
   if (source === 'gateway') return t('apiDebug.baseUrl.source.gateway');
   if (source === 'operation') return t('apiDebug.baseUrl.source.operation');
   if (source === 'path') return t('apiDebug.baseUrl.source.path');
   return t('apiDebug.baseUrl.source.document');
-}
-
-function mergeCachedStringRecord(
-  initial: Record<string, string>,
-  cached: Record<string, string>,
-): Record<string, string> {
-  const next = { ...initial };
-  for (const key of Object.keys(next)) {
-    if (cached[key] !== undefined) {
-      next[key] = cached[key];
-    }
-  }
-  return next;
-}
-
-function mergeCachedBooleanRecord(
-  initial: Record<string, boolean>,
-  cached: Record<string, boolean>,
-): Record<string, boolean> {
-  const next = { ...initial };
-  for (const key of Object.keys(next)) {
-    if (cached[key] !== undefined) {
-      next[key] = cached[key];
-    }
-  }
-  return next;
-}
-
-function restoreInitialDebugStateFromCache(
-  initial: InitialDebugState,
-  cached: DebugCacheState | null,
-  debugModel: OperationDebugModel,
-  bodyDefaults: BodyContentDefaults,
-  preserveMethodCase = false,
-): InitialDebugState {
-  if (!cached) return initial;
-
-  const cachedMethod = preserveMethodCase ? cached.method : cached.method.toUpperCase();
-  const cachedBody = debugModel.bodyContents.find(
-    (bodyContent) => bodyContent.mediaType === cached.selectedContentType,
-  );
-  const selectedBody = cachedBody ?? debugModel.bodyContents[0];
-  const restoreCachedBody = Boolean(cachedBody);
-
-  return {
-    ...initial,
-    cookieParameterSource: cached.cookieParameterSource ?? 'explicit',
-    baseUrl: cached.baseUrl || initial.baseUrl,
-    method: cachedMethod === initial.method || DEBUG_HTTP_METHODS.has(cachedMethod) ? cachedMethod : initial.method,
-    path: cached.path || initial.path,
-    paramValues: mergeCachedStringRecord(initial.paramValues, cached.paramValues),
-    paramEnabled: mergeCachedBooleanRecord(initial.paramEnabled, cached.paramEnabled),
-    selectedContentType: selectedBody?.mediaType ?? '',
-    body: restoreCachedBody ? cached.body : initialBodyValueForContent(selectedBody, bodyDefaults),
-    formFields: restoreCachedBody
-      ? mergeCachedFormFields(selectedBody, cached.formFields, bodyDefaults)
-      : initialFormFieldsForContent(selectedBody, bodyDefaults),
-    formPartHeaders: restoreCachedBody
-      ? mergeCachedFormPartHeaders(selectedBody, cached.formPartHeaders)
-      : initialFormPartHeadersForContent(selectedBody),
-    formPartContentTypes: restoreCachedBody ? { ...(cached.formPartContentTypes ?? {}) } : {},
-    rawMode: restoreCachedBody ? cached.rawMode : inferRawMode(selectedBody),
-    customQueryParams: cached.customQueryParams,
-    customBodyParams: restoreCachedBody ? cached.customBodyParams : [],
-    customHeaders: cached.customHeaders,
-    customCookies: cached.customCookies,
-  };
 }
 
 // ─── 主组件 ────────────────────────────────────────────
@@ -2221,10 +1855,49 @@ export default function ApiDebug() {
       }),
     [groupContextPath, operation, swaggerDoc, t],
   );
-  const [legacyBaseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const { form, actions: formActions } = useDebugFormState(defaultBaseUrl);
+  const {
+    baseUrl: legacyBaseUrl,
+    method,
+    path,
+    paramValues,
+    paramEnabled,
+    body,
+    customQueryParams,
+    customBodyParams,
+    customHeaders,
+    customCookies,
+    cookieParameterSource,
+    oas32ParameterEntries,
+    serializedBodyMedia32,
+    selectedContentType,
+    formFields,
+    formPartHeaders,
+    formPartContentTypes,
+    rawMode,
+  } = form;
+  const {
+    setBaseUrl,
+    setMethod,
+    setPath,
+    setParamValues,
+    setParamEnabled,
+    setBody,
+    setCustomQueryParams,
+    setCustomBodyParams,
+    setCustomHeaders,
+    setCustomCookies,
+    setCookieParameterSource,
+    setOas32ParameterEntries,
+    setSerializedBodyMedia32,
+    setSelectedContentType,
+    setFormFields,
+    setFormPartHeaders,
+    setFormPartContentTypes,
+    setRawMode,
+    replaceForm,
+  } = formActions;
   const baseUrl = isOas32 ? server32.baseUrl : legacyBaseUrl;
-  const [method, setMethod] = useState('GET');
-  const [path, setPath] = useState('/');
   const pathDiagnostics32 = useMemo(
     () =>
       isOas32 && operation
@@ -2245,27 +1918,17 @@ export default function ApiDebug() {
     [isOas32, swaggerDoc, operation, path],
   );
   const serverOrPathUnavailable32 = !server32.executable || pathDiagnostics32.length > 0;
-  const [paramValues, setParamValues] = useState<ParamValueMap>({});
   // enabled state: keyed by paramKey; empty optional OAS 3.1 params start omitted.
-  const [paramEnabled, setParamEnabled] = useState<Record<string, boolean>>({});
-  const [body, setBody] = useState('');
-  const [customQueryParams, setCustomQueryParams] = useState<CustomParamRow[]>([]);
-  const [customBodyParams, setCustomBodyParams] = useState<CustomParamRow[]>([]);
-  const [customHeaders, setCustomHeaders] = useState<CustomParamRow[]>([]);
-  const [customCookies, setCustomCookies] = useState<CustomParamRow[]>([]);
-  const [cookieParameterSource, setCookieParameterSource] = useState<CookieParameterSource>('explicit');
   const exampleCatalog32 = useMemo(
     () => (isOas32 && swaggerDoc && operation ? locateOperationExampleCatalog(swaggerDoc, operation) : null),
     [isOas32, swaggerDoc, operation],
   );
   const exampleSession32 = isOas32 && schemaEngine.status === 'ready' ? schemaEngine.session : undefined;
   const defaults32 = useOperationExampleDefaults(exampleCatalog32, exampleSession32);
-  const [oas32ParameterEntries, setOas32ParameterEntries] = useState<Oas32ParameterEntries>({});
   const serializedParams32 = useMemo(
     () => serializedExampleParametersFromEntries(oas32ParameterEntries),
     [oas32ParameterEntries],
   );
-  const [serializedBodyMedia32, setSerializedBodyMedia32] = useState<string>();
   const appliedDefaults32 = useRef<ReadonlyMap<string, OperationExampleResult> | null>(null);
   const debugModel = useMemo<OperationDebugModel | null>(() => {
     if (!operation || !swaggerDoc) return null;
@@ -2362,10 +2025,6 @@ export default function ApiDebug() {
   const pendingHistoryCacheKeyRef = useRef<string | null>(null);
 
   // ── requestBody 多内容类型状态 ──
-  const [selectedContentType, setSelectedContentType] = useState('');
-  const [formFields, setFormFields] = useState<Record<string, string>>({});
-  const [formPartHeaders, setFormPartHeaders] = useState<Record<string, Record<string, string>>>({});
-  const [formPartContentTypes, setFormPartContentTypes] = useState<Record<string, string>>({});
   const fileFieldsRef = useRef<Record<string, File[]>>({});
   const binaryBodyFileRef = useRef<File | null>(null);
   const displayedPreviewRef = useRef<RequestPreviewBuildResult | null>(null);
@@ -2373,7 +2032,6 @@ export default function ApiDebug() {
     key: string;
     value: NonNullable<RequestPreviewBuild['materializedMultipart']>;
   } | null>(null);
-  const [rawMode, setRawMode] = useState<RawMode>('text');
   const [resetNonce, setResetNonce] = useState(0);
   const [hydratedDebugCacheKey, setHydratedDebugCacheKey] = useState<string | null>(null);
   const skipNextDebugCacheWriteRef = useRef(false);
@@ -2428,40 +2086,29 @@ export default function ApiDebug() {
     setHistoryEntries(listHistory(debugCacheKey));
   }, [debugCacheKey, settings.enableRequestHistory]);
 
-  const applyInitialDebugState = (initial: InitialDebugState, options: { resetActiveTab?: boolean } = {}) => {
-    setOas32ParameterEntries({});
-    setSerializedBodyMedia32(undefined);
-    appliedDefaults32.current = null;
-    setCookieParameterSource(initial.cookieParameterSource);
-    setBaseUrl(initial.baseUrl);
-    setMethod(initial.method);
-    setPath(initial.path);
-    setParamValues(initial.paramValues);
-    setParamEnabled(initial.paramEnabled);
-    setSelectedContentType(initial.selectedContentType);
-    setBody(initial.body);
-    setFormFields(initial.formFields);
-    setFormPartHeaders(initial.formPartHeaders);
-    setFormPartContentTypes(initial.formPartContentTypes);
-    fileFieldsRef.current = {};
-    binaryBodyFileRef.current = null;
-    setRawMode(initial.rawMode);
-    setCustomQueryParams(initial.customQueryParams);
-    setCustomBodyParams(initial.customBodyParams);
-    setCustomHeaders(initial.customHeaders);
-    setCustomCookies(initial.customCookies);
-    setBuiltRequest(null);
-    setBuiltRequestCookieSource('explicit');
-    setSseEvents(null);
-    setSequentialStream(null);
-    setSseStreaming(false);
-    setResponseProgress(null);
-    setValidationErrors([]);
-    if (options.resetActiveTab) {
-      setActiveTab(undefined);
-    }
-    setResetNonce((value) => value + 1);
-  };
+  const applyInitialDebugState = useCallback(
+    (
+      initial: InitialDebugState & Partial<Pick<DebugFormState, 'oas32ParameterEntries' | 'serializedBodyMedia32'>>,
+      options: { resetActiveTab?: boolean } = {},
+    ) => {
+      replaceForm(initial, initial.oas32ParameterEntries, initial.serializedBodyMedia32);
+      appliedDefaults32.current = null;
+      fileFieldsRef.current = {};
+      binaryBodyFileRef.current = null;
+      setBuiltRequest(null);
+      setBuiltRequestCookieSource('explicit');
+      setSseEvents(null);
+      setSequentialStream(null);
+      setSseStreaming(false);
+      setResponseProgress(null);
+      setValidationErrors([]);
+      if (options.resetActiveTab) {
+        setActiveTab(undefined);
+      }
+      setResetNonce((value) => value + 1);
+    },
+    [replaceForm],
+  );
 
   // 当 debugModel 变化时，同步初始化表单状态
   useEffect(() => {
@@ -2482,13 +2129,21 @@ export default function ApiDebug() {
     sseAbortRef.current = null;
     setSseStreaming(false);
     const cachedSession = debugCacheKey !== null ? readDebugSessionState(debugCacheKey) : null;
-    applyInitialDebugState(nextInitial, { resetActiveTab: true });
-    if (isOas32 && cached) {
-      setOas32ParameterEntries(
-        restoreOas32ParameterEntries(cached.oas32ParameterEntries, cached.serializedExampleParameters),
-      );
-      setSerializedBodyMedia32(cached.serializedExampleBodyMediaType);
-    }
+    applyInitialDebugState(
+      {
+        ...nextInitial,
+        ...(isOas32 && cached
+          ? {
+              oas32ParameterEntries: restoreOas32ParameterEntries(
+                cached.oas32ParameterEntries,
+                cached.serializedExampleParameters,
+              ),
+              serializedBodyMedia32: cached.serializedExampleBodyMediaType,
+            }
+          : {}),
+      },
+      { resetActiveTab: true },
+    );
     setLoading(false);
     setResponse(cachedSession?.response ?? null);
     setError(cachedSession?.error ?? null);
@@ -2500,6 +2155,7 @@ export default function ApiDebug() {
     );
     setHydratedDebugCacheKey(debugCacheKey);
   }, [
+    applyInitialDebugState,
     debugCacheKey,
     debugModel,
     initialBodyDefaults,
@@ -2641,30 +2297,51 @@ export default function ApiDebug() {
     setParamValues((previous) => ({ ...previous, ...values }));
     setParamEnabled((previous) => ({ ...previous, ...enabled }));
     appliedDefaults32.current = defaults32;
-  }, [defaults32, hydratedDebugCacheKey, debugCacheKey, selectedContentType, resetNonce]);
+  }, [
+    defaults32,
+    hydratedDebugCacheKey,
+    debugCacheKey,
+    selectedContentType,
+    resetNonce,
+    setBody,
+    setFormFields,
+    setOas32ParameterEntries,
+    setParamEnabled,
+    setParamValues,
+    setSerializedBodyMedia32,
+  ]);
 
-  const setBodyFromUser = useCallback((next: string) => {
-    debugDefaultEditRevisionRef.current += 1;
-    setBody(next);
-  }, []);
+  const setBodyFromUser = useCallback(
+    (next: string) => {
+      debugDefaultEditRevisionRef.current += 1;
+      setBody(next);
+    },
+    [setBody],
+  );
 
-  const setFormFieldsFromUser = useCallback((next: React.SetStateAction<Record<string, string>>) => {
-    debugDefaultEditRevisionRef.current += 1;
-    setFormFields(next);
-  }, []);
+  const setFormFieldsFromUser = useCallback(
+    (next: React.SetStateAction<Record<string, string>>) => {
+      debugDefaultEditRevisionRef.current += 1;
+      setFormFields(next);
+    },
+    [setFormFields],
+  );
 
   const setFormPartHeadersFromUser = useCallback(
     (next: React.SetStateAction<Record<string, Record<string, string>>>) => {
       debugDefaultEditRevisionRef.current += 1;
       setFormPartHeaders(next);
     },
-    [],
+    [setFormPartHeaders],
   );
 
-  const setFormPartContentTypesFromUser = useCallback((next: React.SetStateAction<Record<string, string>>) => {
-    debugDefaultEditRevisionRef.current += 1;
-    setFormPartContentTypes(next);
-  }, []);
+  const setFormPartContentTypesFromUser = useCallback(
+    (next: React.SetStateAction<Record<string, string>>) => {
+      debugDefaultEditRevisionRef.current += 1;
+      setFormPartContentTypes(next);
+    },
+    [setFormPartContentTypes],
+  );
 
   const updateValue = (param: DebugParam, next: string) => {
     debugDefaultEditRevisionRef.current += 1;
@@ -3211,20 +2888,7 @@ export default function ApiDebug() {
     debugDefaultEditRevisionRef.current += 1;
     const snap = entry.formSnapshot;
     if (snap) {
-      setOas32ParameterEntries(
-        restoreOas32ParameterEntries(snap.oas32ParameterEntries, snap.serializedExampleParameters),
-      );
-      setSerializedBodyMedia32(snap.serializedExampleBodyMediaType);
-      setCookieParameterSource(snap.cookieParameterSource ?? 'explicit');
       if (isOas32) server32.restoreOverride(snap.baseUrl);
-      else setBaseUrl(snap.baseUrl);
-      setMethod(snap.method);
-      setPath(snap.path);
-      setParamValues(snap.paramValues);
-      setParamEnabled(snap.paramEnabled);
-      setSelectedContentType(snap.selectedContentType);
-      setBody(snap.body);
-      setFormFields(snap.formFields);
       const snapshotBodyContent = debugModel.bodyContents.find(
         (candidate) => candidate.mediaType === snap.selectedContentType,
       );
@@ -3238,19 +2902,34 @@ export default function ApiDebug() {
           ),
         ]),
       );
-      setFormPartHeaders(mergeCachedFormPartHeaders(snapshotBodyContent, restoredPartHeaders));
-      setFormPartContentTypes({ ...(snap.formPartContentTypes ?? {}) });
-      setRawMode(snap.rawMode);
-      setCustomQueryParams(snap.customQueryParams);
-      setCustomBodyParams(snap.customBodyParams);
       const restoredHeaders = snap.customHeaders.filter(
         (row) => row.value !== DEBUG_HISTORY_MASK && !isSensitiveHeaderName(row.name),
       );
       const restoredCookies = snap.customCookies.filter(
         (row) => row.value !== DEBUG_HISTORY_MASK && !isSensitiveHeaderName(row.name),
       );
-      setCustomHeaders(restoredHeaders);
-      setCustomCookies(restoredCookies);
+      replaceForm(
+        {
+          baseUrl: isOas32 ? legacyBaseUrl : snap.baseUrl,
+          method: snap.method,
+          path: snap.path,
+          cookieParameterSource: snap.cookieParameterSource ?? 'explicit',
+          paramValues: snap.paramValues,
+          paramEnabled: snap.paramEnabled,
+          selectedContentType: snap.selectedContentType,
+          body: snap.body,
+          formFields: snap.formFields,
+          formPartHeaders: mergeCachedFormPartHeaders(snapshotBodyContent, restoredPartHeaders),
+          formPartContentTypes: { ...(snap.formPartContentTypes ?? {}) },
+          rawMode: snap.rawMode,
+          customQueryParams: snap.customQueryParams,
+          customBodyParams: snap.customBodyParams,
+          customHeaders: restoredHeaders,
+          customCookies: restoredCookies,
+        },
+        restoreOas32ParameterEntries(snap.oas32ParameterEntries, snap.serializedExampleParameters),
+        snap.serializedExampleBodyMediaType,
+      );
       fileFieldsRef.current = {};
       binaryBodyFileRef.current = null;
       setResetNonce((value) => value + 1);
@@ -4739,7 +4418,7 @@ export default function ApiDebug() {
             </Space>
           ) : (
             <BodyTab
-              key={resetNonce}
+              key={`${debugCacheKey}:${resetNonce}`}
               debugModel={debugModel}
               bodyDefaults={bodyDefaults}
               body={body}

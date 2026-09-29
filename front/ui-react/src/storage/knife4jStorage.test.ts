@@ -851,6 +851,113 @@ describe('Knife4j storage cleanup registry', () => {
     expect(resetSnapshots.map((snapshot) => snapshot.active)).toEqual([true, false]);
   });
 
+  it('coalesces queued snapshots before acquiring fallback leases', async () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new MemoryWebStorage({});
+    const writes = vi.spyOn(storage, 'setItem');
+    const promises = Array.from({ length: 20 }, (_, index) =>
+      setKnife4jStorageItem(storage, targetKey, String(index), storage, null),
+    );
+
+    expect(getKnife4jStorageItem(storage, targetKey, storage)).toBe('19');
+    expect(await Promise.all(promises)).toEqual([...Array<boolean>(19).fill(false), true]);
+    expect(writes.mock.calls.filter(([key]) => key === targetKey)).toEqual([[targetKey, '19']]);
+    expect(
+      new Set(
+        writes.mock.calls.filter(([key]) => key.startsWith(KNIFE4J_STORAGE_PREFIXES.mutationClaim)).map(([key]) => key),
+      ),
+    ).toHaveLength(1);
+    expect(storage.getItem(targetKey)).toBe('19');
+  });
+
+  it('keeps an in-flight snapshot and coalesces the backlog behind it', async () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new MemoryWebStorage({});
+    const writes = vi.spyOn(storage, 'setItem');
+    const first = setKnife4jStorageItem(storage, targetKey, 'first', storage, null);
+    await vi.waitFor(() => {
+      expect(writes.mock.calls.some(([key]) => key.startsWith(KNIFE4J_STORAGE_PREFIXES.mutationClaim))).toBe(true);
+    });
+    const second = setKnife4jStorageItem(storage, targetKey, 'second', storage, null);
+    const third = setKnife4jStorageItem(storage, targetKey, 'third', storage, null);
+
+    await expect(first).resolves.toBe(true);
+    expect(getKnife4jStorageItem(storage, targetKey, storage)).toBe('third');
+    await expect(Promise.all([second, third])).resolves.toEqual([false, true]);
+    expect(writes.mock.calls.filter(([key]) => key === targetKey)).toEqual([
+      [targetKey, 'first'],
+      [targetKey, 'third'],
+    ]);
+  });
+
+  it.each(['remove', 'update', 'persist'] as const)('does not coalesce snapshots across %s', async (operation) => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new MemoryWebStorage({});
+    const writes = vi.spyOn(storage, 'setItem');
+    const first = setKnife4jStorageItem(storage, targetKey, 'first', storage, null);
+    const update = vi.fn((current: string | null) => `${current}-updated`);
+    const middle =
+      operation === 'remove'
+        ? removeKnife4jStorageItem(storage, targetKey, null, storage)
+        : operation === 'update'
+          ? updateKnife4jStorageItem(storage, targetKey, update, storage, null)
+          : persistKnife4jStorageItem(storage, targetKey, 'middle', null, storage);
+    const last = setKnife4jStorageItem(storage, targetKey, 'last', storage, null);
+
+    await expect(first).resolves.toBe(true);
+    await middle;
+    await expect(last).resolves.toBe(true);
+    expect(writes.mock.calls.filter(([key]) => key === targetKey).map(([, value]) => value)).toEqual(
+      operation === 'remove'
+        ? ['first', 'last']
+        : ['first', operation === 'update' ? 'first-updated' : 'middle', 'last'],
+    );
+    if (operation === 'update') expect(update).toHaveBeenCalledWith('first');
+    expect(storage.getItem(targetKey)).toBe('last');
+  });
+
+  it('coalesces queued Web Lock snapshots and reports persistence failure to the survivor', async () => {
+    const targetKey = KNIFE4J_STORAGE_KEYS.settings;
+    const storage = new MemoryWebStorage({});
+    const lockManager = new MemoryLockManager();
+    const setItem = vi.spyOn(storage, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    const first = setKnife4jStorageItem(storage, targetKey, 'first', storage, lockManager);
+    const last = setKnife4jStorageItem(storage, targetKey, 'last', storage, lockManager);
+
+    await expect(Promise.all([first, last])).resolves.toEqual([false, false]);
+    expect(setItem).toHaveBeenCalledExactlyOnceWith(targetKey, 'last');
+    expect(getKnife4jStorageItem(storage, targetKey, storage)).toBeNull();
+  });
+
+  it.each(['storage', 'lease', 'lock', 'reset', 'cache'] as const)(
+    'does not coalesce snapshots across different %s identities',
+    async (difference) => {
+      const targetKey = `${KNIFE4J_STORAGE_PREFIXES.debugCache}operation-a`;
+      const storage = new MemoryWebStorage({});
+      const otherStorage = new MemoryWebStorage({});
+      const lockManager = new MemoryLockManager();
+      const snapshot = getKnife4jStorageItemSnapshot(storage, targetKey, storage);
+      const first = setKnife4jStorageItem(storage, targetKey, 'first', storage, lockManager, snapshot);
+      const last = setKnife4jStorageItem(
+        difference === 'storage' ? otherStorage : storage,
+        targetKey,
+        'last',
+        difference === 'lease' ? otherStorage : storage,
+        difference === 'lock' ? new MemoryLockManager() : lockManager,
+        {
+          ...snapshot,
+          ...(difference === 'reset' ? { resetGeneration: 'stale' } : {}),
+          ...(difference === 'cache' ? { requestCacheGeneration: 'stale' } : {}),
+        },
+      );
+
+      await expect(first).resolves.toBe(true);
+      await expect(last).resolves.toBe(difference !== 'reset' && difference !== 'cache');
+    },
+  );
+
   it('exposes a queued Web Storage value before its fallback mutation lease persists it', async () => {
     const targetKey = KNIFE4J_STORAGE_KEYS.settings;
     const storage = new MemoryWebStorage({ [targetKey]: 'old-value' });
@@ -890,7 +997,7 @@ describe('Knife4j storage cleanup registry', () => {
       JSON.stringify({ version: 1, generation: requestCacheGeneration, expiresAt: 0 }),
     );
 
-    await expect(Promise.all([append, completion])).resolves.toEqual([true, true]);
+    await expect(Promise.all([append, completion])).resolves.toEqual([false, true]);
     expect(storage.getItem(targetKey)).toBe('completed-history');
   });
 

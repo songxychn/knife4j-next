@@ -622,6 +622,7 @@ const zhCN = {
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': '格式化',
   'apiDebug.body.beautifyFailed': '格式化失败，请检查内容是否为有效的 {{contentType}}。',
+  'apiDebug.body.markupBeautifyUnsupported': '为保留请求正文语义，暂不支持 XML/HTML 格式化。',
   'apiDebug.body.file': '文件',
   'apiDebug.body.selectFile': '选择文件',
   'apiDebug.body.binaryHint': '该 OAS 3.1 请求体会按 {{contentType}} 原样发送所选文件，不会转成文本或 multipart。',
