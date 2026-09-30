@@ -694,6 +694,8 @@ const jaJP = {
   // ApiDebug — Body Tab
   'apiDebug.body.beautify': '整形',
   'apiDebug.body.beautifyFailed': '整形に失敗しました。{{contentType}} として有効な内容か確認してください。',
+  'apiDebug.body.markupBeautifyUnsupported':
+    'リクエスト本文の意味を保持するため、XML/HTML の整形は現在サポートされていません。',
   'apiDebug.body.file': 'ファイル',
   'apiDebug.body.selectFile': 'ファイルを選択',
   'apiDebug.body.binaryHint':

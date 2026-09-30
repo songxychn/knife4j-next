@@ -35,7 +35,8 @@
     "react-resizable": "^3.2.0",
     "react-router-dom": "^6.30.4",
     "highlight.js": "^11.0.0",
-    "yaml": "2.8.3"
+    "yaml": "2.8.3",
+    "prettier": "^3.9.6"
   },
   "devDependencies": {
     "@types/react": "^18.3.31",
@@ -48,9 +49,9 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "jszip": "^3.10.1",
-    "prettier": "^3.9.6",
     "typescript": "^5.0.2",
     "vite": "^6.4.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "jsdom": "^26.1.0"
   }
 }
