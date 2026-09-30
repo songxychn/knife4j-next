@@ -12,7 +12,20 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.5 <Badge type="tip" text="最新" />
+### 5.7.6 <Badge type="tip" text="最新" />
+
+`5.7.6` 是基于 `5.7.5` 的向后兼容补丁版本，修复 React 调试页的 JavaScript 格式化与表单快照写入，并收敛表单状态恢复与测试边界。同步发布 Knife4x Go `v0.8.5`。
+
+**React UI（OAS3）**
+
+- 调试页手写 JavaScript 格式化改为懒加载 Prettier，保留正则与 ASI 语义；过期异步结果不能覆盖新编辑（PR [#837](https://github.com/songxychn/knife4j-next/pull/837)，issue [#836](https://github.com/songxychn/knife4j-next/issues/836)）。
+- JSON 格式化保留大整数、重复键、转义与请求体空白等词法细节；XML/HTML 保留原文并拒绝不安全格式化（同上）。
+- 无 Web Locks 时合并相邻同键表单快照，保留删除、读改写、清理及 generation fence 顺序（同上）。
+- 收敛表单状态恢复为整体替换，并补充 unit 与真实 React/jsdom 集成回归（同上）。
+
+OpenAPI 3.1 / 3.2 消费契约与 Java 依赖基线不变。Knife4x Go 同步发布 `v0.8.5`，纳入同一套共享 React UI 变更。
+
+### 5.7.5
 
 `5.7.5` 是基于 `5.7.4` 的向后兼容补丁版本，统一 React UI 的 JSON 示例与预览层级折叠体验，并修正请求预览词法保真与空容器折叠。同步发布 Knife4x Go `v0.8.4`。
 
@@ -665,7 +678,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.5</version>
+    <version>5.7.6</version>
 </dependency>
 ```
 
