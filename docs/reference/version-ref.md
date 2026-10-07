@@ -52,6 +52,22 @@ title: 版本对照
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
 > `5.7.6` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.7.6`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.7.6`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.7.6` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.7.6`。
 
+## 待发布源码依赖更新
+
+当前源码在已发布的 `5.7.6` 基线上更新了以下依赖；这些变更尚未发布，不属于下面的历史发布记录。
+
+| 依赖 | `5.7.6` 发布基线 | 当前源码 |
+| --- | --- | --- |
+| Spring Boot（Boot4 线） | `4.0.7` | `4.0.8` |
+| Spring Cloud（Boot4 线） | `2025.1.2` | `2025.1.3` |
+| SLF4J | `2.0.18` | `2.0.20` |
+| Lombok | `1.18.46` | `1.18.48` |
+| Gson | `2.11.0` | `2.14.0` |
+| commons-lang3 | `3.20.0` | `3.21.0` |
+
+Java 8 / 17 下限与 Boot 2 / 3 / 4 支持边界保持不变；Boot 2 demo 继续显式使用 SLF4J `1.7.36`。
+Boot3 Jakarta 线继续使用 springdoc `2.8.9`；`2.8.17` 在现有 Boot3 聚合 smoke 场景启动失败，本轮暂缓。
+
 ## 核心依赖版本
 
 以下为 `knife4j-next 5.7.6` 内部管理的依赖版本，用户一般不需要手动指定。
