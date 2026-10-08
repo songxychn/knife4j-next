@@ -44,13 +44,13 @@
     "@types/react-resizable": "^3.0.4",
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",
-    "@vitejs/plugin-react-swc": "3.11.0",
+    "@vitejs/plugin-react-swc": "4.3.3",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "jszip": "^3.10.2",
     "typescript": "^5.0.2",
-    "vite": "7.3.7",
+    "vite": "8.3.4",
     "vitest": "^4.1.11",
     "jsdom": "^26.1.0"
   }
