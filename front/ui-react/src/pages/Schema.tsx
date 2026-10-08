@@ -1,7 +1,7 @@
 import { Alert, Collapse, Empty, Input, Result, Space, Spin, Tag, Typography } from 'antd';
 import type { TFunction } from 'i18next';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import SchemaFieldTable from '../components/schema/SchemaFieldTable';
 import SchemaDiscriminatorPanel from '../components/schema/SchemaDiscriminatorPanel';

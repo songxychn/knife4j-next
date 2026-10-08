@@ -15,7 +15,7 @@ vi.mock('antd', () => ({
   Tooltip: 'Tooltip',
   Typography: { Text: 'Text' },
 }));
-vi.mock('react-router-dom', () => ({ Link: 'Link' }));
+vi.mock('react-router', () => ({ Link: 'Link' }));
 vi.mock('react-resizable', () => ({ Resizable: 'Resizable' }));
 vi.mock('../DescriptionText', () => ({ default: 'DescriptionText' }));
 vi.mock('../../context/GroupContext', () => ({

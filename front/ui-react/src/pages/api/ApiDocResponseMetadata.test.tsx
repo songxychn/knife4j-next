@@ -16,7 +16,7 @@ vi.mock('react', () => ({
 vi.mock('react/jsx-runtime', () => ({ jsx: state.jsx, jsxs: state.jsx, jsxDEV: state.jsx, Fragment: 'Fragment' }));
 vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: state.jsx, Fragment: 'Fragment' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('antd', () => ({
   Alert: 'Alert',
   Badge: 'Badge',

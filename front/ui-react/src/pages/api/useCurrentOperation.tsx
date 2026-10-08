@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { ApiOutlined, BugOutlined, CodeOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';

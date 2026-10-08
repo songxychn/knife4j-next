@@ -4,7 +4,7 @@ import {
   type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
   type OperationEnumerationDiagnostic,
 } from 'knife4j-core';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import {
   getSchemas,
   normalizeOperationsSorter,

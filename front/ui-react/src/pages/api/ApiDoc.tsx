@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useGroup } from '../../context/GroupContext';
 import { operationSchemaDocuments, operationResponseLinks, resolveOperationLink } from '../../schema/operationRegistry';
 import { operationHttpMethod } from 'knife4j-core';

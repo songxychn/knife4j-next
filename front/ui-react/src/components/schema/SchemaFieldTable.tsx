@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Popover, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import { Resizable, type ResizeCallbackData } from 'react-resizable';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';

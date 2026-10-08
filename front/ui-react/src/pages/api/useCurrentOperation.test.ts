@@ -1,4 +1,4 @@
-import { matchRoutes } from 'react-router-dom';
+import { matchRoutes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuOperation, MenuTag } from '../../types/swagger';
 import type { OpenApiOperation } from 'knife4j-core';
