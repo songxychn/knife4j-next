@@ -117,12 +117,7 @@ export class OpenAPIParser extends BaseCommonParser {
     operation.asyncResolveParameters(parameters);
     //解析请求参数
     const requestBody = _operation.requestBody
-      ? dereferenceOasReferenceObject(
-          _operation.requestBody as unknown as Record<string, unknown>,
-          data,
-          20,
-          'requestBody',
-        )
+      ? dereferenceOasReferenceObject(_operation.requestBody, data, 20, 'requestBody')
       : undefined;
     operation.asyncResolveRequestBody(
       requestBody && requestBody.content ? (requestBody as unknown as RequestBodyObject) : undefined,

@@ -270,7 +270,7 @@ function extractArrayItemEnum(items: Record<string, unknown>, doc: DocLike): unk
     }
     if (!ref || seenRefs.has(ref)) break;
     seenRefs.add(ref);
-    const resolved = resolveRef(ref, doc as Record<string, unknown>);
+    const resolved = resolveRef(ref, doc);
     if (!resolved) break;
     current = resolved;
   }
@@ -306,7 +306,7 @@ function normalizeParameterSchema(
   maxDepth: number,
 ): SchemaValue | undefined {
   if (typeof schema === 'boolean') return schema;
-  return schema ? normalizeAllOfSchema(schema, doc as Record<string, unknown>, maxDepth) : undefined;
+  return schema ? normalizeAllOfSchema(schema, doc, maxDepth) : undefined;
 }
 
 function parameterDiagnostic(
@@ -540,9 +540,7 @@ function extractFileFields(
   const files: string[] = [];
   for (const [name, prop] of Object.entries(props)) {
     const normalizedProp =
-      prop && typeof prop === 'object' && !Array.isArray(prop)
-        ? normalizeAllOfSchema(prop, doc as Record<string, unknown>)
-        : undefined;
+      prop && typeof prop === 'object' && !Array.isArray(prop) ? normalizeAllOfSchema(prop, doc) : undefined;
     if (!normalizedProp) continue;
     const fieldContentType = encodingContentType(encoding, name);
     const legacyFile =
@@ -568,10 +566,7 @@ function extractFileFields(
       normalizedProp.items &&
       typeof normalizedProp.items === 'object'
     ) {
-      const normalizedItems = normalizeAllOfSchema(
-        normalizedProp.items as Record<string, unknown>,
-        doc as Record<string, unknown>,
-      );
+      const normalizedItems = normalizeAllOfSchema(normalizedProp.items as Record<string, unknown>, doc);
       if (
         isBinaryItems(normalizedItems, allowOas31Binary) ||
         (allowOas31Binary &&
@@ -612,19 +607,14 @@ function extractMultipleFileFields(
   const multiple: string[] = [];
   for (const [name, prop] of Object.entries(props)) {
     const normalizedProp =
-      prop && typeof prop === 'object' && !Array.isArray(prop)
-        ? normalizeAllOfSchema(prop, doc as Record<string, unknown>)
-        : undefined;
+      prop && typeof prop === 'object' && !Array.isArray(prop) ? normalizeAllOfSchema(prop, doc) : undefined;
     if (
       normalizedProp &&
       schemaDeclaresType(normalizedProp, 'array') &&
       normalizedProp.items &&
       typeof normalizedProp.items === 'object'
     ) {
-      const normalizedItems = normalizeAllOfSchema(
-        normalizedProp.items as Record<string, unknown>,
-        doc as Record<string, unknown>,
-      );
+      const normalizedItems = normalizeAllOfSchema(normalizedProp.items as Record<string, unknown>, doc);
       if (
         isBinaryItems(normalizedItems, allowOas31Binary) ||
         (allowOas31Binary &&
@@ -675,9 +665,7 @@ function hasBinaryUploadField(
   const props = schema.properties as Record<string, Record<string, unknown>>;
   for (const prop of Object.values(props)) {
     const normalizedProp =
-      prop && typeof prop === 'object' && !Array.isArray(prop)
-        ? normalizeAllOfSchema(prop, doc as Record<string, unknown>)
-        : undefined;
+      prop && typeof prop === 'object' && !Array.isArray(prop) ? normalizeAllOfSchema(prop, doc) : undefined;
     if (!normalizedProp) continue;
     if (normalizedProp.type === 'file') return true;
     if (
@@ -696,10 +684,7 @@ function hasBinaryUploadField(
       normalizedProp.items &&
       typeof normalizedProp.items === 'object'
     ) {
-      const items = normalizeAllOfSchema(
-        normalizedProp.items as Record<string, unknown>,
-        doc as Record<string, unknown>,
-      );
+      const items = normalizeAllOfSchema(normalizedProp.items as Record<string, unknown>, doc);
       const typeOk = items.type === undefined || schemaDeclaresType(items, 'string');
       const encoded = allowOas31Binary && typeof items.contentEncoding === 'string' && items.contentEncoding.length > 0;
       if (items.format === 'binary' && typeOk && !encoded) return true;
@@ -726,8 +711,7 @@ function extractJsonEncodingFields(encoding: Record<string, unknown> | undefined
 /** 解析 $ref 参数 */
 function resolveParameter(param: OAS3Param | OAS2Param, doc: DocLike): OAS3Param | OAS2Param {
   if (!param.$ref) return param;
-  return dereferenceReferenceObject(param as Record<string, unknown>, doc as Record<string, unknown>) as
-    OAS3Param | OAS2Param;
+  return dereferenceReferenceObject(param as Record<string, unknown>, doc);
 }
 
 /** 将参数合并到结果列表（去重：同 name+in 不重复添加） */
@@ -781,20 +765,17 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   const resolvedPathOperation =
     useOas31PathResolution && rawPathItem
       ? resolvePathItemOperation(
-          rawPathItem as unknown as Record<string, unknown>,
+          rawPathItem,
           method.toLowerCase() as Parameters<typeof resolvePathItemOperation>[1],
-          doc as Record<string, unknown>,
+          doc,
         )
       : null;
   const pathItem = identity
     ? (identity.pathItem as PathItemLike)
     : useOas31PathResolution
-      ? (resolvedPathOperation?.pathItem as PathItemLike | undefined)
+      ? resolvedPathOperation?.pathItem
       : rawPathItem
-        ? (dereference(
-            rawPathItem as unknown as Record<string, unknown>,
-            doc as Record<string, unknown>,
-          ) as PathItemLike)
+        ? (dereference(rawPathItem, doc) as PathItemLike)
         : undefined;
   if (!pathItem) {
     return {
@@ -824,7 +805,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
   }
 
   const ctx: SchemaResolveContext = schemaCtx ?? {
-    doc: options.operationDocuments?.operation ?? (doc as Record<string, unknown>),
+    doc: options.operationDocuments?.operation ?? doc,
     maxDepth: 8,
   };
 
@@ -835,7 +816,10 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       ? []
       : (resolvedPathOperation || identity
           ? (operation.parameters ?? [])
-          : [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])]
+          : [
+              ...((pathItem.parameters as Array<OAS3Param | OAS2Param> | undefined) ?? []),
+              ...(operation.parameters ?? []),
+            ]
         ).map((parameter) => resolveParameter(parameter, doc));
 
   // 去重（同名同位置，后者覆盖前者）
@@ -865,10 +849,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
     // OAS2: in=body → 走 requestBody 逻辑
     if (isOAS2 && in_ === 'body') {
-      const schema =
-        raw.schema && typeof raw.schema === 'object'
-          ? dereference(raw.schema, doc as Record<string, unknown>)
-          : undefined;
+      const schema = raw.schema && typeof raw.schema === 'object' ? dereference(raw.schema, doc) : undefined;
       const consumes = operation.consumes ?? doc.consumes ?? ['application/json'];
       const mediaType = consumes[0] ?? 'application/json';
 
@@ -950,7 +931,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     }
 
     const oas31Analysis = useOas31ParameterPath
-      ? analyzeOas31Parameter(raw as OAS3Param, paramIn, doc, ctx.maxDepth ?? 8)
+      ? analyzeOas31Parameter(raw, paramIn, doc, ctx.maxDepth ?? 8)
       : undefined;
     if (oas31Analysis?.diagnostic) parameterDiagnostics.push(oas31Analysis.diagnostic);
     const parameterDocument = options.operationDocuments?.parameters.get(`${paramIn}:${raw.name ?? ''}`) ?? ctx.doc;
@@ -959,7 +940,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       ? oas31Analysis.schema
       : rawSchema && typeof rawSchema === 'object'
         ? isOAS2
-          ? dereference(rawSchema, doc as Record<string, unknown>)
+          ? dereference(rawSchema, doc)
           : normalizeAllOfSchema(rawSchema, parameterDocument, ctx.maxDepth ?? 8)
         : undefined;
     const schemaObject = schemaRecord(schema);
@@ -1017,7 +998,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     const rb = operation.requestBody.$ref
       ? (dereferenceReferenceObject(
           operation.requestBody as Record<string, unknown>,
-          doc as Record<string, unknown>,
+          doc,
         ) as unknown as OAS3RequestBody)
       : operation.requestBody;
 
@@ -1068,7 +1049,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
                 encoding,
                 fileFields: fileFields ?? [],
                 multipleFileFields: fileFieldsMultiple ?? [],
-                document: doc as Record<string, unknown>,
+                document: doc,
               })
             : undefined;
         const oas32Form =
@@ -1082,7 +1063,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
                 itemEncoding: mediaObj.itemEncoding,
                 fileFields: fileFields ?? [],
                 multipleFileFields: fileFieldsMultiple ?? [],
-                document: doc as Record<string, unknown>,
+                document: doc,
               })
             : undefined;
         const oas32NamedForm =
@@ -1097,7 +1078,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
                 encoding,
                 fileFields: fileFields ?? [],
                 multipleFileFields: fileFieldsMultiple ?? [],
-                document: doc as Record<string, unknown>,
+                document: doc,
               })
             : undefined;
         const positionalFiles =

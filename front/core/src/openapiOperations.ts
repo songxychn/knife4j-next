@@ -249,7 +249,7 @@ export function enumerateOpenApiOperations(
       ] as const) {
         if (record(value[name]))
           value[name] = Object.fromEntries(
-            Object.entries(value[name] as RecordValue).map(([key, entry]) => [
+            Object.entries(value[name]).map(([key, entry]) => [
               key,
               projectReference(child(child(resolved, name, value[name]), key, entry), targetKind) ?? {},
             ]),
@@ -409,7 +409,7 @@ export function enumerateOpenApiOperations(
       ['webhooks', 'webhook'],
     ] as const) {
       if (!record(document[collection])) continue;
-      for (const [path, pathItem] of Object.entries(document[collection] as RecordValue)) {
+      for (const [path, pathItem] of Object.entries(document[collection])) {
         if (collection === 'paths' && !path.startsWith('/')) continue;
         const location = child(child(root, collection, document[collection]), path, pathItem);
         visitPathItem(location, path, source, location.pointer, new Set());
