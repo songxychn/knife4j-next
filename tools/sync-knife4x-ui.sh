@@ -32,7 +32,11 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 node_bin="$(command -v node || true)"
 if [ -z "$node_bin" ]; then
-  echo "Node.js is required to build reproducible Knife4x UI assets; use the version from .nvmrc" >&2
+  echo "Node.js 22.12 or newer is required to build reproducible Knife4x UI assets; use the version from .nvmrc" >&2
+  exit 1
+fi
+if ! "$node_bin" -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 12) ? 0 : 1)'; then
+  echo "Node.js 22.12 or newer is required to build reproducible Knife4x UI assets; found $("$node_bin" --version)" >&2
   exit 1
 fi
 

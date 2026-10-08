@@ -9,6 +9,6 @@
     "ui-react"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   }
 }
