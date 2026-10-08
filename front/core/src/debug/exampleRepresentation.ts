@@ -305,7 +305,7 @@ function decodeParameter(text: string, param: DebugParam): ParameterInstance | u
   }
   if (isArray) {
     const result = values!.map((value) => scalar(value, schema.items));
-    return result.every((value) => value !== undefined) ? (result as ParameterInstance[]) : undefined;
+    return result.every((value) => value !== undefined) ? result : undefined;
   }
   return values!.length === 1 ? scalar(values![0], schema) : undefined;
 }

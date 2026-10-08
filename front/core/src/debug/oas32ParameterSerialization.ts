@@ -169,9 +169,7 @@ function directTypes(schema: unknown): string[] {
   const value = parameterRecord(schema);
   if (!value || typeof value.$ref === 'string') return [];
   if (typeof value.type === 'string') return [value.type];
-  return Array.isArray(value.type) && value.type.every((type) => typeof type === 'string')
-    ? (value.type as string[])
-    : [];
+  return Array.isArray(value.type) && value.type.every((type) => typeof type === 'string') ? value.type : [];
 }
 function scalarData(text: string, schema: unknown, nullText = ''): ParameterInstance | undefined {
   const types = directTypes(schema);

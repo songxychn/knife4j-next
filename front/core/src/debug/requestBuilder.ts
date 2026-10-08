@@ -667,7 +667,7 @@ function multipartMediaTypeWithoutBoundary(value: string): string {
   }
   segments.push(value.slice(start).trim());
   return segments
-    .filter((segment, index) => index === 0 || !/^boundary\s*=/iu.test(segment))
+    .filter((segment, index) => index === 0 || !/^boundary\s*=/i.test(segment))
     .filter(Boolean)
     .join('; ');
 }
@@ -677,7 +677,7 @@ function multipartMediaTypeEssence(value: string): string {
 }
 
 function mimeQuotedParameter(value: string): string {
-  if (/\r|\n/u.test(value)) throw new Error('Multipart disposition metadata contains a forbidden line break.');
+  if (/\r|\n/.test(value)) throw new Error('Multipart disposition metadata contains a forbidden line break.');
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 

@@ -239,10 +239,10 @@ function arrayItemSchema(schema: SchemaValue, index: number): SchemaValue {
     : [];
   if (index < prefixItems.length) {
     const candidate: unknown = prefixItems[index];
-    return typeof candidate === 'boolean' || isRecord(candidate) ? (candidate as SchemaValue) : true;
+    return typeof candidate === 'boolean' || isRecord(candidate) ? candidate : true;
   }
   const items = schema.items;
-  return typeof items === 'boolean' || isRecord(items) ? (items as SchemaValue) : true;
+  return typeof items === 'boolean' || isRecord(items) ? items : true;
 }
 
 function defaultContentTypes(schema: SchemaValue, arrayIndex?: number): string[] {
@@ -1249,7 +1249,7 @@ function inferAuthoredBoundary(body: string): string | undefined {
   let token = firstLine.slice(2);
   if (token.endsWith('--')) token = token.slice(0, -2);
   token = token.trim();
-  if (!token || /[\r\n"]/u.test(token)) return undefined;
+  if (!token || /[\r\n"]/.test(token)) return undefined;
   return token;
 }
 

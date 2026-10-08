@@ -287,7 +287,7 @@ class StructureCollector {
   }
 
   private enumeration(object: RecordValue, path: string, key: string, values: readonly string[]): void {
-    if (owns(object, key) && typeof object[key] === 'string' && !values.includes(object[key] as string)) {
+    if (owns(object, key) && typeof object[key] === 'string' && !values.includes(object[key])) {
       this.add('invalid-field-value', child(path, key), `${key} 的值必须是 ${values.join('、')} 之一`);
     }
   }
@@ -487,7 +487,7 @@ class StructureCollector {
           if (!owns(object, section)) return;
           const sectionPath = child(path, section);
           if (!this.record(object[section], sectionPath)) return;
-          Object.entries(object[section] as RecordValue).forEach(([name, value]) => {
+          Object.entries(object[section]).forEach(([name, value]) => {
             const entryPath = child(sectionPath, name);
             if (!COMPONENT_NAME.test(name))
               this.add('invalid-component-name', entryPath, '组件名只能包含字母、数字、点、连字符和下划线');

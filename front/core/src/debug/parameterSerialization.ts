@@ -178,7 +178,7 @@ function schemaTypes(schema: SchemaValue | undefined, depth = 0): string[] {
     if (!Array.isArray(branches)) continue;
     branches.forEach((branch) => {
       if (typeof branch !== 'boolean' && !isRecord(branch)) return;
-      schemaTypes(branch as SchemaValue, depth + 1).forEach((type) => types.add(type));
+      schemaTypes(branch, depth + 1).forEach((type) => types.add(type));
     });
   }
   return Array.from(types);
