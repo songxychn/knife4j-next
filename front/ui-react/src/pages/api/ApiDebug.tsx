@@ -77,7 +77,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import type {
   BodyContent,
   BuiltRequest,

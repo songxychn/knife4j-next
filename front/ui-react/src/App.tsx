@@ -5,7 +5,7 @@ import enUSLocale from 'antd/locale/en_US';
 import jaJPLocale from 'antd/locale/ja_JP';
 import zhCNLocale from 'antd/locale/zh_CN';
 import { Resizable } from 'react-resizable';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import Markdown from '../../components/Markdown';

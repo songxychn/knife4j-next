@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { matchRoutes } from 'react-router-dom';
+import { matchRoutes } from 'react-router';
 import {
   collectOas32DocumentDiagnostics,
   enumerateOpenApiOperations,

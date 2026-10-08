@@ -33,10 +33,10 @@
     "react-dom": "^18.2.0",
     "react-i18next": "^14.0.0",
     "react-resizable": "^3.2.0",
-    "react-router-dom": "^6.30.6",
     "highlight.js": "^11.12.0",
     "yaml": "2.9.1",
-    "prettier": "^3.9.9"
+    "prettier": "^3.9.9",
+    "react-router": "7.18.4"
   },
   "devDependencies": {
     "@types/react": "^18.3.31",
