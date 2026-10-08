@@ -5,7 +5,7 @@
 ## 环境
 
 - Java：`.java-version`
-- Node：`.nvmrc`
+- Node：`.nvmrc`（22 系列；OAS3 前端构建及 Knife4x UI 同步要求 22.12 或更新版本）
 - 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）；CI / Demo / Release 基准版本读取根目录 `.bun-version`
 - CI：`.github/workflows/build.yml`、`release.yml`
 

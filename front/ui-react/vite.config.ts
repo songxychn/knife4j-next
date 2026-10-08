@@ -36,6 +36,8 @@ export default defineConfig({
     },
   },
   build: {
+    // Preserve Vite 6's JS/CSS targets instead of raising the browser baseline.
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
     commonjsOptions: {
       // workspace package lives at front/core (package name knife4j-core)
       include: [/knife4j-core/, /[\\/]core[\\/]lib/, /node_modules/],
