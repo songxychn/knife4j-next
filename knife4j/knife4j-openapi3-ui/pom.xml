@@ -57,6 +57,20 @@
                                     <directory>${project.basedir}/src/main/resources/webjars/knife4j-ui-react</directory>
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                    <!-- Source JAR generation forks through generate-sources: clean the
+                         copied output later, immediately before copy-react-dist. -->
+                    <execution>
+                        <id>wipe-react-webjar-output</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
                                 <fileset>
                                     <directory>${project.build.outputDirectory}/META-INF/resources/webjars</directory>
                                     <includes>

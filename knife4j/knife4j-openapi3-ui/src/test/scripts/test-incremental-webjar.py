@@ -19,7 +19,8 @@ def write_files(directory, files):
 
 
 def read_jar(module):
-    jars = list((module / "target").glob("*.jar"))
+    jars = [path for path in (module / "target").glob("*.jar")
+            if not path.name.endswith(("-sources.jar", "-javadoc.jar"))]
     if len(jars) != 1:
         raise AssertionError(f"Expected one UI JAR, found {jars}")
     with zipfile.ZipFile(jars[0]) as archive:
@@ -49,8 +50,17 @@ def package_resources(module, dist):
     subprocess.run([
         "mvn", "-B", "-ntp", "-f", str(module / "pom.xml"),
         f"-Dknife4j-ui-react.outDir={dist}", "initialize",
+        "clean:clean@wipe-react-webjar-output",
         "resources:resources", "resources:copy-resources@copy-react-dist", "jar:jar",
+        "source:jar@attach-sources",
     ], check=True)
+    copied = module / "target/classes" / WEBJAR_PREFIX
+    actual = {path.relative_to(copied).as_posix(): path.read_bytes()
+              for path in copied.rglob("*") if path.is_file()}
+    expected = {path.relative_to(dist).as_posix(): path.read_bytes()
+                for path in dist.rglob("*") if path.is_file()}
+    if actual != expected:
+        raise AssertionError("Copied WebJar output changed after the source JAR lifecycle fork")
     return read_jar(module)
 
 
