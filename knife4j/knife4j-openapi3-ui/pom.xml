@@ -38,7 +38,7 @@
             </resource>
         </resources>
         <plugins>
-            <!-- Step 0: always wipe any stale React UI build artifacts checked out under src/main/resources/ -->
+            <!-- Step 0: remove stale React UI artifacts before copying the current build. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -55,6 +55,28 @@
                             <filesets>
                                 <fileset>
                                     <directory>${project.basedir}/src/main/resources/webjars/knife4j-ui-react</directory>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                    <!-- Source JAR generation forks through generate-sources: clean the
+                         copied output later, immediately before copy-react-dist. -->
+                    <execution>
+                        <id>wipe-react-webjar-output</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.build.outputDirectory}/META-INF/resources/webjars</directory>
+                                    <includes>
+                                        <include>knife4j-ui-react</include>
+                                        <include>knife4j-ui-react/**</include>
+                                    </includes>
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
                             </filesets>
