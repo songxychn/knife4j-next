@@ -78,4 +78,14 @@ module.exports = [
       'no-with': 'error',
     },
   },
+  // 保留 ESLint 9 的检查策略和默认选项，不引入 ESLint 10 新增规则。
+  {
+    files: ['**/*.{js,ts}'],
+    rules: {
+      'no-shadow-restricted-names': ['error', { reportGlobalThis: false }],
+      'no-unassigned-vars': 'off',
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
+    },
+  },
 ];
