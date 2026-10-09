@@ -38,7 +38,7 @@
             </resource>
         </resources>
         <plugins>
-            <!-- Step 0: always wipe any stale React UI build artifacts checked out under src/main/resources/ -->
+            <!-- Step 0: remove stale React UI artifacts before copying the current build. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -55,6 +55,10 @@
                             <filesets>
                                 <fileset>
                                     <directory>${project.basedir}/src/main/resources/webjars/knife4j-ui-react</directory>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                                <fileset>
+                                    <directory>${project.build.outputDirectory}/META-INF/resources/webjars/knife4j-ui-react</directory>
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
                             </filesets>
