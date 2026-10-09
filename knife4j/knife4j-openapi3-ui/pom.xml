@@ -58,7 +58,11 @@
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
                                 <fileset>
-                                    <directory>${project.build.outputDirectory}/META-INF/resources/webjars/knife4j-ui-react</directory>
+                                    <directory>${project.build.outputDirectory}/META-INF/resources/webjars</directory>
+                                    <includes>
+                                        <include>knife4j-ui-react</include>
+                                        <include>knife4j-ui-react/**</include>
+                                    </includes>
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
                             </filesets>

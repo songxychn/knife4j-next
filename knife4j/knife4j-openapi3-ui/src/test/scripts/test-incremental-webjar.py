@@ -111,7 +111,22 @@ def main():
             raise AssertionError("Legacy source-tree WebJar output was not cleaned")
         if (external / "keep.txt").read_bytes() != b"external symlink target":
             raise AssertionError("Cleanup followed a symlink outside the WebJar")
-        print("Incremental WebJar regression PASS: exact files/bytes, unrelated output and symlink target preserved", flush=True)
+
+        # The fileset root must also be safe: followSymlinks=false alone does
+        # not protect a symlink used directly as a Maven fileset directory.
+        webjar = target / "classes" / WEBJAR_PREFIX
+        shutil.rmtree(webjar)
+        webjar.symlink_to(external, target_is_directory=True)
+        entries = package_resources(module, dist)
+        if (external / "keep.txt").read_bytes() != b"external symlink target":
+            raise AssertionError("Cleanup followed the WebJar root symlink")
+        if webjar.is_symlink():
+            raise AssertionError("WebJar root symlink was not replaced with a directory")
+        assert_webjar(entries, second)
+        for name, content in preserved.items():
+            if (target / name).read_bytes() != content:
+                raise AssertionError(f"Root symlink cleanup changed unrelated output: {name}")
+        print("Incremental WebJar regression PASS: exact files/bytes, unrelated output and nested/root symlink targets preserved", flush=True)
 
 
 if __name__ == "__main__":
