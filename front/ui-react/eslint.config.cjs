@@ -3,7 +3,7 @@ const ts = require('@typescript-eslint/eslint-plugin');
 const parser = require('@typescript-eslint/parser');
 const globals = require('globals');
 const hooks = require('eslint-plugin-react-hooks');
-const refresh = require('eslint-plugin-react-refresh');
+const refresh = require('eslint-plugin-react-refresh').default;
 
 module.exports = [
   { ignores: ['**/.*', '**/*.js', '**/*.cjs', '**/*.mjs', '**/dist/**'] },
@@ -20,7 +20,9 @@ module.exports = [
     rules: {
       ...js.configs.recommended.rules,
       ...ts.configs['recommended'].rules,
-      ...hooks.configs.recommended.rules,
+      // 仅沿用原有 Hooks 两条规则，不引入新版 React Compiler 检查。
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
@@ -111,6 +113,16 @@ module.exports = [
     rules: {
       'no-class-assign': 'error',
       'no-with': 'error',
+    },
+  },
+  // 保留 ESLint 9 的检查策略和默认选项，不引入 ESLint 10 新增规则。
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      'no-shadow-restricted-names': ['error', { reportGlobalThis: false }],
+      'no-unassigned-vars': 'off',
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
     },
   },
 ];
