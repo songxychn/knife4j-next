@@ -173,7 +173,7 @@ const AppInner: React.FC = () => {
 
     workspace
       .querySelectorAll<HTMLElement>(
-        '.knife4j-workspace-tabs > .ant-tabs-content-holder, .knife4j-operation-tabs > .ant-tabs-content-holder, .knife4j-api-debug-main',
+        '.knife4j-workspace-tabs > .ant-tabs-body-holder, .knife4j-operation-tabs > .ant-tabs-body-holder, .knife4j-api-debug-main',
       )
       .forEach((container) => {
         container.scrollTop = 0;
@@ -611,7 +611,7 @@ const AppInner: React.FC = () => {
                 <Alert
                   type="error"
                   showIcon
-                  message={t('app.groupError.title')}
+                  title={t('app.groupError.title')}
                   description={
                     <span style={{ whiteSpace: 'pre-wrap' }}>{t(groupError.key, groupError.values ?? {})}</span>
                   }
@@ -622,7 +622,7 @@ const AppInner: React.FC = () => {
                 <Alert
                   type="warning"
                   showIcon
-                  message={t('app.operationLimit.title')}
+                  title={t('app.operationLimit.title')}
                   description={t('app.operationLimit.description', { ...operationEnumerationLimit.limits })}
                   style={{ margin: '2px 2px 8px' }}
                 />
@@ -631,7 +631,7 @@ const AppInner: React.FC = () => {
                 <Alert
                   type="warning"
                   showIcon
-                  message={t(
+                  title={t(
                     swaggerDoc?.openapi?.startsWith('3.2.')
                       ? 'app.oas32Compatibility.title'
                       : 'app.oas31Compatibility.title',

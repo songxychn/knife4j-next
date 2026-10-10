@@ -266,7 +266,7 @@ export default function Home() {
   );
 
   const renderExtensionList = (extensions: DisplayExtension[]) => (
-    <Space direction="vertical" size={2} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={2} style={{ width: '100%' }}>
       {extensions.map((extension) => (
         <span key={extension.key} style={{ display: 'block', overflowWrap: 'anywhere' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -520,12 +520,12 @@ export default function Home() {
                       'servers',
                       'home.meta.servers',
                       <CloudServerOutlined />,
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                         {serverMetadata32?.diagnostics.map((diagnostic) => (
                           <Alert
                             type="warning"
                             key={diagnostic.pointer}
-                            message={diagnostic.code}
+                            title={diagnostic.code}
                             description={diagnostic.reason}
                           />
                         ))}
@@ -587,7 +587,7 @@ export default function Home() {
                       'contact',
                       'home.meta.contact',
                       <UserOutlined />,
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                         {info.contact?.name && <span>{info.contact.name}</span>}
                         {info.contact?.email && (
                           <span>
@@ -615,7 +615,7 @@ export default function Home() {
                       'license',
                       'home.meta.license',
                       <FileProtectOutlined />,
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                         {info.license?.url ? (
                           <Link href={info.license.url} target="_blank" rel="noreferrer">
                             {info.license.name ?? info.license.url}

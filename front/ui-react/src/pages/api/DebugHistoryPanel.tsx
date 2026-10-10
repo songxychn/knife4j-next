@@ -347,7 +347,7 @@ export default function DebugHistoryPanel({
 
           <SnapshotBlock title={t('apiDebug.history.requestHeaders')}>
             {selected.formSnapshot?.cookieParameterSource === 'browser-session' && (
-              <Alert type="info" showIcon message={t('apiDebug.cookie.sessionPreview')} style={{ marginBottom: 8 }} />
+              <Alert type="info" showIcon title={t('apiDebug.cookie.sessionPreview')} style={{ marginBottom: 8 }} />
             )}
             <KvList data={selected.headers} maskedKeys={selected.maskedHeaders} />
           </SnapshotBlock>

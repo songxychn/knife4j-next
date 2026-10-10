@@ -1,4 +1,3 @@
-import '@ant-design/v5-patch-for-react-19';
 import { message, Modal, notification } from 'antd';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -38,7 +37,7 @@ async function clickDialogButton(text: string) {
   await act(async () => button!.click());
 }
 
-describe('Ant Design 5 static methods with the React 19 compatibility entry', () => {
+describe('Ant Design 6 static methods with native React 19 support', () => {
   test('renders and destroys a static message', async () => {
     await act(async () => {
       void message.success({ content: 'Saved for React 19', duration: 0 });
@@ -50,7 +49,7 @@ describe('Ant Design 5 static methods with the React 19 compatibility entry', ()
 
   test('renders and destroys a static notification', async () => {
     await act(async () => {
-      notification.open({ message: 'Request complete', description: 'Response received', duration: 0 });
+      notification.open({ title: 'Request complete', description: 'Response received', duration: 0 });
     });
     await vi.waitFor(() =>
       expect(document.querySelector('.ant-notification-notice')?.textContent).toContain('Response received'),

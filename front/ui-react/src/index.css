@@ -19,7 +19,7 @@ body {
 .knife4j-main-content.ant-layout-content,
 .knife4j-main-content-inner,
 .knife4j-workspace-tabs.ant-tabs,
-.knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder {
+.knife4j-workspace-tabs.ant-tabs > .ant-tabs-body-holder {
   min-width: 0;
 }
 
@@ -182,13 +182,13 @@ body {
   white-space: nowrap;
 }
 
-.knife4j-operation-tabs.ant-tabs-left > .ant-tabs-content-holder {
+.knife4j-operation-tabs.ant-tabs-left > .ant-tabs-body-holder {
   min-width: 0;
   overflow: auto;
 }
 
-.knife4j-operation-tabs .ant-tabs-content,
-.knife4j-operation-tabs .ant-tabs-tabpane {
+.knife4j-operation-tabs .ant-tabs-body,
+.knife4j-operation-tabs .ant-tabs-content {
   min-height: 100%;
 }
 
@@ -345,13 +345,13 @@ body {
     flex: 0 0 auto;
   }
 
-  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder {
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-body-holder {
     min-height: 0;
     overflow: auto;
   }
 
-  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder > .ant-tabs-content,
-  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane {
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-body-holder > .ant-tabs-body,
+  .knife4j-workspace-tabs.ant-tabs > .ant-tabs-body-holder > .ant-tabs-body > .ant-tabs-content {
     height: 100%;
     min-height: 0;
   }
@@ -361,12 +361,12 @@ body {
     min-height: 0;
   }
 
-  .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-content-holder {
+  .knife4j-operation-tabs.ant-tabs-left > .ant-tabs-body-holder {
     min-height: 0;
   }
 
-  .knife4j-operation-tabs .ant-tabs-content,
-  .knife4j-operation-tabs .ant-tabs-tabpane {
+  .knife4j-operation-tabs .ant-tabs-body,
+  .knife4j-operation-tabs .ant-tabs-content {
     height: 100%;
     min-height: 0;
   }

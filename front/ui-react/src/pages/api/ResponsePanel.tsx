@@ -287,7 +287,7 @@ export default function ResponsePanel({
           type="error"
           showIcon
           style={{ marginBottom: 12 }}
-          message={t('apiDebug.error.title')}
+          title={t('apiDebug.error.title')}
           description={<pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{error}</pre>}
         />
       )}
@@ -524,7 +524,7 @@ export function ResponseSchemaDiagnosticAlert({
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message={t('apiDebug.responseSchemaValidation.running')}
+          title={t('apiDebug.responseSchemaValidation.running')}
           description={t('apiDebug.responseSchemaValidation.nonBlocking')}
         />
       </div>
@@ -538,9 +538,9 @@ export function ResponseSchemaDiagnosticAlert({
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message={t('apiDebug.responseSchemaValidation.title')}
+          title={t('apiDebug.responseSchemaValidation.title')}
           description={
-            <Space direction="vertical" size={4}>
+            <Space orientation="vertical" size={4}>
               <Text>{t('apiDebug.responseSchemaValidation.invalidJson')}</Text>
               <Text type="secondary">{t('apiDebug.responseSchemaValidation.nonBlocking')}</Text>
             </Space>
@@ -557,7 +557,7 @@ export function ResponseSchemaDiagnosticAlert({
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message={t('apiDebug.responseSchemaValidation.title')}
+          title={t('apiDebug.responseSchemaValidation.title')}
           description={
             <div>
               <Text type="secondary">{t('apiDebug.responseSchemaValidation.nonBlocking')}</Text>
@@ -598,9 +598,9 @@ export function ResponseSchemaDiagnosticAlert({
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message={t('apiDebug.responseSchemaValidation.unavailableTitle')}
+        title={t('apiDebug.responseSchemaValidation.unavailableTitle')}
         description={
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Text>{diagnostic.message ? `${reason}: ${diagnostic.message}` : reason}</Text>
             <Text type="secondary">{t('apiDebug.responseSchemaValidation.nonBlocking')}</Text>
           </Space>

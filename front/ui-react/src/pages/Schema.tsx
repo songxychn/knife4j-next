@@ -256,7 +256,7 @@ export default function Schema() {
         <Alert
           showIcon
           type={noticeContent.type}
-          message={noticeContent.title}
+          title={noticeContent.title}
           description={noticeContent.description}
           style={{ marginBottom: 16 }}
         />

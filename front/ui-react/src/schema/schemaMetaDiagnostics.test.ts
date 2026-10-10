@@ -48,7 +48,7 @@ test.each(['request', 'response'] as const)(
     });
     expect(JSON.stringify(result)).not.toMatch(/knife4j-internal|schema-projections|physical|document0|root0/);
     const notice = SchemaExampleNotice({ result });
-    expect(notice?.props.message).toBe('schema.example.invalidDocument.title');
+    expect(notice?.props.title).toBe('schema.example.invalidDocument.title');
     expect(JSON.stringify(notice)).toContain('#/components/schemas/Bad~1% 中文~0/properties/file/type');
   },
 );

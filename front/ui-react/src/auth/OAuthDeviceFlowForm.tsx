@@ -85,12 +85,12 @@ export function OAuthDeviceFlowForm({
   };
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size={8}>
+    <Space orientation="vertical" style={{ width: '100%' }} size={8}>
       <Text type="secondary">{t('auth.schemes.oauth2.deviceAuthorization')}</Text>
       {'href' in deviceEndpoint ? (
         <Text copyable={{ text: deviceEndpoint.href }}>{deviceEndpoint.href}</Text>
       ) : (
-        <Alert type="warning" showIcon message={t(`auth.schemes.oauth2.endpoint.${endpointIssue ?? 'invalid'}`)} />
+        <Alert type="warning" showIcon title={t(`auth.schemes.oauth2.endpoint.${endpointIssue ?? 'invalid'}`)} />
       )}
       <Input
         value={clientId}
@@ -111,9 +111,9 @@ export function OAuthDeviceFlowForm({
         <Alert
           type="info"
           showIcon
-          message={t('auth.schemes.oauth2.userCode', { code: snapshot.verification.userCode })}
+          title={t('auth.schemes.oauth2.userCode', { code: snapshot.verification.userCode })}
           description={
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <a href={snapshot.verification.uri} target="_blank" rel="noreferrer">
                 {snapshot.verification.uri}
               </a>
@@ -129,7 +129,7 @@ export function OAuthDeviceFlowForm({
       {snapshot.status !== 'idle' && snapshot.status !== 'success' && (
         <Alert
           type={snapshot.error ? 'warning' : 'info'}
-          message={t(`auth.schemes.oauth2.device.status.${snapshot.status}`)}
+          title={t(`auth.schemes.oauth2.device.status.${snapshot.status}`)}
         />
       )}
       <Input.Password

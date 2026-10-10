@@ -115,7 +115,7 @@ export default function OperationExamplePicker({
     </span>
   );
   return (
-    <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} data-example-group={target.group}>
+    <Space orientation="vertical" style={{ width: '100%', marginBottom: 12 }} data-example-group={target.group}>
       <Space wrap>
         <Typography.Text strong>{t('schema.example32.choose')}</Typography.Text>
         <Select
@@ -215,7 +215,7 @@ export default function OperationExamplePicker({
         <Alert
           type="warning"
           showIcon
-          message={t('schema.example32.diagnostic')}
+          title={t('schema.example32.diagnostic')}
           description={representation.diagnostics
             .map((diagnostic) => t(`schema.example32.diagnostics.${diagnostic.code}`))
             .join(' ')}

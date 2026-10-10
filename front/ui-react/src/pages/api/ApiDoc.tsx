@@ -336,7 +336,7 @@ export default function ApiDoc() {
   if (!swaggerDoc || !operation) {
     return (
       <OperationModeLayout activeKey="doc">
-        <Alert type="warning" showIcon message={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />
+        <Alert type="warning" showIcon title={t('apiDoc.notFound.title')} description={t('apiDoc.notFound.desc')} />
       </OperationModeLayout>
     );
   }
@@ -458,7 +458,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       title: t('apiDoc.col.description'),
       dataIndex: 'description',
       render: (value: string, record: ParamRow) => (
-        <Space size={4} direction="vertical" style={{ width: '100%' }}>
+        <Space size={4} orientation="vertical" style={{ width: '100%' }}>
           {value ? <DescriptionText>{value}</DescriptionText> : <Text type="secondary">-</Text>}
           {record.refDescription && record.refDescription !== value && (
             <DescriptionText type="secondary" style={{ fontSize: 12 }}>
@@ -777,7 +777,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         ? formatSchemaExampleValue(selection.result.value, selection.mediaType)
         : null;
     return (
-      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={8} style={{ width: '100%' }}>
         <SchemaExampleNotice result={selection.result} />
         {code !== null && (
           <CodeBlock
@@ -821,19 +821,19 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       </div>
 
       {(operation.source === 'callback' || operation.source === 'component') && (
-        <Alert type="info" showIcon message={t('apiDoc.definition.readOnly')} style={{ marginBottom: 8 }} />
+        <Alert type="info" showIcon title={t('apiDoc.definition.readOnly')} style={{ marginBottom: 8 }} />
       )}
       {operation.source === 'link' && (
         <Alert
           type="info"
           showIcon
-          message={t('apiDoc.link.readOnly')}
+          title={t('apiDoc.link.readOnly')}
           description={`${operation.identity?.ownerRetrievalUri ?? ''}${operation.identity?.operationPointer ?? ''}`}
           style={{ marginBottom: 8 }}
         />
       )}
       {operation.source === 'webhook' && (
-        <Alert type="info" showIcon message={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
+        <Alert type="info" showIcon title={t('apiDoc.webhook.readOnly')} style={{ marginBottom: 8 }} />
       )}
 
       {responseLinks.length > 0 && (
@@ -863,7 +863,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         <Alert
           type="warning"
           showIcon
-          message={t('apiDebug.responseSchemaValidation.referenceUnavailable')}
+          title={t('apiDebug.responseSchemaValidation.referenceUnavailable')}
           style={{ marginBottom: 8 }}
         />
       )}
@@ -931,7 +931,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         <Alert
           showIcon
           type={projectionNotice.type}
-          message={projectionNotice.title}
+          title={projectionNotice.title}
           description={projectionNotice.description}
           style={{ marginTop: 8, marginBottom: 8 }}
         />
@@ -1013,7 +1013,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                         <Alert
                           type="info"
                           showIcon
-                          message={t('schema.example.loading.title')}
+                          title={t('schema.example.loading.title')}
                           description={t('schema.example.loading.description')}
                         />
                       ),
@@ -1094,7 +1094,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                           <Alert
                             type="warning"
                             showIcon
-                            message={t('oas32.responseUnavailable', { status: row.statusCode })}
+                            title={t('oas32.responseUnavailable', { status: row.statusCode })}
                           />
                         ) : (
                           <>

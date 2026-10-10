@@ -353,7 +353,7 @@ export default function ScriptView() {
         <Alert
           type="warning"
           showIcon
-          message={t('apiScript.notFound.title')}
+          title={t('apiScript.notFound.title')}
           description={t('apiScript.notFound.desc')}
         />
       </OperationModeLayout>
@@ -393,7 +393,7 @@ export default function ScriptView() {
           onCopy={handleCopy}
         />
       ) : (
-        <Alert type="info" showIcon message={t('apiScript.noCode')} />
+        <Alert type="info" showIcon title={t('apiScript.noCode')} />
       )}
     </OperationModeLayout>
   );

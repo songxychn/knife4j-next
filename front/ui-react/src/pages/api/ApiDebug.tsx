@@ -842,7 +842,7 @@ function BodyTab({
   });
 
   if (bodyContents.length === 0) {
-    return <Alert type="info" message={t('apiDebug.noBody')} showIcon />;
+    return <Alert type="info" title={t('apiDebug.noBody')} showIcon />;
   }
 
   // 当前选中的 BodyContent
@@ -971,7 +971,7 @@ function BinaryBodyInput({ contentType, fileRef }: BinaryBodyInputProps) {
   };
 
   return (
-    <Space direction="vertical" size={8}>
+    <Space orientation="vertical" size={8}>
       <Text type="secondary">{t('apiDebug.body.binaryHint', { contentType })}</Text>
       <Upload beforeUpload={() => false} multiple={false} maxCount={1} fileList={fileList} onChange={handleChange}>
         <Button size="small" icon={<UploadOutlined />}>
@@ -1021,7 +1021,7 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
       key: 'type',
       width: 100,
       render: (_value: string, record: SchemaFieldRow) => (
-        <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
+        <Space size={2} orientation="vertical" style={{ lineHeight: 1.3 }}>
           <Text code style={{ fontSize: 12 }}>
             {record.type}
           </Text>
@@ -1049,7 +1049,7 @@ function UrlencodedForm({ bodyContent, formFields, setFormFields }: UrlencodedFo
       key: 'description',
       width: 240,
       render: (_value, record: SchemaFieldRow) => (
-        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+        <Space size={2} orientation="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
           {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
           {record.default !== undefined && (
             <Text type="secondary" style={{ fontSize: 11 }}>
@@ -1238,7 +1238,7 @@ function MultipartForm({
         }
 
         return (
-          <Space direction="vertical" size={6} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={6} style={{ width: '100%' }}>
             {editor}
             {record.contentTypeRequiresChoice && (
               <AutoComplete
@@ -1283,7 +1283,7 @@ function MultipartForm({
       key: 'description',
       width: 240,
       render: (_value, record: SchemaFieldRow) => (
-        <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+        <Space size={2} orientation="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
           {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
           {record.contentTypes.length > 0 && (
             <Text type="secondary" style={{ fontSize: 11 }}>
@@ -1296,7 +1296,7 @@ function MultipartForm({
   ];
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={8} style={{ width: '100%' }}>
       <Table size="small" dataSource={fields} columns={columns} pagination={false} rowKey="name" />
       {bodyContent.oas32Form?.extraItemTemplate && (
         <Button size="small" icon={<PlusOutlined />} onClick={addExtraPart}>
@@ -1521,7 +1521,7 @@ function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: Previe
     };
   }, [result, materialized]);
   if (!result.ok) {
-    return <Alert type="error" showIcon message={t('apiDebug.error.title')} description={result.error} />;
+    return <Alert type="error" showIcon title={t('apiDebug.error.title')} description={result.error} />;
   }
   const { built, curl, cookieParameterSource } = result.value;
   const multipartPlan = built.formBodyPlan?.kind === 'multipart' ? built.formBodyPlan : undefined;
@@ -1587,7 +1587,7 @@ function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: Previe
   };
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size={14}>
+    <Space orientation="vertical" style={{ width: '100%' }} size={14}>
       {/* URL + method */}
       <div>
         <Space size={8}>
@@ -1599,14 +1599,14 @@ function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: Previe
       </div>
 
       {parameterDiagnostics.length > 0 && (
-        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        <Space orientation="vertical" style={{ width: '100%' }} size={8}>
           <Text strong>{t('apiDebug.preview.diagnostics')}</Text>
           {parameterDiagnostics.map((diagnostic, index) => (
             <Alert
               key={`${diagnostic.code}:${diagnostic.key ?? ''}:${index}`}
               type={oas32PreviewDiagnosticAlertType(diagnostic)}
               showIcon
-              message={t(oas32PreviewDiagnosticTitle(diagnostic))}
+              title={t(oas32PreviewDiagnosticTitle(diagnostic))}
               description={`${diagnostic.code}: ${diagnostic.message}`}
             />
           ))}
@@ -1736,13 +1736,13 @@ function PreviewTabPanel({ result, onCopyText, onDownloadMultipartBody }: Previe
           <Alert
             type="info"
             showIcon
-            message={t('apiDebug.cookie.sessionPreview')}
+            title={t('apiDebug.cookie.sessionPreview')}
             description={t('apiDebug.cookie.sessionCurl')}
             style={{ marginBottom: 8 }}
           />
         )}
         {encodedMultipart && (
-          <Alert type="info" showIcon message={t('apiDebug.preview.multipartBodyFile')} style={{ marginBottom: 8 }} />
+          <Alert type="info" showIcon title={t('apiDebug.preview.multipartBodyFile')} style={{ marginBottom: 8 }} />
         )}
         <Collapse
           ghost
@@ -2542,7 +2542,7 @@ export default function ApiDebug() {
         key: 'type',
         width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.type,
         render: (_value: string, record: DebugParam) => (
-          <Space size={2} direction="vertical" style={{ lineHeight: 1.3 }}>
+          <Space size={2} orientation="vertical" style={{ lineHeight: 1.3 }}>
             <Text code style={{ fontSize: 12 }}>
               {record.type}
             </Text>
@@ -2583,7 +2583,7 @@ export default function ApiDebug() {
         key: 'description',
         width: API_DEBUG_PARAM_TABLE_COLUMN_WIDTHS.description,
         render: (_value, record: DebugParam) => (
-          <Space size={2} direction="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
+          <Space size={2} orientation="vertical" style={{ lineHeight: 1.35, fontSize: 12 }}>
             {record.description && <DescriptionText style={{ fontSize: 12 }}>{record.description}</DescriptionText>}
             {record.default !== undefined && (
               <Text type="secondary" style={{ fontSize: 11 }}>
@@ -2629,12 +2629,7 @@ export default function ApiDebug() {
   if (!swaggerDoc || !operation || !debugModel) {
     return (
       <OperationModeLayout activeKey="debug">
-        <Alert
-          type="warning"
-          showIcon
-          message={t('apiDebug.notFound.title')}
-          description={t('apiDebug.notFound.desc')}
-        />
+        <Alert type="warning" showIcon title={t('apiDebug.notFound.title')} description={t('apiDebug.notFound.desc')} />
       </OperationModeLayout>
     );
   }
@@ -4179,7 +4174,7 @@ export default function ApiDebug() {
             onChange={setCustomQueryParams}
           />
           {querystringParameter && querystringConflict && (
-            <Alert type="error" showIcon message={t('apiDebug.querystring.conflict')} style={{ marginTop: 12 }} />
+            <Alert type="error" showIcon title={t('apiDebug.querystring.conflict')} style={{ marginTop: 12 }} />
           )}
         </>
       ),
@@ -4191,9 +4186,9 @@ export default function ApiDebug() {
             label: `${t('apiDebug.tab.querystring')} (1)`,
             disabled: false,
             children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              <Space orientation="vertical" style={{ width: '100%' }} size={12}>
                 {renderExamplePickers32('querystring')}
-                {querystringConflict && <Alert type="error" showIcon message={t('apiDebug.querystring.conflict')} />}
+                {querystringConflict && <Alert type="error" showIcon title={t('apiDebug.querystring.conflict')} />}
                 <Space wrap>
                   <Checkbox
                     checked={querystringEntry?.enabled !== false}
@@ -4207,7 +4202,7 @@ export default function ApiDebug() {
                     </Text>
                   )}
                 </Space>
-                <Alert type="info" showIcon message={t('apiDebug.querystring.emptyHint')} />
+                <Alert type="info" showIcon title={t('apiDebug.querystring.emptyHint')} />
                 <Radio.Group
                   value={querystringKind}
                   optionType="button"
@@ -4295,7 +4290,7 @@ export default function ApiDebug() {
         <>
           {renderExamplePickers32('cookie')}
           {cookieSessionEnabled && (
-            <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }}>
+            <Space orientation="vertical" style={{ width: '100%', marginBottom: 12 }}>
               <Space wrap>
                 <Text strong>{t('apiDebug.cookie.source')}</Text>
                 <Radio.Group
@@ -4325,7 +4320,7 @@ export default function ApiDebug() {
               <Alert
                 type="info"
                 showIcon
-                message={t(
+                title={t(
                   effectiveCookieSource === 'browser-session'
                     ? 'apiDebug.cookie.sessionTip'
                     : 'apiDebug.cookie.explicitTip',
@@ -4367,7 +4362,7 @@ export default function ApiDebug() {
             <Alert
               type="info"
               showIcon
-              message={t('schema.example.loading.title')}
+              title={t('schema.example.loading.title')}
               description={t('schema.example.loading.description')}
               style={{ marginBottom: 12 }}
             />
@@ -4376,7 +4371,7 @@ export default function ApiDebug() {
             <SchemaExampleNotice result={currentBodyExampleResult} style={{ marginBottom: 12 }} />
           )}
           {serializedBodyMedia32 === selectedContentType ? (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Space>
                 <Select
                   aria-label={t('apiDebug.body.contentType')}
@@ -4653,13 +4648,13 @@ export default function ApiDebug() {
             <Alert
               key={`${diagnostic.code}:${diagnostic.path}`}
               type="warning"
-              message={diagnostic.code}
+              title={diagnostic.code}
               description={`${diagnostic.path}: ${diagnostic.reason}`}
               style={{ marginBottom: 8 }}
             />
           ))}
           {methodConstraintMessage && (
-            <Alert type="warning" showIcon message={methodConstraintMessage} style={{ marginBottom: 12 }} />
+            <Alert type="warning" showIcon title={methodConstraintMessage} style={{ marginBottom: 12 }} />
           )}
           {isOas32 && (
             <div className="knife4j-server-selection">
@@ -4722,7 +4717,7 @@ export default function ApiDebug() {
               ) : (
                 <Alert
                   type="warning"
-                  message={t('oas32.server.unavailable')}
+                  title={t('oas32.server.unavailable')}
                   description={server32.declarations?.diagnostics
                     .map((diagnostic) => `${diagnostic.code}: ${diagnostic.reason}`)
                     .join('; ')}
@@ -4752,7 +4747,7 @@ export default function ApiDebug() {
                   security32.projection.status !== 'ready' ? 'error' : security32.plan.complete ? 'info' : 'warning'
                 }
                 showIcon
-                message={
+                title={
                   security32.projection.status !== 'ready'
                     ? t('apiDebug.security.unavailable')
                     : security32.projection.declaration === 'empty'
@@ -4836,7 +4831,7 @@ export default function ApiDebug() {
 
           {loading &&
             (responseProgress === null ? (
-              <Spin tip={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />
+              <Spin description={t('apiDebug.sending')} style={{ display: 'block', margin: '24px auto' }} />
             ) : responsePercent === null ? (
               <div style={{ margin: '24px auto', textAlign: 'center' }}>
                 <Spin />

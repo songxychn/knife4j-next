@@ -57,7 +57,7 @@ export default function Settings() {
     Modal.error({
       title: t('settings.localData.result.incompleteTitle'),
       content: (
-        <Space direction="vertical" size={8}>
+        <Space orientation="vertical" size={8}>
           <Text>
             {t('settings.localData.result.incomplete', {
               removed: removedKnife4jStorageEntryCount(result),
@@ -92,14 +92,14 @@ export default function Settings() {
         scope === 'request-cache' ? 'settings.localData.confirm.requestTitle' : 'settings.localData.confirm.allTitle',
       ),
       content: (
-        <Space direction="vertical" size={8}>
+        <Space orientation="vertical" size={8}>
           <Text>{t('settings.localData.confirm.affected')}</Text>
           <ul style={{ margin: 0, paddingInlineStart: 24 }}>
             {categoryKeys.map((key) => (
               <li key={key}>{t(key)}</li>
             ))}
           </ul>
-          <Alert type="warning" showIcon message={t('settings.localData.confirm.cookieWarning')} />
+          <Alert type="warning" showIcon title={t('settings.localData.confirm.cookieWarning')} />
         </Space>
       ),
       okText: t('settings.localData.confirm.ok'),
@@ -119,7 +119,7 @@ export default function Settings() {
 
   return (
     <div id="knife4j-settings-page" style={{ maxWidth: 720, margin: '16px auto', padding: '0 16px' }}>
-      <Alert message={t('settings.tip')} type="info" showIcon style={{ marginBottom: 16 }} />
+      <Alert title={t('settings.tip')} type="info" showIcon style={{ marginBottom: 16 }} />
 
       {/* 请求参数缓存 */}
       <div style={{ height: 50, lineHeight: '50px' }}>
@@ -269,9 +269,9 @@ export default function Settings() {
       <Divider style={{ margin: '4px 0' }} />
 
       <div style={{ padding: '16px 0' }}>
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           <Text strong>{t('settings.localData.title')}</Text>
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Button
               aria-describedby="knife4j-clear-request-cache-description"
               onClick={() => confirmLocalDataCleanup('request-cache')}
@@ -283,7 +283,7 @@ export default function Settings() {
             </Text>
           </Space>
           <Divider style={{ margin: '0' }} />
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Button
               danger
               aria-describedby="knife4j-reset-all-local-data-description"

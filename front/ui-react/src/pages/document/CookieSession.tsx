@@ -144,9 +144,9 @@ function CookieSessionInner() {
         <Alert
           type="info"
           showIcon
-          message={t('globalParam.cookie.tip')}
+          title={t('globalParam.cookie.tip')}
           description={
-            <Space direction="vertical" size={4}>
+            <Space orientation="vertical" size={4}>
               <span>{t('cookieSession.scope', { group: currentGroupName })}</span>
               <span>{t('cookieSession.browserPolicy')}</span>
             </Space>

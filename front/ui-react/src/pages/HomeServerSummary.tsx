@@ -19,7 +19,7 @@ export default function HomeServerSummary({ server }: { server: Oas32ResolvedSer
           key={`${diagnostic.code}:${diagnostic.pointer}:${index}`}
           type="warning"
           showIcon
-          message={diagnostic.code}
+          title={diagnostic.code}
           description={`${diagnostic.pointer}: ${diagnostic.reason}`}
         />
       ))}

@@ -108,7 +108,7 @@ export default function SchemaDiscriminatorPanel({
 
   return (
     <Space
-      direction="vertical"
+      orientation="vertical"
       style={{ width: '100%', marginBottom: 12 }}
       data-discriminator-panel=""
       data-discriminator-status={metadata.status}
@@ -137,7 +137,7 @@ export default function SchemaDiscriminatorPanel({
           showIcon
           data-discriminator-hint={hint.status}
           data-discriminator-reason={hint.reason ?? ''}
-          message={t('schema.discriminator.hint')}
+          title={t('schema.discriminator.hint')}
           description={`${t(`schema.discriminator.hint.${hint.status}`)}${
             hint.reason ? ` · ${t(`schema.discriminator.reason.${hint.reason}`)}` : ''
           }`}
@@ -148,7 +148,7 @@ export default function SchemaDiscriminatorPanel({
           key={`${diagnostic.code}:${index}`}
           type="warning"
           showIcon
-          message={t('schema.discriminator.diagnostic', { code: diagnostic.code })}
+          title={t('schema.discriminator.diagnostic', { code: diagnostic.code })}
         />
       ))}
       {metadata.targets.map((target) => {
@@ -230,7 +230,7 @@ export default function SchemaDiscriminatorPanel({
           type="warning"
           showIcon
           data-discriminator-generated-unavailable={generatedUnavailable.reason}
-          message={
+          title={
             generatedUnavailable.diagnostics.some((item) => isDynamicScopeGenerationUnavailable(item.code))
               ? t('schema.discriminator.generate.dynamicUnavailable')
               : generatedUnavailable.reason === 'ambiguous'
