@@ -46,7 +46,7 @@ export default function OperationExamplePicker({
     session?: SchemaDocumentSession;
     result: OperationExampleResult;
   }>();
-  const pendingApply = useRef<{ id: string; revision: number }>();
+  const pendingApply = useRef<{ id: string; revision: number } | undefined>(undefined);
   const callbacks = useRef({ onApply, editRevision });
   callbacks.current = { onApply, editRevision };
   useEffect(() => {
