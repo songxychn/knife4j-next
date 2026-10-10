@@ -1764,7 +1764,7 @@ export default function OfficeDoc() {
         {t('officeDoc.desc')}
       </Paragraph>
 
-      {noData && <Alert type="warning" message={t('officeDoc.alert.mockData')} style={{ marginBottom: 16 }} />}
+      {noData && <Alert type="warning" title={t('officeDoc.alert.mockData')} style={{ marginBottom: 16 }} />}
 
       <Space size="middle" wrap>
         <Button

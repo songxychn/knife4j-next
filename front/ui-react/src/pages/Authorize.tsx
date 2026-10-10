@@ -339,7 +339,7 @@ function ApiKeySchemeForm({
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <Space>
           <Tag>
             {t('auth.schemes.apiKey.in')}: {isIn}
@@ -460,7 +460,7 @@ function HttpBasicSchemeForm({
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <Input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -513,7 +513,7 @@ function OAuth2SchemeForm({
   const flows = getOauth2Flows(scheme);
 
   if (flows.length === 0) {
-    return <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
+    return <Alert type="info" title={t('auth.schemes.oauth2.unsupported')} />;
   }
 
   return (
@@ -523,9 +523,9 @@ function OAuth2SchemeForm({
           type="info"
           showIcon
           style={{ marginBottom: 8 }}
-          message={t('auth.schemes.oauth2.metadataUrl')}
+          title={t('auth.schemes.oauth2.metadataUrl')}
           description={
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text copyable={{ text: scheme.oauth2MetadataUrl }}>{scheme.oauth2MetadataUrl}</Text>
               <Text type="secondary">{t('auth.schemes.oauth2.metadataUrl.hint')}</Text>
             </Space>
@@ -705,7 +705,7 @@ function OAuth2FlowForm({
 
   return (
     <Card size="small" title={flowLabel} style={{ marginBottom: 8 }}>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         {/* Token URL — only for non-popup flows (password / clientCredentials) */}
         {!isPopupFlow && (
           <Input
@@ -859,10 +859,10 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
         <Alert
           type="info"
           showIcon
-          message={t('auth.scopeTip', { group: activeGroup.label || activeGroup.value })}
+          title={t('auth.scopeTip', { group: activeGroup.label || activeGroup.value })}
           style={{ marginBottom: 16 }}
         />
-        <Alert type="info" message={t('auth.schemes.empty')} />
+        <Alert type="info" title={t('auth.schemes.empty')} />
       </div>
     );
   }
@@ -873,7 +873,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
     const isAuthorized = !!schemes[securityKey];
     let schemeForm: React.ReactNode;
     if (!scheme || card.unavailable) {
-      schemeForm = <Alert type="warning" showIcon message={t('auth.schemes.unavailable')} />;
+      schemeForm = <Alert type="warning" showIcon title={t('auth.schemes.unavailable')} />;
     } else {
       const schemeKind = securitySchemeUiKind(scheme);
 
@@ -907,7 +907,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
             />
           );
         } else {
-          schemeForm = <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
+          schemeForm = <Alert type="info" title={t('auth.schemes.oauth2.unsupported')} />;
         }
       } else if (schemeKind === 'oauth2') {
         schemeForm = (
@@ -925,12 +925,12 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
           <Alert
             type="info"
             showIcon
-            message={t('auth.schemes.mutualTLS.readOnly')}
+            title={t('auth.schemes.mutualTLS.readOnly')}
             description={t('auth.schemes.mutualTLS.description')}
           />
         );
       } else {
-        schemeForm = <Alert type="info" message={t('auth.schemes.oauth2.unsupported')} />;
+        schemeForm = <Alert type="info" title={t('auth.schemes.oauth2.unsupported')} />;
       }
     }
 
@@ -971,7 +971,7 @@ function AuthorizeForGroup({ embedded = false }: { embedded?: boolean }) {
           <Alert
             type="info"
             showIcon
-            message={t('auth.scopeTip', { group: activeGroup.label || activeGroup.value })}
+            title={t('auth.scopeTip', { group: activeGroup.label || activeGroup.value })}
             style={{ marginBottom: 16 }}
           />
         </>

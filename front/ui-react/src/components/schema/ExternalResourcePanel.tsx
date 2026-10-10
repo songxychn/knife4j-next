@@ -79,7 +79,7 @@ const ExternalResourcePanel: React.FC = () => {
         className="knife4j-resource-alert"
         type={alertType}
         showIcon
-        message={t(`${summaryKey}.title`, {
+        title={t(`${summaryKey}.title`, {
           pending: pending.length,
           loaded: loaded.length,
           failed: failed.length + resources.diagnostics.length,
@@ -113,12 +113,7 @@ const ExternalResourcePanel: React.FC = () => {
           </Space>
         }
       >
-        <Alert
-          type="warning"
-          showIcon
-          message={t('resource.security.title')}
-          description={t('resource.security.body')}
-        />
+        <Alert type="warning" showIcon title={t('resource.security.title')} description={t('resource.security.body')} />
 
         <div className="knife4j-resource-section-heading">
           <Space>
@@ -155,7 +150,7 @@ const ExternalResourcePanel: React.FC = () => {
                     )
                   }
                 >
-                  <Space direction="vertical" size={3}>
+                  <Space orientation="vertical" size={3}>
                     <Space wrap>
                       <Tag color={candidate.sameOrigin ? 'blue' : 'purple'}>
                         {t(candidate.sameOrigin ? 'resource.sameOrigin' : 'resource.crossOrigin')}
@@ -199,7 +194,7 @@ const ExternalResourcePanel: React.FC = () => {
                   resources.snapshot?.edges.filter((edge) => edge.targetRetrievalUri === node.retrievalUri) ?? [];
                 return (
                   <List.Item className="knife4j-resource-passport knife4j-resource-passport-loaded">
-                    <Space direction="vertical" size={3}>
+                    <Space orientation="vertical" size={3}>
                       <Space wrap>
                         <Tag color="green">{t('resource.loaded.tag')}</Tag>
                         <Tag>{t(`resource.authorization.${node.authorizationScope}`)}</Tag>
@@ -261,7 +256,7 @@ const ExternalResourcePanel: React.FC = () => {
                         : undefined
                     }
                   >
-                    <Space direction="vertical" size={2}>
+                    <Space orientation="vertical" size={2}>
                       <Space wrap>
                         <Tag color="red">{diagnostic.code}</Tag>
                         <Tag>{diagnostic.phase}</Tag>
@@ -277,7 +272,7 @@ const ExternalResourcePanel: React.FC = () => {
               <Alert
                 type="error"
                 showIcon
-                message={resources.registrationError.code ?? 'RESOURCE_REGISTER_FAILED'}
+                title={resources.registrationError.code ?? 'RESOURCE_REGISTER_FAILED'}
                 description={t('resource.registrationFailed')}
               />
             )}

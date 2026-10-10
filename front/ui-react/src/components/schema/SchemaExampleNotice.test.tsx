@@ -22,7 +22,7 @@ describe('SchemaExampleNotice', () => {
     });
     expect(notice?.props).toMatchObject({
       type: 'warning',
-      message: 'schema.example.referenceUnavailable.title',
+      title: 'schema.example.referenceUnavailable.title',
       description: 'schema.example.referenceUnavailable.description',
     });
   });
@@ -38,6 +38,6 @@ describe('SchemaExampleNotice', () => {
         diagnostics: [{ code: 'EVALUATION_UNAVAILABLE' }],
       },
     });
-    expect(notice?.props.message).toBe('schema.example.validationUnavailable.title');
+    expect(notice?.props.title).toBe('schema.example.validationUnavailable.title');
   });
 });

@@ -29,7 +29,7 @@ function visibleText(value: unknown): string {
   if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object' || !('props' in value)) return '';
   const { type, props } = value as Element;
-  if (type === 'Alert') return `${visibleText(props.message)} ${visibleText(props.description)}`;
+  if (type === 'Alert') return `${visibleText(props.title)} ${visibleText(props.description)}`;
   return visibleText(props.children);
 }
 const doc: SwaggerDoc = {

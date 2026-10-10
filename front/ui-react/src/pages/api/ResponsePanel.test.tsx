@@ -136,7 +136,7 @@ describe('ResponseSchemaDiagnosticAlert', () => {
     expect(tree.props['data-diagnostic-status']).toBe('unavailable');
     const alert = findElement(tree, (element) => element.type === 'Alert');
     expect(alert?.props.type).toBe('info');
-    expect(alert?.props.message).toBe('apiDebug.responseSchemaValidation.unavailableTitle');
+    expect(alert?.props.title).toBe('apiDebug.responseSchemaValidation.unavailableTitle');
   });
 });
 

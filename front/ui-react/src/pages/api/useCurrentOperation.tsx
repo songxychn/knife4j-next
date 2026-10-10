@@ -93,7 +93,7 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
     <Tabs
       className="knife4j-operation-tabs"
       activeKey={activeKey}
-      tabPosition="left"
+      tabPlacement="start"
       onChange={(key) => {
         if (!group || !tag || !operaterId) return;
         navigate(`/${encodeURIComponent(group)}/${encodeURIComponent(tag)}/${encodeURIComponent(operaterId)}/${key}`);

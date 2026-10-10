@@ -42,7 +42,7 @@ export default function Oas32ServerDetails({
       </div>
       {server.description && <Typography.Paragraph>{server.description}</Typography.Paragraph>}
       {server.variables.length > 0 && (
-        <Space direction="vertical">
+        <Space orientation="vertical">
           {server.variables.map((variable) => (
             <Typography.Text
               key={variable.name}
@@ -57,7 +57,7 @@ export default function Oas32ServerDetails({
             key={`${diagnostic.code}:${diagnostic.pointer}:${index}`}
             type="warning"
             showIcon
-            message={diagnostic.code}
+            title={diagnostic.code}
             description={`${diagnostic.pointer}: ${diagnostic.reason}`}
           />
         ))}

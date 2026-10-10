@@ -268,7 +268,7 @@ function GlobalParamInner() {
         <Alert
           type={scope === 'application' ? 'warning' : 'info'}
           showIcon
-          message={t(scope === 'application' ? 'globalParam.scope.applicationTip' : 'globalParam.scope.groupTip')}
+          title={t(scope === 'application' ? 'globalParam.scope.applicationTip' : 'globalParam.scope.groupTip')}
           description={scope === 'application' ? t('globalParam.scope.applicationStorage') : undefined}
           style={{ marginBottom: 16 }}
         />

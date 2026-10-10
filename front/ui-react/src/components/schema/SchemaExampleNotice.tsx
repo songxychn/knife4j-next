@@ -24,7 +24,7 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
       <Alert
         type="warning"
         showIcon
-        message={t('schema.example.invalidDocument.title')}
+        title={t('schema.example.invalidDocument.title')}
         description={
           <div>
             <div>{t('schema.example.invalidDocument.description')}</div>
@@ -53,7 +53,7 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
       <Alert
         type="warning"
         showIcon
-        message={t('schema.example.referenceUnavailable.title')}
+        title={t('schema.example.referenceUnavailable.title')}
         description={t('schema.example.referenceUnavailable.description')}
         style={style}
       />
@@ -66,7 +66,7 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
       <Alert
         type="warning"
         showIcon
-        message={t('schema.example.explicitInvalid.title')}
+        title={t('schema.example.explicitInvalid.title')}
         description={
           issue
             ? t('schema.example.explicitInvalid.issue', {
@@ -86,7 +86,7 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
       <Alert
         type="warning"
         showIcon
-        message={t('schema.example.validationUnavailable.title')}
+        title={t('schema.example.validationUnavailable.title')}
         description={message ?? t('schema.example.validationUnavailable.description')}
         style={style}
       />
@@ -100,7 +100,7 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
     <Alert
       type={unavailable ? 'warning' : 'info'}
       showIcon
-      message={
+      title={
         unavailable
           ? t('schema.example.validationUnavailable.title')
           : budgetExceeded

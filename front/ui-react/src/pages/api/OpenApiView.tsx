@@ -74,7 +74,7 @@ export default function OpenApiView() {
         <Alert
           type="warning"
           showIcon
-          message={t('apiOpenApi.notFound.title')}
+          title={t('apiOpenApi.notFound.title')}
           description={t('apiOpenApi.notFound.desc')}
         />
       </OperationModeLayout>
@@ -132,7 +132,7 @@ export default function OpenApiView() {
             <Alert
               type={isWarningNotice(openApiState.notice.kind) ? 'warning' : 'info'}
               showIcon
-              message={t(NOTICE_MESSAGE_KEYS[openApiState.notice.kind])}
+              title={t(NOTICE_MESSAGE_KEYS[openApiState.notice.kind])}
               description={
                 openApiState.notice.kind === 'oas31-blocked' || openApiState.notice.kind === 'oas32-blocked' ? (
                   <div>
@@ -160,9 +160,9 @@ export default function OpenApiView() {
           <CodeBlock code={openApiState.json} language="json" maxHeight={600} onCopy={handleCopy} />
         </div>
       ) : openApiState.status === 'error' ? (
-        <Alert type="error" showIcon message={t('apiOpenApi.serialize.failed')} />
+        <Alert type="error" showIcon title={t('apiOpenApi.serialize.failed')} />
       ) : (
-        <Alert type="info" showIcon message={t('apiOpenApi.noData')} />
+        <Alert type="info" showIcon title={t('apiOpenApi.noData')} />
       )}
     </OperationModeLayout>
   );

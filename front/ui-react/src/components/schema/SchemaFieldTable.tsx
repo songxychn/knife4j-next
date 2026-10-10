@@ -113,7 +113,7 @@ export function SchemaTypeLink({ node, constrainToCell = false }: SchemaTypeLink
           {schema.description}
         </DescriptionText>
       )}
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={4} style={{ width: '100%' }}>
         {previewFields.map((field) => (
           <div
             key={`${field.name}-${field.refName ?? field.type}`}
