@@ -36,8 +36,8 @@ export default defineConfig({
     },
   },
   build: {
-    // Preserve Vite 6's JS/CSS targets instead of raising the browser baseline.
-    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    // JSONPath 11 requires native RegExp v support; keep JS syntax at ES2020.
+    target: ['es2020', 'edge112', 'firefox116', 'chrome112', 'safari17'],
     rolldownOptions: {
       output: {
         entryFileNames: 'assets/index.js',

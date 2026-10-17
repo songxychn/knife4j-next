@@ -25,7 +25,7 @@
     "i18next": "^23.7.6",
     "i18next-browser-languagedetector": "^7.2.0",
     "idb-keyval": "^6.3.0",
-    "jsonpath-plus": "10.4.0",
+    "jsonpath-plus": "11.2.1",
     "knife4j-core": "*",
     "knife4j-schema-engine": "*",
     "marked": "^9.1.6",

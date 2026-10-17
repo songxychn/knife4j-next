@@ -4,6 +4,15 @@
 
 它不是通用 Vite 模板，也不是 OAS2 兼容 UI。OAS2 兼容维护线在 `front/vue3`。
 
+## 浏览器要求（当前源码，待发布）
+
+React UI 最低要求 Chrome / Edge 112、Firefox 116、Safari / iOS Safari 17，
+适用于 OAS3 WebJar 和复用同一 UI 的 Knife4x。JSONPath 11 使用原生 `RegExp` 的 `v` 标志，
+构建不会为旧浏览器补齐该能力。升级前请确认浏览器版本；已发布版本的历史要求不变。
+
+OAS2 Vue3 不受本次调整影响。Node 工具链范围仍为 `^22.13.0 || >=24.0.0`，
+生产编译继续使用 TS7，ESLint / ts-jest 继续使用 TS6 API 别名。
+
 ## 本地开发
 
 从 `front/` workspace 根目录运行：

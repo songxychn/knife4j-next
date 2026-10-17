@@ -68,12 +68,13 @@ export async function fetchGlobalParamValue(
     throw new Error('响应体不是有效的 JSON');
   }
 
-  const matches = JSONPath<unknown[]>({
+  // JSONPath 11 returns unknown in its types; wrap: true keeps matches in an array.
+  const matches = JSONPath({
     path: config.jsonPath,
     json: json as null | boolean | number | string | object,
     wrap: true,
     eval: false,
-  });
+  }) as unknown[];
   if (matches.length !== 1) {
     throw new Error(matches.length === 0 ? 'JSONPath 没有匹配到值' : 'JSONPath 匹配到多个值');
   }

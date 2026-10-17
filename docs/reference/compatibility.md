@@ -38,9 +38,17 @@ Boot4 依赖仍为 Boot `4.0.8` / Cloud `2025.1.3`。
 
 ## 浏览器基线
 
-当前源码（待发布）的 OAS2 Vue3 WebJar 采用 Vite `8.3.4`，JS/CSS 最低浏览器为 Chrome/Edge `117`、
-Firefox `119`、Safari `17.4`。这是相对旧版提高的 OAS2 下限，旧浏览器用户升级前须确认环境。
-该调整仅适用于 OAS2 Vue3，React UI 的浏览器要求保持不变（PR #881）。
+以下要求适用于**当前源码构建（待发布）**，不反向修改已发布 Java / Knife4x 版本的历史要求。
+
+| UI | 最低浏览器版本 | 适用产物 |
+| --- | --- | --- |
+| OAS3 React | Chrome / Edge `112`、Firefox `116`、Safari / iOS Safari `17` | OAS3 WebJar、复用同一 UI 的 Knife4x |
+| OAS2 Vue3 | Chrome / Edge `117`、Firefox `119`、Safari `17.4` | OAS2 WebJar；沿用此前基线 |
+
+OAS3 本次提高浏览器下限，因为 JSONPath 11 使用原生 `RegExp` 的 `v` 标志；
+构建不会为旧浏览器补齐该能力。升级前请确认浏览器版本。
+此下限依据[浏览器兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/unicodeSets#browser_compatibility)，
+不代表所有最低版本浏览器都已逐一实测。Node 构建范围及 Java / Go 基线不因本次调整改变。
 
 ## Starter 兼容矩阵
 
