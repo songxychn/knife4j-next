@@ -28,6 +28,29 @@ describe.each([
     await act(async () => root.render(<Component source={source} />));
   }
 
+  test.each([
+    ['heading', '> # heading'],
+    ['setext heading', '> setext heading\n> ---'],
+    ['thematic break', '> ***'],
+    ['HTML block', '> <div></div>'],
+    ['comment', '> <!-- comment -->'],
+  ])('ends the blockquote before a plain line after a %s', async (_label, quotedBlock) => {
+    await render(`${quotedBlock}\nnot quoted`);
+    const content = container.firstElementChild;
+    expect(content?.querySelector('blockquote')).not.toBeNull();
+    expect(content?.querySelector('blockquote')?.textContent).not.toContain('not quoted');
+    expect(content?.lastElementChild?.tagName).toBe('P');
+    expect(content?.lastElementChild?.textContent).toBe('not quoted');
+  });
+
+  test('keeps lazy continuation of a quoted paragraph inside the blockquote', async () => {
+    await render('> quoted paragraph\ncontinued');
+    const content = container.firstElementChild;
+    expect(content?.children).toHaveLength(1);
+    expect(content?.firstElementChild?.tagName).toBe('BLOCKQUOTE');
+    expect(content?.querySelector('blockquote p')?.textContent).toBe('quoted paragraph\ncontinued');
+  });
+
   test('preserves ordinary Markdown, safe links, images and inline attributes', async () => {
     await render(
       [

@@ -69,7 +69,7 @@
         "jsonpath-plus": "11.2.1",
         "knife4j-core": "*",
         "knife4j-schema-engine": "*",
-        "marked": "^9.1.6",
+        "marked": "^18.1.1",
         "prettier": "^3.9.9",
         "react": "19.3.0",
         "react-dom": "19.3.0",
@@ -1055,7 +1055,7 @@
 
     "makeerror": ["makeerror@1.0.12", "https://registry.npmmirror.com/makeerror/-/makeerror-1.0.12.tgz", { "dependencies": { "tmpl": "1.0.5" } }, ""],
 
-    "marked": ["marked@9.1.6", "https://registry.npmmirror.com/marked/-/marked-9.1.6.tgz", { "bin": "bin/marked.js" }, "sha512-jcByLnIFkd5gSXZmjNvS1TlmRhCXZjIzHYlaGkPlLIekG55JDR2Z4va9tZwCiP+/RDERiNhMOFu01xd6O5ct1Q=="],
+    "marked": ["marked@18.1.1", "https://registry.npmmirror.com/marked/-/marked-18.1.1.tgz", { "bin": { "marked": "bin/marked.js" } }, "sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg=="],
 
     "merge-stream": ["merge-stream@2.0.0", "https://registry.npmmirror.com/merge-stream/-/merge-stream-2.0.0.tgz", {}, ""],
 

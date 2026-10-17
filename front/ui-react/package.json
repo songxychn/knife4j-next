@@ -28,7 +28,7 @@
     "jsonpath-plus": "11.2.1",
     "knife4j-core": "*",
     "knife4j-schema-engine": "*",
-    "marked": "^9.1.6",
+    "marked": "^18.1.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-i18next": "^14.0.0",
