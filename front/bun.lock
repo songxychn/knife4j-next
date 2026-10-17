@@ -34,7 +34,7 @@
       "dependencies": {
         "@hyperjump/browser": "1.5.1",
         "@hyperjump/json-schema": "1.18.0",
-        "@hyperjump/uri": "1.3.8",
+        "@hyperjump/uri": "1.3.9",
       },
       "devDependencies": {
         "@eslint/js": "10.0.1",
@@ -259,7 +259,7 @@
 
     "@hyperjump/pact": ["@hyperjump/pact@1.4.0", "https://registry.npmmirror.com/@hyperjump/pact/-/pact-1.4.0.tgz", {}, "sha512-01Q7VY6BcAkp9W31Fv+ciiZycxZHGlR2N6ba9BifgyclHYHdbaZgITo0U6QMhYRlem4k8pf8J31/tApxvqAz8A=="],
 
-    "@hyperjump/uri": ["@hyperjump/uri@1.3.8", "https://registry.npmmirror.com/@hyperjump/uri/-/uri-1.3.8.tgz", {}, "sha512-pQ1IFUIdUrMzj6TjG0wyaAGZ0Go2bi4eFS8EydFLuBKGYpU0sTjd/R1td+lqhn3hCq7G17qZp975WL87MU84dw=="],
+    "@hyperjump/uri": ["@hyperjump/uri@1.3.9", "https://registry.npmmirror.com/@hyperjump/uri/-/uri-1.3.9.tgz", {}, "sha512-cxG5vyIdx3gUb/OQD/FDruQQcGNzF2aKTXWJ6LzlAC1kh97YZQSRsF3hL274xlTDJ1nWGJGRtknlW6ZpU3Ch+A=="],
 
     "@istanbuljs/load-nyc-config": ["@istanbuljs/load-nyc-config@1.1.0", "https://registry.npmmirror.com/@istanbuljs/load-nyc-config/-/load-nyc-config-1.1.0.tgz", { "dependencies": { "camelcase": "^5.3.1", "find-up": "^4.1.0", "get-package-type": "^0.1.0", "js-yaml": "^3.13.1", "resolve-from": "^5.0.0" } }, ""],
 

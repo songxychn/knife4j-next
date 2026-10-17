@@ -120,8 +120,9 @@ const SCHEMA_IDENTIFIER_KEYS = new Set(['$id', '$ref', '$dynamicRef', '$recursiv
 
 /**
  * Decode UTF-8 percent-encoding in http(s) identifiers before Hyperjump IRI
- * normalization. `@hyperjump/uri` unescapes `%XX` per Latin-1 code unit, so a
- * path like `%E6%8E%A5` becomes a different identity than the Unicode `接`.
+ * normalization. This originally compensated for the pre-1.3.9 URI library
+ * decoding UTF-8 octets as Latin-1. Keep the established HTTP identifier and
+ * fragment handling when upgrading the underlying normalizer.
  * ASCII percent-encoding (`%24`, `%20`, `%2F`) is left intact so JSON Pointer
  * fragments are not double-encoded.
  */
