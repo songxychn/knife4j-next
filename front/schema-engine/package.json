@@ -37,7 +37,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.71.2",
     "@typescript-eslint/parser": "8.71.2",
-    "eslint": "10.12.0",
+    "eslint": "10.13.0",
     "prettier": "^3.9.9",
     "@typescript/native": "npm:typescript@7.0.2",
     "typescript": "npm:@typescript/typescript6@6.0.2",
