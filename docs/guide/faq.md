@@ -22,17 +22,18 @@ title: 常见问题
 
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容，本 fork 保持兼容。使用时需要注意以下边界：
 
-1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.7.8`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
+1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.7.9`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
 2. 新前端覆盖范围：能力基线是 upstream Vue2（本仓库 `legacy/vue2`），不是本仓库的 Vue3 重写。Vue3（`front/vue3` / `knife4j-openapi2-ui`）与 React（`front/ui-react` / `knife4j-openapi3-ui`）都是维护者重写，各自可能漏掉 Vue2 能力。React 已补齐或重做 OAuth2、接口变化提示（NEW / 变化标记，UX 不同于 Vue2 小蓝点）、请求参数缓存、离线导出、自定义 Markdown 文档、自定义 Footer 等。Vue2 / Vue3 仍有、React 尚未覆盖的典型能力是 afterScript 与调试后刷新变量（`enable-reload-cache-parameter`）。三端都没有独立的 Postman Collection 导出器，真实能力是 OpenAPI 复制/下载（React 另外支持 YAML 与单接口闭包）。Vue3 相对 Vue2 的网关路由头拼写（`knife4j-gateway-request`）与 Tag 名称搜索展开回归已在本仓库修复。详见下文 [React 配置不生效](#react-setting-not-effective) 和 [路线图](../roadmap/#react-ui-coverage)。
 3. Spring Security 注解展示：upstream 与本 fork 的实现都只位于 `knife4j-openapi2-spring-boot-starter`（OAS2 / Springfox）；OAS3 / springdoc 系列 starter 不会自动追加这些注解。详见 [Spring Security 注解展示](./features#spring-security-注解展示)。
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-下表按版本记录发布范围。Java `5.7.8` 的 OpenAPI 3.1 / 3.2 契约及其限制见
+下表按版本记录发布范围。Java `5.7.9` 的 OpenAPI 3.1 / 3.2 契约及其限制见
 [OpenAPI 3.1 支持与迁移](./openapi31) 和 [OpenAPI 3.2 支持矩阵](./openapi32)。
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.7.9` | 前端维护与 JSONPath / Markdown / Schema 解析修复；两条 UI 浏览器下限提高 | — |
 | `5.7.8` | springdoc 2.9.1 / Boot BOM、Schema 展示与 WebJar 构建修复；Boot3 生成器下限调整 | — |
 | `5.7.7` | 依赖维护：Java 依赖更新、React Router 7 / Vite 8 / React 19 / Ant Design 6 迁移、外部资源面板适配与 WebJar 打包修复 | — |
 | `5.7.6` | 补丁修复：调试页 JavaScript 格式化保真、JSON/XML 词法保真、表单快照合并与状态恢复 | — |
@@ -327,7 +328,7 @@ public UserVO getById(
 
 如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-修复方法：升级到本 fork；使用 `5.7.8` 时，Boot3 Jakarta 生成器须满足 Boot `3.4.7+` / `3.5.1+`，见[兼容矩阵](../reference/compatibility)。
+修复方法：升级到本 fork；使用 `5.7.9` 时，Boot3 Jakarta 生成器须满足 Boot `3.4.7+` / `3.5.1+`，见[兼容矩阵](../reference/compatibility)。
 
 ## 全局响应封装导致文档异常
 
@@ -433,7 +434,7 @@ public void upload(@RequestPart("file") MultipartFile file) { ... }
 
 upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
 
-**修复**：升级到本 fork；使用 `5.7.8` 时，Boot3 Jakarta 生成器须满足 Boot `3.4.7+` / `3.5.1+`，见[兼容矩阵](../reference/compatibility)。
+**修复**：升级到本 fork；使用 `5.7.9` 时，Boot3 Jakarta 生成器须满足 Boot `3.4.7+` / `3.5.1+`，见[兼容矩阵](../reference/compatibility)。
 
 ### `Servlet` 相关的 ClassNotFoundException（WebFlux 环境）
 

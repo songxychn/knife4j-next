@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.8.7` |
-| 当前 tag | `knife4x/go/v0.8.7` |
+| 当前版本 | `v0.8.8` |
+| 当前 tag | `knife4x/go/v0.8.8` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -19,9 +19,14 @@ workflow 的自动 tag 触发器只接收根级 `v*` tag，不接收 `knife4x/go
 由 Java Release 完成公开制品核验后调用，不由 Go tag 触发。
 `./tools/test-knife4x-go.sh` 会以无副作用断言保护这条边界。
 
-## v0.8.7 发布范围
+## v0.8.8 发布范围
 
-相较于 `knife4x/go/v0.8.6`，本次发布纳入共享 React UI 的 Schema 枚举/默认值展示、长枚举摘要修复及 TypeScript 7 双别名工具链迁移（PR #876、#878），同步重新构建的内嵌 UI。独立 Gin 示例更新依赖并要求 Go 1.26+，公共库仍只依赖标准库、兼容 Go 1.22（PR #875）。
+相较于 `v0.8.7`，同步共享 React UI 的 JSONPath 特殊键名/空切片取值修复、Markdown 引用块边界修复、UTF-8 Schema 相对引用修复与深层 Schema 方向分析修复，并更新国际化、拖动及清洗依赖。内嵌资产与 React 构建保持一致。
+
+**浏览器下限提高至 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17**，因为 JSONPath 11 需要原生 RegExp `v`；不提供旧浏览器补齐，也不声称所有最低版本均已实测。详见[兼容矩阵](../../docs/reference/compatibility.md#浏览器基线)。
+
+公共库仍只依赖标准库，Go 1.22 基线、module、`Config`、`NewHandler` 与路由语义保持不变；独立 Gin 示例仍需 Go 1.26+。OpenAPI 3.0/3.1/3.2 JSON 消费范围不变，仍不接受 YAML。
+
 具体变更见 [Go 版本说明](../../docs/knife4x/index.md)。
 
 Go 1.22 基线、module、`Config`、`NewHandler` 与路由语义保持不变。入口消费已有的
@@ -68,8 +73,8 @@ test -s knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-grep -Fq 'knife4x/go/v0.8.7' knife4x/README.md knife4x/go/README.md
-grep -Fq 'go@v0.8.7' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
+grep -Fq 'knife4x/go/v0.8.8' knife4x/README.md knife4x/go/README.md
+grep -Fq 'go@v0.8.8' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 grep -Fq 'OAS2 不能直接迁移' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 test -z "$(git status --porcelain)"
 ```
@@ -79,11 +84,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.8.7 -m "Knife4x Go v0.8.7"
-git push origin knife4x/go/v0.8.7
+git tag -a knife4x/go/v0.8.8 -m "Knife4x Go v0.8.8"
+git push origin knife4x/go/v0.8.8
 ```
 
-不要同时创建根级 `v0.8.7` tag，不要运行 Java Maven Release，不要为本次发布新增
+不要同时创建根级 `v0.8.8` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -93,7 +98,7 @@ proxy 记录的 origin hash 与 annotated tag 指向的 commit 一致，且 ref 
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.8.7
+version=v0.8.8
 tag="knife4x/go/${version}"
 tag_commit="$(git rev-list -n 1 "$tag")"
 proxy_info="$(curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info")"
@@ -109,7 +114,7 @@ test "$proxy_ref" = "refs/tags/$tag"
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.8.7
+version=v0.8.8
 sum_response="$(curl -fsS "https://sum.golang.org/lookup/${module}@${version}")"
 printf '%s\n' "$sum_response"
 printf '%s\n' "$sum_response" | grep -F "${module} ${version} h1:"
@@ -124,7 +129,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.8.7
+version=v0.8.8
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -181,7 +186,7 @@ test -s "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer
-编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.8.7` 发布完成。
+编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.8.8` 发布完成。
 
 ## 补丁原则
 

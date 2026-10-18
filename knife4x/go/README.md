@@ -11,14 +11,16 @@ Knife4x 已发布版本消费 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON 文档，不生
 交给同一套 React UI；限制见
 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
-当前公开版本为 `v0.8.7`，对应仓库 tag `knife4x/go/v0.8.7`：
+当前公开版本为 `v0.8.8`，对应仓库 tag `knife4x/go/v0.8.8`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.7
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.8
 ```
 
-`v0.8.7` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
-纳入 Schema 枚举/默认值展示、长枚举摘要修复及 TypeScript 7 工具链迁移；内嵌资产已重新构建。调试正文格式化与快照写入修复从 `v0.8.5` 起提供。OpenAPI 3.2.x 消费从 `v0.8.0`
+> **v0.8.8 浏览器要求**：Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17 起。JSONPath 11 需要原生 RegExp `v`，不提供旧浏览器补齐；最低版本未逐一实机验收。
+
+`v0.8.8` 保持 Go 1.22 基线、`Config`、`NewHandler` 与路由语义不变，内嵌 React UI
+纳入 JSONPath、Markdown 引用块、UTF-8 Schema 引用和深层方向分析修复，以及依赖维护；内嵌资产已重新构建。调试正文格式化与快照写入修复从 `v0.8.5` 起提供。OpenAPI 3.2.x 消费从 `v0.8.0`
 起提供；JSON 示例与预览层级折叠、请求预览词法保真与空容器折叠从 `v0.8.4`
 起提供；OAS 3.2 标签 Tooltip 重复名称、Schema 元校验错误定位、普通 JSON 示例默认展示与调试 JSON 响应折叠从 `v0.8.3`
 起提供；OAS 3.2 标签菜单重复名称、首页服务地址明细默认折叠与窄窗口布局修复从 `v0.8.2`
@@ -83,7 +85,7 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 ```
 
 把顶层为 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` 的 JSON 保存为当前目录的 `openapi.json`。
-已发布 `v0.8.7` 可加载合法 3.2 JSON。启动后打开
+已发布 `v0.8.8` 可加载合法 3.2 JSON。启动后打开
 <http://localhost:8080/doc.html>。
 
 `Config` 只有两个字段：

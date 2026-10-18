@@ -12,7 +12,41 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 5.7.8 <Badge type="tip" text="最新" />
+### 5.7.9 <Badge type="tip" text="最新" />
+
+`5.7.9` 纳入两条前端线的依赖维护，以及 JSONPath 取值、Markdown 引用块、UTF-8 Schema 引用和深层 Schema 分析修复。配套 Knife4x Go 版本为 `v0.8.8`。**两条 UI 的浏览器下限均较 5.7.8 提高，升级前必须检查浏览器环境；本版本不承诺旧浏览器无感兼容。**
+
+**浏览器兼容要求**
+
+| UI / 产物 | 最低浏览器版本 | 调整原因 |
+| --- | --- | --- |
+| OAS3 React：Java OAS3 WebJar、Knife4x Go `v0.8.8` | Chrome / Edge `112`、Firefox `116`、Safari / iOS Safari `17` | JSONPath 11 需要原生 `RegExp` `v` 标志 |
+| OAS2 Vue3：Java OAS2 WebJar | Chrome / Edge `117`、Firefox `119`、Safari / iOS Safari `17.4` | Mermaid 12 解析依赖需要原生 `Object.groupBy` |
+
+OAS2 在 `5.7.8` 的下限为 Chrome/Edge `111`、Firefox `114`、Safari `16.4`；OAS3 原构建目标为 Chrome `87`、Edge `88`、Firefox `78`、Safari `14`，不能继续按这些旧目标判断新版本可用性。构建不会为上述原生 API 提供旧浏览器补齐。最低版本依据 API 兼容数据制定，不代表每个最低版本或 Safari/Firefox 都已逐一实机验收；合并记录中的 Chromium 验证不等于全浏览器验收。详见[兼容矩阵](https://knife4jnext.com/reference/compatibility#浏览器基线)。
+
+**OAS3 React / Schema 修复与维护**
+
+- JSONPath 更新至 `11.2.1`：修复带逗号、转义引号或反斜杠键名的取值，以及空切片错误匹配；继续禁用表达式求值，只接受唯一的 string/number/boolean 结果（PR #931）。
+- marked 更新至 `18.1.1`：修复引用块中的标题、分隔线、HTML 块或注释之后，普通段落被错误纳入引用的问题；保留同步解析、清洗与导出契约（PR #932）。
+- URI 库更新至 `1.3.9`：修复 UTF-8 百分号编码的相对 `$ref` 被误判为未授权外部资源，以及等价 `$id` 冲突漏检；保持离线注册与精确授权边界（PR #926）。
+- Schema 请求/响应方向分析改用显式栈，避免长引用链提前触发 JavaScript 栈溢出；保留 2048 层预算及超限诊断，不扩大支持深度（提交 `f2423622`）。
+- 更新 DOMPurify、i18next / react-i18next、react-resizable 及测试/lint 工具，保持语言同步、订阅清理与字段列拖动行为（PR #936、#938）。
+
+**OAS2 Vue3 兼容维护**
+
+- 升级 Ant Design Vue 4、vue-i18n 11、Pinia 4、Vue Router 5、Ace、Babel 8 与 marked 18，适配既有布局、路由、状态、文档渲染及代码生成；保留复杂标题的旧 Markdown 锚点和生成代码的泛型。
+- Mermaid 升级至 12，采用新版默认主题、外观与 ELK 布局，图表视觉效果可能变化。OAS2 仍只做兼容维护，不新增 OpenAPI 支持范围。
+
+**Java、Go 与源码构建**
+
+- Java 依赖、Maven 坐标、starter 默认配置、Java 8 / 17 下限均沿用 `5.7.8`。Boot3 Jakarta 生成器继续要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）；springdoc 保持 `1.8.0` / `2.9.1` / Boot4 `3.0.3`。
+- Knife4x Go `v0.8.8` 同步共享 React UI；公共库仍为 Go `1.22`，module、`Config`、`NewHandler` 和路由语义不变，独立 Gin 示例仍需 Go `1.26+`。
+- Vue3 及完整源码构建要求 Node `^24.15.0 || >=26.0.0`（不支持 Node 25）；独立 OAS3 工具链及 Knife4x UI 同步继续要求 Node `22.13+` 或 `24+`。直接使用 Maven 包或 Go module 无需安装 Node。
+
+OpenAPI 3.0 / 3.1 / 3.2 消费范围不变，生产 springdoc 仍生成 3.0 / 3.1，不承诺生成 3.2。历史发布版本的浏览器与依赖要求不反向改变。
+
+### 5.7.8
 
 `5.7.8` 纳入已合并的 springdoc / Boot BOM 兼容修复、Schema 字段展示与 WebJar 构建修复。同步发布 Knife4x Go `v0.8.7`。**Boot3 Jakarta 生成器支持下限调整，升级前须检查 Boot / Framework 组合。**
 
@@ -715,7 +749,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 

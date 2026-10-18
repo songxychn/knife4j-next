@@ -4,6 +4,8 @@
 
 `knife4j-next` 是 `xiaoymin/knife4j` 的社区维护 fork。当前发布坐标使用 `com.baizhukui`，Java 包名仍保留 `com.github.xiaoymin.knife4j.*`，以维持既有用户代码兼容。
 
+> **5.7.9 浏览器要求提高**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。请先检查实际浏览器环境；Java 依赖基线沿用 5.7.8。
+
 ## 当前坐标
 
 已发布稳定版本：
@@ -12,11 +14,11 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
-`5.7.8` 的 Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`），使用 springdoc `2.9.1`。Gateway 保持各自既有 Cloud/Boot 组合。
+`5.7.9` 的 Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`），使用 springdoc `2.9.1`。Gateway 保持各自既有 Cloud/Boot 组合。
 
 源码分支中的根 POM 可能进入下一轮 `SNAPSHOT` 开发状态；对外接入示例以已发布版本为准。
 
@@ -51,7 +53,7 @@ Spring Boot 4.x 使用独立 starter，避免把现有 Spring Boot 3.x + springd
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -63,7 +65,7 @@ Spring Boot 4.x 的 Spring Cloud Gateway 5 聚合场景使用独立 gateway star
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -73,7 +75,7 @@ Spring Boot 4.x 的独立聚合服务使用独立 aggregation starter：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-aggregation-boot4-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 

@@ -19,11 +19,13 @@ title: 快速开始
 
 ### 环境要求
 
-::: info 5.7.8 支持下限
-`5.7.8` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
+> **5.7.9 浏览器要求提高**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。请先检查实际浏览器环境；Java 依赖基线沿用 5.7.8。
+
+::: info 5.7.9 支持下限
+`5.7.9` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
 `annotations` / `models` / `core` 统一为 `2.2.55`。JDK 下限仍为 17；Boot 3.4 线下限为
 `3.4.7`，Boot 3.5 线下限为 `3.5.1`（共同需要 Framework `6.2.8`）。Boot `3.5.0` 不满足此下限。
-这是 `5.7.8` 的要求；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
+此下限从 `5.7.8` 起生效，`5.7.9` 继续沿用；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
 详见[版本对照](../reference/version-ref#5-7-8-依赖更新)。
 :::
 
@@ -37,7 +39,7 @@ title: 快速开始
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -87,7 +89,7 @@ Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -162,7 +164,7 @@ React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `langua
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -196,7 +198,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 

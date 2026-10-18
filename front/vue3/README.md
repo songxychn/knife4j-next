@@ -15,7 +15,7 @@ OAS2 兼容维护 UI（Vue 3 + Vite）。本目录产物被 `knife4j/knife4j-ope
 ## 浏览器与工具链基线
 
 Vite 8.3.4 使用 Rolldown/Oxc 构建。JS 与 CSS 显式固定为 Chrome/Edge 117、Firefox 119、
-Safari 17.4 及以上；这是本次经维护者批准提高的 OAS2 Vue3 最低版本，不改变 React UI 的浏览器要求。
+Safari 17.4 及以上；这是 Java 5.7.9 相比 5.7.8 提高的 OAS2 Vue3 最低版本；OAS3 的独立要求见[兼容矩阵](../../docs/reference/compatibility.md#浏览器基线)。
 Mermaid 12 使用新的默认主题、外观和 ELK 布局；其解析依赖需要原生 `Object.groupBy`，上述浏览器下限覆盖该 API。
 源码开发、构建与验证要求 Node `^24.15.0 || >=26.0.0`（不支持 Node 25）。
 CI 持续验证精确下限 24.15.0 及 24 系列当前补丁。日常推荐使用受支持 LTS 的最新补丁，`.nvmrc` 选择 24 系列。

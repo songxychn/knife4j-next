@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.7.8 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.7.9 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.7.8 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.7.9 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -46,7 +46,7 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.8.7
+::: tip Knife4x Go v0.8.8
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -68,7 +68,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -78,7 +78,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.8</version>
+    <version>5.7.9</version>
 </dependency>
 ```
 
@@ -97,13 +97,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.7.8 版本亮点 <Badge type="tip" text="最新" />
+## 5.7.9 版本亮点 <Badge type="tip" text="最新" />
 
-`5.7.8` 纳入 springdoc 2.9.1 / Boot BOM 兼容修复、Schema 字段展示与 WebJar 构建修复。同步发布 Knife4x Go `v0.8.7`。
+`5.7.9` 修复 JSONPath 取值、Markdown 引用块、UTF-8 Schema 引用和深层 Schema 分析，维护两条前端线；配套 Go 版本为 `v0.8.8`。
 
-- Boot3 Jakarta 生成器要求 Boot `3.4.7+` / `3.5.1+`，升级前查阅[兼容矩阵](/reference/compatibility)
-- Schema 说明列展示枚举与默认值，长枚举展开不重复摘要
-- 修复 React 热工作区构建与 Vue3 增量 WebJar 残留资源，Go 同步共享 UI
+- **OAS3 浏览器**：Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17 起
+- **OAS2 浏览器**：Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4 起
+- 浏览器下限提高；Java/Go 依赖基线与 OpenAPI 支持范围不变，升级前查阅[兼容矩阵](/reference/compatibility#浏览器基线)
 
 完整更新列表见 [发布说明](/release-notes/)。
 
