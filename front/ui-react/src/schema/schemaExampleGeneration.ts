@@ -838,10 +838,17 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
     typeof schema.maxProperties === 'number' ? Math.max(0, Math.floor(schema.maxProperties)) : Number.POSITIVE_INFINITY;
   const minProperties = typeof schema.minProperties === 'number' ? Math.max(0, Math.floor(schema.minProperties)) : 0;
 
+  // Both selections visit each property in the same direction, reference chain
+  // and dynamic scope. Keep reuse local to this object expansion.
+  const propertyCandidates = new Map<string, JsonValue[]>();
   const buildVariants = async (selected: readonly [string, JsonValue][]): Promise<JsonValue[]> => {
     let variants: Array<{ [key: string]: JsonValue }> = [{}];
     for (const [name, propertySchema] of selected) {
-      const propertyValues = await buildCandidates(propertySchema, childContext(ctx));
+      let propertyValues = propertyCandidates.get(name);
+      if (propertyValues === undefined) {
+        propertyValues = await buildCandidates(propertySchema, childContext(ctx));
+        propertyCandidates.set(name, propertyValues);
+      }
       if (propertyValues.length === 0) {
         if (required.has(name)) return [];
         continue;
@@ -867,7 +874,12 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
   );
   const values: JsonValue[] = [];
   values.push(...(await buildVariants(fullEntries)));
-  values.push(...(await buildVariants(minimumEntries)));
+  if (
+    minimumEntries.length !== fullEntries.length ||
+    minimumEntries.some(([name], index) => name !== fullEntries[index][0])
+  ) {
+    values.push(...(await buildVariants(minimumEntries)));
+  }
   if (requiredEntries.length === 0 && minProperties === 0) values.push({});
 
   const dependentRequired = isRecord(schema.dependentRequired) ? schema.dependentRequired : null;
@@ -1042,7 +1054,17 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
     values.push({}, [], '', 0, false, null);
   }
   const composed = await compositionCandidates(schema, uniqueCandidates(values, ctx.limits.maxCandidates), localCtx);
-  const ignoredProperties = await directionalPropertyNames(schema, localCtx);
+  // A leaf cannot contribute object property names. Its own readOnly/writeOnly
+  // annotations are still checked by the parent in shouldIgnoreProperty.
+  const hasDirectionalChildren =
+    isRecord(schema.properties) ||
+    typeof schema.$ref === 'string' ||
+    typeof schema.$dynamicRef === 'string' ||
+    typeof schema.$recursiveRef === 'string' ||
+    Array.isArray(schema.allOf);
+  const ignoredProperties = hasDirectionalChildren
+    ? await directionalPropertyNames(schema, localCtx)
+    : new Set<string>();
   if (ctx.budget.exhausted) return [];
   return uniqueCandidates(
     composed.map((candidate) => omitDirectionalProperties(candidate, ignoredProperties)),
