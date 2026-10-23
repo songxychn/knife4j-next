@@ -11,6 +11,16 @@ title: 兼容矩阵
 
 ## 依赖基线
 
+::: warning 当前源码的未发布变更（#943）
+Boot4 WebMVC、独立聚合、Gateway 及 Demo 的源码验证基线更新为 Boot `4.1.2`，
+Cloud 保持 `2025.1.3`，springdoc 保持 `3.0.3`，Java 下限仍为 17。
+Boot4 构建另外导入 Jackson 2 `2.22.4` / Jackson 3 `3.1.8` BOM，修复 `CVE-2026-110879`；
+WebMVC 和独立聚合 starter 直接声明现有 Jackson 组件，以向没有自有 BOM 的消费方传递修复版本。
+消费方的 `dependencyManagement` 仍可覆盖这些版本，接入时请按
+[Jackson 依赖告警处理](../guide/faq#jackson-依赖告警处理) 检查最终依赖树。
+以下表格仍记录已发布 `5.7.9`，不能将本次源码变更视为已经发布或部署，也不承诺其他组件没有漏洞。
+:::
+
 | 维度 | 版本 |
 | --- | --- |
 | knife4j-next | `5.7.9` |

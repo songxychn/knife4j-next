@@ -12,6 +12,12 @@ title: 发布说明
 
 ## knife4j-next 版本
 
+### 未发布
+
+- Boot4 WebMVC、独立聚合、Gateway、对应 smoke 及 Demo 升至 Spring Boot `4.1.2`，保留 Cloud `2025.1.3`、springdoc `3.0.3` 与 Java 17 下限。
+- 修复 Boot4 线传递的 Jackson `CVE-2026-110879`：Jackson 2 对齐 `2.22.4`，Jackson 3 对齐 `3.1.8`。补充泛型类型参数校验的回归测试和[消费方 BOM 配置](../guide/faq#jackson-依赖告警处理)。Boot `4.1.2` 自带的 Jackson 版本仍受影响，必须单独覆盖；消费方旧 BOM 也可重新覆盖 starter 传递的修复版本。
+- 本次不调整 Boot2/3 依赖或历史发布版，不作全量“无漏洞”承诺。
+
 ### 5.7.9 <Badge type="tip" text="最新" />
 
 `5.7.9` 纳入两条前端线的依赖维护，以及 JSONPath 取值、Markdown 引用块、UTF-8 Schema 引用和深层 Schema 分析修复。配套 Knife4x Go 版本为 `v0.8.8`。**两条 UI 的浏览器下限均较 5.7.8 提高，升级前必须检查浏览器环境；本版本不承诺旧浏览器无感兼容。**

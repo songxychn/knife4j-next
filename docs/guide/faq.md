@@ -610,6 +610,64 @@ private Map<String, String> extensions;
 
 ## 其他
 
+### Jackson 依赖告警处理
+
+`CVE-2026-110879` 涉及 Jackson 多态类型校验绕过。Boot4 starter 同时通过 Swagger 引入 Jackson 2、通过 Spring Boot 引入 Jackson 3，需要分别检查。
+[Jackson 官方公告](https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-m8xf-2cr7-77ph)
+列出的修复版本包括 Jackson 2 `2.21.8` / `2.22.4`、Jackson 3 `3.1.8`。依赖处于影响范围不等于应用一定可利用，实际可达性取决于多态配置和不可信输入路径。
+
+**单独升级 Boot 到 `4.1.2` 不足以修复这条告警**：该 BOM 仍管理 Jackson `2.21.7` / `3.1.7`。已发布 Knife4j `5.7.9` 也不包含此次修复。当前未发布源码的 Boot4 线采用 `2.22.4` / `3.1.8`，但 Maven 消费方的版本管理优先于 starter 的传递版本，必须在自己的工程里验证。
+
+**导入 Boot BOM 的工程**：将以下两条 BOM 放在现有 Boot BOM **之前**，合并到已有的 `dependencyManagement` 中。Jackson 2 使用 `2.22.4` 保留当前 Swagger 依赖的 2.22 线；已经管理 Jackson 2.21 线的应用也可选该线修复版 `2.21.8` 并完成自身回归。
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson</groupId>
+            <artifactId>jackson-bom</artifactId>
+            <version>2.22.4</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson</groupId>
+            <artifactId>jackson-bom</artifactId>
+            <version>3.1.8</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-dependencies</artifactId>
+            <version>4.1.2</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+**继承 `spring-boot-starter-parent:4.1.2` 的工程**：可通过其 BOM 属性覆盖整条 Jackson 线：
+
+```xml
+<properties>
+    <jackson-2-bom.version>2.22.4</jackson-2-bom.version>
+    <jackson-bom.version>3.1.8</jackson-bom.version>
+</properties>
+```
+
+仅导入 Boot BOM、没有继承 Boot parent 时，不要照搬上述属性方案；消费方同名属性不会替换被导入 BOM 内部的属性。企业 parent、其他 BOM 或直接声明的版本也可能影响结果。不要只升级 `jackson-databind` 而留下不配套的 core、YAML 或 JSR310 模块。
+
+```bash
+mvn dependency:tree -Dverbose '-Dincludes=com.fasterxml.jackson.*:*,tools.jackson.*:*'
+mvn help:effective-pom
+```
+
+检查最终选中的版本而非 `omitted for conflict` 的候选，并验证 `/doc.html`、`/v3/api-docs`、业务 JSON、日期时间与多态反序列化。修复后，未经类型校验允许的泛型参数或数组元素类型会被拒绝；需要使用这些类型的应用应配置明确允许规则，不应关闭校验。
+
+该配置针对本条 Jackson CVE，不保证扫描报告中的所有组件均无漏洞。提交其他告警时请提供具体 CVE、最终解析版本和脱敏依赖链。
+
 ### 历史旧版 FAQ 在哪
 
 upstream `doc.xiaominfo.com` 仍在提供完整的历史 FAQ，如 Springfox 2.9.2 的相关异常、离线文档 Markdown 格式错乱等。fork 完全兼容，相关问题可以直接参考：

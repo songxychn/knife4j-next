@@ -30,10 +30,13 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
-| Spring Boot | `4.0.8` | demo `pom.xml` 通过 Boot BOM 显式声明 |
+| Spring Boot | `4.1.2` | 当前源码通过 Boot BOM 显式声明；已发布 `5.7.9` 为 `4.0.8` |
+| Jackson | 2：`2.22.4`；3：`3.1.8` | 当前源码优先导入两条 Jackson BOM |
 | knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.7.9` |
 | JDK | 17 | Dockerfile base image `eclipse-temurin:17-jre-alpine` |
 | springdoc-openapi | `3.0.3` | 由 starter 管理 |
+
+上述源码依赖更新尚未发布，不代表线上 Demo 已切换。`5.7.9` 的已发布 Maven 包不包含此次 Jackson 修复。
 
 ### 展示了什么
 
