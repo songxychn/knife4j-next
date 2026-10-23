@@ -21,7 +21,37 @@
         <start-class>com.baizhukui.knife4j.demo.openapi2.DemoApplication</start-class>
         <maven.deploy.skip>true</maven.deploy.skip>
         <skipPublishing>true</skipPublishing>
+        <knife4j-demo-tomcat.version>9.0.123</knife4j-demo-tomcat.version>
+        <knife4j-demo-jackson.version>2.18.12</knife4j-demo-jackson.version>
     </properties>
+
+    <!-- 仅加固未发布的 Demo；不改变 starter 的 Boot 2 / Java 8 兼容基线。 -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${knife4j-demo-jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${knife4j-demo-tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${knife4j-demo-tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${knife4j-demo-tomcat.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -46,6 +76,12 @@
             <artifactId>slf4j-api</artifactId>
             <version>1.7.36</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
