@@ -21,7 +21,7 @@ title: 发布说明
 **Java Boot4 依赖**
 
 - Boot4 WebMVC、独立聚合、Gateway、对应 smoke 及 Demo 从 Boot `4.0.8` 升至 `4.1.2`；Cloud 保持 `2025.1.3`，springdoc 保持 `3.0.3`，Java 下限仍为 17（PR [#944](https://github.com/songxychn/knife4j-next/pull/944)）。
-- Jackson 2 BOM 对齐 `2.22.4`、Jackson 3 BOM 对齐 `3.1.8`，修补 `CVE-2026-110879` 并补充泛型类型参数校验回归。Boot `4.1.2` 自带的 Jackson 仍受影响；消费方旧 BOM 也可能覆盖 starter 的修补版本，须按 [Jackson 告警处理](../guide/faq#jackson-依赖告警处理) 核对最终依赖树。
+- Jackson 2 BOM 对齐 `2.22.4`、Jackson 3 BOM 对齐 `3.1.8`，修补 `CVE-2026-110879` 并补充泛型类型参数校验回归。Boot `4.1.2` 自带的 Jackson 仍受影响；消费方旧 BOM 也可能覆盖 starter 的修补版本，须按 [Jackson 告警处理](https://knife4jnext.com/guide/faq#jackson-依赖告警处理) 核对最终依赖树。
 - Boot2/3 发布依赖不作本轮升级；不改变历史发布制品，不作所有组件“无漏洞”承诺。
 
 **共享 React UI 与依赖维护**

@@ -32,7 +32,7 @@ title: 快速开始
 :::
 
 - JDK 17+
-- Spring Boot `4.0.x`（smoke-tests 覆盖 `4.0.8`）
+- Spring Boot `4.1.2`（本版本 smoke-tests 验证基线）
 - springdoc-openapi `3.0.3`（starter 已管理，无需显式声明）
 
 ### 依赖
