@@ -1,0 +1,12 @@
+{
+  "2": {
+    "base": "docker-mirror.infra.baizhukui.com/library/eclipse-temurin:8-jre-alpine@sha256:96312959238a1e4a4171f2f910d3e886b84957368b4075f702aebc7dff87d58e",
+    "port": 8081,
+    "java": 8
+  },
+  "3": {
+    "base": "docker-mirror.infra.baizhukui.com/library/eclipse-temurin:17-jre-alpine@sha256:c4a33e6ddb738fe4be0a28a613ea0940cec42d25d7263c3e2238c43354cb19b0",
+    "port": 8080,
+    "java": 17
+  }
+}

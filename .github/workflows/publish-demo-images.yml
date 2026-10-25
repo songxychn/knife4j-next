@@ -1,0 +1,127 @@
+name: Publish validated Demo images
+
+on:
+  pull_request:
+    paths:
+      - 'knife4j/**'
+      - 'front/**'
+      - 'tools/demo-images/**'
+      - '.github/workflows/publish-demo-images.yml'
+      - '.nvmrc'
+      - '.bun-version'
+  push:
+    branches: [master]
+    paths:
+      - 'knife4j/**'
+      - 'front/**'
+      - 'tools/demo-images/**'
+      - '.github/workflows/publish-demo-images.yml'
+      - '.nvmrc'
+      - '.bun-version'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-images-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'master' }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        demo: [2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - name: Install UI dependencies
+        run: |
+          (cd front && bun install --frozen-lockfile)
+          (cd front/vue3 && bun install --frozen-lockfile)
+      - name: Verify publishing controls
+        run: python3 -m unittest discover -s tools/demo-images -p 'test_*.py'
+      - name: Build current source with tests
+        working-directory: knife4j
+        run: mvn -B -ntp -pl knife4j-demo-openapi${{ matrix.demo }} -am -Dknife4j-skipTests=false verify
+      - name: Stage verified runtime dependencies and build image
+        env:
+          DEMO: ${{ matrix.demo }}
+        run: |
+          python3 tools/demo-images/prepare.py "$DEMO"
+          stage="knife4j/knife4j-demo-openapi${DEMO}/target/demo-image"
+          base="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["base"])' "$stage/manifest.json")"
+          port="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$stage/manifest.json")"
+          docker build --platform linux/amd64 --build-arg BASE_IMAGE="$base" \
+            --build-arg DEMO_PORT="$port" --build-arg SOURCE_REVISION="$(git rev-parse HEAD)" \
+            -t "local/knife4j-demo-candidate:$DEMO" "$stage"
+      - name: Verify function, hardening, CA mounts and restart
+        env:
+          DEMO: ${{ matrix.demo }}
+        run: |
+          python3 tools/demo-images/verify.py "$DEMO" "local/knife4j-demo-candidate:$DEMO" \
+            --manifest "knife4j/knife4j-demo-openapi${DEMO}/target/demo-image/manifest.json" \
+            --report "build/demo-images/demo-${DEMO}-result.json"
+      - name: Preserve validated image for publication
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && github.repository == 'songxychn/knife4j-next'
+        env:
+          DEMO: ${{ matrix.demo }}
+        run: |
+          docker save "local/knife4j-demo-candidate:$DEMO" -o "build/demo-images/demo-${DEMO}.tar"
+          cp "knife4j/knife4j-demo-openapi${DEMO}/target/demo-image/manifest.json" "build/demo-images/demo-${DEMO}-manifest.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-image-${{ matrix.demo }}
+          path: build/demo-images/
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && github.repository == 'songxychn/knife4j-next'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: demo-image-*
+          merge-multiple: true
+          path: build/demo-images
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Require current master Build and promote both validated images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/demo-images/publish.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-published-digests
+          path: build/demo-images/published.json
+          if-no-files-found: warn
+          retention-days: 90
