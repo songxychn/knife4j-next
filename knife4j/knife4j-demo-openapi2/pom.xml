@@ -23,11 +23,54 @@
         <skipPublishing>true</skipPublishing>
         <knife4j-demo-tomcat.version>9.0.123</knife4j-demo-tomcat.version>
         <knife4j-demo-jackson.version>2.18.12</knife4j-demo-jackson.version>
+        <knife4j-demo-spring.version>5.3.39</knife4j-demo-spring.version>
+        <knife4j-demo-logback.version>1.2.13</knife4j-demo-logback.version>
+        <knife4j-demo-snakeyaml.version>1.33</knife4j-demo-snakeyaml.version>
+        <knife4j-demo-log4j.version>2.25.5</knife4j-demo-log4j.version>
+        <knife4j-demo-classgraph.version>4.8.112</knife4j-demo-classgraph.version>
     </properties>
 
     <!-- 仅加固未发布的 Demo；不改变 starter 的 Boot 2 / Java 8 兼容基线。 -->
     <dependencyManagement>
         <dependencies>
+            <!-- 兼容线内的安全修补及未覆盖风险见 SECURITY-ASSESSMENT.md。 -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-framework-bom</artifactId>
+                <version>${knife4j-demo-spring.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${knife4j-demo-logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${knife4j-demo-logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${knife4j-demo-snakeyaml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${knife4j-demo-log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-to-slf4j</artifactId>
+                <version>${knife4j-demo-log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.classgraph</groupId>
+                <artifactId>classgraph</artifactId>
+                <version>${knife4j-demo-classgraph.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
@@ -66,7 +109,7 @@
         </dependency>
         <!--
           覆盖 root pom 的 slf4j-api 2.0.18（provided），回到与 Spring Boot 2.7.18
-          自带的 logback-classic 1.2.12 兼容的 1.7.x。SLF4J 2.x 走 ServiceLoader
+          logback-classic 1.2.x 兼容的 1.7.x。SLF4J 2.x 走 ServiceLoader
           查找 SLF4JServiceProvider，logback 1.2.x 只提供 1.x 的 StaticLoggerBinder
           SPI，会让 LoggerFactory fallback 到 NOPLoggerFactory，Spring Boot banner、
           Tomcat 启动日志和 Springfox 扫描日志会被全部静默丢弃。

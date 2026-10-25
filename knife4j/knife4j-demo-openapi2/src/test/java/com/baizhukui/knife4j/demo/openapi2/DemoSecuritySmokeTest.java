@@ -27,6 +27,10 @@ import org.junit.Test;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
+import org.springframework.web.servlet.resource.PathResourceResolver;
+import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
+import org.springframework.web.servlet.resource.ResourceResolver;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -115,6 +119,19 @@ public class DemoSecuritySmokeTest {
         Assert.assertEquals("hello.txt", mapper.readTree(result).path("filename").asText());
         Assert.assertEquals(5, mapper.readTree(result).path("size").asInt());
         Assert.assertTrue(mapper.readTree(result).path("isPublic").asBoolean());
+    }
+
+    @Test
+    public void staticResourcesKeepTheAssessedResolverBoundary() {
+        // Reassess the remaining Spring advisories before enabling caching, encoding or versioning.
+        SimpleUrlHandlerMapping mapping = context.getBean("resourceHandlerMapping", SimpleUrlHandlerMapping.class);
+        Assert.assertFalse(mapping.getHandlerMap().isEmpty());
+        for (Object handler : mapping.getHandlerMap().values()) {
+            Assert.assertTrue(handler instanceof ResourceHttpRequestHandler);
+            for (ResourceResolver resolver : ((ResourceHttpRequestHandler) handler).getResourceResolvers()) {
+                Assert.assertTrue(resolver.getClass().getName(), resolver instanceof PathResourceResolver);
+            }
+        }
     }
 
     private static String request(String method, String path, String contentType, String body) throws Exception {
