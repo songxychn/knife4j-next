@@ -24,8 +24,8 @@ features:
     details: Maven groupId 切到 com.baizhukui 即可替换原依赖，/doc.html、/v2/api-docs、/v3/api-docs 入口保持不变。
     link: /guide/migration
     linkText: 迁移指引
-  - title: Spring Boot 2.7、3.4、3.5、4.0 都跑过
-    details: 14 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.x Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.0.8 WebMVC/Gateway/独立聚合组合。
+  - title: Spring Boot 2.7、3.4、3.5、4.1 都跑过
+    details: 14 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.x Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.1.2 WebMVC/Gateway/独立聚合组合。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端
@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.7.9 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.7.10 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.7.9 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.7.10 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -46,7 +46,11 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.8.8
+::: info Java 5.7.10 / Knife4x Go v0.8.9 发布准备
+本页接入示例面向待发布版本；最新已发布版本仍为 Java `5.7.9` / Go `v0.8.8`。正式发布前请使用已发布版本。
+:::
+
+::: tip Knife4x Go v0.8.9（待发布）
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -68,7 +72,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.9</version>
+    <version>5.7.10</version>
 </dependency>
 ```
 
@@ -78,7 +82,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.9</version>
+    <version>5.7.10</version>
 </dependency>
 ```
 
@@ -97,13 +101,13 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.7.9 版本亮点 <Badge type="tip" text="最新" />
+## 5.7.10 版本亮点 <Badge type="info" text="待发布" />
 
-`5.7.9` 修复 JSONPath 取值、Markdown 引用块、UTF-8 Schema 引用和深层 Schema 分析，维护两条前端线；配套 Go 版本为 `v0.8.8`。
+`5.7.10` 纳入 Boot4 / Jackson 依赖修补、共享 React UI 的 Schema 示例生成预算修复，以及 OAS2 和构建链依赖维护；配套 Go `v0.8.9` 同步共享 UI 修复。
 
 - **OAS3 浏览器**：Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17 起
 - **OAS2 浏览器**：Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4 起
-- 浏览器下限提高；Java/Go 依赖基线与 OpenAPI 支持范围不变，升级前查阅[兼容矩阵](/reference/compatibility#浏览器基线)
+- 浏览器下限沿用 Java `5.7.9` / Go `v0.8.8`；Java 8/17、Go 1.22 与 OpenAPI 支持范围不变，升级前查阅[兼容矩阵](/reference/compatibility#浏览器基线)
 
 完整更新列表见 [发布说明](/release-notes/)。
 

@@ -12,14 +12,16 @@ Knife4x 替换的是嵌入式文档与调试 UI，不替代 OpenAPI 生成器。
 }
 ```
 
-只有 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` JSON 可以继续用于已发布的 `v0.8.8`；入口不接受 YAML。
+只有 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` JSON 可以继续用于待发布的 `v0.8.9`；入口不接受 YAML。
 合法 `openapi: 3.2.x` JSON 由同一套 React UI 消费，限制见 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 若文档使用 `swagger: "2.0"`，请先升级生成器或转换 spec；OAS2 不能直接迁移到 Knife4x。
 
-Knife4x Go 当前公开版本为 `v0.8.8`：
+Knife4x Go 当前准备版本为 `v0.8.9`（待发布，最新已发布为 `v0.8.8`）：
+
+正式发布前请使用已发布的 `v0.8.8`；以下命令供发布后接入：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.8
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.9
 ```
 
 从 `v0.5.0` 升级不需要修改 `Config`、`NewHandler` 或挂载路径。OAS 3.1 支持从
@@ -87,4 +89,4 @@ handler, err := knife4x.NewHandler(knife4x.Config{
 可运行参考见 [Gin example](../examples/gin/README.md)，完整配置语义见
 [Go 接入说明](README.md)，产品边界见 [Knife4x 总览](../README.md)。
 
-`v0.8.8` 提高浏览器下限至 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；升级前确认环境，完整原因和验证边界见[兼容矩阵](../../docs/reference/compatibility.md#浏览器基线)。
+`v0.8.9` 沿用 `v0.8.8` 的浏览器下限： Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；升级前确认环境，完整原因和验证边界见[兼容矩阵](../../docs/reference/compatibility.md#浏览器基线)。

@@ -10,10 +10,10 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 | Demo | 后端 | UI 产物 | 在线地址 |
 | --- | --- | --- | --- |
-| `knife4j-demo-openapi3` | Spring Boot 4.0 + springdoc + `knife4j-openapi3-boot4-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
+| `knife4j-demo-openapi3` | Spring Boot 4.x + springdoc + `knife4j-openapi3-boot4-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
 | `knife4j-demo-openapi2` | Spring Boot 2.7 + springfox 2.10.5 + `knife4j-openapi2-spring-boot-starter` | Vue 3（`knife4j-openapi2-ui`） | [https://openapi2.demo.knife4jnext.com/doc.html](https://openapi2.demo.knife4jnext.com/doc.html) |
 
-两个站点都跟随已经完成正式发布的最新稳定版；`master` 合并不会直接刷新线上环境。建议打开比对 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
+Demo 镜像有两条通道：正式 Java Release 核验后构建版本标签与 `latest`；独立安全通道仅在同一 master SHA 的 Build 和两套候选验收通过后推广 `demo` 标签。源码版本、镜像发布与线上部署是不同状态，本页不据此宣称线上已经切换。通道说明见 [Demo 镜像构建](https://github.com/songxychn/knife4j-next/blob/master/tools/demo-images/README.md)。建议打开比对 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
 
 如果访问失败，优先在本地跑一遍，避免把预览环境问题当成功能问题。
 
@@ -32,11 +32,11 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 | --- | --- | --- |
 | Spring Boot | `4.1.2` | 当前源码通过 Boot BOM 显式声明；已发布 `5.7.9` 为 `4.0.8` |
 | Jackson | 2：`2.22.4`；3：`3.1.8` | 当前源码优先导入两条 Jackson BOM |
-| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.7.9` |
+| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.7.10`（待发布） |
 | JDK | 17 | Dockerfile base image `eclipse-temurin:17-jre-alpine` |
 | springdoc-openapi | `3.0.3` | 由 starter 管理 |
 
-上述源码依赖更新尚未发布，不代表线上 Demo 已切换。`5.7.9` 的已发布 Maven 包不包含此次 Jackson 修复。
+上述依赖纳入待发布 `5.7.10`，不代表 Maven 制品已经可用或线上 Demo 已切换。`5.7.9` 的已发布 Maven 包不包含此次 Jackson 修复。
 
 ### 展示了什么
 
@@ -103,7 +103,7 @@ docker run --rm -p 8080:8080 \
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
 | Spring Boot | `2.7.18` | 由根 pom `knife4j-spring-boot.version` 管理 |
-| knife4j starter | `knife4j-openapi2-spring-boot-starter` | 本仓库 `5.7.9` |
+| knife4j starter | `knife4j-openapi2-spring-boot-starter` | 本仓库 `5.7.10`（待发布） |
 | JDK | 8 | Dockerfile base image `eclipse-temurin:8-jre-alpine` |
 | springfox | `2.10.5` | Swagger 2 注解解析 |
 

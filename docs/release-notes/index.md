@@ -12,11 +12,31 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-### 未发布
+> `5.7.10` 与配套 Go `v0.8.9` 当前处于发布准备，尚未发布。
 
-- Boot4 WebMVC、独立聚合、Gateway、对应 smoke 及 Demo 升至 Spring Boot `4.1.2`，保留 Cloud `2025.1.3`、springdoc `3.0.3` 与 Java 17 下限。
-- 修复 Boot4 线传递的 Jackson `CVE-2026-110879`：Jackson 2 对齐 `2.22.4`，Jackson 3 对齐 `3.1.8`。补充泛型类型参数校验的回归测试和[消费方 BOM 配置](../guide/faq#jackson-依赖告警处理)。Boot `4.1.2` 自带的 Jackson 版本仍受影响，必须单独覆盖；消费方旧 BOM 也可重新覆盖 starter 传递的修复版本。
-- 本次不调整 Boot2/3 依赖或历史发布版，不作全量“无漏洞”承诺。
+### 5.7.10 <Badge type="info" text="待发布" />
+
+相较于 `5.7.9`，纳入 Boot4/Jackson 依赖修补、共享 React UI 的 Schema 示例生成预算修复，以及 OAS2 和构建链依赖维护。配套 Knife4x Go 版本为 `v0.8.9`。
+
+**Java Boot4 依赖**
+
+- Boot4 WebMVC、独立聚合、Gateway、对应 smoke 及 Demo 从 Boot `4.0.8` 升至 `4.1.2`；Cloud 保持 `2025.1.3`，springdoc 保持 `3.0.3`，Java 下限仍为 17（PR [#944](https://github.com/songxychn/knife4j-next/pull/944)）。
+- Jackson 2 BOM 对齐 `2.22.4`、Jackson 3 BOM 对齐 `3.1.8`，修补 `CVE-2026-110879` 并补充泛型类型参数校验回归。Boot `4.1.2` 自带的 Jackson 仍受影响；消费方旧 BOM 也可能覆盖 starter 的修补版本，须按 [Jackson 告警处理](../guide/faq#jackson-依赖告警处理) 核对最终依赖树。
+- Boot2/3 发布依赖不作本轮升级；不改变历史发布制品，不作所有组件“无漏洞”承诺。
+
+**共享 React UI 与依赖维护**
+
+- Schema 示例生成复用同一对象展开中的属性候选，跳过相同完整/最小属性集合的重复搜索及无子属性叶节点的方向遍历，修复普通宽对象过早耗尽预算。回归覆盖 OAS 3.1/3.2 的 100 字段对象请求/响应示例；保留预算限制、取消、作者示例和校验语义（PR [#950](https://github.com/songxychn/knife4j-next/pull/950)）。Java OAS3 WebJar 与 Go 内嵌 UI 均纳入此修复。
+- OAS3 构建/测试链修补 Babel、js-yaml 等依赖；OAS2 Vue3 修补 `follow-redirects`、`pbkdf2`、`qs`、`probe-image-size` 等间接依赖（PR [#951](https://github.com/songxychn/knife4j-next/pull/951)、[#952](https://github.com/songxychn/knife4j-next/pull/952)）。文档站同步 Vue 与构建链安全维护（PR [#953](https://github.com/songxychn/knife4j-next/pull/953)）。
+
+**Demo 与镜像通道**
+
+- Boot2 Demo 专用 POM 对齐 Tomcat `9.0.123`、Jackson `2.18.12`、Spring `5.3.39`、Logback `1.2.13`、SnakeYAML `1.33`、Log4j API/桥接 `2.25.5`、ClassGraph `4.8.112`，保留 Boot `2.7.18`、Java 8、Springfox 及原有 Demo 功能（PR [#955](https://github.com/songxychn/knife4j-next/pull/955)、[#958](https://github.com/songxychn/knife4j-next/pull/958)）。这些版本覆盖只作用于不可发布的 Demo，不会传递给 Boot2 starter 消费者；旧支持线剩余风险见 [安全评估](https://github.com/songxychn/knife4j-next/blob/master/knife4j/knife4j-demo-openapi2/SECURITY-ASSESSMENT.md) 与 [#957](https://github.com/songxychn/knife4j-next/issues/957)。
+- 新增独立 Demo 镜像通道，同一 master SHA 的 Build 与两套候选验收通过后才推广 `demo` 标签；正式 Release 仍在公开制品核验后构建版本标签和 `latest`（PR [#960](https://github.com/songxychn/knife4j-next/pull/960)）。镜像发布不代表线上环境已经更新。
+
+**兼容边界**
+
+浏览器要求沿用 Java `5.7.9` / Go `v0.8.8`：OAS3 为 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 为 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不新增旧浏览器补齐或实机覆盖承诺。Java 8/17、Go 1.22、Gin 示例 Go 1.26+、Maven/module 坐标、公开 API、路由、starter 默认配置及 OpenAPI 3.0/3.1/3.2 消费范围保持不变；springdoc 仍生成 3.0/3.1，不承诺生成 3.2。
 
 ### 5.7.9 <Badge type="tip" text="最新" />
 
@@ -755,7 +775,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.9</version>
+    <version>5.7.10</version>
 </dependency>
 ```
 

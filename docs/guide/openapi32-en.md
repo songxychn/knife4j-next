@@ -6,15 +6,17 @@ lang: en-US
 
 # OpenAPI 3.2 Support and Migration
 
+> Java `5.7.10` / Go `v0.8.9` are pending release; the latest published versions remain Java `5.7.9` / Go `v0.8.8`.
+
 [中文契约](./openapi32) · [Download minimal JSON](/examples/openapi-3.2-minimal.json) · [Download minimal YAML](/examples/openapi-3.2-minimal.yaml)
 
-::: info Published
-Java `5.7.9` and Knife4x Go `v0.8.8` consume valid OpenAPI 3.2.x documents as described here. This is not a promise that springdoc generates 3.2; current production dependencies still emit 3.0.x / 3.1.x.
+::: info Release preparation
+Java `5.7.10` and Knife4x Go `v0.8.9` consume valid OpenAPI 3.2.x documents as described here. This is not a promise that springdoc generates 3.2; current production dependencies still emit 3.0.x / 3.1.x.
 :::
 
 Published OpenAPI 3.0.x / 3.1.x contracts are unchanged; see [OpenAPI 3.1 Support and Migration](./openapi31-en). The Vue 3 UI remains OAS2-only. This page does not change starter defaults and does not upgrade springdoc or Java production dependencies.
 
-> Java 5.7.9 / Knife4x Go v0.8.8 require Chrome/Edge 112+, Firefox 116+, or Safari/iOS Safari 17+ for the React UI. This raises the previous browser baseline; minimum versions have not all been physically tested. See the [compatibility matrix](../reference/compatibility#浏览器基线).
+> Java 5.7.10 / Knife4x Go v0.8.9 require Chrome/Edge 112+, Firefox 116+, or Safari/iOS Safari 17+ for the React UI. This keeps the Java 5.7.9 / Go v0.8.8 browser baseline; minimum versions have not all been physically tested. See the [compatibility matrix](../reference/compatibility#浏览器基线).
 
 ## Supported versions
 
@@ -23,15 +25,15 @@ OpenAPI defines its feature set at the `major.minor` level. `3.2.x` shares one *
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
 | Swagger / OpenAPI 2.0 | Vue 3 | Maintenance | No OAS 3 expansion |
-| OpenAPI 3.0.x | React | Published | Java `5.7.9` / Go `v0.8.8` |
-| OpenAPI 3.1.x | React | Published | Java `5.7.9` / Go `v0.8.8` |
-| OpenAPI 3.2.x | React | **Published** | Full consumption of valid 3.2 documents; never treated as 3.1 |
+| OpenAPI 3.0.x | React | Supported (pending release) | Java `5.7.10` / Go `v0.8.9` |
+| OpenAPI 3.1.x | React | Supported (pending release) | Java `5.7.10` / Go `v0.8.9` |
+| OpenAPI 3.2.x | React | Supported (pending release) | Full consumption of valid 3.2 documents; never treated as 3.1 |
 
 ## Specification fixtures versus generator output
 
-Java `5.7.9` uses Boot3 springdoc `2.9.1` with Swagger Jakarta `2.2.55`; its generated output remains OAS 3.1, with [updated Boot minimums](../reference/version-ref#5-7-8-依赖更新).
+Java `5.7.10` uses Boot3 springdoc `2.9.1` with Swagger Jakarta `2.2.55`; its generated output remains OAS 3.1, with [updated Boot minimums](../reference/version-ref#5-7-8-依赖更新).
 
-Java `5.7.9` dependencies remain springdoc `1.8.0` / `2.9.1` / Boot4 `3.0.3`. They currently emit OpenAPI 3.0.x or 3.1.x. Changing the `openapi` string in `/v3/api-docs` to `3.2.0` is **not** real 3.2 generation evidence.
+Java `5.7.10` dependencies remain springdoc `1.8.0` / `2.9.1` / Boot4 `3.0.3`. They currently emit OpenAPI 3.0.x or 3.1.x. Changing the `openapi` string in `/v3/api-docs` to `3.2.0` is **not** real 3.2 generation evidence.
 
 | Source | Actual output | Use in this roadmap |
 | --- | --- | --- |
@@ -43,7 +45,7 @@ Java `5.7.9` dependencies remain springdoc `1.8.0` / `2.9.1` / Boot4 `3.0.3`. Th
 
 ## Product capability matrix
 
-Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x feature set in published Java `5.7.9` / Go `v0.8.8`.
+Unless a row says otherwise, “supported” means the complete OpenAPI 3.2.x feature set in pending Java `5.7.10` / Go `v0.8.9`.
 
 | Capability | OAS 3.2 behavior | Boundary | Merged evidence |
 | --- | --- | --- | --- |

@@ -16,11 +16,11 @@ title: WebFlux 接入
 1. 引入 springdoc 的 **WebFlux 版** swagger-ui 自动配置（而不是 webmvc 版）。
 2. 把本仓库的 `knife4j-openapi3-ui` webjar（React 新前端）挂上去，以取代 springdoc 默认 Swagger UI。
 
-::: info 5.7.9 支持下限
-`5.7.9` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
+::: info 5.7.10 支持下限
+`5.7.10` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
 `annotations` / `models` / `core` 统一为 `2.2.55`。JDK 下限仍为 17；Boot 3.4 线下限为
 `3.4.7`，Boot 3.5 线下限为 `3.5.1`（共同需要 Framework `6.2.8`）。Boot `3.5.0` 不满足此下限。
-此下限从 `5.7.8` 起生效，`5.7.9` 继续沿用；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
+此下限从 `5.7.8` 起生效，`5.7.10` 继续沿用；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
 详见[版本对照](../reference/version-ref#5-7-8-依赖更新)。
 :::
 
@@ -59,7 +59,7 @@ title: WebFlux 接入
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-webflux-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.9</version>
+    <version>5.7.10</version>
 </dependency>
 ```
 
@@ -109,7 +109,7 @@ public class UserController {
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-webflux-spring-boot-starter</artifactId>
-    <version>5.7.9</version>
+    <version>5.7.10</version>
 </dependency>
 ```
 

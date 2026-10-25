@@ -10,7 +10,7 @@
 | 仓库来源 | fork 自 `xiaoymin/knife4j` |
 | 当前定位 | 社区维护分支，不是 upstream 官方仓库 |
 | Java 主坐标 | `com.baizhukui` |
-| 当前稳定版本 | `5.7.9` |
+| 当前源码版本 | `5.7.10`（待发布；最新已发布 Java 为 `5.7.9`） |
 | 默认访问入口 | `http://ip:port/doc.html` |
 | 文档站 | [knife4jnext.com](https://knife4jnext.com) |
 
@@ -27,7 +27,7 @@
 
 ### 选择 Starter
 
-版本统一使用当前稳定版本 `5.7.9`。Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）；升级前查看[兼容矩阵](docs/reference/compatibility.md)。
+以下示例面向待发布版本 `5.7.10`，正式发布前请使用已发布的 `5.7.9`。Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）；升级前查看[兼容矩阵](docs/reference/compatibility.md)。
 
 | 使用场景 | Maven `artifactId` |
 |---|---|
@@ -40,7 +40,7 @@
 | Spring Cloud Gateway / Spring Boot 4.x | `knife4j-gateway-boot4-spring-boot-starter` |
 | Spring Boot 4.x / 独立聚合 | `knife4j-aggregation-boot4-spring-boot-starter` |
 
-> **5.7.9 浏览器要求提高**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。请先检查实际浏览器环境；Java 依赖基线沿用 5.7.8。
+> **5.7.10 沿用 5.7.9 的浏览器要求**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。Boot4 线更新至 Boot `4.1.2`，并单独对齐 Jackson 2 `2.22.4` / Jackson 3 `3.1.8`；消费方仍须核对最终 BOM 与依赖树。
 
 ### Maven 依赖
 
@@ -48,7 +48,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.9</version>
+    <version>5.7.10</version>
 </dependency>
 ```
 
@@ -80,7 +80,7 @@ http://ip:port/doc.html
 |---|---|
 | `knife4j/` | Java 主工程（starter、UI webjar、聚合、Gateway、WebFlux、smoke 与 demo） |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3 workspace）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.8.8` 已发布，Rust 后置；与 `front/ui-react` 共用 UI |
+| `knife4x/` | 嵌入式控制台：Go `v0.8.9` 待发布，Rust 后置；与 `front/ui-react` 共用 UI |
 | `docs/` | VitePress 文档站 |
 | `tools/` | 验证与发布辅助脚本（原 `scripts/`） |
 | `legacy/` | 冻结参考：`vue2`、`insight`、`sandbox`（不参与主线构建） |
@@ -96,7 +96,7 @@ http://ip:port/doc.html
 | OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
 | OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
 | OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| Knife4x | `knife4x/` | Go / Rust 宿主壳 | Go `v0.8.8` 已发布；Rust 后置；UI 不另开工程 |
+| Knife4x | `knife4x/` | Go / Rust 宿主壳 | Go `v0.8.9` 待发布；Rust 后置；UI 不另开工程 |
 | 历史代码 | `legacy/` | 无发布目标 | 仅参考，勿接常规功能任务 |
 | 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 

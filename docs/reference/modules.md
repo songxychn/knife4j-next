@@ -4,11 +4,11 @@ title: 模块说明
 
 # 模块说明
 
-::: info 5.7.9 支持下限
-`5.7.9` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
+::: info 5.7.10 支持下限
+`5.7.10` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
 `annotations` / `models` / `core` 统一为 `2.2.55`。JDK 下限仍为 17；Boot 3.4 线下限为
 `3.4.7`，Boot 3.5 线下限为 `3.5.1`（共同需要 Framework `6.2.8`）。Boot `3.5.0` 不满足此下限。
-这是 `5.7.9` 的要求；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
+这是 `5.7.10` 的要求；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
 详见[版本对照](./version-ref#5-7-8-依赖更新)。
 :::
 
@@ -18,7 +18,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j/` | Java 主工程——用户实际引入的 starter 和 webjar 都在这里构建 |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.8.8` 已发布，Rust 后置；UI 共用 `front/ui-react` |
+| `knife4x/` | 嵌入式控制台：Go `v0.8.9` 待发布，Rust 后置；UI 共用 `front/ui-react` |
 | `docs/` | 当前 VitePress 文档站 |
 | `tools/` | 验证、发布与任务看板脚本 |
 | `legacy/` | 冻结参考（`vue2`、`insight`、`sandbox`），不参与主线构建 |
@@ -76,7 +76,7 @@ Boot 3 的 OAS 3.1 输出需要设置 `springdoc.api-docs.version=OPENAPI_3_1`�
 
 | 模块 | 说明 |
 | --- | --- |
-| `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 4.0.8 + Boot4 starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
+| `knife4j-demo-openapi3` | OpenAPI 3 在线演示应用（Boot 4.1.2 + Boot4 starter + React UI，部署到 `openapi3.demo.knife4jnext.com`） |
 | `knife4j-demo-openapi2` | OpenAPI 2 在线演示应用（Boot 2.7.18 + springfox 2.10.5 + Vue 3 UI，部署到 `openapi2.demo.knife4jnext.com`） |
 | `knife4j-smoke-tests` | 自动化冒烟测试（14 个子模块覆盖 Boot 2.x OAS2/OAS3/WebFlux/独立聚合、Boot 3.x Jakarta/WebFlux/Gateway WebFlux/Gateway Server Web MVC/独立聚合、Boot 4.x WebMVC/Gateway/独立聚合） |
 

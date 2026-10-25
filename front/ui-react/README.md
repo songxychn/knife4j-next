@@ -4,7 +4,7 @@
 
 它不是通用 Vite 模板，也不是 OAS2 兼容 UI。OAS2 兼容维护线在 `front/vue3`。
 
-## 浏览器要求（Java 5.7.9 / Knife4x Go v0.8.8）
+## 浏览器要求（Java 5.7.10 / Knife4x Go v0.8.9）
 
 React UI 最低要求 Chrome / Edge 112、Firefox 116、Safari / iOS Safari 17，
 适用于 OAS3 WebJar 和复用同一 UI 的 Knife4x。JSONPath 11 使用原生 `RegExp` 的 `v` 标志，

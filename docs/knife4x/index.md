@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前已发布 Go `v0.8.8`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前源码面向 Go `v0.8.9`（待发布；最新已发布为 `v0.8.8`），Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 / 3.2 与发布版本
@@ -18,14 +18,20 @@ JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史
 
 ## 安装
 
-Go module 需要 Go 1.22 或更高版本：
+Go module 需要 Go 1.22 或更高版本。以下示例面向待发布 `v0.8.9`；正式发布前请使用 `v0.8.8`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.8
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.9
 ```
 
 仓库中的 [Gin 可运行示例](https://github.com/songxychn/knife4j-next/tree/master/knife4x/examples/gin)
 是独立 module，需要 Go 1.26+；其 Gin 依赖与版本要求不会传递给公共库消费者。
+
+## v0.8.9（待发布）
+
+相较于 `v0.8.8`，同步共享 React UI 的 Schema 示例生成修复：复用同一对象展开中的属性候选，跳过重复的完整/最小属性集合搜索，避免普通宽对象过早耗尽预算。回归覆盖 OAS 3.1/3.2 的 100 字段对象请求与响应示例；保留预算上限、取消、作者示例与校验边界（PR #950）。
+
+公共库仍只依赖标准库，Go 1.22、module、`Config`、`NewHandler` 与路由语义保持不变；独立 Gin 示例仍需 Go 1.26+。浏览器要求沿用 `v0.8.8`（Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17）；OpenAPI 3.0/3.1/3.2 JSON 消费范围不变，仍不接受 YAML。
 
 ## v0.8.8
 
