@@ -4,6 +4,7 @@ from unittest import mock
 
 import prepare
 import publish
+import verify
 from identity import fingerprint
 
 
@@ -65,9 +66,23 @@ class Controls(unittest.TestCase):
         self.assertEqual(fingerprint(image), fingerprint(restored))
         restored["Config"]["User"] = "0"
         self.assertNotEqual(fingerprint(image), fingerprint(restored))
+
         restored = copy.deepcopy(image)
         restored["RootFS"]["Layers"] = ["sha256:changed"]
         self.assertNotEqual(fingerprint(image), fingerprint(restored))
+
+    def test_restart_reads_current_ephemeral_port(self):
+        def container(port):
+            return {"State": {"Running": True, "Health": {"Status": "healthy"}},
+                    "NetworkSettings": {"Ports": {"8081/tcp": [{"HostIp": "127.0.0.1", "HostPort": port}]}}}
+        response = mock.MagicMock()
+        response.__enter__.return_value.status = 200
+        with mock.patch.object(verify, "inspect", side_effect=[container("50001"), container("50002")]), \
+                mock.patch.object(verify.urllib.request, "urlopen", return_value=response) as request:
+            self.assertEqual(verify.ready("candidate", 8081), "http://127.0.0.1:50001")
+            self.assertEqual(verify.ready("candidate", 8081), "http://127.0.0.1:50002")
+            self.assertEqual([call.args[0] for call in request.call_args_list],
+                             ["http://127.0.0.1:50001/doc.html", "http://127.0.0.1:50002/doc.html"])
 
 
 if __name__ == "__main__":

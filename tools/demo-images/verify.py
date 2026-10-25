@@ -21,16 +21,20 @@ def inspect(name):
     return json.loads(run("docker", "inspect", name))[0]
 
 
-def ready(name, base):
+def ready(name, port):
     deadline = time.monotonic() + 240
     while time.monotonic() < deadline:
         c = inspect(name)
         if not c["State"]["Running"]:
             raise RuntimeError("Candidate stopped")
         if c["State"].get("Health", {}).get("Status") == "healthy":
+            # Docker may allocate a different ephemeral host port after restart.
+            binding = c["NetworkSettings"]["Ports"][str(port) + "/tcp"][0]
+            assert binding["HostIp"] == "127.0.0.1"
+            base = "http://127.0.0.1:" + binding["HostPort"]
             with urllib.request.urlopen(base + "/doc.html", timeout=10) as response:
                 assert response.status == 200
-            return
+            return base
         time.sleep(2)
     raise RuntimeError("Candidate health timeout")
 
@@ -106,9 +110,7 @@ def verify(image, demo, manifest_path, report):
             created = True
             run("docker", "start", name)
             c = inspect(name)
-            host_port = c["NetworkSettings"]["Ports"][str(port) + "/tcp"][0]["HostPort"]
-            base = "http://127.0.0.1:" + host_port
-            ready(name, base)
+            base = ready(name, port)
             actual_sha = run("docker", "exec", name, "sha256sum", "/app/app.jar").split()[0]
             assert actual_sha == manifest["jar_sha256"]
             assert c["Config"]["Labels"]["org.opencontainers.image.revision"] == manifest["revision"]
@@ -118,7 +120,7 @@ def verify(image, demo, manifest_path, report):
             smoke.check(base, demo)
             result = runtime(name)
             run("docker", "restart", name)
-            ready(name, base)
+            base = ready(name, port)
             smoke.check(base, demo)
             runtime(name)
             built_image = json.loads(run("docker", "image", "inspect", image))[0]
