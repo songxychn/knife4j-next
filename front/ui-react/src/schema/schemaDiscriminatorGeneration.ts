@@ -16,6 +16,7 @@ import {
 } from './schemaDocumentSession';
 import {
   generateSchemaExample,
+  DEFAULT_SCHEMA_EXAMPLE_LIMITS,
   type SchemaExampleDirection,
   type SchemaExampleResult,
   type SchemaExampleSearchLimits,
@@ -37,15 +38,7 @@ export const DEFAULT_DISCRIMINATOR_GENERATION_LIMITS: Readonly<DiscriminatorGene
   maxValidationCalls: 3,
 });
 /** Explicitly bound the one public G call, including authored-source traversal. */
-const GENERATOR_LIMITS: Required<SchemaExampleSearchLimits> = Object.freeze({
-  maxCandidates: 48,
-  maxDepth: 8,
-  maxNodes: 320,
-  maxReferences: 64,
-  maxEvaluations: 48,
-  maxStringLength: 256,
-  maxArrayLength: 16,
-});
+const GENERATOR_LIMITS: Required<SchemaExampleSearchLimits> = DEFAULT_SCHEMA_EXAMPLE_LIMITS;
 
 export interface GenerateDiscriminatorCandidateInput {
   readonly metadata: SchemaDiscriminatorMetadata;

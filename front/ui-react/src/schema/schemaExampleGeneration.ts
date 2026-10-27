@@ -1,6 +1,7 @@
 import type { EvaluationIssue, EvaluationResult, JsonValue, SchemaNode } from 'knife4j-schema-engine';
 import { toSchemaDocumentFailure } from './schemaDocumentSession';
 import { evaluateSchemaDocumentDirectionally, type SchemaDocumentSession } from './schemaDocumentSession';
+import { notifySelectedAuthoredExample } from './schemaExampleAuthored';
 
 export type SchemaExampleDirection = 'request' | 'response';
 
@@ -39,6 +40,10 @@ export interface SchemaExampleDiagnostic {
   readonly issues?: readonly SchemaExampleIssue[];
   readonly totalIssues?: number;
   readonly schemaIssues?: import('knife4j-schema-engine').SchemaEngineErrorDetails['schemaIssues'];
+  readonly budget?: keyof SchemaExampleSearchLimits;
+  readonly limit?: number;
+  readonly actual?: number;
+  readonly path?: string;
 }
 
 export type SchemaExampleResult =
@@ -69,6 +74,13 @@ export interface SchemaExampleSearchLimits {
   readonly maxEvaluations?: number;
   readonly maxStringLength?: number;
   readonly maxArrayLength?: number;
+  readonly maxReferenceTargets?: number;
+  readonly maxInstanceDepth?: number;
+  readonly maxSearchChoices?: number;
+  readonly maxOutputNodes?: number;
+  readonly maxOutputBytes?: number;
+  readonly maxConstructedNodes?: number;
+  readonly maxDurationMs?: number;
 }
 
 export interface GenerateSchemaExampleOptions {
@@ -78,15 +90,7 @@ export interface GenerateSchemaExampleOptions {
   readonly limits?: SchemaExampleSearchLimits;
 }
 
-interface EffectiveLimits {
-  readonly maxCandidates: number;
-  readonly maxDepth: number;
-  readonly maxNodes: number;
-  readonly maxReferences: number;
-  readonly maxEvaluations: number;
-  readonly maxStringLength: number;
-  readonly maxArrayLength: number;
-}
+type EffectiveLimits = Required<SchemaExampleSearchLimits>;
 
 interface AuthoredCandidate {
   readonly source: Exclude<SchemaExampleSource, 'generated' | 'media-example' | 'example-object'>;
@@ -109,6 +113,22 @@ interface SearchBudget {
   nodes: number;
   references: number;
   exhausted: boolean;
+  constructedNodes: number;
+  searchChoices: number;
+  readonly started: number;
+  readonly referenceTargets: Set<string>;
+  diagnostic?: SchemaExampleDiagnostic;
+}
+
+interface SearchChoice {
+  readonly key: string;
+  readonly path: string;
+  readonly selected: number;
+  readonly count: number;
+}
+interface CandidateSearch {
+  plan: ReadonlyMap<string, number>;
+  choices: SearchChoice[];
 }
 
 interface SearchContext {
@@ -119,6 +139,13 @@ interface SearchContext {
   readonly baseUri: string;
   readonly baseAlreadyIncludesOwnId: boolean;
   readonly depth: number;
+  readonly instanceDepth: number;
+  readonly path: string;
+  readonly choicePath: string;
+  readonly search: CandidateSearch;
+  readonly referenceVisits: ReadonlyMap<string, number>;
+  readonly providedProperties?: ReadonlySet<string>;
+  readonly excludedCandidates?: ReadonlySet<string>;
   readonly referenceChain: ReadonlySet<string>;
   readonly dynamicScope: readonly string[];
   readonly signal?: AbortSignal;
@@ -130,15 +157,24 @@ interface SearchContext {
   readonly dynamicAnchorsByResource: Map<string, Readonly<Record<string, string>>>;
 }
 
-const DEFAULT_LIMITS: EffectiveLimits = Object.freeze({
-  maxCandidates: 48,
-  maxDepth: 8,
-  maxNodes: 320,
-  maxReferences: 64,
-  maxEvaluations: 48,
-  maxStringLength: 256,
-  maxArrayLength: 16,
+export const DEFAULT_SCHEMA_EXAMPLE_LIMITS: Readonly<EffectiveLimits> = Object.freeze({
+  // The initial attempt plus the 256 globally shared changes.
+  maxCandidates: 257,
+  maxDepth: 128,
+  maxNodes: 50_000,
+  maxReferences: 16_000,
+  maxReferenceTargets: 4096,
+  maxInstanceDepth: 32,
+  maxSearchChoices: 256,
+  maxEvaluations: 32,
+  maxOutputNodes: 20_000,
+  maxOutputBytes: 1_048_576,
+  maxConstructedNodes: 200_000,
+  maxStringLength: 4096,
+  maxArrayLength: 64,
+  maxDurationMs: 2000,
 });
+const DEFAULT_LIMITS = DEFAULT_SCHEMA_EXAMPLE_LIMITS;
 
 const AUTHOR_SOURCE_RANK: Readonly<Record<AuthoredCandidate['source'], number>> = Object.freeze({
   'schema-examples': 0,
@@ -191,15 +227,12 @@ const ASSERTION_KEYS = new Set([
 function effectiveLimits(overrides: SchemaExampleSearchLimits | undefined): EffectiveLimits {
   const positiveInteger = (value: number | undefined, fallback: number): number =>
     value === undefined || !Number.isFinite(value) ? fallback : Math.max(1, Math.floor(value));
-  return {
-    maxCandidates: positiveInteger(overrides?.maxCandidates, DEFAULT_LIMITS.maxCandidates),
-    maxDepth: positiveInteger(overrides?.maxDepth, DEFAULT_LIMITS.maxDepth),
-    maxNodes: positiveInteger(overrides?.maxNodes, DEFAULT_LIMITS.maxNodes),
-    maxReferences: positiveInteger(overrides?.maxReferences, DEFAULT_LIMITS.maxReferences),
-    maxEvaluations: positiveInteger(overrides?.maxEvaluations, DEFAULT_LIMITS.maxEvaluations),
-    maxStringLength: positiveInteger(overrides?.maxStringLength, DEFAULT_LIMITS.maxStringLength),
-    maxArrayLength: positiveInteger(overrides?.maxArrayLength, DEFAULT_LIMITS.maxArrayLength),
-  };
+  return Object.fromEntries(
+    Object.entries(DEFAULT_LIMITS).map(([key, fallback]) => [
+      key,
+      positiveInteger(overrides?.[key as keyof SchemaExampleSearchLimits], fallback),
+    ]),
+  ) as unknown as EffectiveLimits;
 }
 
 function isRecord(value: JsonValue): value is { [key: string]: JsonValue } {
@@ -224,18 +257,60 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw abortError();
 }
 
-function enterNode(ctx: SearchContext): boolean {
+function exceed(ctx: SearchContext, budget: keyof EffectiveLimits, actual: number): false {
+  ctx.budget.exhausted = true;
+  ctx.budget.diagnostic ??= {
+    code: 'SEARCH_BUDGET_EXCEEDED',
+    budget,
+    limit: ctx.limits[budget],
+    actual,
+    path: ctx.path,
+  };
+  return false;
+}
+
+function checkpoint(ctx: SearchContext): boolean {
   throwIfAborted(ctx.signal);
+  if (ctx.budget.exhausted) return false;
+  const elapsed = performance.now() - ctx.budget.started;
+  return elapsed > ctx.limits.maxDurationMs ? exceed(ctx, 'maxDurationMs', elapsed) : true;
+}
+
+function enterNode(ctx: SearchContext): boolean {
+  if (!checkpoint(ctx)) return false;
   ctx.budget.nodes += 1;
-  if (ctx.depth > ctx.limits.maxDepth || ctx.budget.nodes > ctx.limits.maxNodes) {
-    ctx.budget.exhausted = true;
-    return false;
-  }
+  if (ctx.depth > ctx.limits.maxDepth) return exceed(ctx, 'maxDepth', ctx.depth);
+  if (ctx.instanceDepth > ctx.limits.maxInstanceDepth) return exceed(ctx, 'maxInstanceDepth', ctx.instanceDepth);
+  if (ctx.budget.nodes > ctx.limits.maxNodes) return exceed(ctx, 'maxNodes', ctx.budget.nodes);
   return true;
 }
 
-function childContext(ctx: SearchContext, baseUri = ctx.baseUri): SearchContext {
-  return { ...ctx, baseUri, baseAlreadyIncludesOwnId: false, depth: ctx.depth + 1 };
+function childContext(ctx: SearchContext, baseUri = ctx.baseUri, key = 'child'): SearchContext {
+  return {
+    ...ctx,
+    baseUri,
+    baseAlreadyIncludesOwnId: false,
+    depth: ctx.depth + 1,
+    choicePath: `${ctx.choicePath}/${key}`,
+  };
+}
+
+function instanceChild(ctx: SearchContext, key: string): SearchContext {
+  const child = childContext(ctx, ctx.baseUri, key);
+  return {
+    ...child,
+    excludedCandidates: undefined,
+    providedProperties: undefined,
+    instanceDepth: ctx.instanceDepth + 1,
+    path: `${ctx.path}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+  };
+}
+
+function selectIndex(ctx: SearchContext, key: string, count: number): number {
+  const choiceKey = `${ctx.choicePath}/${key}`;
+  const selected = ctx.search.plan.get(choiceKey) ?? 0;
+  if (count > 1) ctx.search.choices.push({ key: choiceKey, path: ctx.path, selected, count });
+  return selected < count ? selected : -1;
 }
 
 function resolvedContext(ctx: SearchContext, node: SchemaNode, referenceUri: string): SearchContext {
@@ -245,6 +320,7 @@ function resolvedContext(ctx: SearchContext, node: SchemaNode, referenceUri: str
     baseUri: node.resourceUri,
     baseAlreadyIncludesOwnId: true,
     depth: ctx.depth + 1,
+    choicePath: `${ctx.choicePath}/ref:${node.canonicalUri}`,
     referenceChain: new Set([...ctx.referenceChain, referenceUri, node.canonicalUri]),
     dynamicScope: ctx.dynamicScope.includes(node.resourceUri)
       ? ctx.dynamicScope
@@ -288,30 +364,171 @@ function evaluationReferenceFor(node: SchemaNode): string {
   return node.canonicalUri.endsWith('#') ? node.canonicalUri.slice(0, -1) : node.canonicalUri;
 }
 
-function cloneValue<T extends JsonValue>(value: T): T {
+/** Compact JSON string bytes, including escaping and well-formed lone surrogates. */
+function quotedStringBytes(value: string): number {
+  let bytes = 2;
+  for (let offset = 0; offset < value.length; offset += 1) {
+    const point = value.codePointAt(offset)!;
+    if (point > 0xffff) {
+      bytes += 4;
+      offset += 1;
+    } else if (point === 0x22 || point === 0x5c) bytes += 2;
+    else if (point < 0x20) bytes += [0x08, 0x09, 0x0a, 0x0c, 0x0d].includes(point) ? 2 : 6;
+    else if (point >= 0xd800 && point <= 0xdfff) bytes += 6;
+    else bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : 3;
+  }
+  return bytes;
+}
+
+function valueSize(
+  value: JsonValue,
+  ctx?: SearchContext,
+): { nodes: number; bytes: number; depth: number; stringLength: number; arrayLength: number } {
+  let nodes = 0;
+  let bytes = 0;
+  let depth = 0;
+  let stringLength = 0;
+  let arrayLength = 0;
+  // Composite candidates can contain author-provided literal subtrees. Check
+  // their partial size before cloning, without serializing the whole value.
+  const enforceOutput = ctx !== undefined && value !== null && typeof value === 'object';
+  const checkOutput = (): void => {
+    if (!ctx || !enforceOutput) return;
+    if (nodes > ctx.limits.maxOutputNodes) {
+      exceed(ctx, 'maxOutputNodes', nodes);
+      throw new SearchStopped();
+    }
+    if (bytes > ctx.limits.maxOutputBytes) {
+      exceed(ctx, 'maxOutputBytes', bytes);
+      throw new SearchStopped();
+    }
+  };
+  const pending: Array<[JsonValue, number]> = [[value, 0]];
+  while (pending.length > 0) {
+    const [item, level] = pending.pop()!;
+    nodes += 1;
+    if (ctx && ctx.budget.constructedNodes + nodes > ctx.limits.maxConstructedNodes) {
+      exceed(ctx, 'maxConstructedNodes', ctx.budget.constructedNodes + nodes);
+      throw new SearchStopped();
+    }
+    if (ctx && nodes % 256 === 0 && !checkpoint(ctx)) throw new SearchStopped();
+    depth = Math.max(depth, level);
+    if (ctx && level + ctx.instanceDepth > ctx.limits.maxInstanceDepth) {
+      exceed(ctx, 'maxInstanceDepth', level + ctx.instanceDepth);
+      throw new SearchStopped();
+    }
+    if (typeof item === 'string') {
+      let length = 0;
+      for (let offset = 0; offset < item.length; offset += 1) {
+        if (item.codePointAt(offset)! > 0xffff) offset += 1;
+        length += 1;
+        if (ctx && length > ctx.limits.maxStringLength) {
+          exceed(ctx, 'maxStringLength', length);
+          throw new SearchStopped();
+        }
+      }
+      stringLength = Math.max(stringLength, length);
+      bytes += quotedStringBytes(item);
+    } else if (Array.isArray(item)) {
+      arrayLength = Math.max(arrayLength, item.length);
+      if (ctx && item.length > ctx.limits.maxArrayLength) {
+        exceed(ctx, 'maxArrayLength', item.length);
+        throw new SearchStopped();
+      }
+      bytes += 2 + Math.max(0, item.length - 1);
+      for (const child of item) pending.push([child, level + 1]);
+    } else if (isRecord(item)) {
+      const entries = Object.entries(item);
+      bytes += 2 + Math.max(0, entries.length - 1);
+      for (const [name, child] of entries) {
+        bytes += quotedStringBytes(name) + 1;
+        checkOutput();
+        pending.push([child, level + 1]);
+      }
+    } else bytes += JSON.stringify(item).length;
+    checkOutput();
+  }
+  return { nodes, bytes, depth, stringLength, arrayLength };
+}
+
+/** Size of one assembled instance; construction/copy work has its own counter. */
+class OutputAssembly {
+  private nodes = 1;
+  private bytes = 2;
+  private readonly entries = new Map<string, { nodes: number; bytes: number }>();
+
+  constructor(
+    private readonly ctx: SearchContext,
+    private readonly kind: 'object' | 'array',
+  ) {
+    this.check();
+  }
+
+  public add(key: string, value: JsonValue): void {
+    const size = valueSize(value);
+    const old = this.entries.get(key);
+    const keyBytes = this.kind === 'object' ? quotedStringBytes(key) + 1 : 0;
+    this.nodes += size.nodes - (old?.nodes ?? 0);
+    this.bytes += size.bytes + keyBytes - (old?.bytes ?? 0) + (old ? 0 : this.entries.size > 0 ? 1 : 0);
+    this.check();
+    this.entries.set(key, { nodes: size.nodes, bytes: size.bytes + keyBytes });
+  }
+
+  public remove(key: string): void {
+    const old = this.entries.get(key);
+    if (!old) return;
+    this.nodes -= old.nodes;
+    this.bytes -= old.bytes + (this.entries.size > 1 ? 1 : 0);
+    this.entries.delete(key);
+  }
+
+  private check(): void {
+    if (this.nodes > this.ctx.limits.maxOutputNodes) {
+      exceed(this.ctx, 'maxOutputNodes', this.nodes);
+      throw new SearchStopped();
+    }
+    if (this.bytes > this.ctx.limits.maxOutputBytes) {
+      exceed(this.ctx, 'maxOutputBytes', this.bytes);
+      throw new SearchStopped();
+    }
+    if (!checkpoint(this.ctx)) throw new SearchStopped();
+  }
+}
+
+function cloneValue<T extends JsonValue>(value: T, ctx?: SearchContext): T {
+  if (ctx) {
+    const size = valueSize(value, ctx);
+    ctx.budget.constructedNodes += size.nodes;
+    if (ctx.budget.constructedNodes > ctx.limits.maxConstructedNodes) {
+      exceed(ctx, 'maxConstructedNodes', ctx.budget.constructedNodes);
+      throw new SearchStopped();
+    }
+    if (!checkpoint(ctx)) throw new SearchStopped();
+  }
   return structuredClone(value);
 }
+class SearchStopped extends Error {}
 
 function candidateKey(value: JsonValue): string {
   return JSON.stringify(value);
 }
 
-function uniqueCandidates(values: readonly JsonValue[], limit: number): JsonValue[] {
+function uniqueCandidates(values: readonly JsonValue[], limit: number, ctx?: SearchContext): JsonValue[] {
   const seen = new Set<string>();
   const result: JsonValue[] = [];
   for (const value of values) {
     const key = candidateKey(value);
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(cloneValue(value));
+    result.push(cloneValue(value, ctx));
     if (result.length >= limit) break;
   }
   return result;
 }
 
-function appendCandidate(target: JsonValue[], value: unknown, limit: number): void {
+function appendCandidate(target: JsonValue[], value: unknown, limit: number, ctx?: SearchContext): void {
   if (target.length >= limit || !isJsonValue(value)) return;
-  target.push(cloneValue(value));
+  target.push(cloneValue(value, ctx));
 }
 
 function localAuthoredCandidates(
@@ -322,7 +539,7 @@ function localAuthoredCandidates(
   const candidates: AuthoredCandidate[] = [];
   const append = (source: AuthoredCandidate['source'], value: unknown): void => {
     if (candidates.length >= limit || !isJsonValue(value)) return;
-    candidates.push({ source, value: cloneValue(value), rank: AUTHOR_SOURCE_RANK[source], depth });
+    candidates.push({ source, value, rank: AUTHOR_SOURCE_RANK[source], depth });
   };
 
   if (Array.isArray(schema.examples)) {
@@ -420,7 +637,7 @@ async function resolveNode(
   if (!uri || (!allowReferenceCycle && ctx.referenceChain.has(uri))) return null;
   ctx.budget.references += 1;
   if (ctx.budget.references > ctx.limits.maxReferences) {
-    ctx.budget.exhausted = true;
+    exceed(ctx, 'maxReferences', ctx.budget.references);
     return null;
   }
 
@@ -435,6 +652,11 @@ async function resolveNode(
   try {
     const node = await pending;
     throwIfAborted(ctx.signal);
+    ctx.budget.referenceTargets.add(node.canonicalUri);
+    if (ctx.budget.referenceTargets.size > ctx.limits.maxReferenceTargets) {
+      exceed(ctx, 'maxReferenceTargets', ctx.budget.referenceTargets.size);
+      return null;
+    }
     if (!allowReferenceCycle && ctx.referenceChain.has(node.canonicalUri)) return null;
     ctx.dynamicAnchorsByResource.set(node.resourceUri, node.dynamicAnchors);
     return { uri, node };
@@ -499,6 +721,8 @@ async function visitRootAuthoredCandidates(
   ) {
     return;
   }
+  collectLocalAuthoredCandidates(schema, depth, collector);
+  if (!enterNode(ctx)) return;
   const baseUri = effectiveBaseUri(schema, ctx);
   await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
   const localCtx = {
@@ -507,7 +731,6 @@ async function visitRootAuthoredCandidates(
     baseAlreadyIncludesOwnId: true,
     dynamicScope: dynamicScopeWithBase(ctx, baseUri),
   };
-  collectLocalAuthoredCandidates(schema, depth, collector);
   const referenceKeyword =
     typeof schema.$ref === 'string' ? '$ref' : typeof schema.$dynamicRef === 'string' ? '$dynamicRef' : null;
   if (referenceKeyword && authoredCandidateCanImprove(collector, AUTHOR_SOURCE_RANK['schema-examples'], depth + 1)) {
@@ -539,7 +762,7 @@ async function collectRootAuthoredCandidates(schema: JsonValue, ctx: SearchConte
   await visitRootAuthoredCandidates(schema, ctx, collector);
   return collector.candidates.sort(compareAuthoredCandidates).map((candidate) => ({
     source: candidate.source,
-    value: cloneValue(candidate.value),
+    value: candidate.value,
     rank: candidate.rank,
     depth: candidate.depth,
   }));
@@ -563,10 +786,9 @@ function adjustedString(value: string, schema: { [key: string]: JsonValue }, max
   const max = typeof schema.maxLength === 'number' ? Math.max(0, Math.floor(schema.maxLength)) : maxLength;
   if (min > max || min > maxLength) return null;
   const cappedMax = Math.min(max, maxLength);
-  let result = value;
-  if (result.length < min) result += 'a'.repeat(min - result.length);
-  if (result.length > cappedMax) result = result.slice(0, cappedMax);
-  return result.length >= min ? result : null;
+  const points = Array.from(value);
+  if (points.length < min) points.push(...Array.from({ length: min - points.length }, () => 'a'));
+  return points.slice(0, cappedMax).join('');
 }
 
 function patternSamples(pattern: string, maxLength: number): string[] {
@@ -613,15 +835,22 @@ function stringCandidates(schema: { [key: string]: JsonValue }, ctx: SearchConte
     '0',
   ];
   const minLength = typeof schema.minLength === 'number' ? Math.max(0, Math.floor(schema.minLength)) : 0;
+  if (
+    minLength > ctx.limits.maxStringLength &&
+    !(typeof schema.maxLength === 'number' && schema.maxLength < minLength)
+  ) {
+    exceed(ctx, 'maxStringLength', minLength);
+    return [];
+  }
   if (minLength <= ctx.limits.maxStringLength) rawSamples.push('a'.repeat(minLength), '0'.repeat(minLength));
   if (typeof schema.contentMediaType === 'string' && schema.contentMediaType.toLowerCase().includes('json')) {
     rawSamples.unshift('{}');
   }
   for (const sample of rawSamples) {
     const adjusted = adjustedString(sample, schema, ctx.limits.maxStringLength);
-    if (adjusted !== null) appendCandidate(values, adjusted, ctx.limits.maxCandidates);
+    if (adjusted !== null) appendCandidate(values, adjusted, ctx.limits.maxCandidates, ctx);
   }
-  return uniqueCandidates(values, ctx.limits.maxCandidates);
+  return uniqueCandidates(values, ctx.limits.maxCandidates, ctx);
 }
 
 function numberCandidates(schema: { [key: string]: JsonValue }, integer: boolean, ctx: SearchContext): JsonValue[] {
@@ -645,6 +874,7 @@ function numberCandidates(schema: { [key: string]: JsonValue }, integer: boolean
       .map((value) => (integer ? Math.round(value) : value))
       .filter((value) => Number.isFinite(value)) as JsonValue[],
     ctx.limits.maxCandidates,
+    ctx,
   );
 }
 
@@ -782,216 +1012,234 @@ function omitDirectionalProperties(value: JsonValue, names: ReadonlySet<string>)
   return result;
 }
 
-function mergeObjects(left: JsonValue, right: JsonValue): JsonValue | null {
+function mergeObjects(left: JsonValue, right: JsonValue, ctx?: SearchContext): JsonValue | null {
   if (!isRecord(left) || !isRecord(right)) return null;
-  return { ...cloneValue(left), ...cloneValue(right) };
+  if (ctx) {
+    const output = new OutputAssembly(ctx, 'object');
+    // Right-hand values replace existing members. Count the final member once,
+    // before allocating either copied object or the merged object.
+    for (const [name, value] of Object.entries(left)) {
+      if (!Object.prototype.hasOwnProperty.call(right, name)) output.add(name, value);
+    }
+    for (const [name, value] of Object.entries(right)) output.add(name, value);
+  }
+  return { ...cloneValue(left, ctx), ...cloneValue(right, ctx) };
 }
 
-function combineIntersection(left: readonly JsonValue[], right: readonly JsonValue[], limit: number): JsonValue[] {
-  if (left.length === 0) return uniqueCandidates(right, limit);
-  if (right.length === 0) return uniqueCandidates(left, limit);
+function combineIntersection(
+  left: readonly JsonValue[],
+  right: readonly JsonValue[],
+  limit: number,
+  ctx?: SearchContext,
+): JsonValue[] {
+  if (left.length === 0) return uniqueCandidates(right, limit, ctx);
+  if (right.length === 0) return uniqueCandidates(left, limit, ctx);
   const values: JsonValue[] = [];
   for (const leftValue of left) {
     for (const rightValue of right) {
-      const merged = mergeObjects(leftValue, rightValue);
-      if (merged !== null) appendCandidate(values, merged, limit);
-      if (candidateKey(leftValue) === candidateKey(rightValue)) appendCandidate(values, leftValue, limit);
-      if (values.length >= limit) return uniqueCandidates(values, limit);
+      const merged = mergeObjects(leftValue, rightValue, ctx);
+      if (merged !== null) appendCandidate(values, merged, limit, ctx);
+      if (candidateKey(leftValue) === candidateKey(rightValue)) appendCandidate(values, leftValue, limit, ctx);
+      if (values.length >= limit) return uniqueCandidates(values, limit, ctx);
     }
   }
   values.push(...left, ...right);
-  return uniqueCandidates(values, limit);
+  return uniqueCandidates(values, limit, ctx);
 }
 
-function overlayBaseCandidates(base: readonly JsonValue[], branches: readonly JsonValue[], limit: number): JsonValue[] {
+function overlayBaseCandidates(
+  base: readonly JsonValue[],
+  branches: readonly JsonValue[],
+  limit: number,
+  ctx?: SearchContext,
+): JsonValue[] {
   const values: JsonValue[] = [];
   for (const branch of branches) {
     let mergedAny = false;
     for (const baseValue of base) {
-      const merged = mergeObjects(baseValue, branch);
+      const merged = mergeObjects(baseValue, branch, ctx);
       if (merged !== null) {
-        appendCandidate(values, merged, limit);
+        appendCandidate(values, merged, limit, ctx);
         mergedAny = true;
       }
     }
-    if (!mergedAny) appendCandidate(values, branch, limit);
+    if (!mergedAny) appendCandidate(values, branch, limit, ctx);
   }
   values.push(...base);
-  return uniqueCandidates(values, limit);
+  return uniqueCandidates(values, limit, ctx);
 }
 
 async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: SearchContext): Promise<JsonValue[]> {
   const properties = isRecord(schema.properties) ? schema.properties : {};
+  const ignored = new Set<string>();
+  const annotations = new Map<string, boolean>();
+  const ignoreProperty = async (name: string): Promise<boolean> => {
+    const known = annotations.get(name);
+    if (known !== undefined) return known;
+    const property = Object.prototype.hasOwnProperty.call(properties, name) ? properties[name] : true;
+    const result = await shouldIgnoreProperty(property, childContext(ctx, ctx.baseUri, `annotation:${name}`));
+    annotations.set(name, result);
+    if (result) ignored.add(name);
+    return result;
+  };
+  const output = new OutputAssembly(ctx, 'object');
   const required = new Set(
-    Array.isArray(schema.required) ? schema.required.filter((value): value is string => typeof value === 'string') : [],
+    (Array.isArray(schema.required) ? schema.required : []).filter(
+      (name): name is string =>
+        typeof name === 'string' &&
+        !ignored.has(name) &&
+        !(ctx.providedProperties?.has(name) && !Object.prototype.hasOwnProperty.call(properties, name)),
+    ),
   );
-  const entries: Array<[string, JsonValue]> = [];
-  const ignoredProperties = new Set<string>();
-  for (const [name, propertySchema] of Object.entries(properties)) {
-    if (await shouldIgnoreProperty(propertySchema, childContext(ctx))) ignoredProperties.add(name);
-    else entries.push([name, propertySchema]);
+  const dependencies = isRecord(schema.dependentRequired) ? schema.dependentRequired : {};
+  const max = typeof schema.maxProperties === 'number' ? Math.max(0, Math.floor(schema.maxProperties)) : Infinity;
+  const min = typeof schema.minProperties === 'number' ? Math.max(0, Math.floor(schema.minProperties)) : 0;
+  // Only this exact, presence-only form is safe to use before full validation.
+  const forbidden =
+    isRecord(schema.not) && Object.keys(schema.not).length === 1 && Array.isArray(schema.not.required)
+      ? schema.not.required.filter((name): name is string => typeof name === 'string')
+      : null;
+  const selected = new Set<string>();
+  const blocked = new Set<string>();
+  const values = new Map<string, JsonValue>();
+  const propertySchema = (name: string): JsonValue =>
+    Object.prototype.hasOwnProperty.call(properties, name)
+      ? properties[name]
+      : schema.additionalProperties === undefined
+        ? true
+        : schema.additionalProperties;
+  const addClosure = async (name: string, added: string[]): Promise<boolean> => {
+    const pending = [name];
+    while (pending.length > 0) {
+      if (!checkpoint(ctx)) return false;
+      const next = pending.pop()!;
+      if (selected.has(next) || (await ignoreProperty(next))) continue;
+      if (blocked.has(next) || propertySchema(next) === false) return false;
+      selected.add(next);
+      added.push(next);
+      if (selected.size > ctx.limits.maxOutputNodes) return exceed(ctx, 'maxOutputNodes', selected.size + 1);
+      if (selected.size > max || (forbidden !== null && forbidden.every((key) => selected.has(key)))) return false;
+      for (const dependency of Array.isArray(dependencies[next]) ? dependencies[next] : []) {
+        if (typeof dependency === 'string') pending.push(dependency);
+      }
+    }
+    return true;
+  };
+  for (const name of required) {
+    const added: string[] = [];
+    if (!(await addClosure(name, added))) return [];
+    for (const key of added) {
+      const [value] = await buildCandidates(propertySchema(key), instanceChild(ctx, key));
+      if (value === undefined) return [];
+      output.add(key, value);
+      values.set(key, value);
+    }
+  }
+  const mandatory = new Set(selected);
+  const optional = Object.keys(properties).filter((name) => !ignored.has(name) && !mandatory.has(name));
+  // The full DTO is preferred. A minimal choice remains available when a
+  // cross-field constraint can only be discovered by the complete validator.
+  const minimal = forbidden !== null || selectIndex(ctx, 'object-selection', optional.length > 0 ? 2 : 1) === 1;
+  const tryOptional = async (name: string): Promise<void> => {
+    if (selected.has(name)) return;
+    const added: string[] = [];
+    if (!(await addClosure(name, added))) {
+      added.forEach((key) => selected.delete(key));
+      return;
+    }
+    for (const key of added) {
+      let value = values.get(key);
+      if (value === undefined) {
+        [value] = await buildCandidates(propertySchema(key), instanceChild(ctx, key));
+        if (value !== undefined) values.set(key, value);
+      }
+      if (value === undefined) {
+        blocked.add(key);
+        added.forEach((addedKey) => {
+          selected.delete(addedKey);
+          output.remove(addedKey);
+        });
+        return;
+      }
+      output.add(key, value);
+    }
+  };
+  for (const name of optional) {
+    if (minimal && selected.size >= min) break;
+    await tryOptional(name);
     if (ctx.budget.exhausted) return [];
   }
-  const requiredEntries = entries.filter(([name]) => required.has(name));
-  const optionalEntries = entries.filter(([name]) => !required.has(name));
-  const maxProperties =
-    typeof schema.maxProperties === 'number' ? Math.max(0, Math.floor(schema.maxProperties)) : Number.POSITIVE_INFINITY;
-  const minProperties = typeof schema.minProperties === 'number' ? Math.max(0, Math.floor(schema.minProperties)) : 0;
-
-  // Both selections visit each property in the same direction, reference chain
-  // and dynamic scope. Keep reuse local to this object expansion.
-  const propertyCandidates = new Map<string, JsonValue[]>();
-  const buildVariants = async (selected: readonly [string, JsonValue][]): Promise<JsonValue[]> => {
-    let variants: Array<{ [key: string]: JsonValue }> = [{}];
-    for (const [name, propertySchema] of selected) {
-      let propertyValues = propertyCandidates.get(name);
-      if (propertyValues === undefined) {
-        propertyValues = await buildCandidates(propertySchema, childContext(ctx));
-        propertyCandidates.set(name, propertyValues);
-      }
-      if (propertyValues.length === 0) {
-        if (required.has(name)) return [];
-        continue;
-      }
-      const next: Array<{ [key: string]: JsonValue }> = [];
-      const valueCount = Math.min(propertyValues.length, 4);
-      const rows = Math.ceil(variants.length / valueCount);
-      const variantOrder: number[] = [];
-      for (let row = 0; row < rows; row += 1) {
-        for (let column = 0; column < valueCount; column += 1) {
-          const index = column * rows + row;
-          if (index < variants.length) variantOrder.push(index);
-        }
-      }
-      // Visit every retained partial object before taking another value for
-      // the same one. Transpose their order between fields so a saturated
-      // pool does not permanently assign consecutive fields the same choice.
-      for (let round = 0; round < valueCount; round += 1) {
-        for (let position = 0; position < variantOrder.length; position += 1) {
-          const valueIndex = (round + Math.floor((position * valueCount) / variants.length)) % valueCount;
-          next.push({ ...variants[variantOrder[position]], [name]: cloneValue(propertyValues[valueIndex]) });
-          if (next.length >= ctx.limits.maxCandidates) break;
-        }
-        if (next.length >= ctx.limits.maxCandidates) break;
-      }
-      variants = next;
-    }
-    // Try small changes to the preferred object before varying several
-    // fields together. This keeps format/default hints on unrelated fields
-    // while still reserving most of the same bound for combined choices.
-    const preferred: JsonValue[] = [variants[0]];
-    const preferredLimit = Math.ceil(ctx.limits.maxCandidates / 4);
-    for (const [name] of selected) {
-      for (const value of (propertyCandidates.get(name) ?? []).slice(1, 4)) {
-        if (preferred.length >= preferredLimit) break;
-        preferred.push({ ...variants[0], [name]: cloneValue(value) });
-      }
-      if (preferred.length >= preferredLimit) break;
-    }
-    return uniqueCandidates([...preferred, ...variants], ctx.limits.maxCandidates);
-  };
-
-  const minimumOptionalCount = Math.max(0, minProperties - requiredEntries.length);
-  const minimumEntries = [...requiredEntries, ...optionalEntries.slice(0, minimumOptionalCount)];
-  const fullEntries = [...requiredEntries, ...optionalEntries].slice(
-    0,
-    Number.isFinite(maxProperties) ? maxProperties : undefined,
-  );
-  const values: JsonValue[] = [];
-  const fullCandidates = await buildVariants(fullEntries);
-  const needsMinimumCandidates =
-    minimumEntries.length !== fullEntries.length ||
-    minimumEntries.some(([name], index) => name !== fullEntries[index][0]);
-  const minimumCandidates = needsMinimumCandidates ? await buildVariants(minimumEntries) : [];
-  // Keep the complete object first, but reserve coverage for required-only
-  // alternatives before the final shared candidate bound is applied.
-  for (let index = 0; index < Math.max(fullCandidates.length, minimumCandidates.length); index += 1) {
-    if (index < fullCandidates.length) values.push(fullCandidates[index]);
-    if (index < minimumCandidates.length) values.push(minimumCandidates[index]);
-  }
-  if (requiredEntries.length === 0 && minProperties === 0) values.push({});
-
-  const dependentRequired = isRecord(schema.dependentRequired) ? schema.dependentRequired : null;
-  if (dependentRequired) {
-    for (const candidate of [...values]) {
-      if (!isRecord(candidate)) continue;
-      const next = { ...candidate };
-      for (const [trigger, dependencies] of Object.entries(dependentRequired)) {
-        if (!Object.prototype.hasOwnProperty.call(next, trigger) || !Array.isArray(dependencies)) continue;
-        for (const dependency of dependencies) {
-          if (typeof dependency !== 'string' || Object.prototype.hasOwnProperty.call(next, dependency)) continue;
-          const propertySchema = properties[dependency];
-          if (propertySchema === undefined || ignoredProperties.has(dependency)) continue;
-          const [value] = await buildCandidates(propertySchema, childContext(ctx));
-          if (value !== undefined) next[dependency] = cloneValue(value);
-        }
-      }
-      appendCandidate(values, next, ctx.limits.maxCandidates);
+  // Additional properties may be needed even after an optional recursive
+  // field has terminated. Never replace an existing required field.
+  for (let index = 1; selected.size < min && selected.size < max; index += 1) {
+    if (schema.additionalProperties === false) return [];
+    const name = `property${index}`;
+    if (selected.has(name) || Object.prototype.hasOwnProperty.call(properties, name)) continue;
+    const before = selected.size;
+    await tryOptional(name);
+    if (selected.size === before) return [];
+    if (selected.size > ctx.limits.maxOutputNodes) {
+      exceed(ctx, 'maxOutputNodes', selected.size + 1);
+      return [];
     }
   }
-
-  if (values.every((value) => !isRecord(value) || Object.keys(value).length < minProperties)) {
-    const additionalSchema = schema.additionalProperties;
-    if (additionalSchema !== false) {
-      const propertySchema = additionalSchema === undefined ? true : additionalSchema;
-      const [additionalValue = null] = await buildCandidates(propertySchema, childContext(ctx));
-      const additional: { [key: string]: JsonValue } = {};
-      for (let index = 0; index < Math.min(minProperties, ctx.limits.maxArrayLength); index += 1) {
-        additional[`property${index + 1}`] = cloneValue(additionalValue);
-      }
-      appendCandidate(values, additional, ctx.limits.maxCandidates);
-    }
+  if (selected.size < min) return [];
+  const value: { [key: string]: JsonValue } = Object.create(null);
+  for (const name of selected) {
+    const item = values.get(name);
+    if (item === undefined) return [];
+    value[name] = item;
   }
-  return uniqueCandidates(values, ctx.limits.maxCandidates);
+  return [value];
 }
 
 async function arrayCandidates(schema: { [key: string]: JsonValue }, ctx: SearchContext): Promise<JsonValue[]> {
-  const prefixItems = Array.isArray(schema.prefixItems) ? schema.prefixItems : [];
-  const minItems = typeof schema.minItems === 'number' ? Math.max(0, Math.floor(schema.minItems)) : 0;
-  const maxItems =
+  const prefix = Array.isArray(schema.prefixItems) ? schema.prefixItems : [];
+  const min = typeof schema.minItems === 'number' ? Math.max(0, Math.floor(schema.minItems)) : 0;
+  const max =
     typeof schema.maxItems === 'number'
       ? Math.min(ctx.limits.maxArrayLength, Math.max(0, Math.floor(schema.maxItems)))
       : ctx.limits.maxArrayLength;
-  if (minItems > maxItems) return [];
-
-  const values: JsonValue[] = [];
-  const tuple: JsonValue[] = [];
-  for (const itemSchema of prefixItems.slice(0, maxItems)) {
-    const [itemValue] = await buildCandidates(itemSchema, childContext(ctx));
-    if (itemValue === undefined) break;
-    tuple.push(cloneValue(itemValue));
+  if (min > max) {
+    if (min > ctx.limits.maxArrayLength) exceed(ctx, 'maxArrayLength', min);
+    return [];
   }
-  if (tuple.length >= minItems) appendCandidate(values, tuple, ctx.limits.maxCandidates);
-
-  const itemSchema = schema.items === undefined ? true : schema.items;
-  if (itemSchema !== false) {
-    const itemValues = await buildCandidates(itemSchema, childContext(ctx));
-    const targetLength = Math.max(minItems, Math.min(prefixItems.length, maxItems));
-    const filled = tuple.slice(0, targetLength);
-    let itemIndex = 0;
-    while (filled.length < targetLength && itemValues.length > 0) {
-      filled.push(cloneValue(itemValues[itemIndex % itemValues.length]));
-      itemIndex += 1;
-    }
-    if (filled.length >= minItems) appendCandidate(values, filled, ctx.limits.maxCandidates);
+  const item = schema.items === undefined ? true : schema.items;
+  const strategies: Array<'tuple' | 'filled' | 'contains' | 'empty'> = [];
+  if (Math.min(prefix.length, max) >= min) strategies.push('tuple');
+  if (item !== false) strategies.push('filled');
+  if (schema.contains !== undefined) strategies.push('contains');
+  if (min === 0) strategies.push('empty');
+  const selected = selectIndex(ctx, 'array-strategy', strategies.length);
+  if (selected < 0) return [];
+  const strategy = strategies[selected];
+  if (strategy === 'empty') return [[]];
+  const value: JsonValue[] = [];
+  const output = new OutputAssembly(ctx, 'array');
+  const seen = new Set<string>();
+  const append = async (itemSchema: JsonValue): Promise<boolean> => {
+    const child = instanceChild(ctx, String(value.length));
+    const [itemValue] = await buildCandidates(
+      itemSchema,
+      schema.uniqueItems === true ? { ...child, excludedCandidates: seen } : child,
+    );
+    if (itemValue === undefined) return false;
+    output.add(String(value.length), itemValue);
+    value.push(itemValue);
+    seen.add(candidateKey(itemValue));
+    return true;
+  };
+  const minContains = typeof schema.minContains === 'number' ? Math.max(0, Math.floor(schema.minContains)) : 1;
+  const containsCount = strategy === 'contains' ? Math.max(1, minContains) : 0;
+  if (containsCount > max) return [];
+  const prefixCount = Math.min(prefix.length, max - containsCount);
+  for (let index = 0; index < prefixCount; index += 1) if (!(await append(prefix[index]))) return [];
+  for (let index = 0; index < containsCount; index += 1) if (!(await append(schema.contains))) return [];
+  const target = strategy === 'tuple' ? prefixCount : Math.max(min, prefixCount + containsCount);
+  while (value.length < target) {
+    if (item === false || !(await append(item))) return [];
   }
-
-  if (schema.contains !== undefined) {
-    const containsValues = await buildCandidates(schema.contains, childContext(ctx));
-    const minContains = typeof schema.minContains === 'number' ? Math.max(0, Math.floor(schema.minContains)) : 1;
-    const requiredContains = Math.min(Math.max(1, minContains), maxItems);
-    for (const [candidateIndex, containsValue] of containsValues.slice(0, 4).entries()) {
-      const withContains = tuple.slice(0, Math.max(0, maxItems - requiredContains));
-      for (let offset = 0; offset < requiredContains; offset += 1) {
-        const nextValue = containsValues[(candidateIndex + offset) % containsValues.length] ?? containsValue;
-        withContains.push(cloneValue(nextValue));
-      }
-      while (withContains.length < minItems && itemSchema !== false) withContains.push(null);
-      if (withContains.length <= maxItems) appendCandidate(values, withContains, ctx.limits.maxCandidates);
-    }
-  }
-  if (minItems === 0) values.push([]);
-  return uniqueCandidates(values, ctx.limits.maxCandidates);
+  return value.length >= min ? [value] : [];
 }
 
 async function referenceCandidates(schema: { [key: string]: JsonValue }, ctx: SearchContext): Promise<JsonValue[]> {
@@ -1005,18 +1253,36 @@ async function referenceCandidates(schema: { [key: string]: JsonValue }, ctx: Se
           : null;
   if (!keyword) return [];
   const reference = schema[keyword] as string;
-  const resolved = await resolveSchemaReference(reference, ctx, keyword === '$dynamicRef');
+  const resolved = await resolveSchemaReference(reference, ctx, keyword === '$dynamicRef', true);
   if (!resolved) return [];
-  const targetCandidates = await buildCandidates(
-    resolved.node.schema,
-    resolvedContext(ctx, resolved.node, resolved.uri),
-  );
+  const visits = ctx.referenceVisits.get(resolved.node.canonicalUri) ?? 0;
+  if (visits >= 2) {
+    // A third non-terminal instance of this target is not expanded. These
+    // terminal values remain subject to the complete root validation.
+    const target = resolved.node.schema;
+    if (isRecord(target)) {
+      const types = normalizedTypes(target);
+      if (types.includes('null')) return [null];
+      if (
+        types.includes('array') &&
+        !(typeof target.minItems === 'number' && target.minItems > 0) &&
+        target.contains === undefined
+      )
+        return [[]];
+    }
+    return [];
+  }
+  const referenceVisits = new Map(ctx.referenceVisits).set(resolved.node.canonicalUri, visits + 1);
+  const targetCandidates = await buildCandidates(resolved.node.schema, {
+    ...resolvedContext(ctx, resolved.node, resolved.uri),
+    referenceVisits,
+  });
   const siblingSchema = Object.fromEntries(
     Object.entries(schema).filter(([key]) => key !== '$ref' && key !== '$dynamicRef' && key !== '$recursiveRef'),
   ) as { [key: string]: JsonValue };
   if (!Object.keys(siblingSchema).some((key) => ASSERTION_KEYS.has(key))) return targetCandidates;
   const siblingCandidates = await buildCandidates(siblingSchema, { ...ctx, depth: ctx.depth + 1 });
-  return combineIntersection(targetCandidates, siblingCandidates, ctx.limits.maxCandidates);
+  return combineIntersection(targetCandidates, siblingCandidates, ctx.limits.maxCandidates, ctx);
 }
 
 async function compositionCandidates(
@@ -1024,38 +1290,101 @@ async function compositionCandidates(
   base: readonly JsonValue[],
   ctx: SearchContext,
 ): Promise<JsonValue[]> {
-  let values = uniqueCandidates(base, ctx.limits.maxCandidates);
+  let values = uniqueCandidates(base, ctx.limits.maxCandidates, ctx);
+  const choose = (candidates: JsonValue[], key: string): JsonValue[] => {
+    const index = selectIndex(ctx, key, candidates.length);
+    return index < 0 ? [] : [candidates[index]];
+  };
+  const compositionChild = (key: string): SearchContext => ({
+    ...childContext(ctx, ctx.baseUri, key),
+    providedProperties: new Set([
+      ...(ctx.providedProperties ?? []),
+      ...Object.keys(isRecord(schema.properties) ? schema.properties : {}),
+    ]),
+  });
   if (Array.isArray(schema.allOf)) {
-    for (const branch of schema.allOf) {
-      const branchValues = await buildCandidates(branch, childContext(ctx));
-      values = combineIntersection(values, branchValues, ctx.limits.maxCandidates);
+    for (const [index, branch] of schema.allOf.entries()) {
+      const branchValues = await buildCandidates(branch, compositionChild(`allOf:${index}`));
+      values = choose(
+        combineIntersection(values, branchValues, ctx.limits.maxCandidates, ctx),
+        `intersection:${index}`,
+      );
+      if (ctx.budget.exhausted) return [];
     }
   }
   for (const keyword of ['oneOf', 'anyOf'] as const) {
-    if (!Array.isArray(schema[keyword])) continue;
-    const branches: JsonValue[] = [];
-    for (const branch of schema[keyword]) branches.push(...(await buildCandidates(branch, childContext(ctx))));
-    values = overlayBaseCandidates(values, branches, ctx.limits.maxCandidates);
+    const branches = schema[keyword];
+    if (!Array.isArray(branches)) continue;
+    const index = selectIndex(ctx, keyword, branches.length);
+    if (index < 0) return [];
+    const branchValues = await buildCandidates(branches[index], compositionChild(`${keyword}:${index}`));
+    if (branches[index] === false) return [];
+    values = choose(overlayBaseCandidates(values, branchValues, ctx.limits.maxCandidates, ctx), `overlay:${keyword}`);
   }
-  for (const keyword of ['then', 'else'] as const) {
-    if (schema[keyword] === undefined) continue;
-    const branchValues = await buildCandidates(schema[keyword], childContext(ctx));
-    values = overlayBaseCandidates(values, branchValues, ctx.limits.maxCandidates);
-  }
-  if (isRecord(schema.dependentSchemas)) {
-    for (const branch of Object.values(schema.dependentSchemas)) {
-      const branchValues = await buildCandidates(branch, childContext(ctx));
-      values = overlayBaseCandidates(values, branchValues, ctx.limits.maxCandidates);
+  const conditionals = ['then', 'else'].filter((keyword) => schema[keyword] !== undefined);
+  if (conditionals.length > 0) {
+    const index = selectIndex(ctx, 'conditional', conditionals.length + 1);
+    const keyword = conditionals[index];
+    if (keyword) {
+      const branchValues = await buildCandidates(schema[keyword], compositionChild(keyword));
+      values = choose(
+        overlayBaseCandidates(values, branchValues, ctx.limits.maxCandidates, ctx),
+        'overlay:conditional',
+      );
     }
   }
-  return uniqueCandidates(values, ctx.limits.maxCandidates);
+  if (isRecord(schema.dependentSchemas)) {
+    for (const [name, branch] of Object.entries(schema.dependentSchemas)) {
+      const branchValues = await buildCandidates(branch, compositionChild(`dependent:${name}`));
+      values = choose(
+        overlayBaseCandidates(values, branchValues, ctx.limits.maxCandidates, ctx),
+        `overlay:dependent:${name}`,
+      );
+    }
+  }
+  return uniqueCandidates(values, ctx.limits.maxCandidates, ctx);
+}
+
+// Cheap local filters improve the first complete DTO without accepting an
+// instance. References, composition and cross-field semantics are always
+// checked against the original complete Schema before returning a value.
+function primitiveSatisfiesLocal(schema: { [key: string]: JsonValue }, value: JsonValue): boolean {
+  if (typeof value === 'string') {
+    const length = Array.from(value).length;
+    if (typeof schema.minLength === 'number' && length < schema.minLength) return false;
+    if (typeof schema.maxLength === 'number' && length > schema.maxLength) return false;
+    if (typeof schema.pattern === 'string') {
+      try {
+        if (!new RegExp(schema.pattern, 'u').test(value)) return false;
+      } catch {
+        /* The real validator diagnoses this. */
+      }
+    }
+  }
+  if (typeof value === 'number') {
+    if (typeof schema.minimum === 'number' && value < schema.minimum) return false;
+    if (typeof schema.maximum === 'number' && value > schema.maximum) return false;
+    if (typeof schema.exclusiveMinimum === 'number' && value <= schema.exclusiveMinimum) return false;
+    if (typeof schema.exclusiveMaximum === 'number' && value >= schema.exclusiveMaximum) return false;
+    if (typeof schema.multipleOf === 'number' && schema.multipleOf > 0) {
+      const quotient = value / schema.multipleOf;
+      if (Math.abs(quotient - Math.round(quotient)) > Number.EPSILON * Math.max(1, Math.abs(quotient)) * 4)
+        return false;
+    }
+  }
+  return true;
 }
 
 async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<JsonValue[]> {
   if (!enterNode(ctx)) return [];
   if (schema === false) return [];
-  if (schema === true) return [{}, [], '', 0, false, null];
+  if (schema === true) {
+    const values: JsonValue[] = [{}, [], '', 0, false, null];
+    const index = selectIndex(ctx, 'unconstrained', Math.min(values.length, ctx.limits.maxCandidates));
+    return index < 0 ? [] : [cloneValue(values[index], ctx)];
+  }
   if (!isRecord(schema)) return [];
+  if (Array.isArray(schema.allOf) && schema.allOf.some((branch) => branch === false)) return [];
 
   const baseUri = effectiveBaseUri(schema, ctx);
   await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
@@ -1067,7 +1396,7 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
   };
   const values: JsonValue[] = [];
   for (const authored of localAuthoredCandidates(schema, ctx.depth, ctx.limits.maxCandidates)) {
-    appendCandidate(values, authored.value, ctx.limits.maxCandidates);
+    appendCandidate(values, authored.value, ctx.limits.maxCandidates, ctx);
   }
 
   const referenceValues = await referenceCandidates(schema, localCtx);
@@ -1075,14 +1404,29 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
 
   const types = normalizedTypes(schema);
   for (const type of types) {
-    if (type === 'object') values.push(...(await objectCandidates(schema, childContext(localCtx))));
-    else if (type === 'array') values.push(...(await arrayCandidates(schema, childContext(localCtx))));
-    else values.push(...primitiveCandidates(schema, type, localCtx));
+    if (type === 'object')
+      values.push(...(await objectCandidates(schema, childContext(localCtx, localCtx.baseUri, 'object'))));
+    else if (type === 'array')
+      values.push(...(await arrayCandidates(schema, childContext(localCtx, localCtx.baseUri, 'array'))));
+    else
+      values.push(
+        ...primitiveCandidates(schema, type, localCtx).filter((value) => primitiveSatisfiesLocal(schema, value)),
+      );
   }
-  if (types.length === 0 && referenceValues.length === 0) {
+  if (
+    types.length === 0 &&
+    referenceValues.length === 0 &&
+    typeof schema.$ref !== 'string' &&
+    typeof schema.$dynamicRef !== 'string' &&
+    typeof schema.$recursiveRef !== 'string'
+  ) {
     values.push({}, [], '', 0, false, null);
   }
-  const composed = await compositionCandidates(schema, uniqueCandidates(values, ctx.limits.maxCandidates), localCtx);
+  const composed = await compositionCandidates(
+    schema,
+    uniqueCandidates(values, ctx.limits.maxCandidates, ctx),
+    localCtx,
+  );
   // A leaf cannot contribute object property names. Its own readOnly/writeOnly
   // annotations are still checked by the parent in shouldIgnoreProperty.
   const hasDirectionalChildren =
@@ -1095,10 +1439,15 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
     ? await directionalPropertyNames(schema, localCtx)
     : new Set<string>();
   if (ctx.budget.exhausted) return [];
-  return uniqueCandidates(
-    composed.map((candidate) => omitDirectionalProperties(candidate, ignoredProperties)),
+  const candidates = uniqueCandidates(
+    composed
+      .map((candidate) => omitDirectionalProperties(candidate, ignoredProperties))
+      .filter((candidate) => !ctx.excludedCandidates?.has(candidateKey(candidate))),
     ctx.limits.maxCandidates,
+    ctx,
   );
+  const index = selectIndex(localCtx, 'candidate', candidates.length);
+  return index < 0 ? [] : [candidates[index]];
 }
 
 function keywordName(issue: EvaluationIssue): string {
@@ -1257,9 +1606,19 @@ export async function generateSchemaExample(
   reference: string,
   options: GenerateSchemaExampleOptions,
 ): Promise<SchemaExampleResult> {
+  if (session.generateExample) return session.generateExample(reference, options);
   throwIfAborted(options.signal);
   const limits = effectiveLimits(options.limits);
-  const budget: SearchBudget = { nodes: 0, references: 0, exhausted: false };
+  const budget: SearchBudget = {
+    nodes: 0,
+    references: 0,
+    constructedNodes: 0,
+    searchChoices: 0,
+    exhausted: false,
+    started: performance.now(),
+    referenceTargets: new Set(),
+  };
+  const search: CandidateSearch = { plan: new Map(), choices: [] };
   const resolvedNodes = new Map<string, Promise<SchemaNode>>();
   const directionalAnnotations = new Map<string, boolean>();
   const directionalProperties = new Map<string, ReadonlySet<string>>();
@@ -1298,6 +1657,11 @@ export async function generateSchemaExample(
     baseUri: root.resourceUri,
     baseAlreadyIncludesOwnId: true,
     depth: 0,
+    instanceDepth: 0,
+    path: '',
+    choicePath: '',
+    search,
+    referenceVisits: new Map([[root.canonicalUri, 1]]),
     referenceChain: new Set([root.requestedUri, root.canonicalUri]),
     dynamicScope: [root.resourceUri],
     signal: options.signal,
@@ -1318,7 +1682,10 @@ export async function generateSchemaExample(
   if (explicit) return evaluateAuthoredCandidate(session, evaluationReference, explicit, options.signal);
 
   const authored = (await collectRootAuthoredCandidates(root.schema, ctx))[0];
-  if (authored) return evaluateAuthoredCandidate(session, evaluationReference, authored, options.signal);
+  if (authored) {
+    notifySelectedAuthoredExample(session, authored);
+    return evaluateAuthoredCandidate(session, evaluationReference, authored, options.signal);
+  }
   if (root.schema === false) {
     return {
       status: 'none',
@@ -1327,40 +1694,109 @@ export async function generateSchemaExample(
     };
   }
 
-  const candidates = await buildCandidates(root.schema, ctx);
+  const plans: ReadonlyMap<string, number>[] = [new Map()];
+  const queued = new Set<string>(['[]']);
+  const seenCandidates = new Set<string>();
   let evaluations = 0;
-  for (const candidate of candidates) {
-    throwIfAborted(options.signal);
-    if (evaluations >= limits.maxEvaluations) {
-      budget.exhausted = true;
+  let attempts = 0;
+  while (plans.length > 0 && !budget.exhausted) {
+    if (attempts > 0 && budget.searchChoices >= limits.maxSearchChoices) {
+      exceed(ctx, 'maxSearchChoices', budget.searchChoices + 1);
       break;
     }
-    evaluations += 1;
+    if (attempts >= limits.maxCandidates) {
+      exceed(ctx, 'maxCandidates', attempts + 1);
+      break;
+    }
+    attempts += 1;
+    if (attempts > 1) {
+      budget.searchChoices += 1;
+      if (budget.searchChoices > limits.maxSearchChoices) {
+        exceed(ctx, 'maxSearchChoices', budget.searchChoices);
+        break;
+      }
+    }
+    search.plan = plans.shift()!;
+    search.choices = [];
+    let candidates: JsonValue[];
     try {
-      const evaluation = await evaluateGeneratedCandidate(
-        session,
-        evaluationReference,
-        candidate,
-        options.direction,
-        options.signal,
-      );
-      if (evaluation.valid) {
+      candidates = await buildCandidates(root.schema, ctx);
+    } catch (error) {
+      if (error instanceof SearchStopped) break;
+      throw error;
+    }
+    let issues: readonly EvaluationIssue[] = [];
+    for (const candidate of candidates) {
+      if (!checkpoint(ctx)) break;
+      const size = valueSize(candidate);
+      const checks: Array<[keyof EffectiveLimits, number]> = [
+        ['maxOutputNodes', size.nodes],
+        ['maxOutputBytes', size.bytes],
+        ['maxInstanceDepth', size.depth],
+        ['maxStringLength', size.stringLength],
+        ['maxArrayLength', size.arrayLength],
+      ];
+      for (const [name, actual] of checks)
+        if (actual > limits[name]) {
+          exceed(ctx, name, actual);
+          break;
+        }
+      if (budget.exhausted) break;
+      const key = candidateKey(candidate);
+      if (seenCandidates.has(key)) continue;
+      seenCandidates.add(key);
+      if (evaluations >= limits.maxEvaluations) {
+        exceed(ctx, 'maxEvaluations', evaluations + 1);
+        break;
+      }
+      evaluations += 1;
+      try {
+        const evaluation = await evaluateGeneratedCandidate(
+          session,
+          evaluationReference,
+          candidate,
+          options.direction,
+          options.signal,
+        );
+        if (!checkpoint(ctx)) break;
+        if (evaluation.valid)
+          return {
+            status: 'value',
+            value: candidate,
+            source: 'generated',
+            authored: false,
+            validation: 'valid',
+            diagnostics: [],
+          };
+        issues = evaluation.errors;
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') throw error;
         return {
-          status: 'value',
-          value: cloneValue(candidate),
-          source: 'generated',
-          authored: false,
-          validation: 'valid',
-          diagnostics: [],
+          status: 'none',
+          reason: 'evaluation-unavailable',
+          diagnostics: [unavailableDiagnostic('EVALUATION_UNAVAILABLE', error)],
         };
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') throw error;
-      return {
-        status: 'none',
-        reason: 'evaluation-unavailable',
-        diagnostics: [unavailableDiagnostic('EVALUATION_UNAVAILABLE', error)],
-      };
+    }
+    if (budget.exhausted) break;
+    // Prefer alternatives at failing instance locations, then visit choices in
+    // document order. No subtree receives a fresh counter or candidate budget.
+    const paths = collectLeafIssues(issues, 256)
+      .issues.map((issue) => issue.instanceLocation)
+      .filter(Boolean);
+    const choices = [...search.choices].sort((left, right) => {
+      const matches = (choice: SearchChoice) =>
+        paths.some((path) => path === choice.path || path.startsWith(`${choice.path}/`));
+      return Number(matches(right)) - Number(matches(left));
+    });
+    for (const choice of choices) {
+      if (choice.selected + 1 >= choice.count) continue;
+      const plan = new Map(search.plan).set(choice.key, choice.selected + 1);
+      const key = JSON.stringify([...plan].sort(([left], [right]) => left.localeCompare(right)));
+      if (queued.has(key)) continue;
+      if (plans.length >= limits.maxSearchChoices) break;
+      queued.add(key);
+      plans.push(plan);
     }
   }
 
@@ -1368,7 +1804,7 @@ export async function generateSchemaExample(
     return {
       status: 'none',
       reason: 'search-budget-exceeded',
-      diagnostics: [{ code: 'SEARCH_BUDGET_EXCEEDED' }],
+      diagnostics: [budget.diagnostic ?? { code: 'SEARCH_BUDGET_EXCEEDED' }],
     };
   }
   return {

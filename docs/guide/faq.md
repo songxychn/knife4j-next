@@ -177,13 +177,16 @@ knife4j:
 
 本 fork 从 `5.0.0` 起修复了 `/v2/api-docs;xxx` 利用分号绕过 `knife4j.basic` 认证的问题（[#886](https://github.com/xiaoymin/knife4j/issues/886)）。**生产环境建议至少升级到 `5.0.0` 或更高版本**。
 
+<a id="schema-worker-csp"></a>
+
 ### CSP（Content-Security-Policy）限制导致 UI 白屏
 
-React 前端使用的是**非 inline** 脚本，通常 CSP `script-src 'self'` 即可。如果配置了 `default-src 'none'`，需要追加：
+React 前端使用的是**非 inline** 脚本。当前源码的 OAS 3.1 / 3.2 Schema 会话还使用同源 ES module Worker，CSP 需允许 `script-src 'self'` 和 `worker-src 'self'`。可参考：
 
 ```
 default-src 'self';
 script-src 'self';
+worker-src 'self';
 style-src 'self' 'unsafe-inline';
 img-src 'self' data:;
 font-src 'self' data:;
@@ -191,6 +194,10 @@ connect-src 'self';
 ```
 
 `'unsafe-inline'` 对 style 暂时需要（前端组件库用到 style 插入）；后续新前端会移除该依赖。
+
+以上示例针对静态 UI 与 Worker。Knife4x Go 宿主还会注入内联配置脚本，完整 CSP 需要按宿主原有方式允许该段脚本，例如使用匹配内容的 hash；不能把仅含 `script-src 'self'` 的示例直接当作所有宿主的完整策略。
+
+如果页面能打开，但 Schema 示例提示 Worker 不可用，请检查 Worker 模块及其动态导入分块是否随 UI 一起部署、路径是否保留反向代理 / WebJar 前缀、响应是否为 JavaScript MIME。CSP 拒绝、404 或返回 HTML 都会导致启动失败。失败时会显示诊断并保留媒体层作者显式示例，校验状态为不可用；不会切回主线程执行。无需为此添加 `unsafe-eval`、`blob:` 或 `data:`。详见 [Schema Worker 部署要求](../reference/compatibility#schema-worker-部署要求)。
 
 ## 配置不生效
 

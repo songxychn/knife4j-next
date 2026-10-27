@@ -10,6 +10,7 @@ export const DEFAULT_SCHEMA_ENGINE_LIMITS: Readonly<SchemaEngineLimits> = Object
   maxInstanceNodes: 100_000,
   maxInstanceDepth: 256,
   maxEvaluationSteps: 250_000,
+  maxMetaEvaluationSteps: 1_000_000,
   maxEvaluationMs: 1_000,
 });
 
@@ -123,9 +124,15 @@ export class EvaluationBudgetPlugin implements EvaluationPlugin {
     private readonly maxSteps: number,
     maxDurationMs: number,
     private readonly signal?: AbortSignal,
+    deadline?: number,
   ) {
-    this.deadline = now() + maxDurationMs;
+    this.deadline = deadline ?? now() + maxDurationMs;
     this.check();
+  }
+
+  /** Separate keyword counter, retaining this operation's original deadline and cancellation. */
+  public withIndependentSteps(maxSteps: number): EvaluationBudgetPlugin {
+    return new EvaluationBudgetPlugin(maxSteps, 0, this.signal, this.deadline);
   }
 
   public beforeSchema(): void {

@@ -18,6 +18,7 @@ import {
   type SchemaDocumentSession,
 } from '../schema/schemaDocumentSession';
 import type { SwaggerDoc } from '../types/swagger';
+import { createWorkerSchemaDocumentSession } from '../schema/schemaDocumentWorkerClient';
 import { resourceGrantsForOperation } from './resourceOperationGrants';
 import { useGroup } from './GroupContext';
 
@@ -131,7 +132,7 @@ export const SchemaEngineProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [state, setState] = useState<SchemaEngineContextValue>(INACTIVE_STATE);
   const [resources, setResources] = useState<ExternalResourceData>(INACTIVE_RESOURCES);
 
-  if (!managerRef.current) managerRef.current = new SchemaDocumentSessionManager();
+  if (!managerRef.current) managerRef.current = new SchemaDocumentSessionManager(createWorkerSchemaDocumentSession);
 
   const isCurrent = useCallback((runtime: ActiveResourceRuntime): boolean => runtimeRef.current === runtime, []);
 

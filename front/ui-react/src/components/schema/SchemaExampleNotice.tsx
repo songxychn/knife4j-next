@@ -1,7 +1,24 @@
 import { Alert } from 'antd';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SchemaExampleResult } from '../../schema/schemaExampleGeneration';
+import type { SchemaExampleResult, SchemaExampleSearchLimits } from '../../schema/schemaExampleGeneration';
+
+const budgetLabels: Record<keyof SchemaExampleSearchLimits, string> = {
+  maxCandidates: 'schema.example.budget.maxCandidates',
+  maxDepth: 'schema.example.budget.maxDepth',
+  maxNodes: 'schema.example.budget.maxNodes',
+  maxReferences: 'schema.example.budget.maxReferences',
+  maxEvaluations: 'schema.example.budget.maxEvaluations',
+  maxStringLength: 'schema.example.budget.maxStringLength',
+  maxArrayLength: 'schema.example.budget.maxArrayLength',
+  maxReferenceTargets: 'schema.example.budget.maxReferenceTargets',
+  maxInstanceDepth: 'schema.example.budget.maxInstanceDepth',
+  maxSearchChoices: 'schema.example.budget.maxSearchChoices',
+  maxOutputNodes: 'schema.example.budget.maxOutputNodes',
+  maxOutputBytes: 'schema.example.budget.maxOutputBytes',
+  maxConstructedNodes: 'schema.example.budget.maxConstructedNodes',
+  maxDurationMs: 'schema.example.budget.maxDurationMs',
+};
 
 export interface SchemaExampleNoticeProps {
   readonly result: SchemaExampleResult;
@@ -94,6 +111,16 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
   }
 
   const budgetExceeded = result.reason === 'search-budget-exceeded';
+  const budget = result.diagnostics.find((diagnostic) => diagnostic.budget !== undefined);
+  const budgetDetail =
+    budget?.budget !== undefined && budget.limit !== undefined && budget.actual !== undefined
+      ? t('schema.example.none.budgetDetail', {
+          kind: t(budgetLabels[budget.budget]),
+          limit: budget.limit,
+          actual: Math.ceil(budget.actual),
+          path: instanceLabel(budget.path),
+        })
+      : undefined;
   const unavailable = result.reason === 'schema-unavailable' || result.reason === 'evaluation-unavailable';
   const message = result.diagnostics.find((diagnostic) => diagnostic.message)?.message;
   return (
@@ -108,6 +135,7 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
             : t('schema.example.none.title')
       }
       description={
+        budgetDetail ??
         message ??
         (unavailable
           ? t('schema.example.validationUnavailable.description')

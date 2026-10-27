@@ -61,6 +61,22 @@ Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
 
 Vue3 及完整源码构建要求 Node `^24.15.0 || >=26.0.0`，不支持 Node 25；独立 OAS3 工具链及 Knife4x UI 同步仍要求 Node `22.13+` 或 `24+`。直接使用 Maven 发布包或 Go module 无需 Node。Java / Go 运行时基线保持不变。
 
+## Schema Worker 部署要求
+
+当前源码中的 OAS 3.1 / 3.2 Schema 示例生成、候选校验及相关 Schema 会话操作在同源 ES module Worker 内执行。对于 Schema 允许全部字段同时出现、且在输出预算内的普通千字段对象，示例保留适用字段；复杂组合仍受搜索、输出大小和默认 **2 秒总任务时限**约束，不能把超时诊断视为 Schema 不可满足。取消或切换文档会终止相关任务。计算超时或运行故障时保留已选定的作者示例，标记校验不可用；Worker 无法启动时显示诊断，媒体层作者显式示例仍可展示，校验状态为不可用。
+
+Java OAS3 WebJar 与 Knife4x Go 复用同一前端构建。部署时必须保留 Worker 文件及其动态导入的 JavaScript 分块，并让它们在 UI 所在源及对应部署前缀下可访问；反向代理子路径、Servlet context path 和 WebJar 路径不能只转发 `index.js`。JavaScript 请求须返回正确的 JavaScript MIME 类型，不能用 HTML 登录页或 SPA fallback 代替丢失分块。
+
+CSP 应允许 `worker-src 'self'`，并允许 `script-src 'self'` 加载同源模块及分块。此路径不使用 `blob:`、`data:` 或 `eval`，也不会在 Worker 失败后改为主线程同步计算。遇到 CSP、404 或 MIME 错误时应修正部署配置，无需添加 `unsafe-eval` 或放开 `blob:`。完整 CSP 示例见 [FAQ](../guide/faq#schema-worker-csp)。上述要求沿用现有浏览器基线，不代表新增旧浏览器支持。
+
+本地打包验收可在同步 Knife4x UI 产物后运行：
+
+```bash
+node front/ui-react/scripts/run-schema-example-worker-acceptance.mjs
+```
+
+脚本使用独立临时配置的无头 Chrome/Chromium，通过 loopback 验证根路径、Go 子路径与 Java WebJar 部署前缀、CSP / MIME / 404 诊断及真实 Worker 的取消和超时。根路径另采集 30 次已进入原生耗时正则的取消样本，以页面单调时钟计算取消回调至任务结算的延迟，要求 P95 不超过 50 毫秒，并记录最大值、主线程心跳和 Long Task。它输出 JSON 证据；没有浏览器时返回失败，可用 `CHROME_PATH` 指定可执行文件。此静态前缀验收不替代真实 Maven 打包与 Go 宿主门禁，也不等于所有最低浏览器版本的实机验收。
+
 ## Starter 兼容矩阵
 
 以下 starter 矩阵描述 `5.7.10`，Boot3 生成器线按上述下限接入；历史发布版本见[版本对照](./version-ref)。矩阵基于 `knife4j-smoke-tests` 模块的自动化验证结果。✅ = smoke test 已通过；⚠️ = 依赖层面可用但无自动测试；❌ = 不兼容。

@@ -12,6 +12,7 @@ const BACKEND_PROXY = {
 export default defineConfig({
   plugins: [react()],
   base: './',
+  worker: { format: 'es' },
   resolve: {
     alias: {
       'knife4j-core': path.resolve(__dirname, '../core/lib'),

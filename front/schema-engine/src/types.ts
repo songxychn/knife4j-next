@@ -42,7 +42,10 @@ export interface SchemaEngineLimits {
   maxReferencesPerDocument: number;
   maxInstanceNodes: number;
   maxInstanceDepth: number;
+  /** Instance evaluation keyword steps. */
   maxEvaluationSteps: number;
+  /** OAS 3.2 meta-validation steps shared by all dependencies in one evaluation. */
+  maxMetaEvaluationSteps: number;
   maxEvaluationMs: number;
 }
 

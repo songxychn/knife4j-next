@@ -747,6 +747,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
   private readonly pendingRetrievalUris = new Set<string>();
   private readonly pendingResourceUris = new Set<string>();
   private readonly compiled = new Map<string, Promise<CompiledSchema>>();
+  private resolvedDocuments = new WeakMap<SchemaDocument, JsonValue>();
   private generation = 0;
   private disposed = false;
 
@@ -936,7 +937,14 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       const resource = await this.getResource(normalizedSchemaUri, schemaUri);
       this.assertLegacyMetaFailure(this.registrationOwning(resource, normalizedSchemaUri));
       this.assertGeneration(generation);
-      const resourceSchema = toSchema(resource, { includeDialect: 'always', includeEmbedded: true }) as JsonValue;
+      // Hyperjump resolves the actual resource/cursor (including IDs and anchors).
+      // toSchema materializes the whole resource, so share that immutable snapshot
+      // across distinct targets instead of copying a wide document per field.
+      let resourceSchema = this.resolvedDocuments.get(resource.document);
+      if (resourceSchema === undefined) {
+        resourceSchema = toSchema(resource, { includeDialect: 'always', includeEmbedded: true }) as JsonValue;
+        this.resolvedDocuments.set(resource.document, resourceSchema);
+      }
       return {
         requestedUri: normalizedSchemaUri,
         canonicalUri: canonicalUri(resource),
@@ -944,7 +952,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         dialectId: resource.document.dialectId,
         anchors: Object.freeze({ ...resource.document.anchors }),
         dynamicAnchors: Object.freeze({ ...resource.document.dynamicAnchors }),
-        schema: schemaAtCursor(resourceSchema, resource.cursor, normalizedSchemaUri),
+        schema: clonePublicValue(schemaAtCursor(resourceSchema, resource.cursor, normalizedSchemaUri)),
       };
     } catch (error) {
       throw asEngineError(error, normalizedSchemaUri);
@@ -974,7 +982,10 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     try {
       if (indexed) {
         this.prepareOpenApi32References(budget);
-        await this.validateOpenApi32Registrations(indexed.registration, budget);
+        await this.validateOpenApi32Registrations(
+          indexed.registration,
+          budget.withIndependentSteps(this.limits.maxMetaEvaluationSteps),
+        );
       }
       const resource = indexed
         ? await getSchema(
@@ -1069,6 +1080,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     for (const retrievalUri of [...this.documents.keys()]) this.unregisterDocument(retrievalUri);
     this.disposed = true;
     this.compiled.clear();
+    this.resolvedDocuments = new WeakMap();
     if (activeOwner === this.owner && this.pendingRetrievalUris.size === 0) activeOwner = undefined;
   }
 
@@ -1359,6 +1371,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
   private invalidateCompiledSchemas(): void {
     this.generation += 1;
     this.compiled.clear();
+    this.resolvedDocuments = new WeakMap();
   }
 
   private assertUsable(): void {

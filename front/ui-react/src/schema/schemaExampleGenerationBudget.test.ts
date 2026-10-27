@@ -63,12 +63,12 @@ test.each([
   }
 });
 
-test('keeps default and explicit node limits and cancellation effective', async () => {
+test('extends the default node budget while keeping explicit limits and cancellation effective', async () => {
   const { session } = await fixture(wideSchema(500));
   for (const direction of ['request', 'response'] as const) {
     await expect(generateSchemaExample(session, '#/components/schemas/Value', { direction })).resolves.toMatchObject({
-      status: 'none',
-      reason: 'search-budget-exceeded',
+      status: 'value',
+      validation: 'valid',
     });
   }
   sessions.pop()!.dispose();

@@ -10,6 +10,7 @@ import type {
 import { getOpenApiSpecificationFeatures, isOpenApi31Version } from 'knife4j-core';
 import { resolveUri } from 'knife4j-schema-engine/uri';
 import type { SwaggerDoc } from '../types/swagger';
+import type { GenerateSchemaExampleOptions, SchemaExampleResult } from './schemaExampleGeneration';
 import {
   createDirectionalSchemaProjection,
   type DirectionalSchemaProjection,
@@ -36,12 +37,30 @@ export interface SchemaDocumentSession {
   readonly retrievalUri: string;
   resolve(reference: string): Promise<SchemaNode>;
   evaluate(reference: string, instance: unknown, options?: EvaluationOptions): Promise<EvaluationResult>;
+  /** Browser sessions execute the complete generation task in their isolated registry realm. */
+  generateExample?(reference: string, options: GenerateSchemaExampleOptions): Promise<SchemaExampleResult>;
+  evaluateDirectionally?(
+    reference: string,
+    instance: unknown,
+    direction: SchemaEvaluationDirection,
+    ignoredProperties: readonly string[] | undefined,
+    options?: EvaluationOptions,
+  ): Promise<EvaluationResult>;
   dispose(): void;
 }
 
 /** Read only the immutable document registered in this session; never loads a URI. */
 export function registeredSchemaDocument(session: SchemaDocumentSession, retrievalUri: string): unknown {
   return registeredDocuments.get(session)?.get(retrievalUri);
+}
+
+/** Bind only the already policy-validated immutable resources; this grants no loading capability. */
+export function bindSchemaDocumentResources(
+  session: SchemaDocumentSession,
+  documents: ReadonlyMap<string, unknown>,
+): () => void {
+  registeredDocuments.set(session, documents);
+  return () => registeredDocuments.delete(session);
 }
 
 export interface SchemaDocumentFailure {
@@ -154,6 +173,9 @@ export function evaluateSchemaDocumentDirectionally(
   direction: SchemaEvaluationDirection,
   options?: EvaluationOptions,
 ): Promise<EvaluationResult> {
+  if (session.evaluateDirectionally) {
+    return session.evaluateDirectionally(reference, instance, direction, undefined, options);
+  }
   const evaluator = directionalEvaluators.get(session);
   if (!evaluator) return Promise.reject(new Error('Directional schema evaluation is unavailable for this session.'));
   return evaluator(reference, instance, direction, undefined, options);
@@ -168,6 +190,9 @@ export function evaluateSchemaDocumentDirectionallyIgnoringProperties(
   ignoredProperties: readonly string[],
   options?: EvaluationOptions,
 ): Promise<EvaluationResult> {
+  if (session.evaluateDirectionally) {
+    return session.evaluateDirectionally(reference, instance, direction, ignoredProperties, options);
+  }
   const evaluator = directionalEvaluators.get(session);
   if (!evaluator) return Promise.reject(new Error('Directional schema evaluation is unavailable for this session.'));
   return evaluator(reference, instance, direction, ignoredProperties, options);
