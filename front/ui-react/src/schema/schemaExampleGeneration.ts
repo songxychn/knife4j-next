@@ -855,20 +855,40 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
       }
       const next: Array<{ [key: string]: JsonValue }> = [];
       const valueCount = Math.min(propertyValues.length, 4);
+      const rows = Math.ceil(variants.length / valueCount);
+      const variantOrder: number[] = [];
+      for (let row = 0; row < rows; row += 1) {
+        for (let column = 0; column < valueCount; column += 1) {
+          const index = column * rows + row;
+          if (index < variants.length) variantOrder.push(index);
+        }
+      }
       // Visit every retained partial object before taking another value for
-      // the same one. Spread the first pass across the new field's choices so
-      // truncation preserves earlier fields without fixing later ones to 0.
+      // the same one. Transpose their order between fields so a saturated
+      // pool does not permanently assign consecutive fields the same choice.
       for (let round = 0; round < valueCount; round += 1) {
-        for (let index = 0; index < variants.length; index += 1) {
-          const valueIndex = (round + Math.floor((index * valueCount) / variants.length)) % valueCount;
-          next.push({ ...variants[index], [name]: cloneValue(propertyValues[valueIndex]) });
+        for (let position = 0; position < variantOrder.length; position += 1) {
+          const valueIndex = (round + Math.floor((position * valueCount) / variants.length)) % valueCount;
+          next.push({ ...variants[variantOrder[position]], [name]: cloneValue(propertyValues[valueIndex]) });
           if (next.length >= ctx.limits.maxCandidates) break;
         }
         if (next.length >= ctx.limits.maxCandidates) break;
       }
       variants = next;
     }
-    return variants;
+    // Try small changes to the preferred object before varying several
+    // fields together. This keeps format/default hints on unrelated fields
+    // while still reserving most of the same bound for combined choices.
+    const preferred: JsonValue[] = [variants[0]];
+    const preferredLimit = Math.ceil(ctx.limits.maxCandidates / 4);
+    for (const [name] of selected) {
+      for (const value of (propertyCandidates.get(name) ?? []).slice(1, 4)) {
+        if (preferred.length >= preferredLimit) break;
+        preferred.push({ ...variants[0], [name]: cloneValue(value) });
+      }
+      if (preferred.length >= preferredLimit) break;
+    }
+    return uniqueCandidates([...preferred, ...variants], ctx.limits.maxCandidates);
   };
 
   const minimumOptionalCount = Math.max(0, minProperties - requiredEntries.length);

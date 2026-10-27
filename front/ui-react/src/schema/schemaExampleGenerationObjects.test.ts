@@ -65,6 +65,12 @@ describe('issue #963 object candidate coverage', () => {
     expect(body).not.toBe('');
     const value = JSON.parse(body) as Record<string, unknown>;
     expect(value.username).toEqual(expect.stringMatching(/^\w+$/));
+    expect(value.email).toEqual(expect.stringMatching(/^[^@]+@[^@]+\.[^@]+$/));
+    if (path.endsWith('create')) {
+      for (const field of ['effectiveAt', 'expiredAt']) {
+        expect(Number.isFinite(Date.parse(value[field] as string))).toBe(true);
+      }
+    }
     const name = path.endsWith('create') ? 'UserReqVO' : 'UserModifyReqVO';
     await expect(session.evaluate(`#/components/schemas/${name}`, value)).resolves.toMatchObject({ valid: true });
     await expect(generateOas31DebugBodyExamples(document, operation, model, session)).resolves.toEqual(generated);
@@ -89,17 +95,29 @@ describe('issue #963 object candidate coverage', () => {
     },
   );
 
-  test('covers different valid choices in multiple constrained fields', async () => {
-    const properties = {
-      first: { type: 'string', pattern: '^s[t]ring$' },
-      second: { type: 'string', pattern: '^e[x]ample$' },
-      a: { type: 'string' },
-      b: { type: 'string' },
-      c: { type: 'string' },
-    };
-    const session = await fixture({ type: 'object', properties, required: Object.keys(properties) });
-    expect(await generatedValue(session, 'request')).toMatchObject({ first: 'string', second: 'example' });
-  });
+  test.each(
+    ['3.1.0', '3.2.0'].flatMap((version) =>
+      [
+        [0, 3],
+        [3, 0],
+        [7, 0],
+      ].map(([before, after]) => [version, before, after] as const),
+    ),
+  )(
+    'covers different constrained choices in OAS %s with %i preceding and %i following fields',
+    async (version, before, after) => {
+      const properties = {
+        ...Object.fromEntries(Array.from({ length: before }, (_, index) => [`padding${index}`, { type: 'string' }])),
+        first: { type: 'string', pattern: '^s[t]ring$' },
+        second: { type: 'string', pattern: '^e[x]ample$' },
+        ...Object.fromEntries(Array.from({ length: after }, (_, index) => [`trailing${index}`, { type: 'string' }])),
+      };
+      const session = await fixture({ type: 'object', properties, required: Object.keys(properties) }, version);
+      for (const direction of ['request', 'response'] as const) {
+        expect(await generatedValue(session, direction)).toMatchObject({ first: 'string', second: 'example' });
+      }
+    },
+  );
 
   test('keeps minimum-object candidates when the full-object pool fills the budget', async () => {
     const properties = Object.fromEntries(
