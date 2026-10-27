@@ -854,9 +854,14 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
         continue;
       }
       const next: Array<{ [key: string]: JsonValue }> = [];
-      for (const variant of variants) {
-        for (const value of propertyValues.slice(0, 4)) {
-          next.push({ ...variant, [name]: cloneValue(value) });
+      const valueCount = Math.min(propertyValues.length, 4);
+      // Visit every retained partial object before taking another value for
+      // the same one. Spread the first pass across the new field's choices so
+      // truncation preserves earlier fields without fixing later ones to 0.
+      for (let round = 0; round < valueCount; round += 1) {
+        for (let index = 0; index < variants.length; index += 1) {
+          const valueIndex = (round + Math.floor((index * valueCount) / variants.length)) % valueCount;
+          next.push({ ...variants[index], [name]: cloneValue(propertyValues[valueIndex]) });
           if (next.length >= ctx.limits.maxCandidates) break;
         }
         if (next.length >= ctx.limits.maxCandidates) break;
@@ -873,12 +878,16 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
     Number.isFinite(maxProperties) ? maxProperties : undefined,
   );
   const values: JsonValue[] = [];
-  values.push(...(await buildVariants(fullEntries)));
-  if (
+  const fullCandidates = await buildVariants(fullEntries);
+  const needsMinimumCandidates =
     minimumEntries.length !== fullEntries.length ||
-    minimumEntries.some(([name], index) => name !== fullEntries[index][0])
-  ) {
-    values.push(...(await buildVariants(minimumEntries)));
+    minimumEntries.some(([name], index) => name !== fullEntries[index][0]);
+  const minimumCandidates = needsMinimumCandidates ? await buildVariants(minimumEntries) : [];
+  // Keep the complete object first, but reserve coverage for required-only
+  // alternatives before the final shared candidate bound is applied.
+  for (let index = 0; index < Math.max(fullCandidates.length, minimumCandidates.length); index += 1) {
+    if (index < fullCandidates.length) values.push(fullCandidates[index]);
+    if (index < minimumCandidates.length) values.push(minimumCandidates[index]);
   }
   if (requiredEntries.length === 0 && minProperties === 0) values.push({});
 

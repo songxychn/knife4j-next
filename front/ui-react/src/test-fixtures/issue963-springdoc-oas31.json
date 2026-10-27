@@ -1,0 +1,173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenAPI definition",
+    "version": "v0"
+  },
+  "paths": {
+    "/sysmgr/user/modify": {
+      "post": {
+        "tags": ["用户管理"],
+        "summary": "修改用户",
+        "operationId": "modify",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserModifyReqVO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sysmgr/user/create": {
+      "post": {
+        "tags": ["用户管理"],
+        "summary": "新增用户",
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserReqVO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "UserModifyReqVO": {
+        "type": "object",
+        "description": "新增用户VO",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "用户ID",
+            "minLength": 1
+          },
+          "username": {
+            "type": "string",
+            "description": "用户名，唯一",
+            "maxLength": 128,
+            "minLength": 0,
+            "pattern": "^\\w+$"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "昵称",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "邮箱",
+            "minLength": 1
+          },
+          "phone": {
+            "type": "string",
+            "description": "手机号码",
+            "pattern": "^(1[3-9]\\d{9})?$"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "用户头像"
+          },
+          "userLevel": {
+            "type": "integer",
+            "format": "int32",
+            "default": 5,
+            "description": "用户级别（1级最高，5级最低）"
+          }
+        },
+        "required": ["email", "userId", "userLevel", "username"]
+      },
+      "UserReqVO": {
+        "type": "object",
+        "description": "新增用户VO",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "用户名，唯一",
+            "maxLength": 128,
+            "minLength": 0,
+            "pattern": "^\\w+$"
+          },
+          "nickname": {
+            "type": "string",
+            "description": "昵称",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "password": {
+            "type": "string",
+            "description": "密码",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "邮箱",
+            "minLength": 1
+          },
+          "phone": {
+            "type": "string",
+            "description": "手机号码",
+            "pattern": "^(1[3-9]\\d{9})?$"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "用户头像"
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "生效时间"
+          },
+          "expiredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "失效时间"
+          },
+          "userLevel": {
+            "type": "integer",
+            "format": "int32",
+            "default": 5,
+            "description": "用户级别（1级最高，5级最低）"
+          }
+        },
+        "required": ["effectiveAt", "email", "expiredAt", "password", "userLevel", "username"]
+      }
+    }
+  }
+}
