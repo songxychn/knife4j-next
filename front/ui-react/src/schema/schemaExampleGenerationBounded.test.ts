@@ -655,6 +655,51 @@ test('measures incremental allOf overlays at exact final-member node and UTF-8 b
     else expect(result).toMatchObject({ status: 'value', value: expected, validation: 'valid' });
   }
 });
+test.each(
+  ['3.1.1', '3.2.0'].flatMap((version) =>
+    ['direct', 'nested', 'reference', 'scoped', 'dependency'].map((kind) => [version, kind] as const),
+  ),
+)('retains sibling allOf declarations when required crosses members (%s, %s)', async (version, kind) => {
+  const left = {
+    type: 'object',
+    properties: { x: { type: 'string', enum: ['X_VALUE'] } },
+    required: kind === 'dependency' ? ['x', 'unknown'] : ['x', 'y', 'unknown'],
+    ...(kind === 'dependency' ? { dependentRequired: { x: ['y'] } } : {}),
+  };
+  const right = {
+    type: 'object',
+    properties: { y: { type: 'string', enum: ['Y_VALUE'] } },
+    required: kind === 'dependency' ? ['y', 'unknown'] : ['x', 'y', 'unknown'],
+  };
+  const extra =
+    kind === 'scoped'
+      ? { Left: { ...left, $id: 'models/left.json' }, Right: { ...right, $id: 'models/right.json' } }
+      : { Left: left, Right: right };
+  const branches =
+    kind === 'dependency'
+      ? [right, left]
+      : kind === 'direct'
+        ? [left, right]
+        : kind === 'nested'
+          ? [{ allOf: [left] }, { allOf: [right] }]
+          : kind === 'scoped'
+            ? [{ $ref: 'models/left.json' }, { $ref: 'models/right.json' }]
+            : [{ $ref: '#/components/schemas/Left' }, { $ref: '#/components/schemas/Right' }];
+  const session = await fixture({ type: 'object', allOf: branches }, version, extra);
+  const evaluate = vi.spyOn(sessionsModule, 'evaluateSchemaDocumentDirectionally');
+  for (const direction of ['request', 'response'] as const) {
+    evaluate.mockClear();
+    const result = await generateSchemaExample(session, reference, { direction });
+    expect(result).toMatchObject({
+      status: 'value',
+      value: { x: 'X_VALUE', y: 'Y_VALUE', unknown: {} },
+      validation: 'valid',
+    });
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    if (result.status === 'value')
+      await expect(session.evaluate(reference, result.value)).resolves.toMatchObject({ valid: true });
+  }
+});
 test('measures incremental array punctuation and Unicode at L-1 / L / L+1', async () => {
   const expected = ['中', '😀'];
   const bytes = new TextEncoder().encode(JSON.stringify(expected)).byteLength;

@@ -152,6 +152,7 @@ interface SearchContext {
   readonly resolvedNodes: Map<string, Promise<SchemaNode>>;
   readonly directionalAnnotations: Map<string, boolean>;
   readonly directionalProperties: Map<string, ReadonlySet<string>>;
+  readonly intersectionProperties: Map<string, ReadonlySet<string>>;
   readonly schemaObjectIds: WeakMap<object, number>;
   readonly schemaObjectSequence: { value: number };
   readonly dynamicAnchorsByResource: Map<string, Readonly<Record<string, string>>>;
@@ -1012,6 +1013,54 @@ function omitDirectionalProperties(value: JsonValue, names: ReadonlySet<string>)
   return result;
 }
 
+/** Property declarations contributed by mandatory intersections at this instance location. */
+async function intersectionPropertyNames(
+  schema: JsonValue,
+  ctx: SearchContext,
+  active: ReadonlySet<string> = new Set(),
+): Promise<ReadonlySet<string>> {
+  if (!isRecord(schema)) return new Set();
+  const baseUri = effectiveBaseUri(schema, ctx);
+  await ensureEmbeddedDynamicAnchors(schema, ctx, baseUri);
+  const localCtx = {
+    ...ctx,
+    baseUri,
+    baseAlreadyIncludesOwnId: true,
+    dynamicScope: dynamicScopeWithBase(ctx, baseUri),
+  };
+  const key = directionalSchemaAnalysisKey(schema, localCtx);
+  const cached = ctx.intersectionProperties.get(key);
+  if (cached) return cached;
+  if (active.has(key) || !enterNode(ctx)) return new Set();
+  const nextActive = new Set(active).add(key);
+  const names = new Set(Object.keys(isRecord(schema.properties) ? schema.properties : {}));
+  for (const [keyword, reference] of [
+    ['$ref', schema.$ref],
+    ['$dynamicRef', schema.$dynamicRef],
+    ['$recursiveRef', schema.$recursiveRef],
+  ] as const) {
+    if (typeof reference !== 'string') continue;
+    const resolved = await resolveSchemaReference(reference, localCtx, keyword === '$dynamicRef', true);
+    if (!resolved) continue;
+    const contributed = await intersectionPropertyNames(
+      resolved.node.schema,
+      resolvedContext(localCtx, resolved.node, resolved.uri),
+      nextActive,
+    );
+    contributed.forEach((name) => names.add(name));
+    if (ctx.budget.exhausted) return new Set();
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const branch of schema.allOf) {
+      const contributed = await intersectionPropertyNames(branch, childContext(localCtx), nextActive);
+      contributed.forEach((name) => names.add(name));
+      if (ctx.budget.exhausted) return new Set();
+    }
+  }
+  ctx.intersectionProperties.set(key, names);
+  return names;
+}
+
 function mergeObjects(left: JsonValue, right: JsonValue, ctx?: SearchContext): JsonValue | null {
   if (!isRecord(left) || !isRecord(right)) return null;
   if (ctx) {
@@ -1114,6 +1163,9 @@ async function objectCandidates(schema: { [key: string]: JsonValue }, ctx: Searc
       if (!checkpoint(ctx)) return false;
       const next = pending.pop()!;
       if (selected.has(next) || (await ignoreProperty(next))) continue;
+      // A sibling intersection supplies this field, including dependencies
+      // reached from a local required field. Do not overwrite it with true.
+      if (ctx.providedProperties?.has(next) && !Object.prototype.hasOwnProperty.call(properties, next)) continue;
       if (blocked.has(next) || propertySchema(next) === false) return false;
       selected.add(next);
       added.push(next);
@@ -1295,12 +1347,20 @@ async function compositionCandidates(
     const index = selectIndex(ctx, key, candidates.length);
     return index < 0 ? [] : [candidates[index]];
   };
+  const providedProperties = new Set([
+    ...(ctx.providedProperties ?? []),
+    ...Object.keys(isRecord(schema.properties) ? schema.properties : {}),
+  ]);
+  if (Array.isArray(schema.allOf)) {
+    for (const branch of schema.allOf) {
+      const names = await intersectionPropertyNames(branch, childContext(ctx));
+      names.forEach((name) => providedProperties.add(name));
+      if (ctx.budget.exhausted) return [];
+    }
+  }
   const compositionChild = (key: string): SearchContext => ({
     ...childContext(ctx, ctx.baseUri, key),
-    providedProperties: new Set([
-      ...(ctx.providedProperties ?? []),
-      ...Object.keys(isRecord(schema.properties) ? schema.properties : {}),
-    ]),
+    providedProperties,
   });
   if (Array.isArray(schema.allOf)) {
     for (const [index, branch] of schema.allOf.entries()) {
@@ -1622,6 +1682,7 @@ export async function generateSchemaExample(
   const resolvedNodes = new Map<string, Promise<SchemaNode>>();
   const directionalAnnotations = new Map<string, boolean>();
   const directionalProperties = new Map<string, ReadonlySet<string>>();
+  const intersectionProperties = new Map<string, ReadonlySet<string>>();
   const schemaObjectIds = new WeakMap<object, number>();
   const schemaObjectSequence = { value: 0 };
   const dynamicAnchorsByResource = new Map<string, Readonly<Record<string, string>>>();
@@ -1668,6 +1729,7 @@ export async function generateSchemaExample(
     resolvedNodes,
     directionalAnnotations,
     directionalProperties,
+    intersectionProperties,
     schemaObjectIds,
     schemaObjectSequence,
     dynamicAnchorsByResource,
