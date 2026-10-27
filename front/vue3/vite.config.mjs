@@ -6,7 +6,6 @@ import {AntDesignVueResolver} from 'unplugin-vue-components/resolvers'
 import viteCompression from 'vite-plugin-compression';
 import removeConsole from 'vite-plugin-remove-console';
 import path, {resolve} from 'path'
-import {nodePolyfills} from 'vite-plugin-node-polyfills'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
@@ -60,7 +59,6 @@ export default defineConfig({
       dtsTsx: false,
       resolvers: [AntDesignVueResolver({ importStyle: false })]
     }),
-    nodePolyfills(),
     viteCompression({
       deleteOriginFile: false, //删除源文件
       threshold: 10240, //压缩前最小文件大小
