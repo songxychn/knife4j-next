@@ -27,6 +27,7 @@ import org.springframework.cloud.gateway.server.mvc.config.RouteProperties;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -37,7 +38,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
+
+import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 /**
  * Discovers documents only for explicitly configured MVC Gateway {@code lb://}
@@ -46,18 +52,29 @@ import java.util.regex.Pattern;
 @Slf4j
 final class MvcGatewayDiscoveryService {
 
+    private static final long CACHE_TTL_NANOS = TimeUnit.SECONDS.toNanos(5);
+
     private final DiscoveryClient discoveryClient;
     private final GatewayMvcProperties gatewayProperties;
     private final Knife4jGatewayMvcProperties knife4jProperties;
     private final Environment environment;
-    private volatile List<MvcOpenApiResource> resources = Collections.emptyList();
+    private final LongSupplier nanoTime;
+    private final ReentrantLock refreshLock = new ReentrantLock();
+    private volatile CacheState cache;
 
     MvcGatewayDiscoveryService(DiscoveryClient discoveryClient, GatewayMvcProperties gatewayProperties,
                                Knife4jGatewayMvcProperties knife4jProperties, Environment environment) {
+        this(discoveryClient, gatewayProperties, knife4jProperties, environment, System::nanoTime);
+    }
+
+    MvcGatewayDiscoveryService(DiscoveryClient discoveryClient, GatewayMvcProperties gatewayProperties,
+                               Knife4jGatewayMvcProperties knife4jProperties, Environment environment,
+                               LongSupplier nanoTime) {
         this.discoveryClient = discoveryClient;
         this.gatewayProperties = gatewayProperties;
         this.knife4jProperties = knife4jProperties;
         this.environment = environment;
+        this.nanoTime = nanoTime;
     }
 
     boolean isAvailable() {
@@ -66,9 +83,49 @@ final class MvcGatewayDiscoveryService {
 
     @EventListener({ApplicationReadyEvent.class, HeartbeatEvent.class})
     public void refresh() {
-        if (discoveryClient == null) {
-            resources = Collections.emptyList();
+        // Events bypass the TTL and serialize with request-triggered refreshes.
+        refreshLock.lock();
+        try {
+            refreshCache();
+        } finally {
+            refreshLock.unlock();
+        }
+    }
+
+    private void refreshIfExpired() {
+        if (!expired(cache) || !refreshLock.tryLock()) {
             return;
+        }
+        try {
+            if (expired(cache)) {
+                refreshCache();
+            }
+        } finally {
+            refreshLock.unlock();
+        }
+    }
+
+    private boolean expired(CacheState state) {
+        return state == null || nanoTime.getAsLong() - state.completedAt >= CACHE_TTL_NANOS;
+    }
+
+    private void refreshCache() {
+        CacheState previous = cache;
+        try {
+            List<MvcOpenApiResource> refreshed = discoverResources();
+            cache = new CacheState(refreshed, true, nanoTime.getAsLong());
+            log.debug("Refreshed {} MVC Gateway OpenAPI resources", refreshed.size());
+        } catch (RuntimeException exception) {
+            // Keep a complete successful snapshot, including an intentionally empty one.
+            cache = new CacheState(previous == null ? Collections.emptyList() : previous.resources,
+                    previous != null && previous.available, nanoTime.getAsLong());
+            log.warn("Failed to refresh MVC Gateway OpenAPI resources; retry on access after 5 seconds", exception);
+        }
+    }
+
+    private List<MvcOpenApiResource> discoverResources() {
+        if (discoveryClient == null) {
+            return Collections.emptyList();
         }
 
         List<String> services = discoveryClient.getServices();
@@ -81,16 +138,34 @@ final class MvcGatewayDiscoveryService {
             refreshed.add(MvcOpenApiResource.manual(route));
         }
         Collections.sort(refreshed);
-        resources = Collections.unmodifiableList(refreshed);
-        log.debug("Refreshed {} MVC Gateway OpenAPI resources", refreshed.size());
+        return Collections.unmodifiableList(refreshed);
     }
 
     List<MvcOpenApiResource> resources(String basePath) {
+        refreshIfExpired();
+        CacheState current = cache;
+        if (current == null || !current.available) {
+            throw new ResponseStatusException(SERVICE_UNAVAILABLE,
+                    "Discovery resources are not available yet");
+        }
         List<MvcOpenApiResource> result = new ArrayList<>();
-        for (MvcOpenApiResource resource : resources) {
+        for (MvcOpenApiResource resource : current.resources) {
             result.add(resource.withBasePath(basePath));
         }
         return result;
+    }
+
+    private static final class CacheState {
+
+        private final List<MvcOpenApiResource> resources;
+        private final boolean available;
+        private final long completedAt;
+
+        private CacheState(List<MvcOpenApiResource> resources, boolean available, long completedAt) {
+            this.resources = resources;
+            this.available = available;
+            this.completedAt = completedAt;
+        }
     }
 
     private Collection<RouteProperties> configuredRoutes() {
