@@ -6,16 +6,16 @@ lang: en-US
 
 # OpenAPI 3.1 Support and Migration
 
-> Java `5.7.10` / Go `v0.8.9` are pending release; the latest published versions remain Java `5.7.9` / Go `v0.8.8`.
+> Java `5.8.0` / Go `v0.9.0` are pending release; the latest published versions remain Java `5.7.10` / Go `v0.8.9`.
 
 [中文契约](./openapi31) · [Download minimal JSON](/examples/openapi-3.1-minimal.json) · [Download minimal YAML](/examples/openapi-3.1-minimal.yaml)
 
-This page describes the OpenAPI 3.1 contract of Java `5.7.10`. See the
+This page describes the OpenAPI 3.1 contract of Java `5.8.0`. See the
 [release notes](../release-notes/) and [version reference](../reference/version-ref) for version-specific capabilities.
 Knife4x Go is versioned independently; see the [Go release notes](../knife4x/).
 This document does not change any starter or default setting.
 
-> Java 5.7.10 / Knife4x Go v0.8.9 require Chrome/Edge 112+, Firefox 116+, or Safari/iOS Safari 17+ for the React UI. This keeps the Java 5.7.9 / Go v0.8.8 browser baseline; minimum versions have not all been physically tested. See the [compatibility matrix](../reference/compatibility#浏览器基线).
+> Java 5.8.0 / Knife4x Go v0.9.0 require Chrome/Edge 112+, Firefox 116+, or Safari/iOS Safari 17+ for the React UI. This keeps the Java 5.7.9 / Go v0.8.8 browser baseline; minimum versions have not all been physically tested. See the [compatibility matrix](../reference/compatibility#浏览器基线).
 
 ## Supported versions
 
@@ -23,7 +23,7 @@ OpenAPI defines its feature set at the `major.minor` level. `3.1.x` therefore sh
 patch-specific capability forks, and offline export reuses the shared version predicate instead of a private patch allowlist.
 Existing OpenAPI 3.0.x behavior remains available. OpenAPI 3.2.x consumption is documented in the
 [OpenAPI 3.2 support matrix](./openapi32-en); pending
-`5.7.10` / Knife4x `v0.8.9` still ship the 3.1 contract on this page and keep 3.2 on a separate path.
+`5.8.0` / Knife4x `v0.9.0` still ship the 3.1 contract on this page and keep 3.2 on a separate path.
 
 | Document version | UI | Status | Contract |
 | --- | --- | --- | --- |
@@ -32,11 +32,11 @@ Existing OpenAPI 3.0.x behavior remains available. OpenAPI 3.2.x consumption is 
 | OpenAPI 3.1.x | React | Supported | Shares one feature set, subject to the boundaries below |
 | OpenAPI 3.2.x | React | Published | Never guessed or treated as 3.1; see the [OpenAPI 3.2 matrix](./openapi32-en) |
 
-::: info 5.7.10 support minimums
-Java `5.7.10` uses springdoc `2.9.1` with Swagger Jakarta annotations/models/core `2.2.55`.
+::: info 5.8.0 support minimums
+Java `5.8.0` uses springdoc `2.9.1` with Swagger Jakarta annotations/models/core `2.2.55`.
 Boot3 MVC, WebFlux and standalone aggregation require Boot `3.4.7+` on the 3.4 line or `3.5.1+`
 on the 3.5 line (Framework `6.2.8`). Raw Java Object properties and `List<Object>` items allow any
-JSON value in OAS 3.1. The table below records the `5.7.10` matrix; see the
+JSON value in OAS 3.1. The table below records the `5.8.0` matrix; see the
 [5.7.8 dependency changes](../reference/version-ref#5-7-8-依赖更新) and
 [migration configuration](../reference/configuration#生成-openapi-3-1-文档).
 :::

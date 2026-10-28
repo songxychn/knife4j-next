@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.7.10 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.8.0 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.7.10 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.8.0 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -46,11 +46,11 @@ features:
     linkText: 网关接入
 ---
 
-::: info Java 5.7.10 / Knife4x Go v0.8.9 发布准备
-本页接入示例面向待发布版本；最新已发布版本仍为 Java `5.7.9` / Go `v0.8.8`。正式发布前请使用已发布版本。
+::: info Java 5.8.0 / Knife4x Go v0.9.0 发布准备
+本页接入示例面向待发布版本；最新已发布版本仍为 Java `5.7.10` / Go `v0.8.9`。正式发布前请使用已发布版本。
 :::
 
-::: tip Knife4x Go v0.8.9（待发布）
+::: tip Knife4x Go v0.9.0（待发布）
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -72,7 +72,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -82,7 +82,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -101,9 +101,9 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.7.10 版本亮点 <Badge type="info" text="待发布" />
+## 5.8.0 版本亮点 <Badge type="info" text="待发布" />
 
-`5.7.10` 纳入 Boot4 / Jackson 依赖修补、共享 React UI 的 Schema 示例生成预算修复，以及 OAS2 和构建链依赖维护；配套 Go `v0.8.9` 同步共享 UI 修复。
+`5.8.0` 新增完整单接口 Markdown 复制和 OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 MVC Gateway 发现刷新；配套 Go `v0.9.0` 同步共享 UI。Schema Worker 部署与 Node 26 源码构建要求见[发布说明](/release-notes/)。
 
 - **OAS3 浏览器**：Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17 起
 - **OAS2 浏览器**：Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4 起

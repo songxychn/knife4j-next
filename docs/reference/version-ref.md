@@ -8,8 +8,9 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
-| `5.7.10`（待发布） | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
-| `5.7.9` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.0.8 | 最新已发布版本，前端维护与解析修复；两条 UI 浏览器下限提高 |
+| `5.8.0`（待发布） | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
+| `5.7.10` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
+| `5.7.9` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.0.8 | 前端维护与解析修复；两条 UI 浏览器下限提高 |
 | `5.7.8` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.0.8 | springdoc 2.9.1、Schema 展示与 WebJar 构建修复；Boot3 生成器下限调整 |
 | `5.7.7` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.8 | 依赖维护、共享 React UI 迁移与 WebJar 打包修复 |
 | `5.7.6` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.16 | ✅ 4.0.7 | React UI 调试格式化与表单快照补丁 |
@@ -54,7 +55,7 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> 待发布 `5.7.10` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.7.10`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.7.10`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.7.10` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.7.10`。
+> 待发布 `5.8.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.0`。
 
 ## 5.7.7 依赖更新
 
@@ -97,15 +98,19 @@ OAS 3.1 中，raw Java `Object` 字段及 `List<Object>` 元素默认省略 `typ
 Java 依赖沿用 5.7.8。OAS3 React / Knife4x Go v0.8.8 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 Vue3 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。
 这是相对上一版提高的浏览器下限，不应将本次补丁视为旧浏览器无感兼容。完整原因、旧版对照及验证边界见[兼容矩阵](./compatibility#浏览器基线)。
 
-## 5.7.10 依赖与示例生成修复（待发布）
+## 5.7.10 依赖与示例生成修复
 
 Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `2025.1.3`、springdoc `3.0.3` 与 Java 17 下限保持。Jackson 2 对齐 `2.22.4`、Jackson 3 对齐 `3.1.8`，消费方仍须按 [Jackson 告警处理](../guide/faq#jackson-依赖告警处理) 核对自己的 BOM 和依赖树。Boot2/3 发布依赖未随 Demo 专用加固改变。
 
 共享 React UI 修复 Schema 示例重复搜索、过早耗尽预算的问题；Go `v0.8.9` 同步此修复。浏览器要求沿用 `5.7.9` / Go `v0.8.8`，运行时最低版本与 OpenAPI 消费范围不变。
 
+## 5.8.0 功能与修复（待发布）
+
+新增完整单接口 Markdown 复制和 OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 Boot3.5 MVC Gateway 服务发现刷新；Go `v0.9.0` 同步共享 UI。源码构建统一要求稳定 Node `26.x`；Java/Go、浏览器及依赖矩阵沿用上一版。详见[发布说明](../release-notes/)。
+
 ## 核心依赖版本
 
-以下为待发布 `knife4j-next 5.7.10` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为待发布 `knife4j-next 5.8.0` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -158,8 +163,9 @@ Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `20
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.7.10`（待发布） | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
-| `4.5.0` | `5.7.9` | 最新已发布版本：前端维护与解析修复；两条 UI 浏览器下限提高 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.0`（待发布） | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
+| `4.5.0` | `5.7.10` | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
+| `4.5.0` | `5.7.9` | 前端维护与解析修复；两条 UI 浏览器下限提高 |
 | `4.5.0` | `5.7.8` | springdoc 2.9.1、Schema 展示与 WebJar 构建修复；Boot3 生成器下限调整 |
 | `4.5.0` | `5.7.7` | 依赖维护、共享 React UI 迁移与 WebJar 打包修复 |
 | `4.5.0` | `5.7.6` | 包含已合并兼容/安全修复、Boot 3.4/3.5/4.0 兼容、OAS 3.1 支持、OpenAPI 3.2.x 文档消费、SchemaEngine 元校验失败重试、Vue3 网关头与 Tag 搜索、React UI 标签菜单与首页布局、示例展示、Schema 诊断与调试 JSON 响应、JSON 示例与预览层级折叠，以及调试格式化与表单快照补丁 |

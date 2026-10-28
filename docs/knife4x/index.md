@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前源码面向 Go `v0.8.9`（待发布；最新已发布为 `v0.8.8`），Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前源码面向 Go `v0.9.0`（待发布；最新已发布为 `v0.8.9`），Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 / 3.2 与发布版本
@@ -20,16 +20,24 @@ JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史
 
 从当前仓库源码重建或同步 UI 时，Node 要求与 OAS3、Vue3 和文档站统一为稳定的 `26.x`，不接受其他主版本或预发行版。直接使用 Go module 不需要 Node，Go 与浏览器运行时要求不变。
 
-Go module 需要 Go 1.22 或更高版本。以下示例面向待发布 `v0.8.9`；正式发布前请使用 `v0.8.8`：
+Go module 需要 Go 1.22 或更高版本。以下示例面向待发布 `v0.9.0`；正式发布前请使用 `v0.8.9`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.8.9
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.0
 ```
 
 仓库中的 [Gin 可运行示例](https://github.com/songxychn/knife4j-next/tree/master/knife4x/examples/gin)
 是独立 module，需要 Go 1.26+；其 Gin 依赖与版本要求不会传递给公共库消费者。
 
-## v0.8.9（待发布）
+## v0.9.0（待发布）
+
+相较于 `v0.8.9`，单接口 Markdown 复制与完整文档导出共用字段、请求/响应和示例规则；不完整内容需确认并保留诊断。同步对象候选截断、千字段示例生成及 allOf 无类型字符串约束修复，保留作者示例、方向、授权资源图、取消与安全预算（PR #965/#967/#970/#975）。
+
+Schema 会话改用同源 ES module Worker；部署须保留 Worker 和动态分块、允许相应 CSP 并提供正确 JavaScript MIME，失败有诊断。Go 内联配置仍按原有 CSP 方式授权。源码构建统一要求稳定 Node `26.x`，直接使用 module 不需要 Node。
+
+公共库仍只依赖标准库；Go 1.22、module、`Config`、`NewHandler` 与路由语义不变，独立 Gin 示例仍需 Go 1.26+。浏览器沿用 `v0.8.9`，OpenAPI 3.0/3.1/3.2 JSON 消费与资源授权边界不变，仍不接受 YAML。
+
+## v0.8.9
 
 相较于 `v0.8.8`，同步共享 React UI 的 Schema 示例生成修复：复用同一对象展开中的属性候选，跳过重复的完整/最小属性集合搜索，避免普通宽对象过早耗尽预算。回归覆盖 OAS 3.1/3.2 的 100 字段对象请求与响应示例；保留预算上限、取消、作者示例与校验边界（PR #950）。
 

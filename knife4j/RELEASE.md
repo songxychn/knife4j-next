@@ -2,9 +2,9 @@
 
 本 fork 通过 GitHub Actions 和 Central Portal Publishing Plugin 发布 Maven Central 构件，并在同一个 Release workflow 中创建 GitHub Release。
 
-## Java 5.7.10 发布准备
+## Java 5.8.0 发布准备
 
-当前 POM 与接入示例面向 `5.7.10`，配套 Go 为 `v0.8.9`；两者均尚未发布。发布内容见 [5.7.10 说明](../docs/release-notes/index.md)，Go 独立 tag 与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。本准备项仅交付 PR，不创建 tag 或执行发布；必须在准备 PR 合并、master CI 通过并取得维护者明确发布授权后，才执行以下正式发布流程。
+当前 POM 与接入示例面向 `5.8.0`，配套 Go 为 `v0.9.0`；两者均尚未发布。发布内容见 [5.8.0 说明](../docs/release-notes/index.md)，Go 独立 tag 与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。必须在准备 PR 合并、master CI 通过并取得维护者明确发布授权后，才执行以下正式发布流程。
 
 ## 一次性配置
 
@@ -27,9 +27,9 @@
 ## Release flow
 
 1. 确认 `knife4j/pom.xml` 和所有子模块版本正确。
-2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### 5.7.10`。
+2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### 5.8.0`。
 3. 提交并合并 release prep PR，等待 PR CI 和 `master` push CI 通过。
-4. 创建并推送 annotated tag，例如 `v5.7.10`。
+4. 创建并推送 annotated tag，例如 `v5.8.0`。
 5. 等待 GitHub Actions `Release` workflow 的 `publish` job 完成发布及公开 Maven Central 构件、GitHub Release 核验。
 6. 等待 `Release` 随后调用的 `Build and Deploy Demo` workflow 完成对应 Java tag 的 demo 镜像发布。
 7. 验收发布完成条件：

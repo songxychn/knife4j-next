@@ -28,12 +28,13 @@ title: 常见问题
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-下表按版本记录发布范围。Java `5.7.10`（待发布）的 OpenAPI 3.1 / 3.2 契约及其限制见
+下表按版本记录发布范围。Java `5.8.0`（待发布）的 OpenAPI 3.1 / 3.2 契约及其限制见
 [OpenAPI 3.1 支持与迁移](./openapi31) 和 [OpenAPI 3.2 支持矩阵](./openapi32)。
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
-| `5.7.10`（待发布） | Boot4/Jackson 修补、Schema 示例生成修复及 OAS2/构建链依赖维护；Demo 专用修补不传递至 Boot2 starter | — |
+| `5.8.0`（待发布） | Markdown 复制、OAS3 WebMVC 启动摘要、Schema 与 MVC Gateway 修复；源码构建要求 Node 26 | — |
+| `5.7.10` | Boot4/Jackson 修补、Schema 示例生成修复及 OAS2/构建链依赖维护；Demo 专用修补不传递至 Boot2 starter | — |
 | `5.7.9` | 前端维护与 JSONPath / Markdown / Schema 解析修复；两条 UI 浏览器下限提高 | — |
 | `5.7.8` | springdoc 2.9.1 / Boot BOM、Schema 展示与 WebJar 构建修复；Boot3 生成器下限调整 | — |
 | `5.7.7` | 依赖维护：Java 依赖更新、React Router 7 / Vite 8 / React 19 / Ant Design 6 迁移、外部资源面板适配与 WebJar 打包修复 | — |
@@ -624,7 +625,7 @@ private Map<String, String> extensions;
 [Jackson 官方公告](https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-m8xf-2cr7-77ph)
 列出的修复版本包括 Jackson 2 `2.21.8` / `2.22.4`、Jackson 3 `3.1.8`。依赖处于影响范围不等于应用一定可利用，实际可达性取决于多态配置和不可信输入路径。
 
-**单独升级 Boot 到 `4.1.2` 不足以修复这条告警**：该 BOM 仍管理 Jackson `2.21.7` / `3.1.7`。已发布 Knife4j `5.7.9` 也不包含此次修复。待发布 `5.7.10` 的 Boot4 线采用 `2.22.4` / `3.1.8`，但 Maven 消费方的版本管理优先于 starter 的传递版本，必须在自己的工程里验证。
+**单独升级 Boot 到 `4.1.2` 不足以修复这条告警**：该 BOM 仍管理 Jackson `2.21.7` / `3.1.7`。已发布 Knife4j `5.7.9` 也不包含此次修复。已发布 `5.7.10` 的 Boot4 线采用 `2.22.4` / `3.1.8`，但 Maven 消费方的版本管理优先于 starter 的传递版本，必须在自己的工程里验证。
 
 **导入 Boot BOM 的工程**：将以下两条 BOM 放在现有 Boot BOM **之前**，合并到已有的 `dependencyManagement` 中。Jackson 2 使用 `2.22.4` 保留当前 Swagger 依赖的 2.22 线；已经管理 Jackson 2.21 线的应用也可选该线修复版 `2.21.8` 并完成自身回归。
 

@@ -10,15 +10,35 @@ title: 发布说明
 
 ---
 
-## 未发布的源码工具链调整
-
-OAS3、OAS2 Vue3、文档站与 Knife4x UI 同步统一只支持稳定的 Node `26.x`，其他主版本与预发行版不在支持范围内；`.nvmrc` 选择 26 系列，CI 验证 26.0.0 下限与 26 当前补丁。此调整只影响源码开发、构建和测试，直接使用已发布 Maven 包或 Go module 无需 Node；浏览器和 Java/Go 运行时基线不变。Vitest、Router、jsdom 等依赖版本未随本次调整升级，历史发布版本的构建要求保持原样。
-
 ## knife4j-next 版本
 
-> `5.7.10` 与配套 Go `v0.8.9` 当前处于发布准备，尚未发布。
+> `5.8.0` 与配套 Go `v0.9.0` 当前处于发布准备；最新已发布版本为 Java `5.7.10` / Go `v0.8.9`。
 
-### 5.7.10 <Badge type="info" text="待发布" />
+### 5.8.0 <Badge type="info" text="待发布" />
+
+相较于 `5.7.10`，新增完整单接口 Markdown 复制与 Java OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 MVC Gateway 服务发现刷新。配套 Knife4x Go `v0.9.0` 同步共享 React UI。
+
+**共享 React UI**
+
+- 单接口「复制文档 Markdown」复用完整文档的请求/响应字段与示例导出规则，保留 H1 标题，省略封面、目录及其他接口；不完整内容需确认并保留诊断，切换接口或文档时取消过期准备（PR [#970](https://github.com/songxychn/knife4j-next/pull/970)）。
+- 修复对象候选截断使调试 Body 留空，以及合法 allOf 无类型字符串约束重复搜索的问题；普通千字段对象在安全预算内生成完整示例，保留作者示例、方向、授权资源图和完整根校验（PR [#965](https://github.com/songxychn/knife4j-next/pull/965)、[#967](https://github.com/songxychn/knife4j-next/pull/967)、[#975](https://github.com/songxychn/knife4j-next/pull/975)）。
+- Schema 会话在同源 ES module Worker 中执行，保持取消与有界时限。部署须保留 Worker 及其动态分块，允许相应 `worker-src` / `script-src` 并返回正确 JavaScript MIME；加载失败有诊断，不回退主线程执行。Go 宿主内联配置仍须遵循原有 CSP 授权方式，详见 [部署说明](https://knife4jnext.com/guide/deployment)。
+
+**Java starter**
+
+- OAS3 WebMVC（Boot2/3/4）应用启动完成后默认在 INFO 输出 banner、实际版本与增强/文档屏蔽/Basic Auth 配置摘要；`knife4j.banner=false` 可关闭。凭据只显示配置状态；摘要不证明鉴权或屏蔽实际生效，不改变现有访问控制。不扩展到 OAS2、WebFlux、Gateway 或独立聚合（PR [#972](https://github.com/songxychn/knife4j-next/pull/972)）。
+- Boot3.5 MVC Gateway 的 DISCOVER 文档列表增加 5 秒按需缓存刷新，保留事件刷新；并发共用刷新，查询异常保留旧快照，首次查询失败返回 503。MANUAL 路径不变，不新增定时任务、配置项或动态路由承诺（PR [#971](https://github.com/songxychn/knife4j-next/pull/971)）。
+
+**源码工具链与维护**
+
+- OAS3、OAS2 Vue3、文档站与 Knife4x UI 同步统一要求稳定 Node `26.x`，CI 覆盖 `26.0.0` 与 26 当前补丁。仅影响源码开发、构建与测试；直接消费 Maven 包或 Go module 无需 Node。历史版本的构建要求保持原样（PR [#977](https://github.com/songxychn/knife4j-next/pull/977)）。
+- OAS2 Vue3 移除多余 Node 兼容插件，保持浏览器目标；新增示例搜索同预算评估工具，不将局部测量宣称为完整产品性能提升（PR [#966](https://github.com/songxychn/knife4j-next/pull/966)、[#973](https://github.com/songxychn/knife4j-next/pull/973)）。
+
+**兼容边界**
+
+Java 依赖与 Boot2/3/4 矩阵沿用 `5.7.10`；Java 8/17、Go 公共库 1.22、Gin 示例 1.26+、坐标及 Go Handler API/路由保持不变。浏览器要求沿用上一版：OAS3 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不增加最低浏览器实机覆盖承诺。仍消费既有 OpenAPI 3.0/3.1/3.2 JSON，springdoc 仍生成 3.0/3.1，不新增 YAML 或规范版本支持。
+
+### 5.7.10 <Badge type="tip" text="最新已发布" />
 
 相较于 `5.7.9`，纳入 Boot4/Jackson 依赖修补、共享 React UI 的 Schema 示例生成预算修复，以及 OAS2 和构建链依赖维护。配套 Knife4x Go 版本为 `v0.8.9`。
 
@@ -42,7 +62,7 @@ OAS3、OAS2 Vue3、文档站与 Knife4x UI 同步统一只支持稳定的 Node `
 
 浏览器要求沿用 Java `5.7.9` / Go `v0.8.8`：OAS3 为 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 为 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不新增旧浏览器补齐或实机覆盖承诺。Java 8/17、Go 1.22、Gin 示例 Go 1.26+、Maven/module 坐标、公开 API、路由、starter 默认配置及 OpenAPI 3.0/3.1/3.2 消费范围保持不变；springdoc 仍生成 3.0/3.1，不承诺生成 3.2。
 
-### 5.7.9 <Badge type="tip" text="最新" />
+### 5.7.9
 
 `5.7.9` 纳入两条前端线的依赖维护，以及 JSONPath 取值、Markdown 引用块、UTF-8 Schema 引用和深层 Schema 分析修复。配套 Knife4x Go 版本为 `v0.8.8`。**两条 UI 的浏览器下限均较 5.7.8 提高，升级前必须检查浏览器环境；本版本不承诺旧浏览器无感兼容。**
 
@@ -779,7 +799,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 

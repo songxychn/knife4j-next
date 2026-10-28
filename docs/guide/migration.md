@@ -4,13 +4,13 @@ title: 从 upstream 迁移
 
 # 从 upstream 迁移到 knife4j-next
 
-> 本页示例面向待发布的 Java `5.7.10`；正式发布前请使用已发布的 `5.7.9`。
+> 本页示例面向待发布的 Java `5.8.0`；正式发布前请使用已发布的 `5.7.10`。
 
-`5.7.10` 的 Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）。从旧版升级时先检查应用 BOM，详见[兼容矩阵](../reference/compatibility)。
+`5.8.0` 的 Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）。从旧版升级时先检查应用 BOM，详见[兼容矩阵](../reference/compatibility)。
 
 本文针对已经在用 `com.github.xiaoymin:knife4j-*` 的项目，说明**切到 `com.baizhukui:knife4j-*` 的最小改动**。
 
-> **5.7.10 沿用 5.7.9 的浏览器要求**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。Boot4 线更新至 Boot `4.1.2`，并单独对齐 Jackson 2 `2.22.4` / Jackson 3 `3.1.8`；消费方仍须核对最终 BOM 与依赖树。
+> **5.8.0 沿用 5.7.10 的浏览器要求**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。Boot4 线沿用 Boot `4.1.2`、Jackson 2 `2.22.4` / Jackson 3 `3.1.8`；消费方仍须核对最终 BOM 与依赖树。
 
 ## 核心结论
 
@@ -41,7 +41,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -63,7 +63,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -91,7 +91,7 @@ After：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -137,7 +137,7 @@ knife4j:
 ## 迁移步骤
 
 1. **更新 Maven 依赖坐标**：全部 `com.github.xiaoymin` → `com.baizhukui`。
-2. **确认版本**：正式发布后升到 `5.7.10`（当前为发布准备）。
+2. **确认版本**：正式发布后升到 `5.8.0`（当前为发布准备）。
 3. **刷新依赖**：`mvn -U clean verify` 或 `mvn dependency:tree | grep knife4j` 检查无残留旧坐标。
 4. **启动验证**：访问 `/doc.html`，确认能看到接口列表。
 5. **如切到 OpenAPI3 系列 starter**：额外检查是否用了 Springfox 专属注解（`@DynamicParameters` 等），必要时替换为 DTO 实体类方式（参考 [注解速查](../reference/annotations)）。

@@ -4,7 +4,7 @@ title: 快速开始
 
 # 快速开始
 
-> 本页示例面向待发布的 Java `5.7.10`；正式发布前请使用已发布的 `5.7.9`。
+> 本页示例面向待发布的 Java `5.8.0`；正式发布前请使用已发布的 `5.7.10`。
 
 本指南给出四条接入路径对应的最小可运行工程。每条路径都经过 `master` 的 `knife4j-smoke-tests` 模块回归验证。
 
@@ -21,13 +21,13 @@ title: 快速开始
 
 ### 环境要求
 
-> **5.7.10 沿用 5.7.9 的浏览器要求**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。Boot4 线更新至 Boot `4.1.2`，并单独对齐 Jackson 2 `2.22.4` / Jackson 3 `3.1.8`；消费方仍须核对最终 BOM 与依赖树。
+> **5.8.0 沿用 5.7.10 的浏览器要求**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。Boot4 线沿用 Boot `4.1.2`、Jackson 2 `2.22.4` / Jackson 3 `3.1.8`；消费方仍须核对最终 BOM 与依赖树。
 
-::: info 5.7.10 支持下限
-`5.7.10` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
+::: info 5.8.0 支持下限
+`5.8.0` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta
 `annotations` / `models` / `core` 统一为 `2.2.55`。JDK 下限仍为 17；Boot 3.4 线下限为
 `3.4.7`，Boot 3.5 线下限为 `3.5.1`（共同需要 Framework `6.2.8`）。Boot `3.5.0` 不满足此下限。
-此下限从 `5.7.8` 起生效，`5.7.10` 继续沿用；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
+此下限从 `5.7.8` 起生效，`5.8.0` 继续沿用；`5.7.7` 及更早版本的历史依赖与兼容记录保持原样。
 详见[版本对照](../reference/version-ref#5-7-8-依赖更新)。
 :::
 
@@ -41,7 +41,7 @@ title: 快速开始
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -91,7 +91,7 @@ Controller 写法与 Boot 3.x Jakarta 版一致，annotation 使用 `io.swagger.
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -166,7 +166,7 @@ React 新前端会读取部分 `knife4j.setting.*` UI 默认值，例如 `langua
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 
@@ -200,7 +200,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
-    <version>5.7.10</version>
+    <version>5.8.0</version>
 </dependency>
 ```
 

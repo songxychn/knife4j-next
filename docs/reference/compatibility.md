@@ -11,26 +11,26 @@ title: 兼容矩阵
 
 ## 依赖基线
 
-::: warning Java 5.7.10 / Go v0.8.9 发布准备
-Boot4 WebMVC、独立聚合、Gateway 及 Demo 的源码验证基线更新为 Boot `4.1.2`，
+::: warning Java 5.8.0 / Go v0.9.0 发布准备
+Boot4 WebMVC、独立聚合、Gateway 及 Demo 的源码验证基线沿用 Boot `4.1.2`，
 Cloud 保持 `2025.1.3`，springdoc 保持 `3.0.3`，Java 下限仍为 17。
 Boot4 构建另外导入 Jackson 2 `2.22.4` / Jackson 3 `3.1.8` BOM，修复 `CVE-2026-110879`；
 WebMVC 和独立聚合 starter 直接声明现有 Jackson 组件，以向没有自有 BOM 的消费方传递修复版本。
 消费方的 `dependencyManagement` 仍可覆盖这些版本，接入时请按
 [Jackson 依赖告警处理](../guide/faq#jackson-依赖告警处理) 检查最终依赖树。
-以下表格描述待发布 `5.7.10`；最新已发布版本仍为 Java `5.7.9` / Go `v0.8.8`。发布准备不代表制品已经可用或线上已部署，也不承诺其他组件没有漏洞。
+以下表格描述待发布 `5.8.0`；最新已发布版本仍为 Java `5.7.10` / Go `v0.8.9`。发布准备不代表制品已经可用或线上已部署，也不承诺其他组件没有漏洞。
 :::
 
 | 维度 | 版本 |
 | --- | --- |
-| knife4j-next | `5.7.10` |
+| knife4j-next | `5.8.0` |
 | Java 最低版本 | `1.8`（openapi2 / openapi3 非 Jakarta）；`17`（Jakarta / Boot4） |
 | Springfox | `2.10.5`（openapi2 starter） |
 | springdoc-openapi | `1.8.0`（Boot 2.x）；`2.9.1`（Boot 3.x Jakarta）；`3.0.3`（Boot 4.x） |
 | 前端 UI | React（openapi3 starter，打包 `front/ui-react`）；Vue 3（openapi2 starter，打包本仓库 `front/vue3`） |
 
 ::: info 发布版本与源码能力
-上表为待发布 `5.7.10` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
+上表为待发布 `5.8.0` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
 OpenAPI 3.2 消费从 Java `5.7.0` 起提供，
 不应反向视为 `5.4.0` 等历史版本的能力。支持范围见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)
 和 [OpenAPI 3.2 支持与迁移](../guide/openapi32)。
@@ -38,7 +38,7 @@ OpenAPI 3.2 消费从 Java `5.7.0` 起提供，
 各版本变更以[发布说明](../release-notes/)为准。
 :::
 
-::: info 5.7.10 支持下限
+::: info 5.8.0 支持下限
 Boot3 Jakarta MVC、WebFlux、独立聚合使用 springdoc `2.9.1` / Swagger Jakarta `2.2.55`。
 Boot 3.4 线要求 `3.4.7+`，Boot 3.5 线要求 `3.5.1+`，对应 Framework `6.2.8`；
 Boot `3.5.0` 不满足下限。Gateway 保持各自既有 Cloud/Boot 组合。Boot4 springdoc 保持 `3.0.3`，
@@ -48,14 +48,14 @@ Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
 
 ## 浏览器基线
 
-以下要求适用于 **Java `5.7.10` / Knife4x Go `v0.8.9`**，不反向修改历史发布版本的要求。
+以下要求适用于 **Java `5.8.0` / Knife4x Go `v0.9.0`**，不反向修改历史发布版本的要求。
 
 | UI | 5.7.8 / Go v0.8.7 基线 | 5.7.9 / Go v0.8.8 起沿用的最低浏览器 | 适用产物 |
 | --- | --- | --- | --- |
 | OAS3 React | 原构建目标：Chrome 87、Edge 88、Firefox 78、Safari 14 | Chrome / Edge **112**、Firefox **116**、Safari / iOS Safari **17** | OAS3 WebJar、Knife4x Go |
 | OAS2 Vue3 | Chrome / Edge 111、Firefox 114、Safari 16.4 | Chrome / Edge **117**、Firefox **119**、Safari / iOS Safari **17.4** | OAS2 WebJar |
 
-**两条 UI 的下限从 Java `5.7.9` / Go `v0.8.8` 起提高，本次补丁沿用。** OAS3 的 JSONPath 11 需要原生 `RegExp` 的 `v` 标志；OAS2 的 Mermaid 12 解析依赖需要原生 `Object.groupBy`。构建不会为旧浏览器补齐这些 API；升级前应确认用户实际浏览器版本，尤其是 Safari / iOS 系统版本。OAS3 旧构建目标仅作版本对照，不代表旧版所有运行时能力都在这些版本实测。
+**两条 UI 的下限从 Java `5.7.9` / Go `v0.8.8` 起提高，本版本沿用。** OAS3 的 JSONPath 11 需要原生 `RegExp` 的 `v` 标志；OAS2 的 Mermaid 12 解析依赖需要原生 `Object.groupBy`。构建不会为旧浏览器补齐这些 API；升级前应确认用户实际浏览器版本，尤其是 Safari / iOS 系统版本。OAS3 旧构建目标仅作版本对照，不代表旧版所有运行时能力都在这些版本实测。
 
 下限依据 [RegExp v 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/unicodeSets#browser_compatibility) 与 [Object.groupBy 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy#browser_compatibility) 制定，不代表最低版本或 Safari/Firefox 均已逐一实机验收。已合并变更的 Chromium 验证不能等同于全浏览器验收。
 
@@ -79,7 +79,7 @@ node front/ui-react/scripts/run-schema-example-worker-acceptance.mjs
 
 ## Starter 兼容矩阵
 
-以下 starter 矩阵描述 `5.7.10`，Boot3 生成器线按上述下限接入；历史发布版本见[版本对照](./version-ref)。矩阵基于 `knife4j-smoke-tests` 模块的自动化验证结果。✅ = smoke test 已通过；⚠️ = 依赖层面可用但无自动测试；❌ = 不兼容。
+以下 starter 矩阵描述 `5.8.0`，Boot3 生成器线按上述下限接入；历史发布版本见[版本对照](./version-ref)。矩阵基于 `knife4j-smoke-tests` 模块的自动化验证结果。✅ = smoke test 已通过；⚠️ = 依赖层面可用但无自动测试；❌ = 不兼容。
 
 ### WebMvc（Servlet）
 
