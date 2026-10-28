@@ -36,6 +36,11 @@ import java.util.List;
 public class Knife4jProperties {
 
     /**
+     * Whether to log the startup banner and configuration summary, independent of enhanced mode.
+     */
+    private boolean banner = true;
+
+    /**
      * 是否开启Knife4j增强模式
      */
     private boolean enable = false;

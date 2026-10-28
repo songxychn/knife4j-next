@@ -160,6 +160,7 @@ config	knife4j-openapi2-spring-boot-starter	knife4j.setting.footer-custom-conten
 config	knife4j-openapi2-spring-boot-starter	knife4j.setting.home-custom-location
 config	knife4j-openapi2-spring-boot-starter	knife4j.setting.language
 config	knife4j-openapi2-spring-boot-starter	knife4j.setting.swagger-model-name
+config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.banner
 config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.basic
 config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.basic.enable
 config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.basic.include
@@ -200,6 +201,7 @@ config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.setting.home-custom-
 config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.setting.home-custom-path
 config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.setting.language
 config	knife4j-openapi3-jakarta-spring-boot-starter	knife4j.setting.swagger-model-name
+config	knife4j-openapi3-spring-boot-starter	knife4j.banner
 config	knife4j-openapi3-spring-boot-starter	knife4j.basic
 config	knife4j-openapi3-spring-boot-starter	knife4j.basic.enable
 config	knife4j-openapi3-spring-boot-starter	knife4j.basic.include

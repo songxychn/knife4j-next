@@ -17,6 +17,7 @@ title: 配置参考
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `knife4j.enable` | `boolean` | `false` | 启用 Knife4j 后端增强。openapi2 必须设为 `true`；openapi3 使用 springdoc 默认路径时 UI 可不依赖它，但自定义 `springdoc.api-docs.path`、生产保护或其他 Knife4j 增强能力需要设为 `true` |
+| `knife4j.banner` | `boolean` | `true` | 仅 OAS3 WebMvc starter（含 Boot 4）：启动完成后打印一次 banner、版本和配置摘要；独立于 `knife4j.enable`，可设为 `false` 关闭 |
 | `knife4j.cors` | `boolean` | `false` | 启用默认跨域支持 |
 | `knife4j.production` | `boolean` | `false` | 生产环境：设为 `true` 后 `/doc.html`、`/v2/api-docs`、`/v3/api-docs`、`/knife4j/config` 等默认路径返回 JSON 错误响应（非 HTML 页面）。**注意**：当前仅保护默认路径；若自定义了 `springdoc.api-docs.path`，需要自行通过 `knife4j.basic.include` 追加规则或使用外层安全框架屏蔽 |
 | `knife4j.openapi` | Object | — | OpenAPI 基本信息（仅 openapi2 starter，见下文） |
@@ -26,6 +27,16 @@ title: 配置参考
 | `knife4j.insight` | Object | — | Knife4jInsight 配置，见下文 |
 
 OpenAPI3 starter 会暴露 `/knife4j/config` 作为 Knife4j UI 的运行时发现入口。该接口不属于 springdoc 标准接口，由 UI 内部调用，并会从 OpenAPI 文档中隐藏，不展示在 `doc.html` 接口列表里。它用于在自定义 `springdoc.api-docs.path` 时返回实际的 `apiDocsUrl` 与 `swaggerConfigUrl`；响应通过 `schemaVersion` 标识契约版本，后续 Knife4j 运行时能力也应挂载在这个结构下。
+
+### OpenAPI3 启动 banner
+
+OAS3 WebMvc starter 默认通过 `Knife4jBannerAutoConfiguration` 的 INFO 日志输出 ASCII banner、实际构建版本，以及 Enhanced、Production、Basic Auth 配置摘要。即使未开启增强模式也会输出；设置 `knife4j.banner=false` 或提高该 logger 的日志级别可以关闭。版本来自 Maven 构建时写入的模块资源，不使用应用版本号。
+
+摘要中的 `configured` 表示对应配置开关为 `true`，不代表验证过文档访问或鉴权效果。若增强模式未开启，production/basic 开关为 `true` 时会标记 `configured, inactive (knife4j.enable=false)`。Basic Auth 另行显示用户名、密码是否同时配置（`configured`）、仅配置其中一项（`incomplete`）或均未配置（`not configured`），不输出凭据内容，也不验证凭据是否正确。
+
+banner 仅提供配置摘要，不探测 HTTP 入口，不改变文档、鉴权或屏蔽行为；`knife4j.enable=false` 本身不关闭 springdoc 文档接口或 UI 静态资源。底部固定说明：启用 Knife4j 文档屏蔽需同时设置 `knife4j.enable=true` 和 `knife4j.production=true`。实际访问还受自定义过滤器、Spring Security、代理等配置影响。
+
+此功能不扩展到 OAS2、WebFlux、Gateway 或聚合 starter。
 
 ### OpenAPI3 文档标题与版本
 

@@ -14,6 +14,12 @@
     <artifactId>knife4j-smoke-boot2-openapi3-app</artifactId>
     <name>knife4j-smoke-boot2-openapi3-app</name>
 
+    <properties>
+        <!-- Match the SLF4J API managed by a Boot 2.7.18 consumer, rather than
+             the SLF4J 2 API inherited from this repository's build parent. -->
+        <knife4j-slf4j.version>1.7.36</knife4j-slf4j.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.baizhukui</groupId>
