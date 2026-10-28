@@ -7,13 +7,7 @@ import { CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { TFunction } from 'i18next';
 import type { JsonValue } from 'knife4j-schema-engine';
-import {
-  buildSchemaFieldTree,
-  dereferenceReferenceObject,
-  generateApiMarkdown,
-  resolveRefMeta,
-  type SchemaFieldNode,
-} from 'knife4j-core';
+import { buildSchemaFieldTree, dereferenceReferenceObject, resolveRefMeta, type SchemaFieldNode } from 'knife4j-core';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -39,6 +33,7 @@ import SchemaDiscriminatorPanel from '../../components/schema/SchemaDiscriminato
 import { isOas32ExampleDocument, locateOperationExampleCatalog } from '../../schema/operationExampleCatalog';
 import { schemaNameFromRef } from '../../components/schema/schemaUtils';
 import CodeBlock from './CodeBlock';
+import CopyOperationMarkdown from './CopyOperationMarkdown';
 import { operationAuthors } from './operationAuthor';
 import { firstRequestMedia, requestBodyExample, responseExamples } from './apiDocExamples';
 import { useSettings } from '../../context/SettingsContext';
@@ -379,40 +374,6 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
   );
 
   const method = operationHttpMethod(operation);
-
-  const handleCopyMarkdown = () => {
-    const md = generateApiMarkdown({
-      method,
-      path: operation.path,
-      operation: op,
-      docContext: schemaDocuments.operation as unknown as SwaggerDoc,
-      labels: {
-        deprecated: t('apiDoc.markdown.deprecated'),
-        requestParameters: t('apiDoc.requestParams'),
-        noRequestParameters: t('apiDoc.noParams'),
-        requestBody: t('apiDoc.requestBody'),
-        noRequestBody: t('apiDoc.noBody'),
-        requestBodyNotExpandable: t('apiDoc.body.notExpandable'),
-        responseStructure: t('apiDoc.responseStructure'),
-        noResponse: t('apiDoc.noResponse'),
-        name: t('apiDoc.col.paramName'),
-        location: t('apiDoc.col.location'),
-        type: t('apiDoc.col.type'),
-        required: t('apiDoc.col.required'),
-        description: t('apiDoc.col.description'),
-        field: t('apiDoc.col.fieldName'),
-        yes: t('schema.required.yes'),
-        no: t('schema.required.no'),
-        status: t('apiDoc.col.statusCode'),
-        schema: t('apiDoc.col.schema'),
-      },
-    });
-    copyToClipboard(
-      md,
-      () => message.success(t('apiDoc.copy.markdown.success')),
-      () => message.error(t('apiDoc.copy.failed')),
-    );
-  };
 
   const handleCopyUrl = () => {
     copyToClipboard(
@@ -818,9 +779,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           {op.summary ?? operation.path}
         </Title>
         <Space>
-          <Button size="small" icon={<CopyOutlined />} onClick={handleCopyMarkdown}>
-            {t('apiDoc.copy.markdown')}
-          </Button>
+          <CopyOperationMarkdown document={swaggerDoc} operation={operation} />
           <Button size="small" icon={<CopyOutlined />} onClick={handleCopyUrl}>
             {t('apiDoc.copy.url')}
           </Button>
