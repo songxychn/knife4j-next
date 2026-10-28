@@ -1480,7 +1480,21 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
     typeof schema.$dynamicRef !== 'string' &&
     typeof schema.$recursiveRef !== 'string'
   ) {
-    values.push({}, [], '', 0, false, null);
+    // A type-less intersection member can constrain a string supplied by a
+    // sibling. Keep the generic strategy first and only construct string hints
+    // when selected; these hints do not exclude valid non-string instances.
+    const hasStringConstraints =
+      typeof schema.minLength === 'number' ||
+      typeof schema.maxLength === 'number' ||
+      typeof schema.pattern === 'string';
+    const minLength = typeof schema.minLength === 'number' ? schema.minLength : 0;
+    const useStringHints =
+      hasStringConstraints &&
+      minLength <= ctx.limits.maxStringLength &&
+      selectIndex(localCtx, 'untyped-string', 2) === 1;
+    if (useStringHints)
+      values.push(...stringCandidates(schema, localCtx).filter((value) => primitiveSatisfiesLocal(schema, value)));
+    else values.push({}, [], '', 0, false, null);
   }
   const composed = await compositionCandidates(
     schema,
