@@ -5,7 +5,7 @@
 ## 环境
 
 - Java：`.java-version`
-- Node：OAS3、Vue3、docs 和 Knife4x UI 同步统一要求 `^24.15.0 || >=26.0.0`，不再支持 Node 22、24.15 以下或 Node 25，预发行版不在支持范围内。`.nvmrc` 继续选择 24 系列，日常使用受支持 LTS 的最新补丁；三组前端 CI 均验证 24.15.0、24 系列当前补丁和 26 系列。共享检查为 `front/scripts/check-node.cjs`，标准脚本在安装前检查，直接开发/构建入口也执行检查。
+- Node：OAS3、Vue3、docs 和 Knife4x UI 同步统一只支持稳定的 `26.x`，其他主版本与预发行版不在支持范围内。`.nvmrc` 选择 26 系列，日常使用该系列最新补丁；三组前端 CI 均验证 26.0.0 下限与 26 系列当前补丁。共享检查为 `front/scripts/check-node.cjs`，标准脚本在安装前检查，直接开发/构建入口也执行检查。
 - 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）；CI / Demo / Release 基准版本读取根目录 `.bun-version`
 - CI：`.github/workflows/build.yml`、`release.yml`
 

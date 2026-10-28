@@ -53,7 +53,7 @@ title: 路线图
 | knife4j-core | debug 解析层抽取（resolveRef / OperationDebugModel / requestBuilder） | ✅ |
 | knife4j-core | buildSchemaExample & buildSchemaFieldTree | ✅ |
 | 基础设施 | Bun workspace 统一 front 包管理 | ✅ |
-| 基础设施 | 前端 Node.js `^24.15.0 || >=26.0.0` 统一基线 + Prettier / Spotless 格式化规范 | ✅ |
+| 基础设施 | 前端 Node.js `26.x` 统一基线 + Prettier / Spotless 格式化规范 | ✅ |
 
 ---
 

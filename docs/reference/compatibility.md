@@ -59,7 +59,7 @@ Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
 
 下限依据 [RegExp v 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/unicodeSets#browser_compatibility) 与 [Object.groupBy 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy#browser_compatibility) 制定，不代表最低版本或 Safari/Firefox 均已逐一实机验收。已合并变更的 Chromium 验证不能等同于全浏览器验收。
 
-当前源码的 OAS3、OAS2 Vue3、文档站及 Knife4x UI 同步统一要求 Node `^24.15.0 || >=26.0.0`，不再支持 Node 22、24.15 以下或 Node 25，也不支持预发行版。`.nvmrc` 默认选择 24 系列；CI 覆盖 24.15.0、24 当前补丁和 26 系列。此调整适用于源码开发、构建与测试，不反向改变历史版本的构建要求。直接使用 Maven 发布包或 Go module 无需 Node。Java / Go 运行时与浏览器基线保持不变。
+当前源码的 OAS3、OAS2 Vue3、文档站及 Knife4x UI 同步统一只支持稳定的 Node `26.x`，不接受其他主版本或预发行版。`.nvmrc` 默认选择 26 系列；CI 覆盖 26.0.0 下限和 26 当前补丁。此调整适用于源码开发、构建与测试，不反向改变历史版本的构建要求。直接使用 Maven 发布包或 Go module 无需 Node。Java / Go 运行时与浏览器基线保持不变。
 
 ## Schema Worker 部署要求
 

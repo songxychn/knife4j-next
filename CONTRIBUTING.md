@@ -9,7 +9,7 @@ Thank you for your interest in contributing! This guide covers the development s
 git clone https://github.com/<your-username>/knife4j-next.git
 cd knife4j-next
 
-# 2. Install front-end dependencies (all front-end tooling: Node ^24.15.0 || >=26.0.0, no Node 25/prereleases; see .nvmrc and .bun-version)
+# 2. Install front-end dependencies (all front-end tooling: stable Node 26.x; see .nvmrc and .bun-version)
 node front/scripts/check-node.cjs
 cd front && bun install --frozen-lockfile && cd ..
 
@@ -22,7 +22,7 @@ cd knife4j && mvn -B -ntp verify && cd ..
 
 The optional pre-commit hook checks formatting and lint only for staged changes under `front/core/` and `front/ui-react/`. CI remains the required merge gate.
 
-OAS3, Vue3, the docs site, and Knife4x UI synchronization share this Node baseline. Node 22 and Node 24 below 24.15 are no longer supported for source development/builds/tests. Using the published Maven artifacts or Go module does not require Node; browser and Java/Go runtime requirements are unchanged.
+OAS3, Vue3, the docs site, and Knife4x UI synchronization share this Node baseline. Source development/builds/tests support only stable Node 26.x; other major versions and prereleases are excluded. Using the published Maven artifacts or Go module does not require Node; browser and Java/Go runtime requirements are unchanged.
 
 ## Front-End Layout
 

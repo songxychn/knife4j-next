@@ -9,7 +9,7 @@ const { required, isSupportedNode } = require('./check-node.cjs');
 const root = resolve(__dirname, '../..');
 
 test('supports the unified stable Node range and rejects old, excluded and prerelease versions', () => {
-  for (const version of ['24.15.0', '24.22.1', '26.0.0', '26.1.0', '27.0.0']) {
+  for (const version of ['26.0.0', '26.1.0', '26.12.1', '26.99.99']) {
     assert.equal(isSupportedNode(version), true, version);
   }
   for (const version of [
@@ -18,7 +18,11 @@ test('supports the unified stable Node range and rejects old, excluded and prere
     '23.0.0',
     '24.0.0',
     '24.14.99',
+    '24.15.0',
+    '24.22.1',
     '25.9.0',
+    '27.0.0',
+    '28.0.0',
     '24.15.0-rc.1',
     '26.0.0-rc.1',
     'invalid',
@@ -27,18 +31,18 @@ test('supports the unified stable Node range and rejects old, excluded and prere
   }
 });
 
-test('all frontend manifests declare the same baseline and .nvmrc selects its LTS line', () => {
+test('all frontend manifests and .nvmrc select Node 26', () => {
   for (const path of ['front/package.json', 'front/vue3/package.json', 'docs/package.json']) {
     assert.equal(JSON.parse(readFileSync(resolve(root, path), 'utf8')).engines.node, required, path);
   }
-  assert.equal(readFileSync(resolve(root, '.nvmrc'), 'utf8').trim(), '24');
+  assert.equal(readFileSync(resolve(root, '.nvmrc'), 'utf8').trim(), '26');
 });
 
 test('unsupported Node is rejected before compiler loading or dependency installation', () => {
   const area = mkdtempSync(join(tmpdir(), 'knife4j-node-gate-'));
   try {
     const override = join(area, 'version.cjs');
-    writeFileSync(override, "Object.defineProperty(process.versions, 'node', { value: '25.0.0' });\n");
+    writeFileSync(override, "Object.defineProperty(process.versions, 'node', { value: '24.22.1' });\n");
     const marker = join(area, 'bun-called');
     writeFileSync(join(area, 'bun'), `#!/bin/sh\ntouch '${marker}'\nexit 99\n`, { mode: 0o755 });
     writeFileSync(join(area, 'node'), `#!/bin/sh\nexec '${process.execPath}' --require '${override}' "$@"\n`, {

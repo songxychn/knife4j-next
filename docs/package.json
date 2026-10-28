@@ -9,7 +9,7 @@
     "preview": "node ../front/scripts/check-node.cjs && vitepress preview . --host 127.0.0.1 --port 4173"
   },
   "engines": {
-    "node": "^24.15.0 || >=26.0.0"
+    "node": "26.x"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

@@ -1,12 +1,12 @@
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
-const required = '^24.15.0 || >=26.0.0';
+const required = '26.x';
 
 function isSupportedNode(version) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) return false;
-  const [major, minor] = version.split('.').map(Number);
-  return (major === 24 && minor >= 15) || major >= 26;
+  const [major] = version.split('.').map(Number);
+  return major === 26;
 }
 
 function checkNode() {

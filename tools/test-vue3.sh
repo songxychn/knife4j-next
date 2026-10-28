@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../front/vue3"
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Vue3 requires Node.js ^24.15.0 || >=26.0.0; install Node.js before running this check." >&2
+  echo "Vue3 requires Node.js 26.x; install Node.js before running this check." >&2
   exit 1
 fi
 node scripts/check-node.mjs

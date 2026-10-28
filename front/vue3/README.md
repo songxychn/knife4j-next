@@ -17,11 +17,11 @@ OAS2 兼容维护 UI（Vue 3 + Vite）。本目录产物被 `knife4j/knife4j-ope
 Vite 8.3.4 使用 Rolldown/Oxc 构建。JS 与 CSS 显式固定为 Chrome/Edge 117、Firefox 119、
 Safari 17.4 及以上；这是 Java 5.7.9 相比 5.7.8 提高的 OAS2 Vue3 最低版本；OAS3 的独立要求见[兼容矩阵](../../docs/reference/compatibility.md#浏览器基线)。
 Mermaid 12 使用新的默认主题、外观和 ELK 布局；其解析依赖需要原生 `Object.groupBy`，上述浏览器下限覆盖该 API。
-源码开发、构建与验证要求 Node `^24.15.0 || >=26.0.0`（不支持 Node 25）。
-CI 持续验证精确下限 24.15.0 及 24 系列当前补丁。日常推荐使用受支持 LTS 的最新补丁，`.nvmrc` 选择 24 系列。
+源码开发、构建与验证与 OAS3、文档站及 Knife4x UI 同步统一使用稳定的 Node `26.x`，不接受其他主版本或预发行版。
+CI 持续验证精确下限 26.0.0 及 26 系列当前补丁；日常使用该系列最新补丁，`.nvmrc` 选择 26 系列。
 `dev`、`build`、四发行模式、`preview` 和标准验证脚本会先检查 Node；Maven 调用相同的构建命令。
-该下限适用于本模块及包含其产物的完整源码构建；使用已发布 WebJar 的 Java 应用无需安装 Node，
-独立 OAS3/Go 模块的要求见 `.agent/RUNBOOK.md`，不随本次调整。
+该基线适用于源码开发、构建与验证；使用已发布 WebJar 的 Java 应用或 Go module 无需安装 Node。
+完整工具链说明见 `.agent/RUNBOOK.md`，浏览器和 Java/Go 运行时要求保持不变。
 
 ## 本地开发
 

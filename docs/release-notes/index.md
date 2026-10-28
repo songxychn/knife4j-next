@@ -12,7 +12,7 @@ title: 发布说明
 
 ## 未发布的源码工具链调整
 
-OAS3、OAS2 Vue3、文档站与 Knife4x UI 同步的 Node 要求统一为 `^24.15.0 || >=26.0.0`，不再支持 Node 22、24.15 以下、Node 25 或预发行版；`.nvmrc` 继续选择 24 系列。此调整只影响源码开发、构建和测试，直接使用已发布 Maven 包或 Go module 无需 Node；浏览器和 Java/Go 运行时基线不变。Vitest、Router、jsdom 等依赖版本未随本次调整升级，历史发布版本的构建要求保持原样。
+OAS3、OAS2 Vue3、文档站与 Knife4x UI 同步统一只支持稳定的 Node `26.x`，其他主版本与预发行版不在支持范围内；`.nvmrc` 选择 26 系列，CI 验证 26.0.0 下限与 26 当前补丁。此调整只影响源码开发、构建和测试，直接使用已发布 Maven 包或 Go module 无需 Node；浏览器和 Java/Go 运行时基线不变。Vitest、Router、jsdom 等依赖版本未随本次调整升级，历史发布版本的构建要求保持原样。
 
 ## knife4j-next 版本
 
