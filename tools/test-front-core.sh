@@ -5,13 +5,11 @@ cd "$(dirname "$0")/../front"
 
 node_bin="$(command -v node || true)"
 if [ -z "$node_bin" ]; then
-  echo "Node.js 22.13+ or 24+ is required for front-end builds and browser-semantics UI tests; use the version from .nvmrc" >&2
+  echo "Node.js is required for front-end tooling; use .nvmrc" >&2
   exit 1
 fi
-if ! "$node_bin" -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major >= 24 || (major === 22 && minor >= 13) ? 0 : 1)'; then
-  echo "Node.js 22.13+ or 24+ is required for front-end builds and browser-semantics UI tests; found $("$node_bin" --version)" >&2
-  exit 1
-fi
+"$node_bin" scripts/check-node.cjs
+"$node_bin" --test scripts/check-node.test.cjs
 
 bun install --frozen-lockfile
 

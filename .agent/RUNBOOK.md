@@ -5,9 +5,11 @@
 ## 环境
 
 - Java：`.java-version`
-- Node：`.nvmrc` 选择 24 系列，日常使用受支持 LTS 的最新补丁。Vue3 及包含其产物的完整源码构建要求 `^24.15.0 || >=26.0.0`（不支持 Node 25）；Vue3 CI 验证 24.15.0 和 24 系列当前补丁。独立 OAS3 工具链及 Knife4x UI 同步仍要求 Node 22.13+ 或 24+；ESLint 10 不支持 Node 23。
+- Node：OAS3、Vue3、docs 和 Knife4x UI 同步统一要求 `^24.15.0 || >=26.0.0`，不再支持 Node 22、24.15 以下或 Node 25，预发行版不在支持范围内。`.nvmrc` 继续选择 24 系列，日常使用受支持 LTS 的最新补丁；三组前端 CI 均验证 24.15.0、24 系列当前补丁和 26 系列。共享检查为 `front/scripts/check-node.cjs`，标准脚本在安装前检查，直接开发/构建入口也执行检查。
 - 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）；CI / Demo / Release 基准版本读取根目录 `.bun-version`
 - CI：`.github/workflows/build.yml`、`release.yml`
+
+React 的两个 Vitest project 通过 `execArgv` 显式关闭 Node 原生实验性 Web Storage（`--no-experimental-webstorage`），使集成测试继续使用 jsdom 的浏览器存储；Node 26 的全局 `localStorage` 否则会遮住 Vitest 4 的环境注入。Vitest worker 不会自动继承主进程的此项 CLI 参数，不能只改启动命令。此选项只影响测试进程，不改变页面或生产构建。
 
 当前源码的 OAS3 React UI（含 WebJar / Knife4x）浏览器下限为 Chrome/Edge 112、Firefox 116、
 Safari/iOS Safari 17，JSONPath 11 依赖原生 RegExp `v` 标志；不能把构建成功当成旧浏览器兼容。

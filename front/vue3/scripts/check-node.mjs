@@ -1,15 +1,11 @@
 import { readFileSync } from 'node:fs'
+import nodeBaseline from '../../scripts/check-node.cjs'
 
-const required = '^24.15.0 || >=26.0.0'
+const { required, checkNode } = nodeBaseline
 const { engines } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 if (engines?.node !== required) {
   throw new Error('Update check-node.mjs together with package.json engines.node')
 }
 
-const [major, minor] = process.versions.node.split('.').map(Number)
-const supported = (major === 24 && minor >= 15) || major >= 26
-if (!supported || process.versions.node.includes('-')) {
-  console.error(`Vue3 requires Node.js ${required}; found ${process.version}. Use a supported LTS release before installing or building.`)
-  process.exit(1)
-}
+if (!checkNode()) process.exit(1)
 console.log(`Vue3 Node.js check passed: ${process.version}`)

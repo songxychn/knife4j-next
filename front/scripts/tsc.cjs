@@ -1,4 +1,5 @@
 // Production compilation uses TS7; ESLint and ts-jest keep the TS6 API alias.
+if (!require('./check-node.cjs').checkNode()) process.exit(1);
 const { readFileSync } = require('node:fs');
 const { dirname, resolve } = require('node:path');
 const { spawnSync } = require('node:child_process');

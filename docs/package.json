@@ -4,9 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev . --host 127.0.0.1 --port 4173",
-    "build": "vitepress build .",
-    "preview": "vitepress preview . --host 127.0.0.1 --port 4173"
+    "dev": "node ../front/scripts/check-node.cjs && vitepress dev . --host 127.0.0.1 --port 4173",
+    "build": "node ../front/scripts/check-node.cjs && vitepress build .",
+    "preview": "node ../front/scripts/check-node.cjs && vitepress preview . --host 127.0.0.1 --port 4173"
+  },
+  "engines": {
+    "node": "^24.15.0 || >=26.0.0"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

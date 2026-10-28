@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node ../scripts/check-node.cjs && vite",
     "build": "node ../scripts/tsc.cjs && vite build",
     "test": "node ../node_modules/vitest/vitest.mjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
-    "preview": "vite preview"
+    "preview": "node ../scripts/check-node.cjs && vite preview"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

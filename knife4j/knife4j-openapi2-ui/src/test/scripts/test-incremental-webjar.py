@@ -62,7 +62,8 @@ def check(module, expected, label):
 def copy_inputs(root):
     paths = subprocess.check_output([
         "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z",
-        "front/vue3", "knife4j/pom.xml", "knife4j/src/main/resources",
+        "front/package.json", "front/scripts/check-node.cjs", "front/vue3",
+        "knife4j/pom.xml", "knife4j/src/main/resources",
         str(MODULE_PATH / "pom.xml"), str(MODULE_PATH / "src/main/resources"),
         str(MODULE_PATH / "src/test/java"),
     ], cwd=REPO).decode().split("\0")

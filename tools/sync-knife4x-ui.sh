@@ -32,13 +32,10 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 node_bin="$(command -v node || true)"
 if [ -z "$node_bin" ]; then
-  echo "Node.js 22.13+ or 24+ is required to build reproducible Knife4x UI assets; use the version from .nvmrc" >&2
+  echo "Node.js is required to build Knife4x UI assets; use .nvmrc" >&2
   exit 1
 fi
-if ! "$node_bin" -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major >= 24 || (major === 22 && minor >= 13) ? 0 : 1)'; then
-  echo "Node.js 22.13+ or 24+ is required to build reproducible Knife4x UI assets; found $("$node_bin" --version)" >&2
-  exit 1
-fi
+"$node_bin" "$front_root/scripts/check-node.cjs"
 
 cd "$front_root"
 bun install --frozen-lockfile

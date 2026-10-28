@@ -11,6 +11,7 @@
 | `java-compatibility-report.sh` | 对比显式 Central 基线并生成 report-first 的 Markdown / JSON / XML 报告 |
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
 | `test-front-core.sh` | core + React format/lint/test/build |
+| `../front/scripts/check-node.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Node 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
 | `test-docs.sh` | 文档站构建 |
 | `test-all.sh` | java + front-core + vue3 + docs |

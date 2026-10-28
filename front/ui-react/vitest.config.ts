@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 const coreAlias = { 'knife4j-core': path.resolve(__dirname, '../core/lib') };
+// Keep Node's native Web Storage from shadowing the jsdom browser environment.
+const execArgv = ['--no-experimental-webstorage'];
 
 export default defineConfig({
   test: {
@@ -9,6 +11,7 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
+          execArgv,
           environment: 'node',
           include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
           exclude: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.tsx'],
@@ -30,6 +33,7 @@ export default defineConfig({
       {
         test: {
           name: 'integration',
+          execArgv,
           environment: 'jsdom',
           include: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.tsx'],
           setupFiles: ['src/test/integrationSetup.ts'],
