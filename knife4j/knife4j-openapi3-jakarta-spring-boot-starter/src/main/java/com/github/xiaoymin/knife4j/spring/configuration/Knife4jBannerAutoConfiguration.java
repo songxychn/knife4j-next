@@ -76,8 +76,7 @@ public class Knife4jBannerAutoConfiguration implements ApplicationListener<Appli
 
         LOGGER.info("\n{}\n :: Knife4j Next ::  (v{})\n"
                 + "\n Enhanced   : {}\n Production : {}\n Basic Auth : {}, credentials={}"
-                + "\n\n 启用 Knife4j 文档屏蔽需同时设置"
-                + "\n knife4j.enable=true 和 knife4j.production=true。\n",
+                + "\n\n 启用 Knife4j 文档屏蔽需同时设置 knife4j.enable=true 和 knife4j.production=true。\n",
                 LOGO, version(), enhanced ? "enabled" : "disabled",
                 status(production, enhanced), status(basic, enhanced), credentials);
     }

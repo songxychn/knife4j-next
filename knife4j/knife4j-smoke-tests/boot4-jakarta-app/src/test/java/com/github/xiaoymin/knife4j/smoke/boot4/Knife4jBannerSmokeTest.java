@@ -73,7 +73,7 @@ public class Knife4jBannerSmokeTest {
         Assert.assertTrue(output.contains("Enhanced   : disabled"));
         Assert.assertTrue(output.contains("Production : disabled"));
         Assert.assertTrue(output.contains("Basic Auth : disabled, credentials=not configured"));
-        Assert.assertTrue(output.contains("启用 Knife4j 文档屏蔽需同时设置"));
+        Assert.assertTrue(output.contains("启用 Knife4j 文档屏蔽需同时设置 knife4j.enable=true 和 knife4j.production=true。"));
         Assert.assertFalse(output.contains("生产部署请确认文档访问控制"));
         Assert.assertTrue("Version should be populated by Maven, including exploded-class launches",
                 output.matches("(?s).*\\(v[0-9]+\\.[0-9]+\\.[0-9]+[^)]*\\).*"));
