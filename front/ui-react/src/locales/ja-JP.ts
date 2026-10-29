@@ -290,6 +290,14 @@ const jaJP = {
     '文書内の Schema がメタ検証に失敗しました。失敗した箇所の一部を以下に示します。現在の JSON サンプルの構文エラーを意味するものではありません。既存のサンプル内容は保持されます。',
   'schema.example.invalidDocument.keyword': 'Schema キーワード：{{keyword}}',
   'schema.example.validationUnavailable.title': 'サンプルを検証できません',
+  'schema.example.patternUnavailable.title': 'Schema の正規表現をコンパイルできないため、サンプルを自動生成できません',
+  'schema.example.patternUnavailable.description':
+    '現在のブラウザーの検証器ではこの式をコンパイルできません。Java など、別の正規表現方言を使用していないか確認してください。',
+  'schema.example.patternUnavailable.pattern': '正規表現：',
+  'schema.example.patternUnavailable.field': 'フィールドの位置：',
+  'schema.example.patternUnavailable.location': '文書内の位置を表示',
+  'schema.example.patternUnavailable.preserved':
+    '既存のサンプルと手入力の内容は保持されます。未検証の生成候補は入力されません。',
   'schema.example.validationUnavailable.description':
     '作成者のサンプルは保持しますが、未検証の OAS 3.1 候補は生成しません。',
   'schema.example.referenceUnavailable.title': '作成者のサンプル参照を利用できません',

@@ -315,7 +315,14 @@ export async function createSchemaDocumentSession(
               return source ? { ...source, keyword: issue.keyword } : undefined;
             },
           }
-        : projected;
+        : {
+            ...projected,
+            publicSchemaIssue: (issue) => {
+              if (issue.documentUri !== projected.retrievalUri) return issue;
+              const pointer = projected.sourcePointerFor(issue.pointer);
+              return pointer ? { ...issue, documentUri: retrievalUri, pointer } : undefined;
+            },
+          };
       await engine.registerDocument(
         projection.document,
         projection.retrievalUri,
@@ -366,6 +373,18 @@ export async function createSchemaDocumentSession(
     try {
       return await runOperation(() => engine.evaluate(projection.referenceFor(reference), instance, evaluationOptions));
     } catch (error) {
+      if (error instanceof engineModule.SchemaEngineError && error.details.regexIssues) {
+        const regexIssues = error.details.regexIssues.flatMap((issue) => {
+          const source = projection.publicSchemaIssue?.({ ...issue, keyword: 'pattern' });
+          return source
+            ? [Object.freeze({ documentUri: source.documentUri, pointer: source.pointer, pattern: issue.pattern })]
+            : [];
+        });
+        throw new engineModule.SchemaEngineError(error.code, error.message, {
+          uri: regexIssues[0]?.documentUri ?? retrievalUri,
+          regexIssues: Object.freeze(regexIssues),
+        });
+      }
       if (
         error instanceof engineModule.SchemaEngineError &&
         error.details.schemaIssues &&

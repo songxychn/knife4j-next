@@ -258,6 +258,13 @@ const zhCN = {
     '文档中的 Schema 未通过规范校验；以下列出部分失败位置。这不表示当前 JSON 示例有语法错误，已有示例内容会保留。',
   'schema.example.invalidDocument.keyword': 'Schema 关键字：{{keyword}}',
   'schema.example.validationUnavailable.title': '示例验证暂不可用',
+  'schema.example.patternUnavailable.title': 'Schema 正则无法编译，自动示例生成不可用',
+  'schema.example.patternUnavailable.description':
+    '当前浏览器验证器无法编译此表达式。请检查是否使用了 Java 等其他正则方言。',
+  'schema.example.patternUnavailable.pattern': '正则：',
+  'schema.example.patternUnavailable.field': '字段位置：',
+  'schema.example.patternUnavailable.location': '查看文档位置',
+  'schema.example.patternUnavailable.preserved': '已有示例和手工输入内容会保留，不会填入未经验证的生成候选。',
   'schema.example.validationUnavailable.description': '作者示例会保留，但不会生成未经验证的 OAS 3.1 候选。',
   'schema.example.referenceUnavailable.title': '作者示例引用暂不可用',
   'schema.example.referenceUnavailable.description':

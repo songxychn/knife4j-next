@@ -23,12 +23,20 @@ export interface SchemaMetaIssue {
   readonly keyword: string;
 }
 
+/** A pattern that the current ECMA-262 compiler could not compile, not a meta-schema failure. */
+export interface SchemaRegexIssue {
+  readonly documentUri: string;
+  readonly pointer: string;
+  readonly pattern: string;
+}
+
 export interface SchemaEngineErrorDetails {
   uri?: string;
   resourceUri?: string;
   limit?: number;
   actual?: number;
   schemaIssues?: readonly SchemaMetaIssue[];
+  regexIssues?: readonly SchemaRegexIssue[];
 }
 
 export class SchemaEngineError extends Error {

@@ -16,6 +16,31 @@ vi.mock('react-i18next', () => ({
 import SchemaExampleNotice from './SchemaExampleNotice';
 
 describe('SchemaExampleNotice', () => {
+  test('shows a pattern compilation diagnostic without claiming a meta-schema failure or exposing engine addresses', () => {
+    const pointer = '#/components/schemas/Role/properties/roleName/pattern';
+    const pattern = '^[\\p{IsHan}A-Za-z0-9]+$';
+    const notice = SchemaExampleNotice({
+      result: {
+        status: 'none',
+        reason: 'evaluation-unavailable',
+        diagnostics: [
+          {
+            code: 'EVALUATION_UNAVAILABLE',
+            message: 'private engine error https://knife4j.invalid/schema-projections/session/',
+            regexIssues: [{ documentUri: 'https://example.test/openapi.json', pointer, pattern }],
+          },
+        ],
+      },
+    });
+    expect(notice?.props.title).toBe('schema.example.patternUnavailable.title');
+    const rendered = JSON.stringify(notice);
+    expect(rendered).toContain(pointer);
+    expect(rendered).toContain(JSON.stringify(pattern).slice(1, -1));
+    expect(rendered).toContain('schema.example.patternUnavailable.preserved');
+    expect(rendered).toContain('schema.example.patternUnavailable.location');
+    expect(rendered).not.toMatch(/schema-projections|private engine|invalidDocument/);
+  });
+
   test('shows the actual limit and instance location instead of calling an output limit unbounded backtracking', () => {
     const notice = SchemaExampleNotice({
       result: {

@@ -12,6 +12,7 @@ export {
   type SchemaEngineErrorCode,
   type SchemaEngineErrorDetails,
   type SchemaMetaIssue,
+  type SchemaRegexIssue,
 } from './errors';
 export type {
   EvaluationAnnotation,

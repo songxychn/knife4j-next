@@ -34,6 +34,38 @@ export default function SchemaExampleNotice({ result, style }: SchemaExampleNoti
   const { t } = useTranslation();
   if (result.status === 'value' && result.validation === 'valid') return null;
 
+  const regexDiagnostics = result.diagnostics.filter((diagnostic) => diagnostic.regexIssues !== undefined);
+  if (regexDiagnostics.length) {
+    const issues = regexDiagnostics.flatMap((diagnostic) => diagnostic.regexIssues ?? []);
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        title={t('schema.example.patternUnavailable.title')}
+        description={
+          <div>
+            <div>{t('schema.example.patternUnavailable.description')}</div>
+            {issues.map((issue) => (
+              <div key={`${issue.documentUri}:${issue.pointer}`} style={{ marginTop: 8, overflowWrap: 'anywhere' }}>
+                <div>{t('schema.example.patternUnavailable.field')}</div>
+                <code>{issue.pointer}</code>
+                <div>{t('schema.example.patternUnavailable.pattern')}</div>
+                <code style={{ whiteSpace: 'pre-wrap' }}>{issue.pattern}</code>
+                <details style={{ marginTop: 8 }}>
+                  <summary>{t('schema.example.patternUnavailable.location')}</summary>
+                  <div>{issue.documentUri}</div>
+                  <code>{issue.pointer}</code>
+                </details>
+              </div>
+            ))}
+            <div style={{ marginTop: 8 }}>{t('schema.example.patternUnavailable.preserved')}</div>
+          </div>
+        }
+        style={style}
+      />
+    );
+  }
+
   const schemaDiagnostics = result.diagnostics.filter((diagnostic) => diagnostic.schemaIssues !== undefined);
   if (schemaDiagnostics.length) {
     const issues = schemaDiagnostics.flatMap((diagnostic) => diagnostic.schemaIssues ?? []);

@@ -290,6 +290,14 @@ const enUS = {
     'A Schema in the document failed meta-validation. Some failing locations are listed below. This does not indicate a JSON syntax error in the current example; existing example content is preserved.',
   'schema.example.invalidDocument.keyword': 'Schema keyword: {{keyword}}',
   'schema.example.validationUnavailable.title': 'Example validation is unavailable',
+  'schema.example.patternUnavailable.title': 'Schema pattern compilation failed; automatic examples are unavailable',
+  'schema.example.patternUnavailable.description':
+    'The current browser validator cannot compile this expression. Check whether it uses Java or another regular expression dialect.',
+  'schema.example.patternUnavailable.pattern': 'Pattern:',
+  'schema.example.patternUnavailable.field': 'Field location:',
+  'schema.example.patternUnavailable.location': 'Show document location',
+  'schema.example.patternUnavailable.preserved':
+    'Existing examples and manual input are preserved. No unvalidated generated candidate will be inserted.',
   'schema.example.validationUnavailable.description':
     'Authored examples are preserved, but Knife4j will not create an unvalidated OAS 3.1 candidate.',
   'schema.example.referenceUnavailable.title': 'The authored example reference is unavailable',

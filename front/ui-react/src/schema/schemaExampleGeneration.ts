@@ -40,6 +40,7 @@ export interface SchemaExampleDiagnostic {
   readonly issues?: readonly SchemaExampleIssue[];
   readonly totalIssues?: number;
   readonly schemaIssues?: import('knife4j-schema-engine').SchemaEngineErrorDetails['schemaIssues'];
+  readonly regexIssues?: import('knife4j-schema-engine').SchemaEngineErrorDetails['regexIssues'];
   readonly budget?: keyof SchemaExampleSearchLimits;
   readonly limit?: number;
   readonly actual?: number;
@@ -1581,8 +1582,13 @@ function unavailableDiagnostic(
   code: 'EVALUATION_UNAVAILABLE' | 'SCHEMA_UNAVAILABLE',
   error: unknown,
 ): SchemaExampleDiagnostic {
-  const { schemaIssues } = toSchemaDocumentFailure(error).details;
-  return { code, message: unavailableMessage(error), ...(schemaIssues ? { schemaIssues } : {}) };
+  const { schemaIssues, regexIssues } = toSchemaDocumentFailure(error).details;
+  return {
+    code,
+    message: unavailableMessage(error),
+    ...(schemaIssues ? { schemaIssues } : {}),
+    ...(regexIssues ? { regexIssues } : {}),
+  };
 }
 
 function isRecoverableResolutionFailure(error: unknown): boolean {

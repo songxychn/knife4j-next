@@ -1,4 +1,9 @@
-import { removeUriSchemePlugin, UnsupportedUriSchemeError, type Browser } from '@hyperjump/browser';
+import {
+  removeUriSchemePlugin,
+  UnsupportedUriSchemeError,
+  value as browserValue,
+  type Browser,
+} from '@hyperjump/browser';
 import { Reference } from '@hyperjump/browser/jref';
 import {
   getAllRegisteredSchemaUris,
@@ -10,11 +15,13 @@ import {
 } from '@hyperjump/json-schema/openapi-3-1';
 import {
   AnnotationsPlugin,
+  addKeyword,
   BASIC,
   buildSchemaDocument,
   canonicalUri,
   compile,
   getSchema,
+  getKeyword,
   interpret,
   toSchema,
   type CompiledSchema,
@@ -95,6 +102,33 @@ const lockDownExternalResourceLoading = (): void => {
 registerOpenApi32Dialects();
 lockDownExternalResourceLoading();
 
+class PatternCompilationFailure extends Error {
+  public constructor(
+    public readonly schema: Browser<SchemaDocument>,
+    public readonly pattern: string,
+  ) {
+    super('The Schema pattern could not be compiled.');
+  }
+}
+
+// Keep the upstream compiler and interpreter. Capture the actual keyword cursor
+// only when its RegExp construction fails; do not scan unrelated Schema roots or
+// infer a field from engine-specific SyntaxError text.
+const patternKeyword = getKeyword<RegExp>('https://json-schema.org/keyword/pattern');
+addKeyword({
+  ...patternKeyword,
+  compile: async (schema, ast, parent) => {
+    try {
+      return await patternKeyword.compile(schema, ast, parent);
+    } catch (error) {
+      const pattern = browserValue<unknown>(schema);
+      if (error instanceof SyntaxError && typeof pattern === 'string')
+        throw new PatternCompilationFailure(schema, pattern);
+      throw error;
+    }
+  },
+});
+
 const builtInResourceUris = new Set(getAllRegisteredSchemaUris().map((uri) => withoutFragment(uri)));
 let activeOwner: symbol | undefined;
 
@@ -102,6 +136,7 @@ interface RegisteredDocument {
   retrievalUri: string;
   resourceUris: Set<string>;
   registryUris: Set<string>;
+  resourcePointers?: ReadonlyMap<string, string>;
   oas32?: OpenApi32Registration;
   metaValidated?: boolean;
   metaFailure?: SchemaEngineError;
@@ -287,7 +322,8 @@ function inspectResourceDeclarations(
   document: unknown,
   retrievalUri: string,
   prepared: Pick<PreparedDocument, 'unmaskSchemaObject' | 'hasMaskedControl'>,
-): void {
+): ReadonlyMap<string, string> {
+  const resourcePointers = new Map<string, string>([[withoutFragment(retrievalUri), '#']]);
   const declared = new Map<string, string>([[withoutFragment(retrievalUri), '# (retrieval URI)']]);
   const anchors = new Map<string, Map<string, string>>();
   const defaultSchemaDialect =
@@ -368,6 +404,7 @@ function inspectResourceDeclarations(
     }
 
     if (declaresResource) {
+      resourcePointers.set(resourceBase, path);
       if (value.$vocabulary !== undefined) {
         throw new SchemaEngineError(
           'UNSUPPORTED_DIALECT',
@@ -578,6 +615,7 @@ function inspectResourceDeclarations(
 
   if (isRecord(document) && typeof document.openapi === 'string') visitOpenApiDocument(document);
   else visitSchema(document, retrievalUri, '#', true);
+  return resourcePointers;
 }
 
 function contextDialectFor(document: unknown): string {
@@ -790,8 +828,10 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     const oas32 = uses32 ? new OpenApi32Registration(document, normalizedRetrievalUri, context) : undefined;
     const contextDialect = oas32 ? OAS32_DOCUMENT_WRAPPER : contextDialectFor(document);
     const prepared = prepareDocumentForHyperjump(document);
+    const resourcePointers = oas32
+      ? undefined
+      : inspectResourceDeclarations(prepared.value, normalizedRetrievalUri, prepared);
     if (oas32) oas32.prepare(prepared.value, prepared.unmaskSchemaObject, (uri) => builtInResourceUris.has(uri));
-    else inspectResourceDeclarations(prepared.value, normalizedRetrievalUri, prepared);
     inspectJsonValue(prepared.value, {
       kind: 'schema',
       maxNodes: this.limits.maxSchemaNodes,
@@ -905,6 +945,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         retrievalUri: normalizedRetrievalUri,
         resourceUris,
         registryUris,
+        resourcePointers,
         oas32,
         processingDocuments: oas32 ? processingDocuments : undefined,
       };
@@ -1027,6 +1068,8 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       };
     } catch (error) {
       if (indexed) this.assertGeneration(generation);
+      const patternFailure = this.patternCompilationError(error);
+      if (patternFailure) throw patternFailure;
       if (indexed && findCause(error, InvalidSchemaError)) {
         // Recheck processing documents after an upstream meta-validation failure.
         // The retry guard belongs to the failing registration, never to unrelated owners.
@@ -1191,6 +1234,29 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       }
       registration.referencesGeneration = this.generation;
     }
+  }
+
+  private patternCompilationError(error: unknown): SchemaEngineError | undefined {
+    const failure = findCause(error, PatternCompilationFailure);
+    if (!failure) return undefined;
+    const { document, cursor } = failure.schema;
+    for (const registration of this.documents.values()) {
+      const source = registration.oas32?.publicKeywordSource(canonicalUri(failure.schema));
+      const resourcePointer = registration.resourcePointers?.get(withoutFragment(document.baseUri));
+      const pointer = source
+        ? childPointer(source.node.pointer, source.keyword)
+        : resourcePointer !== undefined
+          ? `${resourcePointer}${cursor}`
+          : undefined;
+      if (pointer === undefined) continue;
+      return new SchemaEngineError('SCHEMA_RESOLUTION_FAILED', 'The Schema pattern could not be compiled.', {
+        uri: registration.retrievalUri,
+        regexIssues: Object.freeze([
+          Object.freeze({ documentUri: registration.retrievalUri, pointer, pattern: failure.pattern }),
+        ]),
+      });
+    }
+    return undefined;
   }
 
   private openApi32Error(error: unknown, operationUri: string): SchemaEngineError {
