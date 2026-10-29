@@ -104,6 +104,36 @@ test('preserves an authored example with the same structured failure', async () 
   });
 });
 
+test.each([
+  { direction: 'request' as const, annotation: 'readOnly' },
+  { direction: 'response' as const, annotation: 'writeOnly' },
+])('maps $direction specialization failures to the referenced source schema', async ({ direction, annotation }) => {
+  const input = document();
+  input.components!.schemas!.Role = {
+    $id: 'role.json',
+    type: 'object',
+    properties: { id: { type: 'string', [annotation]: true }, roleName: { type: 'string', pattern } },
+    required: ['id', 'roleName'],
+  };
+  input.components!.schemas!.Derived = {
+    allOf: [{ $ref: '#/components/schemas/Role' }],
+    type: 'object',
+    properties: { id: { type: 'string', [annotation]: true } },
+  };
+  session = await createSchemaDocumentSession(input, uri);
+  const result = await generateSchemaExample(session, '#/components/schemas/Derived', { direction });
+  expect(result).toMatchObject({
+    status: 'none',
+    reason: 'evaluation-unavailable',
+    diagnostics: [
+      {
+        regexIssues: [{ documentUri: uri, pointer: '#/components/schemas/Role/properties/roleName/pattern', pattern }],
+      },
+    ],
+  });
+  expect(JSON.stringify(result)).not.toMatch(/schema-projections|directional\d|specializations/);
+});
+
 test('a compatible Unicode pattern generates a validated example', async () => {
   session = await createSchemaDocumentSession(document('^[\\p{Script=Han}A-Za-z0-9]+$'), uri);
   await expect(

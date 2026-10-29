@@ -41,6 +41,7 @@ interface SchemaLocation {
 
 interface IndexedSchema {
   readonly schema: JsonSchema;
+  readonly sourcePath: readonly string[];
   /** Base URI before applying this schema's own `$id`. */
   readonly baseUri: string;
   readonly location: Pick<SchemaLocation, 'originalResource' | 'originalPath' | 'projectedResource' | 'projectedPath'>;
@@ -322,6 +323,8 @@ export function createDirectionalSchemaProjection(
     }
     projectionMetadataOperations = actual;
   };
+  reserveProjectionMetadataEntries(roots.length);
+  const diagnosticRoots = new Map(roots.map((root) => [root.key, root.path]));
   const sourceCosts = new WeakMap<object, { readonly nodes: number; readonly references: number }>();
   const sourceCost = (value: JsonValue, depth = 0): { readonly nodes: number; readonly references: number } => {
     if (depth > DIRECTIONAL_PROJECTION_LIMITS.maxDepth) {
@@ -432,6 +435,7 @@ export function createDirectionalSchemaProjection(
     if (!indexed) {
       indexed = {
         schema,
+        sourcePath: location.originalDocumentPath,
         baseUri: location.originalResource,
         location: {
           originalResource: location.originalResource,
@@ -950,6 +954,8 @@ export function createDirectionalSchemaProjection(
     const definitionReference = locationReference(projectedRetrieval, ['$defs', definitionName]);
     const specialization: ProjectionSpecialization = { index, resources: new Map() };
     specializationReferences.set(specializationKey, definitionReference);
+    reserveProjectionMetadataEntries(1);
+    diagnosticRoots.set(definitionName, target.sourcePath);
     definitions[definitionName] = true;
     definitions[definitionName] = cloneSchemaWithBudget(
       target.schema,
@@ -1141,10 +1147,10 @@ export function createDirectionalSchemaProjection(
     retrievalUri: projectedRetrieval,
     referenceFor: (reference: string): string => rewriteReference(reference, originalRetrieval),
     sourcePointerFor: (pointer: string): string | undefined => {
-      for (const root of roots) {
-        const prefix = `#/$defs/${decodeURIComponent(pointerToken(root.key))}`;
+      for (const [key, path] of diagnosticRoots) {
+        const prefix = `#/$defs/${decodeURIComponent(pointerToken(key))}`;
         if (pointer === prefix || pointer.startsWith(`${prefix}/`))
-          return `#/${root.path.map((token) => decodeURIComponent(pointerToken(token))).join('/')}${pointer.slice(prefix.length)}`;
+          return `#/${path.map((token) => decodeURIComponent(pointerToken(token))).join('/')}${pointer.slice(prefix.length)}`;
       }
       return undefined;
     },
