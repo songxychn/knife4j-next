@@ -4,7 +4,7 @@ title: 快速开始
 
 # 快速开始
 
-> 本页示例面向待发布的 Java `5.8.0`；正式发布前请使用已发布的 `5.7.10`。
+本文示例使用 Java `5.8.0`。
 
 本指南给出四条接入路径对应的最小可运行工程。每条路径都经过 `master` 的 `knife4j-smoke-tests` 模块回归验证。
 
@@ -21,7 +21,7 @@ title: 快速开始
 
 ### 环境要求
 
-> **5.8.0 沿用 5.7.10 的浏览器要求**：OAS3 要求 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 要求 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4。Boot4 线沿用 Boot `4.1.2`、Jackson 2 `2.22.4` / Jackson 3 `3.1.8`；消费方仍须核对最终 BOM 与依赖树。
+浏览器要求与 Boot4/Jackson 依赖说明见[兼容矩阵](../reference/compatibility)。
 
 ::: info 5.8.0 支持下限
 `5.8.0` 的 Boot3 Jakarta WebMVC、WebFlux 与独立聚合使用 springdoc `2.9.1`，Swagger Jakarta

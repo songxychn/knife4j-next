@@ -8,9 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 准备版本 | `v0.9.0`（待发布） |
-| 目标 tag | `knife4x/go/v0.9.0`（尚未创建） |
-| 最新已发布版本 | `v0.8.9` |
+| 当前发布版本 | `v0.9.0` |
+| 发布 tag | `knife4x/go/v0.9.0` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按

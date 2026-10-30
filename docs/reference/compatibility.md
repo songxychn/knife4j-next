@@ -11,14 +11,14 @@ title: 兼容矩阵
 
 ## 依赖基线
 
-::: warning Java 5.8.0 / Go v0.9.0 发布准备
+::: info Java 5.8.0 / Go v0.9.0 依赖基线
 Boot4 WebMVC、独立聚合、Gateway 及 Demo 的源码验证基线沿用 Boot `4.1.2`，
 Cloud 保持 `2025.1.3`，springdoc 保持 `3.0.3`，Java 下限仍为 17。
 Boot4 构建另外导入 Jackson 2 `2.22.4` / Jackson 3 `3.1.8` BOM，修复 `CVE-2026-110879`；
 WebMVC 和独立聚合 starter 直接声明现有 Jackson 组件，以向没有自有 BOM 的消费方传递修复版本。
 消费方的 `dependencyManagement` 仍可覆盖这些版本，接入时请按
 [Jackson 依赖告警处理](../guide/faq#jackson-依赖告警处理) 检查最终依赖树。
-以下表格描述待发布 `5.8.0`；最新已发布版本仍为 Java `5.7.10` / Go `v0.8.9`。发布准备不代表制品已经可用或线上已部署，也不承诺其他组件没有漏洞。
+以下表格描述已发布 Java `5.8.0` / Go `v0.9.0` 的依赖与兼容范围。
 :::
 
 | 维度 | 版本 |
@@ -30,7 +30,7 @@ WebMVC 和独立聚合 starter 直接声明现有 Jackson 组件，以向没有�
 | 前端 UI | React（openapi3 starter，打包 `front/ui-react`）；Vue 3（openapi2 starter，打包本仓库 `front/vue3`） |
 
 ::: info 发布版本与源码能力
-上表为待发布 `5.8.0` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
+上表为 `5.8.0` 的依赖基线；本轮 OpenAPI 3.1 能力从 Java `5.5.0` 起提供，
 OpenAPI 3.2 消费从 Java `5.7.0` 起提供，
 不应反向视为 `5.4.0` 等历史版本的能力。支持范围见 [OpenAPI 3.1 支持与迁移](../guide/openapi31)
 和 [OpenAPI 3.2 支持与迁移](../guide/openapi32)。

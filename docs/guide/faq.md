@@ -28,12 +28,12 @@ title: 常见问题
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-下表按版本记录发布范围。Java `5.8.0`（待发布）的 OpenAPI 3.1 / 3.2 契约及其限制见
+下表按版本记录发布范围。Java `5.8.0` 的 OpenAPI 3.1 / 3.2 契约及其限制见
 [OpenAPI 3.1 支持与迁移](./openapi31) 和 [OpenAPI 3.2 支持矩阵](./openapi32)。
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
-| `5.8.0`（待发布） | Markdown 复制、OAS3 WebMVC 启动摘要、Schema 与 MVC Gateway 修复；源码构建要求 Node 26 | — |
+| `5.8.0` | Markdown 复制、OAS3 WebMVC 启动摘要、Schema 与 MVC Gateway 修复；源码构建要求 Node 26 | — |
 | `5.7.10` | Boot4/Jackson 修补、Schema 示例生成修复及 OAS2/构建链依赖维护；Demo 专用修补不传递至 Boot2 starter | — |
 | `5.7.9` | 前端维护与 JSONPath / Markdown / Schema 解析修复；两条 UI 浏览器下限提高 | — |
 | `5.7.8` | springdoc 2.9.1 / Boot BOM、Schema 展示与 WebJar 构建修复；Boot3 生成器下限调整 | — |

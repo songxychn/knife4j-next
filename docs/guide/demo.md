@@ -32,11 +32,11 @@ Demo 镜像有两条通道：正式 Java Release 核验后构建版本标签与 
 | --- | --- | --- |
 | Spring Boot | `4.1.2` | 当前源码通过 Boot BOM 显式声明；沿用已发布 `5.7.10` 的 `4.1.2` |
 | Jackson | 2：`2.22.4`；3：`3.1.8` | 当前源码优先导入两条 Jackson BOM |
-| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.8.0`（待发布） |
+| knife4j starter | `knife4j-openapi3-boot4-spring-boot-starter` | 本仓库 `5.8.0` |
 | JDK | 17 | Dockerfile base image `eclipse-temurin:17-jre-alpine` |
 | springdoc-openapi | `3.0.3` | 由 starter 管理 |
 
-上述依赖自已发布 `5.7.10` 起提供，待发布 `5.8.0` 继续沿用；候选源码和镜像构建不证明线上 Demo 已切换。`5.7.9` 的 Maven 包不包含这些 Jackson 修复。
+上述依赖自 `5.7.10` 起提供，`5.8.0` 继续沿用。`5.7.9` 的 Maven 包不包含这些 Jackson 修复。
 
 ### 展示了什么
 
@@ -103,7 +103,7 @@ docker run --rm -p 8080:8080 \
 | 组件 | 版本 | 说明 |
 | --- | --- | --- |
 | Spring Boot | `2.7.18` | 由根 pom `knife4j-spring-boot.version` 管理 |
-| knife4j starter | `knife4j-openapi2-spring-boot-starter` | 本仓库 `5.8.0`（待发布） |
+| knife4j starter | `knife4j-openapi2-spring-boot-starter` | 本仓库 `5.8.0` |
 | JDK | 8 | Dockerfile base image `eclipse-temurin:8-jre-alpine` |
 | springfox | `2.10.5` | Swagger 2 注解解析 |
 

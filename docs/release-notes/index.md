@@ -12,9 +12,9 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-> `5.8.0` 与配套 Go `v0.9.0` 当前处于发布准备；最新已发布版本为 Java `5.7.10` / Go `v0.8.9`。
+Java `5.8.0` 与配套 Go `v0.9.0` 已发布。
 
-### 5.8.0 <Badge type="info" text="待发布" />
+### 5.8.0 <Badge type="tip" text="最新已发布" />
 
 相较于 `5.7.10`，新增完整单接口 Markdown 复制与 Java OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 MVC Gateway 服务发现刷新。配套 Knife4x Go `v0.9.0` 同步共享 React UI。
 
@@ -38,7 +38,7 @@ title: 发布说明
 
 Java 依赖与 Boot2/3/4 矩阵沿用 `5.7.10`；Java 8/17、Go 公共库 1.22、Gin 示例 1.26+、坐标及 Go Handler API/路由保持不变。浏览器要求沿用上一版：OAS3 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不增加最低浏览器实机覆盖承诺。仍消费既有 OpenAPI 3.0/3.1/3.2 JSON，springdoc 仍生成 3.0/3.1，不新增 YAML 或规范版本支持。
 
-### 5.7.10 <Badge type="tip" text="最新已发布" />
+### 5.7.10
 
 相较于 `5.7.9`，纳入 Boot4/Jackson 依赖修补、共享 React UI 的 Schema 示例生成预算修复，以及 OAS2 和构建链依赖维护。配套 Knife4x Go 版本为 `v0.8.9`。
 

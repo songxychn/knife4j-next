@@ -6,7 +6,7 @@ lang: en-US
 
 # OpenAPI 3.1 Support and Migration
 
-> Java `5.8.0` / Go `v0.9.0` are pending release; the latest published versions remain Java `5.7.10` / Go `v0.8.9`.
+This page covers published Java `5.8.0` / Go `v0.9.0`.
 
 [中文契约](./openapi31) · [Download minimal JSON](/examples/openapi-3.1-minimal.json) · [Download minimal YAML](/examples/openapi-3.1-minimal.yaml)
 
@@ -22,7 +22,7 @@ This document does not change any starter or default setting.
 OpenAPI defines its feature set at the `major.minor` level. `3.1.x` therefore shares one **OpenAPI 3.1 feature set** without
 patch-specific capability forks, and offline export reuses the shared version predicate instead of a private patch allowlist.
 Existing OpenAPI 3.0.x behavior remains available. OpenAPI 3.2.x consumption is documented in the
-[OpenAPI 3.2 support matrix](./openapi32-en); pending
+[OpenAPI 3.2 support matrix](./openapi32-en);
 `5.8.0` / Knife4x `v0.9.0` still ship the 3.1 contract on this page and keep 3.2 on a separate path.
 
 | Document version | UI | Status | Contract |
