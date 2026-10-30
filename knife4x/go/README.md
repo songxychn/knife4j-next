@@ -11,15 +11,11 @@ Knife4x 已发布版本消费 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON 文档，不生
 交给同一套 React UI；限制见
 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
-当前准备版本为 `v0.9.0`（待发布，最新已发布为 `v0.8.9`），对应仓库 tag `knife4x/go/v0.9.0`：
-
-正式发布前请使用已发布的 `v0.8.9`；以下命令供发布后接入：
+当前发布版本为 `v0.9.0`，对应仓库 tag `knife4x/go/v0.9.0`：
 
 ```bash
 go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.0
 ```
-
-> **v0.9.0 沿用 v0.8.9 的浏览器要求**：Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17 起。JSONPath 11 需要原生 RegExp `v`，不提供旧浏览器补齐；最低版本未逐一实机验收。
 
 相较于 `v0.8.9`，单接口 Markdown 复制与完整文档导出共用字段、请求/响应和示例规则；不完整内容需确认并保留诊断。同步对象候选截断、千字段示例生成及 allOf 无类型字符串约束修复，保留作者示例、方向、授权资源图、取消与安全预算（PR #965/#967/#970/#975）。
 
@@ -92,7 +88,7 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 ```
 
 把顶层为 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` 的 JSON 保存为当前目录的 `openapi.json`。
-待发布 `v0.9.0` 可加载合法 3.2 JSON。启动后打开
+`v0.9.0` 可加载合法 3.2 JSON。启动后打开
 <http://localhost:8080/doc.html>。
 
 `Config` 只有两个字段：

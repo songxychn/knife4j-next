@@ -5,7 +5,7 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 
 # OpenAPI 3.1 支持与迁移
 
-> 本页面向待发布的 Java `5.8.0` / Go `v0.9.0`；最新已发布版本仍为 Java `5.7.10` / Go `v0.8.9`。
+本页面向已发布的 Java `5.8.0` / Go `v0.9.0`。
 
 [English contract](./openapi31-en) · [下载最小 JSON](/examples/openapi-3.1-minimal.json) · [下载最小 YAML](/examples/openapi-3.1-minimal.yaml)
 
@@ -17,7 +17,7 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 
 OpenAPI 的功能集由 `major.minor` 定义。`3.1.x` 因此使用同一套 **OpenAPI 3.1 feature set**，不按 patch 版本拆分能力，
 离线导出也复用统一版本判断，不维护私有 patch 白名单。已有 OpenAPI 3.0.x 路径继续保留。
-OpenAPI 3.2.x 消费契约见 [OpenAPI 3.2 支持矩阵](./openapi32)；待发布的 `5.8.0` / Knife4x `v0.9.0` 在本页交付 3.1 范围，3.2 走独立路径。
+OpenAPI 3.2.x 消费契约见 [OpenAPI 3.2 支持矩阵](./openapi32)；`5.8.0` / Knife4x `v0.9.0` 在本页交付 3.1 范围，3.2 走独立路径。
 
 | 文档版本 | UI | 状态 | 说明 |
 | --- | --- | --- | --- |

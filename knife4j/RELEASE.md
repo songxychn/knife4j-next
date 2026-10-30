@@ -2,9 +2,9 @@
 
 本 fork 通过 GitHub Actions 和 Central Portal Publishing Plugin 发布 Maven Central 构件，并在同一个 Release workflow 中创建 GitHub Release。
 
-## Java 5.8.0 发布准备
+## Java 5.8.0 发布状态
 
-当前 POM 与接入示例面向 `5.8.0`，配套 Go 为 `v0.9.0`；两者均尚未发布。发布内容见 [5.8.0 说明](../docs/release-notes/index.md)，Go 独立 tag 与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。必须在准备 PR 合并、master CI 通过并取得维护者明确发布授权后，才执行以下正式发布流程。
+Java `5.8.0` 已发布，见 [GitHub Release](https://github.com/songxychn/knife4j-next/releases/tag/v5.8.0)；配套 Go `v0.9.0` 已通过 `knife4x/go/v0.9.0` tag 发布。发布内容见 [5.8.0 说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。后续版本仍须在准备 PR 合并、master CI 通过并取得维护者明确发布授权后，才执行以下正式发布流程。
 
 ## 一次性配置
 

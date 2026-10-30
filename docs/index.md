@@ -46,11 +46,7 @@ features:
     linkText: 网关接入
 ---
 
-::: info Java 5.8.0 / Knife4x Go v0.9.0 发布准备
-本页接入示例面向待发布版本；最新已发布版本仍为 Java `5.7.10` / Go `v0.8.9`。正式发布前请使用已发布版本。
-:::
-
-::: tip Knife4x Go v0.9.0（待发布）
+::: tip Knife4x Go v0.9.0
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -101,7 +97,7 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.8.0 版本亮点 <Badge type="info" text="待发布" />
+## 5.8.0 版本亮点
 
 `5.8.0` 新增完整单接口 Markdown 复制和 OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 MVC Gateway 发现刷新；配套 Go `v0.9.0` 同步共享 UI。Schema Worker 部署与 Node 26 源码构建要求见[发布说明](/release-notes/)。
 

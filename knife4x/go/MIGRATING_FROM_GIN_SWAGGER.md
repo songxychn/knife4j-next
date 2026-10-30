@@ -12,13 +12,11 @@ Knife4x 替换的是嵌入式文档与调试 UI，不替代 OpenAPI 生成器。
 }
 ```
 
-只有 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` JSON 可以继续用于待发布的 `v0.9.0`；入口不接受 YAML。
+只有 `openapi: 3.0.x`、`openapi: 3.1.x` 或 `openapi: 3.2.x` JSON 可以继续用于 `v0.9.0`；入口不接受 YAML。
 合法 `openapi: 3.2.x` JSON 由同一套 React UI 消费，限制见 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 若文档使用 `swagger: "2.0"`，请先升级生成器或转换 spec；OAS2 不能直接迁移到 Knife4x。
 
-Knife4x Go 当前准备版本为 `v0.9.0`（待发布，最新已发布为 `v0.8.9`）：
-
-正式发布前请使用已发布的 `v0.8.9`；以下命令供发布后接入：
+Knife4x Go 当前发布版本为 `v0.9.0`：
 
 ```bash
 go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.0
