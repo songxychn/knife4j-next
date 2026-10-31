@@ -6,7 +6,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 # Knife4x Go
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 UI 与调试控制台。
-当前发布版本为 Go `v0.9.0`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
+当前版本为 Go `v0.9.1`，Rust 后置。它复用 Knife4j Next 的 React UI，但 module、
 版本和发布流程独立于 Java `5.x`。
 
 ::: info OpenAPI 3.1 / 3.2 与发布版本
@@ -20,14 +20,22 @@ JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史
 
 从当前仓库源码重建或同步 UI 时，Node 要求与 OAS3、Vue3 和文档站统一为稳定的 `26.x`，不接受其他主版本或预发行版。直接使用 Go module 不需要 Node，Go 与浏览器运行时要求不变。
 
-Go module 需要 Go 1.22 或更高版本。使用以下命令接入 `v0.9.0`：
+Go module 需要 Go 1.22 或更高版本。使用以下命令接入 `v0.9.1`：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.1
 ```
 
 仓库中的 [Gin 可运行示例](https://github.com/songxychn/knife4j-next/tree/master/knife4x/examples/gin)
 是独立 module，需要 Go 1.26+；其 Gin 依赖与版本要求不会传递给公共库消费者。
+
+## v0.9.1
+
+相较于 `v0.9.0`，修复离线 Schema 跨文档声明 `$id` 引用、资源 owner / generation 隔离与无效依赖恢复；对浏览器无法编译的 Java 正则提供字段定位和诊断，保留手工输入（PR #998/#1015）。
+
+修复 Markdown 标签接口与文档工具的路由冲突；优化接口说明、参数表、OpenAPI 和代码视图布局，补齐配置保存结果反馈并简化存储协调。更新 marked 18.1.2、URI 1.4.0、i18next 与 docx 9.15.0，修复 Markdown 边界、URI 身份隔离、multipart 标签插值和 Word XML 导出（PR #996/#997/#999/#1008/#1010/#1011/#1012/#1014）。
+
+公共库仍只依赖标准库，Go 1.22、Gin 示例 Go 1.26+、module、`Config`、`NewHandler` 与路由语义不变。沿用 `v0.9.0` 的浏览器下限、Node 26 源码构建要求、OpenAPI 3.0/3.1/3.2 JSON 消费、离线授权、预算与取消边界。部署仍须保留同源 Schema Worker 及动态分块，满足既有 CSP 与 JavaScript MIME 要求。
 
 ## v0.9.0
 
