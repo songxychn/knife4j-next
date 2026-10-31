@@ -4444,7 +4444,7 @@ export default function ApiDebug() {
           className="knife4j-api-debug-main"
           style={{ flex: 1, minWidth: 0, paddingRight: settings.enableRequestHistory ? 16 : 0 }}
         >
-          <Space align="center" style={{ marginBottom: 12 }}>
+          <Space align="center" className="knife4j-debug-heading">
             <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
               {method}
             </Tag>
@@ -4570,7 +4570,7 @@ export default function ApiDebug() {
               />
             </div>
           )}
-          <Space.Compact style={{ width: '100%', marginBottom: 16, display: 'flex' }}>
+          <Space.Compact className="knife4j-debug-request" style={{ width: '100%', display: 'flex' }}>
             <Select
               value={method}
               onChange={setMethod}
@@ -4599,7 +4599,7 @@ export default function ApiDebug() {
                 onChange={setBaseUrl}
                 options={requestServerSelectOptions}
                 filterOption={false}
-                style={{ flex: '0 1 420px', minWidth: 320 }}
+                style={{ flex: '0 1 420px', minWidth: 0 }}
               />
             )}
             <Input
@@ -4636,7 +4636,7 @@ export default function ApiDebug() {
             items={tabItems}
           />
 
-          <Divider style={{ margin: '16px 0' }} />
+          <Divider style={{ margin: '12px 0' }} />
 
           {loading &&
             (responseProgress === null ? (
