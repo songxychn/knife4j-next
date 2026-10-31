@@ -8,6 +8,7 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
+| `5.8.1`（待发布） | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Schema 引用与诊断、Markdown 路由/导出、布局与保存反馈修复 |
 | `5.8.0` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
 | `5.7.10` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
 | `5.7.9` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.0.8 | 前端维护与解析修复；两条 UI 浏览器下限提高 |
@@ -107,6 +108,10 @@ Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `20
 ## 5.8.0 功能与修复
 
 新增完整单接口 Markdown 复制和 OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 Boot3.5 MVC Gateway 服务发现刷新；Go `v0.9.0` 同步共享 UI。源码构建统一要求稳定 Node `26.x`；Java/Go、浏览器及依赖矩阵沿用上一版。详见[发布说明](../release-notes/)。
+
+## 5.8.1 修复与维护（待发布）
+
+共享 UI 修复 Schema 跨文档引用与资源隔离、正则字段诊断、Markdown 路由及导出，改善布局与保存反馈；Go `v0.9.1` 同步。Java 依赖与运行时、浏览器及 OpenAPI 支持边界沿用 `5.8.0` / Go `v0.9.0`，详见[发布说明](../release-notes/)。
 
 ## 核心依赖版本
 

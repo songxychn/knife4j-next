@@ -2,9 +2,9 @@
 
 本 fork 通过 GitHub Actions 和 Central Portal Publishing Plugin 发布 Maven Central 构件，并在同一个 Release workflow 中创建 GitHub Release。
 
-## Java 5.8.0 发布状态
+## Java 5.8.1 发布准备
 
-Java `5.8.0` 已发布，见 [GitHub Release](https://github.com/songxychn/knife4j-next/releases/tag/v5.8.0)；配套 Go `v0.9.0` 已通过 `knife4x/go/v0.9.0` tag 发布。发布内容见 [5.8.0 说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。后续版本仍须在准备 PR 合并、master CI 通过并取得维护者明确发布授权后，才执行以下正式发布流程。
+当前 POM 面向 Java `5.8.1`，配套 Go 为 `v0.9.1`；两者均待发布，最新已发布版本仍为 Java `5.8.0` / Go `v0.9.0`。发布内容见 [5.8.1 说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。维护者已授权本次双语言发布；准备 PR 须由维护者合并，master CI 与各语言发布前门禁通过后才创建并推送 tag。
 
 ## 一次性配置
 
@@ -27,9 +27,9 @@ Java `5.8.0` 已发布，见 [GitHub Release](https://github.com/songxychn/knife
 ## Release flow
 
 1. 确认 `knife4j/pom.xml` 和所有子模块版本正确。
-2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### 5.8.0`。
+2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### 5.8.1`。
 3. 提交并合并 release prep PR，等待 PR CI 和 `master` push CI 通过。
-4. 创建并推送 annotated tag，例如 `v5.8.0`。
+4. 创建并推送 annotated tag，例如 `v5.8.1`。
 5. 等待 GitHub Actions `Release` workflow 的 `publish` job 完成发布及公开 Maven Central 构件、GitHub Release 核验。
 6. 等待 `Release` 随后调用的 `Build and Deploy Demo` workflow 完成对应 Java tag 的 demo 镜像发布。
 7. 验收发布完成条件：

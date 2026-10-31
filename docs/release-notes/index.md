@@ -12,7 +12,27 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-Java `5.8.0` 与配套 Go `v0.9.0` 已发布。
+Java `5.8.1` 与配套 Go `v0.9.1` 准备发布；最新已发布仍为 Java `5.8.0` / Go `v0.9.0`。
+
+### 5.8.1 <Badge type="warning" text="待发布" />
+
+相较于 `5.8.0`，修复共享 React UI 的 Schema 引用、正则诊断、Markdown 路由及导出问题，改善布局与保存反馈。配套 Knife4x Go `v0.9.1` 同步相同 UI。
+
+**共享 React UI 修复**
+
+- 修复离线 Schema 按 retrieval URI 预加载后，通过另一文档声明的 `$id` 编译引用失败；使用公开 URI/media 插件查询当前 owner 的内存资源，补齐 owner / generation 交接、无效依赖恢复和卸载重载隔离。保留离线拒绝、资源身份、预算、取消及 OAS 3.1/3.2 既有边界（PR [#1015](https://github.com/songxychn/knife4j-next/pull/1015)）。
+- Java 正则无法在浏览器 ECMAScript 编译时，提供字段级诊断及原始字段位置，保留手工输入（PR [#998](https://github.com/songxychn/knife4j-next/pull/998)）。
+- 修复 `markdown` 标签的接口与文档工具路由冲突，保留既有接口定位和工具入口（PR [#1014](https://github.com/songxychn/knife4j-next/pull/1014)）。
+- 优化接口文档、参数表、OpenAPI 与代码视图的宽度和内部滚动，保留 OAS2 调试响应高度显示修复；补齐配置保存成功/失败反馈，简化存储互斥与缓存清理协调（PR [#990](https://github.com/songxychn/knife4j-next/pull/990)、[#996](https://github.com/songxychn/knife4j-next/pull/996)、[#997](https://github.com/songxychn/knife4j-next/pull/997)、[#999](https://github.com/songxychn/knife4j-next/pull/999)）。
+
+**依赖与维护**
+
+- 更新 marked `18.1.2`、URI `1.4.0`、i18next 与 docx `9.15.0`，修复 Markdown 边界、URI 身份隔离、multipart 标签插值和合法 Word XML 输出（PR [#1008](https://github.com/songxychn/knife4j-next/pull/1008)、[#1010](https://github.com/songxychn/knife4j-next/pull/1010)、[#1011](https://github.com/songxychn/knife4j-next/pull/1011)、[#1012](https://github.com/songxychn/knife4j-next/pull/1012)）。
+- 测试框架升级 Vitest 5，保留原有 mock 历史、配置隔离与测试语义；收窄 CI 变更分流、修复 PR 比较基线并加入生产 Schema Worker 浏览器门禁。拆分请求发送/响应消费和外部资源解析/遍历，增加聚合共享实现一致性检查（PR [#986](https://github.com/songxychn/knife4j-next/pull/986)、[#987](https://github.com/songxychn/knife4j-next/pull/987)、[#988](https://github.com/songxychn/knife4j-next/pull/988)、[#989](https://github.com/songxychn/knife4j-next/pull/989)、[#995](https://github.com/songxychn/knife4j-next/pull/995)、[#1013](https://github.com/songxychn/knife4j-next/pull/1013)）。
+
+**兼容边界**
+
+Java 依赖、Boot2/3/4 矩阵、Java 8/17、Go 公共库 1.22 与 Gin 示例 1.26+ 下限沿用 `5.8.0` / Go `v0.9.0`。Maven/module 坐标、Go Handler API/路由、starter 默认配置与 OpenAPI 3.0/3.1/3.2 JSON 消费范围不变；springdoc 仍生成 3.0/3.1，不新增 YAML 或规范版本支持。浏览器仍为 OAS3 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17，OAS2 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不增加最低浏览器实机覆盖承诺。源码构建仍要求稳定 Node `26.x`；Schema Worker 部署继续要求保留 Worker/动态分块及既有 CSP、JavaScript MIME 配置。
 
 ### 5.8.0 <Badge type="tip" text="最新已发布" />
 

@@ -97,6 +97,10 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
+## 5.8.1 发布准备
+
+Java `5.8.1` / Go `v0.9.1` 待发布：修复 Schema 跨文档引用与正则诊断、Markdown 路由及导出，改善布局与保存反馈。Java/Go、浏览器与 OpenAPI 支持边界沿用上一版，详见[发布说明](/release-notes/)。正式发布前仍请使用下方的 Java `5.8.0` / Go `v0.9.0`。
+
 ## 5.8.0 版本亮点
 
 `5.8.0` 新增完整单接口 Markdown 复制和 OAS3 WebMVC 启动摘要，修复 Schema 示例生成与 MVC Gateway 发现刷新；配套 Go `v0.9.0` 同步共享 UI。Schema Worker 部署与 Node 26 源码构建要求见[发布说明](/release-notes/)。
