@@ -51,6 +51,27 @@ describe.each([
     expect(content?.querySelector('blockquote p')?.textContent).toBe('quoted paragraph\ncontinued');
   });
 
+  test('ends a blockquote after a whitespace-only quoted line', async () => {
+    await render('> a\n>  \nb');
+    const content = container.firstElementChild;
+    expect(Array.from(content?.children ?? [], (element) => element.tagName)).toEqual(['BLOCKQUOTE', 'P']);
+    expect(content?.querySelector('blockquote')?.textContent?.trim()).toBe('a');
+    expect(content?.lastElementChild?.textContent).toBe('b');
+  });
+
+  test('keeps lazy list continuation inside nested blockquotes', async () => {
+    await render('> > - a\n> b\nc');
+    const content = container.firstElementChild;
+    expect(content?.children).toHaveLength(1);
+    expect(content?.querySelector('blockquote blockquote li')?.textContent).toBe('a\nb\nc');
+  });
+
+  test('renders nested emphasis in image alt text as plain text', async () => {
+    await render('![**a *b***](image.png)');
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('image.png');
+    expect(container.querySelector('img')?.alt).toBe('a b');
+  });
+
   test('preserves ordinary Markdown, safe links, images and inline attributes', async () => {
     await render(
       [
