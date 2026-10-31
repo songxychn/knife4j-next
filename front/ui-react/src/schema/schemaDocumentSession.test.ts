@@ -694,3 +694,28 @@ describe('SchemaDocumentSessionManager', () => {
     expect(Object.isFrozen(failure.details)).toBe(true);
   });
 });
+
+test('resolves an explicitly loaded external Schema by its declared ID across raw and directional consumers', async () => {
+  const resourceId = 'example:/.//value';
+  const session = await createSchemaDocumentSession(openApiDocument({ $ref: resourceId }), retrievalUri, {
+    resourceDocuments: [
+      {
+        retrievalUri: 'https://docs.knife4j.example/target',
+        document: {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          $id: 'example:/a/..//value',
+          type: 'integer',
+        },
+      },
+    ],
+  });
+  sessions.push(session);
+  for (const value of [1, 'bad']) {
+    const expected = value === 1;
+    expect((await session.evaluate('#/components/schemas/Pet', value)).valid).toBe(expected);
+    for (const direction of ['request', 'response'] as const)
+      expect(
+        (await evaluateSchemaDocumentDirectionally(session, '#/components/schemas/Pet', value, direction)).valid,
+      ).toBe(expected);
+  }
+});

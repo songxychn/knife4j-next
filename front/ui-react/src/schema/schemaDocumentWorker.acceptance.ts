@@ -83,6 +83,7 @@ export function createWorkerAcceptance(workerUrl: string) {
   async function scopeAndGraph() {
     const external = 'https://acceptance.knife4j.example/external';
     const externalDocument = {
+      $id: 'example:/a/..//external',
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       type: 'object',
       required: ['id'],
@@ -114,7 +115,10 @@ export function createWorkerAcceptance(workerUrl: string) {
     };
     const evidence = [];
     for (const version of ['3.1.1', '3.2.0']) {
-      const document = documentFor({ $ref: 'https://acceptance.knife4j.example/code#code' }, version, schemas);
+      // 3.1 resolves a preloaded document by its distinct declared identity;
+      // the 3.2 adapter retains its existing retrieval/context contract.
+      const resources = { ...schemas, External: { $ref: version === '3.1.1' ? 'example:/.//external' : external } };
+      const document = documentFor({ $ref: 'https://acceptance.knife4j.example/code#code' }, version, resources);
       const session = await createWorkerSchemaDocumentSession(document, retrievalUri, {
         runtime: runtime(),
         ...(version === '3.2.0'

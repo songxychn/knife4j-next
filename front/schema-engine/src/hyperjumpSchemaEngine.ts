@@ -1,4 +1,7 @@
 import {
+  addMediaTypePlugin,
+  addUriSchemePlugin,
+  removeMediaTypePlugin,
   removeUriSchemePlugin,
   UnsupportedUriSchemeError,
   value as browserValue,
@@ -93,10 +96,48 @@ const HYPERJUMP_SCHEMA_CONTROL_KEYS = new Set([
   '$recursiveRef',
 ]);
 
+// Hyperjump's URI/media plugins provide the missing cross-document lookup without
+// copying Schema subtrees or depending on the Browser's private cache. Only
+// resources discovered at typed Schema positions enter this realm-owned table.
+const offlineSchemaDocuments = new Map<string, SchemaDocument>();
+const offlineSchemeCounts = new Map<string, number>();
+const OFFLINE_SCHEMA_MEDIA_TYPE = 'application/vnd.knife4j.registered-schema';
+class OfflineSchemaResponse extends Response {
+  public constructor(
+    private readonly resourceUri: string,
+    public readonly schemaDocument: SchemaDocument,
+  ) {
+    super(null, { headers: { 'Content-Type': OFFLINE_SCHEMA_MEDIA_TYPE } });
+  }
+  // Response's constructor has no URL option. This public subclass supplies the
+  // resource identity used by Browser for its cursor and relative references.
+  public override get url(): string {
+    return this.resourceUri;
+  }
+}
+const offlineMediaTypePlugin = {
+  parse: async (response: Response) => {
+    if (!(response instanceof OfflineSchemaResponse)) throw new Error('Expected an engine-owned offline response.');
+    return response.schemaDocument;
+  },
+  fileMatcher: async () => false,
+};
 const lockDownExternalResourceLoading = (): void => {
   removeUriSchemePlugin('http');
   removeUriSchemePlugin('https');
   removeUriSchemePlugin('file');
+  if (offlineSchemaDocuments.size > 0) addMediaTypePlugin(OFFLINE_SCHEMA_MEDIA_TYPE, offlineMediaTypePlugin);
+  else removeMediaTypePlugin(OFFLINE_SCHEMA_MEDIA_TYPE);
+  for (const scheme of offlineSchemeCounts.keys()) {
+    addUriSchemePlugin(scheme, {
+      retrieve: async (uri) => {
+        const resourceUri = withoutFragment(uri);
+        const document = offlineSchemaDocuments.get(resourceUri);
+        if (!document) throw new UnsupportedUriSchemeError(scheme);
+        return new OfflineSchemaResponse(resourceUri, document);
+      },
+    });
+  }
 };
 
 registerOpenApi32Dialects();
@@ -130,7 +171,33 @@ addKeyword({
 });
 
 const builtInResourceUris = new Set(getAllRegisteredSchemaUris().map((uri) => withoutFragment(uri)));
+// Decorate the public keyword handlers, retaining upstream compilation and
+// interpretation. Attribute an InvalidSchemaError to the deepest referenced
+// document, rather than permanently poisoning an otherwise valid referencing root.
+const invalidSchemaDocuments = new WeakMap<InvalidSchemaError, SchemaDocument>();
+const processedDocumentOwners = new WeakMap<SchemaDocument, RegisteredDocument>();
+for (const id of ['https://json-schema.org/keyword/ref', 'https://json-schema.org/keyword/draft-2020-12/dynamicRef']) {
+  const original = getKeyword(id);
+  addKeyword({
+    ...original,
+    compile: async (schema, ast, parent) => {
+      const target = id.endsWith('/dynamicRef') ? await getSchema(browserValue<string>(schema), schema) : schema;
+      const owner = processedDocumentOwners.get(target.document);
+      if (owner?.metaFailure) throw owner.metaFailure;
+      try {
+        return await original.compile(schema, ast, parent);
+      } catch (error) {
+        const failure = findCause(error, InvalidSchemaError);
+        if (failure && !invalidSchemaDocuments.has(failure)) invalidSchemaDocuments.set(failure, target.document);
+        throw error;
+      }
+    },
+  });
+}
 let activeOwner: symbol | undefined;
+// Releasing registry keys does not cancel upstream async compilation. A successor
+// must wait until retired work can no longer discover or validate its resources.
+let retiredOwnerWork: Promise<void> = Promise.resolve();
 
 interface RegisteredDocument {
   retrievalUri: string;
@@ -142,7 +209,6 @@ interface RegisteredDocument {
   metaFailure?: SchemaEngineError;
   processingDocuments?: Map<string, Set<SchemaDocument>>;
   referencesGeneration?: number;
-  compileGate?: Promise<void>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -673,17 +739,6 @@ function referencedResourceFrom(error: unknown): string | undefined {
   return undefined;
 }
 
-function clearHyperjumpValidated(document: SchemaDocument): void {
-  const seen = new Set<SchemaDocument>();
-  const visit = (entry: SchemaDocument): void => {
-    if (seen.has(entry)) return;
-    seen.add(entry);
-    (entry as SchemaDocument & { validated?: boolean }).validated = false;
-    for (const nested of Object.values(entry.embedded ?? {})) visit(nested as SchemaDocument);
-  };
-  visit(document);
-}
-
 function asEngineError(error: unknown, operationUri: string): SchemaEngineError {
   if (error instanceof SchemaEngineError) return error;
   const resourceUri = referencedResourceFrom(error);
@@ -785,8 +840,10 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
   private readonly pendingRetrievalUris = new Set<string>();
   private readonly pendingResourceUris = new Set<string>();
   private readonly compiled = new Map<string, Promise<CompiledSchema>>();
+  private readonly pendingRegistrations = new Set<Promise<void>>();
   private resolvedDocuments = new WeakMap<SchemaDocument, JsonValue>();
   private generation = 0;
+  private compilationGate: Promise<void> = Promise.resolve();
   private disposed = false;
 
   public constructor(options: SchemaEngineOptions = {}) {
@@ -799,6 +856,11 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     context?: SchemaDocumentRegistrationContext,
   ): Promise<void> {
     this.assertUsable();
+    if (activeOwner === undefined) {
+      await retiredOwnerWork;
+      if (this.disposed) return;
+      this.assertUsable();
+    }
     const uses32 = isOpenApi32(document) || context?.openapi32 === true;
     const normalizedRetrievalUri = uses32
       ? normalizePublicUri(retrievalUri, false)
@@ -908,6 +970,11 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     activeOwner = this.owner;
     const registeredUris: string[] = [];
     const processingDocuments = new Map<string, Set<SchemaDocument>>();
+    let finishRegistration = (): void => undefined;
+    const registrationWork = new Promise<void>((resolve) => {
+      finishRegistration = resolve;
+    });
+    this.pendingRegistrations.add(registrationWork);
     try {
       const primaryUri = oas32?.physicalRetrievalUri ?? normalizedRetrievalUri;
       const addresses = oas32
@@ -926,15 +993,14 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         const registeredRoot = await getSchema(address);
         prepared.restoreRegisteredDocument(registeredRoot.document);
         oas32?.decorate(registeredRoot.document);
-        if (oas32)
-          for (const document of new Set([
-            registeredRoot.document,
-            ...Object.values(registeredRoot.document.embedded ?? {}).map((item) => item as SchemaDocument),
-          ])) {
-            const copies = processingDocuments.get(document.baseUri) ?? new Set<SchemaDocument>();
-            copies.add(document);
-            processingDocuments.set(document.baseUri, copies);
-          }
+        for (const document of new Set([
+          registeredRoot.document,
+          ...Object.values(registeredRoot.document.embedded ?? {}).map((item) => item as SchemaDocument),
+        ])) {
+          const copies = processingDocuments.get(document.baseUri) ?? new Set<SchemaDocument>();
+          copies.add(document);
+          processingDocuments.set(document.baseUri, copies);
+        }
       }
       if (this.disposed) {
         registeredUris.forEach(unregisterSchema);
@@ -947,23 +1013,35 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
         registryUris,
         resourcePointers,
         oas32,
-        processingDocuments: oas32 ? processingDocuments : undefined,
+        processingDocuments,
       };
+      for (const copies of processingDocuments.values())
+        for (const document of copies) processedDocumentOwners.set(document, registration);
+      if (!oas32) {
+        for (const [uri, copies] of processingDocuments) {
+          offlineSchemaDocuments.set(uri, copies.values().next().value!);
+          const scheme = parseIri(uri).scheme;
+          offlineSchemeCounts.set(scheme, (offlineSchemeCounts.get(scheme) ?? 0) + 1);
+        }
+      }
       for (const uri of registryUris) this.registryOwners.set(uri, registration);
       this.documents.set(normalizedRetrievalUri, registration);
       this.resources.set(normalizedRetrievalUri, registration);
       for (const resourceUri of resourceUris) this.resources.set(resourceUri, registration);
       this.invalidateCompiledSchemas();
+      lockDownExternalResourceLoading();
     } catch (error) {
       registeredUris.forEach(unregisterSchema);
       throw asEngineError(error, normalizedRetrievalUri);
     } finally {
+      this.pendingRegistrations.delete(registrationWork);
+      finishRegistration();
       for (const uri of registryUris) this.pendingRegistryUris.delete(uri);
       this.pendingRetrievalUris.delete(normalizedRetrievalUri);
       this.pendingResourceUris.delete(normalizedRetrievalUri);
       for (const resourceUri of resourceUris) this.pendingResourceUris.delete(resourceUri);
       if (this.documents.size === 0 && this.pendingRetrievalUris.size === 0 && activeOwner === this.owner) {
-        activeOwner = undefined;
+        this.releaseOwner();
       }
     }
   }
@@ -1034,9 +1112,10 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
             await getSchema(indexed.registration.oas32!.physicalRetrievalUri),
           )
         : await this.getResource(normalizedSchemaUri, schemaUri);
+      this.assertGeneration(generation);
       const registration = indexed?.registration ?? this.registrationOwning(resource, normalizedSchemaUri);
       this.assertLegacyMetaFailure(registration);
-      const validator = await this.compileForEvaluation(registration, resource, Boolean(indexed));
+      const validator = await this.compileCached(resource, registration);
       this.assertLegacyMetaFailure(registration);
       this.assertGeneration(generation);
       budget.assertWithinBudget();
@@ -1105,6 +1184,21 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
 
     if (registration.oas32) registration.registryUris.forEach(unregisterSchema);
     else unregisterSchema(normalizedRetrievalUri);
+    if (!registration.oas32) {
+      for (const uri of registration.processingDocuments?.keys() ?? []) {
+        const document = offlineSchemaDocuments.get(uri);
+        if (!document || processedDocumentOwners.get(document) !== registration) continue;
+        offlineSchemaDocuments.delete(uri);
+        const scheme = parseIri(uri).scheme;
+        const count = offlineSchemeCounts.get(scheme)! - 1;
+        if (count > 0) offlineSchemeCounts.set(scheme, count);
+        else {
+          offlineSchemeCounts.delete(scheme);
+          removeUriSchemePlugin(scheme);
+        }
+      }
+    }
+    lockDownExternalResourceLoading();
     for (const uri of registration.registryUris)
       if (this.registryOwners.get(uri) === registration) this.registryOwners.delete(uri);
     this.documents.delete(normalizedRetrievalUri);
@@ -1114,7 +1208,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     }
     this.invalidateCompiledSchemas();
     if (this.documents.size === 0 && this.pendingRetrievalUris.size === 0 && activeOwner === this.owner) {
-      activeOwner = undefined;
+      this.releaseOwner();
     }
   }
 
@@ -1124,7 +1218,13 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     this.disposed = true;
     this.compiled.clear();
     this.resolvedDocuments = new WeakMap();
-    if (activeOwner === this.owner && this.pendingRetrievalUris.size === 0) activeOwner = undefined;
+    if (activeOwner === this.owner) this.releaseOwner();
+  }
+
+  private releaseOwner(): void {
+    if (activeOwner !== this.owner) return;
+    retiredOwnerWork = Promise.all([this.compilationGate, ...this.pendingRegistrations]).then(() => undefined);
+    activeOwner = undefined;
   }
 
   private async getResource(schemaUri: string, requestedUri: string): Promise<Browser<SchemaDocument>> {
@@ -1374,26 +1474,6 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     }
   }
 
-  private async compileForEvaluation(
-    registration: RegisteredDocument | undefined,
-    resource: Browser<SchemaDocument>,
-    indexed: boolean,
-  ): Promise<CompiledSchema> {
-    if (indexed || !registration || registration.oas32) return this.compileCached(resource, undefined);
-    const previous = registration.compileGate ?? Promise.resolve();
-    let release = (): void => undefined;
-    registration.compileGate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    try {
-      await previous;
-      this.assertLegacyMetaFailure(registration);
-      return await this.compileCached(resource, registration);
-    } finally {
-      release();
-    }
-  }
-
   private compileCached(
     resource: Browser<SchemaDocument>,
     registration: RegisteredDocument | undefined,
@@ -1401,7 +1481,25 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     const key = canonicalUri(resource);
     let compiled = this.compiled.get(key);
     if (!compiled) {
-      compiled = compile(resource);
+      // Meta-validation flags live on shared upstream resource objects. Serialize
+      // compilation across roots so one pending validation cannot bypass another.
+      const previous = this.compilationGate;
+      const generation = this.generation;
+      compiled = (async () => {
+        await previous;
+        this.assertGeneration(generation);
+        this.assertLegacyMetaFailure(registration);
+        try {
+          return await compile(resource);
+        } catch (error) {
+          this.captureLegacyMetaFailure(registration, resource.document, error);
+          throw error;
+        }
+      })();
+      this.compilationGate = compiled.then(
+        () => undefined,
+        () => undefined,
+      );
       this.compiled.set(key, compiled);
       compiled.catch((error) => {
         if (this.compiled.get(key) === compiled) this.compiled.delete(key);
@@ -1428,9 +1526,12 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     document: SchemaDocument | undefined,
     error: unknown,
   ): void {
+    const failure = findCause(error, InvalidSchemaError);
+    if (!failure) return;
+    const failedDocument = invalidSchemaDocuments.get(failure) ?? document;
+    if (failedDocument) registration = processedDocumentOwners.get(failedDocument) ?? registration;
     if (!registration || registration.oas32 || registration.metaFailure) return;
-    if (!findCause(error, InvalidSchemaError)) return;
-    if (document) clearHyperjumpValidated(document);
+    if (this.documents.get(registration.retrievalUri) !== registration) return;
     registration.metaFailure = asEngineError(error, registration.retrievalUri);
   }
 
