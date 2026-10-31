@@ -58,10 +58,6 @@ const router = createHashRouter([
         element: <Settings />,
       },
       {
-        path: ':group/markdown/:groupIndex/:itemIndex',
-        element: <MarkdownDocument />,
-      },
-      {
         path: ':group/:tag/:operaterId',
         element: <ApiHome />,
       },
@@ -80,6 +76,13 @@ const router = createHashRouter([
       {
         path: ':group/:tag/:operaterId/script',
         element: <ScriptView />,
+      },
+      // API mode routes and this route have equal specificity: declaration order
+      // keeps a Markdown tag's /doc|debug|openapi|script URL on the API page.
+      // Existing Markdown document URLs end in two numeric indexes and still match here.
+      {
+        path: ':group/markdown/:groupIndex/:itemIndex',
+        element: <MarkdownDocument />,
       },
     ],
   },

@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { createHashRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import markdownRouteFixture from '../test-fixtures/issue1009-markdown-routes.json';
 
 // Use the production route tree with lightweight pages so this suite exercises
 // browser history and parameter decoding without API or UI fixtures. Node-based
@@ -74,6 +75,52 @@ async function traverse(delta: number) {
 }
 
 describe('production Hash route compatibility', () => {
+  const markdownOperation = markdownRouteFixture.paths['/contract'].get;
+  const operationModes = ['doc', 'debug', 'openapi', 'script'];
+
+  test.each([...markdownOperation.tags, '%4Darkdown'].flatMap((tag) => operationModes.map((mode) => [tag, mode])))(
+    'opens the %s tag in API mode %s rather than MarkdownDocument',
+    async (tag, mode) => {
+      const pathname = `/marked/${tag}/${markdownOperation.operationId}/${mode}`;
+      await mount(pathname);
+      expect(params()).toEqual({ group: 'marked', tag: decodeURIComponent(tag), operaterId: 'readMarkdown' });
+      expect(router.state.matches.at(-1)?.route.path).toBe(`:group/:tag/:operaterId/${mode}`);
+      expect(router.state.errors).toBeNull();
+      expect(window.location.hash).toBe(`#${pathname}`);
+    },
+  );
+
+  test.each(['markdown', 'Markdown', 'MARKDOWN', '%6Darkdown'])(
+    'preserves the existing /marked/%s/0/0 document bookmark on refresh',
+    async (segment) => {
+      const pathname = `/marked/${segment}/0/0`;
+      await mount(pathname);
+      expect(params()).toEqual({ group: 'marked', groupIndex: '0', itemIndex: '0' });
+      expect(router.state.matches.at(-1)?.route.path).toBe(':group/markdown/:groupIndex/:itemIndex');
+      router.dispose();
+      router = createHashRouter(applicationRouter.routes);
+      await act(async () => root.render(<RouterProvider router={router} />));
+      expect(params()).toEqual({ group: 'marked', groupIndex: '0', itemIndex: '0' });
+      expect(router.state.errors).toBeNull();
+      expect(window.location.hash).toBe(`#${pathname}`);
+    },
+  );
+
+  test('keeps API mode switching and back/forward across an existing Markdown document bookmark', async () => {
+    await mount('/marked/markdown/0/0');
+    await act(async () => router.navigate('/marked/Markdown/readMarkdown/doc'));
+    expect(params()).toEqual({ group: 'marked', tag: 'Markdown', operaterId: 'readMarkdown' });
+    await act(async () => router.navigate('/marked/Markdown/readMarkdown/debug'));
+    expect(router.state.matches.at(-1)?.route.path).toBe(':group/:tag/:operaterId/debug');
+    await traverse(-1);
+    expect(window.location.hash).toBe('#/marked/Markdown/readMarkdown/doc');
+    await traverse(-1);
+    expect(params()).toEqual({ group: 'marked', groupIndex: '0', itemIndex: '0' });
+    await traverse(1);
+    expect(params()).toEqual({ group: 'marked', tag: 'Markdown', operaterId: 'readMarkdown' });
+    expect(window.location.hash).toBe('#/marked/Markdown/readMarkdown/doc');
+  });
+
   test.each([
     ['/default/events/webhook%3ApetChanged/doc', 'default', 'events', 'webhook:petChanged'],
     ['/default/upload/%2Fattachments/debug', 'default', 'upload', '/attachments'],

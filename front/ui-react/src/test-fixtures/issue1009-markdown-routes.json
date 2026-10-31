@@ -1,0 +1,26 @@
+{
+  "openapi": "3.1.1",
+  "info": { "title": "Issue 1009 route compatibility", "version": "1.0.0" },
+  "paths": {
+    "/contract": {
+      "get": {
+        "operationId": "readMarkdown",
+        "tags": ["Markdown", "markdown", "MARKDOWN"],
+        "summary": "Read Markdown contract",
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  },
+  "x-setting": { "enableDebug": true, "enableOpenApi": true, "language": "en-US" },
+  "x-markdownFiles": [
+    {
+      "name": "Route compatibility",
+      "children": [
+        {
+          "title": "Existing Markdown bookmark",
+          "content": "# Existing Markdown bookmark\n\nIssue 1009 document bookmark content."
+        }
+      ]
+    }
+  ]
+}
