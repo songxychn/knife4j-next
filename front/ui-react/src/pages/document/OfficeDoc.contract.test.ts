@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { JSDOM } from 'jsdom';
 import { buildExportDocument, type ExportDocument } from 'knife4j-core';
 import { describe, expect, test, vi } from 'vitest';
 import type { MenuOperation, MenuTag, OperationObject, SwaggerDoc } from '../../types/swagger';
@@ -363,6 +364,25 @@ async function readDocumentXml(blob: Blob): Promise<string> {
 }
 
 describe('offline document cross-format contract', () => {
+  test('exports legal OpenAPI descriptions without XML-disallowed control characters', async () => {
+    // OAS 3.0.3 Info.description is a string; JSON can represent U+000B with an escape.
+    const description = 'before\u000bafter 中文 😀 <tag> & "quoted"\tline\nnext';
+    const source: SwaggerDoc = {
+      openapi: '3.0.3',
+      info: { title: 'XML character contract', version: '1.0.0', description },
+      paths: {},
+    };
+    const snapshot = createOfflineDocumentSnapshot(buildExportDocument(source, []));
+    expect(snapshot.document.description).toBe(description);
+
+    const xml = await readDocumentXml(await renderDocx(snapshot, labels));
+    const document = new JSDOM(xml, { contentType: 'application/xml' }).window.document;
+    expect(document.documentElement.localName).toBe('document');
+    expect(document.documentElement.textContent).toContain('beforeafter 中文 😀 <tag> & "quoted"\tline\nnext');
+    expect(xml).not.toContain('\u000b');
+    expect(source.info.description).toBe(description);
+  });
+
   test('builds one format-independent model with the selected menu order and recursive schema fields', () => {
     const model = buildExportDocument(doc, tags);
     const findOperation = model.tags[0].operations[0];
