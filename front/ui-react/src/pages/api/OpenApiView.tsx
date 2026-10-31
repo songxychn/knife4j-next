@@ -116,7 +116,7 @@ export default function OpenApiView() {
   return (
     <OperationModeLayout activeKey="openapi">
       {openApiState.status === 'ready' ? (
-        <div>
+        <div className="knife4j-adaptive-code-page">
           {openApiState.downloadable ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
               <Space size="small">
@@ -157,7 +157,9 @@ export default function OpenApiView() {
               style={{ marginBottom: 8 }}
             />
           ) : null}
-          <CodeBlock code={openApiState.json} language="json" maxHeight={600} onCopy={handleCopy} />
+          <div className="knife4j-adaptive-code">
+            <CodeBlock code={openApiState.json} language="json" maxHeight="none" onCopy={handleCopy} />
+          </div>
         </div>
       ) : openApiState.status === 'error' ? (
         <Alert type="error" showIcon title={t('apiOpenApi.serialize.failed')} />

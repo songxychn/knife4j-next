@@ -34,7 +34,7 @@
       "dependencies": {
         "@hyperjump/browser": "1.5.1",
         "@hyperjump/json-schema": "1.18.0",
-        "@hyperjump/uri": "1.3.9",
+        "@hyperjump/uri": "1.4.0",
       },
       "devDependencies": {
         "@eslint/js": "10.0.1",
@@ -69,7 +69,7 @@
         "jsonpath-plus": "11.2.1",
         "knife4j-core": "*",
         "knife4j-schema-engine": "*",
-        "marked": "^18.1.1",
+        "marked": "^18.1.2",
         "prettier": "^3.9.9",
         "react": "19.3.0",
         "react-dom": "19.3.0",
@@ -264,7 +264,7 @@
 
     "@hyperjump/pact": ["@hyperjump/pact@1.4.0", "https://registry.npmmirror.com/@hyperjump/pact/-/pact-1.4.0.tgz", {}, "sha512-01Q7VY6BcAkp9W31Fv+ciiZycxZHGlR2N6ba9BifgyclHYHdbaZgITo0U6QMhYRlem4k8pf8J31/tApxvqAz8A=="],
 
-    "@hyperjump/uri": ["@hyperjump/uri@1.3.9", "https://registry.npmmirror.com/@hyperjump/uri/-/uri-1.3.9.tgz", {}, "sha512-cxG5vyIdx3gUb/OQD/FDruQQcGNzF2aKTXWJ6LzlAC1kh97YZQSRsF3hL274xlTDJ1nWGJGRtknlW6ZpU3Ch+A=="],
+    "@hyperjump/uri": ["@hyperjump/uri@1.4.0", "https://registry.npmmirror.com/@hyperjump/uri/-/uri-1.4.0.tgz", {}, "sha512-A6eBnSLNb6GdJHnYnA0sDutV950mWNmmlWgASwIoZvXqtXcYKBeEhbGrXpHeyHHInC/LHVt8zNanILp2S2oRXg=="],
 
     "@isaacs/cliui": ["@isaacs/cliui@8.0.2", "https://registry.npmmirror.com/@isaacs/cliui/-/cliui-8.0.2.tgz", { "dependencies": { "string-width": "^5.1.2", "string-width-cjs": "npm:string-width@^4.2.0", "strip-ansi": "^7.0.1", "strip-ansi-cjs": "npm:strip-ansi@^6.0.1", "wrap-ansi": "^8.1.0", "wrap-ansi-cjs": "npm:wrap-ansi@^7.0.0" } }, "sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA=="],
 
@@ -1120,7 +1120,7 @@
 
     "make-error": ["make-error@1.3.6", "https://registry.npmmirror.com/make-error/-/make-error-1.3.6.tgz", {}, ""],
 
-    "marked": ["marked@18.1.1", "https://registry.npmmirror.com/marked/-/marked-18.1.1.tgz", { "bin": { "marked": "bin/marked.js" } }, "sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg=="],
+    "marked": ["marked@18.1.2", "https://registry.npmmirror.com/marked/-/marked-18.1.2.tgz", { "bin": { "marked": "bin/marked.js" } }, "sha512-DfOnvLAQ6WYeWxWO1u4RyFOeqyHup6dks5PPqnoFiooU7ipRvidO/2j8plhAHIiZg574E9ZlzSjUiPMLAzFkgg=="],
 
     "merge-stream": ["merge-stream@2.0.0", "https://registry.npmmirror.com/merge-stream/-/merge-stream-2.0.0.tgz", {}, ""],
 
