@@ -9,7 +9,9 @@ export default defineConfig({
   test: {
     projects: [
       {
+        extends: false,
         test: {
+          clearMocks: false,
           name: 'unit',
           execArgv,
           environment: 'node',
@@ -31,7 +33,9 @@ export default defineConfig({
         },
       },
       {
+        extends: false,
         test: {
+          clearMocks: false,
           name: 'integration',
           execArgv,
           environment: 'jsdom',
