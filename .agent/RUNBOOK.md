@@ -130,7 +130,15 @@ PR 至少写清：关联 issue、范围、验证命令与结果、风险。
 
 ## 正式发布验收
 
-须维护者明确确认后再 tag。完成条件同时满足：
+### 授权与默认范围
+
+须维护者明确授权后再创建或推送 tag。按 `AGENTS.md`，维护者要求“发布新版本”且未限定语言时，已授权发布所有具备正式发布流程的语言版本，无需为各语言重复请求发布授权；明确限定语言时按指定范围执行。此授权不免除各语言的发布前门禁。
+
+当前默认范围为 Java（Knife4j Next）与 Go（Knife4x Go）；Rust 仍是占位目录，没有可发布包，不纳入。各语言按自身版本体系升级，不要求版本号相同。正式发布前列明本次各语言的目标版本、tag 与候选提交，并核对各自发布说明及发布前门禁；仅准备候选、验证或创建发布 PR 不等于获准创建或推送 tag。
+
+### Java
+
+按 `.github/workflows/release.yml` 的现有流程发布，完成条件同时满足：
 
 - `vX.Y.Z` tag 已推送
 - `Release` workflow 的发布与公开制品核验 job 成功
@@ -138,7 +146,21 @@ PR 至少写清：关联 issue、范围、验证命令与结果、风险。
 - Maven Central 目标构件可访问
 - GitHub Release 存在且 body 与 `docs/release-notes/index.md` 对应小节一致
 
-缺 GitHub Release 不得报「发布完成」。
+Java 缺 GitHub Release 不得报该语言「发布完成」。
+
+### Go
+
+按 [Knife4x Go 发布清单](../knife4x/go/RELEASE.md) 执行发布前门禁、创建并推送 `knife4x/go/vX.Y.Z` tag，以及发布后公共消费验证；清单中的具体版本号按本次目标版本替换。完成条件同时满足：
+
+- 公共 Go proxy 的 origin hash / ref 与目标 tag 对应的提交及子目录 tag 一致
+- `sum.golang.org` 存在 module 与 `go.mod` 两条 checksum
+- 全新 consumer 通过公共 proxy 下载目标版本，无 `replace`，编译、Handler 运行与下载内容检查均通过
+
+Go 沿用独立的版本与 tag，不额外要求 Java Release workflow、Maven Central 或 GitHub Release；仅发布 Go 时不触发 Java 发布及其 Demo 部署。
+
+### 整体完成条件
+
+只有本次授权范围内所有语言均通过各自验收，才能报告整体“发布完成”。部分完成时逐项说明各语言的目标版本、已完成步骤、未通过的验收与阻塞原因，不得以单一语言发布成功代表整体完成。
 
 ## 验证失败时
 
