@@ -373,28 +373,32 @@ export default function ScriptView() {
 
   return (
     <OperationModeLayout activeKey="script">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={5} style={{ margin: 0 }}>
-          {t('apiScript.title')}
-        </Title>
-        <Space>
-          <Radio.Group value={lang} onChange={(e) => setLang(e.target.value as Lang)} size="small">
-            <Radio.Button value="ts">TypeScript</Radio.Button>
-            <Radio.Button value="js">JavaScript</Radio.Button>
-          </Radio.Group>
-        </Space>
-      </div>
+      <div className="knife4j-adaptive-code-page">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Title level={5} style={{ margin: 0 }}>
+            {t('apiScript.title')}
+          </Title>
+          <Space>
+            <Radio.Group value={lang} onChange={(e) => setLang(e.target.value as Lang)} size="small">
+              <Radio.Button value="ts">TypeScript</Radio.Button>
+              <Radio.Button value="js">JavaScript</Radio.Button>
+            </Radio.Group>
+          </Space>
+        </div>
 
-      {code ? (
-        <CodeBlock
-          code={currentCode ?? ''}
-          language={lang === 'ts' ? 'typescript' : 'javascript'}
-          maxHeight={600}
-          onCopy={handleCopy}
-        />
-      ) : (
-        <Alert type="info" showIcon title={t('apiScript.noCode')} />
-      )}
+        {code ? (
+          <div className="knife4j-adaptive-code">
+            <CodeBlock
+              code={currentCode ?? ''}
+              language={lang === 'ts' ? 'typescript' : 'javascript'}
+              maxHeight="none"
+              onCopy={handleCopy}
+            />
+          </div>
+        ) : (
+          <Alert type="info" showIcon title={t('apiScript.noCode')} />
+        )}
+      </div>
     </OperationModeLayout>
   );
 }

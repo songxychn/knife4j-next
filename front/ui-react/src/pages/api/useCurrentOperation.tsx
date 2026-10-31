@@ -106,7 +106,14 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
             <span>{t(item.labelKey)}</span>
           </span>
         ),
-        children: item.key === activeKey ? <div className="knife4j-operation-content">{children}</div> : null,
+        children:
+          item.key === activeKey ? (
+            <div
+              className={`knife4j-operation-content${activeKey === 'openapi' || activeKey === 'script' ? ' knife4j-operation-content-code' : ''}`}
+            >
+              {children}
+            </div>
+          ) : null,
       }))}
     />
   );
