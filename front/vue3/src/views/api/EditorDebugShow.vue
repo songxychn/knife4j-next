@@ -51,6 +51,13 @@ export default {
       valueText
     }
   },
+  watch: {
+    value() {
+      if (this.debugResponse && this.editor) {
+        this.$nextTick(() => this.resetEditorHeight());
+      }
+    }
+  },
   data() {
     return {
       editor: null,
@@ -71,23 +78,14 @@ export default {
       var that = this;
       //  重设高度
       setTimeout(() => {
-        var length_editor = that.editor.session.getLength();
-        if (length_editor == 1) {
-          length_editor = 15;
+        if (!that.editor) return;
+        var length_editor = that.editor.session.getScreenLength();
+        if (that.debugResponse) {
+          length_editor = Math.max(length_editor, 30);
+        } else {
+          length_editor = Math.max(15, Math.min(length_editor, 20));
         }
-        if (length_editor < 15) {
-          if (that.debugResponse) {
-            length_editor = 30;
-          } else {
-            length_editor = 15;
-          }
-        }
-        if (length_editor > 20) {
-          if (!that.debugResponse) {
-            length_editor = 20;
-          }
-        }
-        var rows_editor = length_editor * 16;
+        var rows_editor = Math.ceil(length_editor * that.editor.renderer.lineHeight);
         if (rows_editor > 2000) {
           rows_editor = 2000;
         }

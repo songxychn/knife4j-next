@@ -767,18 +767,11 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
 
   return (
     <OperationModeLayout activeKey="doc">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 4,
-        }}
-      >
+      <div className="knife4j-operation-heading">
         <Title level={4} style={{ margin: 0 }}>
           {op.summary ?? operation.path}
         </Title>
-        <Space>
+        <Space wrap>
           <CopyOperationMarkdown document={swaggerDoc} operation={operation} />
           <Button size="small" icon={<CopyOutlined />} onClick={handleCopyUrl}>
             {t('apiDoc.copy.url')}
@@ -874,7 +867,11 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           </Space>
         )}
       </div>
-      {op.description && <Markdown source={op.description} preserveLineBreaks />}
+      {op.description && (
+        <div className="knife4j-operation-description">
+          <Markdown source={op.description} preserveLineBreaks />
+        </div>
+      )}
 
       {relatedModelNames.length > 0 && (
         <Space size={6} wrap style={{ marginTop: 4, marginBottom: 8 }}>
@@ -903,7 +900,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         />
       )}
 
-      <Title level={5} style={{ marginTop: 24 }}>
+      <Title level={5} className="knife4j-operation-section-title">
         {t('apiDoc.requestParams')}
       </Title>
       <Table<ParamRow>
@@ -924,11 +921,11 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         />
       )}
 
-      <Title level={5} style={{ marginTop: 24 }}>
+      <Title level={5} className="knife4j-operation-section-title">
         {t('apiDoc.requestBody')}
       </Title>
       {op.requestBody?.description && (
-        <div style={{ marginBottom: 8 }}>
+        <div className="knife4j-operation-description" style={{ marginBottom: 8 }}>
           <Markdown source={op.requestBody.description} preserveLineBreaks />
         </div>
       )}
@@ -1011,7 +1008,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         <SchemaFieldTable fields={[]} emptyText={t('apiDoc.noBody')} />
       )}
 
-      <Title level={5} style={{ marginTop: 24 }}>
+      <Title level={5} className="knife4j-operation-section-title">
         {t('apiDoc.responseStructure')}
       </Title>
       <Tabs
