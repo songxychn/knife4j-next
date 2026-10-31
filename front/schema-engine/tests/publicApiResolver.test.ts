@@ -113,3 +113,62 @@ test('disposal removes the engine-owned media type plugin', async () => {
   e.dispose();
   expect(acceptableMediaTypes()).not.toContain(mime);
 });
+
+test.each(['dispose', 'unregister'] as const)(
+  'a retired owner cannot mark its successor resources validated after %s',
+  async (release) => {
+    const warm = make();
+    await warm.registerDocument(schema({ type: 'integer' }), 'urn:test:warm');
+    await warm.evaluate('urn:test:warm', 1);
+    warm.dispose();
+
+    const id = 'urn:review:target';
+    const root = 'https://retrieval.test/root';
+    const first = make();
+    await first.registerDocument(schema({ $id: id, type: 'integer' }), retrieval);
+    await first.registerDocument(schema({ $ref: id }), root);
+    const pending = first.evaluate(root, 'x').catch((error: unknown) => error);
+    // Leave compilation in flight after entering upstream meta-validation.
+    for (let turn = 0; turn < 6; turn += 1) await Promise.resolve();
+    if (release === 'dispose') first.dispose();
+    else {
+      first.unregisterDocument(root);
+      first.unregisterDocument(retrieval);
+    }
+
+    const next = make();
+    await next.registerDocument(schema({ $id: id, minLength: -1 }), retrieval);
+    await next.registerDocument(schema({ $ref: id }), root);
+    for (const uri of [root, root, id])
+      await expect(next.evaluate(uri, 'x')).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
+    await pending;
+    next.unregisterDocument(retrieval);
+    await next.registerDocument(schema({ $id: id, minLength: 2 }), retrieval);
+    expect((await next.evaluate(root, 'long')).valid).toBe(true);
+    expect((await next.evaluate(root, 'x')).valid).toBe(false);
+  },
+);
+
+test.each([1, 3, 5])('owner handoff drains a partially registered OAS 3.2 document after %s turns', async (turns) => {
+  const documentFor = (type: string) => ({
+    openapi: '3.2.0',
+    info: { title: 'Pending owner handoff', version: '1' },
+    components: {
+      schemas: Object.fromEntries(
+        Array.from({ length: 12 }, (_, index) => [
+          `Value${index}`,
+          { $id: `https://logical.test/pending-${index}`, type },
+        ]),
+      ),
+    },
+  });
+  const first = make();
+  const pending = first.registerDocument(documentFor('integer'), retrieval);
+  for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
+  first.dispose();
+  const next = make();
+  await next.registerDocument(documentFor('string'), retrieval);
+  await pending;
+  expect((await next.evaluate(retrieval + '#/components/schemas/Value0', 'new')).valid).toBe(true);
+  expect((await next.evaluate(retrieval + '#/components/schemas/Value0', 1)).valid).toBe(false);
+});

@@ -195,6 +195,9 @@ for (const id of ['https://json-schema.org/keyword/ref', 'https://json-schema.or
   });
 }
 let activeOwner: symbol | undefined;
+// Releasing registry keys does not cancel upstream async compilation. A successor
+// must wait until retired work can no longer discover or validate its resources.
+let retiredOwnerWork: Promise<void> = Promise.resolve();
 
 interface RegisteredDocument {
   retrievalUri: string;
@@ -837,6 +840,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
   private readonly pendingRetrievalUris = new Set<string>();
   private readonly pendingResourceUris = new Set<string>();
   private readonly compiled = new Map<string, Promise<CompiledSchema>>();
+  private readonly pendingRegistrations = new Set<Promise<void>>();
   private resolvedDocuments = new WeakMap<SchemaDocument, JsonValue>();
   private generation = 0;
   private compilationGate: Promise<void> = Promise.resolve();
@@ -852,6 +856,11 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     context?: SchemaDocumentRegistrationContext,
   ): Promise<void> {
     this.assertUsable();
+    if (activeOwner === undefined) {
+      await retiredOwnerWork;
+      if (this.disposed) return;
+      this.assertUsable();
+    }
     const uses32 = isOpenApi32(document) || context?.openapi32 === true;
     const normalizedRetrievalUri = uses32
       ? normalizePublicUri(retrievalUri, false)
@@ -961,6 +970,11 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     activeOwner = this.owner;
     const registeredUris: string[] = [];
     const processingDocuments = new Map<string, Set<SchemaDocument>>();
+    let finishRegistration = (): void => undefined;
+    const registrationWork = new Promise<void>((resolve) => {
+      finishRegistration = resolve;
+    });
+    this.pendingRegistrations.add(registrationWork);
     try {
       const primaryUri = oas32?.physicalRetrievalUri ?? normalizedRetrievalUri;
       const addresses = oas32
@@ -1020,12 +1034,14 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
       registeredUris.forEach(unregisterSchema);
       throw asEngineError(error, normalizedRetrievalUri);
     } finally {
+      this.pendingRegistrations.delete(registrationWork);
+      finishRegistration();
       for (const uri of registryUris) this.pendingRegistryUris.delete(uri);
       this.pendingRetrievalUris.delete(normalizedRetrievalUri);
       this.pendingResourceUris.delete(normalizedRetrievalUri);
       for (const resourceUri of resourceUris) this.pendingResourceUris.delete(resourceUri);
       if (this.documents.size === 0 && this.pendingRetrievalUris.size === 0 && activeOwner === this.owner) {
-        activeOwner = undefined;
+        this.releaseOwner();
       }
     }
   }
@@ -1192,7 +1208,7 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     }
     this.invalidateCompiledSchemas();
     if (this.documents.size === 0 && this.pendingRetrievalUris.size === 0 && activeOwner === this.owner) {
-      activeOwner = undefined;
+      this.releaseOwner();
     }
   }
 
@@ -1202,7 +1218,13 @@ export class HyperjumpSchemaEngine implements SchemaEngine {
     this.disposed = true;
     this.compiled.clear();
     this.resolvedDocuments = new WeakMap();
-    if (activeOwner === this.owner && this.pendingRetrievalUris.size === 0) activeOwner = undefined;
+    if (activeOwner === this.owner) this.releaseOwner();
+  }
+
+  private releaseOwner(): void {
+    if (activeOwner !== this.owner) return;
+    retiredOwnerWork = Promise.all([this.compilationGate, ...this.pendingRegistrations]).then(() => undefined);
+    activeOwner = undefined;
   }
 
   private async getResource(schemaUri: string, requestedUri: string): Promise<Browser<SchemaDocument>> {
