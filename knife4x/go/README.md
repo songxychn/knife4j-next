@@ -11,7 +11,7 @@ Knife4x 已发布版本消费 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON 文档，不生
 交给同一套 React UI；限制见
 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
-准备版本为 `v0.9.1`（待发布；最新已发布为 `v0.9.0`），对应仓库 tag `knife4x/go/v0.9.1`：
+当前版本为 `v0.9.1`，对应仓库 tag `knife4x/go/v0.9.1`：
 
 ```bash
 go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.1

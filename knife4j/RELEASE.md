@@ -2,9 +2,9 @@
 
 本 fork 通过 GitHub Actions 和 Central Portal Publishing Plugin 发布 Maven Central 构件，并在同一个 Release workflow 中创建 GitHub Release。
 
-## Java 5.8.1 发布准备
+## Java 5.8.1 发布
 
-当前 POM 面向 Java `5.8.1`，配套 Go 为 `v0.9.1`；两者均待发布，最新已发布版本仍为 Java `5.8.0` / Go `v0.9.0`。发布内容见 [5.8.1 说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。维护者已授权本次双语言发布；准备 PR 须由维护者合并，master CI 与各语言发布前门禁通过后才创建并推送 tag。
+本次版本为 Java `5.8.1`，配套 Go 为 `v0.9.1`。发布内容见 [5.8.1 说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。发布前须取得维护者授权，合并准备 PR，并通过 master CI 与各语言发布前门禁。发布是否完成以公开制品及下述验收结果为准。
 
 ## 一次性配置
 
