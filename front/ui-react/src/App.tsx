@@ -655,7 +655,7 @@ const AppInner: React.FC = () => {
               )}
               <ExternalResourcePanel />
               <Tabs
-                className="knife4j-workspace-tabs"
+                className={`knife4j-workspace-tabs${isOperationRouteKey(location.pathname) ? ' knife4j-workspace-operation' : ''}`}
                 hideAdd
                 onChange={onChange}
                 activeKey={activeKey}
