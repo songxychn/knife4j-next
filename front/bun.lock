@@ -63,7 +63,7 @@
         "docx": "9.9.0",
         "dompurify": "^3.4.17",
         "highlight.js": "^11.12.0",
-        "i18next": "^26.4.7",
+        "i18next": "^26.5.12",
         "i18next-browser-languagedetector": "^8.2.1",
         "idb-keyval": "^6.3.0",
         "jsonpath-plus": "11.2.1",
@@ -938,7 +938,7 @@
 
     "human-signals": ["human-signals@2.1.0", "https://registry.npmmirror.com/human-signals/-/human-signals-2.1.0.tgz", {}, ""],
 
-    "i18next": ["i18next@26.4.7", "https://registry.npmmirror.com/i18next/-/i18next-26.4.7.tgz", { "peerDependencies": { "typescript": "^5 || ^6 || ^7" }, "optionalPeers": ["typescript"] }, "sha512-p/3hqy6EcuqRs6wNwBYwGGC1fzBJSMxV9zMuN814ab/7QjdZbXfjXwuPZdQbngX6KDOTxM01uUiZyqmMB8ghZg=="],
+    "i18next": ["i18next@26.5.12", "https://registry.npmmirror.com/i18next/-/i18next-26.5.12.tgz", { "peerDependencies": { "typescript": "^5 || ^6 || ^7" }, "optionalPeers": ["typescript"] }, "sha512-vTt8tc3y5axoU7wwTYg8vjpILLyP33a5GyGJAVI7FDRx1XueYxZVIkcVeStoftrVnAM/o28hKvK0sslucDI9aQ=="],
 
     "i18next-browser-languagedetector": ["i18next-browser-languagedetector@8.2.1", "https://registry.npmmirror.com/i18next-browser-languagedetector/-/i18next-browser-languagedetector-8.2.1.tgz", { "dependencies": { "@babel/runtime": "^7.23.2" } }, "sha512-bZg8+4bdmaOiApD7N7BPT9W8MLZG+nPTOFlLiJiT8uzKXFjhxw4v2ierCXOwB5sFDMtuA5G4kgYZ0AznZxQ/cw=="],
 
