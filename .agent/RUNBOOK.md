@@ -11,7 +11,7 @@
 
 React 的两个 Vitest project 通过 `execArgv` 显式关闭 Node 原生实验性 Web Storage（`--no-experimental-webstorage`），使集成测试继续使用 jsdom 的浏览器存储；Node 26 的全局 `localStorage` 否则会遮住 Vitest 4 的环境注入。Vitest worker 不会自动继承主进程的此项 CLI 参数，不能只改启动命令。此选项只影响测试进程，不改变页面或生产构建。
 
-Vitest 5 升级显式保留 `clearMocks:false`，React 的两个 inline project 还保留 `extends:false`，以维持原来的 mock 历史及配置隔离。参数化用例中的字符串标签不再自动带单引号；`-t` 跨 suite 的完整名称使用 ` > ` 分隔，手工筛选时可匹配单段名称或用通配正则连接各段。测试源码、断言和发现规则不随框架升级修改。
+Vitest 5 升级显式保留 `clearMocks:false`，React 的两个 inline project 还保留 `extends:false`，以维持原来的 mock 历史及配置隔离。参数化用例中的字符串标签不再自动带单引号；`-t` 跨 suite 的完整名称使用 ` > ` 分隔，手工筛选时可匹配单段名称或用通配正则连接各段。`vitest list` 默认静态解析，不能用它的条目数核对运行时参数化用例；需要完整集合时使用 `vitest list --no-staticParse --json`。标准测试命令、测试源码、断言和发现规则不随框架升级修改。
 
 当前源码的 OAS3 React UI（含 WebJar / Knife4x）浏览器下限为 Chrome/Edge 112、Firefox 116、
 Safari/iOS Safari 17，JSONPath 11 依赖原生 RegExp `v` 标志；不能把构建成功当成旧浏览器兼容。
