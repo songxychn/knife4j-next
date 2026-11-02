@@ -25,7 +25,7 @@ features:
     link: /guide/migration
     linkText: 迁移指引
   - title: Spring Boot 2.7、3.4、3.5、4.1 都跑过
-    details: 14 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.x Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.1.2 WebMVC/Gateway/独立聚合组合。
+    details: 13 个 smoke 模块覆盖 Boot 2.7.18 的 OAS2/OAS3/WebFlux/独立聚合、Boot 3.4.x/3.5.x Jakarta/Gateway WebFlux/Server Web MVC/WebFlux/独立聚合、Boot 4.1.2 WebMVC/Gateway/独立聚合组合。
     link: /reference/compatibility
     linkText: 兼容矩阵
   - title: React + Vite 新前端

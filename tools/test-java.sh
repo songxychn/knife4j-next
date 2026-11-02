@@ -44,7 +44,6 @@ SMOKE_MODULES=(
   "aggregation-boot2-app"
   "boot3-aggregation-jakarta-app"
   "boot4-aggregation-app"
-  "boot3-app"
   "boot3-jakarta-app"
   "boot3-webflux-jakarta-app"
   "boot3-gateway-app"

@@ -85,6 +85,28 @@ public class Boot2OpenApi3DocHttpSmokeTest {
     }
 
     @Test
+    public void shouldServeDocHtmlAndOpenApiJsonWithDefaultPathMatching() throws IOException {
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(
+                        "server.port=0",
+                        "knife4j.enable=true",
+                        "logging.level.root=ERROR")
+                .run();
+
+        int port = ((WebServerApplicationContext) context).getWebServer().getPort();
+
+        HttpResponse docHtml = get(port, "/doc.html");
+        Assert.assertEquals(200, docHtml.statusCode);
+        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
+
+        HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        Assert.assertTrue(apiDocs.body.contains("\"openapi\""));
+        Assert.assertTrue(apiDocs.body.contains("/hello"));
+    }
+
+    @Test
     public void shouldBlockApiDocsWhenProductionTrue() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)
