@@ -30,8 +30,8 @@
 8. 维护者已持续授权：本仓任务需要在 issue / PR 展示非敏感截图时，可直接运行 `./tools/upload-images.sh`，无需逐次询问。边界见 `.agent/RUNBOOK.md`。
 9. 维护者要求“处理 GPT 建议”时，视为同时授权处理当前 PR 中 GPT / Codex 自动审查的可操作评论；实现并验证后可直接回复并解决对应线程。未采纳的建议只回复原因，不解决线程；此授权不适用于人工 reviewer 评论。
 10. 处理附带 OpenAPI / Swagger JSON 或 YAML 的 issue 时，必须先按文档声明的规范版本验证结构与复现路径的契约语义。违反规范或无法表达报告意图的文档，不得作为其所主张行为的 bug 契约或兼容依据：先要求报告者修正文档，禁止为接受该文档增加 alias、猜测或自动转换；若等价的规范最小夹具仍能复现，只修规范场景。非规范输入若另行暴露崩溃、安全或无法安全拒绝等问题，只修拒绝/诊断能力，不把输入兼容成合法契约。细则见 `.agent/RUNBOOK.md`。
-11. PR 开始审查前必须冻结支持版本、范围内对象与非目标。Agent PR 必须由当前实现上下文之外的独立 reviewer 审查（独立 agent 或维护者人工 review）；默认预算为 **一轮全量审查 + 一轮定向复核**。当前契约缺陷批量修，拒绝项说明原因并保留线程，范围外能力创建后续 issue。新规范版本、新模块、新产品承诺或第三轮审查必须停下来由维护者决定，禁止由 review 评论隐式扩张当前 PR。
-12. 任意新 push 都使旧 SHA 的 CI 与审查结论失效；修 review 使用普通追加提交，不为每条评论 amend / force-push。只有当前 head SHA 的本地验证、审查结论与 CI 全绿后，才能标 `status:review`。
+11. PR 开始审查前必须冻结支持版本、范围内对象与非目标。Agent PR 必须由当前实现上下文之外的独立 reviewer 审查（独立 agent 或维护者人工 review），仅符合 `.agent/COORDINATION.md`“低风险豁免”全部条件的纯文案修正可免，并须在 PR 写明判定依据；默认预算为 **一轮全量审查 + 一轮定向复核**。当前契约缺陷批量修，拒绝项说明原因并保留线程，范围外能力创建后续 issue。新规范版本、新模块、新产品承诺或第三轮审查必须停下来由维护者决定，禁止由 review 评论隐式扩张当前 PR。
+12. 任意新 push 都使旧 SHA 的 CI 与审查结论失效；修 review 使用普通追加提交，不为每条评论 amend / force-push。只有当前 head SHA 的本地验证、审查结论（或已写明的低风险豁免）与 CI 全绿后，才能标 `status:review`。
 13. **发布文案必须随版本一次到位，正式 tag 不得遗留准备态提示。** 发布准备 PR 就应同步 README、接入/迁移示例、版本表、发布说明等当前入口的目标版本，移除“待发布”“准备发布”“正式发布前请使用旧版”等文案及上一版的“最新”标记。打 tag 前逐项复核，不得留到发布后补做；`tools/verify-current-version-docs.py`（Build CI 每次运行）只自动拦截 Maven 坐标、“示例使用 Java X”、“当前源码版本”与发布说明“最新”标记中与 `knife4j/pom.xml` 不一致的版本，不覆盖 Go 版本和其他自由文字，不能替代逐项复核。准备阶段使用“当前版本”“以下示例使用 X”等中性表述，实际发布状态和未完成步骤记录在 issue / PR；完成声明仍以发布验收为准。历史版本记录和兼容边界保持原样。
 
 两个合理方案会产生不同外部行为、需要跨模块架构取舍、失败超出任务范围、影响 release / 兼容承诺或维护者意图不明时，先自行调查；仍需维护者决策时，说明已有证据和必要缺口，只暂停依赖该决策的步骤，继续其他已授权工作。
@@ -45,7 +45,7 @@ Java 兼容、多模块、CI / 构建 / 发布逻辑，以及原因未查明的�
 | `agent-task` | 可交 agent 处理的任务 |
 | `status:ready` | 可拾取 |
 | `status:in-progress` | 进行中 |
-| `status:review` | 本地验证 + 独立审查 + PR CI 已过，等人 merge |
+| `status:review` | 本地验证 + 独立审查（或低风险豁免）+ PR CI 已过，等人 merge |
 | `status:blocked` | 卡决策 / 环境 / 上游 |
 | `area:*` | 模块分区 |
 
@@ -55,7 +55,7 @@ Java 兼容、多模块、CI / 构建 / 发布逻辑，以及原因未查明的�
 
 ## 默认工作方式
 
-维护者在场时：主 agent 端到端负责复现、实现、验证和 PR；worker 仅在并行或上下文隔离有实际收益时使用。Agent PR 合入前必须经过独立 reviewer（独立 agent 或维护者人工 review）。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → 独立审查 → PR CI。细则见 `.agent/COORDINATION.md`。
+维护者在场时：主 agent 端到端负责复现、实现、验证和 PR；worker 仅在并行或上下文隔离有实际收益时使用。Agent PR 合入前必须经过独立 reviewer（独立 agent 或维护者人工 review），低风险纯文案修正按 `.agent/COORDINATION.md` 豁免。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → 独立审查 → PR CI。细则见 `.agent/COORDINATION.md`。
 
 分支：`agent/<task-id>-<slug>`；无 issue 的现场小改可用 `agent/adhoc-<slug>` 并在 PR 说明原因。分支名不区分具体 agent 产品。
 
