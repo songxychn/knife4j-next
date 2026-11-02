@@ -1,6 +1,6 @@
 <!--
 本模板同时服务人工贡献者与 agent。删除不适用的小节，不要堆叠 "N/A"。
-Agent PR 必须有独立 reviewer；worker 始终可选。
+Agent PR 必须有独立 reviewer，符合 .agent/COORDINATION.md“低风险豁免”的纯文案修正除外；worker 始终可选。
 -->
 
 ## 关联 issue
@@ -33,9 +33,9 @@ Agent PR 必须有独立 reviewer；worker 始终可选。
 
 ## 独立审查
 
-<!-- Agent PR 必填。Reviewer 可以是独立 agent 或维护者人工 review，结论必须绑定当前 head。 -->
+<!-- Agent PR 必填。Reviewer 可以是独立 agent 或维护者人工 review，结论必须绑定当前 head。使用低风险豁免时，只填“低风险豁免”及逐条判定依据与 head SHA。 -->
 
-- Reviewer：
+- Reviewer（或“低风险豁免”及判定依据）：
 - 审查 head SHA：
 - 全量审查结论：
 - 定向复核结论（如有修复 push）：

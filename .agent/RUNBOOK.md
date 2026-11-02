@@ -30,7 +30,7 @@ OAS2 Vue3 仍沿用 Chrome/Edge 117、Firefox 119、Safari 17.4。Node 与编译
 | 跨多区域 | 受影响区域标准脚本的并集 | 包含生成物与消费方影响，不因跨两个区域就默认跑全套 |
 | 全区域变更 / 整体验收 | `./tools/test-all.sh` | Java、React/core、Vue3、文档站、Go 及 UI 生成物一致性 |
 
-选择区域时可用 `git diff --name-only <base> <head> | ./tools/ci-changes.sh` 核对 CI 影响范围；消费方与生成物相关门禁仍按对应契约执行。仅修改 `AGENTS.md`、`.agent/**` 等流程文案且分类全部为 false 时，核对实际 diff、运行 `git diff --check <base> <head>` 并完成独立措辞审查，无需运行产品测试。验证通过后，仅在新变更、失败或未解决的风险影响验证结论时补跑相关检查。
+选择区域时可用 `git diff --name-only <base> <head> | ./tools/ci-changes.sh` 核对 CI 影响范围；消费方与生成物相关门禁仍按对应契约执行。仅修改 `AGENTS.md`、`.agent/**` 等流程文案且分类全部为 false 时，核对实际 diff、运行 `git diff --check <base> <head>` 并完成独立措辞审查（符合 `.agent/COORDINATION.md`“低风险豁免”时由维护者合并前审阅承担），无需运行产品测试。验证通过后，仅在新变更、失败或未解决的风险影响验证结论时补跑相关检查。
 
 强制：
 

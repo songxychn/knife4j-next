@@ -1,6 +1,17 @@
 # 独立审查与可选多 Agent 协作
 
-默认交付单元是 **主 agent + 独立 reviewer**。主 agent 负责端到端交付；reviewer 是必选门禁。worker 只在并行、文件所有权隔离或上下文控制有明确收益时使用。
+默认交付单元是 **主 agent + 独立 reviewer**。主 agent 负责端到端交付；除下文“低风险豁免”外，reviewer 是必选门禁。worker 只在并行、文件所有权隔离或上下文控制有明确收益时使用。
+
+## 低风险豁免
+
+同时满足以下条件的 agent PR 可以不安排独立 reviewer，由维护者合并前的人工审阅承担第二意见：
+
+- diff 只改 Markdown 文案或 issue / PR 模板，`git diff --name-only <base> <head> | ./tools/ci-changes.sh` 的结果为全部 false 或仅 `docs=true`；
+- 只修正事实、链接、版本号、错别字或与代码已有行为对齐的描述，不新增或改变产品行为、兼容 / 支持承诺、发布流程语义、权限与授权边界；
+- 不改 `AGENTS.md` 硬约束、本文件、`.agent/prompts/**`、`MAINTENANCE.md` 或 `SECURITY.md` 的政策内容；
+- 不是 bug / 回归修复，也不涉及 CI、脚本、构建配置或生成物。
+
+任一条件不满足或拿不准时按默认流程审查。使用豁免时，主 agent 仍须核对实际 diff、运行 `git diff --check <base> <head>` 与对应区域验证，并在 PR“独立审查”小节写明“低风险豁免”、逐条判定依据和当前 head SHA；维护者可随时要求补独立审查。
 
 ## 独立性的最低条件
 
@@ -20,7 +31,7 @@ Reviewer 必须同时满足：
 3. Reviewer 对当前 head 做一轮全量审查，并返回 findings、验证缺口、范围外建议和结论。
 4. 主 agent 一次性把 finding 归为 `当前契约缺陷 / 无效或拒绝 / 范围外后续`；采纳项批量修复、验证和回复。
 5. 若有修复 push，reviewer 只对列出的 finding、修复提交和回归证据做一轮定向复核。
-6. 当前 head 的本地验证、独立审查和 PR CI 全绿后，才能标 `status:review`。
+6. 当前 head 的本地验证、独立审查（或已写明的低风险豁免）和 PR CI 全绿后，才能标 `status:review`。
 
 默认审查预算是 **一轮全量审查 + 一轮定向复核**。出现第三轮审查、新规范版本、新模块、新产品承诺、核心实现实质改写或两种处置会产生不同外部行为时，停止自动追评并请维护者决定。
 
