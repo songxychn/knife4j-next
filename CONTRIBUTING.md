@@ -16,11 +16,13 @@ cd front && bun install --frozen-lockfile && cd ..
 # 3. Enable the versioned pre-commit checks (optional)
 git config core.hooksPath .githooks
 
-# 4. Build Java modules (JDK 17, see .java-version)
-cd knife4j && mvn -B -ntp verify && cd ..
+# 4. Build and test Java modules (JDK 17, see .java-version)
+./tools/test-java.sh
 ```
 
-The optional pre-commit hook checks formatting and lint only for staged changes under `front/core/` and `front/ui-react/`. CI remains the required merge gate.
+`./tools/test-java.sh` runs Spotless, Maven `verify` with tests enabled, and the smoke/compatibility gates. A bare `mvn -B -ntp verify` skips tests because the root POM defaults `knife4j-skipTests` to `true`; do not use it as pre-submit validation.
+
+The optional pre-commit hook runs `format:check` and `lint` for the whole `knife4j-core` / `knife4j-ui-react` package when any staged file is under `front/core/` or `front/ui-react/`. It checks the working tree rather than only the staged content, and does not cover `front/schema-engine/`. CI remains the required merge gate.
 
 OAS3, Vue3, the docs site, and Knife4x UI synchronization share this Node baseline. Source development/builds/tests support only stable Node 26.x; other major versions and prereleases are excluded. Using the published Maven artifacts or Go module does not require Node; browser and Java/Go runtime requirements are unchanged.
 
@@ -30,7 +32,7 @@ There are two independent front-end product lines. Work in the one that matches 
 
 | Source | Package manager | Build output (webjar) | Downstream starter | OpenAPI |
 |---|---|---|---|---|
-| `front/ui-react` (React + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
+| `front/ui-react` (React + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | Direct: `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-openapi3-webflux-spring-boot-starter`, `knife4j-openapi3-webflux-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-gateway-webmvc-spring-boot-starter`, `knife4j-gateway-boot4-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter`; transitive: `knife4j-openapi3-boot4-spring-boot-starter`, `knife4j-aggregation-boot4-spring-boot-starter` | **OAS 3 only — main line** |
 | `front/vue3` (Vue 3 + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
 
 The upstream Vue 2 source under `legacy/vue2/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `legacy/vue2/README.md`.
@@ -43,7 +45,9 @@ bun install --frozen-lockfile
 bun run --filter knife4j-ui-react dev
 ```
 
-Maven pipeline: `knife4j/knife4j-openapi3-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun x vite build` during `generate-resources` and copies the dist into `META-INF/resources/`.
+The OAS 3 workspace in `front/` contains `core` (`knife4j-core`), `schema-engine` (`knife4j-schema-engine`) and `ui-react` (`knife4j-ui-react`).
+
+Maven pipeline: `knife4j/knife4j-openapi3-ui/pom.xml` drives `bun install --frozen-lockfile`, `bun run --filter knife4j-core build`, `bun run --filter knife4j-schema-engine build` and `bun x vite build` during `generate-resources`, then copies the dist into `META-INF/resources/`.
 
 ### OAS 2 compatibility line (`front/vue3`)
 
@@ -53,7 +57,7 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Maven pipeline: `knife4j/knife4j-openapi2-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun run build --outDir=...` during `generate-resources` and copies the dist into `META-INF/resources/`.
+Maven pipeline: `knife4j/knife4j-openapi2-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun run build:Knife4jSpringUi --outDir=...` (the Springfox `swagger-resources` mode required by the OAS 2 webjar) during `generate-resources` and copies the dist into `META-INF/resources/`.
 
 Scope reminder (also in `.agent/PROJECT.md`): the OAS 2 line only takes regression fixes, security patches, and display-layer bugs. New features go to the OAS 3 main line.
 
@@ -65,16 +69,18 @@ The repository enforces consistent formatting through a combination of tool-side
 
 | Tool | Config | Scope |
 |---|---|---|
-| Prettier | `front/core/.prettierrc`, `front/ui-react/.prettierrc` | All `.ts`, `.tsx`, `.css`, `.json` under `src/` |
-| ESLint | Per-project `.eslintrc` | Same scope |
+| Prettier | Per-package `.prettierrc` in `front/core/`, `front/schema-engine/`, `front/ui-react/` | Defined by each package's `format` / `format:check` script |
+| ESLint | Per-package flat config `eslint.config.cjs` | Defined by each package's `lint` script |
 
 ```bash
 # Check formatting (CI uses this)
 cd front
+bun run --filter knife4j-schema-engine format:check
 bun run --filter knife4j-core format:check
 bun run --filter knife4j-ui-react format:check
 
 # Auto-fix formatting
+bun run --filter knife4j-schema-engine format
 bun run --filter knife4j-core format
 bun run --filter knife4j-ui-react format
 ```
@@ -98,7 +104,7 @@ IntelliJ IDEA does not automatically follow the project's formatter rules. To av
 1. **Disable auto-format on save**: `Settings → Tools → Actions on Save → uncheck "Reformat code" and "Optimize imports"`.
 2. **Import the Eclipse code style** (optional, for manual reformat):
    - `Settings → Editor → Code Style → Java → ⚙ → Import Scheme → Eclipse XML Profile`
-   - Select `knife4j/knife4j-openapi3-ui/src/main/resources/spotless_knife4j_formatter.xml`
+   - Select `knife4j/src/main/resources/spotless_knife4j_formatter.xml`
 3. **Install EditorConfig plugin** (bundled in IDEA 2024+): ensures indentation and line endings match `.editorconfig`.
 
 ### VS Code Users
@@ -125,26 +131,31 @@ These rules are enforced by `.editorconfig` and `.gitattributes` at the reposito
 Run the same checks that CI runs:
 
 ```bash
-# Front-end React / core
+# Front-end schema-engine / core / React
 ./tools/test-front-core.sh
 
 # Front-end Vue3 (OAS2 doc.html)
 ./tools/test-vue3.sh
 
-# Java (spotless + verify + smoke evidence)
+# Java (spotless + verify + smoke evidence + compatibility contracts)
 ./tools/test-java.sh
 
 # Docs site build
 ./tools/test-docs.sh
 
-# Cross-area
+# Knife4x Go and the Gin example
+./tools/test-knife4x-go.sh
+
+# All areas (Java, front-core, Vue3, docs, Knife4x Go, embedded UI sync check)
 ./tools/test-all.sh
 ```
 
+For changes spanning a few areas, run the union of the affected scripts; `test-all.sh` is for all-area changes or full acceptance. `git diff --name-only <base>...<head> | ./tools/ci-changes.sh` shows which CI jobs a change triggers (three dots match the merge-base diff that PR CI uses).
+
 ## Branch & Commit Conventions
 
-- **Branch naming**: `agent/<task-id>-<short-slug>` (for automated PRs) or any descriptive name.
-- **Commit messages**: Use [Conventional Commits](https://www.conventionalcommits.org/) style where practical (e.g., `fix:`, `feat:`, `chore:`, `style:`, `ci:`, `docs:`).
+- **Branch naming**: `agent/<task-id>-<short-slug>` for agent PRs with an issue, `agent/adhoc-<short-slug>` for agent PRs without one, or any descriptive name.
+- **Commit messages**: Repository history uses Chinese commit messages with short prefixes such as `修复：`, `文档：`, `维护：`, `构建：`; keep code identifiers, paths and commands as-is. Agent-created commits, issues and PRs must follow the language rule in `AGENTS.md`.
 - **One concern per PR**: Avoid mixing formatting changes with feature changes in the same PR.
 
 ## PR Checklist
@@ -153,9 +164,11 @@ Before submitting a PR, verify:
 
 - [ ] `bun run format:check` passes for all front-end workspaces (via `bun run --filter <pkg> format:check`)
 - [ ] `mvn spotless:check` passes for Java changes
-- [ ] `./tools/test-front-core.sh` passes (if React / core changed)
+- [ ] `./tools/test-front-core.sh` passes (if schema-engine / core / React changed)
 - [ ] `./tools/test-vue3.sh` passes (if Vue3 / OAS2 UI changed)
 - [ ] `./tools/test-java.sh` passes (if Java code changed)
+- [ ] `./tools/test-docs.sh` passes (if the docs site changed)
+- [ ] `./tools/test-knife4x-go.sh` passes (if Knife4x Go changed)
 - [ ] No unintended line-ending or whitespace-only diffs
 
 ## Questions?

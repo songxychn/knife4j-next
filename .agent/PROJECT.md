@@ -31,7 +31,7 @@
 1. OAS3-only → `area:ui-react`
 2. OAS2-only → `area:ui-vue3`，只修显示与兼容
 3. 两边都有的共性 bug → 优先 OAS3 主线；OAS2 仅最小兼容或接受现状
-4. OAS2 **新功能**请求 → `wontfix: scope-policy`，引导迁 OAS3
+4. OAS2 **新功能**请求 → `wontfix` + `wontfix:oas2-scope`，引导迁 OAS3
 5. `knife4j-core` 只服务 OAS3，不为 OAS2 扩展
 
 禁止擅自：

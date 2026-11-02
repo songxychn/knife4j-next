@@ -58,7 +58,7 @@ go run . -base-path /internal
 ```text
 knife4x/
   go/          # Go module：embed UI + net/http Handler
-  rust/        # Rust crate 占位，Go MVP 完成后再实现
+  rust/        # Rust crate 占位，后置，尚未形成发布与支持承诺
   examples/
     gin/       # 可运行的 Gin 组合示例
     axum/      # 后置占位

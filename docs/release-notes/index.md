@@ -819,7 +819,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.0</version>
+    <version>5.8.1</version>
 </dependency>
 ```
 

@@ -2,9 +2,7 @@
 
 本 fork 通过 GitHub Actions 和 Central Portal Publishing Plugin 发布 Maven Central 构件，并在同一个 Release workflow 中创建 GitHub Release。
 
-## Java 5.8.1 发布
-
-本次版本为 Java `5.8.1`，配套 Go 为 `v0.9.1`。发布内容见 [5.8.1 说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。发布前须取得维护者授权，合并准备 PR，并通过 master CI 与各语言发布前门禁。发布是否完成以公开制品及下述验收结果为准。
+本文只描述 Java 发布流程，不记录具体版本。各版本内容见 [发布说明](../docs/release-notes/index.md)，Go 发布流程与验收见 [Go 发布清单](../knife4x/go/RELEASE.md)。发布前须取得维护者授权，合并准备 PR，并通过 master CI 与各语言发布前门禁。发布是否完成以公开制品及下述验收结果为准。
 
 ## 一次性配置
 
@@ -21,21 +19,21 @@
 ## CI workflows
 
 - `.github/workflows/build.yml` 在 PR 和 `master` push 时运行 `mvn verify` 等验证。
-- `.github/workflows/release.yml` 在推送 `v*` tag 时发布 Maven Central 构件，验证公共仓库精确构件 URL 后创建 GitHub Release；手动触发只提供 `finalize-only` 安全收尾。
-- `.github/workflows/deploy-demo.yml` 正常由 `Release` 的 `publish` job 在公开 Maven Central 构件和 GitHub Release 核验成功后通过 `workflow_call` 调用，构建并发布对应 Java tag 的 demo 镜像。`workflow_dispatch` 仅用于重新部署当前 latest release；`master` 合并和 Go 前缀 tag 均不会直接触发 Demo。
+- `.github/workflows/release.yml` 在推送 `v*` tag 时发布 Maven Central 构件，验证公共仓库精确构件 URL 后创建 GitHub Release；手动触发只用于已有 tag 的恢复，提供 `finalize-only` 与 `publish-existing` 两种模式（见下文“恢复路径”）。
+- `.github/workflows/deploy-demo.yml` 是可复用 workflow，正常由 `Release` 的 `deploy-demo` job 在 `publish` job 核验公开 Maven Central 构件和 GitHub Release 成功后通过 `workflow_call` 调用，构建并发布对应 Java tag 的 demo 镜像；它在同一次 `Release` run 中以 `deploy-demo / ...` job 显示，不产生独立的 workflow run。`workflow_dispatch` 仅用于重新部署当前 latest release；`master` 合并和 Go 前缀 tag 均不会直接触发 Demo。
 
 ## Release flow
 
 1. 确认 `knife4j/pom.xml` 和所有子模块版本正确。
-2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### 5.8.1`。
+2. 在 `docs/release-notes/index.md` 增加对应版本小节，例如 `### X.Y.Z`。
 3. 提交并合并 release prep PR，等待 PR CI 和 `master` push CI 通过。
-4. 创建并推送 annotated tag，例如 `v5.8.1`。
+4. 创建并推送 annotated tag，例如 `vX.Y.Z`。
 5. 等待 GitHub Actions `Release` workflow 的 `publish` job 完成发布及公开 Maven Central 构件、GitHub Release 核验。
-6. 等待 `Release` 随后调用的 `Build and Deploy Demo` workflow 完成对应 Java tag 的 demo 镜像发布。
+6. 等待同一次 `Release` run 中的 `deploy-demo` job（调用 `Build and Deploy Demo`）完成对应 Java tag 的 demo 镜像发布。
 7. 验收发布完成条件：
    - `vX.Y.Z` tag 已推送。
    - `Release` workflow 的发布、公开制品及 GitHub Release 核验成功。
-   - 由 `Release` 在核验成功后调用的 `Build and Deploy Demo` workflow 成功。
+   - 同一次 `Release` run 中的 `deploy-demo` job（`Build and Deploy Demo`）成功。
    - Maven Central 目标构件可访问。
    - GitHub Release `vX.Y.Z` 存在。
    - GitHub Release body 与 `docs/release-notes/index.md` 中对应版本小节一致。
@@ -46,15 +44,26 @@ GitHub Release body 由 `.github/workflows/release.yml` 调用 `tools/extract-re
 
 如果 release note 中没有当前 tag 对应的小节，Release workflow 必须失败，不允许发布一个没有 GitHub Release 说明的版本。
 
-## Central 延迟与 `finalize-only` 恢复
+## 恢复路径
 
-正常发布只由 tag push 触发。Central Publishing Plugin 保留 `autoPublish=true` 与 `waitUntil=published`，最多等待 7200 秒并每 15 秒轮询；GitHub Actions job 的 180 分钟上限为后续公共构件验证预留了余量。
+正常发布只由 tag push 触发。`Release` 的 `workflow_dispatch` 只接受已有 annotated `vX.Y.Z` tag，并提供两种恢复模式：
+
+| 模式 | 适用场景 | 是否执行 Maven deploy |
+| --- | --- | --- |
+| `finalize-only` | 构件已上传 Central，但等待发布或后续核验超时 | 否，不读取 Central/GPG secrets |
+| `publish-existing` | tag 已存在，但该版本从未上传 Central（例如 tag push 的 run 在 deploy 前失败） | 是；deploy 前逐一确认目标版本的主构件在 Central 均返回 404，任一已存在即拒绝 |
+
+两种模式都会 checkout 该 tag，校验 tag/POM/发布说明一致，核验公共构件后幂等创建或更新 GitHub Release，并在 `publish` job 成功后调用 Demo。`publish-existing` 会使用发布凭据，执行前须取得维护者对本次恢复的明确授权。
+
+### Central 延迟与 `finalize-only` 恢复
+
+Central Publishing Plugin 保留 `autoPublish=true` 与 `waitUntil=published`，最多等待 7200 秒并每 15 秒轮询；GitHub Actions job 的 180 分钟上限为后续公共构件验证预留了余量。
 
 如果 `Publish to Maven Central` 已输出 deployment ID、bundle 上传成功，但等待 Central 发布超时：
 
 1. 保留失败 run 和原 tag，先核对 deployment 状态及精确 POM/JAR URL。Central 目录索引返回 404 不能作为构件缺失结论。
 2. **禁止重新运行 `mvn deploy`、移动 tag 或重传同版本构件。** 发布构件不可覆盖，模糊日志也不能视为上传失败。
-3. 等公共构件可见后，在 Actions 中手动运行 `Release`，选择唯一的 `finalize-only` mode，并填写已有 annotated `vX.Y.Z` tag。
+3. 等公共构件可见后，在 Actions 中手动运行 `Release`，选择 `finalize-only` mode（`publish-existing` 只用于从未上传的版本，构件已存在时会拒绝执行），并填写已有 annotated `vX.Y.Z` tag。
 4. 恢复路径会 checkout 该 tag，校验 tag/POM/发布说明一致，读取 `tools/release-modules.txt` 检查父 POM、各模块 POM/JAR、签名、SHA-1 和 UI JAR，再幂等创建或更新 GitHub Release。
 5. 恢复路径在 `publish` job 核验成功后同样调用 Demo；仍需满足上述发布验收条件。
 

@@ -7,11 +7,9 @@
 - Java：`.java-version`
 - Node：OAS3、Vue3、docs 和 Knife4x UI 同步统一只支持稳定的 `26.x`，其他主版本与预发行版不在支持范围内。`.nvmrc` 选择 26 系列，日常使用该系列最新补丁；三组前端 CI 均验证 26.0.0 下限与 26 系列当前补丁。共享检查为 `front/scripts/check-node.cjs`，标准脚本在安装前检查，直接开发/构建入口也执行检查。
 - 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）；CI / Demo / Release 基准版本读取根目录 `.bun-version`
-- CI：`.github/workflows/build.yml`、`release.yml`
+- CI：`.github/workflows/build.yml`（PR / master 验证）、`release.yml`（Java 发布）、`deploy-demo.yml`（由 Release 调用的 Demo 部署）、`publish-demo-images.yml`（master 安全修复 Demo 镜像的验证与 `demo` 标签发布，见 `tools/demo-images/README.md`）
 
-React 的两个 Vitest project 通过 `execArgv` 显式关闭 Node 原生实验性 Web Storage（`--no-experimental-webstorage`），使集成测试继续使用 jsdom 的浏览器存储；Node 26 的全局 `localStorage` 否则会遮住 Vitest 4 的环境注入。Vitest worker 不会自动继承主进程的此项 CLI 参数，不能只改启动命令。此选项只影响测试进程，不改变页面或生产构建。
-
-Vitest 5 升级显式保留 `clearMocks:false`，React 的两个 inline project 还保留 `extends:false`，以维持原来的 mock 历史及配置隔离。参数化用例中的字符串标签不再自动带单引号；`-t` 跨 suite 的完整名称使用 ` > ` 分隔，手工筛选时可匹配单段名称或用通配正则连接各段。`vitest list` 默认静态解析，不能用它的条目数核对运行时参数化用例；需要完整集合时使用 `vitest list --no-staticParse --json`。标准测试命令、测试源码、断言和发现规则不随框架升级修改。
+React Vitest 的 Node Web Storage、Vitest 5 配置保留项与用例筛选注意事项见 [`front/ui-react/README.md`](../front/ui-react/README.md#测试注意事项)。
 
 当前源码的 OAS3 React UI（含 WebJar / Knife4x）浏览器下限为 Chrome/Edge 112、Firefox 116、
 Safari/iOS Safari 17，JSONPath 11 依赖原生 RegExp `v` 标志；不能把构建成功当成旧浏览器兼容。
@@ -25,7 +23,7 @@ OAS2 Vue3 仍沿用 Chrome/Edge 117、Firefox 119、Safari 17.4。Node 与编译
 |---|---|---|
 | `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + smoke 证据与兼容契约门禁 |
 | Java 发布面差异 | `./tools/java-compatibility-report.sh` | 与显式 Central 基线比较并生成 report-first artifact；需先完成 Java 构建 |
-| `front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
+| `front/schema-engine`、`front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
 | `front/vue3` | `./tools/test-vue3.sh` | 构建并检查 `doc.html` / webjars |
 | `docs/**` | `./tools/test-docs.sh` | 文档站构建 |
 | `knife4x/go/**`、`knife4x/examples/gin/**` | `./tools/test-knife4x-go.sh` | Go 与 Gin 示例验证 |
@@ -42,7 +40,7 @@ OAS2 Vue3 仍沿用 Chrome/Edge 117、Firefox 119、Safari 17.4。Node 与编译
 - Java 标准脚本包含 OAS2 Vue3 增量 WebJar 回归：真实冷/热 Maven package 的 classes/JAR 必须与当前 dist 映射及静态资源的完整集合、字节一致；覆盖过期分块、图标、gzip、源码包生命周期回入与外部符号链接保护。
 - Java CI 的兼容报告只把真实 API / 实现差异作为审查信号，不因差异本身失败；基线、工具、发布模块或已登记配置/公开入口契约异常仍是硬失败。单模块分析忽略缺失外部类，不能替代消费方测试。
 - 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 后再执行标准 Java 验证；不得为过门禁直接重生成并跳过语义审查。
-- 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表（若仓库已抽出 `tools/smoke-modules.txt` 则只改该文件）。
+- 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表，两处必须一致。
 
 ## 聚合实现同步
 
@@ -142,7 +140,7 @@ PR 至少写清：关联 issue、范围、验证命令与结果、风险。
 
 - `vX.Y.Z` tag 已推送
 - `Release` workflow 的发布与公开制品核验 job 成功
-- 由 `Release` workflow 在核验成功后调用的 `Build and Deploy Demo` workflow 成功
+- 同一次 `Release` run 中、核验成功后执行的 `deploy-demo` job（调用 `Build and Deploy Demo`）成功
 - Maven Central 目标构件可访问
 - GitHub Release 存在且 body 与 `docs/release-notes/index.md` 对应小节一致
 

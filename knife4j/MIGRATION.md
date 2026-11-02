@@ -1,6 +1,6 @@
 # Migration
 
-This fork keeps the same artifact names as upstream `knife4j`, but publishes them under the `com.baizhukui` namespace.
+This fork keeps the artifact names that exist in upstream `knife4j`, but publishes them under the `com.baizhukui` namespace. It also adds fork-only starters, such as `knife4j-openapi3-boot4-spring-boot-starter`, `knife4j-gateway-boot4-spring-boot-starter`, `knife4j-aggregation-boot4-spring-boot-starter` and `knife4j-gateway-webmvc-spring-boot-starter`; see the [module reference](../docs/reference/modules.md).
 
 ## Coordinates
 
@@ -20,17 +20,17 @@ With:
 <dependency>
   <groupId>com.baizhukui</groupId>
   <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-  <version>5.8.0</version>
+  <version>5.8.1</version>
 </dependency>
 ```
 
-The example uses published Java `5.8.0`.
+The example uses published Java `5.8.1`.
 
 ## Compatibility
 
-- Java package names remain `com.github.xiaoymin.knife4j.*` in the first fork release.
+- Java package names remain `com.github.xiaoymin.knife4j.*`.
 - Spring configuration and `doc.html` access patterns are unchanged.
-- The first fork release is intended to be a drop-in dependency replacement.
+- Replacing the `groupId` is intended to be a drop-in dependency change; check the version-specific notes below for dependency floors and browser minimums.
 
 - In `5.7.9`, Boot3 Jakarta MVC, WebFlux and standalone aggregation use springdoc `2.9.1` and require Boot `3.4.7+` / `3.5.1+` (Framework `6.2.8`). Gateway modules retain their existing Cloud/Boot combinations.
 
