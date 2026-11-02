@@ -29,6 +29,11 @@ jobs:
           tools/test-ci-changes.sh
           tools/test-ci-changed-paths.sh
 
+      - name: Verify current-entry docs version
+        run: |
+          tools/test-current-version-docs.sh
+          tools/verify-current-version-docs.py
+
       - name: Classify changed paths
         id: classify
         env:

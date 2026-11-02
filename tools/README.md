@@ -20,6 +20,7 @@
 | `sync-knife4x-ui.sh` | 从共享前端源码生成 Knife4x 内嵌 UI；`--check` 只校验生成物一致 |
 | `test-all.sh` | java + front-core + vue3 + docs + knife4x-go + `sync-knife4x-ui.sh --check` |
 | `test-agent-status.sh` | 任务看板查询、过滤与失败路径 |
+| `verify-current-version-docs.py`、`test-current-version-docs.sh` | 检查已跟踪 Markdown（不含 `legacy/`）中的 `com.baizhukui` 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记是否等于 `knife4j/pom.xml` 版本，及其回归；Build CI 的 `changes` job 每次运行 |
 
 ### CI 区域分类
 
