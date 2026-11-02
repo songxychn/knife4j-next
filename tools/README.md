@@ -28,7 +28,7 @@
 `test-ci-changed-paths.sh` 与 `test-ci-changes.sh`。本地核对：
 
 ```bash
-git diff --name-only <base> <head> | ./tools/ci-changes.sh
+git diff --name-only <base>...<head> | ./tools/ci-changes.sh  # 三点：与 PR CI 一样按 merge-base 计算
 ```
 
 ### Java 兼容性报告

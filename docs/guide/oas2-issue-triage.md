@@ -6,7 +6,7 @@ title: OAS2 UI Issue 初筛（front/vue3）
 
 本文汇总 upstream `xiaoymin/knife4j` 中属于 **OAS2 / Swagger 2 场景**的 UI issue，并按 knife4j-next 的[前端分工策略](/guide/migration#spring-boot-2-x-springfox-openapi2)给出处置结论。
 
-> **前端分工策略摘要**：`front/vue3` 只做回归修复、安全补丁、显示层 bug 修复，不做功能扩张。OAS2 场景的新功能请求一律按 `wontfix: scope-policy` 关闭，引导用户迁移到 OAS3 starter。
+> **前端分工策略摘要**：`front/vue3` 只做回归修复、安全补丁、显示层 bug 修复，不做功能扩张。OAS2 场景的新功能请求一律按 `wontfix` + `wontfix:oas2-scope` 关闭，引导用户迁移到 OAS3 starter。
 
 ::: warning 这不是当前任务队列
 这页是 upstream issue 的历史初筛记录，不代表 issue 已在本仓库复现、修复或承诺排期。真正开工前必须重新阅读 upstream 原文、在当前仓库复现，并在本仓库 issue / PR 中写清楚实际范围；不要只凭 upstream 标题或截图认定修复方向。
@@ -30,7 +30,7 @@ title: OAS2 UI Issue 初筛（front/vue3）
 
 ---
 
-## wontfix: scope-policy（功能扩张类）
+## wontfix:oas2-scope（功能扩张类）
 
 以下 issue 属于 UX 新功能或调试器增强，按分工策略不在 `front/vue3` 实现。对应功能已在 `knife4j-ui-react`（OAS3 主线）覆盖或规划中。
 

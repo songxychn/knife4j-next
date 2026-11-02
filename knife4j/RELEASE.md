@@ -56,6 +56,7 @@ GitHub Release body 由 `.github/workflows/release.yml` 调用 `tools/extract-re
 两种模式都会 checkout 该 tag，校验 tag/POM/发布说明一致，核验公共构件后幂等创建或更新 GitHub Release，并在 `publish` job 成功后调用 Demo。`publish-existing` 会使用发布凭据，执行前须取得维护者对本次恢复的明确授权。
 
 ### Central 延迟与 `finalize-only` 恢复
+
 Central Publishing Plugin 保留 `autoPublish=true` 与 `waitUntil=published`，最多等待 7200 秒并每 15 秒轮询；GitHub Actions job 的 180 分钟上限为后续公共构件验证预留了余量。
 
 如果 `Publish to Maven Central` 已输出 deployment ID、bundle 上传成功，但等待 Central 发布超时：

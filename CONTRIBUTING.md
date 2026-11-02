@@ -150,7 +150,7 @@ Run the same checks that CI runs:
 ./tools/test-all.sh
 ```
 
-For changes spanning a few areas, run the union of the affected scripts; `test-all.sh` is for all-area changes or full acceptance. `git diff --name-only <base> <head> | ./tools/ci-changes.sh` shows which CI jobs a change triggers.
+For changes spanning a few areas, run the union of the affected scripts; `test-all.sh` is for all-area changes or full acceptance. `git diff --name-only <base>...<head> | ./tools/ci-changes.sh` shows which CI jobs a change triggers (three dots match the merge-base diff that PR CI uses).
 
 ## Branch & Commit Conventions
 
