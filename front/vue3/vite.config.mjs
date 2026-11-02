@@ -93,7 +93,7 @@ export default defineConfig({
     proxy: {
       // 开发期将 /api/** 代理到本地 Spring Boot 后端（默认 knife4j-demo 端口 8080）
       // 可通过设置 KNIFE4J_BACKEND 环境变量覆盖，例如:
-      //   KNIFE4J_BACKEND=http://localhost:9000 pnpm dev
+      //   KNIFE4J_BACKEND=http://localhost:9000 bun run dev
       '/api': {
         target: process.env.KNIFE4J_BACKEND || 'http://localhost:8080',
         changeOrigin: true,
