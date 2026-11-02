@@ -56,7 +56,7 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.8.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.0`。
+> `5.8.1` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.1`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.1`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.1` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.1`。
 
 ## 5.7.7 依赖更新
 
@@ -115,7 +115,7 @@ Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `20
 
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.8.0` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.8.1` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -168,7 +168,8 @@ Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `20
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.0` | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.1` | Schema 引用与诊断、Markdown 路由/导出、布局与保存反馈修复 |
+| `4.5.0` | `5.8.0` | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
 | `4.5.0` | `5.7.10` | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
 | `4.5.0` | `5.7.9` | 前端维护与解析修复；两条 UI 浏览器下限提高 |
 | `4.5.0` | `5.7.8` | springdoc 2.9.1、Schema 展示与 WebJar 构建修复；Boot3 生成器下限调整 |

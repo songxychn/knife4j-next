@@ -7,10 +7,13 @@ Bun 的 CI / 发布基准版本见仓库根目录 `.bun-version`。本地可先�
 | 子目录 | 说明 | 产物 |
 |---|---|---|
 | `core/` | TypeScript 解析 / 调试核心（package name: `knife4j-core`） | 供 `ui-react` 依赖 |
-| `ui-react/` | OpenAPI 3 主线 UI（package name: `knife4j-ui-react`） | `knife4j-openapi3-ui` webjar；未来亦供 Knife4x embed |
+| `schema-engine/` | JSON Schema 2020-12 / OAS 3.1 Schema 适配层（package name: `knife4j-schema-engine`） | 供 `ui-react` 依赖，见 [`schema-engine/README.md`](schema-engine/README.md) |
+| `ui-react/` | OpenAPI 3 主线 UI（package name: `knife4j-ui-react`） | `knife4j-openapi3-ui` webjar；Knife4x Go 内嵌 UI（经 `tools/sync-knife4x-ui.sh` 生成） |
 | `vue3/` | OpenAPI 2 / Swagger 2 兼容 UI（独立 bun 工程） | `knife4j-openapi2-ui` webjar |
 
-## OAS3 workspace（core + ui-react）
+`front/package.json` 的 `workspaces` 是 OAS3 workspace 成员的唯一来源；本目录只使用 Bun。
+
+## OAS3 workspace（core + schema-engine + ui-react）
 
 ```bash
 cd front

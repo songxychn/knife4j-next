@@ -143,13 +143,15 @@ bun run dev
 | 改动范围 | 推荐命令 |
 |---|---|
 | Java 主工程 | `./tools/test-java.sh` |
-| React 前端 / `knife4j-core` | `./tools/test-front-core.sh` |
+| React 前端 / `knife4j-core` / `knife4j-schema-engine` | `./tools/test-front-core.sh` |
 | Vue3 前端（OAS2 `doc.html`） | `./tools/test-vue3.sh` |
 | 文档站 | `./tools/test-docs.sh` |
-| 跨多个区域 | `./tools/test-all.sh`（java / front-core / vue3 / docs） |
+| Knife4x Go | `./tools/test-knife4x-go.sh` |
+| 跨多个区域 | 受影响区域脚本的并集 |
+| 全区域变更 / 整体验收 | `./tools/test-all.sh`（java / front-core / vue3 / docs / knife4x-go / Knife4x UI 生成物校验） |
 
-`./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据。不要用单独的
-`mvn -B -ntp verify` 替代提交前验证。
+`./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据与 Java 兼容契约。
+根 POM 默认跳过测试，不要用单独的 `mvn -B -ntp verify` 替代提交前验证。
 
 ## 文档与链接
 

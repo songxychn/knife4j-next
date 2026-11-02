@@ -10,18 +10,33 @@
 | `test-java-compatibility.sh` | 兼容报告与契约护栏的离线回归 |
 | `java-compatibility-report.sh` | 对比显式 Central 基线并生成 report-first 的 Markdown / JSON / XML 报告 |
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
-| `test-front-core.sh` | core + React format/lint/test/build |
+| `verify-configuration-metadata.sh` | 由 `test-java.sh` 调用，检查 starter JAR 内的 Spring Boot 配置元数据 |
+| `aggregation-shared-sources.txt`、`verify-aggregation-parity.py`、`test-aggregation-parity.py` | Boot2 / Jakarta aggregation 共享实现的逐字节一致性检查及其回归，由 `test-java.sh` 调用 |
+| `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
 | `../front/scripts/check-node.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Node 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
 | `test-docs.sh` | 文档站构建 |
-| `test-all.sh` | java + front-core + vue3 + docs |
+| `test-knife4x-go.sh` | Knife4x Go module 与 Gin 示例的 gofmt / vet / test |
+| `sync-knife4x-ui.sh` | 从共享前端源码生成 Knife4x 内嵌 UI；`--check` 只校验生成物一致 |
+| `test-all.sh` | java + front-core + vue3 + docs + knife4x-go + `sync-knife4x-ui.sh --check` |
 | `test-agent-status.sh` | 任务看板查询、过滤与失败路径 |
+
+### CI 区域分类
+
+`ci-changed-paths.sh` 计算 PR / push 的变更路径（无法可靠得出时失败，调用方回退全量），`ci-changes.sh`
+把路径分类为 `java` / `react` / `vue3` / `docs` / `knife4x_go` 输出给 `build.yml`。对应回归为
+`test-ci-changed-paths.sh` 与 `test-ci-changes.sh`。本地核对：
+
+```bash
+git diff --name-only <base> <head> | ./tools/ci-changes.sh
+```
 
 ### Java 兼容性报告
 
 `java-compatibility-report.sh` 在 `test-java.sh` 生成本地 JAR 后运行，默认把报告写到
 `build/reports/java-compatibility/`。基线与 japicmp 版本固定在
-`java-compatibility-baseline.properties`；发布模块沿用 `release-modules.txt`。
+`java-compatibility-baseline.properties`；发布模块沿用 `release-modules.txt`；`java-compatibility-summary.py`
+把各模块 japicmp XML 汇总为 Markdown / JSON。
 
 真实的二进制、源码兼容或实现/资源差异只进入报告，不令命令失败。Central 基线下载失败、
 japicmp 执行失败、发布模块/产物异常，以及 `java-compatibility-contracts.tsv` 中登记的完整
@@ -54,6 +69,9 @@ Spring Boot 配置 key 或关键公开入口漂移会失败。japicmp 按单模�
 设为 `0`；网络等待取两种间隔的较小值，因此原有只设置常规间隔为 `0` 的调用仍不会等待。
 这些设置不会改变制品完整性要求，本优化不会重发 Maven 制品或触发 Demo / Release。
 
+`demo-images/` — `publish-demo-images.yml` 使用的 Demo 镜像构建、验证与 `demo` 标签发布工具，契约见
+[`demo-images/README.md`](demo-images/README.md)。
+
 ## 任务看板
 
 `agent-status.sh` — 一次拉取 open `agent-task` 后按 status label 展示；`snapshot` 另含 git、当前 PR 与 checks。仓库依次取 `GH_REPO`、`GITHUB_REPOSITORY`、当前 `gh repo view`；查询失败时返回非零，不把失败显示为 `(none)`。
@@ -75,3 +93,9 @@ Spring Boot 配置 key 或关键公开入口漂移会失败。japicmp 按单模�
 
 `test-json-schema-engine-spike.sh` — 运行 issue #683 的 JSON Schema 2020-12
 语义、浏览器构建、CSP 与性能探针。该探针不接入产品运行时。
+
+`test-oas31-resource-loader-spike.sh` — 运行 `spikes/oas31-resource-loader/` 的探针检查。
+
+`assess-schema-example-search.mjs` — #949 的 Schema 示例生成算法对比评估，输出 JSON 报告，不修改产品源码。
+
+`test-fixtures/` 为上述脚本回归使用的夹具，`spikes/` 为探针源码，二者均不接入产品运行时。

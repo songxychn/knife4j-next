@@ -57,16 +57,17 @@ Java 兼容、多模块、CI / 构建 / 发布逻辑，以及原因未查明的�
 
 维护者在场时：主 agent 端到端负责复现、实现、验证和 PR；worker 仅在并行或上下文隔离有实际收益时使用。Agent PR 合入前必须经过独立 reviewer（独立 agent 或维护者人工 review）。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → 独立审查 → PR CI。细则见 `.agent/COORDINATION.md`。
 
-分支：`agent/<task-id>-<slug>`；无 issue 的现场小改可用 `agent/codex-<slug>` 并在 PR 说明原因。
+分支：`agent/<task-id>-<slug>`；无 issue 的现场小改可用 `agent/adhoc-<slug>` 并在 PR 说明原因。分支名不区分具体 agent 产品。
 
 ## 验证（摘要）
 
 | 改动 | 命令 |
 |---|---|
 | Java | `./tools/test-java.sh` |
-| React / core | `./tools/test-front-core.sh` |
+| React / core / schema-engine | `./tools/test-front-core.sh` |
 | Vue3（OAS2 UI） | `./tools/test-vue3.sh` |
 | 文档站 | `./tools/test-docs.sh` |
+| Knife4x Go | `./tools/test-knife4x-go.sh` |
 | 跨区域 | 受影响区域标准脚本的并集，包含生成物与消费方影响；见 RUNBOOK |
 | 全区域变更 / 整体验收 | `./tools/test-all.sh` |
 
