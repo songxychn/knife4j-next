@@ -6,9 +6,9 @@
 
 同时满足以下条件的 agent PR 可以不安排独立 reviewer，由维护者合并前的人工审阅承担第二意见：
 
-- diff 只改 Markdown 文案或 issue / PR 模板，`git diff --name-only <base> <head> | ./tools/ci-changes.sh` 的结果为全部 false 或仅 `docs=true`；
-- 只修正事实、链接、版本号、错别字或与代码已有行为对齐的描述，不新增或改变产品行为、兼容 / 支持承诺、发布流程语义、权限与授权边界；
-- 不改 `AGENTS.md` 硬约束、本文件、`.agent/prompts/**`、`MAINTENANCE.md` 或 `SECURITY.md` 的政策内容；
+- diff 只改 Markdown 文案或 issue / PR 模板，且以 `git diff --name-only <base> <head> | ./tools/ci-changes.sh` 的实际输出为准，结果为全部 false 或仅 `docs=true`；
+- 只修正事实、链接、版本号、错别字或与代码已有行为对齐的描述，不新增或改变产品行为、兼容 / 支持承诺、审查 / 验证 / 发布等流程语义、风险分级、权限与授权边界；
+- 对 `AGENTS.md`、`.agent/**`、`MAINTENANCE.md`、`SECURITY.md`，只允许错别字、失效链接，以及与已合入事实一致的版本号、路径、命令名修正；其中任何规则、要求、门禁或政策措辞的改动，即使声称“与代码已有行为对齐”，也按默认流程审查；
 - 不是 bug / 回归修复，也不涉及 CI、脚本、构建配置或生成物。
 
 任一条件不满足或拿不准时按默认流程审查。使用豁免时，主 agent 仍须核对实际 diff、运行 `git diff --check <base> <head>` 与对应区域验证，并在 PR“独立审查”小节写明“低风险豁免”、逐条判定依据和当前 head SHA；维护者可随时要求补独立审查。
