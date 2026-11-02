@@ -17,10 +17,14 @@ while IFS= read -r path || [ -n "$path" ]; do
       ;;
     front/README.md|front/core/README.md|front/schema-engine/README.md|front/ui-react/README.md|front/vue3/README.md)
       ;;
+    knife4j/README.md|knife4j/MIGRATION.md|knife4j/RELEASE.md|knife4j/knife4j-demo-openapi2/SECURITY-ASSESSMENT.md|knife4j/knife4j-gateway-spring-boot-starter/README.md)
+      ;;
+    knife4x/README.md|knife4x/rust/README.md|tools/demo-images/README.md|tools/spikes/*/README.md|tools/spikes/*/DECISION.md)
+      ;;
     front/core/src/__tests__/*|front/core/src/*.test.ts|front/schema-engine/tests/*|front/ui-react/src/*.test.ts|front/ui-react/src/*.test.tsx)
       react=true
       ;;
-    docs/*|tools/test-docs.sh)
+    docs/*|static/*|tools/test-docs.sh)
       docs=true
       ;;
     knife4j/*|tools/test-java.sh|tools/test-java-compatibility.sh|tools/java-compatibility-*|tools/verify-java-compatibility-contracts.py|tools/test-release-tools.sh|tools/test-fixtures/mock-maven-central-curl.sh|tools/extract-release-note.sh|tools/verify-configuration-metadata.sh|tools/verify-release-context.sh|tools/verify-maven-central.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
@@ -45,7 +49,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)
       full=true
       ;;
-    README.md|CONTRIBUTING.md|AGENTS.md|.agent/*|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/claude/*|tools/test-all.sh|tools/verify-github-release.sh)
+    README.md|CONTRIBUTING.md|MAINTENANCE.md|SECURITY.md|AGENTS.md|.agent/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/test-all.sh|tools/verify-github-release.sh)
       ;;
     *)
       full=true
