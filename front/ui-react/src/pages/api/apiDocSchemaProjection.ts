@@ -17,6 +17,8 @@ export type ApiDocSchemaAccessMode = 'request' | 'response';
 export interface ApiDocSchemaProjectionTarget {
   readonly key: string;
   readonly schema: JsonValue;
+  /** Registered physical Schema location; it is not a model-name reference. */
+  readonly reference?: string;
   readonly mode: ApiDocSchemaAccessMode;
   readonly operation?: OperationObject;
 }
@@ -132,7 +134,10 @@ export async function projectApiDocSchemaRegions(
     async (target): Promise<ProjectionAttempt> => {
       throwIfAborted(options.signal);
       try {
-        const result = await projector.projectValue(target.schema, { signal: options.signal });
+        const result =
+          target.reference === undefined
+            ? await projector.projectValue(target.schema, { signal: options.signal })
+            : await projector.project(target.reference, { signal: options.signal });
         return {
           region: {
             key: target.key,

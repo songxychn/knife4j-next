@@ -97,6 +97,8 @@ interface ResponseRow {
   statusCode: string;
   description: string;
   schema?: ApiDocSchemaValue;
+  typeSchema?: ApiDocSchemaValue;
+  schemaReference?: string;
   mediaType?: string;
   headers: Array<{
     key: string;
@@ -491,6 +493,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       statusCode,
       unavailable: location === null,
       response: location ? responseForDisplay(location, session) : {},
+      typeSchema: location ? responseSchema(location.value as ResponseObject) : undefined,
     }));
   }, [isOas32, operation, schemaEngine, swaggerDoc]);
   const responses: ResponseRow[] = useMemo(
@@ -499,6 +502,8 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
         registeredResponses?.map(({ statusCode, response }) => [statusCode, response] as const) ??
         Object.entries(op.responses ?? {})
       ).map(([statusCode, response]) => {
+        const registered = registeredResponses?.find((record) => record.statusCode === statusCode);
+        const schema = responseSchema(response);
         const headers = Object.entries(response.headers ?? {}).map(([name, header]) => {
           const resolvedHeader = header.$ref
             ? (dereferenceReferenceObject(
@@ -519,9 +524,11 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
           key: statusCode,
           statusCode,
           summary: isOas32 && typeof response.summary === 'string' ? response.summary : undefined,
-          unavailable: registeredResponses?.find((record) => record.statusCode === statusCode)?.unavailable,
+          unavailable: registered?.unavailable,
           description: response.description ?? '',
-          schema: responseSchema(response),
+          schema,
+          typeSchema: registered ? registered.typeSchema : schema,
+          schemaReference: registered && typeof schema === 'object' ? schema.$ref : undefined,
           mediaType: responseMediaType(response),
           headers,
         };
@@ -570,6 +577,7 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
       targets.push({
         key: responseSchemaRegionKey(response.key),
         schema: response.schema as unknown as JsonValue,
+        reference: response.schemaReference,
         mode: 'response',
       });
     }
@@ -1047,7 +1055,9 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
                                     {row.description}
                                   </DescriptionText>
                                 )}
-                                {row.schema !== undefined && <SchemaTypeLink node={schemaToTypeNode(row.schema)} />}
+                                {row.typeSchema !== undefined && (
+                                  <SchemaTypeLink node={schemaToTypeNode(row.typeSchema)} />
+                                )}
                                 {row.mediaType && <Tag>{row.mediaType}</Tag>}
                               </>
                             )}
