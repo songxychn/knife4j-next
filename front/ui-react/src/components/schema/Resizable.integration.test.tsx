@@ -55,6 +55,16 @@ function drag(handle: Element, points: number[]) {
   act(() => mouse(document, 'mouseup', points.at(-1) ?? 0));
 }
 
+function touch(target: EventTarget, type: string, x: number) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  const point = { identifier: 1, clientX: x, clientY: 0, target };
+  Object.defineProperties(event, {
+    targetTouches: { value: type === 'touchend' ? [] : [point] },
+    changedTouches: { value: [point] },
+  });
+  target.dispatchEvent(event);
+}
+
 // Real React/Antd/Resizable with App's current sizing props and state flow.
 // Full App navigation and collapse are also checked in the production browser.
 function Sidebar({ report }: { report: (phase: string, data: ResizeCallbackData) => void }) {
@@ -185,6 +195,64 @@ it.each([
     expect(widths()[index]).toBe(minimum + 25);
   },
 );
+
+it.each([
+  [0, 240, 160],
+  [1, 160, 120],
+  [2, 90, 80],
+  [3, 360, 240],
+])('makes SchemaFieldTable column %i keyboard resizable with announced bounds', (index, initial, minimum) => {
+  act(() => root?.render(<SchemaFieldTable fields={[]} />));
+  const handle = container.querySelectorAll<HTMLElement>('.knife4j-schema-resize-handle')[index];
+  const column = () => container.querySelectorAll<HTMLElement>('thead th')[index];
+  const key = (key: string) =>
+    act(() => handle.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })));
+  expect(handle.tabIndex).toBe(0);
+  handle.focus();
+  expect(document.activeElement).toBe(handle);
+  expect(handle.getAttribute('role')).toBe('separator');
+  expect(handle.getAttribute('aria-label')).toBeTruthy();
+  expect(handle.getAttribute('aria-orientation')).toBe('vertical');
+  expect(handle.getAttribute('aria-valuemin')).toBe(String(minimum));
+  expect(handle.getAttribute('aria-valuenow')).toBe(String(initial));
+  expect(handle.getAttribute('aria-valuemax')).toBe('2000');
+  expect(handle.getAttribute('aria-controls')).toBe(column().id);
+  key('ArrowRight');
+  expect(column().style.width).toBe(`${initial + 10}px`);
+  expect(handle.getAttribute('aria-valuenow')).toBe(String(initial + 10));
+  key('ArrowLeft');
+  expect(column().style.width).toBe(`${initial}px`);
+  key('Home');
+  expect(column().style.width).toBe(`${minimum}px`);
+  key('ArrowLeft');
+  expect(column().style.width).toBe(`${minimum}px`);
+  key('End');
+  expect(column().style.width).toBe('2000px');
+  key('ArrowRight');
+  expect(column().style.width).toBe('2000px');
+  expect(document.activeElement).toBe(handle);
+});
+
+it('keeps SchemaFieldTable mouse widths beyond the keyboard End target accessible', () => {
+  act(() => root?.render(<SchemaFieldTable fields={[]} />));
+  const handle = container.querySelector<HTMLElement>('.knife4j-schema-resize-handle')!;
+  drag(handle, [3000]);
+  expect(container.querySelector<HTMLElement>('thead th')!.style.width).toBe('3240px');
+  expect(handle.getAttribute('aria-valuenow')).toBe('3240');
+  expect(handle.getAttribute('aria-valuemax')).toBe('3240');
+  act(() => handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })));
+  expect(container.querySelector<HTMLElement>('thead th')!.style.width).toBe('3230px');
+});
+
+it('preserves the real SchemaFieldTable touch-drag path through the custom separator ref', () => {
+  act(() => root?.render(<SchemaFieldTable fields={[]} />));
+  const handle = container.querySelector<HTMLElement>('.knife4j-schema-resize-handle')!;
+  act(() => touch(handle, 'touchstart', 0));
+  act(() => touch(document, 'touchmove', 40));
+  act(() => touch(document, 'touchend', 40));
+  expect(container.querySelector<HTMLElement>('thead th')!.style.width).toBe('280px');
+  expect(handle.getAttribute('aria-valuenow')).toBe('280');
+});
 
 it('isolates real table resize-handle clicks without changing focus or selection policy', () => {
   const parentClick = vi.fn();

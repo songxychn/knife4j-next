@@ -203,7 +203,9 @@ export default function Home() {
           {item.icon}
         </span>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <Text type="secondary" style={{ display: 'block', fontSize: 13, marginBottom: 6, whiteSpace: 'nowrap' }}>
+          <Text
+            style={{ color: token.colorText, display: 'block', fontSize: 13, marginBottom: 6, whiteSpace: 'nowrap' }}
+          >
             {item.label}
           </Text>
           <Tooltip title={typeof item.value === 'string' ? item.value : undefined}>
@@ -241,14 +243,12 @@ export default function Home() {
         size={6}
         style={{
           minWidth: 0,
-          color: token.colorTextSecondary,
+          color: token.colorText,
           alignSelf: key === 'servers' && serverMetadata32 ? 'start' : undefined,
         }}
       >
         <span style={{ color: token.colorPrimary }}>{icon}</span>
-        <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-          {t(label)}
-        </Text>
+        <Text style={{ color: token.colorText, fontSize: 13, whiteSpace: 'nowrap' }}>{t(label)}</Text>
       </Space>
       <div
         style={{
@@ -269,9 +269,7 @@ export default function Home() {
     <Space orientation="vertical" size={2} style={{ width: '100%' }}>
       {extensions.map((extension) => (
         <span key={extension.key} style={{ display: 'block', overflowWrap: 'anywhere' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {extension.key}:{' '}
-          </Text>
+          <Text style={{ color: token.colorText, fontSize: 12 }}>{extension.key}: </Text>
           <Text style={{ fontSize: 12 }}>{extension.value}</Text>
         </span>
       ))}
@@ -321,7 +319,7 @@ export default function Home() {
           )}
         </Space>
         <Title
-          level={2}
+          level={1}
           style={{
             color: '#fff',
             margin: 0,
@@ -375,7 +373,7 @@ export default function Home() {
               <Space>
                 <ApiOutlined />
                 <span>{t('home.apiStats')}</span>
-                <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
+                <Text style={{ color: token.colorText, fontSize: 12, fontWeight: 'normal' }}>
                   {t('home.methodDistribution')}
                 </Text>
               </Space>
@@ -407,22 +405,21 @@ export default function Home() {
                         >
                           <Tag
                             color={METHOD_COLORS[m.toLowerCase()] ?? '#999'}
-                            style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5 }}
+                            style={{ margin: 0, fontWeight: 700, letterSpacing: 0.5, color: '#001529' }}
                           >
                             {swaggerDoc.openapi?.startsWith('3.2.') ? m : m.toUpperCase()}
                           </Tag>
                           <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>{c}</span>
                         </div>
                         <Progress
+                          aria-label={`${t('home.methodDistribution')}: ${swaggerDoc.openapi?.startsWith('3.2.') ? m : m.toUpperCase()}`}
                           percent={pct}
                           showInfo={false}
                           strokeColor={METHOD_COLORS[m.toLowerCase()] ?? '#999'}
                           size="small"
                           style={{ marginTop: 8, marginBottom: 0 }}
                         />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {pct}%
-                        </Text>
+                        <Text style={{ color: token.colorText, fontSize: 12 }}>{pct}%</Text>
                       </div>
                     </Col>
                   );
@@ -441,7 +438,7 @@ export default function Home() {
               <Space>
                 <TagsOutlined />
                 <span>{t('home.tagRanking')}</span>
-                <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
+                <Text style={{ color: token.colorText, fontSize: 12, fontWeight: 'normal' }}>
                   {t('home.tagRanking.desc')}
                 </Text>
               </Space>
@@ -477,11 +474,17 @@ export default function Home() {
                             </Tooltip>
                           )}
                         </Space>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
+                        <Text style={{ color: token.colorText, fontSize: 12 }}>
                           {item.count} / {tagTotalOps}
                         </Text>
                       </div>
-                      <Progress percent={pct} showInfo={false} strokeColor={token.colorPrimary} size="small" />
+                      <Progress
+                        aria-label={`${t('home.tagRanking')}: ${item.tag}`}
+                        percent={pct}
+                        showInfo={false}
+                        strokeColor={token.colorPrimary}
+                        size="small"
+                      />
                     </div>
                   );
                 })}

@@ -1,20 +1,22 @@
 import { createHashRouter } from 'react-router';
 import App from '../App.tsx';
+import {
+  Schema,
+  Authorize,
+  CookieSession,
+  GlobalParam,
+  OfficeDoc,
+  Settings,
+  MarkdownDocument,
+  ApiDoc,
+  ApiDebug,
+  OpenApiView,
+  ScriptView,
+} from './LazyPages';
 
 import Home from '../pages/Home.tsx';
-import Schema from '../pages/Schema.tsx';
-import Authorize from '../pages/Authorize.tsx';
-import CookieSession from '../pages/document/CookieSession.tsx';
-import GlobalParam from '../pages/document/GlobalParam.tsx';
-import OfficeDoc from '../pages/document/OfficeDoc.tsx';
-import Settings from '../pages/document/Settings.tsx';
-import MarkdownDocument from '../pages/document/MarkdownDocument.tsx';
 
 import ApiHome from '../pages/api/ApiHome.tsx';
-import ApiDoc from '../pages/api/ApiDoc.tsx';
-import ApiDebug from '../pages/api/ApiDebug.tsx';
-import OpenApiView from '../pages/api/OpenApiView.tsx';
-import ScriptView from '../pages/api/ScriptView.tsx';
 
 const router = createHashRouter([
   {

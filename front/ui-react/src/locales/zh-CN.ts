@@ -1,4 +1,13 @@
 const zhCN = {
+  'app.group': '接口分组',
+  'app.language': '语言',
+  'app.loading': '正在加载页面',
+  'app.navigation.title': '接口导航',
+  'app.navigation.open': '展开导航',
+  'app.navigation.close': '收起导航',
+  'app.navigation.resize': '调整导航宽度',
+  'apiDebug.requestMethod': '请求方法',
+  'apiDebug.requestPath': '请求路径',
   'storage.persistenceFailed': '更改已在本页生效，但未能保存到浏览器。刷新或关闭页面后可能丢失。',
   'schema.example32.serializedDataValidation': '序列化文本解码后的数据校验',
   'schema.example32.diagnostics.UNSAFE_EXAMPLE_NUMBER':

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
+import PageLoading from '../components/PageLoading';
 import { Drawer, Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../context/SettingsContext';
-import OfficeDoc from '../pages/document/OfficeDoc';
-import Settings from '../pages/document/Settings';
+const OfficeDoc = lazy(() => import('../pages/document/OfficeDoc'));
+const Settings = lazy(() => import('../pages/document/Settings'));
 
 interface SettingsDrawerProps {
   open: boolean;
@@ -22,8 +23,17 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ open, onClose }) => {
   ];
 
   return (
-    <Drawer title={t('settings.title')} placement="right" size={600} open={open} onClose={onClose}>
-      <Tabs items={tabItems} />
+    <Drawer
+      title={t('settings.title')}
+      placement="right"
+      size={600}
+      open={open}
+      onClose={onClose}
+      styles={{ wrapper: { maxWidth: '100vw' } }}
+    >
+      <Suspense fallback={<PageLoading />}>
+        <Tabs items={tabItems} />
+      </Suspense>
     </Drawer>
   );
 };

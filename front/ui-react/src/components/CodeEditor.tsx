@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, placeholder } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { foldableJsonLanguage } from '../utils/jsonFolding';
 import { xml } from '@codemirror/lang-xml';
 import {
@@ -24,6 +24,7 @@ interface CodeEditorProps {
   /** max height in px, default 400 */
   maxHeight?: number;
   placeholderText?: string;
+  ariaLabel?: string;
 }
 
 const baseTheme = EditorView.theme({
@@ -61,9 +62,11 @@ export default function CodeEditor({
   minHeight = 120,
   maxHeight = 400,
   placeholderText,
+  ariaLabel,
 }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const accessibleNameRef = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -71,6 +74,7 @@ export default function CodeEditor({
     (onChange: (v: string) => void) => {
       const langExt = language === 'json' ? foldableJsonLanguage : language === 'xml' ? xml() : [];
       return [
+        accessibleNameRef.current.of(EditorView.contentAttributes.of({})),
         lineNumbers(),
         drawSelection(),
         highlightActiveLine(),
@@ -114,6 +118,15 @@ export default function CodeEditor({
       viewRef.current = null;
     };
   }, [buildExtensions]);
+
+  // Updating the accessible name must not replace the editable DOM or lose unsaved edits.
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: accessibleNameRef.current.reconfigure(
+        EditorView.contentAttributes.of(ariaLabel ? { 'aria-label': ariaLabel } : {}),
+      ),
+    });
+  }, [ariaLabel, buildExtensions]);
 
   // Sync external value changes (beautify, operation switch)
   useEffect(() => {

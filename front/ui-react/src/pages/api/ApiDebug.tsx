@@ -1239,6 +1239,7 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
       >
         <Space size={8} wrap>
           <Select
+            aria-label={t('apiDebug.body.contentType')}
             size="small"
             value={rawMode}
             onChange={(value) => setRawMode(value as RawMode)}
@@ -1257,6 +1258,7 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
       </div>
       {useCodeEditor ? (
         <CodeEditor
+          ariaLabel={t('apiDoc.requestBody')}
           value={body}
           onChange={setBody}
           language={RAW_MODE_LANGUAGE[rawMode]}
@@ -1264,6 +1266,7 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
         />
       ) : (
         <TextArea
+          aria-label={t('apiDoc.requestBody')}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           rows={10}
@@ -4026,6 +4029,7 @@ export default function ApiDebug() {
                 />
                 {querystringKind === 'data' ? (
                   <CodeEditor
+                    ariaLabel={t('apiDebug.querystring.title')}
                     value={querystringEntry?.text ?? ''}
                     onChange={(next) => updateQuerystringEntry({ text: next, kind: 'data', enabled: true })}
                     language="json"
@@ -4215,6 +4219,7 @@ export default function ApiDebug() {
               </Space>
               <Typography.Text>{t('schema.example32.serialized')}</Typography.Text>
               <CodeEditor
+                ariaLabel={t('apiDoc.requestBody')}
                 value={body}
                 onChange={setBodyFromUser}
                 language={getCurrentCategory() === 'json' ? 'json' : 'text'}
@@ -4572,6 +4577,7 @@ export default function ApiDebug() {
           )}
           <Space.Compact className="knife4j-debug-request" style={{ width: '100%', display: 'flex' }}>
             <Select
+              aria-label={t('apiDebug.requestMethod')}
               value={method}
               onChange={setMethod}
               style={{ width: 110, flex: '0 0 110px' }}
@@ -4594,6 +4600,7 @@ export default function ApiDebug() {
               />
             ) : (
               <AutoComplete
+                aria-label={t('oas32.server.request')}
                 value={baseUrl}
                 title={baseUrl}
                 onChange={setBaseUrl}
@@ -4603,6 +4610,7 @@ export default function ApiDebug() {
               />
             )}
             <Input
+              aria-label={t('apiDebug.requestPath')}
               value={displayPath}
               title={displayPath}
               onChange={(event) => handlePathInputChange(event.target.value)}

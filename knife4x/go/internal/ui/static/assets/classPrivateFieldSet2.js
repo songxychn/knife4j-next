@@ -1,1 +1,1 @@
-import{r as e,t}from"./index.js";function n(t,n,r){e(t,n),n.set(t,r)}function r(e,n){return e.get(t(e,n))}function i(e,n,r){return e.set(t(e,n),r),r}export{r as n,n as r,i as t};
+import{n as e,t}from"./assertClassBrand.js";function n(t,n,r){e(t,n),n.set(t,r)}function r(e,n){return e.get(t(e,n))}function i(e,n,r){return e.set(t(e,n),r),r}export{r as n,n as r,i as t};

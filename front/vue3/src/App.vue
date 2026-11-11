@@ -65,27 +65,37 @@ html {
   overflow-y: overlay;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  background-color: transparent;
+/* Apply to nested scrolling panes as well as the document viewport. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #767676 #f5f5f5;
 }
 
-::-webkit-scrollbar:horizontal {
-  height: 6px;
-}
+/* Chrome 117 and Safari 17.4 still need the WebKit fallback. */
+@supports not (scrollbar-color: auto) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    background-color: #f5f5f5;
+  }
 
-::-webkit-scrollbar-track {
-  border-radius: 10px;
-}
+  ::-webkit-scrollbar:horizontal {
+    height: 6px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background-color: #0003;
-  border-radius: 10px;
-  transition: all 0.2s ease-in-out;
-}
+  ::-webkit-scrollbar-track {
+    background-color: #f5f5f5;
+    border-radius: 10px;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  cursor: pointer;
-  background-color: #0000004d;
+  ::-webkit-scrollbar-thumb {
+    background-color: #767676;
+    border-radius: 10px;
+    transition: all 0.2s ease-in-out;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    cursor: pointer;
+    background-color: #595959;
+  }
 }
 </style>

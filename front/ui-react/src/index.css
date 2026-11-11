@@ -6,11 +6,11 @@ body {
 }
 
 .knife4j-app-layout {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .knife4j-main-content {
-  min-height: 610px;
+  min-height: 0;
 }
 
 /* Width constraints also apply below the desktop region-scrolling breakpoint. */
@@ -28,6 +28,17 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.knife4j-navigation {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.knife4j-navigation > .ant-menu {
+  min-height: 0;
 }
 
 .knife4j-header-actions {
@@ -111,14 +122,21 @@ body {
 
 .react-resizable-handle {
   position: absolute;
-  width: 2px;
+  width: 8px;
   height: 100%;
   right: 0;
   bottom: 0;
   cursor: ew-resize;
-  background: #000;
-  opacity: 0.2;
+  background: transparent;
   z-index: 1;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .ant-table-thead > tr > th.react-resizable {
@@ -365,7 +383,7 @@ body {
     overflow: hidden;
   }
 
-  .knife4j-app-sider > .ant-layout-sider-children > .ant-menu {
+  .knife4j-app-sider .knife4j-navigation > .ant-menu {
     min-height: 0;
     overflow-y: auto;
   }
