@@ -1259,10 +1259,20 @@ async function arrayCandidates(schema: { [key: string]: JsonValue }, ctx: Search
   }
   const item = schema.items === undefined ? true : schema.items;
   const strategies: Array<'tuple' | 'filled' | 'contains' | 'empty'> = [];
-  if (Math.min(prefix.length, max) >= min) strategies.push('tuple');
-  if (item !== false) strategies.push('filled');
+  // A directly recursive item already has an illustrative ancestor. Prefer
+  // its finite terminal before spending reference budget on another copy.
+  if (
+    min === 0 &&
+    isRecord(item) &&
+    Object.keys(item).length === 1 &&
+    typeof item.$ref === 'string' &&
+    ctx.referenceChain.has(resolvedReferenceUri(item.$ref, ctx.baseUri) ?? '')
+  )
+    strategies.push('empty');
+  if (prefix.length > 0 && Math.min(prefix.length, max) >= min) strategies.push('tuple');
+  if (item !== false && max > 0) strategies.push('filled');
   if (schema.contains !== undefined) strategies.push('contains');
-  if (min === 0) strategies.push('empty');
+  if (min === 0 && strategies[0] !== 'empty') strategies.push('empty');
   const selected = selectIndex(ctx, 'array-strategy', strategies.length);
   if (selected < 0) return [];
   const strategy = strategies[selected];
@@ -1288,7 +1298,9 @@ async function arrayCandidates(schema: { [key: string]: JsonValue }, ctx: Search
   const prefixCount = Math.min(prefix.length, max - containsCount);
   for (let index = 0; index < prefixCount; index += 1) if (!(await append(prefix[index]))) return [];
   for (let index = 0; index < containsCount; index += 1) if (!(await append(schema.contains))) return [];
-  const target = strategy === 'tuple' ? prefixCount : Math.max(min, prefixCount + containsCount);
+  // Prefer an illustrative element without turning that preference into a
+  // constraint: the bounded search can still choose the empty fallback.
+  const target = strategy === 'tuple' ? prefixCount : Math.max(min, 1, prefixCount + containsCount);
   while (value.length < target) {
     if (item === false || !(await append(item))) return [];
   }

@@ -204,6 +204,73 @@ describe('authored example priority', () => {
 });
 
 describe('bounded structural candidates', () => {
+  test.each(['request', 'response'] as const)('prefers an illustrative array element for %s', async (direction) => {
+    const session = await sessionFor({
+      Payload: { type: 'array', items: { $ref: '#/components/schemas/Item' } },
+      Item: { type: 'object', required: ['e5'], properties: { e5: { type: 'string', example: '5' } } },
+    });
+    const value = await expectGeneratedValueIsValid(
+      session,
+      reference('Payload'),
+      await generateSchemaExample(session, reference('Payload'), { direction }),
+    );
+    expect(value).toEqual([{ e5: '5' }]);
+  });
+
+  test.each([
+    { type: 'array', maxItems: 0, items: { type: 'string' } },
+    { type: 'array', items: false },
+    { type: 'array', items: { type: 'string', minLength: 2, maxLength: 1 } },
+    { type: 'array', items: { type: 'string' }, allOf: [{ maxItems: 0 }] },
+  ] as JsonValue[])('keeps a valid empty fallback when nonempty generation is unavailable: %j', async (schema) => {
+    const session = await sessionFor({ Payload: schema });
+    const value = await expectGeneratedValueIsValid(
+      session,
+      reference('Payload'),
+      await generateSchemaExample(session, reference('Payload'), { direction: 'request' }),
+    );
+    expect(value).toEqual([]);
+  });
+
+  test.each(['example', 'examples', 'default', 'const', 'enum'])(
+    'preserves authored empty arrays in %s',
+    async (keyword) => {
+      const value = keyword === 'examples' || keyword === 'enum' ? [[]] : [];
+      const session = await sessionFor({ Payload: { type: 'array', items: { type: 'string' }, [keyword]: value } });
+      expect(await generateSchemaExample(session, reference('Payload'), { direction: 'request' })).toMatchObject({
+        status: 'value',
+        value: [],
+        authored: true,
+        validation: 'valid',
+      });
+    },
+  );
+
+  test('honors tuple, contains, uniqueness and caller array limits', async () => {
+    const session = await sessionFor({
+      Tuple: { type: 'array', prefixItems: [{ const: 'first' }], items: false },
+      Contains: { type: 'array', items: { type: 'integer' }, contains: { const: 7 } },
+      Unique: { type: 'array', minItems: 2, maxItems: 2, uniqueItems: true, items: { enum: ['a', 'b'] } },
+      Limited: { type: 'array', items: { type: 'string' } },
+    });
+    for (const [name, expected] of [
+      ['Tuple', ['first']],
+      ['Contains', [7]],
+      ['Unique', ['a', 'b']],
+      ['Limited', ['']],
+    ] as const) {
+      const value = await expectGeneratedValueIsValid(
+        session,
+        reference(name),
+        await generateSchemaExample(session, reference(name), {
+          direction: 'request',
+          ...(name === 'Limited' ? { limits: { maxArrayLength: 1 } } : {}),
+        }),
+      );
+      expect(value).toEqual(expected);
+    }
+  });
+
   test('generates valid objects, arrays and prefixItems candidates', async () => {
     const session = await sessionFor({
       Payload: {
