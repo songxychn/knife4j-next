@@ -6,12 +6,15 @@ const state = vi.hoisted(() => ({
   document: null as unknown,
   operation: null as unknown,
   tags: [] as unknown[],
+  engine: null as unknown,
+  effects: null as Array<() => void | (() => void)> | null,
+  updates: [] as unknown[],
   jsx: (type: unknown, props: Record<string, unknown> | null, key?: unknown) => ({ type, props: props ?? {}, key }),
 }));
 vi.mock('react', () => ({
-  useEffect: () => undefined,
+  useEffect: (effect: () => void | (() => void)) => state.effects?.push(effect),
   useMemo: <T,>(factory: () => T) => factory(),
-  useState: <T,>(initial: T) => [initial, vi.fn()],
+  useState: <T,>(initial: T) => [initial, (value: T) => state.updates.push(value)],
 }));
 vi.mock('react/jsx-runtime', () => ({ jsx: state.jsx, jsxs: state.jsx, jsxDEV: state.jsx, Fragment: 'Fragment' }));
 vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: state.jsx, Fragment: 'Fragment' }));
@@ -34,7 +37,7 @@ vi.mock('../../context/GroupContext', () => ({
   useGroup: () => ({ activeGroup: { value: 'fixture' }, menuTags: state.tags }),
 }));
 vi.mock('../../context/SettingsContext', () => ({ useSettings: () => ({ settings: { enableResponseCode: true } }) }));
-vi.mock('../../context/SchemaEngineContext', () => ({ useSchemaEngine: () => ({ status: 'inactive' }) }));
+vi.mock('../../context/SchemaEngineContext', () => ({ useSchemaEngine: () => state.engine ?? { status: 'inactive' } }));
 vi.mock('./useCurrentOperation', () => ({
   useCurrentOperation: () => ({ loading: false, swaggerDoc: state.document, operation: state.operation }),
   OperationModeLayout: 'OperationModeLayout',
@@ -54,6 +57,9 @@ import ApiDoc from './ApiDoc';
 import { parseMenuTags } from '../../api/knife4jClient';
 import { ExternalResourceLoader } from '../../schema/externalResourceGraph';
 import SchemaValueDetails from '../../components/schema/SchemaValueDetails';
+import { schemaNodeTypeLabel } from '../../components/schema/schemaUtils';
+import { createSchemaDocumentSession } from '../../schema/schemaDocumentSession';
+import type { ApiDocSchemaProjectionState } from './apiDocSchemaViewState';
 
 interface Element {
   type: unknown;
@@ -101,6 +107,89 @@ function fixture(summary: unknown): SwaggerDoc {
 }
 
 describe('ApiDoc Response metadata rendering', () => {
+  test('uses physical response locations in the actual ApiDoc projection effect', async () => {
+    const document: SwaggerDoc = {
+      openapi: '3.1.0',
+      info: { title: 'String response', version: '1' },
+      paths: {
+        '/responses': {
+          get: {
+            responses: {
+              '200': {
+                description: 'OK',
+                content: { '*/*': { schema: { type: 'string', example: '0' } } },
+              },
+            },
+          },
+        },
+      },
+    };
+    const retrievalUri = 'http://retrieved.test/specs/root.json';
+    const session = await createSchemaDocumentSession(document, retrievalUri);
+    const cleanups: Array<void | (() => void)> = [];
+    state.engine = { status: 'ready', document, retrievalUri, session };
+    state.effects = [];
+    state.updates = [];
+    try {
+      render(document);
+      state.effects.forEach((effect) => cleanups.push(effect()));
+      await vi.waitFor(() => {
+        const result = (state.updates as ApiDocSchemaProjectionState[]).find(
+          (update) => update.status === 'ready' && 'result' in update,
+        );
+        expect(result?.status).toBe('ready');
+        if (result?.status !== 'ready') return;
+        expect(result.result.failures).toEqual([]);
+        expect(result.result.regions[0].fields.map(schemaNodeTypeLabel)).toEqual(['string']);
+      });
+    } finally {
+      cleanups.forEach((cleanup) => cleanup?.());
+      state.effects = null;
+      state.engine = null;
+      state.updates = [];
+      session.dispose();
+    }
+  });
+
+  test.each(['3.0.3', '3.1.0', '3.2.0'])(
+    'shows source response types in the overview instead of an internal reference name in OAS %s',
+    (openapi) => {
+      const document: SwaggerDoc = {
+        openapi,
+        info: { title: 'Response types', version: '1' },
+        paths: {
+          '/responses': {
+            get: {
+              responses: {
+                '200': { description: 'String', content: { '*/*': { schema: { type: 'string', example: '0' } } } },
+                '201': {
+                  description: 'Integer',
+                  content: { 'application/json': { schema: { type: 'integer', format: 'int64' } } },
+                },
+                '202': {
+                  description: 'Array',
+                  content: { 'application/json': { schema: { type: 'array', items: { type: 'string' } } } },
+                },
+                '203': {
+                  description: 'Model named schema',
+                  content: { 'application/json': { schema: { $ref: '#/components/schemas/schema' } } },
+                },
+              },
+            },
+          },
+        },
+        components: { schemas: { schema: { type: 'object', properties: { id: { type: 'integer' } } } } },
+      };
+      const tree = render(document);
+      const labels = ['200', '201', '202', '203'].flatMap((status) =>
+        elements(tree.find((element) => element.type === 'div' && element.key === status))
+          .filter((element) => element.type === 'SchemaTypeLink')
+          .map((element) => schemaNodeTypeLabel(element.props.node as never)),
+      );
+      expect(labels).toEqual(['string', 'integer / int64', 'string[]', 'schema']);
+    },
+  );
+
   test.each(['3.0.3', '3.1.0', '3.2.0'])(
     'passes parameter Schema values into the description cell in OAS %s',
     (openapi) => {

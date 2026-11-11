@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createSchemaEngine } from 'knife4j-schema-engine';
+import { collectOas32DocumentDiagnostics } from 'knife4j-core';
 import { parseMenuTags } from '../api/knife4jClient';
 import type { SwaggerDoc } from '../types/swagger';
 import { createSchemaDocumentSession, type SchemaDocumentSession } from './schemaDocumentSession';
@@ -7,6 +8,8 @@ import { locateOperationResponses, responseForDisplay } from './registeredRespon
 import { createSchemaDisplayProjector } from './schemaDisplayProjection';
 import { generateOperationSchemaExamples } from './operationSchemaExamples';
 import { evaluateResponseBodySchema, prepareResponseBodySchemaEvaluation } from './responseBodySchemaValidation';
+import { projectApiDocSchemaRegions } from '../pages/api/apiDocSchemaProjection';
+import { schemaNodeTypeLabel } from '../components/schema/schemaUtils';
 
 const entryUri = 'https://docs.example.test/spec/openapi.json';
 const resourceUri = 'https://resources.example.test/responses/openapi.json';
@@ -59,6 +62,75 @@ afterEach(() => {
 });
 
 describe('registered OAS response consumers', () => {
+  test('preserves an external inline resource base and its genuine member reference name', async () => {
+    const { document, resource } = fixture();
+    resource.components!.responses!.Result.content!['application/json'].schema = {
+      $id: 'https://resources.example.test/inline-array',
+      type: 'array',
+      items: { $ref: '#/$defs/Member' },
+      $defs: { Member: { type: 'string' } },
+    };
+    const session = await createSchemaDocumentSession(document, entryUri, {
+      resourceDocuments: [{ document: resource, retrievalUri: resourceUri }],
+    });
+    sessions.push(session);
+    const network = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Registry-only'));
+    const operation = parseMenuTags(document)[0].operations[0];
+    const location = locateOperationResponses(document, operation, session)[0].location!;
+    const response = responseForDisplay(location, session);
+    const schema = response.content!['application/json'].schema as { $ref: string };
+    const result = await projectApiDocSchemaRegions(
+      [{ key: '200', mode: 'response', schema, reference: schema.$ref }],
+      createSchemaDisplayProjector(session),
+    );
+    expect(result.failures).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.regions[0].fields.map(schemaNodeTypeLabel)).toEqual(['Member[]']);
+    expect(network).not.toHaveBeenCalled();
+  });
+
+  test.each(['3.1.0', '3.2.0'])(
+    'projects a registered physical Schema location without treating its path as a model in OAS %s',
+    async (openapi) => {
+      const document: SwaggerDoc = {
+        openapi,
+        info: { title: 'Response types', version: '1' },
+        paths: {
+          '/result': {
+            get: {
+              responses: {
+                '200': { description: 'String', content: { '*/*': { schema: { type: 'string', example: '0' } } } },
+                '201': { description: 'Boolean schema', content: { 'application/json': { schema: false } } },
+              },
+            },
+          },
+        },
+      };
+      const validator = createSchemaEngine();
+      try {
+        if (openapi.startsWith('3.2')) expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
+        else
+          expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(
+            true,
+          );
+      } finally {
+        validator.dispose();
+      }
+      const session = await createSchemaDocumentSession(document, entryUri);
+      sessions.push(session);
+      const operation = parseMenuTags(document, { retrievalUri: entryUri })[0].operations[0];
+      const targets = locateOperationResponses(document, operation, session).map(({ statusCode, location }) => {
+        const response = responseForDisplay(location!, session);
+        const schema = Object.values(response.content!)[0].schema as { $ref: string };
+        return { key: statusCode, mode: 'response' as const, schema, reference: schema.$ref };
+      });
+      const result = await projectApiDocSchemaRegions(targets, createSchemaDisplayProjector(session));
+      expect(result.failures).toEqual([]);
+      expect(result.regions.map(({ fields }) => fields.map(schemaNodeTypeLabel))).toEqual([['string'], ['never']]);
+      expect(result.regions[0].fields[0]).toMatchObject({ type: 'string', example: '0', isRoot: true });
+    },
+  );
+
   test('uses one registered response for display, authored examples and actual response validation', async () => {
     const { document, resource } = fixture();
     const validator = createSchemaEngine();
