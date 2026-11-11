@@ -1,4 +1,8 @@
 const enUS = {
+  'apiDebug.response.tabs.label': 'Response content',
+  'app.tabs.label': 'Workspace',
+  'operation.tabs.label': 'Operation views',
+  'apiDebug.tabs.label': 'Request parameters',
   'app.group': 'API group',
   'app.language': 'Language',
   'app.loading': 'Loading page',

@@ -156,3 +156,19 @@ test('updates the CodeEditor accessible name without recreating its content elem
   expect(content?.getAttribute('aria-label')).toBe('リクエストボディ');
   expect(content?.textContent).toBe('draft');
 });
+
+test('exposes the operation heading and request history as a coherent document outline', async () => {
+  state.operation!.operation.summary = 'Save pets';
+  await act(async () =>
+    root.render(
+      <MemoryRouter>
+        <ApiDebug />
+      </MemoryRouter>,
+    ),
+  );
+  expect(container.querySelectorAll('h1')).toHaveLength(1);
+  expect(container.querySelector('h1')?.textContent).toBe('Save pets');
+  expect(container.querySelector('#knife4j-debug-history-panel h2')?.textContent).toBe(
+    i18n.t('apiDebug.history.title'),
+  );
+});

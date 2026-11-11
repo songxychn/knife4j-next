@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, Suspense } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Alert, Button, ConfigProvider, Dropdown, Drawer, Layout, MenuProps, Select, Tabs, theme } from 'antd';
+import { Alert, Button, ConfigProvider, Dropdown, Drawer, Layout, MenuProps, Select, theme } from 'antd';
 import enUSLocale from 'antd/locale/en_US';
 import jaJPLocale from 'antd/locale/ja_JP';
 import zhCNLocale from 'antd/locale/zh_CN';
@@ -18,6 +18,7 @@ import type { SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
 import ResizableSeparator from './components/ResizableSeparator';
+import Tabs from './components/AccessibleTabs';
 import PageLoading from './components/PageLoading';
 import Markdown from './components/Markdown';
 import ExternalResourcePanel from './components/schema/ExternalResourcePanel';
@@ -729,6 +730,7 @@ const AppInner: React.FC = () => {
               )}
               <ExternalResourcePanel />
               <Tabs
+                tabListLabel={t('app.tabs.label')}
                 className={`knife4j-workspace-tabs${isOperationRouteKey(location.pathname) ? ' knife4j-workspace-operation' : ''}`}
                 hideAdd
                 onChange={onChange}

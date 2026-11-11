@@ -1,4 +1,8 @@
 const jaJP = {
+  'apiDebug.response.tabs.label': 'レスポンス内容',
+  'app.tabs.label': 'ワークスペース',
+  'operation.tabs.label': 'API ビュー',
+  'apiDebug.tabs.label': 'リクエストパラメーター',
   'app.group': 'API グループ',
   'app.language': '言語',
   'app.loading': 'ページを読み込み中',

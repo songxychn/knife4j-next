@@ -1,7 +1,8 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ApiOutlined, BugOutlined, CodeOutlined, FileTextOutlined } from '@ant-design/icons';
-import { Tabs } from 'antd';
+import Tabs from '../../components/AccessibleTabs';
+import { ConfigProvider } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -54,6 +55,11 @@ interface OperationModeLayoutProps {
   children: ReactNode;
 }
 
+const DEBUG_CONTENT_THEME = {
+  token: { colorTextDescription: '#595959' },
+  components: { Button: { colorPrimary: '#0958d9', colorPrimaryHover: '#003eb3', colorPrimaryActive: '#002c8c' } },
+};
+
 const OPERATION_MODES: Array<{ key: OperationModeKey; labelKey: string; icon: ReactNode }> = [
   { key: 'doc', labelKey: 'operation.tab.doc', icon: <FileTextOutlined /> },
   { key: 'debug', labelKey: 'operation.tab.debug', icon: <BugOutlined /> },
@@ -91,6 +97,7 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
 
   return (
     <Tabs
+      tabListLabel={t('operation.tabs.label')}
       className="knife4j-operation-tabs"
       activeKey={activeKey}
       tabPlacement="start"
@@ -111,7 +118,11 @@ export function OperationModeLayout({ activeKey, children }: OperationModeLayout
             <div
               className={`knife4j-operation-content${activeKey === 'openapi' || activeKey === 'script' ? ' knife4j-operation-content-code' : ''}`}
             >
-              {children}
+              {activeKey === 'debug' ? (
+                <ConfigProvider theme={DEBUG_CONTENT_THEME}>{children}</ConfigProvider>
+              ) : (
+                children
+              )}
             </div>
           ) : null,
       }))}
