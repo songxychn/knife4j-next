@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { createSchemaEngine } from 'knife4j-schema-engine';
 import type { MenuOperation, OperationObject, SwaggerDoc } from '../types/swagger';
 import { createSchemaDocumentSession, type SchemaDocumentSession } from './schemaDocumentSession';
 import {
@@ -186,6 +187,61 @@ describe('operation example targets', () => {
       });
     },
   );
+
+  test('shows referenced array elements consistently in ApiDoc and ApiDebug (#1026)', async () => {
+    const document: SwaggerDoc = {
+      openapi: '3.1.0',
+      info: { title: 'Issue 1026', version: '1' },
+      paths: {
+        '/messages': {
+          post: {
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Payload' } } } },
+            responses: { '200': { description: 'OK' } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Payload: {
+            type: 'object',
+            required: ['a1', 'b2'],
+            properties: {
+              a1: { type: 'string', example: '1' },
+              b2: { $ref: '#/components/schemas/BBB' },
+              d4: { type: 'array', items: { $ref: '#/components/schemas/CCC' } },
+            },
+          },
+          BBB: { type: 'object', properties: { c3: { type: 'string', example: '3' } } },
+          CCC: { type: 'object', required: ['e5'], properties: { e5: { type: 'string', example: '5' } } },
+        },
+      },
+    };
+    const validator = createSchemaEngine();
+    try {
+      expect((await validator.evaluate('https://spec.openapis.org/oas/3.1/schema-base', document)).valid).toBe(true);
+    } finally {
+      validator.dispose();
+    }
+    const operation = currentOperation(document);
+    const session = await openSession(document);
+    const target = locateRequestSchemaExampleTargets(document, operation)[0];
+    const debug = await generateOperationSchemaExample(session, target, 'request');
+    const doc = (await generateOperationSchemaExamples(document, operation, session)).request?.result;
+    expect(doc).toEqual(debug);
+    expect(debug).toMatchObject({
+      status: 'value',
+      value: { a1: '1', b2: { c3: '3' }, d4: [{ e5: '5' }] },
+      validation: 'valid',
+    });
+    document.paths['/messages'].post!.requestBody!.content!['application/json'].example = { a1: '1', b2: {}, d4: [] };
+    const authored = (await generateOperationSchemaExamples(document, operation, session)).request?.result;
+    expect(authored).toMatchObject({
+      status: 'value',
+      source: 'media-example',
+      value: { a1: '1', b2: {}, d4: [] },
+      validation: 'valid',
+    });
+  });
 
   test('validates every generated response candidate and never fetches an external schema', async () => {
     const document = exampleDocument();
