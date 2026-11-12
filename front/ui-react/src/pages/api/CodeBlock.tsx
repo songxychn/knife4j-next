@@ -1,7 +1,17 @@
 import { useMemo } from 'react';
 import { Button } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
-import hljs from 'highlight.js';
+import hljs from 'highlight.js/lib/core';
+import json from 'highlight.js/lib/languages/json';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import xml from 'highlight.js/lib/languages/xml';
+import { useTranslation } from 'react-i18next';
+
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('xml', xml);
 import 'highlight.js/styles/github.css';
 import JsonViewer from '../../components/JsonViewer';
 import { prepareJsonDocument } from '../../utils/jsonFolding';
@@ -28,6 +38,7 @@ export default function CodeBlock({
   maxHeight = 400,
   preserveText = false,
 }: CodeBlockProps) {
+  const { t } = useTranslation();
   const model = useMemo(
     () => (language === 'json' ? prepareJsonDocument(code, preserveText) : null),
     [code, language, preserveText],
@@ -35,6 +46,7 @@ export default function CodeBlock({
   const highlighted = useMemo(() => {
     if (model?.valid) return '';
     try {
+      if (!hljs.getLanguage(language)) return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return hljs.highlight(code, { language }).value;
     } catch {
       return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -46,7 +58,8 @@ export default function CodeBlock({
       {onCopy && (
         <Button
           size="small"
-          icon={<CopyOutlined />}
+          aria-label={t('apiDebug.preview.copyValue')}
+          icon={<CopyOutlined aria-hidden="true" />}
           style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
           onClick={onCopy}
         />

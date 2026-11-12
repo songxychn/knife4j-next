@@ -1,6 +1,6 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, Suspense } from 'react';
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { Alert, Button, ConfigProvider, Dropdown, Layout, MenuProps, Select, Tabs, theme } from 'antd';
+import { Alert, Button, ConfigProvider, Dropdown, Drawer, Layout, MenuProps, Select, theme } from 'antd';
 import enUSLocale from 'antd/locale/en_US';
 import jaJPLocale from 'antd/locale/ja_JP';
 import zhCNLocale from 'antd/locale/zh_CN';
@@ -17,6 +17,9 @@ import { DEFAULT_LANGUAGE, normalizeSupportedLanguage, synchronizeI18nLanguage }
 import type { SupportedLang } from './types/settings';
 import SidebarSearchMenu from './compoents/SidebarSearchMenu';
 import SettingsDrawer from './compoents/SettingsDrawer';
+import ResizableSeparator from './components/ResizableSeparator';
+import Tabs from './components/AccessibleTabs';
+import PageLoading from './components/PageLoading';
 import Markdown from './components/Markdown';
 import ExternalResourcePanel from './components/schema/ExternalResourcePanel';
 import knife4jMark from './assets/logo/knife4j-next-mark.svg';
@@ -35,6 +38,14 @@ import { KNIFE4J_STORAGE_KEYS, setKnife4jSessionStorageItem, setKnife4jStorageIt
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
+
+const COMPACT_QUERY = '(max-width: 800px)';
+const subscribeCompact = (notify: () => void) => {
+  const query = window.matchMedia(COMPACT_QUERY);
+  query.addEventListener('change', notify);
+  return () => query.removeEventListener('change', notify);
+};
+const compactSnapshot = () => window.matchMedia(COMPACT_QUERY).matches;
 
 const HOME_KEY = '/group/home';
 const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
@@ -90,7 +101,7 @@ function loadPersistedTabs(): { items: PersistedTab[]; activeKey: string } | nul
 const footerStyle: React.CSSProperties = {
   textAlign: 'center',
   fontSize: '14px',
-  color: '#848587',
+  color: '#595959',
   backgroundColor: '#f0f2f5',
   minHeight: '40px',
 };
@@ -98,6 +109,8 @@ const footerStyle: React.CSSProperties = {
 // Inner component so it can use GroupProvider context
 const AppInner: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const compact = useSyncExternalStore(subscribeCompact, compactSnapshot, () => false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [siderWidth, setSiderWidth] = useState(320);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -275,11 +288,16 @@ const AppInner: React.FC = () => {
     setSelectedKey(pathname);
   }, [location.pathname]);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [compact]);
+
   const handleResize = (_e: React.SyntheticEvent, data: { size: { width: number } }) => {
     setSiderWidth(data.size.width);
   };
 
   const menuClick: MenuProps['onClick'] = (info) => {
+    setMobileMenuOpen(false);
     const rawKey = String(info.key);
     const schemaInfo = schemaRouteInfo(rawKey);
     const documentToolRoute = matchDocumentToolRoute(rawKey);
@@ -454,6 +472,7 @@ const AppInner: React.FC = () => {
 
   const groupOptions = groups.map((g) => ({ value: g.value, label: g.label }));
   const handleGroupChange = (value: string) => {
+    setMobileMenuOpen(false);
     setActiveGroupValue(value);
 
     const documentToolRoute = matchDocumentToolRoute(location.pathname);
@@ -485,70 +504,112 @@ const AppInner: React.FC = () => {
       </Dropdown>
     ),
     closable: item.key !== HOME_KEY,
-    children: item.key === activeKey ? <Outlet /> : item.children,
+    children:
+      item.key === activeKey ? (
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
+      ) : (
+        item.children
+      ),
   }));
   const rawHeaderTitle = swaggerDoc?.info?.title?.trim();
   const headerTitle = rawHeaderTitle && rawHeaderTitle !== 'API Docs' ? rawHeaderTitle : t('app.header.title');
   const footerContent = resolveFooterContent(settings, t('app.footer'));
 
+  const navigationContent = (
+    <nav id="knife4j-navigation" className="knife4j-navigation" aria-label={t('app.navigation.title')}>
+      {/* Brand */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 10,
+          minHeight: 56,
+          padding: !compact && collapsed ? '12px 0' : '12px 16px',
+          color: '#fff',
+          fontSize: !compact && collapsed ? 14 : 20,
+          fontWeight: 700,
+          letterSpacing: !compact && collapsed ? 0 : 0.2,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
+        {(compact || !collapsed) && <span>{t('app.brand')}</span>}
+      </div>
+
+      {/* Group switcher */}
+      {(compact || !collapsed) && settings.enableGroup && groupOptions.length > 0 && (
+        <div style={{ padding: '0 8px 8px' }}>
+          <Select
+            aria-label={t('app.group')}
+            options={groupOptions}
+            value={activeGroup.value}
+            style={{ width: '100%' }}
+            onChange={handleGroupChange}
+          />
+        </div>
+      )}
+
+      {/* Search + Menu */}
+      <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={!compact && collapsed} />
+    </nav>
+  );
+
   return (
-    <ConfigProvider locale={antdLocaleMap[currentLang]}>
-      <Layout className="knife4j-app-layout">
-        <Resizable
-          width={siderWidth}
-          height={Infinity}
-          handle={<div className="react-resizable-handle" />}
-          resizeHandles={['e']}
-          onResize={handleResize}
-          minConstraints={[260, Infinity]}
-          maxConstraints={[520, Infinity]}
-          draggableOpts={{ enableUserSelectHack: false }}
-        >
-          <Sider
-            className="knife4j-app-sider"
-            trigger={null}
-            collapsible
-            collapsed={collapsed}
-            collapsedWidth={56}
-            width={siderWidth}
-            style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    <ConfigProvider
+      locale={antdLocaleMap[currentLang]}
+      theme={{ token: { colorTextSecondary: '#595959' }, components: { Tabs: { itemSelectedColor: '#0958d9' } } }}
+    >
+      <Layout className="knife4j-app-layout" inert={settingsOpen || (compact && mobileMenuOpen)}>
+        {compact ? (
+          <Drawer
+            title={t('app.navigation.title')}
+            placement="left"
+            size={320}
+            open={mobileMenuOpen}
+            onClose={() => setMobileMenuOpen(false)}
+            styles={{ wrapper: { maxWidth: '100vw' }, body: { padding: 0, background: '#001529' } }}
           >
-            {/* Brand */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: 10,
-                minHeight: 56,
-                padding: collapsed ? '12px 0' : '12px 16px',
-                color: '#fff',
-                fontSize: collapsed ? 14 : 20,
-                fontWeight: 700,
-                letterSpacing: collapsed ? 0 : 0.2,
-                whiteSpace: 'nowrap',
-              }}
+            {navigationContent}
+          </Drawer>
+        ) : (
+          <Resizable
+            width={siderWidth}
+            height={Infinity}
+            handle={
+              <ResizableSeparator
+                hidden={collapsed}
+                tabIndex={collapsed ? -1 : 0}
+                className="react-resizable-handle"
+                value={siderWidth}
+                min={260}
+                max={520}
+                onValueChange={setSiderWidth}
+                label={t('app.navigation.resize')}
+                controls="knife4j-navigation"
+              />
+            }
+            resizeHandles={['e']}
+            onResize={handleResize}
+            minConstraints={[260, Infinity]}
+            maxConstraints={[520, Infinity]}
+            draggableOpts={{ enableUserSelectHack: false }}
+          >
+            <Sider
+              className="knife4j-app-sider"
+              trigger={null}
+              collapsible
+              collapsed={collapsed}
+              collapsedWidth={56}
+              width={siderWidth}
+              style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             >
-              <img src={knife4jMark} alt="knife4j" style={{ width: 28, height: 28 }} />
-              {!collapsed && <span>{t('app.brand')}</span>}
-            </div>
-
-            {/* Group switcher */}
-            {!collapsed && settings.enableGroup && groupOptions.length > 0 && (
-              <div style={{ padding: '0 8px 8px' }}>
-                <Select
-                  options={groupOptions}
-                  value={activeGroup.value}
-                  style={{ width: '100%' }}
-                  onChange={handleGroupChange}
-                />
-              </div>
-            )}
-
-            {/* Search + Menu */}
-            <SidebarSearchMenu selectedKey={selectedKey} onMenuClick={menuClick} collapsed={collapsed} />
-          </Sider>
-        </Resizable>
+              {navigationContent}
+            </Sider>
+          </Resizable>
+        )}
 
         <Layout className="knife4j-main-layout">
           <Header
@@ -562,9 +623,18 @@ const AppInner: React.FC = () => {
           >
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              style={{ fontSize: 16, width: 64, height: 64 }}
+              aria-label={t(compact || collapsed ? 'app.navigation.open' : 'app.navigation.close')}
+              aria-expanded={compact ? mobileMenuOpen : !collapsed}
+              aria-controls={!compact || mobileMenuOpen ? 'knife4j-navigation' : undefined}
+              icon={
+                compact || collapsed ? (
+                  <MenuUnfoldOutlined aria-hidden="true" />
+                ) : (
+                  <MenuFoldOutlined aria-hidden="true" />
+                )
+              }
+              onClick={() => (compact ? setMobileMenuOpen(true) : setCollapsed(!collapsed))}
+              style={{ fontSize: 16, width: 64, height: 64, flexShrink: 0 }}
             />
             <span className="knife4j-header-title">{headerTitle}</span>
             <span
@@ -579,13 +649,18 @@ const AppInner: React.FC = () => {
                 }}
                 trigger={['click']}
               >
-                <Button type="text" style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}>
+                <Button
+                  aria-label={`${t('app.language')}: ${langLabel}`}
+                  type="text"
+                  style={{ fontSize: 14, height: 48, padding: '0 12px', fontWeight: 600 }}
+                >
                   {langLabel}
                 </Button>
               </Dropdown>
               <Button
                 type="text"
-                icon={<SettingOutlined />}
+                aria-label={t('settings.title')}
+                icon={<SettingOutlined aria-hidden="true" />}
                 onClick={() => setSettingsOpen(true)}
                 style={{ fontSize: 16, width: 48, height: 48 }}
               />
@@ -655,6 +730,7 @@ const AppInner: React.FC = () => {
               )}
               <ExternalResourcePanel />
               <Tabs
+                tabListLabel={t('app.tabs.label')}
                 className={`knife4j-workspace-tabs${isOperationRouteKey(location.pathname) ? ' knife4j-workspace-operation' : ''}`}
                 hideAdd
                 onChange={onChange}

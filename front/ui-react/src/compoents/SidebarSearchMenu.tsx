@@ -56,7 +56,7 @@ function methodTag(method: string) {
         borderRadius: 3,
         fontSize: 11,
         fontWeight: 700,
-        color: '#fff',
+        color: '#001529',
         backgroundColor: color,
         textAlign: 'center',
         lineHeight: '18px',
@@ -444,6 +444,7 @@ const SidebarSearchMenu: React.FC<SidebarSearchMenuProps> = ({ selectedKey, onMe
         <div style={{ padding: '8px 8px 4px' }}>
           <Input
             className="knife4j-sidebar-search"
+            aria-label={t('sidebar.search.placeholder')}
             placeholder={t('sidebar.search.placeholder')}
             prefix={<SearchOutlined style={{ color: 'rgba(255,255,255,0.45)' }} />}
             value={searchText}

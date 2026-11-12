@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Checkbox, Space, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd';
+import { Alert, Button, Checkbox, Space, Table, Tag, Tooltip, Typography, message } from 'antd';
+import Tabs from '../../components/AccessibleTabs';
 import { CopyOutlined, DownloadOutlined, StopOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { copyToClipboard } from '../../utils/clipboard';
@@ -438,7 +439,7 @@ export default function ResponsePanel({
         <>
           <Space wrap style={{ marginBottom: 8 }}>
             <Text strong>{t('apiDebug.response.status')}</Text>
-            <Tag color={statusColor(response.status)}>
+            <Tag color={statusColor(response.status)} style={{ color: '#434343' }}>
               {response.status} {response.statusText}
             </Tag>
             <Tag color={METHOD_COLORS[response.method] ?? 'default'}>{response.method}</Tag>
@@ -464,6 +465,7 @@ export default function ResponsePanel({
           <ResponseSchemaDiagnosticAlert diagnostic={schemaDiagnostic} />
 
           <Tabs
+            tabListLabel={t('apiDebug.response.tabs.label')}
             size="small"
             activeKey={activeKey}
             onChange={setActiveKey}

@@ -1,4 +1,17 @@
 const jaJP = {
+  'apiDebug.response.tabs.label': 'レスポンス内容',
+  'app.tabs.label': 'ワークスペース',
+  'operation.tabs.label': 'API ビュー',
+  'apiDebug.tabs.label': 'リクエストパラメーター',
+  'app.group': 'API グループ',
+  'app.language': '言語',
+  'app.loading': 'ページを読み込み中',
+  'app.navigation.title': 'API ナビゲーション',
+  'app.navigation.open': 'ナビゲーションを開く',
+  'app.navigation.close': 'ナビゲーションを閉じる',
+  'app.navigation.resize': 'ナビゲーションの幅を変更',
+  'apiDebug.requestMethod': 'リクエストメソッド',
+  'apiDebug.requestPath': 'リクエストパス',
   'storage.persistenceFailed':
     '変更はこのページに適用されましたが、ブラウザーに保存できませんでした。再読み込みやページを閉じると失われる場合があります。',
   'schema.example32.serializedDataValidation': 'シリアル化テキストをデコードしたデータの検証',

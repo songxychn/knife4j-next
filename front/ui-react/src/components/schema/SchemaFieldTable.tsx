@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Badge, Popover, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { buildSchemaFieldTree, type SchemaFieldNode } from 'knife4j-core';
@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useGroup } from '../../context/GroupContext';
 import type { SchemaObject, SwaggerDoc } from '../../types/swagger';
 import DescriptionText from '../DescriptionText';
+import ResizableSeparator from '../ResizableSeparator';
 import SchemaValueDetails from './SchemaValueDetails';
 import {
   SCHEMA_FIELD_COLUMN_MIN_WIDTHS,
@@ -57,6 +58,7 @@ interface ResizableTitleProps extends React.ThHTMLAttributes<HTMLTableCellElemen
   width?: number;
   minWidth?: number;
   resizeLabel?: string;
+  onWidthChange?: (width: number) => void;
   onResize?: (event: React.SyntheticEvent<Element>, data: ResizeCallbackData) => void;
 }
 
@@ -209,7 +211,16 @@ function ConstraintTooltip({ node, children }: { node: SchemaFieldNode; children
   );
 }
 
-function ResizableTitle({ width, minWidth, resizeLabel, onResize, children, ...restProps }: ResizableTitleProps) {
+function ResizableTitle({
+  width,
+  minWidth,
+  resizeLabel,
+  onWidthChange,
+  onResize,
+  children,
+  ...restProps
+}: ResizableTitleProps) {
+  const columnId = useId();
   if (!width || !onResize) {
     return <th {...restProps}>{children}</th>;
   }
@@ -222,17 +233,21 @@ function ResizableTitle({ width, minWidth, resizeLabel, onResize, children, ...r
       minConstraints={[minWidth ?? 80, 0]}
       draggableOpts={{ enableUserSelectHack: false }}
       handle={
-        <span
+        <ResizableSeparator
           className="knife4j-schema-resize-handle"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={resizeLabel}
-          onClick={(event) => event.stopPropagation()}
+          value={width}
+          min={minWidth ?? 80}
+          // Columns have no mouse maximum. End targets a practical keyboard
+          // width, extended to include any wider width reached by dragging.
+          max={Math.max(2000, width)}
+          onValueChange={(value) => onWidthChange?.(value)}
+          label={resizeLabel ?? ''}
+          controls={restProps.id ?? columnId}
         />
       }
       onResize={onResize}
     >
-      <th {...restProps} style={{ ...restProps.style, width }}>
+      <th {...restProps} id={restProps.id ?? columnId} style={{ ...restProps.style, width }}>
         {children}
       </th>
     </Resizable>
@@ -266,7 +281,8 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       ({
         width: columnWidths[columnKey],
         minWidth: SCHEMA_FIELD_COLUMN_MIN_WIDTHS[columnKey],
-        resizeLabel: t('schema.resizeColumn'),
+        resizeLabel: `${t('schema.resizeColumn')}: ${t(`schema.col.${columnKey}`)}`,
+        onWidthChange: (width: number) => setColumnWidths((current) => ({ ...current, [columnKey]: width })),
         onResize: handleResize(columnKey),
       }) as unknown as React.HTMLAttributes<HTMLTableCellElement>,
     [columnWidths, handleResize, t],

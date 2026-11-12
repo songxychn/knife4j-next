@@ -1,4 +1,17 @@
 const enUS = {
+  'apiDebug.response.tabs.label': 'Response content',
+  'app.tabs.label': 'Workspace',
+  'operation.tabs.label': 'Operation views',
+  'apiDebug.tabs.label': 'Request parameters',
+  'app.group': 'API group',
+  'app.language': 'Language',
+  'app.loading': 'Loading page',
+  'app.navigation.title': 'API navigation',
+  'app.navigation.open': 'Expand navigation',
+  'app.navigation.close': 'Collapse navigation',
+  'app.navigation.resize': 'Resize navigation',
+  'apiDebug.requestMethod': 'Request method',
+  'apiDebug.requestPath': 'Request path',
   'storage.persistenceFailed':
     'Changes apply on this page but could not be saved to your browser. They may be lost after reloading or closing the page.',
   'schema.example32.serializedDataValidation': 'Validation of data decoded from serialization',
