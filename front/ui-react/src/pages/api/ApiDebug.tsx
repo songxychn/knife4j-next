@@ -62,7 +62,6 @@ import {
   Spin,
   Switch,
   Table,
-  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -107,6 +106,7 @@ import {
   oas32FormFieldsFromInstance,
 } from 'knife4j-core';
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
+import Tabs from '../../components/AccessibleTabs';
 import CodeBlock from './CodeBlock';
 import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
 import DescriptionText from '../../components/DescriptionText';
@@ -4453,7 +4453,7 @@ export default function ApiDebug() {
             <Tag color={METHOD_COLORS[method] ?? 'default'} style={{ fontSize: 14, padding: '2px 8px' }}>
               {method}
             </Tag>
-            <Title level={5} style={{ margin: 0 }}>
+            <Title level={1} style={{ margin: 0, fontSize: 16 }}>
               {operation.operation.summary ?? operation.path}
             </Title>
           </Space>
@@ -4637,6 +4637,7 @@ export default function ApiDebug() {
           </Space.Compact>
 
           <Tabs
+            tabListLabel={t('apiDebug.tabs.label')}
             activeKey={currentActiveTab}
             defaultActiveKey={defaultTab}
             onChange={(key) => setActiveTab(key)}

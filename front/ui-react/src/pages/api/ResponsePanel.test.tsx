@@ -24,6 +24,7 @@ vi.mock('react/jsx-runtime', () => ({
 }));
 vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: jsxFactory, Fragment: 'Fragment' }));
 
+vi.mock('../../components/AccessibleTabs', () => ({ default: 'Tabs' }));
 vi.mock('antd', () => ({
   Alert: 'Alert',
   Button: 'Button',

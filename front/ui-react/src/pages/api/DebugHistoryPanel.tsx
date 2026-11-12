@@ -13,7 +13,7 @@ import type { DebugHistoryEntry } from './debugHistory';
 import { copyToClipboard } from '../../utils/clipboard';
 import RevealableValue from '../../components/RevealableValue';
 
-const { Text, Paragraph } = Typography;
+const { Text, Paragraph, Title } = Typography;
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'green',
@@ -279,7 +279,7 @@ export default function DebugHistoryPanel({
             <Tag color={METHOD_COLORS[selected.method.toUpperCase()] ?? 'default'} style={{ margin: 0 }}>
               {selected.method}
             </Tag>
-            <Tag color={statusTagColor(selected)} style={{ margin: 0 }}>
+            <Tag color={statusTagColor(selected)} style={{ margin: 0, color: '#434343' }}>
               {statusLabel(selected, t)}
             </Tag>
             {selected.isSse && <Tag style={{ margin: 0 }}>SSE</Tag>}
@@ -414,9 +414,9 @@ export default function DebugHistoryPanel({
         >
           <Space size={4}>
             <HistoryOutlined />
-            <Text strong style={{ fontSize: 13 }}>
+            <Title level={2} style={{ fontSize: 13, margin: 0 }}>
               {t('apiDebug.history.title')}
-            </Text>
+            </Title>
             <Text type="secondary" style={{ fontSize: 12 }}>
               ({entries.length})
             </Text>
@@ -510,7 +510,10 @@ export default function DebugHistoryPanel({
                   >
                     {entry.method}
                   </Tag>
-                  <Tag color={statusTagColor(entry)} style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}>
+                  <Tag
+                    color={statusTagColor(entry)}
+                    style={{ margin: 0, fontSize: 11, lineHeight: '18px', color: '#434343' }}
+                  >
                     {statusLabel(entry, t)}
                   </Tag>
                   {entry.isSse && <Tag style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}>SSE</Tag>}

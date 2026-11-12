@@ -1,4 +1,8 @@
 const zhCN = {
+  'apiDebug.response.tabs.label': '响应内容',
+  'app.tabs.label': '工作区',
+  'operation.tabs.label': '接口视图',
+  'apiDebug.tabs.label': '请求参数',
   'app.group': '接口分组',
   'app.language': '语言',
   'app.loading': '正在加载页面',
