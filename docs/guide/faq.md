@@ -28,11 +28,12 @@ title: 常见问题
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-下表按版本记录发布范围。Java `5.8.1` 的 OpenAPI 3.1 / 3.2 契约及其限制见
+下表按版本记录发布范围。Java `5.8.2` 的 OpenAPI 3.1 / 3.2 契约及其限制见
 [OpenAPI 3.1 支持与迁移](./openapi31) 和 [OpenAPI 3.2 支持矩阵](./openapi32)。
 
 | 版本 | 修复/新增内容 | 对应 upstream issue |
 | --- | --- | --- |
+| `5.8.2` | 窄屏导航、按需加载、键盘与标签语义、数组示例及响应类型标签修复 | — |
 | `5.8.1` | Schema 跨文档引用与正则诊断、Markdown 路由及导出修复，布局与保存反馈改善 | — |
 | `5.8.0` | Markdown 复制、OAS3 WebMVC 启动摘要、Schema 与 MVC Gateway 修复；源码构建要求 Node 26 | — |
 | `5.7.10` | Boot4/Jackson 修补、Schema 示例生成修复及 OAS2/构建链依赖维护；Demo 专用修补不传递至 Boot2 starter | — |

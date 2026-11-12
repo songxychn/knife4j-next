@@ -8,6 +8,7 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
+| `5.8.2` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | 窄屏导航、按需加载、键盘与标签语义、数组示例及类型标签修复 |
 | `5.8.1` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Schema 引用与诊断、Markdown 路由/导出、布局与保存反馈修复 |
 | `5.8.0` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
 | `5.7.10` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
@@ -56,7 +57,7 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.8.1` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.1`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.1`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.1` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.1`。
+> `5.8.2` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.2`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.2`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.2` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.2`。
 
 ## 5.7.7 依赖更新
 
@@ -113,9 +114,13 @@ Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `20
 
 共享 UI 修复 Schema 跨文档引用与资源隔离、正则字段诊断、Markdown 路由及导出，改善布局与保存反馈；Go `v0.9.1` 同步。Java 依赖与运行时、浏览器及 OpenAPI 支持边界沿用 `5.8.0` / Go `v0.9.0`，详见[发布说明](../release-notes/)。
 
+## 5.8.2 前端体验与修复
+
+改善窄屏导航、按需加载、键盘操作、标签语义及文字对比度，修复数组自动示例与响应类型标签；Go `v0.9.2` 同步共享 UI。Java 依赖与运行时、浏览器及 OpenAPI 支持边界沿用 `5.8.1` / Go `v0.9.1`，详见[发布说明](../release-notes/)。
+
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.8.1` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.8.2` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -168,7 +173,8 @@ Boot4 WebMVC、Gateway、独立聚合和 Demo 更新至 Boot `4.1.2`；Cloud `20
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.1` | Schema 引用与诊断、Markdown 路由/导出、布局与保存反馈修复 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.2` | 窄屏导航、按需加载、键盘与标签语义、数组示例及类型标签修复 |
+| `4.5.0` | `5.8.1` | Schema 引用与诊断、Markdown 路由/导出、布局与保存反馈修复 |
 | `4.5.0` | `5.8.0` | Markdown 复制、启动摘要、Schema 与 MVC Gateway 修复 |
 | `4.5.0` | `5.7.10` | Boot4/Jackson 修补、Schema 示例生成修复与依赖维护 |
 | `4.5.0` | `5.7.9` | 前端维护与解析修复；两条 UI 浏览器下限提高 |

@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.9.1` |
-| 发布 tag | `knife4x/go/v0.9.1` |
+| 当前版本 | `v0.9.2` |
+| 发布 tag | `knife4x/go/v0.9.2` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -19,13 +19,11 @@ workflow 的自动 tag 触发器只接收根级 `v*` tag，不接收 `knife4x/go
 由 Java Release 完成公开制品核验后调用，不由 Go tag 触发。
 `./tools/test-knife4x-go.sh` 会以无副作用断言保护这条边界。
 
-## v0.9.1 发布范围
+## v0.9.2 发布范围
 
-相较于 `v0.9.0`，修复离线 Schema 跨文档声明 `$id` 引用、资源 owner / generation 隔离与无效依赖恢复；对浏览器无法编译的 Java 正则提供字段定位和诊断，保留手工输入（PR #998/#1015）。
+相较于 `v0.9.1`，同步共享 React UI 的窄屏抽屉导航、重页面与离线导出按需加载、键盘调宽、控件名称与标签语义修复，改善已定位的文字对比度；修复数组自动示例与响应类型标签（PR #1028/#1030/#1034/#1035）。首次进入按需加载的页面可能显示加载状态，不声明全站 WCAG 合规。
 
-修复 Markdown 标签接口与文档工具的路由冲突；优化接口说明、参数表、OpenAPI 和代码视图布局，补齐配置保存结果反馈并简化存储协调。更新 marked 18.1.2、URI 1.4.0、i18next 与 docx 9.15.0，修复 Markdown 边界、URI 身份隔离、multipart 标签插值和 Word XML 导出（PR #996/#997/#999/#1008/#1010/#1011/#1012/#1014）。
-
-公共库仍只依赖标准库，Go 1.22、Gin 示例 Go 1.26+、module、`Config`、`NewHandler` 与路由语义不变。沿用 `v0.9.0` 的浏览器下限、Node 26 源码构建要求、OpenAPI 3.0/3.1/3.2 JSON 消费、离线授权、预算与取消边界。部署仍须保留同源 Schema Worker 及动态分块，满足既有 CSP 与 JavaScript MIME 要求。
+公共库仍只依赖标准库，Go 1.22、Gin 示例 Go 1.26+、module、`Config`、`NewHandler` 与路由语义不变。沿用 `v0.9.1` 的浏览器下限、Node 26 源码构建要求、OpenAPI 3.0/3.1/3.2 JSON 消费、离线授权、预算与取消边界。部署仍须保留同源 Schema Worker 及动态分块，满足既有 CSP 与 JavaScript MIME 要求。
 
 外部资源默认拒绝、按精确 URI 授权与 registry-only 解析；未知方言/自定义词汇执行、Cookie jar 写入、主动 Webhook 调用及客户端证书注入仍不在范围内。完整限制见 [OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md) 与 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
 
@@ -66,8 +64,8 @@ test -s knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-grep -Fq 'knife4x/go/v0.9.1' knife4x/README.md knife4x/go/README.md
-grep -Fq 'go@v0.9.1' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
+grep -Fq 'knife4x/go/v0.9.2' knife4x/README.md knife4x/go/README.md
+grep -Fq 'go@v0.9.2' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 grep -Fq 'OAS2 不能直接迁移' knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md
 test -z "$(git status --porcelain)"
 ```
@@ -77,11 +75,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.9.1 -m "Knife4x Go v0.9.1"
-git push origin knife4x/go/v0.9.1
+git tag -a knife4x/go/v0.9.2 -m "Knife4x Go v0.9.2"
+git push origin knife4x/go/v0.9.2
 ```
 
-不要同时创建根级 `v0.9.1` tag，不要运行 Java Maven Release，不要为本次发布新增
+不要同时创建根级 `v0.9.2` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -91,7 +89,7 @@ proxy 记录的 origin hash 与 annotated tag 指向的 commit 一致，且 ref 
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.9.1
+version=v0.9.2
 tag="knife4x/go/${version}"
 tag_commit="$(git rev-list -n 1 "$tag")"
 proxy_info="$(curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info")"
@@ -107,7 +105,7 @@ test "$proxy_ref" = "refs/tags/$tag"
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.9.1
+version=v0.9.2
 sum_response="$(curl -fsS "https://sum.golang.org/lookup/${module}@${version}")"
 printf '%s\n' "$sum_response"
 printf '%s\n' "$sum_response" | grep -F "${module} ${version} h1:"
@@ -122,7 +120,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.9.1
+version=v0.9.2
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -179,7 +177,7 @@ test -s "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer
-编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.9.1` 发布完成。
+编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.9.2` 发布完成。
 
 ## 补丁原则
 

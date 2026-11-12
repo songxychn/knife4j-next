@@ -12,9 +12,29 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-本次版本为 Java `5.8.1` 与配套 Go `v0.9.1`。
+本次版本为 Java `5.8.2` 与配套 Go `v0.9.2`。
 
-### 5.8.1 <Badge type="tip" text="最新版本" />
+### 5.8.2 <Badge type="tip" text="最新版本" />
+
+相较于 `5.8.1`，改善窄屏导航、按需加载与键盘操作，修复数组自动示例和响应类型标签。配套 Knife4x Go `v0.9.2` 同步共享 React UI。
+
+**共享 React UI**
+
+- 数组自动示例优先生成一个元素，避免无约束数组只显示空数组；保留 `minItems` / `maxItems`、方向、预算及完整校验边界，作者提供的示例不变（PR [#1028](https://github.com/songxychn/knife4j-next/pull/1028)）。
+- 响应类型标签同时保留实际类型和模型名，避免仅显示模型名而丢失数组等类型信息（PR [#1030](https://github.com/songxychn/knife4j-next/pull/1030)）。
+- 800px 及以下采用抽屉导航，约束设置抽屉宽度；支持焦点进入、关闭后恢复焦点与背景隔离。重页面和离线导出按需加载，高亮库仅注册实际使用的语言；首次进入相应页面可能显示加载状态（PR [#1034](https://github.com/songxychn/knife4j-next/pull/1034)）。
+- 补齐中英日控件名称、编辑器名称和标题层级，改善已定位的文字对比度；侧栏与 Schema 列宽支持键盘调整。调试页标签使用具名分组，将关闭/溢出操作置于 tablist 外，保留标签切换、关闭及键盘交互。不声明全站 WCAG 合规（PR [#1034](https://github.com/songxychn/knife4j-next/pull/1034)、[#1035](https://github.com/songxychn/knife4j-next/pull/1035)）。
+
+**兼容维护与构建**
+
+- OAS2 Vue3 增加标准滚动条样式与 WebKit 条件回退，继续仅做兼容维护（PR [#1034](https://github.com/songxychn/knife4j-next/pull/1034)）。
+- Demo 基础镜像改用官方地址，保留原版本；移除过时工具链残留与未参与实际 reactor 的 smoke 目录，当前 Java 验证包含 13 个有效 smoke 模块。增加当前入口版本文案检查并收窄纯文档 CI 范围（PR [#1031](https://github.com/songxychn/knife4j-next/pull/1031)、[#1022](https://github.com/songxychn/knife4j-next/pull/1022)、[#1021](https://github.com/songxychn/knife4j-next/pull/1021)、[#1023](https://github.com/songxychn/knife4j-next/pull/1023)、[#1024](https://github.com/songxychn/knife4j-next/pull/1024)）。
+
+**兼容边界**
+
+Java 依赖、Boot2/3/4 矩阵、Java 8/17、Go 公共库 1.22 与 Gin 示例 1.26+ 下限沿用 `5.8.1` / Go `v0.9.1`。Maven/module 坐标、Go Handler API/路由、starter 默认配置与 OpenAPI 3.0/3.1/3.2 JSON 消费范围不变；springdoc 仍生成 3.0/3.1，不新增 YAML 或规范版本支持。浏览器仍为 OAS3 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17，OAS2 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不增加最低浏览器实机覆盖承诺。源码构建仍要求稳定 Node `26.x`；Schema Worker 部署继续要求保留 Worker/动态分块及既有 CSP、JavaScript MIME 配置。
+
+### 5.8.1
 
 相较于 `5.8.0`，修复共享 React UI 的 Schema 引用、正则诊断、Markdown 路由及导出问题，改善布局与保存反馈。配套 Knife4x Go `v0.9.1` 同步相同 UI。
 
@@ -819,7 +839,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.1</version>
+    <version>5.8.2</version>
 </dependency>
 ```
 

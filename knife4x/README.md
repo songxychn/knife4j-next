@@ -17,8 +17,10 @@ Go module 路径为：
 github.com/songxychn/knife4j-next/knife4x/go
 ```
 
-Go 当前版本为 `v0.9.1`，对应仓库 tag 为 `knife4x/go/v0.9.1`；首个公开版本为
+Go 当前版本为 `v0.9.2`，对应仓库 tag 为 `knife4x/go/v0.9.2`；首个公开版本为
 `v0.1.0`。接入示例见 [Gin example](examples/gin/README.md)，发布流程见 [Go 发布清单](go/RELEASE.md)。
+
+`v0.9.2` 同步窄屏导航、按需加载、键盘与标签语义、控件名称和对比度修复，以及数组自动示例与响应类型标签修复；Go API 与兼容边界沿用 `v0.9.1`。
 
 `v0.9.1` 同步 Schema 跨文档引用、正则诊断、Markdown 路由与导出修复，以及布局、保存反馈和依赖维护；Go API 与兼容边界沿用 `v0.9.0`。
 
