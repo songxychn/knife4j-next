@@ -1,6 +1,6 @@
 {
   "repository": "songxychn/knife4j-next",
-  "updated": "2026-11-13",
+  "updated": "2026-11-14",
   "points": [
     {
       "date": "2026-04-23",
@@ -604,6 +604,10 @@
     },
     {
       "date": "2026-11-13",
+      "stars": 101
+    },
+    {
+      "date": "2026-11-14",
       "stars": 101
     }
   ]
