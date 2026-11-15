@@ -5,41 +5,33 @@
 ## 环境
 
 - Java：`.java-version`
-- Node：OAS3、Vue3、docs 和 Knife4x UI 同步统一只支持稳定的 `26.x`，其他主版本与预发行版不在支持范围内。`.nvmrc` 选择 26 系列，日常使用该系列最新补丁；三组前端 CI 均验证 26.0.0 下限与 26 系列当前补丁。共享检查为 `front/scripts/check-node.cjs`，标准脚本在安装前检查，直接开发/构建入口也执行检查。
-- 前端包管理：bun（`front/`、`front/vue3/`、`docs/`）；CI / Demo / Release 基准版本读取根目录 `.bun-version`
-- CI：`.github/workflows/build.yml`（PR / master 验证）、`release.yml`（Java 发布）、`deploy-demo.yml`（由 Release 调用的 Demo 部署）、`publish-demo-images.yml`（master 安全修复 Demo 镜像的验证与 `demo` 标签发布，见 `tools/demo-images/README.md`）
-
-React Vitest 的 Node Web Storage、Vitest 5 配置保留项与用例筛选注意事项见 [`front/ui-react/README.md`](../front/ui-react/README.md#测试注意事项)。
-
-当前源码的 OAS3 React UI（含 WebJar / Knife4x）浏览器下限为 Chrome/Edge 112、Firefox 116、
-Safari/iOS Safari 17，JSONPath 11 依赖原生 RegExp `v` 标志；不能把构建成功当成旧浏览器兼容。
-OAS2 Vue3 仍沿用 Chrome/Edge 117、Firefox 119、Safari 17.4。Node 与编译器安排不随之改变。
-
-本地与 agent 优先使用当前已安装的 Bun；版本字符串不同本身不构成下载安装或降级理由。先运行受影响区域的标准验证，只有失败可归因于版本、lock / 生成物发生差异，或需要复现 CI / 发布环境时，才切换到 `.bun-version`。安装使用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
+- Node：前端（OAS3、Vue3、docs、Knife4x UI 同步）只支持稳定的 `26.x`，日常用 `.nvmrc` 选择的 26 系列最新补丁；`front/scripts/check-node.cjs` 在安装和构建前检查。
+- 包管理：bun（`front/`、`front/vue3/`、`docs/`）。本地优先用已安装的 Bun，版本字符串不同本身不是降级理由；只有失败可归因于版本、lock / 生成物出现差异或需复现 CI 时，才切换到根目录 `.bun-version`。安装用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
+- CI：`.github/workflows/build.yml`（PR / master 验证）、`release.yml`（Java 发布）、`deploy-demo.yml`（由 Release 调用）、`publish-demo-images.yml`（Demo 镜像，见 `tools/demo-images/README.md`）。
+- 浏览器下限：OAS3 React UI（含 WebJar / Knife4x）为 Chrome/Edge 112、Firefox 116、Safari 17；OAS2 Vue3 为 Chrome/Edge 117、Firefox 119、Safari 17.4。构建成功不代表旧浏览器兼容。
+- React Vitest 注意事项见 [`front/ui-react/README.md`](../front/ui-react/README.md#测试注意事项)。
 
 ## 验证命令
 
-| 改动 | 命令 | 说明 |
-|---|---|---|
-| `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + smoke 证据与兼容契约门禁 |
-| Java 发布面差异 | `./tools/java-compatibility-report.sh` | 与显式 Central 基线比较并生成 report-first artifact；需先完成 Java 构建 |
-| `front/schema-engine`、`front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
-| `front/vue3` | `./tools/test-vue3.sh` | 构建并检查 `doc.html` / webjars |
-| `docs/**` | `./tools/test-docs.sh` | 文档站构建 |
-| `knife4x/go/**`、`knife4x/examples/gin/**` | `./tools/test-knife4x-go.sh` | Go 与 Gin 示例验证 |
-| 跨多区域 | 受影响区域标准脚本的并集 | 包含生成物与消费方影响，不因跨两个区域就默认跑全套 |
-| 全区域变更 / 整体验收 | `./tools/test-all.sh` | Java、React/core、Vue3、文档站、Go 及 UI 生成物一致性 |
+| 改动 | 命令 |
+|---|---|
+| `knife4j/**` Java | `./tools/test-java.sh` |
+| Java 发布面差异 | `./tools/java-compatibility-report.sh`（需先完成 Java 构建） |
+| `front/schema-engine`、`front/core`、`front/ui-react` | `./tools/test-front-core.sh` |
+| `front/vue3` | `./tools/test-vue3.sh` |
+| `docs/**` | `./tools/test-docs.sh` |
+| `knife4x/go/**`、`knife4x/examples/gin/**` | `./tools/test-knife4x-go.sh` |
+| 跨多区域 | 受影响区域标准脚本的并集，含生成物与消费方 |
+| 全区域变更 / 整体验收 | `./tools/test-all.sh` |
 
-选择区域时可用 `git diff --name-only <base> <head> | ./tools/ci-changes.sh` 核对 CI 影响范围；消费方与生成物相关门禁仍按对应契约执行。仅修改 `AGENTS.md`、`.agent/**` 等流程文案且分类全部为 false 时，核对实际 diff、运行 `git diff --check <base> <head>` 并完成独立措辞审查（符合 `.agent/COORDINATION.md`“低风险豁免”时由维护者合并前审阅承担），无需运行产品测试。验证通过后，仅在新变更、失败或未解决的风险影响验证结论时补跑相关检查。
+各脚本覆盖的内容见 [`tools/README.md`](../tools/README.md)。用 `git diff --name-only <base>...<head> | ./tools/ci-changes.sh` 核对 CI 影响范围；只改流程文案且分类全为 false 时，核对 diff 并运行 `git diff --check`，无需产品测试。验证通过后，仅在新变更、失败或未解决的风险影响结论时补跑。
 
 强制：
 
-- 改前端源码时用对应脚本，不要用单独 `tsc` / `vite build` 冒充全量。
+- 改前端源码用对应脚本，不用单独 `tsc` / `vite build` 冒充全量。
 - Java 改动的 PR / issue 应能指向 smoke 证据：本地 `test-java.sh` 尾部 `Smoke-tests evidence OK`，或 CI 的 smoke summary。
-- Java 标准脚本包含 OAS3 UI 冷/热工作区回归：真实 Maven package 的 WebJar 文件与字节必须等于显式 core/schema + Vite 构建，残留旧 `lib` 不得改变打包结果；core/schema 编译失败须在 Vite 前终止。
-- Java 标准脚本包含 OAS2 Vue3 增量 WebJar 回归：真实冷/热 Maven package 的 classes/JAR 必须与当前 dist 映射及静态资源的完整集合、字节一致；覆盖过期分块、图标、gzip、源码包生命周期回入与外部符号链接保护。
-- Java CI 的兼容报告只把真实 API / 实现差异作为审查信号，不因差异本身失败；基线、工具、发布模块或已登记配置/公开入口契约异常仍是硬失败。单模块分析忽略缺失外部类，不能替代消费方测试。
-- 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 后再执行标准 Java 验证；不得为过门禁直接重生成并跳过语义审查。
+- 兼容报告中的真实 API 差异只是审查信号；基线、工具、发布模块或已登记契约异常是硬失败。
+- 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 差异；不得为过门禁直接重生成。
 - 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表，两处必须一致。
 
 ## 聚合实现同步
@@ -48,121 +40,91 @@ Boot2 与 Jakarta aggregation 保持独立发布模块。`tools/aggregation-shar
 
 ## Schema Worker 浏览器门禁
 
-标准前端构建后运行：
+Build CI 在前端构建后运行：
 
 ```bash
 node front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist
 ```
 
-Build 的 Node 26 当前补丁任务执行此门禁，读取该次 Vite 产物；覆盖三个部署前缀、普通示例与资源语义、原生慢正则取消/超时和恢复、CSP/404/MIME 启动拒绝。缺少 Chrome/Chromium 时失败，可通过 `CHROME_PATH` 指定独立无头浏览器；不连接用户浏览器。
-
-专项完整验收去掉 `--smoke`，额外执行 dispose、作者示例超时和 30 次取消延迟统计。省略 `--static-root` 时保留原有 Knife4x 嵌入产物验收。smoke 不替代完整性能测量，也不证明所有最低浏览器版本。
-
-CI 分类中 Schema 生产源码与 React/core 一样包含 Java 和 Go 消费方；独立测试文件只跑前端门禁，五个前端包/根 README 不触发产品构建。混合变更取并集，未知路径仍全量。
+需要独立的无头 Chrome/Chromium（可用 `CHROME_PATH` 指定），不连接用户浏览器。去掉 `--smoke` 是专项完整验收（含性能统计）；smoke 不替代性能测量，也不证明所有最低浏览器版本。
 
 ## Bug 复现（强制）
 
-凡 **bug / 回归 / 错误行为** 类任务（本仓 issue 或 upstream 关联），**先复现再写修复**。  
-不适用于：纯文档、流程文案、明确的新功能、无行为主张的格式化/重构。
+凡 **bug / 回归 / 错误行为** 类任务（本仓 issue 或 upstream 关联），**先复现再写修复**。不适用于纯文档、流程文案、明确的新功能和无行为主张的重构。
 
 ### OpenAPI / Swagger 附件先验（强制）
 
-Issue 提供 OpenAPI / Swagger JSON 或 YAML 时，附件不是天然可信的产品契约，复现前必须：
-
-1. **确定声明版本**：区分 Swagger 2.0、OAS 3.0、3.1、3.2，并以对应版本的官方规范为准；版本缺失、无法识别或本项目不支持时要求报告者补正，不得静默猜版本。第三方 validator 可能尚未支持新版本，只能作为辅助证据。
-2. **验证结构与相关语义**：对整份文档执行当前可用的结构校验，并人工检查复现路径涉及的对象、字段位置、必填/互斥关系、参数 `style` / `explode` 默认值，以及 Schema / example 是否能表达 issue 声称的实例和行为；不要求人工证明整份大型 Schema 的全局可满足性。
-3. **区分两类文档问题**：
-   - 违反对应版本的强制结构或语义要求；
-   - 形式上允许，但 Schema 不可满足、example 与 Schema 不一致，或其他语义无法表达报告者声称的意图。
-   两类都不能证明其所主张的展示、解析或序列化行为是 Knife4j bug，也都应要求报告者修正文档；issue 回复中必须准确说明属于哪一类，不能把后一类笼统写成“违反规范”。
-4. **正确识别扩展边界**：只在规范允许 Specification Extensions 的对象上把 `x-*` 视为合法扩展；OAS 3.1+ Schema Object 还可能使用其他 JSON Schema vocabulary / 关键字，不能仅因其不以 `x-` 开头就判定非法。标准允许且项目明确支持的扩展不属于非规范兼容。
-5. **不为错误契约做兼容**：在 issue 中指出具体字段路径和规范/意图问题，要求报告者修正生成器或手写文档；不得增加 alias、猜测、自动转换或其他兼容分支来接受该文档。若等价的规范最小夹具在未打补丁基线上仍会失败，可以确认独立的工具问题；红灯证据、实现范围和回归测试只覆盖规范夹具，并明确原附件仍需修正。
-6. **保留安全拒绝责任**：不规范输入若另行暴露崩溃、卡死、XSS、资源耗尽或无法给出安全诊断等问题，按独立的健壮性/安全问题处理；修复目标是安全拒绝或清晰诊断，非法夹具只验证拒绝行为，不得把它兼容成合法输入。
+1. **确定声明版本**（Swagger 2.0 / OAS 3.0 / 3.1 / 3.2），以对应官方规范为准；版本缺失或不受支持时要求报告者补正，不猜版本。第三方 validator 只作辅助证据。
+2. **验证结构与复现路径语义**：整份文档跑结构校验，并人工检查复现路径涉及的字段位置、必填 / 互斥、`style` / `explode` 默认值，以及 Schema / example 能否表达 issue 声称的行为。
+3. **准确归类**：区分“违反强制要求”与“形式合法但不可满足 / example 与 Schema 不一致 / 无法表达意图”。两类都不能作为 Knife4j bug 契约，都要求报告者修正，但回复中要写清是哪一类。
+4. **扩展边界**：`x-*` 只在规范允许扩展的对象上合法；OAS 3.1+ Schema 可能使用其他 JSON Schema 关键字，不能仅因不以 `x-` 开头判定非法。
+5. **不为错误契约做兼容**：指出字段路径与问题，不加 alias、猜测或自动转换。等价的规范最小夹具在基线上仍失败时，才确认工具问题，红灯证据与回归测试只覆盖规范夹具。
+6. **安全拒绝**：非规范输入导致崩溃、卡死、XSS 或资源耗尽时，按健壮性 / 安全问题处理，目标是安全拒绝或清晰诊断，而不是兼容。
 
 ### 通用步骤
 
-1. **读完问题描述并补齐事实**：堆栈、触发步骤、版本组合、期望 vs 实际；含 OpenAPI / Swagger 附件时先完成上述规范校验。
-   - **先自行调查**：通过仓库、版本配置、提交历史、issue / PR 和可用日志查证；能在已授权范围内自行查明的信息，不要求维护者重复提供。
-   - **识别必要缺口**：仅当缺失信息影响复现契约、支持版本、外部行为或授权边界，且无法自行查明或需要维护者决策时，才请求补充或确认。不得猜测附件规范版本、扩大支持范围或绕过已有审批要求。
-   - **限定阻塞范围**：在 issue 评论中说明已有证据、必要缺口及其影响；只暂停依赖该信息的步骤，继续不依赖该信息的已授权工作。当剩余工作均无法推进时，再标 `status:blocked` 并说明需要维护者、环境或上游提供的解阻条件。
-2. **在未打补丁的 master（或任务指定的基线）上复现**，留下可核对证据（命令输出、HTTP 响应、日志片段、失败测试）。证据贴 issue 评论。
-3. **复现手段按区域选择**（能自动化的优先自动化）：
-   - Java / starter / 兼容：优先 `knife4j-smoke-tests/` 复用或新建最小工程；相关版本**显式 pin**；登记 smoke 列表（见上）。
-   - `front/core`：失败单测或最小解析夹具。
-   - UI：最小复现步骤 + 能固定的测试/断言；纯视觉问题至少写清浏览器与操作路径及截图/描述。
-4. **复现不到**：写明已尝试条件；若历史已修则 close 并链 commit；否则 `status:blocked` 等补充信息。**禁止**空想 try-catch / null-guard /「防御性」补丁。
-5. **能复现**：先增加（或确认）在修复前会失败的断言/复现步骤，再修；修后同一证据应变绿或现象消失。
+1. **补齐事实**：堆栈、触发步骤、版本组合、期望与实际。先从仓库、提交历史、issue / PR 和日志自行查证；只对影响复现契约、支持版本、外部行为或授权、且无法自行查明的缺口请求补充，并只暂停依赖它的步骤。全部无法推进时再标 `status:blocked` 并写明解阻条件。
+2. **在未打补丁的 master（或指定基线）上复现**，证据（命令输出、HTTP 响应、日志、失败测试）贴 issue。
+3. **按区域选手段**：Java / starter 优先在 `knife4j-smoke-tests/` 建最小工程并显式 pin 版本；`front/core` 用失败单测或最小夹具；UI 用可固定的测试或断言，纯视觉问题写清浏览器、操作路径和截图。
+4. **复现不到**：写明已尝试条件；历史已修则关闭并链接 commit，否则 `status:blocked`。**禁止**空想的 try-catch / null-guard 防御性补丁。
+5. **能复现**：先加修复前会失败的断言，再修；修后同一证据转绿。
 
 ### UI 截图上传
-
-需要在本仓 issue / PR 展示截图时，可直接使用维护者本机的 PicGo / PicList：
 
 ```bash
 ./tools/upload-images.sh /absolute/path/before.png /absolute/path/after.png
 ```
 
-脚本通过 `127.0.0.1:36677` 调用本机 PicGo，验证公开 URL 后输出可粘贴的 Markdown。维护者已持续授权上传本仓任务产生的**非敏感图片**，无需逐次询问。上传前必须检查截图并遮盖 Authorization、Cookie、JWT、Access Token 等敏感内容；不要上传配置、日志或其他可能含凭据/隐私的文件。该授权不包含修改图床配置、删除远端对象或上传本仓任务以外的文件。
+脚本调用本机 PicGo / PicList（`127.0.0.1:36677`，需已启动并选好默认图床），验证公开 URL 后输出 Markdown。维护者已持续授权上传本仓任务产生的**非敏感图片**。
 
-PicGo / PicList 必须已启动，并已选中可用的默认图床配置；脚本不指定图床类型或配置名。图床凭据只保存在本机应用中，禁止写入仓库或日志；截图二进制也不要提交到仓库。
-
-上传请求超时或公开链接验证失败时，远端对象仍可能已经创建；先检查 PicList 相册或返回记录，不要盲目重试。
+- 上传前检查并遮盖 Authorization、Cookie、JWT、Token 等敏感内容；不上传配置、日志等可能含凭据的文件，截图不提交到仓库。
+- 授权不含修改图床配置、删除远端对象或上传任务以外的文件；图床凭据只留在本机应用。
+- 超时或链接验证失败时远端对象可能已创建，先查 PicList 相册，不要盲目重试。
 
 ### 额外：upstream 关联
 
-正文含 `Upstream: ...` 或标题带 `(upstream #N)` 时，在上述步骤之外还须：
-
-- 读完 upstream 原文、堆栈与评论，再定本仓范围。
-- 若本仓只做衍生增强，issue 须写明**不自认为修了 upstream #N**。
+正文含 `Upstream: ...` 或标题带 `(upstream #N)` 时，还须读完 upstream 原文、堆栈与评论再定范围；若本仓只做衍生增强，issue 须写明**不自认为修了 upstream #N**。
 
 ## PR 与 CI
 
-`push` / 开 PR **不是**完成。完成后：
-
-```bash
-gh pr checks <N> --watch
-```
-
-CI 红：先按下文「验证失败时」确认原因；本任务引入且在授权范围内的失败，同分支修复后重新验证和等待当前 head 的 CI。全绿且审查结论具备后，才标 `status:review`。
-
-PR 至少写清：关联 issue、范围、验证命令与结果、风险。
+`push` / 开 PR **不是**完成。运行 `gh pr checks <N> --watch`；CI 红按下文“验证失败时”处理，当前 head 全绿且审查结论具备后才标 `status:review`。PR 至少写清关联 issue、范围、验证命令与结果、风险。
 
 ## 正式发布验收
 
-### 授权与默认范围
+### 授权与范围
 
-须维护者明确授权后再创建或推送 tag。按 `AGENTS.md`，维护者要求“发布新版本”且未限定语言时，已授权发布所有具备正式发布流程的语言版本，无需为各语言重复请求发布授权；明确限定语言时按指定范围执行。此授权不免除各语言的发布前门禁。
+须维护者明确授权后再创建或推送 tag。“发布新版本”未限定语言时，授权覆盖所有具备正式发布流程的语言（当前为 Java 与 Go；Rust 是占位目录，不纳入），不免除各语言的发布前门禁；限定语言时按指定范围。各语言按自身版本体系升级，不要求版本号相同。发布前列明各语言目标版本、tag 与候选提交。准备候选或发布 PR 不等于获准推送 tag。
 
-当前默认范围为 Java（Knife4j Next）与 Go（Knife4x Go）；Rust 仍是占位目录，没有可发布包，不纳入。各语言按自身版本体系升级，不要求版本号相同。正式发布前列明本次各语言的目标版本、tag 与候选提交，并核对各自发布说明及发布前门禁；仅准备候选、验证或创建发布 PR 不等于获准创建或推送 tag。
+### 发布文案
+
+发布准备 PR 同步 README、接入 / 迁移示例、版本表、发布说明等当前入口的目标版本，移除“待发布”“准备发布”“正式发布前请使用旧版”等准备态文案和上一版的“最新”标记；准备阶段用“当前版本”“以下示例使用 X”等中性表述，实际发布状态记录在 issue / PR。打 tag 前逐项复核。`tools/verify-current-version-docs.py` 只拦截 Maven 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记，不覆盖 Go 版本和其他自由文字，不能替代复核。历史版本记录与兼容边界保持原样。
 
 ### Java
 
-按 `.github/workflows/release.yml` 的现有流程发布，完成条件同时满足：
+按 `.github/workflows/release.yml` 发布，同时满足才算完成：
 
 - `vX.Y.Z` tag 已推送
-- `Release` workflow 的发布与公开制品核验 job 成功
-- 同一次 `Release` run 中、核验成功后执行的 `deploy-demo` job（调用 `Build and Deploy Demo`）成功
+- `Release` workflow 的发布与公开制品核验 job 成功，同一 run 中随后的 `deploy-demo` job 成功
 - Maven Central 目标构件可访问
-- GitHub Release 存在且 body 与 `docs/release-notes/index.md` 对应小节一致
-
-Java 缺 GitHub Release 不得报该语言「发布完成」。
+- GitHub Release 存在且 body 与 `docs/release-notes/index.md` 对应小节一致（缺 Release 不得报完成）
 
 ### Go
 
-按 [Knife4x Go 发布清单](../knife4x/go/RELEASE.md) 执行发布前门禁、创建并推送 `knife4x/go/vX.Y.Z` tag，以及发布后公共消费验证；清单中的具体版本号按本次目标版本替换。完成条件同时满足：
+按 [Knife4x Go 发布清单](../knife4x/go/RELEASE.md) 推送 `knife4x/go/vX.Y.Z` tag，同时满足才算完成：
 
-- 公共 Go proxy 的 origin hash / ref 与目标 tag 对应的提交及子目录 tag 一致
+- 公共 Go proxy 的 origin hash / ref 与目标 tag 的提交及子目录一致
 - `sum.golang.org` 存在 module 与 `go.mod` 两条 checksum
-- 全新 consumer 通过公共 proxy 下载目标版本，无 `replace`，编译、Handler 运行与下载内容检查均通过
+- 全新 consumer 不用 `replace`，经公共 proxy 下载目标版本并编译、运行 Handler、检查下载内容
 
-Go 沿用独立的版本与 tag，不额外要求 Java Release workflow、Maven Central 或 GitHub Release；仅发布 Go 时不触发 Java 发布及其 Demo 部署。
+仅发布 Go 时不触发 Java 发布及 Demo 部署。
 
-### 整体完成条件
+### 整体完成
 
-只有本次授权范围内所有语言均通过各自验收，才能报告整体“发布完成”。部分完成时逐项说明各语言的目标版本、已完成步骤、未通过的验收与阻塞原因，不得以单一语言发布成功代表整体完成。
+授权范围内所有语言都通过验收才能报“发布完成”；部分完成时逐项说明各语言的版本、已完成步骤、未通过项与阻塞原因。
 
 ## 验证失败时
 
-1. 记录精确失败命令  
-2. 判断是否本任务引入  
-3. 超范围 → `status:blocked` 或后续 issue  
-4. 不要为了“看起来完成”降低验证标准  
+1. 记录精确失败命令
+2. 判断是否本任务引入
+3. 超范围 → `status:blocked` 或后续 issue
+4. 不要为了“看起来完成”降低验证标准

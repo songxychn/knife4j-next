@@ -6,7 +6,7 @@
 
 | 脚本 | 作用 |
 |---|---|
-| `test-java.sh` | spotless + Maven verify + smoke 证据 + Java 兼容契约 |
+| `test-java.sh` | spotless + Maven verify + OAS3/OAS2 WebJar 冷热工作区回归 + smoke 证据 + Java 兼容契约 |
 | `test-java-compatibility.sh` | 兼容报告与契约护栏的离线回归 |
 | `java-compatibility-report.sh` | 对比显式 Central 基线并生成 report-first 的 Markdown / JSON / XML 报告 |
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
