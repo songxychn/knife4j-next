@@ -40,6 +40,6 @@ bun run --filter knife4j-ui-react lint
 
 ## 测试注意事项
 
-React 的两个 Vitest project 保留原有发现规则与隔离，共享最多两个 worker，避免 Bun 下多个 jsdom/React 文件同时执行导致原有 5 秒测试预算超时；不增加超时或跳过断言。unit project 的 `src/test/webPlatformSetup.ts` 使用 npm Undici，并修正 Bun 1.4 的 Blob/File MIME getter 差异，保留原生对象 URL；现有 MIME、multipart 与流进度断言不变。integration project 继续使用 jsdom。上述适配只进入测试进程，不进入页面或生产构建。
+React 的两个 Vitest project 保留原有发现规则与隔离，共享最多两个 worker，限制 Bun 下多个 jsdom/React 文件的并行负载。`Accessibility.integration.test.tsx` 与 `ApiDebug.i18n.integration.test.tsx` 在 Linux 上执行真实元规范校验和页面渲染，文件级 runner watchdog 使用 60 秒；其他文件沿用 Vitest 默认值。全部断言、Schema 产品任务预算与取消边界保持，不以此声明性能提升。unit project 的 `src/test/webPlatformSetup.ts` 使用 npm Undici，并修正 Bun 1.4 的 Blob/File MIME getter 差异，保留原生对象 URL；现有 MIME、multipart 与流进度断言不变。integration project 继续使用 jsdom。上述适配只进入测试进程，不进入页面或生产构建。
 
 Vitest 5 升级显式保留 `clearMocks:false`，React 的两个 inline project 还保留 `extends:false`，以维持原来的 mock 历史及配置隔离。参数化用例中的字符串标签不再自动带单引号；`-t` 跨 suite 的完整名称使用 ` > ` 分隔，手工筛选时可匹配单段名称或用通配正则连接各段。`vitest list` 默认静态解析，不能用它的条目数核对运行时参数化用例；需要完整集合时使用 `vitest list --no-staticParse --json`。标准测试命令、测试源码、断言和发现规则不随框架升级修改。
