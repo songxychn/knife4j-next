@@ -118,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bun-version: ["1.4.4", "1.4"]
+        bun-version: ["1.4.0", "1.4.x"]
     defaults:
       run:
         working-directory: .
@@ -135,13 +135,13 @@ jobs:
         run: tools/without-node.sh tools/test-front-core.sh
 
       - name: Verify Schema Worker in headless Chrome
-        if: matrix.bun-version == '1.4'
+        if: matrix.bun-version == '1.4.x'
         run: |
           mkdir -p build/reports/schema-worker
           tools/without-node.sh bun front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist > build/reports/schema-worker/acceptance.json
 
       - name: Upload Schema Worker browser evidence
-        if: always() && matrix.bun-version == '1.4'
+        if: always() && matrix.bun-version == '1.4.x'
         uses: actions/upload-artifact@v4
         with:
           name: schema-worker-browser
@@ -196,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bun-version: ["1.4.4", "1.4"]
+        bun-version: ["1.4.0", "1.4.x"]
     defaults:
       run:
         working-directory: .
@@ -219,7 +219,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bun-version: ["1.4.4", "1.4"]
+        bun-version: ["1.4.0", "1.4.x"]
     defaults:
       run:
         working-directory: .

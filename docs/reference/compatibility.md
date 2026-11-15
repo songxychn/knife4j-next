@@ -59,7 +59,7 @@ Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
 
 下限依据 [RegExp v 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/unicodeSets#browser_compatibility) 与 [Object.groupBy 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy#browser_compatibility) 制定，不代表最低版本或 Safari/Firefox 均已逐一实机验收。已合并变更的 Chromium 验证不能等同于全浏览器验收。
 
-当前源码的 OAS3、OAS2 Vue3、文档站及 Knife4x UI 同步统一使用稳定 Bun `>=1.4.4 <1.5.0`，不需要安装 Node.js。CI 覆盖根目录 `.bun-version` 基准与 1.4 系列当前补丁，并在不提供独立 Node.js 的 PATH 下执行标准门禁。此调整只适用于当前源码开发、构建与测试，不反向改变历史版本的构建要求；旧 tag 的发布恢复仍按其 `.nvmrc` 安装 Node。直接使用 Maven 发布包或 Go module 无需 JavaScript 运行时。Java / Go 运行时与浏览器基线保持不变。
+当前源码的 OAS3、OAS2 Vue3、文档站及 Knife4x UI 同步统一使用稳定 Bun `1.4.x`，不需要安装 Node.js。CI 覆盖最低版本 `1.4.0` 与根目录 `.bun-version` 选择的当前补丁，并在不提供独立 Node.js 的 PATH 下执行标准门禁。此调整只适用于当前源码开发、构建与测试，不反向改变历史版本的构建要求；旧 tag 的发布恢复仍按其 `.nvmrc` 安装 Node。直接使用 Maven 发布包或 Go module 无需 JavaScript 运行时。Java / Go 运行时与浏览器基线保持不变。
 
 ## Schema Worker 部署要求
 

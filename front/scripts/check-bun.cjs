@@ -1,11 +1,10 @@
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
-const required = '>=1.4.4 <1.5.0';
+const required = '1.4.x';
 
 function isSupportedBun(version) {
-  const match = typeof version === 'string' && /^1\.4\.(\d+)$/.exec(version);
-  return Boolean(match && Number(match[1]) >= 4);
+  return typeof version === 'string' && /^1\.4\.\d+$/.test(version);
 }
 
 function checkBun() {
@@ -15,7 +14,7 @@ function checkBun() {
   }
   if (!isSupportedBun(process.versions.bun)) {
     console.error(
-      `Front-end tooling requires stable Bun ${required}; found ${process.versions.bun ?? 'a different runtime'}. See .bun-version for the CI baseline.`,
+      `Front-end tooling requires stable Bun ${required}; found ${process.versions.bun ?? 'a different runtime'}. See .bun-version for the supported version range.`,
     );
     return false;
   }

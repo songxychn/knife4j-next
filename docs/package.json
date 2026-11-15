@@ -10,7 +10,7 @@
     "preinstall": "bun ../front/scripts/check-bun.cjs"
   },
   "engines": {
-    "bun": ">=1.4.4 <1.5.0"
+    "bun": "1.4.x"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

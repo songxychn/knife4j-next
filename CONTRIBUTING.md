@@ -9,7 +9,7 @@ Thank you for your interest in contributing! This guide covers the development s
 git clone https://github.com/<your-username>/knife4j-next.git
 cd knife4j-next
 
-# 2. Install front-end dependencies (all front-end tooling: stable Bun >=1.4.4 <1.5.0; see .bun-version)
+# 2. Install front-end dependencies (all front-end tooling: stable Bun 1.4.x; see .bun-version)
 bun front/scripts/check-bun.cjs
 cd front && bun install --frozen-lockfile && cd ..
 
@@ -24,7 +24,7 @@ git config core.hooksPath .githooks
 
 The optional pre-commit hook runs `format:check` and `lint` for the whole `knife4j-core` / `knife4j-ui-react` package when any staged file is under `front/core/` or `front/ui-react/`. It checks the working tree rather than only the staged content, and does not cover `front/schema-engine/`. CI remains the required merge gate.
 
-OAS3, Vue3, the docs site, and Knife4x UI synchronization use stable Bun >=1.4.4 <1.5.0. Node.js is not required for current source development/builds/tests. CI runs the standard gates with standalone Node.js removed from PATH; old release sources retain their original .nvmrc environment for recovery. Using published Maven artifacts or the Go module needs no JavaScript runtime; browser and Java/Go runtime requirements are unchanged.
+OAS3, Vue3, the docs site, and Knife4x UI synchronization use stable Bun 1.4.x. Node.js is not required for current source development/builds/tests. CI runs the standard gates with standalone Node.js removed from PATH; old release sources retain their original .nvmrc environment for recovery. Using published Maven artifacts or the Go module needs no JavaScript runtime; browser and Java/Go runtime requirements are unchanged.
 
 ## Front-End Layout
 

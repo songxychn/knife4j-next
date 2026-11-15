@@ -19,7 +19,7 @@ go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
 
 相较于 `v0.8.9`，单接口 Markdown 复制与完整文档导出共用字段、请求/响应和示例规则；不完整内容需确认并保留诊断。同步对象候选截断、千字段示例生成及 allOf 无类型字符串约束修复，保留作者示例、方向、授权资源图、取消与安全预算（PR #965/#967/#970/#975）。
 
-Schema 会话改用同源 ES module Worker；部署须保留 Worker 和动态分块、允许相应 CSP 并提供正确 JavaScript MIME，失败有诊断。Go 内联配置仍按原有 CSP 方式授权。当前源码构建与 UI 同步使用稳定 Bun `>=1.4.4 <1.5.0`（基准见根目录 `.bun-version`），无需 Node.js；直接使用 module 不需要 JavaScript 运行时。
+Schema 会话改用同源 ES module Worker；部署须保留 Worker 和动态分块、允许相应 CSP 并提供正确 JavaScript MIME，失败有诊断。Go 内联配置仍按原有 CSP 方式授权。当前源码构建与 UI 同步使用稳定 Bun `1.4.x`（基准见根目录 `.bun-version`），无需 Node.js；直接使用 module 不需要 JavaScript 运行时。
 
 公共库仍只依赖标准库；Go 1.22、module、`Config`、`NewHandler` 与路由语义不变，独立 Gin 示例仍需 Go 1.26+。浏览器沿用 `v0.8.9`，OpenAPI 3.0/3.1/3.2 JSON 消费与资源授权边界不变，仍不接受 YAML。
 
