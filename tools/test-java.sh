@@ -10,8 +10,6 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 "$REPO_ROOT/tools/test-release-tools.sh"
 "$REPO_ROOT/tools/test-java-compatibility.sh"
 "$REPO_ROOT/tools/test-smoke-evidence.sh"
-python3 "$REPO_ROOT/tools/test-aggregation-parity.py"
-python3 "$REPO_ROOT/tools/verify-aggregation-parity.py"
 cd "$REPO_ROOT/knife4j"
 
 mvn -B -ntp spotless:check

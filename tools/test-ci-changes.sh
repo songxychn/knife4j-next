@@ -58,6 +58,5 @@ assert_case "unknown path" "$all" "new-area/example.txt"
 assert_case "maintenance files" "$none" $'README.md\nCONTRIBUTING.md\nMAINTENANCE.md\nSECURITY.md\nAGENTS.md\n.agent/PROJECT.md\n.github/ISSUE_TEMPLATE/bug_report.yml\n.github/PULL_REQUEST_TEMPLATE.md\n.gitignore\ntools/README.md\ntools/agent-status.sh\ntools/test-agent-status.sh\ntools/test-fixtures/agent-status/gh\ntools/test-all.sh\ntools/verify-github-release.sh'
 assert_case "removed claude tooling path widens tests" "$all" "tools/claude/run.sh"
 assert_case "empty input" "$all" "__EMPTY__"
-assert_case "aggregation parity" "$java_only" $'tools/aggregation-shared-sources.txt\ntools/verify-aggregation-parity.py\ntools/test-aggregation-parity.py'
 
 printf 'ci change classification tests passed\n'

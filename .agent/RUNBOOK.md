@@ -34,9 +34,9 @@
 - 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 差异；不得为过门禁直接重生成。
 - smoke 模块由 `tools/smoke-evidence.sh` 按 `knife4j-smoke-tests/*/pom.xml` 自动发现；增删模块只需同步 `knife4j-smoke-tests/pom.xml` 的 `<modules>`，目录存在但未进入 reactor 会被门禁拦下。
 
-## 聚合实现同步
+## 聚合实现共享源码
 
-Boot2 与 Jakarta aggregation 保持独立发布模块。`tools/aggregation-shared-sources.txt` 明确登记需同步的纯实现，Java 标准脚本执行逐字节一致性检查；修改其中一端时同步另一端。框架适配、Servlet API 与其他有意差异不在清单内。新增或移除登记项必须说明共享/分叉理由，不得为通过门禁直接重新生成清单。此检查只防止实现漂移，不替代两端及 Boot4 的 smoke 验证。
+Boot2 与 Jakarta aggregation 保持独立发布模块。两者完全相同的纯实现只保存一份，位于 `knife4j/knife4j-aggregation-spring-boot-starter/src/shared/java`，两个模块通过 `build-helper-maven-plugin` 各自编译进自己的 JAR 与源码包。框架适配、Servlet API 等有意差异留在各自 `src/main/java`；需要让共享类分叉时，把它移回两侧 `src/main/java` 并在 PR 说明理由。共享源码不替代两端及 Boot4 的 smoke 验证。
 
 ## Schema Worker 浏览器门禁
 

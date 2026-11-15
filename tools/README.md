@@ -12,7 +12,6 @@
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
 | `smoke-evidence.sh`、`test-smoke-evidence.sh` | 由 `test-java.sh` 调用，按目录发现 smoke 模块并检查 surefire 证据；`--summary` 供 Build CI 输出表格 |
 | `verify-configuration-metadata.sh` | 由 `test-java.sh` 调用，检查 starter JAR 内的 Spring Boot 配置元数据 |
-| `aggregation-shared-sources.txt`、`verify-aggregation-parity.py`、`test-aggregation-parity.py` | Boot2 / Jakarta aggregation 共享实现的逐字节一致性检查及其回归，由 `test-java.sh` 调用 |
 | `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
 | `../front/scripts/check-node.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Node 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
