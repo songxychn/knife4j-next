@@ -12,9 +12,6 @@ full=false
 while IFS= read -r path || [ -n "$path" ]; do
   saw_path=true
   case "$path" in
-    tools/aggregation-shared-sources.txt|tools/verify-aggregation-parity.py|tools/test-aggregation-parity.py)
-      java=true
-      ;;
     front/README.md|front/core/README.md|front/schema-engine/README.md|front/ui-react/README.md|front/vue3/README.md)
       ;;
     knife4j/README.md|knife4j/MIGRATION.md|knife4j/RELEASE.md|knife4j/knife4j-demo-openapi2/SECURITY-ASSESSMENT.md|knife4j/knife4j-gateway-spring-boot-starter/README.md)

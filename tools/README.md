@@ -11,7 +11,6 @@
 | `java-compatibility-report.sh` | 对比显式 Central 基线并生成 report-first 的 Markdown / JSON / XML 报告 |
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
 | `verify-configuration-metadata.sh` | 由 `test-java.sh` 调用，检查 starter JAR 内的 Spring Boot 配置元数据 |
-| `aggregation-shared-sources.txt`、`verify-aggregation-parity.py`、`test-aggregation-parity.py` | Boot2 / Jakarta aggregation 共享实现的逐字节一致性检查及其回归，由 `test-java.sh` 调用 |
 | `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
 | `../front/scripts/check-node.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Node 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
