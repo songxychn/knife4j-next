@@ -2,7 +2,6 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import Markdown from './Markdown';
-import LegacyMarkdown from '../compoents/Markdown';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -18,14 +17,11 @@ afterEach(async () => {
   container.remove();
 });
 
-// Exercise both existing entry points with real React, marked and DOMPurify.
+// Exercise the Markdown entry point with real React, marked and DOMPurify.
 // These are policy-preservation tests, not claims of a vulnerability in 3.4.16.
-describe.each([
-  ['current', Markdown],
-  ['legacy', LegacyMarkdown],
-] as const)('%s Markdown sanitization', (_name, Component) => {
+describe('Markdown sanitization', () => {
   async function render(source: string) {
-    await act(async () => root.render(<Component source={source} />));
+    await act(async () => root.render(<Markdown source={source} />));
   }
 
   test.each([

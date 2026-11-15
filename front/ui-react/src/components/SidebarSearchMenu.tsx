@@ -21,7 +21,7 @@ import {
   type ApiChangeStatus,
   type ApiChangeUnavailableReason,
 } from '../apiChange/apiChangeTracker';
-import Markdown from '../components/Markdown';
+import Markdown from './Markdown';
 import { oas32TagMenu, oas32TagPresentationParents } from '../schema/oas32TagMenu';
 
 const METHOD_COLORS: Record<string, string> = {

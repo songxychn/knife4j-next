@@ -32,7 +32,7 @@
 - Java 改动的 PR / issue 应能指向 smoke 证据：本地 `test-java.sh` 尾部 `Smoke-tests evidence OK`，或 CI 的 smoke summary。
 - 兼容报告中的真实 API 差异只是审查信号；基线、工具、发布模块或已登记契约异常是硬失败。
 - 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 差异；不得为过门禁直接重生成。
-- 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表，两处必须一致。
+- smoke 模块由 `tools/smoke-evidence.sh` 按 `knife4j-smoke-tests/*/pom.xml` 自动发现；增删模块只需同步 `knife4j-smoke-tests/pom.xml` 的 `<modules>`，目录存在但未进入 reactor 会被门禁拦下。
 
 ## 聚合实现同步
 
