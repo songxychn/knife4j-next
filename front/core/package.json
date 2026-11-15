@@ -9,13 +9,13 @@
     "url": "https://github.com/xiaoymin/knife4j"
   },
   "scripts": {
-    "test": "jest --config jestconfig.json",
-    "build": "node ../scripts/tsc.cjs",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "lint": "eslint src",
+    "test": "bun --bun jest --config jestconfig.json",
+    "build": "bun ../scripts/tsc.cjs",
+    "format": "bun --bun prettier --write \"src/**/*.ts\"",
+    "format:check": "bun --bun prettier --check \"src/**/*.ts\"",
+    "lint": "bun --bun eslint src",
     "prepare": "bun run build",
-    "prepublishOnly": "bun test && bun run lint",
+    "prepublishOnly": "bun run test && bun run lint",
     "preversion": "bun run lint",
     "version": "bun run format && git add -A src",
     "postversion": "git push && git push --tags"

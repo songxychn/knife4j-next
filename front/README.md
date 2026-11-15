@@ -2,7 +2,7 @@
 
 活跃前端源码根目录。
 
-Bun 的 CI / 发布基准版本见仓库根目录 `.bun-version`。本地可先使用现有 Bun 运行对应标准验证；无需仅因版本字符串不同而自动下载安装其他版本。
+Bun 的 CI / 发布基准版本见仓库根目录 `.bun-version`。当前源码运行时支持稳定 Bun `>=1.4.4 <1.5.0`，不需要 Node.js；本地可先使用满足范围的现有补丁运行对应标准验证，无需仅因版本字符串不同而自动下载安装其他版本。
 
 | 子目录 | 说明 | 产物 |
 |---|---|---|
@@ -37,8 +37,8 @@ ESLint 和 ts-jest 继续加载 `typescript` 的 TS6 API，保留现有规则、
 
 ```bash
 cd front
-node scripts/tsc.cjs --version # TS7 生产编译器
-node -p "require('typescript').version" # lint/Jest 使用的 TS6 API
+bun scripts/tsc.cjs --version # TS7 生产编译器
+bun -p "require('typescript').version" # lint/Jest 使用的 TS6 API
 ```
 
 ## OAS2（vue3）

@@ -75,9 +75,11 @@ public class OpenApi2UiResourceSmokeTest {
         Assert.assertEquals("Surefire must execute the packaged classes directory", "file", doc.getProtocol());
         Path resources = Path.of(doc.toURI()).getParent();
         Path moduleDir = Path.of(System.getProperty("basedir")).toAbsolutePath();
-        Path script = moduleDir.resolve("../../front/vue3/scripts/check-webjar-smoke.mjs").normalize();
+        Path script = moduleDir.resolve("../../front/vue3/scripts/check-webjar-smoke.test.mjs").normalize();
         Path log = moduleDir.resolve("target/vue3-webjar-behavior.log");
-        Process process = new ProcessBuilder("node", "--experimental-vm-modules", script.toString(), resources.toString())
+        ProcessBuilder builder = new ProcessBuilder("bun", "test", script.toString());
+        builder.environment().put("KNIFE4J_WEBJAR_ROOT", resources.toString());
+        Process process = builder
                 .redirectErrorStream(true)
                 .redirectOutput(log.toFile())
                 .start();

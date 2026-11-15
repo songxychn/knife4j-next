@@ -88,10 +88,10 @@ def main():
         cold_libs = {name: files(front / name / "lib") for name in PACKAGES}
 
         for name in PACKAGES:
-            run("bun", "run", "--filter", f"knife4j-{name}", "build", cwd=front)
+            run("bun", "run", "--bun", "--filter", f"knife4j-{name}", "build", cwd=front)
         expected_libs = {name: files(front / name / "lib") for name in PACKAGES}
         reference_dist = root / "reference-dist"
-        run("bun", "x", "vite", "build", f"--outDir={reference_dist}",
+        run("bun", "x", "--bun", "vite", "build", f"--outDir={reference_dist}",
             "--emptyOutDir", cwd=front / "ui-react")
         expected = files(reference_dist)
         assert_equal(cold, expected, "Cold Maven WebJar differs from explicit build")

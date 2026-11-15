@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Loopback-only headless acceptance. Bun bundles the client harness, never the Worker.
  * The Worker and its imports are served byte-for-byte from the embedded Go UI.

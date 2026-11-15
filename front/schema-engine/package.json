@@ -20,13 +20,13 @@
     "lib/**/*"
   ],
   "scripts": {
-    "build": "node ../scripts/tsc.cjs -p tsconfig.json",
+    "build": "bun ../scripts/tsc.cjs -p tsconfig.json",
     "prepare": "bun run build",
-    "test": "vitest run",
+    "test": "bun --bun vitest run",
     "check:browser": "bun run scripts/check-browser.ts",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.{ts,json}\" \"scripts/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.{ts,json}\" \"scripts/**/*.ts\"",
-    "lint": "eslint . --max-warnings 0"
+    "format": "bun --bun prettier --write \"src/**/*.ts\" \"tests/**/*.{ts,json}\" \"scripts/**/*.ts\"",
+    "format:check": "bun --bun prettier --check \"src/**/*.ts\" \"tests/**/*.{ts,json}\" \"scripts/**/*.ts\"",
+    "lint": "bun --bun eslint . --max-warnings 0"
   },
   "license": "Apache-2.0",
   "dependencies": {

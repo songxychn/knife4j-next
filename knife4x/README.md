@@ -24,7 +24,7 @@ Go 当前版本为 `v0.9.2`，对应仓库 tag 为 `knife4x/go/v0.9.2`；首个�
 
 `v0.9.1` 同步 Schema 跨文档引用、正则诊断、Markdown 路由与导出修复，以及布局、保存反馈和依赖维护；Go API 与兼容边界沿用 `v0.9.0`。
 
-`v0.9.0` 保持 Go Handler API 与路由语义，新增完整单接口 Markdown 复制，并同步对象候选、千字段示例与 allOf 字符串约束修复。Schema 会话使用同源 ES module Worker，部署需保留 Worker/动态分块并允许相应 CSP 与 JavaScript MIME；源码构建要求稳定 Node `26.x`。预算、取消、作者示例与校验边界保持。调试正文格式化、JSON/XML 词法保真与表单快照合并从 `v0.8.5` 起提供。OpenAPI 3.2.x 文档消费从 `v0.8.0` 起提供。JSON 示例与预览层级折叠、请求预览词法保真与空容器折叠从 `v0.8.4` 起提供。OAS 3.2 标签 Tooltip 重复名称、Schema 元校验错误定位、普通 JSON 示例默认展示与调试 JSON 响应折叠从 `v0.8.3` 起提供。OAS 3.2 标签菜单重复名称、首页服务地址明细默认折叠与窄窗口布局修复从 `v0.8.2` 起提供。OAS 3.1 SchemaEngine 元校验失败重试修复从 `v0.8.1` 起提供。OAS 3.1 非 ASCII
+`v0.9.0` 保持 Go Handler API 与路由语义，新增完整单接口 Markdown 复制，并同步对象候选、千字段示例与 allOf 字符串约束修复。Schema 会话使用同源 ES module Worker，部署需保留 Worker/动态分块并允许相应 CSP 与 JavaScript MIME；当前源码构建要求见[兼容矩阵](../docs/reference/compatibility.md)。预算、取消、作者示例与校验边界保持。调试正文格式化、JSON/XML 词法保真与表单快照合并从 `v0.8.5` 起提供。OpenAPI 3.2.x 文档消费从 `v0.8.0` 起提供。JSON 示例与预览层级折叠、请求预览词法保真与空容器折叠从 `v0.8.4` 起提供。OAS 3.2 标签 Tooltip 重复名称、Schema 元校验错误定位、普通 JSON 示例默认展示与调试 JSON 响应折叠从 `v0.8.3` 起提供。OAS 3.2 标签菜单重复名称、首页服务地址明细默认折叠与窄窗口布局修复从 `v0.8.2` 起提供。OAS 3.1 SchemaEngine 元校验失败重试修复从 `v0.8.1` 起提供。OAS 3.1 非 ASCII
 分组自引用修复从 `v0.7.1` 起提供；浏览器登录会话调试、枚举过滤和目录分组吸顶从 `v0.7.0`
 起提供；OAS 3.1、JSON Schema 2020-12、受控资源图、调试诊断与导出能力从 `v0.6.0` 起提供。
 具体能力和限制见 [Go 版本说明](../docs/knife4x/index.md)；`v0.5.0` 的历史说明不包含这些后续改动。

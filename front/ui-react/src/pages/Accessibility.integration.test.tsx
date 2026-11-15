@@ -9,6 +9,10 @@ import Home from './Home';
 import ApiDebug from './api/ApiDebug';
 import CodeEditor from '../components/CodeEditor';
 
+// Bun on Linux needs more time for real meta-schema validation and UI rendering.
+// This runner watchdog does not change product budgets or test assertions.
+vi.setConfig({ testTimeout: 60_000 });
+
 const state = vi.hoisted(() => ({
   document: null as SwaggerDoc | null,
   operation: undefined as MenuOperation | undefined,

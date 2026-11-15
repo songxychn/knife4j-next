@@ -43,7 +43,7 @@ while IFS= read -r path || [ -n "$path" ]; do
     knife4x/go/*|knife4x/examples/gin/*|tools/sync-knife4x-ui.sh|tools/test-knife4x-go.sh)
       knife4x_go=true
       ;;
-    .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/ci-changes.sh|tools/test-ci-changes.sh)
+    .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/without-node.sh|tools/ci-changes.sh|tools/test-ci-changes.sh)
       full=true
       ;;
     README.md|CONTRIBUTING.md|MAINTENANCE.md|SECURITY.md|AGENTS.md|.agent/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/test-all.sh|tools/verify-github-release.sh)

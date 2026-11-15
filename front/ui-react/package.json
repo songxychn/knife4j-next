@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node ../scripts/check-node.cjs && vite",
-    "build": "node ../scripts/tsc.cjs && vite build",
-    "test": "node ../node_modules/vitest/vitest.mjs",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
-    "preview": "node ../scripts/check-node.cjs && vite preview"
+    "dev": "bun ../scripts/check-bun.cjs && bun --bun vite",
+    "build": "bun ../scripts/tsc.cjs && bun --bun vite build",
+    "test": "bun ../node_modules/vitest/vitest.mjs",
+    "lint": "bun --bun eslint . --report-unused-disable-directives --max-warnings 0",
+    "format": "bun --bun prettier --write \"src/**/*.{ts,tsx,css,json}\"",
+    "format:check": "bun --bun prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "preview": "bun ../scripts/check-bun.cjs && bun --bun vite preview"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -40,22 +40,23 @@
     "@ant-design/icons": "6.3.4"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "25.6.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@typescript-eslint/eslint-plugin": "8.71.2",
     "@typescript-eslint/parser": "8.71.2",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitejs/plugin-react-swc": "4.3.3",
     "eslint": "10.13.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",
-    "jszip": "^3.10.2",
-    "@typescript/native": "npm:typescript@7.0.2",
-    "typescript": "npm:@typescript/typescript6@6.0.2",
-    "vite": "8.3.4",
-    "vitest": "^5.0.5",
+    "globals": "13.24.0",
     "jsdom": "^26.1.0",
-    "@eslint/js": "10.0.1",
-    "globals": "13.24.0"
+    "jszip": "^3.10.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "undici": "8.12.2",
+    "vite": "8.3.4",
+    "vitest": "^5.0.5"
   }
 }

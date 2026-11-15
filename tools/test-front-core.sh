@@ -3,13 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../front"
 
-node_bin="$(command -v node || true)"
-if [ -z "$node_bin" ]; then
-  echo "Node.js is required for front-end tooling; use .nvmrc" >&2
-  exit 1
-fi
-"$node_bin" scripts/check-node.cjs
-"$node_bin" --test scripts/check-node.test.cjs
+bun scripts/check-bun.cjs
+bun test ./scripts/check-bun.test.cjs
 
 bun install --frozen-lockfile
 

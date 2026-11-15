@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 
+// Keep each independent project within the same bounded worker budget.
+const maxWorkers = 2;
 const coreAlias = { 'knife4j-core': path.resolve(__dirname, '../core/lib') };
-// Keep Node's native Web Storage from shadowing the jsdom browser environment.
-const execArgv = ['--no-experimental-webstorage'];
 
 export default defineConfig({
   test: {
@@ -12,9 +12,10 @@ export default defineConfig({
         extends: false,
         test: {
           clearMocks: false,
+          maxWorkers,
           name: 'unit',
-          execArgv,
           environment: 'node',
+          setupFiles: ['src/test/webPlatformSetup.ts'],
           include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
           exclude: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.tsx'],
         },
@@ -36,8 +37,8 @@ export default defineConfig({
         extends: false,
         test: {
           clearMocks: false,
+          maxWorkers,
           name: 'integration',
-          execArgv,
           environment: 'jsdom',
           include: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.tsx'],
           setupFiles: ['src/test/integrationSetup.ts'],

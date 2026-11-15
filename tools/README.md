@@ -13,11 +13,12 @@
 | `smoke-evidence.sh`、`test-smoke-evidence.sh` | 由 `test-java.sh` 调用，按目录发现 smoke 模块并检查 surefire 证据；`--summary` 供 Build CI 输出表格 |
 | `verify-configuration-metadata.sh` | 由 `test-java.sh` 调用，检查 starter JAR 内的 Spring Boot 配置元数据 |
 | `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
-| `../front/scripts/check-node.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Node 基线检查 |
+| `../front/scripts/check-bun.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Bun 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
 | `test-docs.sh` | 文档站构建 |
 | `test-knife4x-go.sh` | Knife4x Go module 与 Gin 示例的 gofmt / vet / test |
 | `sync-knife4x-ui.sh` | 从共享前端源码生成 Knife4x 内嵌 UI；`--check` 只校验生成物一致 |
+| `without-node.sh` | 隔离 PATH 中的独立 Node.js/npm，验证 Bun 工具链 |
 | `test-all.sh` | java + front-core + vue3 + docs + knife4x-go + `sync-knife4x-ui.sh --check` |
 | `test-agent-status.sh` | 任务看板查询、过滤与失败路径 |
 | `verify-current-version-docs.py`、`test-current-version-docs.sh` | 检查已跟踪 Markdown（不含 `legacy/`）中的 `com.baizhukui` 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记是否等于 `knife4j/pom.xml` 版本，及其回归；Build CI 的 `changes` job 每次运行 |

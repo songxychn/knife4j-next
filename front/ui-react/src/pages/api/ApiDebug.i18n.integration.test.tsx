@@ -9,6 +9,10 @@ import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import { DEFAULT_SETTINGS } from '../../types/settings';
 import ApiDebug from './ApiDebug';
 
+// Bun on Linux needs more time for real meta-schema validation and UI rendering.
+// This runner watchdog does not change product budgets or test assertions.
+vi.setConfig({ testTimeout: 60_000 });
+
 const state = vi.hoisted(() => ({
   document: null as SwaggerDoc | null,
   operation: undefined as MenuOperation | undefined,

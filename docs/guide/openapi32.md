@@ -116,7 +116,7 @@ OpenAPI 能表达的契约，不等于浏览器 JavaScript 都能发送。
 可见 UI 的无头验收：
 
 ```bash
-node front/ui-react/scripts/run-oas32-host-acceptance.mjs
+bun front/ui-react/scripts/run-oas32-host-acceptance.mjs
 ```
 
 该脚本只监听 `127.0.0.1`，使用仓库内规范夹具与已嵌入的 React 资源，不访问真实第三方凭据或 PII 服务。

@@ -5,7 +5,7 @@
 ## 环境
 
 - Java：`.java-version`
-- Node：前端（OAS3、Vue3、docs、Knife4x UI 同步）只支持稳定的 `26.x`，日常用 `.nvmrc` 选择的 26 系列最新补丁；`front/scripts/check-node.cjs` 在安装和构建前检查。
+- JavaScript 运行时：当前源码的前端（OAS3、Vue3、docs、Knife4x UI 同步）使用稳定 Bun `>=1.4.4 <1.5.0`，不需要安装 Node.js；`front/scripts/check-bun.cjs` 在安装和构建前检查。CI 覆盖 `.bun-version` 基准与 1.4 系列当前补丁，并通过 `tools/without-node.sh` 隔离独立 Node.js。旧 tag 的发布恢复按该 tag 的 `.nvmrc` 保留 Node 环境；GitHub JS actions 自带的运行时不属于项目依赖。
 - 包管理：bun（`front/`、`front/vue3/`、`docs/`）。本地优先用已安装的 Bun，版本字符串不同本身不构成下载安装或降级理由；只有失败可归因于版本、lock / 生成物出现差异或需复现 CI 时，才切换到根目录 `.bun-version`。安装用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
 - CI：`.github/workflows/build.yml`（PR / master 验证）、`release.yml`（Java 发布）、`deploy-demo.yml`（由 Release 调用）、`publish-demo-images.yml`（Demo 镜像，见 `tools/demo-images/README.md`）。
 - 浏览器下限：OAS3 React UI（含 WebJar / Knife4x）为 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 Vue3 为 Chrome/Edge 117、Firefox 119、Safari 17.4。构建成功不代表旧浏览器兼容。
@@ -43,7 +43,7 @@ Boot2 与 Jakarta aggregation 保持独立发布模块。两者完全相同的�
 标准前端构建后运行（Build CI 同样执行）：
 
 ```bash
-node front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist
+bun front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist
 ```
 
 需要独立的无头 Chrome/Chromium（可用 `CHROME_PATH` 指定），不连接用户浏览器。去掉 `--smoke` 是专项完整验收（含性能统计）；smoke 不替代性能测量，也不证明所有最低浏览器版本。

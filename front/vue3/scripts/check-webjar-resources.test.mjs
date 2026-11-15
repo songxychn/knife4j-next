@@ -1,3 +1,4 @@
+import './use-npm-undici.cjs'
 import assert from 'node:assert/strict'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'

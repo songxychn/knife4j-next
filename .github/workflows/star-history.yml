@@ -23,10 +23,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: .nvmrc
+          bun-version-file: .bun-version
 
       - name: Prepare data branch
         run: |
@@ -46,7 +46,7 @@ jobs:
       - name: Generate snapshot
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node .github/scripts/star-history.mjs snapshot "$STAR_HISTORY_DIR"
+        run: bun .github/scripts/star-history.mjs snapshot "$STAR_HISTORY_DIR"
 
       - name: Publish snapshot
         run: |
