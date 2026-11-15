@@ -40,7 +40,7 @@ OAS2 Vue3 仍沿用 Chrome/Edge 117、Firefox 119、Safari 17.4。Node 与编译
 - Java 标准脚本包含 OAS2 Vue3 增量 WebJar 回归：真实冷/热 Maven package 的 classes/JAR 必须与当前 dist 映射及静态资源的完整集合、字节一致；覆盖过期分块、图标、gzip、源码包生命周期回入与外部符号链接保护。
 - Java CI 的兼容报告只把真实 API / 实现差异作为审查信号，不因差异本身失败；基线、工具、发布模块或已登记配置/公开入口契约异常仍是硬失败。单模块分析忽略缺失外部类，不能替代消费方测试。
 - 有意增删 Spring Boot 配置 key 时，构建后运行 `./tools/verify-java-compatibility-contracts.py --update-config`，人工核对 `tools/java-compatibility-contracts.tsv` 后再执行标准 Java 验证；不得为过门禁直接重生成并跳过语义审查。
-- 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表，两处必须一致。
+- smoke 模块由 `tools/smoke-evidence.sh` 按 `knife4j-smoke-tests/*/pom.xml` 自动发现；增删模块只需同步 `knife4j-smoke-tests/pom.xml` 的 `<modules>`，目录存在但未进入 reactor 会被门禁拦下。
 
 ## 聚合实现同步
 
