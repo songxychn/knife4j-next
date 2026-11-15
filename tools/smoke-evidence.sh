@@ -14,6 +14,12 @@ for pom in "$SMOKE_ROOT"/*/pom.xml; do
   [ -f "$pom" ] && modules+=("$(basename "$(dirname "$pom")")")
 done
 if [ "${#modules[@]}" -eq 0 ]; then
+  if [ "$mode" = "--summary" ]; then
+    echo "### Smoke-tests evidence"
+    echo ""
+    echo "No smoke modules found under \`$SMOKE_ROOT\`."
+    exit 0
+  fi
   echo "No smoke modules found under $SMOKE_ROOT" >&2
   exit 1
 fi

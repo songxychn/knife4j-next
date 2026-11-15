@@ -29,6 +29,7 @@ expect() {
 }
 
 expect 1 "No smoke modules found"
+expect 0 "No smoke modules found" --summary
 module ok-app 3 0 0
 mkdir -p "$work/not-a-module"
 expect 0 "Smoke-tests evidence OK (1 modules)"
