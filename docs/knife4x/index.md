@@ -18,7 +18,7 @@ JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史
 
 ## 安装
 
-从当前仓库源码重建或同步 UI 时，使用稳定 Bun `1.4.x`，基准见根目录 `.bun-version`，不需要安装 Node.js。直接使用 Go module 不需要 JavaScript 运行时，Go 与浏览器运行时要求不变。
+从当前仓库源码重建或同步 UI 时，使用稳定 Bun `1.4.x`（最低 `1.4.4`），基准见根目录 `.bun-version`，不需要安装 Node.js。直接使用 Go module 不需要 JavaScript 运行时，Go 与浏览器运行时要求不变。
 
 Go module 需要 Go 1.22 或更高版本。使用以下命令接入 `v0.9.2`：
 

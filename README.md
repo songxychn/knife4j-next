@@ -100,7 +100,7 @@ http://ip:port/doc.html
 
 ## 本地开发
 
-Java 开发使用 JDK 17（见 `.java-version`）；前端、文档站与 Knife4x UI 构建统一使用稳定 Bun `1.4.x`（见 `.bun-version`），无需安装 Node.js。开发与 CI 允许补丁版本不同，依赖安装使用 `bun install --frozen-lockfile`。
+Java 开发使用 JDK 17（见 `.java-version`）；前端、文档站与 Knife4x UI 构建统一使用稳定 Bun `1.4.x`（最低 `1.4.4`，版本选择见 `.bun-version`），无需安装 Node.js。开发与 CI 允许补丁版本不同，依赖安装使用 `bun install --frozen-lockfile`。
 
 ### Java Demo
 

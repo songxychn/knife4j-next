@@ -9,7 +9,7 @@
     "ui-react"
   ],
   "engines": {
-    "bun": "1.4.x"
+    "bun": ">=1.4.4 <1.5.0"
   },
   "scripts": {
     "preinstall": "bun scripts/check-bun.cjs"

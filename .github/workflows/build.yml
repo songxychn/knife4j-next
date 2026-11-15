@@ -118,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bun-version: ["1.4.0", "1.4.x"]
+        bun-version: ["1.4.4", "1.4.x"]
     defaults:
       run:
         working-directory: .
@@ -196,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bun-version: ["1.4.0", "1.4.x"]
+        bun-version: ["1.4.4", "1.4.x"]
     defaults:
       run:
         working-directory: .
@@ -219,7 +219,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bun-version: ["1.4.0", "1.4.x"]
+        bun-version: ["1.4.4", "1.4.x"]
     defaults:
       run:
         working-directory: .

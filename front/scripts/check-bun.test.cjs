@@ -9,14 +9,12 @@ const { required, isSupportedBun } = require('./check-bun.cjs');
 const root = resolve(__dirname, '../..');
 
 test('supports stable Bun 1.4 patches and rejects other runtimes and prereleases', () => {
-  for (const version of ['1.4.0', '1.4.1', '1.4.3', '1.4.4', '1.4.5', '1.4.99']) {
-    assert.equal(isSupportedBun(version), true, version);
-  }
+  for (const version of ['1.4.4', '1.4.5', '1.4.99']) assert.equal(isSupportedBun(version), true, version);
   for (const version of [
     undefined,
     '',
-    '1.4',
-    '1.4.x',
+    '1.4.0',
+    '1.4.3',
     '1.3.99',
     '1.5.0',
     '2.0.0',
@@ -28,13 +26,13 @@ test('supports stable Bun 1.4 patches and rejects other runtimes and prereleases
   }
 });
 
-test('frontend manifests and CI version range select Bun 1.4.x', () => {
+test('frontend minimum and CI selection stay within Bun 1.4', () => {
   for (const path of ['front/package.json', 'front/vue3/package.json', 'docs/package.json']) {
     const { engines } = JSON.parse(readFileSync(resolve(root, path), 'utf8'));
     assert.equal(engines.bun, required, path);
     assert.equal(engines.node, undefined, path);
   }
-  assert.equal(readFileSync(resolve(root, '.bun-version'), 'utf8').trim(), required);
+  assert.equal(readFileSync(resolve(root, '.bun-version'), 'utf8').trim(), '1.4.x');
 });
 
 test('unsupported Bun is rejected before compiler loading or dependency installation', () => {
