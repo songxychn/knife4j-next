@@ -71,18 +71,13 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
 
       - name: Verify Java modules
-        run: tools/test-java.sh
+        run: tools/without-node.sh tools/test-java.sh
 
       - name: Generate Java compatibility report
         run: tools/java-compatibility-report.sh
@@ -123,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["26.0.0", "26"]
+        bun-version: ["1.4.4", "1.4"]
     defaults:
       run:
         working-directory: .
@@ -131,27 +126,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: .bun-version
+          bun-version: ${{ matrix.bun-version }}
 
       - name: Test front core
-        run: tools/test-front-core.sh
+        run: tools/without-node.sh tools/test-front-core.sh
 
       - name: Verify Schema Worker in headless Chrome
-        if: matrix.node-version == '26'
+        if: matrix.bun-version == '1.4'
         run: |
           mkdir -p build/reports/schema-worker
-          node front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist > build/reports/schema-worker/acceptance.json
+          tools/without-node.sh bun front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist > build/reports/schema-worker/acceptance.json
 
       - name: Upload Schema Worker browser evidence
-        if: always() && matrix.node-version == '26'
+        if: always() && matrix.bun-version == '1.4'
         uses: actions/upload-artifact@v4
         with:
           name: schema-worker-browser
@@ -187,22 +177,17 @@ jobs:
           check-latest: true
           cache: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
 
       - name: Test Knife4x Go
-        run: ./tools/test-knife4x-go.sh --module "${{ matrix.module }}"
+        run: tools/without-node.sh ./tools/test-knife4x-go.sh --module "${{ matrix.module }}"
 
       - name: Verify Knife4x Go UI assets
         if: matrix.module == 'all'
-        run: ./tools/sync-knife4x-ui.sh --check
+        run: tools/without-node.sh ./tools/sync-knife4x-ui.sh --check
 
   vue3-test:
     needs: changes
@@ -211,7 +196,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["26.0.0", "26"]
+        bun-version: ["1.4.4", "1.4"]
     defaults:
       run:
         working-directory: .
@@ -219,18 +204,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: .bun-version
+          bun-version: ${{ matrix.bun-version }}
 
       - name: Test Vue3 UI
-        run: tools/test-vue3.sh
+        run: tools/without-node.sh tools/test-vue3.sh
 
   docs-build:
     needs: changes
@@ -239,7 +219,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["26.0.0", "26"]
+        bun-version: ["1.4.4", "1.4"]
     defaults:
       run:
         working-directory: .
@@ -247,15 +227,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: .bun-version
+          bun-version: ${{ matrix.bun-version }}
 
       - name: Build docs site
-        run: tools/test-docs.sh
+        run: tools/without-node.sh tools/test-docs.sh

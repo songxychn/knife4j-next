@@ -38,4 +38,4 @@ The example uses current Java `5.8.2`.
 
 - Released `5.7.10` updates the Boot4 line to Boot `4.1.2` and aligns Jackson 2 `2.22.4` / Jackson 3 `3.1.8`; `5.8.0` keeps these dependencies and the browser/Java minimums. Consumer BOMs can override transitive versions; check the [Jackson guidance](../docs/guide/faq.md#jackson-依赖告警处理).
 
-- `5.8.0` adds a default INFO startup banner for OAS3 WebMVC (Boot2/3/4); set `knife4j.banner=false` to disable it. Shared UI Schema sessions use same-origin ES module Workers; retain Worker chunks and allow the required CSP and JavaScript MIME. Source builds require stable Node 26.x; consuming Maven artifacts requires no Node.
+- `5.8.0` adds a default INFO startup banner for OAS3 WebMVC (Boot2/3/4); set `knife4j.banner=false` to disable it. Shared UI Schema sessions use same-origin ES module Workers; retain Worker chunks and allow the required CSP and JavaScript MIME. Historical 5.8.0 source builds require stable Node 26.x; current-source tooling requirements are documented in [the compatibility matrix](../docs/reference/compatibility.md). Consuming Maven artifacts requires no JavaScript runtime.

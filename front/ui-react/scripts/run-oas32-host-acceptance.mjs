@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Local headless host acceptance for OAS 3.2.
  * Serves the already-embedded Knife4x UI plus labeled fixtures on loopback,

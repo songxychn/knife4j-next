@@ -3,21 +3,22 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "node scripts/check-node.mjs && vite",
+    "dev": "bun ../scripts/check-bun.cjs && bun --bun vite",
     "check:i18n": "bun scripts/check-i18n.mjs",
     "check:search-menu": "bun scripts/check-search-menu.mjs",
-    "check:markdown": "node scripts/check-markdown.mjs",
-    "check:codegen": "node scripts/check-codegen.mjs",
-    "check:router": "node scripts/check-router.mjs",
+    "check:markdown": "bun scripts/check-markdown.mjs",
+    "check:codegen": "bun scripts/check-codegen.mjs",
+    "check:router": "bun scripts/check-router.mjs",
     "check:store": "bun scripts/check-store.mjs",
-    "build": "node scripts/check-node.mjs && vite build",
-    "build:SpringDocOpenApi": "node scripts/check-node.mjs && cross-env VITE_RELEASE_APP_TYPE=SpringDocOpenApi vite build",
-    "build:Knife4jSpringUi": "node scripts/check-node.mjs && cross-env VITE_RELEASE_APP_TYPE=Knife4jSpringUi vite build",
-    "build:Knife4jJFinal": "node scripts/check-node.mjs && cross-env VITE_RELEASE_APP_TYPE=Knife4jJFinal vite build",
-    "build:Knife4jFront": "node scripts/check-node.mjs && cross-env VITE_RELEASE_APP_TYPE=Knife4jFront vite build",
-    "preview": "node scripts/check-node.mjs && vite preview",
-    "check:node": "node scripts/check-node.mjs",
-    "check:webjar-resources": "node --test scripts/check-webjar-resources.test.mjs"
+    "build": "bun ../scripts/check-bun.cjs && bun --bun vite build",
+    "build:SpringDocOpenApi": "bun ../scripts/check-bun.cjs && bun --bun cross-env VITE_RELEASE_APP_TYPE=SpringDocOpenApi vite build",
+    "build:Knife4jSpringUi": "bun ../scripts/check-bun.cjs && bun --bun cross-env VITE_RELEASE_APP_TYPE=Knife4jSpringUi vite build",
+    "build:Knife4jJFinal": "bun ../scripts/check-bun.cjs && bun --bun cross-env VITE_RELEASE_APP_TYPE=Knife4jJFinal vite build",
+    "build:Knife4jFront": "bun ../scripts/check-bun.cjs && bun --bun cross-env VITE_RELEASE_APP_TYPE=Knife4jFront vite build",
+    "preview": "bun ../scripts/check-bun.cjs && bun --bun vite preview",
+    "check:node": "bun ../scripts/check-bun.cjs",
+    "check:webjar-resources": "bun test ./scripts/check-webjar-resources.test.mjs",
+    "preinstall": "bun ../scripts/check-bun.cjs"
   },
   "dependencies": {
     "@ant-design/icons-vue": "7.0.1",
@@ -56,7 +57,7 @@
     "jsdom": "30.1.3"
   },
   "engines": {
-    "node": "26.x"
+    "bun": ">=1.4.4 <1.5.0"
   },
   "overrides": {
     "@babel/core": "7.29.6",

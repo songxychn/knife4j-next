@@ -32,7 +32,7 @@ ghcr.io/songxychn/knife4j-next/knife4j-next-demo-openapi3:demo
 
 ## 本地验证
 
-标准源码门禁按 `.agent/RUNBOOK.md` 执行；构建两 Demo 时需 JDK17、仓库指定 Node/Bun。
+标准源码门禁按 `.agent/RUNBOOK.md` 执行；构建两 Demo 时需 JDK17、仓库指定 Bun。
 
 ```sh
 python3 -m unittest discover -s tools/demo-images -p 'test_*.py'

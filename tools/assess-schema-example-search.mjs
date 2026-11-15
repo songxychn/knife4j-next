@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // #949: compare generator algorithms against the same current session/engine.
 // Run after `cd front && bun install --frozen-lockfile` and core/engine builds.
 // Usage from the repository root:
-// node tools/assess-schema-example-search.mjs [baseline-ref] [head-ref] [report.json]
+// bun tools/assess-schema-example-search.mjs [baseline-ref] [head-ref] [report.json]
 // The JSON report is the deliverable; this does not modify product sources.
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -232,7 +232,7 @@ try {
     head: refs[1],
     hostHead: git("rev-parse", "HEAD"),
     runtime: {
-      node: process.version,
+      nodeCompatibility: process.versions.node,
       bun: execFileSync("bun", ["--version"], { encoding: "utf8" }).trim(),
     },
     sourceSha256: sources.map((source) =>

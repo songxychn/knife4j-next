@@ -129,6 +129,7 @@
                             <executable>bun</executable>
                             <arguments>
                                 <argument>run</argument>
+                                <argument>--bun</argument>
                                 <!-- OAS2 webjar must ship Knife4j-vue3 Springfox mode (swagger-resources), not SpringDocOpenApi (v3/api-docs/swagger-config). -->
                                 <argument>build:Knife4jSpringUi</argument>
                                 <argument>--outDir=${knife4j-vue3.outDir}</argument>

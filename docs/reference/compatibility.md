@@ -59,7 +59,7 @@ Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
 
 下限依据 [RegExp v 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/unicodeSets#browser_compatibility) 与 [Object.groupBy 兼容数据](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy#browser_compatibility) 制定，不代表最低版本或 Safari/Firefox 均已逐一实机验收。已合并变更的 Chromium 验证不能等同于全浏览器验收。
 
-当前源码的 OAS3、OAS2 Vue3、文档站及 Knife4x UI 同步统一只支持稳定的 Node `26.x`，不接受其他主版本或预发行版。`.nvmrc` 默认选择 26 系列；CI 覆盖 26.0.0 下限和 26 当前补丁。此调整适用于源码开发、构建与测试，不反向改变历史版本的构建要求。直接使用 Maven 发布包或 Go module 无需 Node。Java / Go 运行时与浏览器基线保持不变。
+当前源码的 OAS3、OAS2 Vue3、文档站及 Knife4x UI 同步统一使用稳定 Bun `>=1.4.4 <1.5.0`，不需要安装 Node.js。CI 覆盖根目录 `.bun-version` 基准与 1.4 系列当前补丁，并在不提供独立 Node.js 的 PATH 下执行标准门禁。此调整只适用于当前源码开发、构建与测试，不反向改变历史版本的构建要求；旧 tag 的发布恢复仍按其 `.nvmrc` 安装 Node。直接使用 Maven 发布包或 Go module 无需 JavaScript 运行时。Java / Go 运行时与浏览器基线保持不变。
 
 ## Schema Worker 部署要求
 
@@ -72,7 +72,7 @@ CSP 应允许 `worker-src 'self'`，并允许 `script-src 'self'` 加载同源�
 本地打包验收可在同步 Knife4x UI 产物后运行：
 
 ```bash
-node front/ui-react/scripts/run-schema-example-worker-acceptance.mjs
+bun front/ui-react/scripts/run-schema-example-worker-acceptance.mjs
 ```
 
 脚本使用独立临时配置的无头 Chrome/Chromium，通过 loopback 验证根路径、Go 子路径与 Java WebJar 部署前缀、CSP / MIME / 404 诊断及真实 Worker 的取消和超时。根路径另采集 30 次已进入原生耗时正则的取消样本，以页面单调时钟计算取消回调至任务结算的延迟，要求 P95 不超过 50 毫秒，并记录最大值、主线程心跳和 Long Task。它输出 JSON 证据；没有浏览器时返回失败，可用 `CHROME_PATH` 指定可执行文件。此静态前缀验收不替代真实 Maven 打包与 Go 宿主门禁，也不等于所有最低浏览器版本的实机验收。

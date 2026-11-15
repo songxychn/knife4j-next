@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { stripTypeScriptTypes } from 'node:module'
 import {
   formatApi,
   getComment,
@@ -9,7 +8,7 @@ import {
   upperFirstCase
 } from '../src/core/ScriptGenerator.js'
 
-// Exercise the production ScriptView generation path. Node checks JS/TS syntax;
+// Exercise the production ScriptView generation path. Bun checks JS/TS syntax;
 // these assertions check existing types and request behavior, not formatting.
 const properties = [
   { name: 'name', type: 'string', require: true },
@@ -96,7 +95,7 @@ for (const method of ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'
           const args = body === 'none' ? route.args : [...route.args, value]
           const expectedArgs = body === 'none' ? [route.requestUrl] : [route.requestUrl, value]
           checkRequest(js, args, method.toLowerCase(), expectedArgs)
-          const stripped = stripTypeScriptTypes(params + res + comment + tsFunction, { mode: 'strip' })
+          const stripped = new Bun.Transpiler({ loader: 'ts' }).transformSync(params + res + comment + tsFunction)
           checkRequest(stripped, args, method.toLowerCase(), expectedArgs)
           count++
         } catch (error) {

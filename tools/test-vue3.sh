@@ -3,11 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../front/vue3"
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "Vue3 requires Node.js 26.x; install Node.js before running this check." >&2
-  exit 1
-fi
-node scripts/check-node.mjs
+bun ../scripts/check-bun.cjs
 
 bun install --frozen-lockfile
 bun run check:i18n
@@ -37,4 +33,4 @@ if [ ! -d "dist/webjars" ]; then
 fi
 
 # Execute the production ES modules and verify Springfox + desktop startup.
-node --experimental-vm-modules scripts/check-webjar-smoke.mjs dist
+KNIFE4J_WEBJAR_ROOT=dist bun test ./scripts/check-webjar-smoke.test.mjs

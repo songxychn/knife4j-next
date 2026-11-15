@@ -18,7 +18,7 @@ JSON，不支持 YAML 入口。下方 `v0.5.0` 及更早小节保留各自历史
 
 ## 安装
 
-从当前仓库源码重建或同步 UI 时，Node 要求与 OAS3、Vue3 和文档站统一为稳定的 `26.x`，不接受其他主版本或预发行版。直接使用 Go module 不需要 Node，Go 与浏览器运行时要求不变。
+从当前仓库源码重建或同步 UI 时，使用稳定 Bun `>=1.4.4 <1.5.0`，基准见根目录 `.bun-version`，不需要安装 Node.js。直接使用 Go module 不需要 JavaScript 运行时，Go 与浏览器运行时要求不变。
 
 Go module 需要 Go 1.22 或更高版本。使用以下命令接入 `v0.9.2`：
 
@@ -45,7 +45,7 @@ go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
 
 相较于 `v0.8.9`，单接口 Markdown 复制与完整文档导出共用字段、请求/响应和示例规则；不完整内容需确认并保留诊断。同步对象候选截断、千字段示例生成及 allOf 无类型字符串约束修复，保留作者示例、方向、授权资源图、取消与安全预算（PR #965/#967/#970/#975）。
 
-Schema 会话改用同源 ES module Worker；部署须保留 Worker 和动态分块、允许相应 CSP 并提供正确 JavaScript MIME，失败有诊断。Go 内联配置仍按原有 CSP 方式授权。源码构建统一要求稳定 Node `26.x`，直接使用 module 不需要 Node。
+Schema 会话改用同源 ES module Worker；部署须保留 Worker 和动态分块、允许相应 CSP 并提供正确 JavaScript MIME，失败有诊断。Go 内联配置仍按原有 CSP 方式授权。当前源码构建要求见[兼容矩阵](../reference/compatibility)；直接使用 module 不需要 JavaScript 运行时。
 
 公共库仍只依赖标准库；Go 1.22、module、`Config`、`NewHandler` 与路由语义不变，独立 Gin 示例仍需 Go 1.26+。浏览器沿用 `v0.8.9`，OpenAPI 3.0/3.1/3.2 JSON 消费与资源授权边界不变，仍不接受 YAML。
 

@@ -119,7 +119,7 @@ The published React WebJar, starter, aggregation disk routes, and Knife4x can **
 Headless UI acceptance:
 
 ```bash
-node front/ui-react/scripts/run-oas32-host-acceptance.mjs
+bun front/ui-react/scripts/run-oas32-host-acceptance.mjs
 ```
 
 The script binds `127.0.0.1` only, uses in-repo fixtures and the embedded React assets, and does not call real third-party credential or PII services.

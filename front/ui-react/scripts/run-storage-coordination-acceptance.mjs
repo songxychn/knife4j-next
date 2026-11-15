@@ -1,4 +1,4 @@
-// Usage: node front/ui-react/scripts/run-storage-coordination-acceptance.mjs <current-browser-bundle> <baseline-browser-bundle>
+// Usage: bun front/ui-react/scripts/run-storage-coordination-acceptance.mjs <current-browser-bundle> <baseline-browser-bundle>
 // Inputs are isolated browser bundles of knife4jStorage.ts; no user profile is opened.
 import fs from 'node:fs';
 import os from 'node:os';

@@ -30,12 +30,7 @@ tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/knife4x-ui.XXXXXX")"
 build_dir="$tmp_dir/static"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-node_bin="$(command -v node || true)"
-if [ -z "$node_bin" ]; then
-  echo "Node.js is required to build Knife4x UI assets; use .nvmrc" >&2
-  exit 1
-fi
-"$node_bin" "$front_root/scripts/check-node.cjs"
+bun "$front_root/scripts/check-bun.cjs"
 
 cd "$front_root"
 bun install --frozen-lockfile
@@ -43,8 +38,8 @@ bun run --filter knife4j-core build
 bun run --filter knife4j-schema-engine build
 
 cd "$ui_root"
-"$node_bin" "$front_root/scripts/tsc.cjs"
-"$node_bin" "$front_root/node_modules/vite/bin/vite.js" build --outDir="$build_dir" --emptyOutDir
+bun "$front_root/scripts/tsc.cjs"
+bun "$front_root/node_modules/vite/bin/vite.js" build --outDir="$build_dir" --emptyOutDir
 
 index_html="$build_dir/index.html"
 if [ ! -f "$index_html" ]; then
