@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import PageLoading from '../components/PageLoading';
+import PageLoading from './PageLoading';
 import { Drawer, Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../context/SettingsContext';

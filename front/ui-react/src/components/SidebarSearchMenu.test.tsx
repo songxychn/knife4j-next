@@ -45,7 +45,7 @@ vi.mock('@ant-design/icons', () => ({
   SearchOutlined: 'SearchOutlined',
   SafetyCertificateOutlined: 'SafetyCertificateOutlined',
 }));
-vi.mock('../components/Markdown', () => ({ default: 'Markdown' }));
+vi.mock('./Markdown', () => ({ default: 'Markdown' }));
 vi.mock('../context/GroupContext', () => ({ useGroup: () => state.group }));
 vi.mock('../context/SettingsContext', () => ({ useSettings: () => ({ settings: state.settings }) }));
 vi.mock('../context/GlobalParamContext', () => ({ useGlobalParam: () => ({ effectiveParams: [] }) }));

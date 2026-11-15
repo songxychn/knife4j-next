@@ -45,8 +45,8 @@ vi.mock('./context/SchemaEngineContext', () => ({
   SchemaEngineProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('./components/schema/ExternalResourcePanel', () => ({ default: () => null }));
-vi.mock('./compoents/SettingsDrawer', () => ({ default: () => null }));
-vi.mock('./compoents/SidebarSearchMenu', () => ({
+vi.mock('./components/SettingsDrawer', () => ({ default: () => null }));
+vi.mock('./components/SidebarSearchMenu', () => ({
   default: ({ onMenuClick }: { onMenuClick: (info: { key: string }) => void }) => (
     <button onClick={() => onMenuClick({ key: '/audit/schema' })}>Open models</button>
   ),
