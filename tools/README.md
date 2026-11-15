@@ -6,10 +6,11 @@
 
 | 脚本 | 作用 |
 |---|---|
-| `test-java.sh` | spotless + Maven verify + smoke 证据 + Java 兼容契约 |
+| `test-java.sh` | spotless + Maven verify + OAS3/OAS2 WebJar 冷热工作区回归 + smoke 证据 + Java 兼容契约 |
 | `test-java-compatibility.sh` | 兼容报告与契约护栏的离线回归 |
 | `java-compatibility-report.sh` | 对比显式 Central 基线并生成 report-first 的 Markdown / JSON / XML 报告 |
 | `test-release-tools.sh` | Release 上下文、Central 构件与安全收尾脚本回归 |
+| `smoke-evidence.sh`、`test-smoke-evidence.sh` | 由 `test-java.sh` 调用，按目录发现 smoke 模块并检查 surefire 证据；`--summary` 供 Build CI 输出表格 |
 | `verify-configuration-metadata.sh` | 由 `test-java.sh` 调用，检查 starter JAR 内的 Spring Boot 配置元数据 |
 | `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
 | `../front/scripts/check-node.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Node 基线检查 |
@@ -57,17 +58,7 @@ Spring Boot 配置 key 或关键公开入口漂移会失败。japicmp 按单模�
 - `verify-maven-central.sh`：按精确 URL 有界轮询公共 POM/JAR、签名和 SHA-1，并检查 UI JAR 可读取。
 - `extract-release-note.sh`、`verify-github-release.sh`：生成并核对幂等 GitHub Release。
 
-`verify-maven-central.sh` 默认最多检查 31 轮，每轮只重试尚未通过的精确 URL 或 UI JAR
-可读性检查。成功记录只保留在本次进程内，不跨版本、进程或 job 复用；新一次执行仍须
-检查完整清单，URL 探测成功不能替代 UI JAR 的完整下载和归档检查。
-
-仅剩网络传输错误（例如连接重置、DNS / 连接失败、超时或不完整传输）时，默认 2 秒后
-重试；404、其他 HTTP 错误、证书验证失败或不可读归档等使用原有的 60 秒间隔，混合错误
-也使用该常规间隔。每轮立即输出失败文件及具体原因，全部失败路径仍受总轮数和请求超时限制。
-测试或故障排查可配置 `MAVEN_CENTRAL_MAX_ATTEMPTS`、`MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS`、
-`MAVEN_CENTRAL_NETWORK_RETRY_INTERVAL_SECONDS` 和 `MAVEN_CENTRAL_BASE_URL`；两种间隔均允许
-设为 `0`；网络等待取两种间隔的较小值，因此原有只设置常规间隔为 `0` 的调用仍不会等待。
-这些设置不会改变制品完整性要求，本优化不会重发 Maven 制品或触发 Demo / Release。
+`verify-maven-central.sh` 默认最多检查 31 轮、每轮间隔 60 秒，只重试尚未通过的精确 URL 或 UI JAR 可读性检查；成功记录只在本次进程内有效。每轮输出失败文件及原因。测试或排障可设置 `MAVEN_CENTRAL_MAX_ATTEMPTS`、`MAVEN_CENTRAL_RETRY_INTERVAL_SECONDS`（可为 `0`）和 `MAVEN_CENTRAL_BASE_URL`，这些设置不改变制品完整性要求。
 
 `demo-images/` — `publish-demo-images.yml` 使用的 Demo 镜像构建、验证与 `demo` 标签发布工具，契约见
 [`demo-images/README.md`](demo-images/README.md)。
