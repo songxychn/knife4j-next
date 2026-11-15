@@ -76,8 +76,11 @@ public class OpenApi2UiResourceSmokeTest {
         Path resources = Path.of(doc.toURI()).getParent();
         Path moduleDir = Path.of(System.getProperty("basedir")).toAbsolutePath();
         Path script = moduleDir.resolve("../../front/vue3/scripts/check-webjar-smoke.test.mjs").normalize();
+        Path undiciPreload = script.getParent().resolve("use-npm-undici.cjs");
+        Path jsdomPreload = script.getParent().resolve("fixtures/preload-jsdom.cjs");
         Path log = moduleDir.resolve("target/vue3-webjar-behavior.log");
-        ProcessBuilder builder = new ProcessBuilder("bun", "test", script.toString());
+        ProcessBuilder builder = new ProcessBuilder("bun", "test", "--preload", undiciPreload.toString(), "--preload",
+                jsdomPreload.toString(), script.toString());
         builder.environment().put("KNIFE4J_WEBJAR_ROOT", resources.toString());
         Process process = builder
                 .redirectErrorStream(true)

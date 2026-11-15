@@ -33,4 +33,7 @@ if [ ! -d "dist/webjars" ]; then
 fi
 
 # Execute the production ES modules and verify Springfox + desktop startup.
-KNIFE4J_WEBJAR_ROOT=dist bun test ./scripts/check-webjar-smoke.test.mjs
+KNIFE4J_WEBJAR_ROOT=dist bun test \
+  --preload ./scripts/use-npm-undici.cjs \
+  --preload ./scripts/fixtures/preload-jsdom.cjs \
+  ./scripts/check-webjar-smoke.test.mjs
