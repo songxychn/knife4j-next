@@ -17,7 +17,7 @@
     "build:Knife4jFront": "bun ../scripts/check-bun.cjs && bun --bun cross-env VITE_RELEASE_APP_TYPE=Knife4jFront vite build",
     "preview": "bun ../scripts/check-bun.cjs && bun --bun vite preview",
     "check:node": "bun ../scripts/check-bun.cjs",
-    "check:webjar-resources": "bun test ./scripts/check-webjar-resources.test.mjs",
+    "check:webjar-resources": "bun test --preload ./scripts/use-npm-undici.cjs --preload ./scripts/fixtures/preload-jsdom.cjs ./scripts/check-webjar-resources.test.mjs",
     "preinstall": "bun ../scripts/check-bun.cjs"
   },
   "dependencies": {

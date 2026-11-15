@@ -63,7 +63,11 @@ bun run build
 并检查 `dist/doc.html`、`dist/webjars/`、`dist/webjars/oauth/oauth2.html` 是否生成。
 随后通过 Bun 的 VM ES modules 兼容接口与 jsdom 执行实际构建 JS，在根目录和 `/demo/` 子路径下验证
 Springfox 分组/Swagger2 请求、desktop gateway header 与文档初始化；夹具符合 Swagger 2.0。
-资源策略和行为脚本由 `bun test` 执行，显式加载锁定的 npm Undici（Bun 内置版本缺少 jsdom 所需的 Dispatcher API）。
+资源策略和行为脚本由 `bun test` 执行，先通过 `--preload scripts/use-npm-undici.cjs` 加载锁定的 npm Undici，
+再加载 jsdom（Bun 内置版本缺少 jsdom 所需的 Dispatcher API）。不要改回测试文件内的静态适配导入：
+jsdom 若先求值，后续替换模块导出不能重建其 Dispatcher 继承关系；参见 [Bun preload 说明](https://bun.com/docs/test/mocks#hoisting--preloading)。
+标准验证与 Java smoke 还会在测试文件前预加载真实 jsdom 夹具 `scripts/fixtures/preload-jsdom.cjs`，
+固定这一装载顺序回归条件；资源访问及业务断言保持真实。
 Java smoke 对 `target/classes/META-INF/resources` 使用同一行为脚本，继续检查 doc.html 引用的资源完整性。
 该测试不依赖压缩后的变量名或 switch 格式；隔离 DOM 不代替真实浏览器布局和最低版本验收。
 
