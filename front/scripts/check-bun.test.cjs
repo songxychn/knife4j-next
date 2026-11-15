@@ -26,13 +26,13 @@ test('supports stable Bun 1.4 patches and rejects other runtimes and prereleases
   }
 });
 
-test('frontend manifests and CI baseline select Bun 1.4', () => {
+test('frontend minimum and CI selection stay within Bun 1.4', () => {
   for (const path of ['front/package.json', 'front/vue3/package.json', 'docs/package.json']) {
     const { engines } = JSON.parse(readFileSync(resolve(root, path), 'utf8'));
     assert.equal(engines.bun, required, path);
     assert.equal(engines.node, undefined, path);
   }
-  assert.ok(isSupportedBun(readFileSync(resolve(root, '.bun-version'), 'utf8').trim()));
+  assert.equal(readFileSync(resolve(root, '.bun-version'), 'utf8').trim(), '1.4.x');
 });
 
 test('unsupported Bun is rejected before compiler loading or dependency installation', () => {

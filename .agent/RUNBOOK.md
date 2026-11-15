@@ -5,8 +5,8 @@
 ## 环境
 
 - Java：`.java-version`
-- JavaScript 运行时：当前源码的前端（OAS3、Vue3、docs、Knife4x UI 同步）使用稳定 Bun `>=1.4.4 <1.5.0`，不需要安装 Node.js；`front/scripts/check-bun.cjs` 在安装和构建前检查。CI 覆盖 `.bun-version` 基准与 1.4 系列当前补丁，并通过 `tools/without-node.sh` 隔离独立 Node.js。旧 tag 的发布恢复按该 tag 的 `.nvmrc` 保留 Node 环境；GitHub JS actions 自带的运行时不属于项目依赖。
-- 包管理：bun（`front/`、`front/vue3/`、`docs/`）。本地优先用已安装的 Bun，版本字符串不同本身不构成下载安装或降级理由；只有失败可归因于版本、lock / 生成物出现差异或需复现 CI 时，才切换到根目录 `.bun-version`。安装用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
+- JavaScript 运行时：当前源码的前端（OAS3、Vue3、docs、Knife4x UI 同步）使用稳定 Bun `1.4.x`（最低 `1.4.4`），不需要安装 Node.js；`front/scripts/check-bun.cjs` 在安装和构建前检查。CI 覆盖最低版本 `1.4.4` 与 `1.4.x` 当前补丁，并通过 `tools/without-node.sh` 隔离独立 Node.js。旧 tag 的发布恢复按该 tag 的 `.nvmrc` 保留 Node 环境；GitHub JS actions 自带的运行时不属于项目依赖。
+- 包管理：bun（`front/`、`front/vue3/`、`docs/`）。本地开发与 CI 统一使用根目录 `.bun-version` 声明的稳定 `1.4.x`（最低 `1.4.4`）。优先用已安装且满足范围的 Bun，无需仅因补丁版本不同而下载安装或降级；需要复现失败或 lock / 生成物差异时，按日志中的实际补丁版本复现。安装用 `bun install --frozen-lockfile`，不要恢复 `package-lock.json`。
 - CI：`.github/workflows/build.yml`（PR / master 验证）、`release.yml`（Java 发布）、`deploy-demo.yml`（由 Release 调用）、`publish-demo-images.yml`（Demo 镜像，见 `tools/demo-images/README.md`）。
 - 浏览器下限：OAS3 React UI（含 WebJar / Knife4x）为 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17；OAS2 Vue3 为 Chrome/Edge 117、Firefox 119、Safari 17.4。构建成功不代表旧浏览器兼容。
 - React Vitest 注意事项见 [`front/ui-react/README.md`](../front/ui-react/README.md#测试注意事项)。

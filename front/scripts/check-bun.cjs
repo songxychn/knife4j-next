@@ -15,7 +15,7 @@ function checkBun() {
   }
   if (!isSupportedBun(process.versions.bun)) {
     console.error(
-      `Front-end tooling requires stable Bun ${required}; found ${process.versions.bun ?? 'a different runtime'}. See .bun-version for the CI baseline.`,
+      `Front-end tooling requires stable Bun ${required}; found ${process.versions.bun ?? 'a different runtime'}. See .bun-version for the CI version selection.`,
     );
     return false;
   }
