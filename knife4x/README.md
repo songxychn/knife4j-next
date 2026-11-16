@@ -1,80 +1,41 @@
 # Knife4x
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调试控制台。
-当前先交付 Go，Rust 后置。
+Go 已发布，Rust 后置。UI 与 Java OAS3 共用 `front/ui-react` 和 `front/core`，
+Go module、版本和发布流程独立，不另建前端。
 
-## 定位
+公共库只依赖标准库 `net/http`，消费已有 OpenAPI 3 JSON，不生成 spec、不代理业务请求。
+完整用户手册统一维护在[文档站](https://knife4jnext.com/knife4x/)，
+仓库内可读[快速开始](../docs/knife4x/index.md)。
 
-- 已发布版本消费标准 OpenAPI 3.0.x / 3.1.x / 3.2.x JSON 文档，不生成 spec，不支持 OAS2 / Swagger 2
-- 合法 3.2 JSON 交给同一套 React UI；限制见 [OpenAPI 3.2 支持矩阵](../docs/guide/openapi32.md)
-- Go 核心只依赖标准库 `net/http`，不绑定 Gin、Echo、Chi 等 Web 框架
-- 与 Java 线 `knife4j-next` 同仓并共用 `front/ui-react` 与 `front/core`，但 module、版本和发布流程独立于 Java `5.x`
-- 宿主壳只负责嵌入静态 UI、注入配置和挂载路由，不复制前端业务逻辑
+## 安装与体验
 
-Go module 路径为：
+Go 1.22+ 可安装已发布 `v0.9.2`（tag `knife4x/go/v0.9.2`）：
 
-```text
-github.com/songxychn/knife4j-next/knife4x/go
+```bash
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
 ```
 
-Go 当前版本为 `v0.9.2`，对应仓库 tag 为 `knife4x/go/v0.9.2`；首个公开版本为
-`v0.1.0`。接入示例见 [Gin example](examples/gin/README.md)，发布流程见 [Go 发布清单](go/RELEASE.md)。
-
-`v0.9.2` 同步窄屏导航、按需加载、键盘与标签语义、控件名称和对比度修复，以及数组自动示例与响应类型标签修复；Go API 与兼容边界沿用 `v0.9.1`。
-
-`v0.9.1` 同步 Schema 跨文档引用、正则诊断、Markdown 路由与导出修复，以及布局、保存反馈和依赖维护；Go API 与兼容边界沿用 `v0.9.0`。
-
-`v0.9.0` 保持 Go Handler API 与路由语义，新增完整单接口 Markdown 复制，并同步对象候选、千字段示例与 allOf 字符串约束修复。Schema 会话使用同源 ES module Worker，部署需保留 Worker/动态分块并允许相应 CSP 与 JavaScript MIME；当前源码构建要求见[兼容矩阵](../docs/reference/compatibility.md)。预算、取消、作者示例与校验边界保持。调试正文格式化、JSON/XML 词法保真与表单快照合并从 `v0.8.5` 起提供。OpenAPI 3.2.x 文档消费从 `v0.8.0` 起提供。JSON 示例与预览层级折叠、请求预览词法保真与空容器折叠从 `v0.8.4` 起提供。OAS 3.2 标签 Tooltip 重复名称、Schema 元校验错误定位、普通 JSON 示例默认展示与调试 JSON 响应折叠从 `v0.8.3` 起提供。OAS 3.2 标签菜单重复名称、首页服务地址明细默认折叠与窄窗口布局修复从 `v0.8.2` 起提供。OAS 3.1 SchemaEngine 元校验失败重试修复从 `v0.8.1` 起提供。OAS 3.1 非 ASCII
-分组自引用修复从 `v0.7.1` 起提供；浏览器登录会话调试、枚举过滤和目录分组吸顶从 `v0.7.0`
-起提供；OAS 3.1、JSON Schema 2020-12、受控资源图、调试诊断与导出能力从 `v0.6.0` 起提供。
-具体能力和限制见 [Go 版本说明](../docs/knife4x/index.md)；`v0.5.0` 的历史说明不包含这些后续改动。
-
-## 快速开始
-
-先阅读 [Go 接入说明](go/README.md)。它先给出框架无关的 `http.Handler`
-用法，再说明如何组合 Gin。
-
-仓库内可直接运行：
+最小标准库程序见 [Go module README](go/README.md)。仓库内也可运行独立 Gin 示例
+（Go 1.26+，其依赖不会进入公共库）：
 
 ```bash
 cd knife4x/examples/gin
 go run .
 ```
 
-然后打开 <http://localhost:8080/doc.html>。子路径示例：
+启动后打开 `http://localhost:8080/doc.html`。flags 和环境变量见
+[Gin 示例说明](examples/gin/README.md)。当前源码新增 API 尚未包含在已发布版本中，
+可用版本与字段以[配置参考](../docs/knife4x/configuration.md)为准。
 
-```bash
-go run . -base-path /internal
-```
+## 资料入口
 
-此时入口为 <http://localhost:8080/internal/doc.html>。`BasePath` 只表示文档挂载前缀，
-不会成为业务 API base URL。
+- [配置参考](../docs/knife4x/configuration.md)
+- [接入与部署](../docs/knife4x/deployment.md)
+- [迁移指南](../docs/knife4x/migration.md)
+- [版本记录](../docs/knife4x/releases.md)
+- [源码验证与 UI 同步](go/README.md#源码开发与发布)
+- [Go 发布清单](go/RELEASE.md)
 
-从 `gin-swagger` 切换前，请先阅读
-[迁移说明](go/MIGRATING_FROM_GIN_SWAGGER.md)：已发布 Knife4x 只接受 JSON 顶层
-`openapi: 3.0.x`、`openapi: 3.1.x` 或合法 `openapi: 3.2.x` 的文档，不能直接加载 Swagger 2 / OAS2。
-3.2 承载边界见 [OpenAPI 3.2 支持矩阵](../docs/guide/openapi32.md)。
-
-## 当前目录
-
-```text
-knife4x/
-  go/          # Go module：embed UI + net/http Handler
-  rust/        # Rust crate 占位，后置，尚未形成发布与支持承诺
-  examples/
-    gin/       # 可运行的 Gin 组合示例
-    axum/      # 后置占位
-```
-
-## 配置与边界
-
-Go Handler 的公开配置只有 `SpecURL` 与 `BasePath`。默认入口是 `/doc.html`；
-关闭文档的方式是不创建或不挂载 Handler。Knife4x 不依赖 Java 的 discovery
-端点，也不提供 `enabled`、`persistAuth`、`title` 或 `tryIt` 等宿主配置字段。
-
-内嵌 UI 只能通过 `tools/sync-knife4x-ui.sh` 从共享前端源码生成，禁止手工修改
-`knife4x/go/internal/ui/static/`。
-
-本目录与 Java 主线同样采用 [Apache-2.0](go/LICENSE) 许可证（SPDX 标识：
-`Apache-2.0`），但 module、版本与发布流程相互独立。产品需求与决策基线见
+本目录采用 [Apache-2.0](go/LICENSE) 许可证，产品需求与决策基线见
 [issue #524](https://github.com/songxychn/knife4j-next/issues/524)。

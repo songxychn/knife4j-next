@@ -103,6 +103,29 @@ describe('Knife4x startup', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('uses the configured group order without discovery and can load another spec after a group fails', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce(
+        documentResponse({ openapi: '3.0.3', info: { title: 'working', version: '1' }, paths: {} }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const groups = [
+      { name: 'broken', url: '/broken.json' },
+      { name: 'working', url: '/working.json' },
+    ];
+    await expect(loadInitialGroups({ mode: 'embed', config: { basePath: '/', specs: groups } })).resolves.toEqual({
+      mode: 'ready',
+      groups,
+      swaggerUiConfig: null,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await fetchSwaggerDocForMode(groups[0].url, 'embed')).doc).toBeNull();
+    expect((await fetchSwaggerDocForMode(groups[1].url, 'embed')).doc?.info.title).toBe('working');
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/broken.json', '/working.json']);
+  });
+
   it('accepts OpenAPI 3.1 documents in Embed mode', async () => {
     vi.stubGlobal(
       'fetch',

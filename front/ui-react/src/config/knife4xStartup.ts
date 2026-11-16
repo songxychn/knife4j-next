@@ -27,7 +27,7 @@ export async function loadInitialGroups(
   if (bootstrap.mode === 'embed') {
     return {
       mode: 'ready',
-      groups: [{ name: 'default', url: bootstrap.config.specUrl }],
+      groups: bootstrap.config.specs ?? [{ name: 'default', url: bootstrap.config.specUrl! }],
       swaggerUiConfig: null,
     };
   }

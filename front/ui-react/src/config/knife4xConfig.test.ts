@@ -77,4 +77,60 @@ describe('readKnife4xBootstrap', () => {
       expect(result.error.key).toMatch(/^error\.knife4x\./);
     }
   });
+
+  it('resolves named specs in order and retains only supported UI defaults and Markdown content', () => {
+    const result = readKnife4xBootstrap(
+      host({
+        basePath: '/internal',
+        specs: [
+          { name: ' 用户中心 ', url: 'user.json' },
+          { name: 'billing', url: '/billing/openapi.json' },
+          { name: 'remote', url: 'https://api.example.net/openapi.json' },
+        ],
+        settings: { language: 'en-US', enableDebug: false, enableVersion: true, unknown: true },
+        documents: [{ title: ' 接入指南 ', content: '# Welcome\n<script>unsafe()</script>' }],
+      }),
+    );
+    expect(result).toEqual({
+      mode: 'embed',
+      config: {
+        basePath: '/internal',
+        specs: [
+          { name: '用户中心', url: 'https://example.com/internal/user.json' },
+          { name: 'billing', url: 'https://example.com/billing/openapi.json' },
+          { name: 'remote', url: 'https://api.example.net/openapi.json' },
+        ],
+        settings: { language: 'en-US', enableDebug: false, enableVersion: true },
+        documents: [{ title: '接入指南', content: '# Welcome\n<script>unsafe()</script>' }],
+      },
+    });
+  });
+
+  it.each([
+    { specs: [] },
+    { specs: {} },
+    { specUrl: '/openapi.json', specs: [{ name: 'one', url: '/one.json' }] },
+    { specs: [{ name: '', url: '/one.json' }] },
+    { specs: [{ name: 'one/two', url: '/one.json' }] },
+    { specs: [{ name: 'one#two', url: '/one.json' }] },
+    { specs: [{ name: '%41', url: '/one.json' }] },
+    { specs: [{ name: '..', url: '/one.json' }] },
+    { specs: [{ name: 'group', url: '/one.json' }] },
+    {
+      specs: [
+        { name: 'one', url: '/one.json' },
+        { name: ' one ', url: '/two.json' },
+      ],
+    },
+    { specs: [{ name: 'one', url: '//evil.example/spec.json' }] },
+    { specs: [{ name: 'one', url: 'javascript:alert(1)' }] },
+    { specs: [{ name: 'one', url: 'https://user:secret@example.com/spec.json' }] },
+    { specs: [{ name: 'one', url: '\\\\evil.example/spec.json' }] },
+    { specs: [null] },
+    { specUrl: '/openapi.json', settings: [] },
+    { specUrl: '/openapi.json', documents: [{ title: 'No content' }] },
+    { specUrl: '/openapi.json', documents: [{ title: ' ', content: '' }] },
+  ])('rejects malformed new bootstrap configuration: %j', (config) => {
+    expect(readKnife4xBootstrap(host({ basePath: '/', ...config })).mode).toBe('error');
+  });
 });

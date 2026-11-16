@@ -1,35 +1,27 @@
 # Knife4x Gin example
 
-本示例让 Gin 作为业务 `http.Handler`，再由 Knife4x 的框架无关 Handler 同时提供文档资源。
-它只消费现成的 OpenAPI 3 文档，不使用 `swag` 或 `gin-swagger` 生成 spec。
-示例内嵌的固定文档与 React 验收共用同一份 Springdoc 2.8.9 OpenAPI 3.1
-快照，覆盖 nullable、const、tuple、GET/JSON/binary/multipart requestBody
-以及请求/响应 Schema 引用。
+Gin 提供业务 API 与已有 OpenAPI JSON，外层 Knife4x 提供文档 UI。
+本示例需要 Go 1.26+；其独立 module 依赖不进入公共库的 Go 1.22 基线。
+本地 `replace ../../go` 使用当前源码，包含尚未进入已发布 `v0.9.2` 的新增 API。
 
-本示例需要 Go 1.26 或更高版本。示例是独立 module，Gin 及其依赖不会进入公共库
-`knife4x/go`；公共库仍兼容 Go 1.22。
-
-在本目录运行：
+在仓库根目录运行：
 
 ```bash
+cd knife4x/examples/gin
 go run .
 ```
 
-打开：
+打开 `http://localhost:8080/doc.html`；spec 为 `/openapi.json`，业务接口为 `/api/ping`。
+示例只消费固定的 Springdoc OpenAPI 3.1 快照，不运行生成器。
 
-- Knife4x：<http://localhost:8080/doc.html>
-- OpenAPI 3 fixture：<http://localhost:8080/openapi.json>
-- OAS 3.1 matrix API：<http://localhost:8080/oas31/json>
-- 业务接口：<http://localhost:8080/api/ping>
-
-子路径部署：
+子路径和双分组示例：
 
 ```bash
-go run . -base-path /internal
+go run . -base-path /internal -multi-spec
 ```
 
-此时文档入口为 <http://localhost:8080/internal/doc.html>，fixture 为
-<http://localhost:8080/internal/openapi.json>；业务接口仍是
-<http://localhost:8080/api/ping>，不会拼接文档挂载前缀。
-
-本地 module 的 `replace ../../go` 仅用于 monorepo 开发，不是发布后的用户接入方式。
+入口为 `/internal/doc.html`，两组均显示内嵌的“接入说明”。
+完整 flags、凭据环境变量、关闭方式与接入层级统一见
+[文档站部署指南](../../../docs/knife4x/deployment.md#gin-与外层中间件)。
+配置与迁移说明见 [Go 用户手册](../../../docs/knife4x/index.md)，
+在线入口为 [knife4jnext.com](https://knife4jnext.com/knife4x/)。

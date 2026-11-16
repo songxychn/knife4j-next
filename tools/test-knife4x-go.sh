@@ -81,3 +81,8 @@ for module_root in "${module_roots[@]}"; do
     go test -mod=readonly ./...
   )
 done
+
+# Public Go changes also validate their authoritative documentation and examples.
+if [ "$module" != gin ]; then
+  go run "$repo_root/tools/check-knife4x-docs.go" --root "$repo_root"
+fi

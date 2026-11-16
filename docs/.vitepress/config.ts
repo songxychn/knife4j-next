@@ -1,6 +1,11 @@
 import {defineConfig} from 'vitepress'
+import {execFileSync} from 'node:child_process'
+import {readFileSync, writeFileSync} from 'node:fs'
+import {join} from 'node:path'
+import {fileURLToPath} from 'node:url'
 
 const siteUrl = 'https://knife4jnext.com'
+const sourceRoot = fileURLToPath(new URL('../../', import.meta.url))
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -8,6 +13,17 @@ export default defineConfig({
   description: 'Spring 生态下的 OpenAPI 文档增强与接口调试工具',
   cleanUrls: true,
   lastUpdated: true,
+  async buildEnd(config) {
+    const versions = JSON.parse(readFileSync(join(sourceRoot, 'knife4x/go/docs-version.json'), 'utf8'))
+    const git = (...args: string[]) => execFileSync('git', ['-C', sourceRoot, ...args], {encoding: 'utf8'}).trim()
+    const provenance = {
+      sourceRevision: git('rev-parse', 'HEAD'),
+      sourceDirty: git('status', '--porcelain', '--', 'docs', 'knife4x', 'README.md', 'tools') !== '',
+      knife4xVersion: versions.version,
+      exampleCompatibilityVersion: versions.exampleCompatibilityVersion
+    }
+    writeFileSync(join(config.outDir, 'build-info.json'), JSON.stringify(provenance, null, 2) + '\n')
+  },
   head: [
     ['meta', { name: 'theme-color', content: '#69aefc' }],
     ['meta', { property: 'og:type', content: 'website' }],
@@ -77,6 +93,10 @@ export default defineConfig({
         text: '接入指南',
         items: [
           { text: 'Knife4x Go', link: '/knife4x/' },
+          { text: 'Go 配置参考', link: '/knife4x/configuration' },
+          { text: 'Go 部署与访问保护', link: '/knife4x/deployment' },
+          { text: '从 gin-swagger 迁移', link: '/knife4x/migration' },
+          { text: 'Go 版本记录', link: '/knife4x/releases' },
           { text: 'Spring Cloud Gateway 聚合', link: '/guide/gateway' },
           { text: 'Disk / Nacos / Eureka 聚合', link: '/guide/aggregation' },
           { text: 'Spring WebFlux 接入', link: '/guide/webflux' },

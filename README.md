@@ -58,6 +58,18 @@
 http://ip:port/doc.html
 ```
 
+### Go 服务
+
+Go 使用独立的 Knife4x module（Go 1.22+），不依赖 Maven starter：
+
+```bash
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
+```
+
+完整用户手册见[文档站 Go 入口](https://knife4jnext.com/knife4x/)；仓库内可读
+[Go 快速开始](docs/knife4x/index.md)和[最小标准库示例](knife4x/go/README.md#安装与最小示例)。
+当前源码新增功能的可用版本以[Go 配置参考](docs/knife4x/configuration.md)为准。
+
 ## 界面预览
 
 ### OpenAPI 文档概览
@@ -118,6 +130,8 @@ mvn -pl knife4j-demo-openapi2 -am spring-boot:run
 
 ### 文档站
 
+标准文档验证需要 Go 1.22+，用于核对 Go 配置和编译手册示例；运行 `./tools/test-docs.sh`，同时验证站点构建与来源信息。
+
 ```bash
 cd docs
 bun install --frozen-lockfile
@@ -164,6 +178,8 @@ bun run dev
 - 维护政策：[MAINTENANCE.md](./MAINTENANCE.md)
 - 安全政策与私密报告入口：[SECURITY.md](./SECURITY.md)
 - Java 发布说明：[knife4j/RELEASE.md](./knife4j/RELEASE.md)
+- Go 用户手册：[docs/knife4x](./docs/knife4x/index.md)
+- Go 发布清单：[knife4x/go/RELEASE.md](./knife4x/go/RELEASE.md)
 - 迁移指南：[knife4j/MIGRATION.md](./knife4j/MIGRATION.md)
 - 文档站源码：[docs](./docs)
 

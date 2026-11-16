@@ -26,13 +26,29 @@ var embeddedUI embed.FS
 
 // Config controls how the embedded console starts.
 type Config struct {
+	// SpecURL selects one document and is mutually exclusive with Specs.
 	SpecURL  string
 	BasePath string
+	// Specs configures an ordered, static list of named OpenAPI documents.
+	Specs []Spec
+	// Disabled bypasses all document configuration and returns next unchanged.
+	// It does not disable OpenAPI routes owned by next.
+	Disabled bool
+	// BasicAuth protects the UI and configured local spec paths. Absolute HTTP(S)
+	// spec URLs are served by their own host and are outside this protection.
+	BasicAuth *BasicAuthConfig
+	// UISettings supplies defaults below spec settings and browser preferences.
+	UISettings *UISettings
+	// Documents adds Markdown content to the shared document-management UI.
+	Documents []MarkdownDocument
 }
 
 type browserConfig struct {
-	SpecURL  string `json:"specUrl"`
-	BasePath string `json:"basePath"`
+	SpecURL   string            `json:"specUrl,omitempty"`
+	BasePath  string            `json:"basePath"`
+	Specs     []Spec            `json:"specs,omitempty"`
+	Settings  *UISettings       `json:"settings,omitempty"`
+	Documents []browserDocument `json:"documents,omitempty"`
 }
 
 type handler struct {
@@ -41,15 +57,26 @@ type handler struct {
 	files    fs.FS
 	server   http.Handler
 	next     http.Handler
+	auth     *basicAuth
 }
 
 // NewHandler creates a framework-independent Knife4x HTTP handler.
 func NewHandler(cfg Config, next http.Handler) (http.Handler, error) {
-	specURL, err := normalizeSpecURL(cfg.SpecURL)
+	if next == nil {
+		next = http.NotFoundHandler()
+	}
+	if cfg.Disabled {
+		return next, nil
+	}
+	basePath, err := normalizeBasePath(cfg.BasePath)
 	if err != nil {
 		return nil, err
 	}
-	basePath, err := normalizeBasePath(cfg.BasePath)
+	browser, err := prepareBrowserConfig(cfg, basePath)
+	if err != nil {
+		return nil, err
+	}
+	auth, err := newBasicAuth(cfg.BasicAuth, browser)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +94,7 @@ func NewHandler(cfg Config, next http.Handler) (http.Handler, error) {
 		return nil, fmt.Errorf("knife4x: embedded %s has no module script", indexFile)
 	}
 
-	configJSON, err := json.Marshal(browserConfig{SpecURL: specURL, BasePath: basePath})
+	configJSON, err := json.Marshal(browser)
 	if err != nil {
 		return nil, fmt.Errorf("knife4x: encode browser config: %w", err)
 	}
@@ -78,19 +105,25 @@ func NewHandler(cfg Config, next http.Handler) (http.Handler, error) {
 	injected = append(injected, ";</script>\n    "...)
 	injected = append(injected, index[mark:]...)
 
-	if next == nil {
-		next = http.NotFoundHandler()
-	}
 	return &handler{
 		basePath: basePath,
 		index:    injected,
 		files:    files,
 		server:   http.FileServerFS(files),
 		next:     next,
+		auth:     auth,
 	}, nil
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.auth != nil && h.requiresAuth(r.URL.Path) {
+		w = &privateResponseWriter{ResponseWriter: w}
+		w.Header().Set("Cache-Control", "private, no-store")
+		defer w.Header().Set("Cache-Control", "private, no-store")
+		if !h.auth.authorize(w, r) {
+			return
+		}
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		h.next.ServeHTTP(w, r)
 		return

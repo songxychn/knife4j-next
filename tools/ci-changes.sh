@@ -16,12 +16,15 @@ while IFS= read -r path || [ -n "$path" ]; do
       ;;
     knife4j/README.md|knife4j/MIGRATION.md|knife4j/RELEASE.md|knife4j/knife4j-demo-openapi2/SECURITY-ASSESSMENT.md|knife4j/knife4j-gateway-spring-boot-starter/README.md)
       ;;
-    knife4x/README.md|knife4x/rust/README.md|tools/demo-images/README.md|tools/spikes/*/README.md|tools/spikes/*/DECISION.md)
+    knife4x/rust/README.md|tools/demo-images/README.md|tools/spikes/*/README.md|tools/spikes/*/DECISION.md)
+      ;;
+    README.md|knife4x/README.md|knife4x/go/README.md|knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md|knife4x/examples/gin/README.md)
+      docs=true
       ;;
     front/core/src/__tests__/*|front/core/src/*.test.ts|front/schema-engine/tests/*|front/ui-react/src/*.test.ts|front/ui-react/src/*.test.tsx)
       react=true
       ;;
-    docs/*|static/*|tools/test-docs.sh)
+    docs/*|static/*|tools/test-docs.sh|tools/check-knife4x-docs.go|tools/check-knife4x-docs_test.go)
       docs=true
       ;;
     knife4j/*|tools/test-java.sh|tools/smoke-evidence.sh|tools/test-smoke-evidence.sh|tools/test-java-compatibility.sh|tools/java-compatibility-*|tools/verify-java-compatibility-contracts.py|tools/test-release-tools.sh|tools/test-fixtures/mock-maven-central-curl.sh|tools/extract-release-note.sh|tools/verify-configuration-metadata.sh|tools/verify-release-context.sh|tools/verify-maven-central.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
@@ -31,6 +34,9 @@ while IFS= read -r path || [ -n "$path" ]; do
       java=true
       react=true
       knife4x_go=true
+      if [ "$path" = "front/ui-react/src/types/settings.ts" ]; then
+        docs=true
+      fi
       ;;
     tools/test-front-core.sh)
       java=true
@@ -42,11 +48,12 @@ while IFS= read -r path || [ -n "$path" ]; do
       ;;
     knife4x/go/*|knife4x/examples/gin/*|tools/sync-knife4x-ui.sh|tools/test-knife4x-go.sh)
       knife4x_go=true
+      docs=true
       ;;
     .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/without-node.sh|tools/ci-changes.sh|tools/test-ci-changes.sh)
       full=true
       ;;
-    README.md|CONTRIBUTING.md|MAINTENANCE.md|SECURITY.md|AGENTS.md|.agent/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/test-all.sh|tools/verify-github-release.sh)
+    CONTRIBUTING.md|MAINTENANCE.md|SECURITY.md|AGENTS.md|.agent/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/test-all.sh|tools/verify-github-release.sh)
       ;;
     *)
       full=true

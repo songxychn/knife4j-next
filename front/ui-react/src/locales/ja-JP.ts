@@ -133,6 +133,11 @@ const jaJP = {
   'error.apiDocs.base64':
     'api-docs のレスポンスは Base64 文字列であり、OpenAPI/Swagger JSON オブジェクトではありません。\nJackson JSON converter が byte[] または String のレスポンスを処理しないよう、Spring HttpMessageConverter の設定を確認してください。',
   'error.knife4x.notObject': 'Knife4x 起動設定エラー：設定値はオブジェクトである必要があります。',
+  'error.knife4x.invalidSpecs':
+    'Knife4x 起動設定エラー：グループ名は空でなく一意で、URL は有効な HTTP(S) URL が必要です。specUrl との併用はできません。',
+  'error.knife4x.invalidSettings': 'Knife4x 起動設定エラー：settings はオブジェクトである必要があります。',
+  'error.knife4x.invalidDocuments':
+    'Knife4x 起動設定エラー：documents は空でないタイトルと本文のリストである必要があります。',
   'error.knife4x.specUrlRequired': 'Knife4x 起動設定エラー：specUrl は空でない文字列である必要があります。',
   'error.knife4x.basePathRequired': 'Knife4x 起動設定エラー：basePath は空でない文字列である必要があります。',
   'error.knife4x.basePathInvalid': 'Knife4x 起動設定エラー：basePath は URL パスである必要があります。',
