@@ -203,7 +203,11 @@ knife4j:
   enable-aggregation: true
   polaris:
     enable: true
-    service-url: http://polaris-server:8080  # 实际 Polaris HTTP OpenAPI 地址
+    serviceUrl: http://polaris-server:8080  # 当前启动条件要求此 camelCase 写法
+    service-auth:
+      enable: true
+      username: ${POLARIS_USERNAME}
+      password: ${POLARIS_PASSWORD}
     routes:
       - name: 用户服务
         service: user-service
@@ -213,7 +217,7 @@ knife4j:
         order: 1
 ```
 
-聚合服务通过 HTTP OpenAPI 的 `/naming/v1/instances` 查询实例，不使用 gRPC SDK。注册中心需要登录时，使用 `polaris.service-auth` 配置账号；登录请求发送到 `/core/v1/user/login`。`namespace` 属于每条 route，服务名字段为 `service`。
+聚合服务通过 HTTP OpenAPI 的 `/naming/v1/instances` 查询实例，不使用 gRPC SDK。当前 starter 的启动条件要求 `service-auth.enable=true` 且用户名、密码非空，登录请求发送到 `/core/v1/user/login`。同时必须按示例使用 `serviceUrl`：当前条件检查不会正确读取 `service-url` 的回退值。即使属性绑定器接受 `service-url`，也不能据此判断启动条件通过。`namespace` 属于每条 route，服务名字段为 `service`。
 
 ## HTTP 连接参数调优
 

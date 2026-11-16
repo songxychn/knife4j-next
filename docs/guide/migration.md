@@ -154,7 +154,7 @@ curl -I http://localhost:8080/doc.html
 curl http://localhost:8080/v3/api-docs | head
 
 # 生产环境保护是否生效
-curl -I http://localhost:8080/doc.html   # 403 即正确
+curl -i http://localhost:8080/doc.html   # 检查屏蔽 JSON；OAS3 为 403，OAS2 状态由 custom-code 决定
 ```
 
 ## 迁移后验收清单

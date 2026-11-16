@@ -161,7 +161,7 @@ knife4j:
   production: true
 ```
 
-这会让 `ProductionSecurityFilter` 对 `/doc.html`、`/v2/api-docs`、`/v3/api-docs`、`/swagger-resources`、`/swagger-ui` 等入口返回 403。
+这会屏蔽相应 starter 的默认文档入口并返回 JSON 错误响应。OAS3 返回 HTTP 403；OAS2 使用 `knife4j.setting.custom-code`，默认 HTTP 200，因此不能只凭 200 判断文档仍然可用。应同时检查响应内容，或将 OAS2 的 `custom-code` 显式设为 403，详见[配置参考](../reference/configuration#knife4j-setting)。
 
 > WebMvc（Servlet）starter 的 production/basic 过滤器都要求 `knife4j.enable=true`；只设置保护开关不会注册过滤器。过滤器覆盖默认文档路径，自定义 `springdoc.api-docs.path` 应另行配置安全规则，见[配置参考](../reference/configuration#knife4j)。WebFlux starter 没有该过滤器，建议在网关层或 Spring Security 配置中限制访问。
 
@@ -544,7 +544,7 @@ WebMvc starter 可在 `knife4j.enable=true` 的前提下使用 `knife4j.producti
 
 | 方式 | 适合场景 | 配置 |
 | --- | --- | --- |
-| `knife4j.enable: true` + `knife4j.production: true` | WebMvc 默认文档路径返回 403 | 两项配置同时开启 |
+| `knife4j.enable: true` + `knife4j.production: true` | WebMvc 默认文档路径屏蔽；OAS3 返回 403，OAS2 按 custom-code | 两项配置同时开启 |
 | `knife4j.enable: true` + `knife4j.basic` | WebMvc 文档密码保护 | 开启增强及 Basic，配置用户名密码 |
 | Spring Security 规则 | 已有 Security 体系 | 代码配置 |
 | Nginx 层拦截 | 前端独立部署 | Nginx `return 403` |
