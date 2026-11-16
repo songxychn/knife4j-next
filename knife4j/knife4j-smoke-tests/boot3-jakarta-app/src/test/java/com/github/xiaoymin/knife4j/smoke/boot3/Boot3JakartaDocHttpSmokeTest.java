@@ -28,6 +28,8 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.core.io.FileSystemResource;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -63,6 +65,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 public class Boot3JakartaDocHttpSmokeTest {
@@ -216,17 +221,15 @@ public class Boot3JakartaDocHttpSmokeTest {
     public void shouldBlockApiDocsWhenProductionTrue() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)
-                .properties(
-                        "server.port=0",
-                        "knife4j.enable=true",
-                        "knife4j.production=true",
-                        "logging.level.root=ERROR")
+                .properties(documentationProperties("production.yml"))
                 .run();
 
         int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
 
         // production=true should block /v3/api-docs and return JSON (not HTML) (#666, #859)
         HttpResponse apiDocs = get(port, "/v3/api-docs");
+        Assert.assertEquals(403, apiDocs.statusCode);
+        Assert.assertTrue(apiDocs.body.contains("permission"));
         Assert.assertFalse("Response should not be HTML when production=true (#666, #859)",
                 apiDocs.body.contains("<!DOCTYPE"));
         Assert.assertTrue("Response should be JSON when production=true (#666, #859)",
@@ -413,6 +416,75 @@ public class Boot3JakartaDocHttpSmokeTest {
         Assert.assertFalse("swagger-config without X-Forwarded-Prefix should not include proxy prefix (#345):\n"
                 + defaultConfig.body,
                 defaultConfig.body.contains("/prod-api/dispatch/v3/api-docs"));
+    }
+
+    @Test
+    public void shouldRequireEnhancementForDocumentedProductionProtection() throws IOException {
+        Map<String, Object> properties = documentationProperties("production.yml");
+        properties.put("knife4j.enable", "false");
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(properties)
+                .run();
+        HttpResponse response = get(context.getEnvironment().getRequiredProperty("local.server.port", Integer.class), "/v3/api-docs");
+        Assert.assertEquals(200, response.statusCode);
+        Assert.assertFalse(response.body.contains("You do not have permission"));
+        Assert.assertTrue(response.body.contains("openapi"));
+    }
+
+    private static Map<String, Object> documentationProperties(String name) {
+        Path root = Paths.get("").toAbsolutePath();
+        while (root != null && !Files.isDirectory(root.resolve("docs/snippets/config"))) {
+            root = root.getParent();
+        }
+        Assert.assertNotNull("Cannot locate documentation snippets", root);
+        YamlPropertiesFactoryBean loader = new YamlPropertiesFactoryBean();
+        loader.setResources(new FileSystemResource(root.resolve("docs/snippets/config").resolve(name).toFile()));
+        Properties yaml = loader.getObject();
+        Assert.assertNotNull(yaml);
+        Assert.assertEquals("Documented protection must enable Knife4j", "true", yaml.getProperty("knife4j.enable"));
+        Map<String, Object> properties = new LinkedHashMap<>();
+        yaml.forEach((key, value) -> properties.put(key.toString(), value));
+        properties.put("server.port", "0");
+        properties.put("logging.level.root", "ERROR");
+        return properties;
+    }
+
+    @Test
+    public void shouldProtectDocsWithDocumentedBasicConfiguration() throws IOException {
+        Map<String, Object> properties = documentationProperties("basic.yml");
+        properties.put("DOC_PASSWORD", "documentation-test-only");
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET).properties(properties).run();
+        int port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+        Assert.assertEquals(401, get(port, "/v3/api-docs").statusCode);
+        String credentials = java.util.Base64.getEncoder().encodeToString("admin:documentation-test-only".getBytes(StandardCharsets.UTF_8));
+        Assert.assertEquals(200, get(port, "/v3/api-docs", "Authorization", "Basic " + credentials).statusCode);
+    }
+
+    @Test
+    public void shouldCompileTheMapExampleShownInTheFaq() throws IOException {
+        javax.tools.JavaCompiler compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
+        Assert.assertNotNull("Documentation examples require a JDK", compiler);
+        Path output = Files.createTempDirectory("knife4j-doc-map-");
+        try {
+            Assert.assertEquals(0, compiler.run(null, null, null,
+                    "-classpath", System.getProperty("java.class.path"), "-d", output.toString(),
+                    findRepositoryRoot().resolve("docs/snippets/java/MapExample.java").toString()));
+        } finally {
+            Files.deleteIfExists(output.resolve("MapExample.class"));
+            Files.deleteIfExists(output);
+        }
+    }
+
+    @Test
+    public void shouldBindTheDocumentedLanguageExample() {
+        YamlPropertiesFactoryBean loader = new YamlPropertiesFactoryBean();
+        loader.setResources(new FileSystemResource(findRepositoryRoot().resolve("docs/snippets/config/language.yml").toFile()));
+        String language = loader.getObject().getProperty("knife4j.setting.language");
+        Assert.assertEquals(com.github.xiaoymin.knife4j.core.enums.OpenAPILanguageEnums.ZH_CN,
+                org.springframework.boot.convert.ApplicationConversionService.getSharedInstance().convert(language,
+                        com.github.xiaoymin.knife4j.core.enums.OpenAPILanguageEnums.class));
     }
 
     private HttpResponse get(int port, String path) throws IOException {

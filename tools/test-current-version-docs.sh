@@ -62,4 +62,13 @@ expect "stale example marker fails" 1
 write_fixture 1.2.3 1.2.3 1.2.2
 expect "latest badge on old release fails" 1
 
+write_fixture 1.2.3 1.2.3 1.2.3
+mkdir -p "$fixture/repo/docs/snippets/deployment"
+printf 'knife4j_version="1.2.3"\n' > "$fixture/repo/docs/snippets/deployment/unpack.sh"
+expect "current extraction script passes" 0
+printf 'knife4j_version="1.2.2"\n' > "$fixture/repo/docs/snippets/deployment/unpack.sh"
+expect "stale extraction script fails" 1
+printf '# version declaration removed\n' > "$fixture/repo/docs/snippets/deployment/unpack.sh"
+expect "missing extraction version fails" 1
+
 printf 'current version docs tests passed\n'

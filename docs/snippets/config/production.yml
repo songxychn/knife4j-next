@@ -1,0 +1,3 @@
+knife4j:
+  enable: true
+  production: true
