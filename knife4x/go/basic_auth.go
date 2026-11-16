@@ -55,15 +55,39 @@ func newBasicAuth(cfg *BasicAuthConfig, browser browserConfig) (*basicAuth, erro
 			values = append(values, spec.URL)
 		}
 	}
-	base := &url.URL{Scheme: "http", Host: "knife4x.invalid", Path: strings.TrimRight(browser.BasePath, "/") + "/"}
+	base, err := url.Parse("http://knife4x.invalid" + strings.TrimRight(browser.BasePath, "/") + "/")
+	if err != nil {
+		return nil, fmt.Errorf("knife4x: invalid BasePath for BasicAuth: %w", err)
+	}
+	normalizeBrowserDots(base)
 	for _, value := range values {
+		if strings.Contains(value, `\`) {
+			return nil, fmt.Errorf("knife4x: BasicAuth spec URLs must not contain backslashes")
+		}
 		spec, _ := url.Parse(value) // Config validation has already parsed every URL.
 		if spec.IsAbs() {
 			continue
 		}
+		normalizeBrowserDots(spec)
 		auth.specPaths = append(auth.specPaths, canonicalAuthPath(base.ResolveReference(spec).Path))
 	}
 	return auth, nil
+}
+
+// WHATWG treats percent-encoded single/double-dot segments as traversal before
+// resolving a relative URL. net/url otherwise removes literal parent segments
+// first, potentially authorizing a different path from the browser request.
+// https://url.spec.whatwg.org/#double-dot-url-path-segment
+func normalizeBrowserDots(value *url.URL) {
+	segments := strings.Split(value.EscapedPath(), "/")
+	for i, segment := range segments {
+		dots := strings.ReplaceAll(strings.ToLower(segment), "%2e", ".")
+		if dots == "." || dots == ".." {
+			segments[i] = dots
+		}
+	}
+	value.RawPath = strings.Join(segments, "/")
+	value.Path, _ = url.PathUnescape(value.RawPath) // The URL was already validated.
 }
 
 func (a *basicAuth) authorize(w http.ResponseWriter, r *http.Request) bool {

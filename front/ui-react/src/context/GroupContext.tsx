@@ -255,26 +255,24 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [activeGroupValue, knife4xBootstrap, swaggerDoc]);
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
-  // loading 期间 swaggerDoc 为 null → 返回空数组，让 UI 显示 loading
-  const groups: ApiGroup[] = swaggerDoc
-    ? rawGroups.map((g) => {
-        const isActive = g.name === activeGroupValue;
-        const apis: ApiItem[] = isActive
-          ? menuTags.flatMap((t) =>
-              t.operations.map((op) => ({
-                key: `/${activeGroupValue}/${op.key}`,
-                method: operationHttpMethod(op),
-                path: op.path,
-                summary: op.summary,
-                tag: t.tag,
-                operationId: op.operationId,
-                deprecated: op.deprecated,
-              })),
-            )
-          : [];
-        return { value: g.name, label: g.name, apis };
-      })
-    : [];
+  // Keep the configured group selector available during loading and failures.
+  const groups: ApiGroup[] = rawGroups.map((g) => {
+    const isActive = g.name === activeGroupValue;
+    const apis: ApiItem[] = isActive
+      ? menuTags.flatMap((t) =>
+          t.operations.map((op) => ({
+            key: `/${activeGroupValue}/${op.key}`,
+            method: operationHttpMethod(op),
+            path: op.path,
+            summary: op.summary,
+            tag: t.tag,
+            operationId: op.operationId,
+            deprecated: op.deprecated,
+          })),
+        )
+      : [];
+    return { value: g.name, label: g.name, apis };
+  });
 
   // spec 尚未加载或加载失败时，仍保留 rawGroups 中的当前分组身份。
   const activeGroup = resolveActiveRouteGroup(

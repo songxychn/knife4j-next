@@ -62,7 +62,7 @@ func prepareBrowserConfig(cfg Config, basePath string) (browserConfig, error) {
 			if name == "" || names[name] {
 				return browser, fmt.Errorf("knife4x: Specs[%d] must have a non-empty unique name", i)
 			}
-			if name == "." || name == ".." || strings.ContainsAny(name, `/\?#%`) || strings.ContainsFunc(name, unicode.IsControl) {
+			if name == "." || name == ".." || name == "group" || strings.ContainsAny(name, `/\?#%`) || strings.ContainsFunc(name, unicode.IsControl) {
 				return browser, fmt.Errorf("knife4x: Specs[%d] name must be usable as a single route segment", i)
 			}
 			names[name] = true

@@ -30,6 +30,7 @@ func TestConfigRejectsInvalidNewOptions(t *testing.T) {
 		{"control in name", Config{Specs: []Spec{{Name: "a\x00b", URL: "/a.json"}}}},
 		{"dot name", Config{Specs: []Spec{{Name: ".", URL: "/a.json"}}}},
 		{"dot dot name", Config{Specs: []Spec{{Name: "..", URL: "/a.json"}}}},
+		{"reserved group name", Config{Specs: []Spec{{Name: "group", URL: "/a.json"}}}},
 		{"invalid named spec URL", Config{Specs: []Spec{{Name: "a", URL: "//example.com/spec.json"}}}},
 		{"spec URL credentials", Config{Specs: []Spec{{Name: "a", URL: "https://user:pass@example.com/spec.json"}}}},
 		{"backslash spec URL", Config{Specs: []Spec{{Name: "a", URL: `/specs\openapi.json`}}}},
@@ -342,6 +343,57 @@ func TestBasicAuthPreventsSharedCachingIncludingHostSpecResponses(t *testing.T) 
 				t.Fatal("unprotected host response caching was changed")
 			}
 		})
+	}
+}
+
+func TestBasicAuthMatchesBrowserEncodedDotResolution(t *testing.T) {
+	t.Parallel()
+	// Expected request paths use WHATWG URL encoded-dot processing before parent
+	// traversal, as browsers do for new URL(spec, "https://host/docs/").
+	for _, test := range []struct{ spec, target string }{
+		{"one/%2e%2e/../openapi.json", "/openapi.json"},
+		{"one/.%2E/../openapi.json", "/openapi.json"},
+		{"one/%2E./../openapi.json", "/openapi.json"},
+		{"one/%2e/../../openapi.json", "/openapi.json"},
+		{"one/%2e%2e/openapi.json", "/docs/openapi.json"},
+		{"/one/%2e%2e/../openapi.json?version=2#schema", "/openapi.json"},
+	} {
+		for _, named := range []bool{false, true} {
+			cfg := Config{BasePath: "/docs", SpecURL: test.spec, BasicAuth: &BasicAuthConfig{Username: "user", Password: "secret"}}
+			if named {
+				cfg.SpecURL = ""
+				cfg.Specs = []Spec{{Name: "one", URL: test.spec}}
+			}
+			got, err := NewHandler(cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(nextStatus) }))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPost} {
+				response := httptest.NewRecorder()
+				got.ServeHTTP(response, httptest.NewRequest(method, test.target, nil))
+				if response.Code != http.StatusUnauthorized {
+					t.Errorf("%s named=%v %s %s returned %d, want 401", test.spec, named, method, test.target, response.Code)
+				}
+			}
+			response := authenticatedRequest(got, http.MethodGet, test.target, "user", "secret")
+			if response.Code != nextStatus {
+				t.Errorf("authenticated request returned %d, want %d", response.Code, nextStatus)
+			}
+		}
+	}
+}
+
+func TestBasicAuthRejectsAmbiguousLegacyBackslashURLs(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{`\openapi.json`, `one\..\..\openapi.json`, `/\remote.example.test/spec.json`} {
+		cfg := Config{BasePath: "/docs", SpecURL: value}
+		if _, err := NewHandler(cfg, nil); err != nil {
+			t.Fatalf("legacy unauthenticated URL rejected: %v", err)
+		}
+		cfg.BasicAuth = &BasicAuthConfig{Username: "user", Password: "secret"}
+		if _, err := NewHandler(cfg, nil); err == nil {
+			t.Fatalf("authenticated ambiguous URL %q accepted", value)
+		}
 	}
 }
 

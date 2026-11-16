@@ -111,6 +111,7 @@ describe('Knife4x host defaults and named group integration', () => {
     expect(group.activeGroup.value).toBe('second');
     expect(group.groupError).toBeTruthy();
     expect(group.swaggerDoc).toBeNull();
+    expect(group.groups.map(({ value }) => value)).toEqual(['first', 'second']);
     expect(settings.settings).toMatchObject({ enableDebug: false, language: 'en-US' });
     expect(group.markdownDocs.map(({ title }) => title)).toEqual(['Host guide']);
     expect(fetch).toHaveBeenCalledOnce();
@@ -121,5 +122,24 @@ describe('Knife4x host defaults and named group integration', () => {
     expect(group.swaggerDoc).toEqual(spec);
     expect(group.groupError).toBeNull();
     expect(group.groups.map(({ value }) => value)).toEqual(['first', 'second']);
+  });
+
+  it('keeps selectable groups when the first spec fails and recovers through the switcher action', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(spec),
+      });
+    vi.stubGlobal('fetch', fetch);
+    await mount();
+    expect(group.groupError).toBeTruthy();
+    expect(group.groups.map(({ value }) => value)).toEqual(['first', 'second']);
+    await act(async () => group.setActiveGroupValue(group.groups[1].value));
+    expect(group.activeGroup.value).toBe('second');
+    expect(group.groupError).toBeNull();
+    expect(group.swaggerDoc).toEqual(spec);
   });
 });

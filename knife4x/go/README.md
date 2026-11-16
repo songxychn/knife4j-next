@@ -174,7 +174,7 @@ OAuth 回调）以及配置的本地 spec 路径，覆盖所有 HTTP 方法。�
 的安全控制；请通过 HTTPS 或可信 TLS 终止代理部署。
 
 根相对 URL 的保护路径与 `BasePath` 无关，例如 `/openapi.json` 仍保护根路径。
-相对 URL 则按 `BasePath` 解析；查询参数不缩小路径保护范围。完整 HTTP(S) URL
+相对 URL 则按 `BasePath` 解析；查询参数不缩小路径保护范围。启用 Basic Auth 时，spec URL 不接受反斜杠，以避免浏览器与 Go 的路径解析产生歧义；编码点段按浏览器 URL 规则解析后匹配保护路径。完整 HTTP(S) URL
 由目标服务保护，即使恰好指向同一个源，也不属于此处自动保护的本地 URL。
 Knife4x 不代理远端文档、不向它转发账号密码；宿主暴露的其他 spec 别名也应自行保护。
 
@@ -194,7 +194,7 @@ handler, err := knife4x.NewHandler(knife4x.Config{
 ```
 
 两个 spec 分别由宿主提供在 `/internal/users.json` 与 `/spec/orders.json`。
-列表顺序即分组顺序，不能同时再设置 `SpecURL`。名称作为 UI 路由的单个路径段，不能为 `.` / `..`，也不能包含 `/`、`\`、`?`、`#`、`%` 或控制字符；中文及普通空格可用。这是静态 URL 列表，不提供注册中心、
+列表顺序即分组顺序，不能同时再设置 `SpecURL`。名称作为 UI 路由的单个路径段，不能为 `.` / `..` 或保留名称 `group`，也不能包含 `/`、`\`、`?`、`#`、`%` 或控制字符；中文及普通空格可用。这是静态 URL 列表，不提供注册中心、
 服务发现、文档代理或 OpenAPI 生成器；各分组继续按 OpenAPI 的 `servers` 发起业务请求。
 
 ### UI 默认值与附加 Markdown

@@ -115,6 +115,7 @@ describe('readKnife4xBootstrap', () => {
     { specs: [{ name: 'one#two', url: '/one.json' }] },
     { specs: [{ name: '%41', url: '/one.json' }] },
     { specs: [{ name: '..', url: '/one.json' }] },
+    { specs: [{ name: 'group', url: '/one.json' }] },
     {
       specs: [
         { name: 'one', url: '/one.json' },

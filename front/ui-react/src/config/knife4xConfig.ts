@@ -137,7 +137,7 @@ function readNonEmptyString(value: unknown): string | null {
 }
 
 function isGroupRouteSegment(name: string): boolean {
-  return name !== '.' && name !== '..' && !/[/\\?#%\p{Cc}]/u.test(name);
+  return name !== '.' && name !== '..' && name !== 'group' && !/[/\\?#%\p{Cc}]/u.test(name);
 }
 
 function isHttpProtocol(protocol: string): boolean {
