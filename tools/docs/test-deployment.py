@@ -53,7 +53,7 @@ def exercise(directory):
     (multiservice / "swagger-config.json").write_bytes((SNIPPETS / "multiservice.json").read_bytes())
     digest = run(["openssl", "passwd", "-apr1", "documentation-test-only"]).stdout.strip()
     (directory / "htpasswd").write_text("audit:" + digest + "\n")
-    servers, cases = [], []
+    servers, cases, mutations = [], [], []
     policies = ["", *[(SNIPPETS / f"{name}.nginx").read_text() for name in ("closed", "basic", "private")]]
     for index, name in enumerate(("proxy", "multiservice", "static")):
         for mode, policy in enumerate(policies):
@@ -67,9 +67,21 @@ def exercise(directory):
                 source = source.replace("/opt/knife4j-static", "/opt/knife4j-multiservice")
             servers.append(source)
             cases.append((port, mode))
+            if name == "multiservice" and mode == 0:
+                # These broken variants must fail against the same strict backends.
+                for offset, upstream in enumerate(("http://user-service:8081/WRONG/", "http://user-service:8081")):
+                    mutant_port = 19090 + offset
+                    mutant, count = re.subn(r"proxy_pass http://user-service:8081[^;]*;",
+                                            f"proxy_pass {upstream};", source)
+                    if count != 1:
+                        raise RuntimeError("update the service proxy mutation adapter")
+                    servers.append(mutant.replace(f"listen {port};", f"listen {mutant_port};"))
+                    mutations.append(mutant_port)
     for port, body in [(8080, '{"urls":[{"name":"mock","url":"/v3/api-docs"}]}'),
                        (8081, '{"backend":"user"}'), (8082, '{"backend":"order"}')]:
-        servers.append(f"server {{ listen {port}; location / {{ default_type application/json; return 200 '{body}'; }} }}")
+        # Unknown paths are 404 so a wrong proxy prefix cannot look healthy.
+        endpoint = "/v3/api-docs/swagger-config" if port == 8080 else "/v3/api-docs"
+        servers.append(f"server {{ listen {port}; location = {endpoint} {{ default_type application/json; return 200 '{body}'; }} location / {{ return 404; }} }}")
     (directory / "nginx.conf").write_text("pid /tmp/nginx.pid;\nerror_log /dev/stderr;\nevents {}\nhttp {\ninclude /etc/nginx/mime.types;\ndefault_type application/octet-stream;\n" + "\n".join(servers) + "\n}\n")
     mounts = []
     for source, destination in [(directory / "nginx.conf", "/audit/nginx.conf"),
@@ -120,6 +132,12 @@ def exercise(directory):
                 if (document.get("backend") if mode == "multiservice" else document.get("info", {}).get("title")) != service:
                     raise RuntimeError(f"{mode}: documented group reaches the wrong backend or static JSON")
                 checked += 1
+        for port in mutations:
+            response = run(["docker", "exec", name, "wget", "-S", "-O", "/dev/null", f"http://127.0.0.1:{port}/user-service/v3/api-docs"], False)
+            statuses = re.findall(r"HTTP/1\.[01] (\d+)", response.stderr)
+            if not statuses or statuses[-1] != "404":
+                raise RuntimeError("broken proxy prefix unexpectedly passed: " + response.stderr)
+            checked += 1
         print(f"Documented WebJar/Nginx deployment: {checked} HTTP checks passed, including Worker MIME and access protection")
     finally:
         run(["docker", "rm", "-f", name], False)
