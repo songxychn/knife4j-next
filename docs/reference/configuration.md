@@ -128,7 +128,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.homeCustomLocation` | `String` | — | 首页自定义 Markdown 内容（通常由后端根据 `homeCustomPath` 读取后注入） | ✅ |
 | `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ✅ |
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态概要（状态码、说明、Schema 和 Media Type） | ✅ |
-| `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义 HTTP 状态码 | ✅ |
+| `knife4j.setting.customCode` | `Integer` | `200` | 仅 OAS2 生产屏蔽过滤器使用；OAS3 固定返回 403 | —（服务端配置，React 不消费） |
 
 > React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的 `enableAfterScript` / `enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费；这两项存在于 Vue2 基线，并已移植到 Vue3。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
@@ -330,6 +330,8 @@ knife4j:
 
 ### `knife4j.polaris.*`
 
+当前 Polaris 启动条件要求显式配置 `serviceUrl`（camelCase）、`service-auth.enable=true` 及非空用户名、密码。属性绑定器虽支持 `service-url`，但现有启动条件的回退读取未生效，示例需遵循[Polaris 接入](../guide/aggregation#模式-5-polaris-腾讯北极星)中的写法。
+
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `knife4j.polaris.enable` | `boolean` | `false` | 启用 Polaris 模式 |
@@ -463,7 +465,7 @@ knife4j:
     password: ${DOC_PASSWORD}
 ```
 
-> **生产环境响应格式**：`production=true` 时，被屏蔽的请求返回 `application/json` 格式的错误响应（`{"code":403,"message":"..."}`），而非 HTML 错误页面，避免前端 `JSON.parse` 时抛出 `Unexpected token '<', "<!DOCTYPE "...` 异常。
+> **生产环境响应格式**：同时开启 `knife4j.enable=true` 与 `production=true` 时，被屏蔽的请求返回 `application/json` 格式的错误响应，而非 HTML 错误页面。OAS3 的 HTTP 状态与 JSON `code` 固定为 403；OAS2 使用 `knife4j.setting.custom-code`，两者默认均为 200（可显式设为 403），避免前端 `JSON.parse` 时抛出 `Unexpected token '<', "<!DOCTYPE "...` 异常。
 
 ### Gateway 聚合配置（DISCOVER 模式）
 

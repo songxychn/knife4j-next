@@ -110,13 +110,13 @@ knife4j:
 | `service-path` | 有 Gateway 前置时追加的 basePath（避免 UI 展示路径与实际不一致） |
 | `order` | 排序，越小越靠前 |
 
-::: info `host` 字段自 v4.0.0 废弃
-`host` 已被 `debug-url` 替代。历史配置仍然可用（但以 `debug-url` 为准）。
+::: info 调试地址
+当前 route 配置使用 `debug-url`，配置类没有 `host` 属性；旧配置应改为 `debug-url`。
 :::
 
 ## 模式 2：Cloud（HTTP 直连）
 
-聚合服务作为 HTTP 客户端，定时从下游拉 `/v2/api-docs` 或 `/v3/api-docs`：
+Cloud 路由显式配置下游 HTTP 地址，不依赖 Spring Cloud Discovery。聚合应用代理浏览器对下游 `/v2/api-docs` 或 `/v3/api-docs` 的请求，后台心跳用于检查服务可达性：
 
 ```yaml
 knife4j:
@@ -128,7 +128,6 @@ knife4j:
         uri: http://user-service:9001
         location: /v3/api-docs
         swagger-version: "3.0"
-        service-name: user-service
         order: 1
       - name: 订单服务
         uri: http://order-service:9002
@@ -163,7 +162,7 @@ knife4j:
     routes:
       - name: 用户服务
         service-name: user-service
-        namespace: public
+        namespace-id: ""  # public 默认命名空间；其他命名空间填写实际 ID
         group-name: DEFAULT_GROUP
         location: /v3/api-docs
         swagger-version: "3.0"
@@ -171,7 +170,7 @@ knife4j:
         order: 1
 ```
 
-聚合服务在启动时从 Nacos 拿实例列表，定时从实例拉 API 文档。注意：
+聚合服务在启动和后续心跳中从 Nacos 查询实例，文档请求由聚合应用转发至实例。注意：
 
 - `service-auth` 只影响 Nacos OpenAPI 的鉴权。
 - 默认 `token-expire = 18000` 秒，到期前会自动刷新（阈值 100s）。
@@ -204,17 +203,21 @@ knife4j:
   enable-aggregation: true
   polaris:
     enable: true
-    server-addr: grpc://polaris-server:8091
-    namespace: default
+    serviceUrl: http://polaris-server:8080  # 当前启动条件要求此 camelCase 写法
+    service-auth:
+      enable: true
+      username: ${POLARIS_USERNAME}
+      password: ${POLARIS_PASSWORD}
     routes:
       - name: 用户服务
-        service-name: user-service
+        service: user-service
+        namespace: default
         location: /v3/api-docs
         swagger-version: "3.0"
         order: 1
 ```
 
-Polaris 使用 gRPC 协议，聚合服务作为 Polaris SDK 客户端。
+聚合服务通过 HTTP OpenAPI 的 `/naming/v1/instances` 查询实例，不使用 gRPC SDK。当前 starter 的启动条件要求 `service-auth.enable=true` 且用户名、密码非空，登录请求发送到 `/core/v1/user/login`。同时必须按示例使用 `serviceUrl`：当前条件检查不会正确读取 `service-url` 的回退值。即使属性绑定器接受 `service-url`，也不能据此判断启动条件通过。`namespace` 属于每条 route，服务名字段为 `service`。
 
 ## HTTP 连接参数调优
 
@@ -223,12 +226,11 @@ knife4j:
   connection-setting:
     socket-timeout: 60000       # 毫秒
     connect-timeout: 10000      # 毫秒
-    connection-request-timeout: 10000
-    max-total: 200              # 连接池总数
-    default-max-per-route: 20   # 每个目标地址最多连接数
+    max-connection-total: 200   # 连接池总数
+    max-pre-route: 20           # 每个目标地址最多连接数（沿用现有属性名）
 ```
 
-这些参数影响 cloud / nacos / eureka / polaris 四种模式（disk 不走 HTTP）。
+这些参数影响 cloud / nacos / eureka / polaris 四种模式（disk 不走 HTTP）。当前配置类没有 `connection-request-timeout` 属性。
 
 ## 保护聚合 UI
 
@@ -279,5 +281,5 @@ curl http://localhost:8080/swagger-resources
 ## 相关
 
 - [Gateway 聚合](./gateway)：另一种形态。
-- [配置参考 / knife4j aggregation](../reference/configuration#aggregation)：全部 YAML 选项。
+- [配置参考 / knife4j aggregation](../reference/configuration#聚合-starter-配置)：全部 YAML 选项。
 - [模块说明](../reference/modules)：`knife4j-aggregation-*-starter` 在仓库里的位置。

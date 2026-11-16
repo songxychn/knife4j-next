@@ -157,12 +157,13 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
 ```yaml
 knife4j:
+  enable: true
   production: true
 ```
 
-这会让 `ProductionSecurityFilter` 对 `/doc.html`、`/v2/api-docs`、`/v3/api-docs`、`/swagger-resources`、`/swagger-ui` 等入口返回 403。
+这会屏蔽相应 starter 的默认文档入口并返回 JSON 错误响应。OAS3 返回 HTTP 403；OAS2 使用 `knife4j.setting.custom-code`，默认 HTTP 200，因此不能只凭 200 判断文档仍然可用。应同时检查响应内容，或将 OAS2 的 `custom-code` 显式设为 403，详见[配置参考](../reference/configuration#knife4j-setting)。
 
-> 仅在 WebMvc（Servlet）starter 中生效。WebFlux starter 没有该过滤器，建议在网关层或 Spring Security 配置中限制访问。
+> WebMvc（Servlet）starter 的 production/basic 过滤器都要求 `knife4j.enable=true`；只设置保护开关不会注册过滤器。过滤器覆盖默认文档路径，自定义 `springdoc.api-docs.path` 应另行配置安全规则，见[配置参考](../reference/configuration#knife4j)。WebFlux starter 没有该过滤器，建议在网关层或 Spring Security 配置中限制访问。
 
 ### 只想给部分用户看文档
 
@@ -170,6 +171,7 @@ knife4j:
 
 ```yaml
 knife4j:
+  enable: true
   basic:
     enable: true
     username: admin
@@ -463,7 +465,7 @@ upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` �
 ### 聚合模式（Disk / Cloud / Nacos / Eureka / Polaris）怎么选
 
 - **Disk**：开发/测试环境，Swagger JSON 文件在本地 classpath。
-- **Cloud**：通过 Spring Cloud Discovery 发现服务。
+- **Cloud**：显式配置下游 HTTP 地址并代理文档请求，不使用 Spring Cloud Discovery。
 - **Nacos**：从 Nacos 注册中心拉取服务列表。
 - **Eureka**：从 Eureka 注册中心拉取服务列表。
 - **Polaris**：从北极星注册中心拉取服务列表。
@@ -535,15 +537,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 ```
 
 ::: tip 替代方案
-也可以使用 `knife4j.production` 或 `knife4j.basic` 来控制文档访问，无需修改 Security 规则。
+WebMvc starter 可在 `knife4j.enable=true` 的前提下使用 `knife4j.production` 或 `knife4j.basic`。这些过滤器与 Spring Security 共同生效，不会绕过已有的 Security 拦截；需要访问文档时仍应配置对应放行规则。
 :::
 
 ### 生产环境屏蔽文档的多种方式
 
 | 方式 | 适合场景 | 配置 |
 | --- | --- | --- |
-| `knife4j.production: true` | 最简单，返回 403 | YAML 一行配置 |
-| `knife4j.basic` | 需要密码保护 | YAML 配置用户名密码 |
+| `knife4j.enable: true` + `knife4j.production: true` | WebMvc 默认文档路径屏蔽；OAS3 返回 403，OAS2 按 custom-code | 两项配置同时开启 |
+| `knife4j.enable: true` + `knife4j.basic` | WebMvc 文档密码保护 | 开启增强及 Basic，配置用户名密码 |
 | Spring Security 规则 | 已有 Security 体系 | 代码配置 |
 | Nginx 层拦截 | 前端独立部署 | Nginx `return 403` |
 | Maven Profile 排除 UI jar | 完全不打入生产包 | `pom.xml` exclusion |
@@ -554,43 +556,24 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 **问题**：枚举字段在 UI 上只显示类型名（如 `UserStatus`），不显示可选值。
 
-**原因**：springdoc 默认不解析枚举值。需要配置：
+先检查 `/v3/api-docs` 中对应 Schema 的 `enum`，再区分生成器与 UI 问题。枚举值由 Swagger 模型解析及 Jackson 的枚举序列化契约决定，不需要单独开启显示开关。当前 springdoc 没有 `show-enum-values` 配置；`swagger-ui.display-request-duration` 只控制 Swagger UI 的请求耗时显示。
 
-```yaml
-springdoc:
-  swagger-ui:
-    display-request-duration: true
-  show-enum-values: true    # springdoc-openapi 2.6.0+
-```
-
-或在枚举类上使用 `@Schema` 注解：
+例如默认按名称序列化的枚举：
 
 ```java
-@Getter
-@AllArgsConstructor
 public enum UserStatus {
-    @Schema(description = "启用")
-    ACTIVE(1, "启用"),
-    @Schema(description = "禁用")
-    DISABLED(0, "禁用");
-
-    private final int code;
-    private final String desc;
+    ACTIVE,
+    DISABLED
 }
 ```
 
-**Jackson 配置**（将枚举序列化为字符串而非序号）：
-
-```yaml
-spring:
-  jackson:
-    serialization:
-      write-enums-using-to-string: true
-```
+若业务使用 `@JsonValue` 或自定义序列化返回数字，应检查生成文档是否反映该契约。需要显式声明可选值时，使用与真实 JSON 值一致的 `@Schema(allowableValues = {"ACTIVE", "DISABLED"})`；字段注释不会自动变成枚举值说明。
 
 ### Date / LocalDateTime 显示为时间戳
 
-springdoc 默认将日期类型映射为 `integer`（时间戳）。添加：
+先区分业务 JSON 的序列化格式与 OpenAPI Schema。Java 日期类型通常由 Swagger 映射为 `string` / `date` 或 `date-time`，不能把“springdoc 默认生成 integer”作为诊断前提；自定义类型映射、Jackson 配置或注解都可能影响最终结果。
+
+若业务响应不应输出时间戳，应检查应用的 ObjectMapper。例如需要字符串时间时可按业务契约设置：
 
 ```yaml
 spring:
@@ -599,12 +582,7 @@ spring:
       write-dates-as-timestamps: false
 ```
 
-或在字段上显式声明：
-
-```java
-@Schema(description = "创建时间", example = "2024-01-01T00:00:00")
-private LocalDateTime createdAt;
-```
+同时核对实际响应与 `/v3/api-docs`。`@Schema(example = "2024-01-01T00:00:00")` 只描述示例，不改变实际序列化格式。
 
 ### Map / JSONObject 类型的参数展示
 
@@ -615,7 +593,7 @@ OpenAPI3 规范对自由格式 Map 的描述有限。推荐做法：
 3. **`additionalProperties`**：OpenAPI3 的 Map 描述方式：
 
 ```java
-@Schema(description = "扩展属性", additionalProperties = String.class)
+@Schema(description = "扩展属性", additionalPropertiesSchema = String.class)
 private Map<String, String> extensions;
 ```
 

@@ -43,7 +43,7 @@ Boot3 Jakarta MVC、WebFlux、独立聚合使用 springdoc `2.9.1` / Swagger Jak
 Boot 3.4 线要求 `3.4.7+`，Boot 3.5 线要求 `3.5.1+`，对应 Framework `6.2.8`；
 Boot `3.5.0` 不满足下限。Gateway 保持各自既有 Cloud/Boot 组合。Boot4 springdoc 保持 `3.0.3`，
 Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
-`5.7.7` 及更早版本历史记录不变，完整差异见[5.7.8 依赖更新](./version-ref#5-7-8-依赖更新)。
+`5.7.7` 及更早版本历史记录不变，完整差异见[5.7.8 依赖更新](./version-ref#_5-7-8-依赖更新)。
 :::
 
 ## 浏览器基线

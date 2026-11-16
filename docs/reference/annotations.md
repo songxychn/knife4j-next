@@ -180,7 +180,7 @@ public UserVO create(@RequestBody UserCreateRequest req) { ... }
 @ApiOperationSupport(includeParameters = {"name", "email"})
 ```
 
-> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 会由后端合并为 operation `x-author`，React 在接口详情页展示该 operation 作者信息。`ignoreParameters`/`includeParameters` 依赖后端 OpenAPI customizer 修改 schema，React 前端可以消费其结果。
+> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 会由后端合并为 operation `x-author`，React 在接口详情页展示该 operation 作者信息。`ignoreParameters` / `includeParameters` 仅由 openapi2 的 Springfox 插件写入扩展并由 OAS2 UI 处理；OAS3 customizer 不处理这两项，不会据此修改 Schema。
 
 ### 3.3 `@DynamicParameter` / `@DynamicParameters` / `@DynamicResponseParameters` — 动态模型
 
@@ -232,7 +232,7 @@ public class UserCreateRequest {
 }
 ```
 
-### 3.4 `@Ignore` — 忽略接口或参数
+### 3.4 `@Ignore` — 保留的注解定义
 
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -246,7 +246,7 @@ public class UserCreateRequest {
 public String internal() { ... }
 ```
 
-> 💡 OpenAPI 3 标准方案是 `@Hidden`，Knife4j 的 `@Ignore` 是其增强版（可附带原因说明）。两者功能重叠，推荐优先使用 `@Hidden`。
+> 当前源码保留 `@Ignore` 定义，但 starter 没有读取该注解的处理器。上例不会仅因 `@Ignore` 而隐藏接口；OAS3 应使用 `@Hidden` / `@Operation(hidden = true)`，参数使用 `@Parameter(hidden = true)`。
 
 ### 3.5 `@EnableKnife4j` — 启用增强
 
@@ -357,9 +357,9 @@ Knife4j 专有注解的后端增强逻辑通过 `Knife4jOpenApiCustomizer` / `Kn
 | `@ApiSupport.author/authors` | ✅ 写入 spec | ✅ | ✅ | 类级作者由后端回退写入 operation `x-author`，React 展示 operation 作者信息，不做 Tag 级聚合 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ 写入 spec | ✅ | ✅ | React 按 `x-order` 排序，缺失时保持原排序策略 |
 | `@ApiOperationSupport.author/authors` | ✅ 写入 spec | ✅ | ✅ | 后端合并为 operation `x-author`，React 在接口详情页展示非空字符串值 |
-| `ignoreParameters` / `includeParameters` | ✅ 修改 schema | ✅ | ⚠️ | 后端已修改 schema，React 能读到结果 |
+| `ignoreParameters` / `includeParameters` | 仅 openapi2 写入扩展 | ✅ | ❌ | OAS3 不处理，不会修改 Schema |
 | `@DynamicParameter` 系列 | ⚠️ 仅 openapi2 | ✅ | ❌ | 4.0 起放弃维护 |
-| `@Ignore` | ✅ 过滤接口 | ✅ | ⚠️ | 后端过滤后 React 不展示被忽略接口 |
+| `@Ignore` | ❌ 仅保留定义 | ❌ | ❌ | 当前 starter 无对应处理器；OAS3 使用标准隐藏注解 |
 
 ---
 
@@ -401,4 +401,4 @@ private String name;
 
 ### `@Ignore` vs `@Hidden` 用哪个？
 
-功能重叠，推荐优先使用 OpenAPI 3 标准的 `@Hidden`。`@Ignore` 的额外好处是可附带忽略原因说明，但当前无 UI 消费此信息。
+OAS3 使用标准的 `@Hidden`。`@Ignore` 虽有原因字段，但当前 starter 不读取该注解，不能用它隐藏接口或参数。

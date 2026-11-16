@@ -37,7 +37,7 @@ Java `5.8.2` uses springdoc `2.9.1` with Swagger Jakarta annotations/models/core
 Boot3 MVC, WebFlux and standalone aggregation require Boot `3.4.7+` on the 3.4 line or `3.5.1+`
 on the 3.5 line (Framework `6.2.8`). Raw Java Object properties and `List<Object>` items allow any
 JSON value in OAS 3.1. The table below records the `5.8.2` matrix; see the
-[5.7.8 dependency changes](../reference/version-ref#5-7-8-依赖更新) and
+[5.7.8 dependency changes](../reference/version-ref#_5-7-8-依赖更新) and
 [migration configuration](../reference/configuration#生成-openapi-3-1-文档).
 :::
 
