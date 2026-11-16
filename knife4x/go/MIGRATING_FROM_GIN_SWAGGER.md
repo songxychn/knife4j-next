@@ -76,13 +76,26 @@ handler, err := knife4x.NewHandler(knife4x.Config{
 入口为 `/internal/doc.html`，相对 spec 位于 `/internal/openapi.json`。业务 API
 仍按 OpenAPI 文档的 `servers` 与 path 解析，不会自动拼接 `/internal`。
 
+## 当前源码的访问保护与多分组
+
+当前源码新增 `BasicAuth`、`Disabled`、`Specs`、`UISettings` 与 `Documents`，
+不属于已发布的 `v0.9.2`；完整定义见 [Go 接入说明](README.md#当前源码新增配置)。
+迁移时请同时检查原有鉴权的挂载层级：`NewHandler(cfg, router)` 位于 Gin 外侧，
+原先针对 `/swagger/*any` 或内层 Gin group 的中间件不会自动保护 Knife4x 页面。
+可使用内置文档 Basic Auth，或把自有会话中间件放在最终 Handler 外侧。
+
+`Specs` 支持静态配置多个有名称的 OpenAPI URL，与 `SpecURL` 互斥；它不转换 Swagger 2，
+也不提供服务发现或文档代理。禁用 UI 时，用同一开关停止注册宿主的 spec 路由。
+可运行例子见 [Gin 示例](../examples/gin/README.md)。
+
 ## 核对清单
 
 - spec 为 JSON；已发布版本顶层是 `openapi: 3.0.x`、`openapi: 3.1.x` 或合法 `openapi: 3.2.x`
 - 宿主实际提供 `SpecURL` 指向的文档
 - 根路径打开 `/doc.html`，或在子路径打开 `${BasePath}/doc.html`
 - Try-it 请求命中预期业务 URL
-- 生产环境不需要文档时，不创建或不挂载 Knife4x Handler
+- 原有文档鉴权已迁到外层 Handler，或使用当前源码的内置文档 Basic Auth
+- 生产环境不需要文档时，不挂载 UI，并停止注册宿主 spec 路由
 
 可运行参考见 [Gin example](../examples/gin/README.md)，完整配置语义见
 [Go 接入说明](README.md)，产品边界见 [Knife4x 总览](../README.md)。

@@ -91,7 +91,7 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 `v0.9.2` 可加载合法 3.2 JSON。启动后打开
 <http://localhost:8080/doc.html>。
 
-`Config` 只有两个字段：
+已发布的 `v0.9.2` 使用以下两个配置字段；下文“当前源码新增配置”中的 API 尚未包含在该版本中：
 
 | 字段 | 说明 |
 |---|---|
@@ -103,8 +103,8 @@ func servePing(w http.ResponseWriter, _ *http.Request) {
 `SpecURL: "openapi.json"` 会解析到 `/internal/openapi.json`；根相对
 `SpecURL: "/openapi.json"` 仍指向根路径。
 
-未知路由会交给 `next`。生产环境需要关闭文档时，不创建或不挂载 Knife4x Handler
-即可。
+未知路由会交给 `next`。生产环境需要关闭文档时，不创建或不挂载 Knife4x Handler；
+宿主注册的 `/openapi.json` 也须单独停止注册，关闭 UI 不会关闭这个接口。
 
 ## Gin 接入
 
@@ -128,6 +128,131 @@ log.Fatal(http.ListenAndServe(":8080", handler))
 [Gin example](../examples/gin/README.md)。该独立示例需要 Go 1.26+，公共库仍保持
 Go 1.22 基线；使用其他 Gin 版本的业务项目按自身依赖要求选择工具链。从 `gin-swagger` 切换时请阅读
 [迁移说明](MIGRATING_FROM_GIN_SWAGGER.md)。
+
+## 当前源码新增配置
+
+本节描述当前源码中的新 API，**不属于已发布的 `v0.9.2`**。在本仓库可通过
+`knife4x/examples/gin` 的本地 module 替换运行；公共 module 的正式消费仍按上面的
+已发布版本说明，本文不代表已经发布新版本。旧的单 `SpecURL` 接法继续有效。
+
+| 字段 | 默认行为与边界 |
+|---|---|
+| `Disabled` | 默认 `false`；为 `true` 时直接返回 `next`（nil 则 404），不读取文件或验证未使用的文档配置 |
+| `SpecURL` / `Specs` | 二选一；`SpecURL` 对应 `default` 分组，`Specs` 为有序的 `[]Spec{Name, URL}`，名称去除首尾空白后须非空且唯一 |
+| `BasicAuth` | nil 关闭；使用 `*BasicAuthConfig{Username, Password, Realm}`，用户名与密码须同时非空，默认 Realm 为 `Knife4x` |
+| `UISettings` | nil 使用共享 UI 默认值；受支持的布尔字段为 `*bool`，可区分未设置和显式 `false` |
+| `Documents` | `[]MarkdownDocument`，支持直接内容或 `fs.FS`，所有配置分组都可见 |
+
+### Basic Auth 与完整关闭
+
+```go
+docsEnabled := os.Getenv("DOCS_ENABLED") == "true"
+app := http.NewServeMux()
+app.HandleFunc("/api/ping", servePing)
+if docsEnabled {
+    app.HandleFunc("/internal/openapi.json", serveOpenAPI)
+}
+
+handler, err := knife4x.NewHandler(knife4x.Config{
+    Disabled: !docsEnabled,
+    BasePath: "/internal",
+    SpecURL:  "openapi.json",
+    BasicAuth: &knife4x.BasicAuthConfig{
+        Username: os.Getenv("DOCS_USERNAME"),
+        Password: os.Getenv("DOCS_PASSWORD"),
+    },
+}, app)
+if err != nil {
+    log.Fatal(err)
+}
+log.Fatal(http.ListenAndServe(":8080", handler))
+```
+
+示例需在 import 中增加 `os`；启用文档时必须设置两个凭据变量。Basic Auth 在
+外层 Handler 验证，保护 `/internal/doc.html`、内嵌资源（包括 Worker、动态分块与
+OAuth 回调）以及配置的本地 spec 路径，覆盖所有 HTTP 方法。认证不会替代业务 API
+的安全控制；请通过 HTTPS 或可信 TLS 终止代理部署。
+
+根相对 URL 的保护路径与 `BasePath` 无关，例如 `/openapi.json` 仍保护根路径。
+相对 URL 则按 `BasePath` 解析；查询参数不缩小路径保护范围。完整 HTTP(S) URL
+由目标服务保护，即使恰好指向同一个源，也不属于此处自动保护的本地 URL。
+Knife4x 不代理远端文档、不向它转发账号密码；宿主暴露的其他 spec 别名也应自行保护。
+
+`Disabled` 仅取消 Knife4x 挂载和保护。上面的同一个 `docsEnabled` 同时控制宿主
+spec 注册，才能把两者一起关闭；业务 `/api/ping` 继续可用。
+
+### 多文档分组
+
+```go
+handler, err := knife4x.NewHandler(knife4x.Config{
+    BasePath: "/internal",
+    Specs: []knife4x.Spec{
+        {Name: "用户中心", URL: "users.json"},
+        {Name: "订单中心", URL: "/spec/orders.json"},
+    },
+}, app)
+```
+
+两个 spec 分别由宿主提供在 `/internal/users.json` 与 `/spec/orders.json`。
+列表顺序即分组顺序，不能同时再设置 `SpecURL`。名称作为 UI 路由的单个路径段，不能为 `.` / `..`，也不能包含 `/`、`\`、`?`、`#`、`%` 或控制字符；中文及普通空格可用。这是静态 URL 列表，不提供注册中心、
+服务发现、文档代理或 OpenAPI 生成器；各分组继续按 OpenAPI 的 `servers` 发起业务请求。
+
+### UI 默认值与附加 Markdown
+
+```go
+//go:embed docs/*.md
+var documentation embed.FS
+
+func boolValue(value bool) *bool { return &value }
+
+// 在创建 Handler 的配置中加入：
+cfg.UISettings = &knife4x.UISettings{
+    Language:           "zh-CN",
+    EnableDebug:        boolValue(false),
+    EnableRequestCache: boolValue(true),
+    EnableVersion:      boolValue(true),
+    EnableCustomHome:   boolValue(true),
+    HomeMarkdown:       "# 内部接口文档\n请先阅读接入说明。",
+    EnableCustomFooter: boolValue(true),
+    FooterMarkdown:     "内部使用",
+}
+cfg.Documents = []knife4x.MarkdownDocument{
+    {Title: "接入说明", FS: documentation, Path: "docs/start.md"},
+    {Title: "错误码", Content: "# 错误码\n业务错误码见各接口说明。"},
+}
+```
+
+示例需导入 `embed` 并提供 `docs/start.md`。同一个 Markdown 条目只能选择
+`Content` 或 `FS` + `Path`，不能同时提供；标题不能为空。文件只在 `NewHandler`
+创建时读取，文件不存在或配置不合法会返回错误；之后修改文件不会改变已创建 Handler。
+附加文档与 spec 自带 Markdown 并列显示，不覆盖或改写原始 spec，也不写入其导出内容。
+
+优先级为：共享 UI 默认值 < Go 的 `UISettings` < spec 中受支持的设置扩展 <
+浏览器本地选择。语言接受 `zh-CN`、`en-US`、`ja-JP`；`HomeMarkdown` 和
+`FooterMarkdown` 需要同时启用对应 `EnableCustomHome` / `EnableCustomFooter`。
+关闭调试或隐藏菜单只是界面设置，不能作为接口访问控制。
+
+### 外层鉴权与反向代理
+
+Gin 示例的请求顺序是 `外层中间件 → Knife4x → Gin`。仅对内层 `router.Use(...)`
+设置鉴权，无法保护已由 Knife4x 返回的文档页面和静态资源。除内置 Basic Auth 外，
+可以用宿主已有的、签名为 `func(http.Handler) http.Handler` 的中间件包住最终 Handler：
+
+```go
+handler, err := knife4x.NewHandler(cfg, app)
+if err != nil {
+    log.Fatal(err)
+}
+// requireSession 由宿主实现，检查其现有会话；这里会覆盖整个服务，包括业务 API。
+log.Fatal(http.ListenAndServe(":8080", requireSession(handler)))
+```
+
+若只保护文档区域，应在外层按文档和 spec 路径分派，而非依靠内层 Gin 路由分组。
+代理部署应保留 `Authorization`，将 UI、OAuth 回调、Worker、动态分块及本地 spec
+一起转发，并让上游收到与 `BasePath` 一致的路径。若代理剥离前缀，应同时设计并验证
+浏览器资源 URL、spec URL 与上游挂载路径；`BasePath` 不自动推断 `X-Forwarded-Prefix`。
+不要让登录页或 SPA fallback 替代丢失的 JS 分块，并保留正确的 JavaScript MIME。
+CSP 仍须授权内联启动配置和同源模块 Worker，不能因加了 Basic Auth 就省略这些部署要求。
 
 ## UI 资产
 

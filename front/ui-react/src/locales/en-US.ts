@@ -131,6 +131,11 @@ const enUS = {
   'error.apiDocs.base64':
     'The api-docs response is a Base64 string, not an OpenAPI/Swagger JSON object.\nCheck the Spring HttpMessageConverter configuration so the Jackson JSON converter does not handle byte[] or String responses.',
   'error.knife4x.notObject': 'Knife4x startup configuration error: the configuration value must be an object.',
+  'error.knife4x.invalidSpecs':
+    'Knife4x startup configuration error: groups need unique non-empty names and valid HTTP(S) URLs, without specUrl.',
+  'error.knife4x.invalidSettings': 'Knife4x startup configuration error: settings must be an object.',
+  'error.knife4x.invalidDocuments':
+    'Knife4x startup configuration error: documents must be a list of non-empty titles and text content.',
   'error.knife4x.specUrlRequired': 'Knife4x startup configuration error: specUrl must be a non-empty string.',
   'error.knife4x.basePathRequired': 'Knife4x startup configuration error: basePath must be a non-empty string.',
   'error.knife4x.basePathInvalid': 'Knife4x startup configuration error: basePath must be a URL path.',

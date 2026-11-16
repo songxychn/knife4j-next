@@ -91,7 +91,9 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const location = useLocation();
   const initialPathnameRef = useRef(location.pathname);
   const { settings, userSettings, setServerSettings } = useSettings();
-  const initialLanguageRef = useRef(userSettings.language);
+  const knife4xBootstrap = useMemo(() => readKnife4xBootstrap(), []);
+  const hostLanguage = knife4xBootstrap.mode === 'embed' ? knife4xBootstrap.config.settings?.language : undefined;
+  const initialLanguageRef = useRef(userSettings.language ?? hostLanguage);
   const [rawGroups, setRawGroups] = useState<SwaggerGroup[]>([]);
   const [swaggerUiConfig, setSwaggerUiConfig] = useState<SwaggerUiConfig | null>(null);
   const [activeGroupValue, setActiveGroupValue] = useState<string>('');
@@ -110,7 +112,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeSwaggerGroup = rawGroups.find((g) => g.name === activeGroupValue) ?? null;
   const operationRetrievalUri = schemaDocumentRetrievalUri(activeSwaggerGroup?.url ?? '', activeGroupValue);
   const operationSnapshot = operationResources?.document === swaggerDoc ? operationResources.snapshot : undefined;
-  const knife4xBootstrap = useMemo(() => readKnife4xBootstrap(), []);
 
   // Knife4x 直接加载宿主注入的 spec；Java 模式保留现有 discovery 顺序。
   useEffect(() => {
@@ -161,7 +162,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const group = rawGroups.find((g) => g.name === activeGroupValue);
     if (!group) return;
 
-    const preferredLanguage = userSettings.language;
+    const preferredLanguage = userSettings.language ?? hostLanguage;
     let cancelled = false;
     setLoading(true);
     setGroupError(null);
@@ -183,11 +184,14 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       cancelled = true;
     };
-  }, [activeGroupValue, knife4xBootstrap.mode, rawGroups, userSettings.language, usingMock]);
+  }, [activeGroupValue, hostLanguage, knife4xBootstrap.mode, rawGroups, userSettings.language, usingMock]);
 
   useEffect(() => {
-    setServerSettings(extractKnife4jSettings(swaggerDoc));
-  }, [setServerSettings, swaggerDoc]);
+    setServerSettings({
+      ...(knife4xBootstrap.mode === 'embed' ? knife4xBootstrap.config.settings : {}),
+      ...extractKnife4jSettings(swaggerDoc),
+    });
+  }, [knife4xBootstrap, setServerSettings, swaggerDoc]);
 
   // 计算最终生效的排序策略：用户显式覆盖优先，否则跟随后端 swagger-config
   const effectiveTagsSorter: TagsSorter = useMemo(() => {
@@ -235,7 +239,11 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const markdownDocs: MarkdownDocItem[] = useMemo(() => {
     const markdownGroups = extractMarkdownFiles(swaggerDoc);
-    return markdownGroups.flatMap((group, groupIndex) =>
+    const hostDocuments = knife4xBootstrap.mode === 'embed' ? knife4xBootstrap.config.documents : undefined;
+    const allGroups = hostDocuments?.length
+      ? [...markdownGroups, { name: 'Knife4x', children: hostDocuments }]
+      : markdownGroups;
+    return allGroups.flatMap((group, groupIndex) =>
       (group.children ?? []).map((item, itemIndex) => ({
         key: `/${activeGroupValue}/markdown/${groupIndex}/${itemIndex}`,
         title: item.title,
@@ -244,7 +252,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         folderName: group.name,
       })),
     );
-  }, [activeGroupValue, swaggerDoc]);
+  }, [activeGroupValue, knife4xBootstrap, swaggerDoc]);
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
   // loading 期间 swaggerDoc 为 null → 返回空数组，让 UI 显示 loading

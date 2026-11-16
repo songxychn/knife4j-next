@@ -29,6 +29,22 @@ go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
 仓库中的 [Gin 可运行示例](https://github.com/songxychn/knife4j-next/tree/master/knife4x/examples/gin)
 是独立 module，需要 Go 1.26+；其 Gin 依赖与版本要求不会传递给公共库消费者。
 
+## 当前源码的宿主配置
+
+当前源码新增以下能力，**尚未包含在上面的已发布 `v0.9.2` 中**；旧的 `SpecURL` /
+`BasePath` 接法保持兼容，新增 API 可通过仓库内 Gin 示例的本地 module 替换体验：
+
+- 可选文档 Basic Auth：保护 UI、资源与配置的本地 spec 路径，完整 HTTP(S) spec 由目标服务保护，不代理文档或转发凭据。
+- `Disabled`：直接返回宿主 Handler；示例用同一开关停止注册 spec，避免只关闭 UI 仍暴露 JSON。
+- `Specs`：静态配置多个有名称的 URL，保留顺序，与单 `SpecURL` 互斥，不提供注册中心或服务发现。
+- `UISettings`：语言、调试、缓存、变化提示、首页、Footer 等默认值；优先级为共享默认 < Go 默认 < spec 扩展 < 浏览器本地选择。
+- `Documents`：直接 Markdown 内容或 `fs.FS` 文件，创建时读取并验证，显示于所有分组，复用共享 UI 的渲染与安全处理。
+
+完整字段、标准库组合、Gin、子路径、外层鉴权及反向代理要求统一维护于
+[Go 接入说明](https://github.com/songxychn/knife4j-next/blob/master/knife4x/go/README.md#当前源码新增配置)。
+内层 Gin 中间件保护不到外层 UI；Basic Auth 应通过 HTTPS 或可信 TLS 终止代理部署，
+不替代业务接口鉴权。Worker 和动态分块的路径、CSP 与 JavaScript MIME 部署要求继续适用。
+
 ## v0.9.2
 
 同步共享 React UI 的窄屏抽屉导航、重页面与离线导出按需加载、键盘调宽、控件名称与标签语义修复；改善已定位的文字对比度，并修复数组自动示例和响应类型标签。Go API、路由、浏览器、OpenAPI 与部署边界沿用 `v0.9.1`，不声明全站 WCAG 合规。

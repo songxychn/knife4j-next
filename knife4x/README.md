@@ -9,7 +9,7 @@ Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调�
 - 合法 3.2 JSON 交给同一套 React UI；限制见 [OpenAPI 3.2 支持矩阵](../docs/guide/openapi32.md)
 - Go 核心只依赖标准库 `net/http`，不绑定 Gin、Echo、Chi 等 Web 框架
 - 与 Java 线 `knife4j-next` 同仓并共用 `front/ui-react` 与 `front/core`，但 module、版本和发布流程独立于 Java `5.x`
-- 宿主壳只负责嵌入静态 UI、注入配置和挂载路由，不复制前端业务逻辑
+- 宿主壳负责嵌入静态 UI、注入配置、挂载路由和可选的文档访问保护，不复制前端业务逻辑
 
 Go module 路径为：
 
@@ -68,9 +68,15 @@ knife4x/
 
 ## 配置与边界
 
-Go Handler 的公开配置只有 `SpecURL` 与 `BasePath`。默认入口是 `/doc.html`；
-关闭文档的方式是不创建或不挂载 Handler。Knife4x 不依赖 Java 的 discovery
-端点，也不提供 `enabled`、`persistAuth`、`title` 或 `tryIt` 等宿主配置字段。
+已发布的 `v0.9.2` 使用 `SpecURL` 与 `BasePath`。当前源码新增可选 Basic Auth、
+`Disabled`、静态多 spec 分组、类型明确的 UI 默认值和直接内容 / `fs.FS` Markdown；
+这些新增 API 尚未包含在 `v0.9.2`，契约与示例统一见
+[Go 接入说明](go/README.md#当前源码新增配置)。
+
+默认入口是 `/doc.html`。关闭 UI 时，宿主提供的 spec 接口也须通过同一开关停止注册。
+Basic Auth 保护 UI 与配置中的本地 spec 路径，完整 HTTP(S) spec URL 仍由其服务保护；
+Knife4x 不转发凭据、不代理文档、不进行服务发现，也不生成 OpenAPI。
+文档标题与版本来自 OpenAPI `info`；Knife4x 不依赖 Java 的 discovery 端点。
 
 内嵌 UI 只能通过 `tools/sync-knife4x-ui.sh` 从共享前端源码生成，禁止手工修改
 `knife4x/go/internal/ui/static/`。

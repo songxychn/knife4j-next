@@ -114,6 +114,10 @@ const zhCN = {
   'error.apiDocs.base64':
     'api-docs 响应是 Base64 字符串，不是 OpenAPI/Swagger JSON 对象。\n请检查 Spring HttpMessageConverter 配置，避免 Jackson JSON converter 接管 byte[] 或 String 响应。',
   'error.knife4x.notObject': 'Knife4x 启动配置错误：配置值必须是对象。',
+  'error.knife4x.invalidSpecs':
+    'Knife4x 启动配置错误：分组须有唯一非空名称及有效的 HTTP(S) URL，且不能同时配置 specUrl。',
+  'error.knife4x.invalidSettings': 'Knife4x 启动配置错误：settings 必须是对象。',
+  'error.knife4x.invalidDocuments': 'Knife4x 启动配置错误：documents 必须是包含非空标题及文本内容的列表。',
   'error.knife4x.specUrlRequired': 'Knife4x 启动配置错误：specUrl 必须是非空字符串。',
   'error.knife4x.basePathRequired': 'Knife4x 启动配置错误：basePath 必须是非空字符串。',
   'error.knife4x.basePathInvalid': 'Knife4x 启动配置错误：basePath 必须是 URL 路径。',
