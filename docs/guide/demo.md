@@ -53,6 +53,8 @@ Demo 镜像有两条通道：正式 Java Release 核验后构建版本标签与 
 
 ### 快速运行
 
+源码构建需要 Maven、对应 JDK 与稳定 Bun（见[兼容矩阵](../reference/compatibility)）。仓库主工程没有 Maven wrapper，以下命令从仓库根目录开始；Maven 运行方式先安装 reactor 依赖，再仅启动 Demo 模块。
+
 ::: code-group
 
 ```bash [IDE]
@@ -63,13 +65,14 @@ Demo 镜像有两条通道：正式 Java Release 核验后构建版本标签与 
 
 ```bash [Maven]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi3 -am spring-boot:run
+mvn -pl knife4j-demo-openapi3 -am install -DskipTests
+mvn -pl knife4j-demo-openapi3 spring-boot:run
 # 浏览器打开 http://localhost:8080/doc.html
 ```
 
 ```bash [打包后运行]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi3 -am package -DskipTests
+mvn -pl knife4j-demo-openapi3 -am package -DskipTests
 java -jar knife4j-demo-openapi3/target/knife4j-demo-openapi3-*.jar
 ```
 
@@ -120,6 +123,8 @@ docker run --rm -p 8080:8080 \
 
 ### 快速运行
 
+源码构建需要 Maven、对应 JDK 与稳定 Bun（见[兼容矩阵](../reference/compatibility)）。仓库主工程没有 Maven wrapper，以下命令从仓库根目录开始；Maven 运行方式先安装 reactor 依赖，再仅启动 Demo 模块。
+
 ::: code-group
 
 ```bash [IDE]
@@ -130,13 +135,14 @@ docker run --rm -p 8080:8080 \
 
 ```bash [Maven]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi2 -am spring-boot:run
+mvn -pl knife4j-demo-openapi2 -am install -DskipTests
+mvn -pl knife4j-demo-openapi2 spring-boot:run
 # 浏览器打开 http://localhost:8081/doc.html
 ```
 
 ```bash [打包后运行]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi2 -am package -DskipTests
+mvn -pl knife4j-demo-openapi2 -am package -DskipTests
 java -jar knife4j-demo-openapi2/target/knife4j-demo-openapi2-*.jar
 ```
 

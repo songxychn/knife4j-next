@@ -310,7 +310,7 @@ http.authorizeHttpRequests(auth -> auth //
 ```
 
 ::: tip 使用 Knife4j 的 production / basic 代替
-Knife4j 提供了 `knife4j.production` 和 `knife4j.basic` 配置，可以在不修改 Security 规则的情况下控制文档访问。详见 [FAQ / 生产环境禁用](./faq#doc-html-404)。
+WebMvc starter 在 `knife4j.enable=true` 时提供 `knife4j.production` 和 `knife4j.basic` 过滤器，但它们不会绕过 Spring Security；需要访问文档时仍应配置对应放行规则。详见 [FAQ / 生产环境禁用](./faq#生产环境怎么禁用-doc-html)。
 :::
 
 ## 第六步：验证
@@ -352,7 +352,7 @@ Springfox 的 `@Api(position = N)` 在 OpenAPI3 中不生效。改用 Knife4j �
 public class UserController {/* ... */}
 ```
 
-或使用 springdoc 的 `@SortTag` / `@SortOperation`（springdoc 2.3.0+）。
+也可以通过 `springdoc.swagger-ui.tags-sorter` / `operations-sorter` 指定排序策略。当前 springdoc 依赖不提供 `@SortTag` 或 `@SortOperation` 注解。
 
 ### `springfox-swagger2` 和 `knife4j-openapi2` 能继续用吗？
 

@@ -158,23 +158,19 @@ Knife4j UI 支持中文（`zh-CN`）、英文（`en-US`）和日语（`ja-JP`）
 
 在 `doc.html` 右上角的语言选择器中直接切换。
 
-**方式二：URL 参数直接指定**
+**方式二：服务端 YAML 配置默认语言**
 
-- 中文：`http://host:port/doc.html#/home/zh-CN`
-- 英文：`http://host:port/doc.html#/home/en-US`
-- 日语：`http://host:port/doc.html#/home/ja-JP`
-
-**方式三：服务端 YAML 配置默认语言**
+服务端绑定的是语言枚举，使用 `zh_cn`、`en` 或 `ja_jp`：
 
 ```yaml
 knife4j:
   enable: true
   setting:
-    language: zh-CN   # 也可使用 en-US 或 ja-JP
+    language: zh_cn   # 英文用 en，日语用 ja_jp
 ```
 
 ::: warning React UI
-React 新前端支持 i18n 切换，并会读取后端注入到 `x-openapi.x-setting.language` 的默认语言；用户在右上角语言菜单中的本地选择会覆盖后端默认值。
+React 新前端支持 i18n 切换，并会读取后端注入到 `x-openapi.x-setting.language` 的默认语言；用户在右上角语言菜单中的本地选择会覆盖后端默认值。React 不支持通过 `#/home/<语言>` 切换语言；不要把 UI 使用的 `en-US` 直接填入服务端枚举配置。
 :::
 
 ### 全局参数
@@ -306,7 +302,7 @@ knife4j:
 
 ### 请求参数缓存
 
-Knife4j 默认会缓存调试时填写的请求参数（仅当后端未提供 `example` 时生效），方便下次调试时自动填充。
+开启请求缓存后，React 会保存调试表单中的编辑结果，方便下次打开同一接口时恢复。
 
 ```yaml
 knife4j:
@@ -315,8 +311,9 @@ knife4j:
     enable-request-cache: true   # 默认 true，设为 false 可关闭缓存
 ```
 
-- 后端 `@Schema(example = "张飞")` 提供了 example 的字段，**始终使用 example 值**，不使用缓存。
-- 未提供 example 的字段，使用上次调试时填写的缓存值。
+- React 先根据当前文档的示例和 Schema 建立初始值，再恢复已有缓存；当前参数的缓存值可以覆盖初始示例值。
+- 已移除参数的缓存不会恢复；新参数保留当前文档生成的初始值。请求体只有在缓存媒体类型仍存在时才恢复。
+- 关闭请求缓存或清理缓存后，重新按当前文档初始化。OAS2 Vue3 保持自身的兼容实现，不应将 React 的恢复规则套用于它。
 
 ::: tip React UI
 `enable-request-cache` 在 Vue2 / Vue3 与 React 中均会生效。React 读取后端注入的默认值，用户在设置面板中的本地选择会覆盖该默认值。
@@ -352,10 +349,14 @@ Vue3 UI 继续保留 OAS2 兼容实现。详见 [OpenAPI 3.1 支持与迁移](./
 
 ### 清除缓存
 
-Knife4j 的缓存存储在浏览器的 IndexedDB 中，**强制刷新页面无法清除**。如需清除缓存：
+刷新页面不会清除持久化数据。React 的请求缓存与接口变化基线使用 localStorage，部分页面会话状态使用 sessionStorage，鉴权数据还涉及 IndexedDB；不能只删除 IndexedDB 来清理所有缓存。
 
-- 在 UI 右上角点击**清除缓存**按钮。
-- 或在浏览器 DevTools → Application → IndexedDB 中手动删除。
+React 在右上角**设置 → 个性化 → 清理 Knife4j 本地数据**中提供两种操作：
+
+- **清理请求缓存**：清理请求缓存、历史、接口变化基线与工作区状态，保留鉴权、偏好和外部资源授权。
+- **重置全部本地数据**：清理已登记的 Knife4j 本地数据，包括鉴权、偏好和已记住的资源授权。
+
+这两种操作只处理 Knife4j 登记的数据，不删除同源应用的其他存储，也不会删除浏览器 Cookie。OAS2 Vue3 使用自身的缓存清理入口。
 
 ### Spring Security 注解展示
 

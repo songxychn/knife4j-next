@@ -28,7 +28,7 @@ OpenAPI 的功能集由 `major.minor` 定义。`3.2.x` 使用同一套 **OpenAPI
 
 ## 规范夹具与生成器输出
 
-`5.8.2` 的 Boot3 springdoc 为 `2.9.1` / Swagger Jakarta `2.2.55`，生成版本仍是 OAS 3.1；[Boot 下限已更新](../reference/version-ref#5-7-8-依赖更新)。
+`5.8.2` 的 Boot3 springdoc 为 `2.9.1` / Swagger Jakarta `2.2.55`，生成版本仍是 OAS 3.1；[Boot 下限已更新](../reference/version-ref#_5-7-8-依赖更新)。
 
 Java `5.8.2` 依赖为 springdoc `1.8.0` / `2.9.1` / Boot4 `3.0.3`。它们当前生成 OpenAPI 3.0.x 或 3.1.x。把 `/v3/api-docs` 里的 `openapi` 改成 `3.2.0` **不能**当作真实 3.2 生成证据，也不构成本路线的 Java 生成验收。
 

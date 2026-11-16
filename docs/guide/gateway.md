@@ -231,8 +231,8 @@ knife4j:
 
 关键点：
 
-- `url` 是 **聚合 Gateway** 去取下游文档的路径（Gateway 自身发一次请求）。
-- `context-path` 是下游真实 context-path，**前端 UI 调试接口时会在请求 URL 前拼上这段**，避免落到 Gateway 根路径找不到。
+- `url` 是浏览器在 Gateway 上请求下游文档的地址；浏览器从 swagger-config 取得列表后请求此 URL，再由 Gateway 路由转发。
+- `context-path` 是浏览器经 Gateway 访问业务 API 的前缀。React 调试器优先使用当前 origin 加该前缀（UI Host 覆盖仍优先），它不一定等于下游 Servlet context-path；示例下游在根路径，Gateway 的 `StripPrefix=1` 剥离服务前缀。
 - `order` 越小越靠前。
 
 ## 保护 Gateway 聚合入口
@@ -262,16 +262,17 @@ knife4j:
 # 1. 启动下游 user-service，验证 /v3/api-docs 返回 JSON
 curl http://user-service:9001/v3/api-docs | head
 
-# 2. 启动 gateway
-# 3. 确认 gateway 能拉到下游文档（DISCOVER 模式路径就是 /v3/api-docs）
-curl http://gateway:8080/v3/api-docs
+# 2. 启动 gateway，查看实际文档路由列表
+curl --fail http://gateway:8080/v3/api-docs/swagger-config
+
+# 3. 从响应 urls[].url 选择一个地址请求；下面仅对应上文 MANUAL 示例
+curl --fail http://gateway:8080/user-service/v3/api-docs
 
 # 4. 浏览器打开 gateway doc.html
 open http://gateway:8080/doc.html
-
-# 5. 手动触发聚合接口（Knife4j 用来发现服务的自定义接口）
-curl http://gateway:8080/v3/api-docs/swagger-config
 ```
+
+Gateway starter 不在根路径 `/v3/api-docs` 生成合并文档；是否能访问该路径取决于应用另外配置的路由。DISCOVER 的验证应使用实际返回的 `urls[].url`，不能假设它等于下游的原始文档路径。
 
 ## 排错清单
 
@@ -286,5 +287,5 @@ curl http://gateway:8080/v3/api-docs/swagger-config
 ## 相关
 
 - [Aggregation starter](./aggregation)：如果你需要 **独立部署** 一个聚合服务，而不是跑在 Gateway 里。
-- [配置参考 / knife4j.gateway](../reference/configuration#gateway)：全部 YAML 选项。
+- [配置参考 / knife4j.gateway](../reference/configuration#gateway-starter-配置)：全部 YAML 选项。
 - [发布说明](../release-notes/)：gateway 相关的 changelog。
