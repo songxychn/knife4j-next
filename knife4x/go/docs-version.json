@@ -1,0 +1,5 @@
+{
+  "version": "v0.9.2",
+  "exampleCompatibilityVersion": "v0.9.2",
+  "unreleasedConfigFields": ["Specs", "Disabled", "BasicAuth", "UISettings", "Documents"]
+}

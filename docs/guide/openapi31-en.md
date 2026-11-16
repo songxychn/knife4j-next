@@ -12,7 +12,7 @@ This page covers current Java `5.8.2` / Go `v0.9.2`.
 
 This page describes the OpenAPI 3.1 contract of Java `5.8.2`. See the
 [release notes](../release-notes/) and [version reference](../reference/version-ref) for version-specific capabilities.
-Knife4x Go is versioned independently; see the [Go release notes](../knife4x/).
+Knife4x Go is versioned independently; see the [Go release notes](../knife4x/releases.md).
 This document does not change any starter or default setting.
 
 > Java 5.8.2 / Knife4x Go v0.9.2 require Chrome/Edge 112+, Firefox 116+, or Safari/iOS Safari 17+ for the React UI. This keeps the Java 5.7.9 / Go v0.8.8 browser baseline; minimum versions have not all been physically tested. See the [compatibility matrix](../reference/compatibility#浏览器基线).

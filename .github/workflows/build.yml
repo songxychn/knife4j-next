@@ -232,5 +232,11 @@ jobs:
         with:
           bun-version: ${{ matrix.bun-version }}
 
+      - name: Set up Go for documentation examples
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.22.x'
+          cache: false
+
       - name: Build docs site
         run: tools/without-node.sh tools/test-docs.sh

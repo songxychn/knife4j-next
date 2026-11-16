@@ -15,8 +15,9 @@
 | `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
 | `../front/scripts/check-bun.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Bun 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
-| `test-docs.sh` | 文档站构建 |
-| `test-knife4x-go.sh` | Knife4x Go module 与 Gin 示例的 gofmt / vet / test |
+| `test-docs.sh` | Go 文档契约与示例检查 + 文档站构建 + 构建来源校验；需 Go 1.22+ 与现有 Bun 基线 |
+| `test-knife4x-go.sh` | Knife4x Go module 与 Gin 示例的 gofmt / vet / test；core/all 同时核对 Go 文档契约和示例 |
+| `check-knife4x-docs.go`、`check-knife4x-docs_test.go` | 从 Go AST 校验公开字段、类型、可用版本，核对当前版本标记、安装命令、README 示例及本地链接；编译站点引用的源码示例，最小示例另按已发布兼容基线无 replace 编译 |
 | `sync-knife4x-ui.sh` | 从共享前端源码生成 Knife4x 内嵌 UI；`--check` 只校验生成物一致 |
 | `without-node.sh` | 隔离 PATH 中的独立 Node.js/npm，验证 Bun 工具链 |
 | `test-all.sh` | java + front-core + vue3 + docs + knife4x-go + `sync-knife4x-ui.sh --check` |
@@ -32,6 +33,23 @@
 ```bash
 git diff --name-only <base>...<head> | ./tools/ci-changes.sh  # 三点：与 PR CI 一样按 merge-base 计算
 ```
+
+### Go 文档来源与边界
+
+Go 用户手册只在 `docs/knife4x/` 维护。`knife4x/go/docs-version.json` 保存当前文档版本、
+未发布的 Config 字段以及最小示例的已发布兼容基线；字段与类型从 Go AST 读取，UI 布尔
+默认值按 Go JSON 标签对应到共享 `DEFAULT_SETTINGS`。该检查不会证明所有自由文本或安全
+部署描述正确，仍需按实际源码审查。
+
+`test-docs.sh` 会编译站内引用的标准库示例，且最小示例额外对已发布兼容基线无 `replace`
+编译；它需要访问公共 Go module 服务。Gin 全文引用已有可运行示例，由 Go 的 all/gin 门禁
+验证其独立工具链，不为文档另维护一份程序。版本历史不受“当前版本”检查覆盖。
+
+每次站点构建写出 `build-info.json`：`sourceRevision` 是构建 checkout 的 SHA，
+`sourceDirty` 标记相关源码是否含未提交内容，`knife4xVersion` 和
+`exampleCompatibilityVersion` 来自版本元数据。部署后可读取该文件，并与本次部署的
+已验证 SHA、版本及关键页面核对；本地构建或 CI 通过不表示线上已更新。
+这次只增加来源信息，不改变现有站点托管或部署配置。
 
 ### Java 兼容性报告
 

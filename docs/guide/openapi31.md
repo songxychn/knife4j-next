@@ -11,7 +11,7 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 
 本文描述 Java `5.8.2` 的 OpenAPI 3.1 契约，具体能力与版本归属见
 [发布说明](../release-notes/)和 [版本参考](../reference/version-ref)。Knife4x Go 使用独立版本，
-请查阅 [Go 发布说明](../knife4x/)。本文不改变任何 starter 或默认配置。
+请查阅 [Go 发布说明](../knife4x/releases.md)。本文不改变任何 starter 或默认配置。
 
 ## 支持范围
 
