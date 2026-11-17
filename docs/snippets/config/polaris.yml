@@ -2,7 +2,8 @@ knife4j:
   enable-aggregation: true
   polaris:
     enable: true
-    serviceUrl: http://polaris-server:8080  # 当前启动条件要求此 camelCase 写法
+    service-url: http://polaris-server:8080
+    # Polaris 服务端开启认证时配置；允许匿名查询时可省略整个 service-auth
     service-auth:
       enable: true
       username: ${POLARIS_USERNAME}
