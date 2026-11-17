@@ -5,6 +5,7 @@ cd "$(dirname "$0")/../front"
 
 bun scripts/check-bun.cjs
 bun test ./scripts/check-bun.test.cjs
+bun test ./ui-react/scripts/chrome-startup.test.mjs
 
 bun install --frozen-lockfile
 
