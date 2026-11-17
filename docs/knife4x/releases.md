@@ -4,7 +4,18 @@ title: Go 版本记录
 
 # Go 版本记录
 
-以下保留各已发布版本的历史范围，不代表所有能力在旧版本均可用。当前接入方式见[快速开始](./index.md)，源码新增 API 见[配置参考](./configuration.md)。
+以下保留各已发布版本的历史范围，不代表所有能力在旧版本均可用。当前接入方式见[快速开始](./index.md)，API 见[配置参考](./configuration.md)。
+
+## v0.10.0
+
+相较于 `v0.9.2`，新增 Go 宿主的文档访问保护、多分组与 UI 配置（PR [#1053](https://github.com/songxychn/knife4j-next/pull/1053)）：
+
+- `BasicAuth` 保护 UI 与配置中的本地 spec 路径；远端 spec 仍由目标服务负责鉴权和 CORS，业务 API 鉴权保持独立。
+- `Disabled` 直接交还宿主 Handler，不验证文档配置或读取 Markdown；宿主必须自行停止注册 spec 路由，才能完整关闭文档。
+- `Specs` 提供有序静态分组；`UISettings` 提供低于 spec 扩展和浏览器选择的默认值；`Documents` 提供附加 Markdown 文档。旧单 `SpecURL` / `BasePath` 接法保持兼容。
+- 共享 UI 保留加载失败后的分组切换入口，并对齐鉴权路径。完整字段、优先级与保护范围见[配置参考](./configuration.md)及[部署说明](./deployment.md)。
+
+公共库仍只依赖标准库，Go 1.22、Gin 示例 Go 1.26+、module 与 `NewHandler` 签名保持不变。浏览器下限、OpenAPI 3.0/3.1/3.2 JSON 消费、资源授权、预算与取消边界沿用 `v0.9.2`，仍不接受 YAML。部署继续保留同源 Schema Worker、动态分块及既有 CSP 和 JavaScript MIME 配置。源码构建与 UI 同步改用稳定 Bun `1.4.x`（最低 `1.4.4`），直接消费 Go module 无需 JavaScript 运行时。
 
 ## v0.9.2
 

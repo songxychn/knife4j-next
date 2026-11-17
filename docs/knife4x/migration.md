@@ -5,7 +5,7 @@ title: 从 gin-swagger 迁移
 # 从 gin-swagger 迁移
 
 Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确认文档格式和鉴权的
-挂载层级，再替换 UI。已发布版本的安装与最小程序见[快速开始](./index.md)。
+挂载层级，再替换 UI。当前版本的安装与最小程序见[快速开始](./index.md)。
 
 ## 先检查生成的文档
 
@@ -15,7 +15,7 @@ Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确
 入口不接受 YAML；3.1 与 3.2 的 Schema、外部资源及浏览器调试边界见
 [OpenAPI 3.1](../guide/openapi31.md)和[OpenAPI 3.2](../guide/openapi32.md)。
 
-从已有 Knife4x `v0.5.0` 单 spec 接法升级到 `v0.9.2`，不需要修改 `Config`、
+从已有 Knife4x `v0.5.0` 单 spec 接法升级到 `v0.10.0`，不需要修改 `Config`、
 `NewHandler` 或挂载路径。OAS 3.1 消费从 `v0.6.0` 起提供，OAS 3.2 从 `v0.8.0` 起提供；
 历史变化见[版本记录](./releases.md)。
 
@@ -40,9 +40,9 @@ Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确
 业务 API 仍按文档的 `servers` 和 path 解析，不会自动拼接 UI 前缀。
 
 原先挂在 Gin `/swagger/*any` 或 group 上的认证不会自动覆盖新外层 UI。
-需要把自有中间件移到最终 Handler 外层，或使用[当前源码的 Basic Auth](./deployment.md#basic-auth-与保护范围)。
-新增 `BasicAuth`、`Disabled`、`Specs`、`UISettings` 和 `Documents` 尚未包含在已发布
-`v0.9.2`；不要把当前源码示例直接复制到旧版消费者。完整定义见[配置参考](./configuration.md)。
+需要把自有中间件移到最终 Handler 外层，或使用[`v0.10.0` 的 Basic Auth](./deployment.md#basic-auth-与保护范围)。
+`BasicAuth`、`Disabled`、`Specs`、`UISettings` 和 `Documents` 从 `v0.10.0` 起可用；
+旧版消费者需先升级再使用这些配置。完整定义见[配置参考](./configuration.md)。
 
 `Specs` 是静态命名 URL 列表，不转换 Swagger 2，不提供服务发现或文档代理。
 多服务场景也应分别确认 spec 服务的鉴权与浏览器 CORS。
@@ -51,7 +51,7 @@ Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确
 
 - 文档为支持版本的 OpenAPI JSON，宿主确实提供配置中的每个 URL。
 - 根路径或子路径的 `doc.html`、静态资源及 Worker 可加载。
-- 原有文档认证已经迁到外层，或使用当前源码的内置文档认证。
+- 原有文档认证已经迁到外层，或使用内置文档认证。
 - Try-it 命中预期业务 URL，参数、请求体和鉴权要求符合文档。
 - 不需要文档时，停止挂载 UI，并停止注册宿主 spec 路由。
 - 浏览器满足[兼容矩阵](../reference/compatibility.md#浏览器基线)，不把构建通过视为最低浏览器全部实机验收。

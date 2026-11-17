@@ -9,11 +9,11 @@
 
 ## 安装与最小示例
 
-已发布版本：<!-- knife4x-version -->v0.9.2<!-- /knife4x-version -->，
-对应 tag `knife4x/go/v0.9.2`。需要 Go 1.22+，直接消费 module 无需 JavaScript 运行时。
+当前版本：<!-- knife4x-version -->v0.10.0<!-- /knife4x-version -->，
+对应 tag `knife4x/go/v0.10.0`。需要 Go 1.22+，直接消费 module 无需 JavaScript 运行时。
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.0
 ```
 
 下面程序在宿主中提供 JSON 和业务路由，启动后访问 `http://localhost:8080/doc.html`：
@@ -51,8 +51,8 @@ func main() {
 ```
 <!-- /knife4x-example -->
 
-当前源码新增的 `BasicAuth`、`Disabled`、`Specs`、`UISettings` 和 `Documents`
-尚未包含在该已发布版本中；类型、语义和可用版本见[配置参考](../../docs/knife4x/configuration.md)。
+`v0.10.0` 新增 `BasicAuth`、`Disabled`、`Specs`、`UISettings` 和 `Documents`；
+类型、语义和可用版本见[配置参考](../../docs/knife4x/configuration.md)。
 
 - [接入与部署](../../docs/knife4x/deployment.md)：访问保护、完整关闭、Gin、子路径、反向代理与 Worker/CSP。
 - [迁移指南](../../docs/knife4x/migration.md)：从 gin-swagger 切换与原有鉴权迁移。

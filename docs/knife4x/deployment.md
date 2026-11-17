@@ -4,8 +4,8 @@ title: Go 接入与部署
 
 # Go 接入与部署
 
-单 spec 接入适用于已发布版本，见[快速开始](./index.md)。本页的 Basic Auth、`Disabled`、
-多分组及 UI/Markdown 配置是[当前源码新增 API](./configuration.md)，尚未包含在 `v0.9.2`。
+本页示例使用 `v0.10.0`，包含 Basic Auth、`Disabled`、多分组及 UI/Markdown 配置。
+安装与最小接入见[快速开始](./index.md)，完整字段见[配置参考](./configuration.md)。
 
 ## 标准库组合
 
@@ -25,7 +25,7 @@ Knife4x 只处理自己的入口和内嵌资源，其他请求继续交给宿主
 `BasePath` 必须是干净的绝对路径，不能含查询、fragment、反斜线或 `..` 路径跳转。
 它不是首页文件名，也不是业务 API base URL。业务请求继续遵循 OpenAPI `servers`；
 不会因 UI 挂在 `/internal` 就把所有 API 加上该前缀。
-多 spec 的两种本地路径示例见[分组配置](./configuration.md#spec-当前源码新增类型)。
+多 spec 的两种本地路径示例见[分组配置](./configuration.md#spec)。
 
 ## Basic Auth 与保护范围
 

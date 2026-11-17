@@ -9,14 +9,14 @@ Knife4x 在 Go 进程中嵌入 Knife4j Next 的 React 文档与调试 UI。公�
 `net/http`，不绑定 Gin、Echo 或 Chi；它消费已有的 OpenAPI 文档，不生成 spec。
 Go module、版本和发布流程独立于 Java `5.x`，Rust 仍后置。
 
-已发布版本：<!-- knife4x-version -->v0.9.2<!-- /knife4x-version -->。
+当前版本：<!-- knife4x-version -->v0.10.0<!-- /knife4x-version -->。
 
 ## 安装与最小接入
 
 公共库需要 Go 1.22 或更高版本，直接消费 module 无需 JavaScript 运行时：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.0
 ```
 
 把下面的完整程序保存为 `main.go`，在已有 Go module 中运行 `go run .`。
@@ -28,14 +28,14 @@ go get github.com/songxychn/knife4j-next/knife4x/go@v0.9.2
 `/api/ping` 是业务接口。默认不会为 `/` 或 `index.html` 增加重定向或 SPA fallback；
 Knife4x 不拥有的请求继续交给宿主 Handler。
 
-已发布入口接受 OpenAPI 3.0.x / 3.1.x / 3.2.x **JSON**，不接受 YAML 或 Swagger 2 / OAS2。
+入口接受 OpenAPI 3.0.x / 3.1.x / 3.2.x **JSON**，不接受 YAML 或 Swagger 2 / OAS2。
 3.1 与 3.2 的 Schema、资源授权和浏览器调试边界分别见
 [OpenAPI 3.1](../guide/openapi31.md) 与 [OpenAPI 3.2](../guide/openapi32.md)。
 
-## 当前源码新增能力
+## v0.10.0 新增能力
 
-Basic Auth、`Disabled`、`Specs`、`UISettings` 和 `Documents` 尚未包含在上面的已发布版本中。
-这些 API 可通过仓库当前源码和本地示例体验，不能直接用于 `v0.9.2` 消费者。
+`v0.10.0` 新增 Basic Auth、`Disabled`、`Specs`、`UISettings` 和 `Documents`。
+可配置文档访问保护、静态分组、UI 默认值和附加 Markdown 文档。
 旧的单 `SpecURL` / `BasePath` 接法保持兼容；完整字段与优先级统一见[配置参考](./configuration.md)。
 
 | 要完成的事 | 文档入口 |
