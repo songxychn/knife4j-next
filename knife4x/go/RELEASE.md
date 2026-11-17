@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.9.2` |
-| 发布 tag | `knife4x/go/v0.9.2` |
+| 当前版本 | `v0.10.0` |
+| 发布 tag | `knife4x/go/v0.10.0` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -19,13 +19,16 @@ workflow 的自动 tag 触发器只接收根级 `v*` tag，不接收 `knife4x/go
 由 Java Release 完成公开制品核验后调用，不由 Go tag 触发。
 `./tools/test-knife4x-go.sh` 会以无副作用断言保护这条边界。
 
-## v0.9.2 发布范围
+## v0.10.0 发布范围
 
-相较于 `v0.9.1`，同步共享 React UI 的窄屏抽屉导航、重页面与离线导出按需加载、键盘调宽、控件名称与标签语义修复，改善已定位的文字对比度；修复数组自动示例与响应类型标签（PR #1028/#1030/#1034/#1035）。首次进入按需加载的页面可能显示加载状态，不声明全站 WCAG 合规。
+相较于 `v0.9.2`，新增 Go 宿主的文档访问保护、多分组与 UI 配置（PR [#1053](https://github.com/songxychn/knife4j-next/pull/1053)）：
 
-公共库仍只依赖标准库，Go 1.22、Gin 示例 Go 1.26+、module、`Config`、`NewHandler` 与路由语义不变。沿用 `v0.9.1` 的浏览器下限、Node 26 源码构建要求、OpenAPI 3.0/3.1/3.2 JSON 消费、离线授权、预算与取消边界。部署仍须保留同源 Schema Worker 及动态分块，满足既有 CSP 与 JavaScript MIME 要求。
+- `BasicAuth` 保护 UI 与配置中的本地 spec 路径；远端 spec 仍由目标服务负责鉴权和 CORS，业务 API 鉴权保持独立。
+- `Disabled` 直接交还宿主 Handler，不验证文档配置或读取 Markdown；宿主必须自行停止注册 spec 路由，才能完整关闭文档。
+- `Specs` 提供有序静态分组；`UISettings` 提供低于 spec 扩展和浏览器选择的默认值；`Documents` 提供附加 Markdown 文档。旧单 `SpecURL` / `BasePath` 接法保持兼容。
+- 共享 UI 保留加载失败后的分组切换入口，并对齐鉴权路径。完整字段、优先级与保护范围见[配置参考](../../docs/knife4x/configuration.md)及[部署说明](../../docs/knife4x/deployment.md)。
 
-外部资源默认拒绝、按精确 URI 授权与 registry-only 解析；未知方言/自定义词汇执行、Cookie jar 写入、主动 Webhook 调用及客户端证书注入仍不在范围内。完整限制见 [OpenAPI 3.1 支持与迁移](../../docs/guide/openapi31.md) 与 [OpenAPI 3.2 支持矩阵](../../docs/guide/openapi32.md)。
+公共库仍只依赖标准库，Go 1.22、Gin 示例 Go 1.26+、module 与 `NewHandler` 签名保持不变。浏览器下限、OpenAPI 3.0/3.1/3.2 JSON 消费、资源授权、预算与取消边界沿用 `v0.9.2`，仍不接受 YAML。部署继续保留同源 Schema Worker、动态分块及既有 CSP 和 JavaScript MIME 配置。源码构建与 UI 同步改用稳定 Bun `1.4.x`（最低 `1.4.4`），直接消费 Go module 无需 JavaScript 运行时。
 
 ## 发布前门禁
 
@@ -80,11 +83,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.9.2 -m "Knife4x Go v0.9.2"
-git push origin knife4x/go/v0.9.2
+git tag -a knife4x/go/v0.10.0 -m "Knife4x Go v0.10.0"
+git push origin knife4x/go/v0.10.0
 ```
 
-不要同时创建根级 `v0.9.2` tag，不要运行 Java Maven Release，不要为本次发布新增
+不要同时创建根级 `v0.10.0` tag，不要运行 Java Maven Release，不要为本次发布新增
 registry、OIDC、secret 或 GitHub Release。
 
 ## 发布后公共消费验证
@@ -94,7 +97,7 @@ proxy 记录的 origin hash 与 annotated tag 指向的 commit 一致，且 ref 
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.9.2
+version=v0.10.0
 tag="knife4x/go/${version}"
 tag_commit="$(git rev-list -n 1 "$tag")"
 proxy_info="$(curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info")"
@@ -110,7 +113,7 @@ test "$proxy_ref" = "refs/tags/$tag"
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.9.2
+version=v0.10.0
 sum_response="$(curl -fsS "https://sum.golang.org/lookup/${module}@${version}")"
 printf '%s\n' "$sum_response"
 printf '%s\n' "$sum_response" | grep -F "${module} ${version} h1:"
@@ -125,7 +128,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.9.2
+version=v0.10.0
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -182,7 +185,7 @@ test -s "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer
-编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.9.2` 发布完成。
+编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.10.0` 发布完成。
 
 ## 补丁原则
 

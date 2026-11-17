@@ -12,9 +12,32 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-本次版本为 Java `5.8.2` 与配套 Go `v0.9.2`。
+本次版本为 Java `5.8.3` 与配套 Go `v0.10.0`。
 
-### 5.8.2 <Badge type="tip" text="最新版本" />
+### 5.8.3 <Badge type="tip" text="最新版本" />
+
+相较于 `5.8.2`，修复独立聚合的 Polaris 启动条件与服务查询，纳入共享 UI、构建与验证维护。配套 Knife4x Go `v0.10.0` 新增宿主配置能力。
+
+**Java 独立聚合**
+
+- Boot2、Boot3 Jakarta 与 Boot4 的 Polaris 模式修复 `service-url` 回退读取丢失赋值的问题，按 `knife4j.polaris.service-auth` 绑定鉴权配置；鉴权关闭时允许匿名实例查询，启用时仍校验用户名和密码并保留登录流程（PR [#1061](https://github.com/songxychn/knife4j-next/pull/1061)）。是否可匿名查询仍由 Polaris 服务端权限决定。
+- Boot2 与 Jakarta 的相同聚合实现改为共享源码、分别编译进原模块，保留框架适配与既有发布坐标（PR [#1043](https://github.com/songxychn/knife4j-next/pull/1043)）。
+
+**Knife4x Go 与共享 UI**
+
+- Go `v0.10.0` 增加 `BasicAuth`、`Disabled`、静态多分组 `Specs`、`UISettings` 和 Markdown `Documents`。文档鉴权覆盖 UI 与配置中的本地 spec，业务鉴权和远端 spec 鉴权保持独立；`Disabled` 不会关闭宿主自行注册的 spec 路由。旧单 `SpecURL` / `BasePath` 接法保持兼容（PR [#1053](https://github.com/songxychn/knife4j-next/pull/1053)）。完整语义见[Go 配置参考](../knife4x/configuration.md)。
+- 共享 UI 保留分组加载失败后的切换入口，拆分调试表单与预览组件，清理未使用的前端文件（PR [#1053](https://github.com/songxychn/knife4j-next/pull/1053)、[#1044](https://github.com/songxychn/knife4j-next/pull/1044)、[#1039](https://github.com/songxychn/knife4j-next/pull/1039)）。
+
+**源码构建与验证**
+
+- OAS3、Vue3、文档站及 Knife4x UI 同步改用稳定 Bun `1.4.x`（最低 `1.4.4`），不再要求单独安装 Node.js；直接消费 Maven 或 Go module 无需 JavaScript 运行时。补齐 WebJar 测试的 Undici 预加载与覆盖（PR [#1047](https://github.com/songxychn/knife4j-next/pull/1047)、[#1049](https://github.com/songxychn/knife4j-next/pull/1049)、[#1051](https://github.com/songxychn/knife4j-next/pull/1051)）。
+- 收敛 smoke 模块证据与公开制品核验，增加文档与源码、配置示例及代理部署契约检查；保留 Schema Worker Chrome 启动失败诊断。诊断增强不等于已修复尚未定位的 CI Chrome 启动超时（PR [#1040](https://github.com/songxychn/knife4j-next/pull/1040)、[#1042](https://github.com/songxychn/knife4j-next/pull/1042)、[#1055](https://github.com/songxychn/knife4j-next/pull/1055)、[#1057](https://github.com/songxychn/knife4j-next/pull/1057)、[#1060](https://github.com/songxychn/knife4j-next/pull/1060)）。
+
+**兼容边界**
+
+Java 依赖、Boot2/3/4 矩阵、Java 8/17、Go 公共库 1.22 与 Gin 示例 1.26+ 下限沿用 `5.8.2` / Go `v0.9.2`。Maven/module 坐标、starter 默认配置与 OpenAPI 3.0/3.1/3.2 JSON 消费范围不变；springdoc 仍生成 3.0/3.1，不新增 YAML 或规范版本支持。浏览器仍为 OAS3 Chrome/Edge 112、Firefox 116、Safari/iOS Safari 17，OAS2 Chrome/Edge 117、Firefox 119、Safari/iOS Safari 17.4，不增加最低浏览器实机覆盖承诺。Schema Worker 部署继续要求保留 Worker/动态分块及既有 CSP、JavaScript MIME 配置。
+
+### 5.8.2
 
 相较于 `5.8.1`，改善窄屏导航、按需加载与键盘操作，修复数组自动示例和响应类型标签。配套 Knife4x Go `v0.9.2` 同步共享 React UI。
 
@@ -839,7 +862,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.2</version>
+    <version>5.8.3</version>
 </dependency>
 ```
 
