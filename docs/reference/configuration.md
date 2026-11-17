@@ -330,7 +330,7 @@ knife4j:
 
 ### `knife4j.polaris.*`
 
-当前 Polaris 启动条件要求显式配置 `serviceUrl`（camelCase）、`service-auth.enable=true` 及非空用户名、密码。属性绑定器虽支持 `service-url`，但现有启动条件的回退读取未生效，示例需遵循[Polaris 接入](../guide/aggregation#模式-5-polaris-腾讯北极星)中的写法。
+Polaris 启动条件要求配置地址（`service-url` 或 `serviceUrl`）。仅当 `service-auth.enable=true` 时要求非空用户名、密码；服务端允许匿名查询时可省略 `service-auth` 或设置其 `enable=false`。示例见[Polaris 接入](../guide/aggregation#模式-5-polaris-腾讯北极星)中的写法。
 
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |

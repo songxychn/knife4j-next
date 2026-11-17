@@ -203,7 +203,8 @@ knife4j:
   enable-aggregation: true
   polaris:
     enable: true
-    serviceUrl: http://polaris-server:8080  # 当前启动条件要求此 camelCase 写法
+    service-url: http://polaris-server:8080
+    # Polaris 服务端开启认证时配置；允许匿名查询时可省略整个 service-auth
     service-auth:
       enable: true
       username: ${POLARIS_USERNAME}
@@ -217,7 +218,7 @@ knife4j:
         order: 1
 ```
 
-聚合服务通过 HTTP OpenAPI 的 `/naming/v1/instances` 查询实例，不使用 gRPC SDK。当前 starter 的启动条件要求 `service-auth.enable=true` 且用户名、密码非空，登录请求发送到 `/core/v1/user/login`。同时必须按示例使用 `serviceUrl`：当前条件检查不会正确读取 `service-url` 的回退值。即使属性绑定器接受 `service-url`，也不能据此判断启动条件通过。`namespace` 属于每条 route，服务名字段为 `service`。
+聚合服务通过 HTTP OpenAPI 的 `/naming/v1/instances` 查询实例，不使用 gRPC SDK。当 `service-auth.enable=true` 时，启动检查要求用户名、密码非空，登录请求发送到 `/core/v1/user/login`。Polaris 服务端允许匿名查询时，可省略 `service-auth` 或设置 `service-auth.enable=false`，无需填写用户名、密码；此时不发起登录，未配置 `jwtCookie` 时也不发送 Cookie。若服务端仍要求认证，请启用认证并提供凭据；starter 不会自动检测或切换认证模式。地址配置支持 `service-url` 和 `serviceUrl` 两种写法。`namespace` 属于每条 route，服务名字段为 `service`。
 
 ## HTTP 连接参数调优
 

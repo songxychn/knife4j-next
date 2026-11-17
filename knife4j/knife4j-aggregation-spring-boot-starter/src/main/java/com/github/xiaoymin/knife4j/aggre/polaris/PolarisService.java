@@ -76,7 +76,9 @@ public class PolarisService extends PoolingConnectionManager implements Callable
             logger.debug("Polaris API:{}", api);
         }
         HttpGet get = new HttpGet(api);
-        get.addHeader("Cookie", jwtCookie);
+        if (TextUtils.isNotBlank(jwtCookie)) {
+            get.addHeader("Cookie", jwtCookie);
+        }
         CloseableHttpResponse response = getClient().execute(get);
         if (response != null) {
             int statusCode = response.getStatusLine().getStatusCode();
@@ -91,7 +93,8 @@ public class PolarisService extends PoolingConnectionManager implements Callable
                     }
                     JsonElement jsonElement = JsonParser.parseString(content);
                     if (jsonElement != null && jsonElement.isJsonObject()) {
-                        if (jsonElement.getAsJsonObject().get("code").toString().equals("407")) {
+                        if (jsonElement.getAsJsonObject().get("code").toString().equals("407")
+                                && setting.getServiceAuth() != null && setting.getServiceAuth().isEnable()) {
                             // 登陆失效，重新登陆，再次调用自己
                             setting.initJwtCookie();
                             this.getPolarisInstance();
