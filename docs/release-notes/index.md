@@ -20,7 +20,7 @@ title: 发布说明
 
 **Java 独立聚合**
 
-- Boot2、Boot3 Jakarta 与 Boot4 的 Polaris 模式修复 `knife4j.setting` 被误当成字符串绑定的问题，正确读取配置的 Polaris 地址；允许未配置 token 时进行匿名实例查询，保留显式 token 配置（PR [#1061](https://github.com/songxychn/knife4j-next/pull/1061)）。是否可匿名查询仍由 Polaris 服务端权限决定。
+- Boot2、Boot3 Jakarta 与 Boot4 的 Polaris 模式修复 `service-url` 回退读取丢失赋值的问题，按 `knife4j.polaris.service-auth` 绑定鉴权配置；鉴权关闭时允许匿名实例查询，启用时仍校验用户名和密码并保留登录流程（PR [#1061](https://github.com/songxychn/knife4j-next/pull/1061)）。是否可匿名查询仍由 Polaris 服务端权限决定。
 - Boot2 与 Jakarta 的相同聚合实现改为共享源码、分别编译进原模块，保留框架适配与既有发布坐标（PR [#1043](https://github.com/songxychn/knife4j-next/pull/1043)）。
 
 **Knife4x Go 与共享 UI**
