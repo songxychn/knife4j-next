@@ -11,6 +11,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { waitForChromeDevTools } from './chrome-startup.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const args = process.argv.slice(2);
@@ -183,23 +184,7 @@ async function withChrome(run) {
   );
   const stopped = new Promise((resolve) => child.once('close', resolve));
   try {
-    const browserUrl = await new Promise((resolve, reject) => {
-      let stderr = '';
-      const timeout = setTimeout(() => reject(new Error('Chrome did not expose DevTools')), 15000);
-      child.stderr.on('data', (data) => {
-        stderr += String(data);
-        const match = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/);
-        if (match) {
-          clearTimeout(timeout);
-          resolve(match[1]);
-        }
-      });
-      child.once('error', reject);
-      child.once('exit', (code) => {
-        clearTimeout(timeout);
-        reject(new Error(`Chrome exited (${code}): ${stderr.slice(-2000)}`));
-      });
-    });
+    const browserUrl = await waitForChromeDevTools(child, { executable: chromePath });
     const ws = new WebSocket(browserUrl);
     await new Promise((resolve, reject) => {
       ws.addEventListener('open', resolve, { once: true });
@@ -395,7 +380,17 @@ try {
   );
   console.log(JSON.stringify({ ok: true, mode: smoke ? 'smoke' : 'full', staticRoot, workerAsset, servedAssets, ...evidence }, null, 2));
 } catch (error) {
-  console.error(JSON.stringify({ ok: false, error: error.stack ?? String(error) }, null, 2));
+  const failure = JSON.stringify(
+    {
+      ok: false,
+      error: error.stack ?? String(error),
+      ...(error.chromeStartup ? { chromeStartup: error.chromeStartup } : {}),
+    },
+    null,
+    2,
+  );
+  console.log(failure); // Preserve failures in the same redirected JSON artifact as success.
+  console.error(failure);
   process.exitCode = 1;
 } finally {
   server?.close();

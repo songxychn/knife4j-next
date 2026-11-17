@@ -140,8 +140,11 @@ Run the same checks that CI runs:
 # Java (spotless + verify + smoke evidence + compatibility contracts)
 ./tools/test-java.sh
 
-# Docs site build
+# Docs contracts, examples, rendered links and site build
 ./tools/test-docs.sh
+
+# Documented deployment (after test-java.sh; requires Docker, OpenSSL, unzip)
+./tools/test-docs-deployment.sh
 
 # Knife4x Go and the Gin example
 ./tools/test-knife4x-go.sh
@@ -151,6 +154,21 @@ Run the same checks that CI runs:
 ```
 
 For changes spanning a few areas, run the union of the affected scripts; `test-all.sh` is for all-area changes or full acceptance. `git diff --name-only <base>...<head> | ./tools/ci-changes.sh` shows which CI jobs a change triggers (three dots match the merge-base diff that PR CI uses).
+
+## Keeping Documentation in Sync
+
+When changing configuration, update its description in
+`docs/reference/settings-descriptions.json` and run
+`bun tools/docs/settings-reference.mjs --write`. Review the generated diff and run
+`./tools/test-docs.sh`. The reference uses Java declarations and the actual React
+reader; Java validation also checks compiled defaults. Change the source first,
+not the generated table.
+
+Keep tested examples in `docs/snippets/` and include them in pages with `<<<`.
+Extend the existing tests to load the same files when adding examples. CI checks
+critical configuration, annotation compilation, discovery and deployment behavior;
+free text and broader functional claims still need review. See
+[the validation scope](tools/README.md#文档保鲜与代码同步) for commands and limits.
 
 ## Branch & Commit Conventions
 

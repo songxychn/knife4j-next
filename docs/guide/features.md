@@ -162,12 +162,7 @@ Knife4j UI 支持中文（`zh-CN`）、英文（`en-US`）和日语（`ja-JP`）
 
 服务端绑定的是语言枚举，使用 `zh_cn`、`en` 或 `ja_jp`：
 
-```yaml
-knife4j:
-  enable: true
-  setting:
-    language: zh_cn   # 英文用 en，日语用 ja_jp
-```
+<<< ../snippets/config/language.yml
 
 ::: warning React UI
 React 新前端支持 i18n 切换，并会读取后端注入到 `x-openapi.x-setting.language` 的默认语言；用户在右上角语言菜单中的本地选择会覆盖后端默认值。React 不支持通过 `#/home/<语言>` 切换语言；不要把 UI 使用的 `en-US` 直接填入服务端枚举配置。

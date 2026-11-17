@@ -144,36 +144,12 @@ knife4j:
 
 ## 模式 3：Nacos
 
-```yaml
-knife4j:
-  enable-aggregation: true
-  nacos:
-    enable: true
-    service-url: http://nacos:8848/nacos
-    # 若 Nacos 本身开启鉴权（参考 v2.0.9+）
-    service-auth:
-      enable: true
-      username: nacos
-      password: ${NACOS_PASSWORD}
-    token-expire: 18000
-    # 访问下游服务时使用的公共 Basic（仅用于 swagger 接口）
-    route-auth:
-      enable: false
-    routes:
-      - name: 用户服务
-        service-name: user-service
-        namespace-id: ""  # public 默认命名空间；其他命名空间填写实际 ID
-        group-name: DEFAULT_GROUP
-        location: /v3/api-docs
-        swagger-version: "3.0"
-        service-path: /user-service
-        order: 1
-```
+<<< ../snippets/config/nacos.yml
 
 聚合服务在启动和后续心跳中从 Nacos 查询实例，文档请求由聚合应用转发至实例。注意：
 
 - `service-auth` 只影响 Nacos OpenAPI 的鉴权。
-- 默认 `token-expire = 18000` 秒，到期前会自动刷新（阈值 100s）。
+- 内部 token 有效期固定为 18000 秒，到期前会自动刷新（阈值 100s）；当前没有公开 setter，不能通过 `token-expire` 配置覆盖。
 
 ## 模式 4：Eureka
 
@@ -198,38 +174,13 @@ Eureka 客户端以 `serviceName`（默认大写）匹配实例。
 
 ## 模式 5：Polaris（腾讯北极星）
 
-```yaml
-knife4j:
-  enable-aggregation: true
-  polaris:
-    enable: true
-    service-url: http://polaris-server:8080
-    # Polaris 服务端开启认证时配置；允许匿名查询时可省略整个 service-auth
-    service-auth:
-      enable: true
-      username: ${POLARIS_USERNAME}
-      password: ${POLARIS_PASSWORD}
-    routes:
-      - name: 用户服务
-        service: user-service
-        namespace: default
-        location: /v3/api-docs
-        swagger-version: "3.0"
-        order: 1
-```
+<<< ../snippets/config/polaris.yml
 
 聚合服务通过 HTTP OpenAPI 的 `/naming/v1/instances` 查询实例，不使用 gRPC SDK。当 `service-auth.enable=true` 时，启动检查要求用户名、密码非空，登录请求发送到 `/core/v1/user/login`。Polaris 服务端允许匿名查询时，可省略 `service-auth` 或设置 `service-auth.enable=false`，无需填写用户名、密码；此时不发起登录，未配置 `jwtCookie` 时也不发送 Cookie。若服务端仍要求认证，请启用认证并提供凭据；starter 不会自动检测或切换认证模式。地址配置支持 `service-url` 和 `serviceUrl` 两种写法。`namespace` 属于每条 route，服务名字段为 `service`。
 
 ## HTTP 连接参数调优
 
-```yaml
-knife4j:
-  connection-setting:
-    socket-timeout: 60000       # 毫秒
-    connect-timeout: 10000      # 毫秒
-    max-connection-total: 200   # 连接池总数
-    max-pre-route: 20           # 每个目标地址最多连接数（沿用现有属性名）
-```
+<<< ../snippets/config/connection.yml
 
 这些参数影响 cloud / nacos / eureka / polaris 四种模式（disk 不走 HTTP）。当前配置类没有 `connection-request-timeout` 属性。
 

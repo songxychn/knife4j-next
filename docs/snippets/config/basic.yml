@@ -1,0 +1,6 @@
+knife4j:
+  enable: true
+  basic:
+    enable: true
+    username: admin
+    password: ${DOC_PASSWORD}

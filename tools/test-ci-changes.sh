@@ -31,22 +31,25 @@ docs_only="$(outputs false false false true false)"
 java_only="$(outputs true false false false false)"
 react_only="$(outputs false true false false false)"
 react_and_java="$(outputs true true false false false)"
-react_java_and_knife4x="$(outputs true true false false true)"
+react_java_and_knife4x="$(outputs true true false true true)"
+java_and_docs="$(outputs true false false true false)"
 vue3_and_java="$(outputs true false true false false)"
 knife4x_and_docs="$(outputs false false false true true)"
 all="$(outputs true true true true true)"
 
 assert_case "docs" "$docs_only" $'docs/guide/index.md\nstatic/home.png\ntools/test-docs.sh'
 assert_case "area readmes and process docs" "$none" $'knife4j/README.md\nknife4j/MIGRATION.md\nknife4j/RELEASE.md\nknife4j/knife4j-demo-openapi2/SECURITY-ASSESSMENT.md\nknife4j/knife4j-gateway-spring-boot-starter/README.md\nknife4x/rust/README.md\ntools/demo-images/README.md\ntools/spikes/json-schema-2020-12/README.md\ntools/spikes/oas31-resource-loader/DECISION.md'
-assert_case "module sources stay java" "$java_only" $'knife4j/knife4j-gateway-spring-boot-starter/pom.xml\nknife4j/knife4j-demo-openapi2/README.txt'
+assert_case "module sources trigger docs" "$java_and_docs" $'knife4j/knife4j-gateway-spring-boot-starter/pom.xml\nknife4j/knife4j-demo-openapi2/README.txt'
 assert_case "spike sources stay full" "$all" "tools/spikes/oas31-resource-loader/package.json"
-assert_case "java" "$java_only" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/smoke-evidence.sh\ntools/test-smoke-evidence.sh\ntools/test-java-compatibility.sh\ntools/java-compatibility-report.sh\ntools/java-compatibility-summary.py\ntools/java-compatibility-baseline.properties\ntools/java-compatibility-contracts.tsv\ntools/verify-java-compatibility-contracts.py\ntools/test-release-tools.sh\ntools/test-fixtures/mock-maven-central-curl.sh\ntools/extract-release-note.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-context.sh\ntools/verify-maven-central.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
+assert_case "java tools and owning sources" "$java_and_docs" $'knife4j/knife4j-core/pom.xml\ntools/test-java.sh\ntools/smoke-evidence.sh\ntools/test-smoke-evidence.sh\ntools/test-java-compatibility.sh\ntools/java-compatibility-report.sh\ntools/java-compatibility-summary.py\ntools/java-compatibility-baseline.properties\ntools/java-compatibility-contracts.tsv\ntools/verify-java-compatibility-contracts.py\ntools/test-release-tools.sh\ntools/test-fixtures/mock-maven-central-curl.sh\ntools/extract-release-note.sh\ntools/verify-configuration-metadata.sh\ntools/verify-release-context.sh\ntools/verify-maven-central.sh\ntools/verify-release-modules.sh\ntools/release-modules.txt\n.java-version'
 for path in front/core/src/index.ts front/schema-engine/src/index.ts front/schema-engine/package.json front/ui-react/src/App.tsx front/package.json front/bun.lock; do
   assert_case "react and knife4x: $path" "$react_java_and_knife4x" "$path"
 done
 for path in front/core/src/__tests__/debug/requestBuilder.test.ts front/schema-engine/tests/schemaEngine.test.ts front/ui-react/src/schema/schemaExampleGeneration.test.ts front/ui-react/src/pages/api/useDebugFormState.integration.test.tsx; do
   assert_case "front tests: $path" "$react_only" "$path"
 done
+assert_case "documentation executable examples and tooling" "$java_and_docs" $'docs/snippets/config/production.yml\ntools/docs/settings-reference.mjs\ntools/test-docs-deployment.sh'
+assert_case "backend settings source" "$java_and_docs" "knife4j/knife4j-openapi3-jakarta-spring-boot-starter/src/main/java/com/github/xiaoymin/knife4j/spring/configuration/Knife4jSetting.java"
 assert_case "front internal readmes" "$none" $'front/README.md\nfront/core/README.md\nfront/schema-engine/README.md\nfront/ui-react/README.md\nfront/vue3/README.md'
 assert_case "mixed test and production" "$react_java_and_knife4x" $'front/ui-react/src/schema/schemaExampleGeneration.test.ts\nfront/schema-engine/src/index.ts'
 assert_case "unknown still widens tests" "$all" $'front/ui-react/src/schema/schemaExampleGeneration.test.ts\nunknown-file'

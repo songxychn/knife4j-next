@@ -1,0 +1,4 @@
+# server 级，子 location 不应另设 allow/deny 覆盖这组规则
+allow 10.0.0.0/8;
+allow 172.16.0.0/12;
+deny all;

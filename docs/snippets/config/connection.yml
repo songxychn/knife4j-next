@@ -1,0 +1,6 @@
+knife4j:
+  connection-setting:
+    socket-timeout: 60000       # 毫秒
+    connect-timeout: 10000      # 毫秒
+    max-connection-total: 200   # 连接池总数
+    max-pre-route: 20           # 每个目标地址最多连接数（沿用现有属性名）

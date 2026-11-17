@@ -19,7 +19,7 @@
 | Java 发布面差异 | `./tools/java-compatibility-report.sh`（需先完成 Java 构建） |
 | `front/schema-engine`、`front/core`、`front/ui-react` | `./tools/test-front-core.sh` |
 | `front/vue3` | `./tools/test-vue3.sh` |
-| `docs/**` | `./tools/test-docs.sh` |
+| `docs/**` | `./tools/test-docs.sh`；`docs/snippets/**` 还需 Java 验证及 `./tools/test-docs-deployment.sh` |
 | `knife4x/go/**`、`knife4x/examples/gin/**` | `./tools/test-knife4x-go.sh` |
 | 跨多区域 | 受影响区域标准脚本的并集，含生成物与消费方 |
 | 全区域变更 / 整体验收 | `./tools/test-all.sh` |
@@ -113,7 +113,7 @@ PicGo / PicList 必须已启动，并已选中可用的默认图床配置；脚�
 
 ### 发布文案
 
-发布准备 PR 同步 README、接入 / 迁移示例、版本表、发布说明等当前入口的目标版本，移除“待发布”“准备发布”“正式发布前请使用旧版”等准备态文案和上一版的“最新”标记；准备阶段用“当前版本”“以下示例使用 X”等中性表述，实际发布状态和未完成步骤记录在 issue / PR，完成声明仍以发布验收为准。打 tag 前逐项复核，不得留到发布后补做。`tools/verify-current-version-docs.py` 只拦截 Maven 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记，不覆盖 Go 版本和其他自由文字，不能替代复核。历史版本记录与兼容边界保持原样。
+发布准备 PR 同步 README、接入 / 迁移示例、版本表、发布说明等当前入口的目标版本，移除“待发布”“准备发布”“正式发布前请使用旧版”等准备态文案和上一版的“最新”标记；准备阶段用“当前版本”“以下示例使用 X”等中性表述，实际发布状态和未完成步骤记录在 issue / PR，完成声明仍以发布验收为准。打 tag 前逐项复核，不得留到发布后补做。`tools/verify-current-version-docs.py` 只拦截 Maven 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记，另核对文档解包脚本的 `knife4j_version`；不覆盖 Go 版本和其他自由文字，不能替代复核。历史版本记录与兼容边界保持原样。
 
 ### Java
 

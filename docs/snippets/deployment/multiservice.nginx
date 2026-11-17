@@ -1,0 +1,24 @@
+server {
+    listen 80;
+    server_name doc.example.com;
+
+    location / {
+        root /opt/knife4j-static;
+        index doc.html;
+        try_files $uri $uri/ =404;
+    }
+
+    location = /v3/api-docs/swagger-config {
+        alias /opt/knife4j-static/swagger-config.json;
+        default_type application/json;
+    }
+
+    # 同时代理文档与业务请求；剥离服务前缀后转发
+    location /user-service/ {
+        proxy_pass http://user-service:8081/;
+    }
+
+    location /order-service/ {
+        proxy_pass http://order-service:8082/;
+    }
+}

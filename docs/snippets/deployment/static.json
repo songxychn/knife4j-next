@@ -1,0 +1,6 @@
+{
+  "urls": [
+    { "name": "用户服务", "url": "/json/user-service.json" },
+    { "name": "订单服务", "url": "/json/order-service.json" }
+  ]
+}

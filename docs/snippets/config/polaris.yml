@@ -1,0 +1,17 @@
+knife4j:
+  enable-aggregation: true
+  polaris:
+    enable: true
+    service-url: http://polaris-server:8080
+    # Polaris 服务端开启认证时配置；允许匿名查询时可省略整个 service-auth
+    service-auth:
+      enable: true
+      username: ${POLARIS_USERNAME}
+      password: ${POLARIS_PASSWORD}
+    routes:
+      - name: 用户服务
+        service: user-service
+        namespace: default
+        location: /v3/api-docs
+        swagger-version: "3.0"
+        order: 1
