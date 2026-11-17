@@ -19,7 +19,7 @@ COORDINATE_PATTERNS = (
 CURRENT_MARKER_PATTERNS = (
     re.compile(r"示例使用 Java `(?P<version>" + VERSION + ")`"),
     re.compile(r"The example uses published Java `(?P<version>" + VERSION + ")`"),
-    re.compile(r"当前源码版本 \|(?:[^\n]*\|)? `(?P<version>" + VERSION + ")` \|$", re.MULTILINE),
+    re.compile(r"当前源码版本 \|(?:[^\n]*\|)? `(?P<version>" + VERSION + r")` \|$", re.MULTILINE),
 )
 LATEST_HEADING = re.compile(r"^### (?P<version>" + VERSION + r") <Badge [^>]*text=\"最新[^\"]*\"", re.MULTILINE)
 RELEASE_NOTES = "docs/release-notes/index.md"
@@ -52,6 +52,12 @@ def verify(root):
                     failures.append(
                         f"{path}:{line_number(text, match.start())}: {match.group('version')} != {expected}"
                     )
+
+    extraction = root / "docs/snippets/deployment/unpack.sh"
+    if extraction.is_file():
+        versions = re.findall(r'^knife4j_version="([^"\n]+)"$', extraction.read_text(), re.MULTILINE)
+        if versions != [expected]:
+            failures.append(f"docs/snippets/deployment/unpack.sh: expected one knife4j_version={expected}, got {versions}")
 
     notes = root / RELEASE_NOTES
     if notes.is_file():

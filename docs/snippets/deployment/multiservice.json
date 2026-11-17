@@ -1,0 +1,14 @@
+{
+  "urls": [
+    {
+      "name": "用户服务",
+      "url": "/user-service/v3/api-docs",
+      "contextPath": "/user-service"
+    },
+    {
+      "name": "订单服务",
+      "url": "/order-service/v3/api-docs",
+      "contextPath": "/order-service"
+    }
+  ]
+}

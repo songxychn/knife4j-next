@@ -155,11 +155,7 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
 ### 生产环境怎么禁用 `doc.html`
 
-```yaml
-knife4j:
-  enable: true
-  production: true
-```
+<<< ../snippets/config/production.yml
 
 这会屏蔽相应 starter 的默认文档入口并返回 JSON 错误响应。OAS3 返回 HTTP 403；OAS2 使用 `knife4j.setting.custom-code`，默认 HTTP 200，因此不能只凭 200 判断文档仍然可用。应同时检查响应内容，或将 OAS2 的 `custom-code` 显式设为 403，详见[配置参考](../reference/configuration#knife4j-setting)。
 
@@ -169,14 +165,7 @@ knife4j:
 
 启用 Basic 认证：
 
-```yaml
-knife4j:
-  enable: true
-  basic:
-    enable: true
-    username: admin
-    password: ${DOC_PASSWORD}
-```
+<<< ../snippets/config/basic.yml
 
 ### 有安全修复吗
 
@@ -592,10 +581,7 @@ OpenAPI3 规范对自由格式 Map 的描述有限。推荐做法：
 2. **`@DynamicParameters`**：仅在 openapi2 starter 中可用（前端为本仓库 `front/vue3`），详见 [Springfox 迁移](./springfox-migration)。
 3. **`additionalProperties`**：OpenAPI3 的 Map 描述方式：
 
-```java
-@Schema(description = "扩展属性", additionalPropertiesSchema = String.class)
-private Map<String, String> extensions;
-```
+<<< ../snippets/java/MapExample.java#field
 
 ## 其他
 

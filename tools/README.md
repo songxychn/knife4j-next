@@ -15,14 +15,15 @@
 | `test-front-core.sh` | schema-engine + core + React format/lint/test/build |
 | `../front/scripts/check-bun.cjs` | OAS3 / Vue3 / docs / Knife4x UI 的统一 Bun 基线检查 |
 | `test-vue3.sh` | Vue3 构建与产物检查 |
-| `test-docs.sh` | Go 文档契约与示例检查 + 文档站构建 + 构建来源校验；需 Go 1.22+ 与现有 Bun 基线 |
+| `test-docs.sh` | Java/React 配置参考对照 + Go 文档契约/示例 + 站点构建/来源 + 站内链接、资源、锚点；需 JDK 17+、Python 3.9+、Go 1.22+ 和现有 Bun 基线 |
+| `test-docs-deployment.sh` | 在 `test-java.sh` 后运行；用当前 WebJar 验证文档 Nginx、静态提取、Worker MIME、访问控制及实际 React JSON 发现；需 Docker、OpenSSL、unzip |
 | `test-knife4x-go.sh` | Knife4x Go module 与 Gin 示例的 gofmt / vet / test；core/all 同时核对 Go 文档契约和示例 |
 | `check-knife4x-docs.go`、`check-knife4x-docs_test.go` | 从 Go AST 校验公开字段、类型、可用版本，核对当前版本标记、安装命令、README 示例及本地链接；编译站点引用的源码示例，最小示例另按已发布兼容基线无 replace 编译 |
 | `sync-knife4x-ui.sh` | 从共享前端源码生成 Knife4x 内嵌 UI；`--check` 只校验生成物一致 |
 | `without-node.sh` | 隔离 PATH 中的独立 Node.js/npm，验证 Bun 工具链 |
-| `test-all.sh` | java + front-core + vue3 + docs + knife4x-go + `sync-knife4x-ui.sh --check` |
+| `test-all.sh` | java + 文档部署验收 + front-core + vue3 + docs + knife4x-go + `sync-knife4x-ui.sh --check` |
 | `test-agent-status.sh` | 任务看板查询、过滤与失败路径 |
-| `verify-current-version-docs.py`、`test-current-version-docs.sh` | 检查已跟踪 Markdown（不含 `legacy/`）中的 `com.baizhukui` 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记是否等于 `knife4j/pom.xml` 版本，及其回归；Build CI 的 `changes` job 每次运行 |
+| `verify-current-version-docs.py`、`test-current-version-docs.sh` | 检查已跟踪 Markdown（不含 `legacy/`）中的 `com.baizhukui` 坐标、“示例使用 Java X”“当前源码版本”与发布说明“最新”标记是否等于 `knife4j/pom.xml` 版本，并检查文档解包脚本的 `knife4j_version`；包含相应回归；Build CI 的 `changes` job 每次运行 |
 
 ### CI 区域分类
 
@@ -33,6 +34,36 @@
 ```bash
 git diff --name-only <base>...<head> | ./tools/ci-changes.sh  # 三点：与 PR CI 一样按 merge-base 计算
 ```
+
+### 文档保鲜与代码同步
+
+配置参考表的字段名、声明类型和初始值从三个 `Knife4jSetting.java` 经 javac AST 提取；
+React “读取默认值”列调用真实 `extractKnife4jSettings`，不维护第二份支持列表。
+`docs/reference/settings-descriptions.json` 只维护解释文字；新增、删除字段必须同步解释。
+源码更改后运行：
+
+```bash
+bun tools/docs/settings-reference.mjs --write
+./tools/test-docs.sh
+```
+
+生成后必须审阅表格差异。默认只检查，不自动修复；无法识别的 Java 初始化表达式、新的
+`Knife4jSetting` 实现会直接失败，需先审查检查器支持范围。`test-java.sh` 在编译后还会
+实例化当前三个 bean，对照实际字段初值。这些检查不证明每个设置的 UI 功能已实现，
+也不代替自由文字、兼容边界与安全语义的人工审阅。
+
+`docs/snippets/` 是已纳入验证的关键示例的唯一维护位置，页面用 VitePress `<<<` 引用。
+现有 Java smoke 直接加载 production/Basic YAML，验证实际保护与关闭增强后的行为；
+Map 注解示例以当前依赖编译，语言示例用实际枚举转换；聚合测试验证 Nacos、Polaris、
+连接池的严格绑定和 Polaris 启动条件。没有连接真实 Nacos/Polaris 服务。
+部署验收直接执行文档解包脚本，使用固定官方 Nginx 镜像在无外网、无宿主端口的容器内
+检查代理、多服务、静态部署以及三种保护策略；JSON 示例同时传给实际 React 发现与请求前缀函数。
+新增示例时选择已有行为测试并直接引用原文件，不复制一份测试数据。
+
+Java 源码及 OAS3 前端生产代码变化都会触发 `docs-build`；可执行文档示例和检查器变化
+还会触发 Java 验证和文档部署验收。渲染后的链接检查覆盖整个站点的本地 `href/src/poster`
+与 HTML fragment，忽略外部 URL，不访问网络，也不把 SPA 回退页面当作有效目标。
+外链、CSS 内资源及所有文字叙述不在此静态检查范围。保留现有 Go 契约和当前版本门禁。
 
 ### Go 文档来源与边界
 

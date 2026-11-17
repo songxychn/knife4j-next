@@ -103,14 +103,19 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 
 ### `knife4j.setting.*`
 
-| 属性 | 类型 | 默认值 | 说明 | React UI |
+<!-- generated: settings-reference -->
+
+此表由当前 Java 字段声明与 React 默认值读取函数生成。默认值指未配置时的字段初始值；“读取”不代表完整功能或安全边界已通过验收。
+
+| 属性 | 声明类型 | 声明默认值 | 说明 | React 读取默认值 |
 | --- | --- | --- | --- | --- |
-| `knife4j.setting.language` | `ZH_CN` / `EN` / `JA_JP` | `ZH_CN` | 界面语言 | ✅ |
+| `knife4j.setting.customCode` | `Integer` | `200` | 仅 OAS2 生产屏蔽过滤器使用；OAS3 固定返回 403 | — |
+| `knife4j.setting.language` | `OpenAPILanguageEnums` | `"ZH_CN"` | 界面语言 | ✅ |
 | `knife4j.setting.enableSwaggerModels` | `boolean` | `true` | 显示 Swagger Models 功能 | ✅ |
 | `knife4j.setting.swaggerModelName` | `String` | `"Swagger Models"` | Swagger Models 名称 | ✅ |
+| `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | — |
+| `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | — |
 | `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ✅ |
-| `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | ⚠️ |
-| `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | ⚠️ |
 | `knife4j.setting.enableVersion` | `boolean` | `false` | 提示新增和已变化的接口（OpenAPI 3.0.x / 3.1.x / 3.2.x） | ✅ |
 | `knife4j.setting.enableRequestCache` | `boolean` | `true` | 启用请求参数缓存 | ✅ |
 | `knife4j.setting.enableFilterMultipartApis` | `boolean` | `false` | 过滤 RequestMapping 多方法显示 | ✅ |
@@ -121,16 +126,18 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.enableDebug` | `boolean` | `true` | 启用调试功能 | ✅ |
 | `knife4j.setting.enableFooter` | `boolean` | `true` | 显示默认 Footer | ✅ |
 | `knife4j.setting.enableFooterCustom` | `boolean` | `false` | 自定义 Footer | ✅ |
-| `knife4j.setting.footerCustomContent` | `String` | — | 自定义 Footer 内容（支持 Markdown） | ✅ |
+| `knife4j.setting.footerCustomContent` | `String` | `null` | 自定义 Footer 内容（支持 Markdown） | ✅ |
 | `knife4j.setting.enableSearch` | `boolean` | `true` | 显示搜索框 | ✅ |
 | `knife4j.setting.enableOpenApi` | `boolean` | `true` | 显示 OpenAPI 原始结构 Tab | ✅ |
 | `knife4j.setting.enableHomeCustom` | `boolean` | `false` | 启用首页自定义 | ✅ |
-| `knife4j.setting.homeCustomLocation` | `String` | — | 首页自定义 Markdown 内容（通常由后端根据 `homeCustomPath` 读取后注入） | ✅ |
+| `knife4j.setting.homeCustomLocation` | `String` | `null` | 首页自定义 Markdown 内容（通常由后端根据 `homeCustomPath` 读取后注入） | ✅ |
 | `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ✅ |
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态概要（状态码、说明、Schema 和 Media Type） | ✅ |
-| `knife4j.setting.customCode` | `Integer` | `200` | 仅 OAS2 生产屏蔽过滤器使用；OAS3 固定返回 403 | —（服务端配置，React 不消费） |
+| `knife4j.setting.homeCustomPath` | OAS2: —<br>OAS3 Boot2: `String`<br>OAS3 Jakarta / Boot4: `String` | OAS2: —<br>OAS3 Boot2: `null`<br>OAS3 Jakarta / Boot4: `null` | 后端读取的自定义首页 Markdown 文件路径；React 接收读取后的内容 | — |
 
-> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的 `enableAfterScript` / `enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费；这两项存在于 Vue2 基线，并已移植到 Vue3。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
+<!-- /generated: settings-reference -->
+
+> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，表中标 ✅ 的字段表示读取后端默认值；用户在前端设置面板中的本地选择会覆盖后端默认值。`enableAfterScript` / `enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费；这两项存在于 Vue2 基线，并已移植到 Vue3。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
 > `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
 

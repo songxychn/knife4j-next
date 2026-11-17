@@ -1,0 +1,25 @@
+server {
+    listen 80;
+    server_name doc.example.com;
+
+    # 静态文件；http {} 中需 include mime.types，确保 JS/CSS MIME 正确
+    location / {
+        root /opt/knife4j-static;
+        index doc.html;
+        try_files $uri $uri/ =404;
+    }
+
+    # 代理 OpenAPI 接口
+    location /v3/api-docs {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # 自定义 springdoc.api-docs.path 时用于发现实际 swagger-config 地址
+    location /knife4j/config {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+    }
+}

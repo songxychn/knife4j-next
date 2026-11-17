@@ -18,6 +18,8 @@
 package com.github.xiaoymin.knife4j.smoke.boot2;
 
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.core.io.FileSystemResource;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,8 +42,14 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -164,23 +172,54 @@ public class Boot2DocHttpSmokeTest {
     public void shouldBlockApiDocsWhenProductionTrue() throws IOException {
         context = new SpringApplicationBuilder(TestApplication.class)
                 .web(WebApplicationType.SERVLET)
-                .properties(
-                        "server.port=0",
-                        "knife4j.enable=true",
-                        "knife4j.production=true",
-                        "spring.mvc.pathmatch.matching-strategy=ant_path_matcher",
-                        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
-                        "logging.level.root=ERROR")
+                .properties(documentationProperties("production.yml"))
                 .run();
 
         int port = ((WebServerApplicationContext) context).getWebServer().getPort();
 
         // production=true should block /v2/api-docs and return JSON (not HTML) (#666, #859)
         HttpResponse apiDocs = get(port, "/v2/api-docs");
+        Assert.assertEquals(200, apiDocs.statusCode);
+        Assert.assertTrue(apiDocs.body.contains("permission"));
         Assert.assertFalse("Response should not be HTML when production=true (#666, #859)",
                 apiDocs.body.contains("<!DOCTYPE"));
         Assert.assertTrue("Response should be JSON when production=true (#666, #859)",
                 apiDocs.body.contains("\"code\"") || apiDocs.body.contains("\"message\""));
+    }
+
+    @Test
+    public void shouldRequireEnhancementForDocumentedProductionProtection() throws IOException {
+        Map<String, Object> properties = documentationProperties("production.yml");
+        properties.put("knife4j.enable", "false");
+        context = new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.SERVLET)
+                .properties(properties)
+                .run();
+        Assert.assertTrue(context.getBeansOfType(com.github.xiaoymin.knife4j.spring.filter.ProductionSecurityFilter.class).isEmpty());
+        HttpResponse response = get(((WebServerApplicationContext) context).getWebServer().getPort(), "/doc.html");
+        Assert.assertEquals(200, response.statusCode);
+        Assert.assertFalse(response.body.contains("You do not have permission"));
+        Assert.assertTrue(response.body.contains("webjars/js/"));
+    }
+
+    private static Map<String, Object> documentationProperties(String name) {
+        Path root = Paths.get("").toAbsolutePath();
+        while (root != null && !Files.isDirectory(root.resolve("docs/snippets/config"))) {
+            root = root.getParent();
+        }
+        Assert.assertNotNull("Cannot locate documentation snippets", root);
+        YamlPropertiesFactoryBean loader = new YamlPropertiesFactoryBean();
+        loader.setResources(new FileSystemResource(root.resolve("docs/snippets/config").resolve(name).toFile()));
+        Properties yaml = loader.getObject();
+        Assert.assertNotNull(yaml);
+        Assert.assertEquals("Documented protection must enable Knife4j", "true", yaml.getProperty("knife4j.enable"));
+        Map<String, Object> properties = new LinkedHashMap<>();
+        yaml.forEach((key, value) -> properties.put(key.toString(), value));
+        properties.put("server.port", "0");
+        properties.put("logging.level.root", "ERROR");
+        properties.put("spring.mvc.pathmatch.matching-strategy", "ant_path_matcher");
+        properties.put("spring.autoconfigure.exclude", "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration");
+        return properties;
     }
 
     private HttpResponse get(int port, String path) throws IOException {

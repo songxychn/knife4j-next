@@ -1,0 +1,15 @@
+server {
+    listen 80;
+    server_name doc.example.com;
+    root /opt/knife4j-static;
+    index doc.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location = /v3/api-docs/swagger-config {
+        alias /opt/knife4j-static/swagger-config.json;
+        default_type application/json;
+    }
+}

@@ -1,0 +1,22 @@
+knife4j:
+  enable-aggregation: true
+  nacos:
+    enable: true
+    service-url: http://nacos:8848/nacos
+    # 若 Nacos 本身开启鉴权（参考 v2.0.9+）
+    service-auth:
+      enable: true
+      username: nacos
+      password: ${NACOS_PASSWORD}
+    # 访问下游服务时使用的公共 Basic（仅用于 swagger 接口）
+    route-auth:
+      enable: false
+    routes:
+      - name: 用户服务
+        service-name: user-service
+        namespace-id: ""  # public 默认命名空间；其他命名空间填写实际 ID
+        group-name: DEFAULT_GROUP
+        location: /v3/api-docs
+        swagger-version: "3.0"
+        service-path: /user-service
+        order: 1

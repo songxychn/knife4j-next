@@ -1,0 +1,16 @@
+knife4j:
+  enable-aggregation: true
+  polaris:
+    enable: true
+    serviceUrl: http://polaris-server:8080  # 当前启动条件要求此 camelCase 写法
+    service-auth:
+      enable: true
+      username: ${POLARIS_USERNAME}
+      password: ${POLARIS_PASSWORD}
+    routes:
+      - name: 用户服务
+        service: user-service
+        namespace: default
+        location: /v3/api-docs
+        swagger-version: "3.0"
+        order: 1

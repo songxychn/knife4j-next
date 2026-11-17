@@ -79,6 +79,9 @@ jobs:
       - name: Verify Java modules
         run: tools/without-node.sh tools/test-java.sh
 
+      - name: Verify documented deployment against current WebJar
+        run: tools/without-node.sh tools/test-docs-deployment.sh
+
       - name: Generate Java compatibility report
         run: tools/java-compatibility-report.sh
 
@@ -226,6 +229,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Set up JDK for settings declarations
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
