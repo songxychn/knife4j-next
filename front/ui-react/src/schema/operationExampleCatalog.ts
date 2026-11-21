@@ -4,7 +4,7 @@ import {
   analyzeOas32FormBody,
   extractMultipartUploadFields,
   normalizeAllOfSchema,
-  exampleHasOwn,
+  hasOwn,
   getOpenApiSpecificationFeatures,
   interpretExampleObject,
   isExampleData,
@@ -22,6 +22,7 @@ import {
   type Oas32Parameter,
   type Oas32ParameterResult,
   type SchemaValue,
+  appendJsonPointer,
 } from 'knife4j-core';
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
@@ -86,7 +87,7 @@ export interface OperationExampleResult {
 
 const child = (parent: OpenApiObjectLocation, name: string, value: unknown): OpenApiObjectLocation => ({
   ownerRetrievalUri: parent.ownerRetrievalUri,
-  pointer: `${parent.pointer}/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+  pointer: appendJsonPointer(parent.pointer, name),
   value,
 });
 const reference = (location: OpenApiObjectLocation): string =>
@@ -206,7 +207,7 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
         },
       });
     };
-    if (exampleHasOwn(value, 'example'))
+    if (hasOwn(value, 'example'))
       append('example', child(container, 'example', value.example), { value: value.example });
     for (const [name, raw] of Object.entries(record(value.examples) ?? {})) {
       const site = child(child(container, 'examples', value.examples), name, raw);
@@ -215,7 +216,7 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
     }
   };
   const schemaAt = (container: OpenApiObjectLocation) =>
-    exampleHasOwn(container.value as object, 'schema')
+    hasOwn(container.value as object, 'schema')
       ? child(container, 'schema', (container.value as Record<string, unknown>).schema)
       : undefined;
   const mediaList = (container: OpenApiObjectLocation) =>
@@ -320,10 +321,10 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
         rawSchema && (category === 'urlencoded' || category === 'multipart')
           ? normalizeAllOfSchema(rawSchema, ownerDocument)
           : rawSchema;
-      const encoding = value && exampleHasOwn(value, 'encoding') ? value.encoding : undefined;
-      const prefixEncoding = value && exampleHasOwn(value, 'prefixEncoding') ? value.prefixEncoding : undefined;
-      const itemEncoding = value && exampleHasOwn(value, 'itemEncoding') ? value.itemEncoding : undefined;
-      const itemSchema = value && exampleHasOwn(value, 'itemSchema') ? (value.itemSchema as SchemaValue) : undefined;
+      const encoding = value && hasOwn(value, 'encoding') ? value.encoding : undefined;
+      const prefixEncoding = value && hasOwn(value, 'prefixEncoding') ? value.prefixEncoding : undefined;
+      const itemEncoding = value && hasOwn(value, 'itemEncoding') ? value.itemEncoding : undefined;
+      const itemSchema = value && hasOwn(value, 'itemSchema') ? (value.itemSchema as SchemaValue) : undefined;
       const schemaRecord =
         schema && typeof schema === 'object' && !Array.isArray(schema)
           ? (schema as Record<string, unknown>)
@@ -394,9 +395,7 @@ export function locateOperationExampleCatalog(document: SwaggerDoc, operation: M
         mediaLocation: media ?? site,
         schemaLocation: media ? schemaAt(media) : undefined,
         itemSchemaLocation:
-          media && value && exampleHasOwn(value, 'itemSchema')
-            ? child(media, 'itemSchema', value.itemSchema)
-            : undefined,
+          media && value && hasOwn(value, 'itemSchema') ? child(media, 'itemSchema', value.itemSchema) : undefined,
         context: { layer: 'media', mediaType, bodyContent, encoding: record(value?.encoding) ?? undefined },
       };
       if (media) {
@@ -459,10 +458,9 @@ export function exampleDefaultTarget(targets: readonly OperationExampleTarget[])
     const author =
       entries.find(
         (target) =>
-          target.source &&
-          ['dataValue', 'serializedValue', 'value'].some((field) => exampleHasOwn(target.source!, field)),
+          target.source && ['dataValue', 'serializedValue', 'value'].some((field) => hasOwn(target.source!, field)),
       ) ??
-      entries.find((target) => target.source && exampleHasOwn(target.source, 'externalValue')) ??
+      entries.find((target) => target.source && hasOwn(target.source, 'externalValue')) ??
       entries.find((target) => target.unavailable);
     if (author) return author;
   }

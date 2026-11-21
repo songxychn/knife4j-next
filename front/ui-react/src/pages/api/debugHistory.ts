@@ -1,3 +1,4 @@
+import { isRecord } from 'knife4j-core';
 import type { FormBodyEncodingPlan, SerializedExampleParameter } from 'knife4j-core';
 import { readExampleParameterInputs } from './debugCache';
 import { readCookieParameterSource, type CookieParameterSource } from './cookieParameterSource';
@@ -156,10 +157,6 @@ const SENSITIVE_COOKIE_NAMES = new Set([
   'id_token',
   'id-token',
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';

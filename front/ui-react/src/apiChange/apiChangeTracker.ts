@@ -5,6 +5,8 @@ import {
   isOpenApi31Version,
   OPENAPI_HTTP_METHODS,
   type OpenApiDocumentDiagnostic as Oas31DocumentDiagnostic,
+  isRecord,
+  hasOwn,
 } from 'knife4j-core';
 import { buildOperationOpenApiDocument } from '../pages/api/operationOpenApiDocument';
 import {
@@ -117,14 +119,6 @@ export interface ApiChangeSummary {
 }
 
 type JsonRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function hasOwn(record: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
-}
 
 function emptyFingerprintMap(): ApiOperationFingerprintMap {
   return Object.create(null) as ApiOperationFingerprintMap;

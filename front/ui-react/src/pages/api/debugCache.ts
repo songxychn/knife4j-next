@@ -1,3 +1,4 @@
+import { isRecord } from 'knife4j-core';
 import {
   KNIFE4J_STORAGE_PREFIXES,
   getKnife4jStorageItem,
@@ -48,10 +49,6 @@ export interface DebugCacheStorage {
 }
 
 const RAW_MODES = new Set<DebugCacheRawMode>(['text', 'json', 'javascript', 'xml', 'html']);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';

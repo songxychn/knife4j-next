@@ -10,6 +10,7 @@
 
 import type { SchemaValue } from './types';
 import { dereferenceOasReferenceObject, isOpenApi31Version, resolveLocalJsonPointer } from '../openapi31/document';
+import { decodeJsonPointerToken, isRecord } from '../utils/guards';
 
 function resolveRefValue(ref: string, doc: Record<string, unknown>): unknown {
   if (!isOpenApi31Version(doc.openapi)) {
@@ -23,7 +24,7 @@ function resolveRefValue(ref: string, doc: Record<string, unknown>): unknown {
     let current: unknown = doc;
     for (const encodedPart of pointer.split('/')) {
       if (current === null || typeof current !== 'object') return undefined;
-      const part = encodedPart.replace(/~1/g, '/').replace(/~0/g, '~');
+      const part = decodeJsonPointerToken(encodedPart);
       current = (current as Record<string, unknown>)[part];
     }
     return current;
@@ -130,10 +131,6 @@ export function dereferenceReferenceObject(
     depth++;
   }
   return current;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function jsonValuesEqual(left: unknown, right: unknown): boolean {

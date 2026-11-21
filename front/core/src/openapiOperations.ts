@@ -7,6 +7,7 @@ import {
   projectPathItemOperation,
 } from './openapi31/document';
 import { getOpenApiSpecificationFeatures, OPENAPI_HTTP_METHODS } from './openapiVersion';
+import { decodeJsonPointerToken } from './utils/guards';
 
 export type OpenApiDocumentDiagnostic = Oas31DocumentDiagnostic | (Oas32DocumentDiagnostic & { value?: string });
 
@@ -136,10 +137,7 @@ export const HTTP_METHOD_TOKEN = /^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$/;
 export function physicalJsonPointerTokens(pointer: string): string[] | null {
   if (pointer === '#') return [];
   if (!pointer.startsWith('#/') || /~(?![01])/.test(pointer)) return null;
-  return pointer
-    .slice(2)
-    .split('/')
-    .map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+  return pointer.slice(2).split('/').map(decodeJsonPointerToken);
 }
 
 export function resolvePhysicalJsonPointer(document: unknown, pointer: string): { found: boolean; value?: unknown } {

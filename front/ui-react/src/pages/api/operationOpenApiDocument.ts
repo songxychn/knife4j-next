@@ -4,6 +4,7 @@ import {
   parseLocalJsonPointer,
   resolveJsonPointerTokens,
   resolvePathItemObject,
+  hasOwn,
 } from 'knife4j-core';
 import { stringify } from 'yaml';
 import type { SwaggerDoc } from '../../types/swagger';
@@ -37,10 +38,6 @@ interface LocalJsonPointer {
 
 function asRecord(value: unknown): OpenApiRecord | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as OpenApiRecord) : null;
-}
-
-function hasOwn(record: OpenApiRecord, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
 }
 
 function createOpenApiRecord(): OpenApiRecord {

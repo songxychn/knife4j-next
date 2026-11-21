@@ -1,6 +1,13 @@
 import { cloneAndCountEntry, parseExternalResourceDocument } from './externalResourceDocument';
 export { parseExternalResourceDocument } from './externalResourceDocument';
-import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from 'knife4j-core';
+import {
+  getOpenApiSpecificationFeatures,
+  getOpenApiStandardHttpMethods,
+  isRecord,
+  hasOwn as owns,
+  decodeJsonPointerToken,
+  encodeJsonPointerToken as pointerToken,
+} from 'knife4j-core';
 import { isUriReference, normalizeUri, parseUri, resolveUri, toAbsoluteUri } from 'knife4j-schema-engine/uri';
 import type { SchemaDocumentRegistrationContext } from 'knife4j-schema-engine';
 import { sha256Hex } from '../utils/stableJson';
@@ -305,10 +312,6 @@ const SCHEMA_MAP_KEYWORDS = ['properties', 'patternProperties', 'dependentSchema
 const ANCHOR_NAME = /^[A-Za-z_][-A-Za-z0-9._]*$/;
 const COMPONENT_NAME = /^[A-Za-z0-9._-]+$/;
 
-const isRecord = (value: unknown): value is JsonRecord =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-const owns = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
-const pointerToken = (value: string): string => value.replace(/~/g, '~0').replace(/\//g, '~1');
 const childPointer = (pointer: string, key: string | number): string => `${pointer}/${pointerToken(String(key))}`;
 
 function normalizeLimits(overrides: Partial<ResourceLoadLimits> = {}): Readonly<ResourceLoadLimits> {
@@ -1683,7 +1686,7 @@ function resolveJsonPointer(root: unknown, fragment: string): unknown {
   if (!pointer) return root;
   let current = root;
   for (const encoded of pointer.slice(1).split('/')) {
-    const token = encoded.replace(/~1/g, '/').replace(/~0/g, '~');
+    const token = decodeJsonPointerToken(encoded);
     if (current === null || typeof current !== 'object' || !owns(current, token)) return undefined;
     current = (current as JsonRecord)[token];
   }
@@ -1709,10 +1712,7 @@ function portableOperationPathItem(document: unknown, pointer: string): IndexedT
   if (!isRecord(document) || typeof document.openapi !== 'string' || !pointer.startsWith('#/')) return undefined;
   // Indexed pointers are already URI-decoded. Only decode their JSON Pointer
   // tokens here, so a literal percent escape in a path is not decoded twice.
-  const tokens = pointer
-    .slice(2)
-    .split('/')
-    .map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+  const tokens = pointer.slice(2).split('/').map(decodeJsonPointerToken);
   if (tokens.length !== 5) return undefined;
   const [field, name, section, path, method] = tokens;
   if (

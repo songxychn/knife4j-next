@@ -1,4 +1,4 @@
-import { schemaFieldXml, type SchemaFieldNode } from 'knife4j-core';
+import { schemaFieldXml, type SchemaFieldNode, decodeJsonPointerToken, encodeJsonPointerToken } from 'knife4j-core';
 import type { JsonValue, SchemaNode } from 'knife4j-schema-engine';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 
@@ -112,11 +112,11 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 function jsonPointerToken(value: string): string {
-  return value.replace(/~/g, '~0').replace(/\//g, '~1');
+  return encodeJsonPointerToken(value);
 }
 
 function decodePointerToken(value: string): string {
-  return value.replace(/~1/g, '/').replace(/~0/g, '~');
+  return decodeJsonPointerToken(value);
 }
 
 export function componentSchemaReference(name: string): string {

@@ -3,6 +3,8 @@ import {
   inferReferenceObjectTargetKind,
   physicalJsonPointerTokens,
   resolveLocalJsonPointer,
+  appendJsonPointer,
+  decodeJsonPointerToken,
 } from 'knife4j-core';
 import { resolveOperationReference } from './operationRegistry';
 import type { MenuOperation, ResponseObject, SwaggerDoc } from '../types/swagger';
@@ -80,13 +82,7 @@ export function followRegisteredObject(
     let tokens: string[];
     try {
       const pointer = decodeURIComponent(fragment.slice(1));
-      tokens =
-        pointer === ''
-          ? []
-          : pointer
-              .slice(1)
-              .split('/')
-              .map((token) => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+      tokens = pointer === '' ? [] : pointer.slice(1).split('/').map(decodeJsonPointerToken);
     } catch {
       return null;
     }
@@ -116,7 +112,7 @@ export function locateOperationResponses(
         let location = {
           value,
           ownerRetrievalUri: identity.rawOperation.ownerRetrievalUri,
-          pointer: `${identity.rawOperation.pointer}/responses/${statusCode.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+          pointer: appendJsonPointer(`${identity.rawOperation.pointer}/responses`, statusCode),
         };
         const seen = new Set<string>();
         let summary: string | undefined;

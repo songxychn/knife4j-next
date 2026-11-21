@@ -1,4 +1,9 @@
-import { getOpenApiSpecificationFeatures, physicalJsonPointerTokens, resolvePhysicalJsonPointer } from 'knife4j-core';
+import {
+  getOpenApiSpecificationFeatures,
+  physicalJsonPointerTokens,
+  resolvePhysicalJsonPointer,
+  appendJsonPointer,
+} from 'knife4j-core';
 import type { SchemaNode } from 'knife4j-schema-engine';
 import { isUriReference, parseUri } from 'knife4j-schema-engine/uri';
 import type { ResourceGraphObject, ResourceGraphSnapshot } from './externalResourceGraph';
@@ -177,8 +182,7 @@ const record = (value: unknown): RecordValue | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as RecordValue) : undefined;
 const locationKey = (location: Oas32XmlSchemaLocation): string =>
   JSON.stringify([location.ownerRetrievalUri, location.pointer]);
-const pointerChild = (pointer: string, token: string): string =>
-  `${pointer}/${token.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+const pointerChild = (pointer: string, token: string): string => appendJsonPointer(pointer, token);
 const at = (site: Site, ...tokens: string[]): Oas32XmlSchemaLocation => ({
   ownerRetrievalUri: site.location.ownerRetrievalUri,
   pointer: tokens.reduce(pointerChild, site.location.pointer),

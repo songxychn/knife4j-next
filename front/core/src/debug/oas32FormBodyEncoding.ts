@@ -19,6 +19,7 @@ import type {
 import { isJsonMediaType, parseOas31ParameterValue, serializeOas31Parameters } from './parameterSerialization';
 import { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
 import { dereferenceReferenceObject, normalizeAllOfSchema, resolveSchemaRef } from './resolveRef';
+import { hasOwn, isRecord } from '../utils/guards';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -53,14 +54,6 @@ const MULTIPART_CONTENT_HEADERS = new Set([
   'content-location',
   'content-range',
 ]);
-
-function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function hasOwn(value: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
 
 function mediaTypeEssence(value: string): string {
   return value.split(';', 1)[0].trim().toLowerCase();

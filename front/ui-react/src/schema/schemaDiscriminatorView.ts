@@ -1,3 +1,4 @@
+import { encodeJsonPointerToken } from 'knife4j-core';
 import type { ExampleRepresentation, SchemaFieldNode } from 'knife4j-core';
 import type { ResourceGraphSnapshot } from './externalResourceGraph';
 import {
@@ -14,7 +15,7 @@ import {
 } from './schemaDiscriminator';
 
 function componentPointer(name: string): string {
-  return `#/components/schemas/${name.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+  return `#/components/schemas/${encodeJsonPointerToken(name)}`;
 }
 
 const indexes = new WeakMap<ResourceGraphSnapshot, SchemaDiscriminatorIndex>();

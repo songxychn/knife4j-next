@@ -1,4 +1,4 @@
-import lodash from 'lodash';
+import KUtils from './utils/KUtils';
 
 import { Knife4jTagObject } from './tag/Knife4jTagObject';
 import { Knife4jInfoObject } from './info/Knife4jInfoObject';
@@ -58,9 +58,9 @@ export class Knife4jInstance {
     if (tag === null) {
       return;
     }
-    const keys = lodash.keys(this.tagNames);
+    const keys = Object.keys(this.tagNames);
     //避免重复添加
-    if (!lodash.includes(keys, tag.name)) {
+    if (!keys.includes(tag.name)) {
       // 初始化count为0
       this.tagNames[tag.name] = 0;
       this.tags.push(tag);
@@ -72,9 +72,9 @@ export class Knife4jInstance {
    * @param tagName tag名称
    */
   addTagCount(tagName: string): void {
-    const keys = lodash.keys(this.tagNames);
+    const keys = Object.keys(this.tagNames);
     let count = 0;
-    if (lodash.includes(keys, tagName)) {
+    if (keys.includes(tagName)) {
       //已经包含
       count = this.tagNames[tagName];
       count = count + 1;
@@ -113,14 +113,14 @@ export class Knife4jInstance {
    * @param methodType 接口类型，例如：post、get、delete等等
    */
   resolveSinglePathAsync(path: string, methodType: string) {
-    if (lodash.isEmpty(path)) {
+    if (KUtils.isEmpty(path)) {
       return;
     }
     console.log('async path:', path);
     console.log(this.parseFactory);
     //从集合中找出当前对象
     const pathFilters = this.paths.filter((operation) => operation.url === path && operation.methodType === methodType);
-    if (lodash.isEmpty(pathFilters)) {
+    if (KUtils.isEmpty(pathFilters)) {
       return;
     }
     const pathObject = pathFilters[0];

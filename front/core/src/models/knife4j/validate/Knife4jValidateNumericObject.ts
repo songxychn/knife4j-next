@@ -1,4 +1,4 @@
-import lodash from 'lodash';
+import KUtils from '../utils/KUtils';
 import { SchemaObject } from '../../openapi3/types';
 
 /**
@@ -34,7 +34,7 @@ export class Knife4jValidateNumericObject {
    * @param schema schema对象
    */
   resolveOpenAPI3Schema(schema: SchemaObject) {
-    if (lodash.isEmpty(schema)) {
+    if (KUtils.isEmpty(schema)) {
       return;
     }
     this.multipleOf = schema.multipleOf;

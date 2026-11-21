@@ -1,3 +1,4 @@
+import { isRecord } from 'knife4j-core';
 import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from '../locales/language';
 import { DEFAULT_SETTINGS, type AppSettings } from '../types/settings';
 
@@ -7,10 +8,6 @@ export type SettingsOverrides = Partial<AppSettings>;
 
 export function resolveAppSettings(serverSettings: SettingsOverrides, userOverrides: SettingsOverrides): AppSettings {
   return { ...DEFAULT_SETTINGS, ...serverSettings, ...userOverrides };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function sanitizeOverrides(value: unknown): SettingsOverrides {

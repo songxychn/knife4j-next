@@ -1,4 +1,5 @@
 import { escapeJsonPointerSegment, isOpenApi31Version, parseLocalJsonPointer } from './document';
+import { isRecord } from '../utils/guards';
 
 export type Oas31CompatibilityDiagnosticCode =
   'unsupported-dialect' | 'external-ref' | 'anchor-ref' | 'dynamic-ref' | 'schema-base';
@@ -30,10 +31,6 @@ const SINGLE_SCHEMA_KEYWORDS = new Set([
 ]);
 const ARRAY_SCHEMA_KEYWORDS = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']);
 const MAP_SCHEMA_KEYWORDS = new Set(['$defs', 'definitions', 'dependentSchemas', 'patternProperties', 'properties']);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 /** Keep diagnostic values useful without echoing URL credentials or query values. */
 function safeDiagnosticValue(value: string): string {

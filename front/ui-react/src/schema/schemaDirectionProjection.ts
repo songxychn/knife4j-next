@@ -1,3 +1,4 @@
+import { isRecord } from 'knife4j-core';
 import type { JsonValue } from 'knife4j-schema-engine';
 import type { SwaggerDoc } from '../types/swagger';
 
@@ -107,9 +108,6 @@ class DirectionalProjectionBudgetError extends Error {
     this.details = Object.freeze({ limit, actual });
   }
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
 
 type JsonSchema = boolean | { [key: string]: JsonValue };
 

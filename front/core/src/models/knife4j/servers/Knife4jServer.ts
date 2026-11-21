@@ -1,4 +1,4 @@
-import lodash from 'lodash';
+import KUtils from '../utils/KUtils';
 import { Knife4jServerVariableObject } from './Knife4jServerVariableObject';
 
 /**
@@ -33,10 +33,10 @@ export class Knife4jServer {
    * @param value value
    */
   addVariable(key: string, value: Knife4jServerVariableObject) {
-    if (lodash.isEmpty(key) || lodash.isEmpty(value)) {
+    if (KUtils.isEmpty(key) || KUtils.isEmpty(value)) {
       return;
     }
-    if (lodash.isEmpty(this.variables)) {
+    if (KUtils.isEmpty(this.variables)) {
       this.variables = {};
     }
     this.variables[key] = value;

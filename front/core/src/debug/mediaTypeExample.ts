@@ -4,6 +4,7 @@ import { buildSchemaExample } from './schemaExample';
 import { getOpenApiSpecificationFeatures } from '../openapiVersion';
 import { interpretExampleObject } from './exampleRepresentation';
 import { parseLocalJsonPointer, resolveLocalJsonPointer } from '../openapi31/document';
+import { hasOwn } from '../utils/guards';
 
 interface MediaTypeExampleSource {
   example?: unknown;
@@ -13,10 +14,6 @@ interface MediaTypeExampleSource {
 
 interface MediaTypeExampleOptions {
   mediaType?: string;
-}
-
-function hasOwn(obj: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 function isJsonMediaType(mediaType: string | undefined): boolean {
@@ -91,7 +88,7 @@ export function buildMediaTypeExampleValue(
 ): string | undefined {
   if (getOpenApiSpecificationFeatures(ctx.doc.openapi)?.family === '3.2') {
     const authored =
-      mediaObj && hasOwn(mediaObj as Record<string, unknown>, 'example')
+      mediaObj && hasOwn(mediaObj, 'example')
         ? [{ value: mediaObj.example }]
         : Object.values(mediaObj?.examples ?? {}).map((example) => resolveOas32Example(example, ctx.doc));
     const selected =

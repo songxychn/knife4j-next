@@ -1,4 +1,10 @@
 import { isOpenApi31Version, type OpenApiHttpMethod } from '../openapiVersion';
+import {
+  decodeJsonPointerToken as unescapeJsonPointerToken,
+  encodeJsonPointerToken,
+  hasOwn as owns,
+  isRecord,
+} from '../utils/guards';
 
 export { OPENAPI_HTTP_METHODS, isOpenApi3Version, isOpenApi31Version, parseOpenApiVersion } from '../openapiVersion';
 export type { OpenApiHttpMethod, ParsedOpenApiVersion } from '../openapiVersion';
@@ -41,21 +47,13 @@ export type ReferenceObjectTargetKind =
 
 export type LocalReferenceTargetKind = ReferenceObjectTargetKind | 'schema' | 'pathItem';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function owns(value: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
-
 export function escapeJsonPointerSegment(value: string): string {
-  return value.replace(/~/g, '~0').replace(/\//g, '~1');
+  return encodeJsonPointerToken(value);
 }
 
 function decodeJsonPointerToken(value: string): string | null {
   if (/~(?:[^01]|$)/.test(value)) return null;
-  return value.replace(/~1/g, '/').replace(/~0/g, '~');
+  return unescapeJsonPointerToken(value);
 }
 
 export function parseLocalJsonPointer(ref: string): ParsedLocalJsonPointer {

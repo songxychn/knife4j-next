@@ -1,8 +1,5 @@
+import { isRecord } from 'knife4j-core';
 type JsonRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 /** JSON serialization with recursively sorted object keys and preserved array order. */
 export function stableSerializeJson(value: unknown): string {

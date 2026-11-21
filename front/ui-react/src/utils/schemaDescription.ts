@@ -10,14 +10,10 @@
  * The resulting map can be looked up while iterating the pretty-printed
  * JSON response so that field descriptions can be rendered inline.
  */
-import { normalizeAllOfSchema } from 'knife4j-core';
+import { normalizeAllOfSchema, isRecord } from 'knife4j-core';
 import type { SchemaObject, SwaggerDoc } from '../types/swagger';
 
 type SchemaDoc = Pick<SwaggerDoc, 'openapi' | 'components' | 'definitions'>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 /** Resolve local refs and conjunctions with the core OAS 3.1 projection. */
 function resolveSchema(schema: SchemaObject | undefined, doc: SchemaDoc, depth = 0): SchemaObject | undefined {

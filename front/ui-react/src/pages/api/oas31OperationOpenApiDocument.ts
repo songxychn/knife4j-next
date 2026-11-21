@@ -6,6 +6,7 @@ import {
   isOpenApi31Version,
   parseLocalJsonPointer,
   resolveJsonPointerTokens,
+  hasOwn as owns,
 } from 'knife4j-core';
 import {
   PORTABLE_SCHEMA_RESOURCES_EXTENSION,
@@ -155,10 +156,6 @@ const ABSOLUTE_URI_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 
 function asRecord(value: unknown): JsonRecord | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : null;
-}
-
-function owns(value: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function record(): JsonRecord {

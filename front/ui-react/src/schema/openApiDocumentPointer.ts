@@ -1,4 +1,9 @@
-import { physicalJsonPointerTokens, resolvePathItemObject } from 'knife4j-core';
+import {
+  physicalJsonPointerTokens,
+  resolvePathItemObject,
+  decodeJsonPointerToken,
+  encodeJsonPointerToken,
+} from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 
 export type OpenApiRecord = Record<string, unknown>;
@@ -20,11 +25,11 @@ export function asOpenApiRecord(value: unknown): OpenApiRecord | null {
 }
 
 function decodePointerToken(value: string): string {
-  return value.replace(/~1/g, '/').replace(/~0/g, '~');
+  return decodeJsonPointerToken(value);
 }
 
 function encodePointerToken(value: string): string {
-  return value.replace(/~/g, '~0').replace(/\//g, '~1');
+  return encodeJsonPointerToken(value);
 }
 
 function localPointerTokens(reference: string): string[] | null {

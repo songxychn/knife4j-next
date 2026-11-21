@@ -32,6 +32,7 @@ import { analyzeOas32FormBody } from './oas32FormBodyEncoding';
 import { buildOas32ParameterCollection } from './oas32ParameterModel';
 import { oas32EditorParameter } from './oas32ParameterSerialization';
 import type { Oas32ParameterContext } from './oas32ParameterTypes';
+import { hasOwn } from '../utils/guards';
 
 // ─── 内部类型 ─────────────────────────────────────────
 
@@ -291,10 +292,6 @@ function isOas31(doc: DocLike): boolean {
 }
 
 const OAS31_IGNORED_HEADER_PARAMETER_NAMES = new Set(['accept', 'content-type', 'authorization']);
-
-function hasOwn(record: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
-}
 
 function schemaRecord(schema: SchemaValue | undefined): Record<string, unknown> | undefined {
   return schema && typeof schema === 'object' ? schema : undefined;

@@ -20,6 +20,9 @@ import {
   type ExportServer,
   type OpenApiObjectLocation,
   type SchemaFieldNode,
+  hasOwn as owns,
+  appendJsonPointer,
+  encodeJsonPointerToken,
 } from 'knife4j-core';
 import { schemaNodeTypeLabel } from '../../components/schema/schemaUtils';
 import { projectOas32Security } from '../../auth/oas32Security';
@@ -224,15 +227,11 @@ function operationLabel(operation: MenuOperation): string {
 }
 
 function pointerChild(pointer: string, token: string): string {
-  return `${pointer}/${token.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+  return appendJsonPointer(pointer, token);
 }
 
 function schemaReference(ownerRetrievalUri: string, pointer: string, ...tokens: string[]): string {
   return `${ownerRetrievalUri}${tokens.reduce(pointerChild, pointer)}`;
-}
-
-function owns(value: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 class IssueCollector {
@@ -1114,7 +1113,7 @@ async function buildResponses(context: OperationBuildContext, operation: MenuOpe
             operation,
             {
               ownerRetrievalUri: location.retrievalUri ?? context.retrievalUri,
-              pointer: `#${tokens.length ? `/${tokens.map((token) => token.replace(/~/g, '~0').replace(/\//g, '~1')).join('/')}` : ''}/content/${mediaType.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+              pointer: `#${tokens.length ? `/${tokens.map(encodeJsonPointerToken).join('/')}` : ''}/content/${encodeJsonPointerToken(mediaType)}`,
               value: media,
             },
             mediaType,

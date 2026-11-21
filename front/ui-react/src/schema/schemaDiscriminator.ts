@@ -1,9 +1,10 @@
 import {
-  exampleHasOwn as owns,
+  hasOwn as owns,
   getOpenApiSpecificationFeatures,
   physicalJsonPointerTokens,
   resolvePhysicalJsonPointer,
   type ExampleRepresentation,
+  appendJsonPointer,
 } from 'knife4j-core';
 import type {
   ResourceDiagnostic,
@@ -149,7 +150,7 @@ const record = (value: unknown): RecordValue | undefined =>
 const keyOf = (location: Location): string => JSON.stringify([location.ownerRetrievalUri, location.pointer]);
 const child = (location: Location, name: string | number): Location => ({
   ownerRetrievalUri: location.ownerRetrievalUri,
-  pointer: `${location.pointer}/${String(name).replace(/~/g, '~0').replace(/\//g, '~1')}`,
+  pointer: appendJsonPointer(location.pointer, name),
 });
 const isSupportedDialect = (dialect: string | undefined): boolean =>
   /^(?:https:\/\/spec\.openapis\.org\/oas\/3\.1\/dialect\/base|https:\/\/json-schema\.org\/draft\/2020-12\/schema|https:\/\/spec\.openapis\.org\/oas\/3\.2\/dialect\/2025-09-17)#?$/.test(

@@ -1,6 +1,6 @@
 import HomeServerSummary from './HomeServerSummary';
 import { resolveOas32OperationServers } from '../schema/oas32OperationServers';
-import { getOpenApiSpecificationFeatures } from 'knife4j-core';
+import { getOpenApiSpecificationFeatures, isRecord } from 'knife4j-core';
 import { type ReactNode, useMemo } from 'react';
 import { Alert, Card, Col, Empty, Progress, Row, Space, Spin, Tag, theme, Tooltip, Typography } from 'antd';
 import {
@@ -40,10 +40,6 @@ const METHOD_COLORS: Record<HomeHttpMethod, string> = {
   options: '#0d5aa7',
   trace: '#c41d7f',
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 export default function Home() {
   const { t } = useTranslation();

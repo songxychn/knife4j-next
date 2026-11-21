@@ -8,6 +8,7 @@ import {
 } from './urlTemplates';
 import { escapeJsonPointerSegment, resolveLocalJsonPointer } from '../openapi31/document';
 import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from '../openapiVersion';
+import { hasOwn as owns, isRecord } from '../utils/guards';
 
 export const OAS32_SCHEMA_HELPER_VERSION = 'https://spec.openapis.org/oas/3.2/schema/2025-11-23';
 
@@ -193,9 +194,6 @@ export interface Oas32DocumentDiagnostic {
   reason: string;
 }
 
-const isRecord = (value: unknown): value is RecordValue =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-const owns = (object: RecordValue, key: string): boolean => Object.prototype.hasOwnProperty.call(object, key);
 const child = (path: string, key: string | number): string => `${path}/${escapeJsonPointerSegment(String(key))}`;
 
 const SCHEMA_SINGLE = fields(

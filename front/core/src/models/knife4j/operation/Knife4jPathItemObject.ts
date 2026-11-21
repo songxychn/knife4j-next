@@ -1,5 +1,5 @@
 import type { OpenApiOperation } from '../../../openapiOperations';
-import lodash from 'lodash';
+import KUtils from '../utils/KUtils';
 //ExternalDocumentationObject
 //Knife4jExternalDocumentationObject
 import { Knife4jExternalDocumentationObject } from '../externalDoc/Knife4jExternalDocumentationObject';
@@ -115,7 +115,7 @@ export class Knife4jPathItemObject {
    * @param param 参数
    */
   addParameter(param: Knife4jSchema) {
-    if (lodash.isEmpty(param)) {
+    if (KUtils.isEmpty(param)) {
       return;
     }
     console.log('addParam:', param);
@@ -127,7 +127,7 @@ export class Knife4jPathItemObject {
    * @param doc 外部文档
    */
   resolveOpenAPI3ExtDoc(doc: ExternalDocumentationObject | undefined) {
-    if (lodash.isEmpty(doc)) {
+    if (KUtils.isEmpty(doc)) {
       return;
     }
     //解析
@@ -142,7 +142,7 @@ export class Knife4jPathItemObject {
    */
   asyncResolveParameters(parameters: ParameterObject[] | undefined) {
     //解析请求参数parameters
-    if (lodash.isEmpty(parameters) || !lodash.isArray(parameters)) {
+    if (KUtils.isEmpty(parameters) || !Array.isArray(parameters)) {
       return;
     }
     //遍历param
@@ -161,16 +161,16 @@ export class Knife4jPathItemObject {
    * @param body 请求参数
    */
   asyncResolveRequestBody(body: RequestBodyObject | undefined, instance: Knife4jInstance) {
-    if (lodash.isEmpty(body) || lodash.isEmpty(body.content)) {
+    if (KUtils.isEmpty(body) || KUtils.isEmpty(body.content)) {
       return;
     }
     const content = body.content;
-    const _description = lodash.defaultTo(body.description, '');
-    const _required = lodash.defaultTo(body.required, false);
+    const _description = KUtils.defaultTo(body.description, '');
+    const _required = KUtils.defaultTo(body.required, false);
     //遍历
     for (const media in content) {
       const mediaType = content[media];
-      if (lodash.isEmpty(media) || lodash.isEmpty(mediaType)) {
+      if (KUtils.isEmpty(media) || KUtils.isEmpty(mediaType)) {
         continue;
       }
       const _requestBody = new Knife4jRequestBody(media);

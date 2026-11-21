@@ -12,6 +12,9 @@ import {
   type Oas32FormField,
   type OperationDebugModel,
   type ParameterInstance,
+  isRecord,
+  hasOwn,
+  decodeJsonPointerToken,
 } from 'knife4j-core';
 import { operationSchemaDocuments } from '../../schema/operationRegistry';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
@@ -51,12 +54,8 @@ export const EMPTY_BODY_CONTENT_DEFAULTS: BodyContentDefaults = {
   formFieldsByMediaType: {},
 };
 
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function decodePointerPart(part: string): string {
-  const unescaped = part.replace(/~1/g, '/').replace(/~0/g, '~');
+  const unescaped = decodeJsonPointerToken(part);
   try {
     return decodeURIComponent(unescaped);
   } catch {
@@ -565,10 +564,6 @@ function logicalFormExample(mediaExample: unknown): ParameterInstance | undefine
     return hasOwn(mediaExample, 'dataValue') ? (mediaExample.dataValue as ParameterInstance) : undefined;
   }
   return mediaExample as ParameterInstance;
-}
-
-function hasOwn(value: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function initialFormFieldsFor(

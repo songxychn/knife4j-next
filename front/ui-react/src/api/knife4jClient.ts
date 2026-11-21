@@ -15,6 +15,7 @@ import {
   type OpenApiHttpMethod,
   type OperationEnumerationLimits,
   type OperationEnumerationDiagnostic,
+  isRecord,
 } from 'knife4j-core';
 
 import type {
@@ -241,10 +242,6 @@ function normalizeSwaggerInfo(value: unknown): SwaggerInfo {
 
 function isSwaggerDocLike(value: unknown): value is Record<string, unknown> {
   return isRecord(value) && (typeof value.openapi === 'string' || typeof value.swagger === 'string');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isBase64EncodedJson(value: string): boolean {
