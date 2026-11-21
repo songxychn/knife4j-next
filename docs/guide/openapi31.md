@@ -7,7 +7,7 @@ description: Knife4j Next 对 OpenAPI 3.1.x 的支持矩阵、JSON Schema 2020-1
 
 本页面向当前 Java `5.8.3` / Go `v0.10.0`。
 
-[English contract](./openapi31-en) · [下载最小 JSON](/examples/openapi-3.1-minimal.json) · [下载最小 YAML](/examples/openapi-3.1-minimal.yaml)
+[下载最小 JSON](/examples/openapi-3.1-minimal.json) · [下载最小 YAML](/examples/openapi-3.1-minimal.yaml)
 
 本文描述 Java `5.8.3` 的 OpenAPI 3.1 契约，具体能力与版本归属见
 [发布说明](../release-notes/)和 [版本参考](../reference/version-ref)。Knife4x Go 使用独立版本，
@@ -305,7 +305,7 @@ Webhook 描述的是 API 提供方向调用调用方的入站契约；它不是�
 
 ## 语言与诊断一致性
 
-本页与 [English contract](./openapi31-en) 使用同一版本、能力、安全和迁移边界。React UI 的现有 OAS 3.1
+React UI 的现有 OAS 3.1
 诊断键在中文、英文和日文 locale 中保持同集；[locale 一致性测试](https://github.com/songxychn/knife4j-next/blob/master/front/ui-react/src/locales/locales.test.ts)
 会拒绝缺失键、空翻译或插值变量不一致。切换语言不会改变诊断代码或放宽策略。
 

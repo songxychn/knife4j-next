@@ -7,7 +7,7 @@ description: Knife4j Next 对 OpenAPI 3.2.x 的支持矩阵、回归表、宿主
 
 本页面向当前 Java `5.8.3` / Go `v0.10.0`。
 
-[English contract](./openapi32-en) · [下载最小 JSON](/examples/openapi-3.2-minimal.json) · [下载最小 YAML](/examples/openapi-3.2-minimal.yaml)
+[下载最小 JSON](/examples/openapi-3.2-minimal.json) · [下载最小 YAML](/examples/openapi-3.2-minimal.yaml)
 
 ::: info OpenAPI 3.2 消费
 Java `5.8.3` 与 Knife4x Go `v0.10.0` 按本文消费合法 OpenAPI 3.2.x 文档。这不是 springdoc 生成 3.2 的承诺；当前生产依赖仍输出 3.0.x / 3.1.x。
@@ -54,9 +54,9 @@ Java `5.8.3` 依赖为 springdoc `1.8.0` / `2.9.1` / Boot4 `3.0.3`。它们当�
 | Tags / Server / Response | 层级 tags、server `name`、response `summary` | | [#773](https://github.com/songxychn/knife4j-next/issues/773) / [#791](https://github.com/songxychn/knife4j-next/pull/791) |
 | 示例 | `dataValue` / `serializedValue` 与既有 `value` | 不是通用 JSON Schema 求解器 | [#774](https://github.com/songxychn/knife4j-next/issues/774) / [#790](https://github.com/songxychn/knife4j-next/pull/790) |
 | `discriminator.defaultMapping` | 判别属性可选时的默认映射提示 | 不改变 JSON Schema 验证结果 | [#775](https://github.com/songxychn/knife4j-next/issues/775) / [#795](https://github.com/songxychn/knife4j-next/pull/795) |
-| XML `nodeType` | | | [#776](https://github.com/songxychn/knife4j-next/issues/776) / [#797](https://github.com/songxychn/knife4j-next/pull/797) |
+| XML `nodeType` | 支持 OAS 3.2 `xml.nodeType` 序列化 | 仅按规范值处理，非法值给出诊断 | [#776](https://github.com/songxychn/knife4j-next/issues/776) / [#797](https://github.com/songxychn/knife4j-next/pull/797) |
 | querystring / Cookie style | querystring 使用 `content`，不能与有效 query 参数混用 | Cookie 仅预览/cURL，真实发送前阻断 | [#777](https://github.com/songxychn/knife4j-next/issues/777) / [#793](https://github.com/songxychn/knife4j-next/pull/793) |
-| Multipart 位置编码 | | 不读取上传文件字节 | [#778](https://github.com/songxychn/knife4j-next/issues/778) / [#796](https://github.com/songxychn/knife4j-next/pull/796) |
+| Multipart 位置编码 | 支持 `itemEncoding` / `prefixEncoding` 位置编码 | 不读取上传文件字节 | [#778](https://github.com/songxychn/knife4j-next/issues/778) / [#796](https://github.com/songxychn/knife4j-next/pull/796) |
 | 顺序媒体 | SSE、JSONL/NDJSON、JSON-seq、multipart | 未知媒体保留原始内容并给出 codec 诊断 | [#779](https://github.com/songxychn/knife4j-next/issues/779) / [#799](https://github.com/songxychn/knife4j-next/pull/799) |
 | 安全方案 | URI 引用与 Device Authorization | 不注入客户端证书，不主动发 Webhook | [#780](https://github.com/songxychn/knife4j-next/issues/780) / [#801](https://github.com/songxychn/knife4j-next/pull/801) |
 | 单接口导出 | 完整资源图下的 3.2 闭包 | 3.1 导出器拒绝 3.2 文档 | [#781](https://github.com/songxychn/knife4j-next/issues/781) / [#802](https://github.com/songxychn/knife4j-next/pull/802) |
@@ -112,14 +112,6 @@ OpenAPI 能表达的契约，不等于浏览器 JavaScript 都能发送。
 - starter 的真实 `/v3/api-docs` 仍是当前 springdoc 的 3.0/3.1 输出；smoke 通过独立的 `/synthetic/oas32.json` 提供规范夹具，不改生成器版本字符串。
 - 聚合 disk 可同时挂 OpenAPI 3.1 文档和标注来源的 3.2 规范夹具；`swagger-instance` 原样返回文件内容。disk 路由的 `swagger-version` 仍写 `"3.0"`（相对 Swagger 2 的 OpenAPI 3 家族标签），不要把它改成 `"3.2"` 冒充新的已发布配置项。
 - Knife4x `NewHandler` 只校验 SpecURL 为 HTTP(S)，不解析 OpenAPI 版本；嵌入 UI 加载 3.2 JSON，并拒绝 Swagger 2。入口仍不接受 YAML。
-
-可见 UI 的无头验收：
-
-```bash
-bun front/ui-react/scripts/run-oas32-host-acceptance.mjs
-```
-
-该脚本只监听 `127.0.0.1`，使用仓库内规范夹具与已嵌入的 React 资源，不访问真实第三方凭据或 PII 服务。
 
 ## 从 OpenAPI 3.1 迁移
 

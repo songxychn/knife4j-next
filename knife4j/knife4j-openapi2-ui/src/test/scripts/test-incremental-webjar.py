@@ -68,9 +68,12 @@ def copy_inputs(root):
         str(MODULE_PATH / "src/test/java"),
     ], cwd=REPO).decode().split("\0")
     for name in filter(None, paths):
+        source = REPO / name
+        if not source.is_file():
+            continue
         target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(REPO / name, target)
+        shutil.copy2(source, target)
 
 
 def fixtures(root):

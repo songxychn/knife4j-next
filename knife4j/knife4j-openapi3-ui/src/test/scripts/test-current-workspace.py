@@ -78,9 +78,12 @@ def main():
             str(MODULE_PATH / "src/test/java"),
         ], cwd=REPO).decode().split("\0")
         for name in filter(None, paths):
+            source = REPO / name
+            if not source.is_file():
+                continue
             destination = root / name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(REPO / name, destination)
+            shutil.copy2(source, destination)
 
         module = root / MODULE_PATH
         front = root / "front"

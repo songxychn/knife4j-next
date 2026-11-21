@@ -14,7 +14,6 @@ title: Go 配置参考
 读取 Markdown 并生成启动页。配置或文件读取失败会返回错误；不要忽略 `err`。
 `next` 为 nil 时，未被 Knife4x 处理的请求返回 404。
 
-<!-- knife4x-api: Config -->
 | 字段 | Go 类型 | 可用版本 | 说明 |
 | --- | --- | --- | --- |
 | `SpecURL` | `string` | `v0.10.0` | 单一 OpenAPI JSON URL，对应 `default` 分组；与非空 `Specs` 互斥 |
@@ -24,7 +23,6 @@ title: Go 配置参考
 | `BasicAuth` | `*BasicAuthConfig` | `v0.10.0` | nil 默认关闭；保护 UI 资源与配置中的本地 spec 路径 |
 | `UISettings` | `*UISettings` | `v0.10.0` | 低于 spec 扩展和浏览器本地选择的 UI 默认值 |
 | `Documents` | `[]MarkdownDocument` | `v0.10.0` | 在所有配置分组中显示的附加 Markdown 文档 |
-<!-- /knife4x-api -->
 
 表中的 `v0.10.0` 表示该版本支持这些字段，不表示所有字段均首次引入于此版本。
 启用文档时必须选择非空 `SpecURL` 或非空 `Specs`。`Disabled` 不会关闭宿主自行注册的
@@ -37,12 +35,10 @@ spec 路由，也不会继续为其提供文档鉴权；完整关闭方式见[�
 
 ## Spec
 
-<!-- knife4x-api: Spec -->
 | 字段 | Go 类型 | 可用版本 | 说明 |
 | --- | --- | --- | --- |
 | `Name` | `string` | `v0.10.0` | 分组名；去除首尾空白后非空且唯一，列表顺序即分组顺序 |
 | `URL` | `string` | `v0.10.0` | 文档 JSON URL，可为相对、根相对或完整 HTTP(S) URL |
-<!-- /knife4x-api -->
 
 分组名用于一个路由段，不能为 `.`, `..`, `group`，不能含 `/`、反斜线、`?`、`#`、`%`
 或控制字符。支持中文等非 ASCII 名称。新 `Specs` URL 不接受反斜线或 userinfo 凭据，
@@ -58,13 +54,11 @@ spec 路由，也不会继续为其提供文档鉴权；完整关闭方式见[�
 
 ## BasicAuthConfig
 
-<!-- knife4x-api: BasicAuthConfig -->
 | 字段 | Go 类型 | 可用版本 | 说明 |
 | --- | --- | --- | --- |
 | `Username` | `string` | `v0.10.0` | 非空且不能含 `:`；不自动去除首尾空白 |
 | `Password` | `string` | `v0.10.0` | 非空；不自动去除首尾空白，不写入浏览器启动配置 |
 | `Realm` | `string` | `v0.10.0` | 空值为 `Knife4x`；仅接受可打印 ASCII，HTTP challenge 中会安全转义 |
-<!-- /knife4x-api -->
 
 nil 表示关闭；非 nil 配置不能只填一个凭据。文档访问保护与 UI 中为业务请求配置
 Basic / Bearer / OAuth2 是两个独立能力。保护对象、本地/远端 URL 和 HTTPS 部署要求见
@@ -75,7 +69,6 @@ Basic / Bearer / OAuth2 是两个独立能力。保护对象、本地/远端 URL
 所有 `*bool` 的 nil 均表示未设置，指向 `false` 表示显式关闭。下表默认值指共享 UI
 在没有 Go 配置、spec 扩展和浏览器本地覆盖时的值，并非 Go 指针的零值。
 
-<!-- knife4x-api: UISettings -->
 | 字段 | Go 类型 | 可用版本 | 说明 |
 | --- | --- | --- | --- |
 | `Language` | `string` | `v0.10.0` | 空值保留语言检测；可显式选 `zh-CN`、`en-US`、`ja-JP` |
@@ -92,21 +85,18 @@ Basic / Bearer / OAuth2 是两个独立能力。保护对象、本地/远端 URL
 | `EnableCustomHome` | `*bool` | `v0.10.0` | 使用非空自定义首页，UI 默认 `false` |
 | `HomeMarkdown` | `string` | `v0.10.0` | 首页 Markdown 内容，需同时启用 `EnableCustomHome` |
 | `FooterMarkdown` | `string` | `v0.10.0` | Footer Markdown 内容，需同时启用 `EnableCustomFooter` |
-<!-- /knife4x-api -->
 
 生效顺序为 **共享 UI 默认值 < Go 的 UISettings < spec 中受支持的设置扩展 < 浏览器本地选择**。
 这些默认值不改写原始 spec 或其导出内容。UI 隐藏调试、搜索或菜单不是接口访问控制。
 
 ## MarkdownDocument
 
-<!-- knife4x-api: MarkdownDocument -->
 | 字段 | Go 类型 | 可用版本 | 说明 |
 | --- | --- | --- | --- |
 | `Title` | `string` | `v0.10.0` | 去除首尾空白后非空的文档标题 |
 | `Content` | `string` | `v0.10.0` | 直接 Markdown 内容；允许空文档，不能把非空内容与 FS 来源同时提供 |
 | `FS` | `fs.FS` | `v0.10.0` | 与 `Path` 一起提供，例如 `embed.FS` 或 `os.DirFS` |
 | `Path` | `string` | `v0.10.0` | FS 内有效的相对文件路径，不能是绝对路径或含 `..` 路径段 |
-<!-- /knife4x-api -->
 
 每项选择直接 `Content` 或 `FS` + `Path`；不能只填 FS 或只填 Path。
 文件仅在创建 Handler 时读取，读取失败会返回错误；修改源文件不会改变已创建的 Handler。

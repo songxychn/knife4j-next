@@ -9,7 +9,7 @@ Knife4x 在 Go 进程中嵌入 Knife4j Next 的 React 文档与调试 UI。公�
 `net/http`，不绑定 Gin、Echo 或 Chi；它消费已有的 OpenAPI 文档，不生成 spec。
 Go module、版本和发布流程独立于 Java `5.x`，Rust 仍后置。
 
-当前版本：<!-- knife4x-version -->v0.10.0<!-- /knife4x-version -->。
+当前版本：`v0.10.0`。
 
 ## 安装与最小接入
 

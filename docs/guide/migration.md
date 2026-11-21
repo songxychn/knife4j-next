@@ -164,7 +164,7 @@ curl -i http://localhost:8080/doc.html   # 检查屏蔽 JSON；OAS3 为 403，OA
 - [ ] `/v3/api-docs`（或 `/v2/api-docs`）返回正确的 OpenAPI JSON
 - [ ] 业务代码**没有**改动，只有 `pom.xml` 的 groupId 改了
 - [ ] 如果启用了 `knife4j.production` 或 `knife4j.basic`，生产发布前再做一次黑盒验证
-- [ ] 如果依赖新 React 前端的 UI 行为，已阅读 [新前端覆盖范围](../roadmap/#react-ui-coverage)，确认 `enable-debug`、`enable-search`、`enable-version` 等配置是否还是你预期的效果
+- [ ] 如果依赖新 React 前端的 UI 行为，已阅读 [功能概览](./features) 与 [配置参考](../reference/configuration)，确认 `enable-debug`、`enable-search`、`enable-version` 等配置是否还是你预期的效果
 
 ## 回滚策略
 

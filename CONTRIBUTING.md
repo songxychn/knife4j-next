@@ -20,11 +20,11 @@ git config core.hooksPath .githooks
 ./tools/test-java.sh
 ```
 
-`./tools/test-java.sh` runs Spotless, Maven `verify` with tests enabled, and the smoke/compatibility gates. A bare `mvn -B -ntp verify` skips tests because the root POM defaults `knife4j-skipTests` to `true`; do not use it as pre-submit validation.
+`./tools/test-java.sh` runs Spotless, Maven `verify` with tests enabled, WebJar checks, and smoke evidence verification. A bare `mvn -B -ntp verify` skips tests because the root POM defaults `knife4j-skipTests` to `true`; do not use it as pre-submit validation.
 
 The optional pre-commit hook runs `format:check` and `lint` for the whole `knife4j-core` / `knife4j-ui-react` package when any staged file is under `front/core/` or `front/ui-react/`. It checks the working tree rather than only the staged content, and does not cover `front/schema-engine/`. CI remains the required merge gate.
 
-OAS3, Vue3, the docs site, and Knife4x UI synchronization use stable Bun 1.4.x (minimum 1.4.4). Node.js is not required for current source development/builds/tests. CI runs the standard gates with standalone Node.js removed from PATH; old release sources retain their original .nvmrc environment for recovery. Using published Maven artifacts or the Go module needs no JavaScript runtime; browser and Java/Go runtime requirements are unchanged.
+OAS3, Vue3, the docs site, and Knife4x UI synchronization use stable Bun 1.4.x (minimum 1.4.4). Node.js is not required. Using published Maven artifacts or the Go module needs no JavaScript runtime.
 
 ## Front-End Layout
 
@@ -34,8 +34,6 @@ There are two independent front-end product lines. Work in the one that matches 
 |---|---|---|---|---|
 | `front/ui-react` (React + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | Direct: `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-openapi3-webflux-spring-boot-starter`, `knife4j-openapi3-webflux-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-gateway-webmvc-spring-boot-starter`, `knife4j-gateway-boot4-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter`; transitive: `knife4j-openapi3-boot4-spring-boot-starter`, `knife4j-aggregation-boot4-spring-boot-starter` | **OAS 3 only — main line** |
 | `front/vue3` (Vue 3 + Vite) | Bun (baseline in `.bun-version`; lockfile in `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
-
-The upstream Vue 2 source under `legacy/vue2/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `legacy/vue2/README.md`.
 
 ### OAS 3 main line (`front/ui-react`)
 
@@ -137,14 +135,11 @@ Run the same checks that CI runs:
 # Front-end Vue3 (OAS2 doc.html)
 ./tools/test-vue3.sh
 
-# Java (spotless + verify + smoke evidence + compatibility contracts)
+# Java (spotless + verify + WebJar + smoke evidence)
 ./tools/test-java.sh
 
-# Docs contracts, examples, rendered links and site build
+# Docs site build (VitePress)
 ./tools/test-docs.sh
-
-# Documented deployment (after test-java.sh; requires Docker, OpenSSL, unzip)
-./tools/test-docs-deployment.sh
 
 # Knife4x Go and the Gin example
 ./tools/test-knife4x-go.sh
@@ -154,21 +149,6 @@ Run the same checks that CI runs:
 ```
 
 For changes spanning a few areas, run the union of the affected scripts; `test-all.sh` is for all-area changes or full acceptance. `git diff --name-only <base>...<head> | ./tools/ci-changes.sh` shows which CI jobs a change triggers (three dots match the merge-base diff that PR CI uses).
-
-## Keeping Documentation in Sync
-
-When changing configuration, update its description in
-`docs/reference/settings-descriptions.json` and run
-`bun tools/docs/settings-reference.mjs --write`. Review the generated diff and run
-`./tools/test-docs.sh`. The reference uses Java declarations and the actual React
-reader; Java validation also checks compiled defaults. Change the source first,
-not the generated table.
-
-Keep tested examples in `docs/snippets/` and include them in pages with `<<<`.
-Extend the existing tests to load the same files when adding examples. CI checks
-critical configuration, annotation compilation, discovery and deployment behavior;
-free text and broader functional claims still need review. See
-[the validation scope](tools/README.md#文档保鲜与代码同步) for commands and limits.
 
 ## Branch & Commit Conventions
 

@@ -70,7 +70,7 @@ Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付
 
 ## 功能详解
 
-> 以下功能按**前端 UI 可用性**标注。能力基线是 upstream Vue2（`legacy/vue2`）。Vue3 与 React 都是维护者重写，各自可能漏掉 Vue2 能力。
+> 以下功能按**前端 UI 可用性**标注。能力基线是 upstream Vue2。Vue3 与 React 都是维护者重写，各自可能漏掉 Vue2 能力。
 >
 > ✅ = 该前端可用；🔲 = 部分实现；⬜ = 未实现；❌ = 均暂不可用。
 >
@@ -184,7 +184,7 @@ Knife4j 提供 UI 端临时设置全局参数的功能，适用于后台全局 T
 AfterScript 功能允许在每个接口调试 Tab 中编写一段 JavaScript 脚本，当接口调用成功后自动执行。最典型的场景是**登录后自动设置全局 Token**。
 
 ::: warning ⚠️ React UI 暂不支持
-AfterScript 存在于 Vue2 基线，并已移植到 Vue3 UI（`knife4j-openapi2-spring-boot-starter` 打包的 `front/vue3`）。React 新前端暂不支持。跟进进度见 [路线图](../roadmap/#react-ui-coverage)。
+AfterScript 存在于 Vue2 基线，并已移植到 Vue3 UI（`knife4j-openapi2-spring-boot-starter` 打包的 `front/vue3`）。React 新前端暂不支持。
 :::
 
 #### 全局对象

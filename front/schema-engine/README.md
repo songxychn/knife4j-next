@@ -1,10 +1,8 @@
 # Knife4j Schema Engine
 
-Internal modern-ESM adapter for JSON Schema Draft 2020-12 and the OpenAPI 3.1 base dialect.
+Internal modern-ESM adapter for JSON Schema Draft 2020-12 and OpenAPI 3.1 / 3.2 dialects.
 
 The adapter owns Hyperjump's realm-global registry, disables network and filesystem retrieval, and exposes stable Knife4j types for document registration, schema resolution, evaluation, lifecycle cleanup, and resource budgets.
-
-Phase 1 deliberately does not connect the engine to field-tree projection, example generation, or the React debugger. See `tools/spikes/json-schema-2020-12/DECISION.md` and issue #685 for the frozen boundary.
 
 ## Runtime boundaries
 
