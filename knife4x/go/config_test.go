@@ -383,16 +383,26 @@ func TestBasicAuthMatchesBrowserEncodedDotResolution(t *testing.T) {
 	}
 }
 
-func TestBasicAuthRejectsAmbiguousLegacyBackslashURLs(t *testing.T) {
+func TestSpecURLRejectsBackslashesAndCredentialsConsistently(t *testing.T) {
 	t.Parallel()
-	for _, value := range []string{`\openapi.json`, `one\..\..\openapi.json`, `/\remote.example.test/spec.json`} {
-		cfg := Config{BasePath: "/docs", SpecURL: value}
-		if _, err := NewHandler(cfg, nil); err != nil {
-			t.Fatalf("legacy unauthenticated URL rejected: %v", err)
+	for _, value := range []string{
+		`\openapi.json`,
+		`one\..\..\openapi.json`,
+		`/\remote.example.test/spec.json`,
+		`https://user:pass@api.example.test/openapi.json`,
+	} {
+		if _, err := NewHandler(Config{BasePath: "/docs", SpecURL: value}, nil); err == nil {
+			t.Fatalf("SpecURL %q accepted without BasicAuth", value)
 		}
-		cfg.BasicAuth = &BasicAuthConfig{Username: "user", Password: "secret"}
-		if _, err := NewHandler(cfg, nil); err == nil {
-			t.Fatalf("authenticated ambiguous URL %q accepted", value)
+		if _, err := NewHandler(Config{
+			BasePath:  "/docs",
+			SpecURL:   value,
+			BasicAuth: &BasicAuthConfig{Username: "user", Password: "secret"},
+		}, nil); err == nil {
+			t.Fatalf("SpecURL %q accepted with BasicAuth", value)
+		}
+		if _, err := NewHandler(Config{BasePath: "/docs", Specs: []Spec{{Name: "v1", URL: value}}}, nil); err == nil {
+			t.Fatalf("Specs[0].URL %q accepted", value)
 		}
 	}
 }

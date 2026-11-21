@@ -174,10 +174,16 @@ func normalizeSpecURL(value string) (string, error) {
 	if strings.HasPrefix(value, "//") {
 		return "", fmt.Errorf("knife4x: SpecURL must not be protocol-relative")
 	}
+	if strings.Contains(value, `\`) {
+		return "", fmt.Errorf("knife4x: SpecURL must not contain backslashes")
+	}
 
 	parsed, err := url.Parse(value)
 	if err != nil {
 		return "", fmt.Errorf("knife4x: invalid SpecURL: %w", err)
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("knife4x: SpecURL must not contain credentials")
 	}
 	if parsed.IsAbs() {
 		if (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {

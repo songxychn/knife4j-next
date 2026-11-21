@@ -3,7 +3,6 @@ package knife4x
 import (
 	"fmt"
 	"io/fs"
-	"net/url"
 	"strings"
 	"unicode"
 )
@@ -69,13 +68,6 @@ func prepareBrowserConfig(cfg Config, basePath string) (browserConfig, error) {
 			value, err := normalizeSpecURL(spec.URL)
 			if err != nil {
 				return browser, fmt.Errorf("knife4x: Specs[%d]: %w", i, err)
-			}
-			parsed, _ := url.Parse(value)
-			if strings.Contains(value, `\`) {
-				return browser, fmt.Errorf("knife4x: Specs[%d] URL must not contain backslashes", i)
-			}
-			if parsed.User != nil {
-				return browser, fmt.Errorf("knife4x: Specs[%d] URL must not contain credentials", i)
 			}
 			browser.Specs[i] = Spec{Name: name, URL: value}
 		}

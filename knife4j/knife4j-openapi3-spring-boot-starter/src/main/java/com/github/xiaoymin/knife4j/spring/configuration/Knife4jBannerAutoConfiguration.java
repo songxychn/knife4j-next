@@ -62,8 +62,12 @@ public class Knife4jBannerAutoConfiguration implements ApplicationListener<Appli
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
+        emitBanner(event, LOGGER);
+    }
+
+    void emitBanner(ApplicationReadyEvent event, Logger targetLogger) {
         // Child-context events propagate to parents; only report our own application.
-        if (event.getApplicationContext() != context || !LOGGER.isInfoEnabled()
+        if (event.getApplicationContext() != context || !targetLogger.isInfoEnabled()
                 || !printed.compareAndSet(false, true)) {
             return;
         }
@@ -74,11 +78,11 @@ public class Knife4jBannerAutoConfiguration implements ApplicationListener<Appli
         boolean password = StringUtils.hasText(environment.getProperty("knife4j.basic.password"));
         String credentials = username && password ? "configured" : username || password ? "incomplete" : "not configured";
 
-        LOGGER.info("\n{}\n :: Knife4j Next ::  (v{})\n"
-                + "\n Enhanced   : {}\n Production : {}\n Basic Auth : {}, credentials={}"
-                + "\n\n 启用 Knife4j 文档屏蔽需同时设置 knife4j.enable=true 和 knife4j.production=true。\n",
+        targetLogger.info(String.format(
+                "\n%s\n :: Knife4j Next ::  (v%s)\n\n Enhanced   : %s\n Production : %s\n Basic Auth : %s, credentials=%s"
+                        + "\n\n 启用 Knife4j 文档屏蔽需同时设置 knife4j.enable=true 和 knife4j.production=true。\n",
                 LOGO, version(), enhanced ? "enabled" : "disabled",
-                status(production, enhanced), status(basic, enhanced), credentials);
+                status(production, enhanced), status(basic, enhanced), credentials));
     }
 
     private static String status(boolean configured, boolean enhanced) {

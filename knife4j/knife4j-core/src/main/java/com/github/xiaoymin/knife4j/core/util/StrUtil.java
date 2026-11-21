@@ -46,7 +46,17 @@ public class StrUtil {
     }
 
     public static boolean isNotBlank(CharSequence str) {
-        return false == isBlank(str);
+        return !isBlank(str);
+    }
+
+    /**
+     * 判断当前内容是否非空，如果是空，则用默认值替换
+     * @param value 判断值
+     * @param defaultStr 默认值
+     * @return 非空判断值
+     */
+    public static String defaultTo(String value, String defaultStr) {
+        return isNotBlank(value) ? value : defaultStr;
     }
 
     public final static String UNDERLINE = "_";

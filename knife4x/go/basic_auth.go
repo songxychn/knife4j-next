@@ -61,9 +61,6 @@ func newBasicAuth(cfg *BasicAuthConfig, browser browserConfig) (*basicAuth, erro
 	}
 	normalizeBrowserDots(base)
 	for _, value := range values {
-		if strings.Contains(value, `\`) {
-			return nil, fmt.Errorf("knife4x: BasicAuth spec URLs must not contain backslashes")
-		}
 		spec, _ := url.Parse(value) // Config validation has already parsed every URL.
 		if spec.IsAbs() {
 			continue

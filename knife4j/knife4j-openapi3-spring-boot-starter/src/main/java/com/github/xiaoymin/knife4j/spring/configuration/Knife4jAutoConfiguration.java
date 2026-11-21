@@ -23,7 +23,6 @@ import com.github.xiaoymin.knife4j.extend.filter.basic.ServletSecurityBasicAuthF
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOperationCustomizer;
 import com.github.xiaoymin.knife4j.spring.filter.ProductionSecurityFilter;
-import com.github.xiaoymin.knife4j.spring.util.EnvironmentUtils;
 import io.swagger.v3.oas.annotations.Hidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,22 +163,15 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnExpression("${knife4j.production:false} && ${knife4j.basic.enable:true}")
     public FilterRegistrationBean<ServletSecurityBasicAuthFilter> securityBasicAuthFilter(Knife4jProperties knife4jProperties) {
         ServletSecurityBasicAuthFilter authFilter = new ServletSecurityBasicAuthFilter();
-        if (knife4jProperties == null) {
-            authFilter.setEnableBasicAuth(EnvironmentUtils.resolveBool(environment, "knife4j.basic.enable", Boolean.FALSE));
-            authFilter.setUserName(EnvironmentUtils.resolveString(environment, "knife4j.basic.username", GlobalConstants.BASIC_DEFAULT_USERNAME));
-            authFilter.setPassword(EnvironmentUtils.resolveString(environment, "knife4j.basic.password", GlobalConstants.BASIC_DEFAULT_PASSWORD));
+        if (knife4jProperties.getBasic() == null) {
+            authFilter.setEnableBasicAuth(Boolean.FALSE);
+            authFilter.setUserName(GlobalConstants.BASIC_DEFAULT_USERNAME);
+            authFilter.setPassword(GlobalConstants.BASIC_DEFAULT_PASSWORD);
         } else {
-            // 判断非空
-            if (knife4jProperties.getBasic() == null) {
-                authFilter.setEnableBasicAuth(Boolean.FALSE);
-                authFilter.setUserName(GlobalConstants.BASIC_DEFAULT_USERNAME);
-                authFilter.setPassword(GlobalConstants.BASIC_DEFAULT_PASSWORD);
-            } else {
-                authFilter.setEnableBasicAuth(knife4jProperties.getBasic().isEnable());
-                authFilter.setUserName(knife4jProperties.getBasic().getUsername());
-                authFilter.setPassword(knife4jProperties.getBasic().getPassword());
-                authFilter.addRule(knife4jProperties.getBasic().getInclude());
-            }
+            authFilter.setEnableBasicAuth(knife4jProperties.getBasic().isEnable());
+            authFilter.setUserName(knife4jProperties.getBasic().getUsername());
+            authFilter.setPassword(knife4jProperties.getBasic().getPassword());
+            authFilter.addRule(knife4jProperties.getBasic().getInclude());
         }
         FilterRegistrationBean<ServletSecurityBasicAuthFilter> registration = new FilterRegistrationBean<>();
         registration.setDispatcherTypes(DispatcherType.REQUEST);
@@ -192,20 +184,7 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnMissingBean(ProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
     public FilterRegistrationBean<ProductionSecurityFilter> productionSecurityFilter(Knife4jProperties knife4jProperties) {
-        boolean prod = false;
-        ProductionSecurityFilter p = null;
-        if (knife4jProperties == null) {
-            if (environment != null) {
-                String prodStr = environment.getProperty("knife4j.production");
-                if (logger.isDebugEnabled()) {
-                    logger.debug("swagger.production:{}", prodStr);
-                }
-                prod = Boolean.valueOf(prodStr);
-            }
-            p = new ProductionSecurityFilter(prod);
-        } else {
-            p = new ProductionSecurityFilter(knife4jProperties.isProduction());
-        }
+        ProductionSecurityFilter p = new ProductionSecurityFilter(knife4jProperties.isProduction());
         FilterRegistrationBean<ProductionSecurityFilter> registration = new FilterRegistrationBean<>();
         registration.setDispatcherTypes(DispatcherType.REQUEST);
         registration.setFilter(p);

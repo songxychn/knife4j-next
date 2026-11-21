@@ -21,7 +21,7 @@ import com.github.xiaoymin.knife4j.spring.gateway.Knife4jGatewayProperties;
 import com.github.xiaoymin.knife4j.spring.gateway.discover.ServiceRouterHolder;
 import com.github.xiaoymin.knife4j.spring.gateway.enums.GatewayRouterStrategy;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.ServiceUtils;
-import com.github.xiaoymin.knife4j.spring.gateway.utils.StrUtil;
+import com.github.xiaoymin.knife4j.core.util.StrUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.route.RouteDefinitionRepository;
