@@ -31,7 +31,6 @@ vi.mock('./context/SettingsContext', () => ({
   useSettings: () => ({
     settings: state.settings,
     setSetting: () => {},
-    storageResetSnapshot: { generation: 'initial', active: false },
   }),
 }));
 vi.mock('./context/AuthContext', () => ({ AuthProvider: ({ children }: { children: React.ReactNode }) => children }));

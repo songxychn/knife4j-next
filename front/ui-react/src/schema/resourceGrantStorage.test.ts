@@ -27,14 +27,6 @@ class MemoryStorage implements Knife4jWebStorage {
   }
 }
 
-const lockManager = {
-  request: async <T>(
-    name: string,
-    _options: { mode: 'shared' | 'exclusive'; ifAvailable?: boolean },
-    callback: (lock: { name: string } | null) => T | PromiseLike<T>,
-  ): Promise<T> => callback({ name }),
-};
-
 const candidate = (uri: string): ResourceCandidate => ({
   retrievalUri: uri,
   retrievalUriHash: sha256Hex(uri),
@@ -54,8 +46,6 @@ describe('persistent exact resource grants', () => {
     await expect(
       rememberResourceGrants(documentScope, [candidate(uri)], {
         storage,
-        leaseStorage: storage,
-        lockManager,
         now: () => 1234,
       }),
     ).resolves.toBe(true);
@@ -64,14 +54,14 @@ describe('persistent exact resource grants', () => {
     expect(raw).not.toContain('token=secret');
     expect(raw).not.toContain(uri);
     expect(raw).toContain(sha256Hex(uri));
-    expect(readRememberedResourceGrants(documentScope, { storage, leaseStorage: storage })).toEqual([
+    expect(readRememberedResourceGrants(documentScope, { storage })).toEqual([
       {
         resourceKey: sha256Hex(uri),
         displayUri: 'https://schemas.example.test/pet.json?…',
         grantedAt: 1234,
       },
     ]);
-    expect(readRememberedResourceGrants(sha256Hex('other'), { storage, leaseStorage: storage })).toEqual([]);
+    expect(readRememberedResourceGrants(sha256Hex('other'), { storage })).toEqual([]);
   });
 
   test('fails closed for malformed, oversized, or scope-mismatched records', () => {

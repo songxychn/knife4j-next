@@ -34,7 +34,12 @@ import {
 } from './utils/operationTabs';
 import { resolveFooterContent } from './utils/footer';
 import { buildDocumentToolRoute, matchDocumentToolRoute, type DocumentTool } from './utils/documentToolRoutes';
-import { KNIFE4J_STORAGE_KEYS, setKnife4jSessionStorageItem, setKnife4jStorageItem } from './storage/knife4jStorage';
+import {
+  KNIFE4J_STORAGE_KEYS,
+  setKnife4jSessionStorageItem,
+  setKnife4jStorageItem,
+  subscribeKnife4jStorageCleanup,
+} from './storage/knife4jStorage';
 
 const { Header, Sider, Content, Footer } = Layout;
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
@@ -50,6 +55,14 @@ const compactSnapshot = () => window.matchMedia(COMPACT_QUERY).matches;
 const HOME_KEY = '/group/home';
 const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
 const isClosablePane = (pane: { key: string }) => pane.key !== HOME_KEY;
+
+function decodePathname(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}
 
 const antdLocaleMap: Record<SupportedLang, typeof enUSLocale> = {
   'zh-CN': zhCNLocale,
@@ -127,33 +140,45 @@ const AppInner: React.FC = () => {
     operationEnumerationLimit,
   } = useGroup();
   const { t, i18n } = useTranslation();
-  const { settings, setSetting, storageResetSnapshot } = useSettings();
+  const { settings, setSetting } = useSettings();
   const {
     token: { colorBgContainer },
   } = theme.useToken();
 
   /**
-   * Initialize tab state from sessionStorage so that a page refresh keeps
-   * every previously opened tab (Home is always guaranteed to exist). If
-   * no persisted state exists, fall back to a fresh Home-only layout.
+   * Initialize tab state from sessionStorage once on mount so that a page refresh keeps
+   * every previously opened tab (Home is always guaranteed to exist).
    */
-  const [selectedKey, setSelectedKey] = useState<string>(() => {
-    const persisted = loadPersistedTabs();
-    return persisted ? routeKeyToMenuKey(persisted.activeKey) : HOME_KEY;
-  });
-  const [activeKey, setActiveKey] = useState<string>(() => {
-    const persisted = loadPersistedTabs();
-    return persisted ? persisted.activeKey : HOME_KEY;
-  });
+  const initialTabsRef = useRef<ReturnType<typeof loadPersistedTabs> | undefined>(undefined);
+  if (initialTabsRef.current === undefined) {
+    initialTabsRef.current = loadPersistedTabs();
+  }
+  const initialTabs = initialTabsRef.current;
+
+  const [selectedKey, setSelectedKey] = useState<string>(() =>
+    initialTabs ? routeKeyToMenuKey(initialTabs.activeKey) : HOME_KEY,
+  );
+  const [activeKey, setActiveKey] = useState<string>(() => (initialTabs ? initialTabs.activeKey : HOME_KEY));
   const [items, setItems] = useState<Array<{ label: string; children: string; key: string }>>(() => {
-    const persisted = loadPersistedTabs();
-    if (persisted) {
-      const hasHome = persisted.items.some((p) => p.key === HOME_KEY);
-      const withHome = hasHome ? persisted.items : [{ label: t('app.tab.home'), key: HOME_KEY }, ...persisted.items];
+    if (initialTabs) {
+      const hasHome = initialTabs.items.some((p) => p.key === HOME_KEY);
+      const withHome = hasHome
+        ? initialTabs.items
+        : [{ label: t('app.tab.home'), key: HOME_KEY }, ...initialTabs.items];
       return withHome.map((p) => ({ label: p.label, children: '', key: p.key }));
     }
     return [{ label: t('app.tab.home'), children: '', key: HOME_KEY }];
   });
+
+  useEffect(
+    () =>
+      subscribeKnife4jStorageCleanup((scope) => {
+        if (scope === 'all-local-data') {
+          window.location.reload();
+        }
+      }),
+    [],
+  );
   useEffect(() => {
     document.title = swaggerDoc?.info?.title || DEFAULT_DOCUMENT_TITLE;
   }, [swaggerDoc?.info?.title]);
@@ -194,99 +219,74 @@ const AppInner: React.FC = () => {
       });
   }, [location.pathname]);
 
-  /** Keep the outer API tab key aligned with the selected operation child page. */
-  useEffect(() => {
-    if (activeGroup.apis.length === 0) return;
-    const pathname = location.pathname;
-
-    if (!isOperationRouteKey(pathname)) return;
-
-    const menuKey = routeKeyToMenuKey(pathname);
-    const api = activeGroup.apis.find((a) => a.key === menuKey);
-    if (!api) return; // apis loaded but this one didn't match; wait for other groups
-
-    const title = `${api.method} ${api.summary}`;
-    setItems((prev) => upsertOperationRoutePane(prev, pathname, title, (key, label) => ({ label, children: '', key })));
-    setActiveKey(pathname);
-    setSelectedKey(menuKey);
-  }, [activeGroup.apis, location.pathname]);
-
-  /**
-   * Programmatic navigation from a schema type link should become a real tab,
-   * not silently replace the content of the previously active API tab.
-   */
-  useEffect(() => {
-    let pathname: string;
-    try {
-      pathname = decodeURIComponent(location.pathname);
-    } catch {
-      pathname = location.pathname;
-    }
-
-    const info = schemaRouteInfo(pathname);
-    if (!info) return;
-    if (settings.enableSwaggerModels === false) return;
-
-    const schemaTitle = settings.swaggerModelName || t('schema.title');
-    const title = info.labelSchema ? `${schemaTitle} / ${info.labelSchema}` : schemaTitle;
-    setItems((prev) =>
-      prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
-    );
-    setActiveKey(pathname);
-    setSelectedKey(info.menuKey);
-  }, [location.pathname, settings.swaggerModelName, settings.enableSwaggerModels, t]);
-
-  useEffect(() => {
-    let pathname: string;
-    try {
-      pathname = decodeURIComponent(location.pathname);
-    } catch {
-      pathname = location.pathname;
-    }
-    const documentToolRoute = matchDocumentToolRoute(pathname);
-    if (!documentToolRoute) return;
-
-    const title = `${t(documentToolTitleKey(documentToolRoute.tool))} - ${activeGroup.label || activeGroup.value}`;
-    setItems((prev) => {
-      const existingPane = prev.find((pane) => pane.key === pathname);
-      if (!existingPane) return [...prev, { label: title, children: '', key: pathname }];
-      if (existingPane.label === title) return prev;
-      return prev.map((pane) => (pane.key === pathname ? { ...pane, label: title } : pane));
-    });
-    setActiveKey(pathname);
-    setSelectedKey(pathname);
-  }, [activeGroup.label, activeGroup.value, location.pathname, t]);
-
-  // Keep a ref to markdownDocs so the pathname-change effect below can read
-  // the latest value without adding markdownDocs to its dependency array.
-  // Adding markdownDocs directly would cause the effect to re-fire on every
-  // language switch (markdownDocs is recomputed from i18n context), which
-  // would forcibly reset activeKey/selectedKey and interrupt the user's
-  // current tab.
+  /** Keep open tabs aligned with operation, schema, document-tool, and markdown routes. */
   const markdownDocsRef = useRef(markdownDocs);
-  useEffect(() => {
-    markdownDocsRef.current = markdownDocs;
-  }, [markdownDocs]);
+  markdownDocsRef.current = markdownDocs;
 
   useEffect(() => {
-    let pathname: string;
-    try {
-      pathname = decodeURIComponent(location.pathname);
-    } catch {
-      pathname = location.pathname;
+    const rawPathname = location.pathname;
+    if (activeGroup.apis.length > 0 && isOperationRouteKey(rawPathname)) {
+      const menuKey = routeKeyToMenuKey(rawPathname);
+      const api = activeGroup.apis.find((a) => a.key === menuKey);
+      if (api) {
+        const title = `${api.method} ${api.summary}`;
+        setItems((prev) =>
+          upsertOperationRoutePane(prev, rawPathname, title, (key, label) => ({ label, children: '', key })),
+        );
+        setActiveKey(rawPathname);
+        setSelectedKey(menuKey);
+      }
+      return;
+    }
+
+    const pathname = decodePathname(rawPathname);
+
+    const schemaInfo = schemaRouteInfo(pathname);
+    if (schemaInfo) {
+      if (settings.enableSwaggerModels === false) return;
+      const schemaTitle = settings.swaggerModelName || t('schema.title');
+      const title = schemaInfo.labelSchema ? `${schemaTitle} / ${schemaInfo.labelSchema}` : schemaTitle;
+      setItems((prev) =>
+        prev.some((pane) => pane.key === pathname) ? prev : [...prev, { label: title, children: '', key: pathname }],
+      );
+      setActiveKey(pathname);
+      setSelectedKey(schemaInfo.menuKey);
+      return;
+    }
+
+    const documentToolRoute = matchDocumentToolRoute(pathname);
+    if (documentToolRoute) {
+      const title = `${t(documentToolTitleKey(documentToolRoute.tool))} - ${activeGroup.label || activeGroup.value}`;
+      setItems((prev) => {
+        const existingPane = prev.find((pane) => pane.key === pathname);
+        if (!existingPane) return [...prev, { label: title, children: '', key: pathname }];
+        if (existingPane.label === title) return prev;
+        return prev.map((pane) => (pane.key === pathname ? { ...pane, label: title } : pane));
+      });
+      setActiveKey(pathname);
+      setSelectedKey(pathname);
+      return;
     }
 
     const markdownDoc = markdownDocsRef.current.find((doc) => doc.key === pathname);
-    if (!markdownDoc) return;
-
-    setItems((prev) =>
-      prev.some((pane) => pane.key === pathname)
-        ? prev
-        : [...prev, { label: markdownDoc.title, children: '', key: pathname }],
-    );
-    setActiveKey(pathname);
-    setSelectedKey(pathname);
-  }, [location.pathname]);
+    if (markdownDoc) {
+      setItems((prev) =>
+        prev.some((pane) => pane.key === pathname)
+          ? prev
+          : [...prev, { label: markdownDoc.title, children: '', key: pathname }],
+      );
+      setActiveKey(pathname);
+      setSelectedKey(pathname);
+    }
+  }, [
+    activeGroup.apis,
+    activeGroup.label,
+    activeGroup.value,
+    location.pathname,
+    settings.enableSwaggerModels,
+    settings.swaggerModelName,
+    t,
+  ]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -426,8 +426,8 @@ const AppInner: React.FC = () => {
   ];
 
   useEffect(() => {
-    synchronizeI18nLanguage(i18n, settings.language, storageResetSnapshot.active);
-  }, [i18n, settings.language, storageResetSnapshot.active, storageResetSnapshot.generation]);
+    synchronizeI18nLanguage(i18n, settings.language, false);
+  }, [i18n, settings.language]);
 
   const currentLang = normalizeSupportedLanguage(i18n.language) ?? DEFAULT_LANGUAGE;
 
@@ -459,11 +459,7 @@ const AppInner: React.FC = () => {
   const onLangMenuClick: MenuProps['onClick'] = ({ key }) => {
     const next = normalizeSupportedLanguage(key);
     if (next) {
-      try {
-        void setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.language, next);
-      } catch {
-        // The setting below still updates the in-memory language when storage is unavailable.
-      }
+      setKnife4jStorageItem(localStorage, KNIFE4J_STORAGE_KEYS.language, next);
       setSetting('language', next);
     }
   };

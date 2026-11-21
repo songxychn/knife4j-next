@@ -5,10 +5,10 @@ import type { OperationDebugModel } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import type { SchemaDocumentSession } from '../../schema/schemaDocumentSession';
 import {
-  Oas31DebugDefaultHydrator,
-  Oas31DebugExampleLoader,
+  useOas31DebugDefaultHydrator,
+  useOas31DebugExampleLoader,
   type Oas31DebugExampleLoaderProps,
-} from './Oas31DebugExampleEffects';
+} from './useOas31DebugExamples';
 import type { Oas31DebugBodyExamples, Oas31DebugExampleIdentity, Oas31DebugExampleState } from './oas31DebugExamples';
 
 function deferred<T>() {
@@ -68,8 +68,13 @@ const loaderProps = {
   identity,
 };
 
+function LoaderHost(props: Oas31DebugExampleLoaderProps) {
+  useOas31DebugExampleLoader(props);
+  return null;
+}
+
 // This host supplies the same state/ref contract as ApiDebug. The production
-// effect components run through React's renderer, dependency tracking and cleanup.
+// effect hooks run through React's renderer, dependency tracking and cleanup.
 function DebugDefaults({
   generateExamples,
   cacheReady,
@@ -82,21 +87,21 @@ function DebugDefaults({
   const [, setFormFields] = useState<Record<string, string>>({});
   const editRevisionRef = useRef(0);
   const appliedIdentityRef = useRef<Oas31DebugExampleIdentity | null>(null);
+  useOas31DebugExampleLoader({ ...loaderProps, setState, generateExamples });
+  useOas31DebugDefaultHydrator({
+    activeExamples: state.status === 'ready' ? state.examples : null,
+    state,
+    identity,
+    editRevisionRef,
+    appliedIdentityRef,
+    hydratedDebugCacheKey: cacheReady ? 'pets' : null,
+    currentDebugCacheKey: 'pets',
+    selectedBody: debugModel.bodyContents[0],
+    setBody,
+    setFormFields,
+  });
   return (
     <>
-      <Oas31DebugExampleLoader {...loaderProps} setState={setState} generateExamples={generateExamples} />
-      <Oas31DebugDefaultHydrator
-        activeExamples={state.status === 'ready' ? state.examples : null}
-        state={state}
-        identity={identity}
-        editRevisionRef={editRevisionRef}
-        appliedIdentityRef={appliedIdentityRef}
-        hydratedDebugCacheKey={cacheReady ? 'pets' : null}
-        currentDebugCacheKey="pets"
-        selectedBody={debugModel.bodyContents[0]}
-        setBody={setBody}
-        setFormFields={setFormFields}
-      />
       <textarea
         aria-label="Request body"
         value={body}
@@ -135,14 +140,14 @@ describe('real React debug example lifecycle', () => {
     );
     const setState = vi.fn();
     await act(async () => {
-      root.render(<Oas31DebugExampleLoader {...loaderProps} setState={setState} generateExamples={generateExamples} />);
+      root.render(<LoaderHost {...loaderProps} setState={setState} generateExamples={generateExamples} />);
     });
     expect(signals[0].aborted).toBe(false);
     const nextOperation = { ...operation, key: 'Pets/put', method: 'put' };
     const nextIdentity = { ...identity, operationKey: nextOperation.key };
     await act(async () => {
       root.render(
-        <Oas31DebugExampleLoader
+        <LoaderHost
           {...loaderProps}
           operation={nextOperation}
           identity={nextIdentity}

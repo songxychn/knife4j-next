@@ -202,7 +202,7 @@ import {
   type Oas31DebugExampleIdentity,
   type Oas31DebugExampleState,
 } from './oas31DebugExamples';
-import { Oas31DebugDefaultHydrator, Oas31DebugExampleLoader } from './Oas31DebugExampleEffects';
+import { useOas31DebugDefaultHydrator, useOas31DebugExampleLoader } from './useOas31DebugExamples';
 import {
   CustomParamsSection,
   InjectedGlobalParamsSection,
@@ -663,6 +663,21 @@ export default function ApiDebug() {
     sequentialStream,
   ]);
 
+  const pendingDebugCacheWriteRef = useRef<{ key: string; payload: Parameters<typeof writeDebugCache>[1] } | null>(
+    null,
+  );
+
+  useEffect(
+    () => () => {
+      const pending = pendingDebugCacheWriteRef.current;
+      if (pending) {
+        pendingDebugCacheWriteRef.current = null;
+        writeDebugCache(pending.key, pending.payload);
+      }
+    },
+    [debugCacheKey],
+  );
+
   useEffect(() => {
     if (!settings.enableRequestCache || debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) {
       return;
@@ -671,7 +686,7 @@ export default function ApiDebug() {
       skipNextDebugCacheWriteRef.current = false;
       return;
     }
-    writeDebugCache(debugCacheKey, {
+    const payload: Parameters<typeof writeDebugCache>[1] = {
       version: DEBUG_CACHE_VERSION,
       cookieParameterSource: effectiveCookieSource,
       ...(isOas32
@@ -696,7 +711,18 @@ export default function ApiDebug() {
       customBodyParams,
       customHeaders,
       customCookies,
-    });
+    };
+    pendingDebugCacheWriteRef.current = { key: debugCacheKey, payload };
+    const timer = window.setTimeout(() => {
+      const pending = pendingDebugCacheWriteRef.current;
+      if (pending && pending.key === debugCacheKey) {
+        pendingDebugCacheWriteRef.current = null;
+        writeDebugCache(pending.key, pending.payload);
+      }
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [
     baseUrl,
     body,
@@ -1090,6 +1116,28 @@ export default function ApiDebug() {
     ];
     return browserSession ? columns.filter((column) => column.key !== 'enabled') : columns;
   };
+
+  useOas31DebugExampleLoader({
+    enabled: isOas31 && !docLoading && authReady && routeGroupReady,
+    document: swaggerDoc,
+    operation: operation ?? null,
+    debugModel,
+    session: schemaEngine.status === 'ready' ? schemaEngine.session : null,
+    identity: oas31ExampleIdentity,
+    setState: setOas31ExampleState,
+  });
+  useOas31DebugDefaultHydrator({
+    activeExamples: activeOas31Examples,
+    state: oas31ExampleState,
+    identity: oas31ExampleIdentity,
+    editRevisionRef: debugDefaultEditRevisionRef,
+    appliedIdentityRef: appliedOas31ExampleIdentityRef,
+    hydratedDebugCacheKey,
+    currentDebugCacheKey: debugCacheKey,
+    selectedBody: debugModel?.bodyContents.find((content) => content.mediaType === selectedContentType),
+    setBody,
+    setFormFields,
+  });
 
   if (docLoading || !authReady || !routeGroupReady) {
     return (
@@ -2888,27 +2936,6 @@ export default function ApiDebug() {
 
   return (
     <OperationModeLayout activeKey="debug">
-      <Oas31DebugExampleLoader
-        enabled={isOas31}
-        document={swaggerDoc}
-        operation={operation}
-        debugModel={debugModel}
-        session={schemaEngine.status === 'ready' ? schemaEngine.session : null}
-        identity={oas31ExampleIdentity}
-        setState={setOas31ExampleState}
-      />
-      <Oas31DebugDefaultHydrator
-        activeExamples={activeOas31Examples}
-        state={oas31ExampleState}
-        identity={oas31ExampleIdentity}
-        editRevisionRef={debugDefaultEditRevisionRef}
-        appliedIdentityRef={appliedOas31ExampleIdentityRef}
-        hydratedDebugCacheKey={hydratedDebugCacheKey}
-        currentDebugCacheKey={debugCacheKey}
-        selectedBody={debugModel.bodyContents.find((content) => content.mediaType === selectedContentType)}
-        setBody={setBody}
-        setFormFields={setFormFields}
-      />
       <Modal
         open={pendingSchemaOverride !== null}
         title={t('apiDebug.schemaValidation.title')}

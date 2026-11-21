@@ -17,7 +17,7 @@ vi.mock('react', () => ({
   useEffect: (effect: Effect) => reactHarness.effects.push(effect),
 }));
 
-import { Oas31DebugDefaultHydrator, Oas31DebugExampleLoader } from './Oas31DebugExampleEffects';
+import { useOas31DebugDefaultHydrator, useOas31DebugExampleLoader } from './useOas31DebugExamples';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -121,7 +121,7 @@ describe('OAS 3.1 debug example effect components', () => {
     const secondGenerator = vi.fn(() => second.promise);
     const setState = vi.fn();
 
-    Oas31DebugExampleLoader({
+    useOas31DebugExampleLoader({
       enabled: true,
       document,
       operation,
@@ -142,7 +142,7 @@ describe('OAS 3.1 debug example effect components', () => {
     expect(setState).toHaveBeenCalledTimes(1);
 
     reactHarness.effects.length = 0;
-    Oas31DebugExampleLoader({
+    useOas31DebugExampleLoader({
       enabled: true,
       document,
       operation: { ...operation, key: 'Pets/put' },
@@ -165,7 +165,7 @@ describe('OAS 3.1 debug example effect components', () => {
     const current = deferred<Oas31DebugBodyExamples>();
     const setState = vi.fn();
 
-    Oas31DebugExampleLoader({
+    useOas31DebugExampleLoader({
       enabled: true,
       document,
       operation,
@@ -179,7 +179,7 @@ describe('OAS 3.1 debug example effect components', () => {
     if (typeof cleanup === 'function') cleanup();
 
     reactHarness.effects.length = 0;
-    Oas31DebugExampleLoader({
+    useOas31DebugExampleLoader({
       enabled: true,
       document: replacementDocument,
       operation,
@@ -220,18 +220,18 @@ describe('OAS 3.1 debug example effect components', () => {
       setFormFields,
     };
 
-    Oas31DebugDefaultHydrator({ ...base, identity: firstIdentity });
+    useOas31DebugDefaultHydrator({ ...base, identity: firstIdentity });
     reactHarness.effects[0]?.();
     expect(setBody).not.toHaveBeenCalled();
 
     editRevisionRef.current = 0;
     reactHarness.effects.length = 0;
-    Oas31DebugDefaultHydrator({ ...base, activeExamples: null, identity: secondIdentity });
+    useOas31DebugDefaultHydrator({ ...base, activeExamples: null, identity: secondIdentity });
     reactHarness.effects[0]?.();
     expect(setBody).not.toHaveBeenCalled();
 
     reactHarness.effects.length = 0;
-    Oas31DebugDefaultHydrator({
+    useOas31DebugDefaultHydrator({
       ...base,
       activeExamples: null,
       identity: replacementIdentityAtSameAddress,
@@ -240,14 +240,14 @@ describe('OAS 3.1 debug example effect components', () => {
     expect(setBody).not.toHaveBeenCalled();
 
     reactHarness.effects.length = 0;
-    Oas31DebugDefaultHydrator({ ...base, identity: firstIdentity });
+    useOas31DebugDefaultHydrator({ ...base, identity: firstIdentity });
     reactHarness.effects[0]?.();
     expect(setBody).toHaveBeenCalledWith('{\n  "name": "generated"\n}');
     expect(setFormFields).toHaveBeenCalledWith({});
     expect(appliedIdentityRef.current).toEqual(firstIdentity);
 
     reactHarness.effects.length = 0;
-    Oas31DebugDefaultHydrator({ ...base, identity: firstIdentity });
+    useOas31DebugDefaultHydrator({ ...base, identity: firstIdentity });
     reactHarness.effects[0]?.();
     expect(setBody).toHaveBeenCalledTimes(1);
   });

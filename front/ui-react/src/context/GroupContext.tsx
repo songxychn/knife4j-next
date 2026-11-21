@@ -235,7 +235,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     settings.enableFilterMultipartApis,
     settings.enableFilterMultipartApiMethodType,
   ]);
-  const schemas: Record<string, SchemaObject> = swaggerDoc ? getSchemas(swaggerDoc) : {};
+  const schemas: Record<string, SchemaObject> = useMemo(() => (swaggerDoc ? getSchemas(swaggerDoc) : {}), [swaggerDoc]);
 
   const markdownDocs: MarkdownDocItem[] = useMemo(() => {
     const markdownGroups = extractMarkdownFiles(swaggerDoc);
@@ -256,29 +256,37 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 兼容旧接口：将真实数据转换为 ApiGroup[]
   // Keep the configured group selector available during loading and failures.
-  const groups: ApiGroup[] = rawGroups.map((g) => {
-    const isActive = g.name === activeGroupValue;
-    const apis: ApiItem[] = isActive
-      ? menuTags.flatMap((t) =>
-          t.operations.map((op) => ({
-            key: `/${activeGroupValue}/${op.key}`,
-            method: operationHttpMethod(op),
-            path: op.path,
-            summary: op.summary,
-            tag: t.tag,
-            operationId: op.operationId,
-            deprecated: op.deprecated,
-          })),
-        )
-      : [];
-    return { value: g.name, label: g.name, apis };
-  });
+  const groups: ApiGroup[] = useMemo(
+    () =>
+      rawGroups.map((g) => {
+        const isActive = g.name === activeGroupValue;
+        const apis: ApiItem[] = isActive
+          ? menuTags.flatMap((t) =>
+              t.operations.map((op) => ({
+                key: `/${activeGroupValue}/${op.key}`,
+                method: operationHttpMethod(op),
+                path: op.path,
+                summary: op.summary,
+                tag: t.tag,
+                operationId: op.operationId,
+                deprecated: op.deprecated,
+              })),
+            )
+          : [];
+        return { value: g.name, label: g.name, apis };
+      }),
+    [activeGroupValue, menuTags, rawGroups],
+  );
 
   // spec 尚未加载或加载失败时，仍保留 rawGroups 中的当前分组身份。
-  const activeGroup = resolveActiveRouteGroup(
-    groups,
-    rawGroups.map((group) => group.name),
-    activeGroupValue,
+  const activeGroup = useMemo(
+    () =>
+      resolveActiveRouteGroup(
+        groups,
+        rawGroups.map((group) => group.name),
+        activeGroupValue,
+      ),
+    [activeGroupValue, groups, rawGroups],
   );
   const handleSetActiveGroup = useCallback(
     (value: string) => {
@@ -291,33 +299,54 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [activeGroupValue],
   );
   const metadataDiagnostics = useMemo(() => oas32MetadataDiagnostics(swaggerDoc, menuTags), [swaggerDoc, menuTags]);
+  const allDocumentDiagnostics = useMemo(
+    () => [...documentDiagnostics, ...metadataDiagnostics],
+    [documentDiagnostics, metadataDiagnostics],
+  );
   const routeGroupReady = isRouteGroupReady(routeGroupName, activeGroupValue);
 
-  return (
-    <GroupContext.Provider
-      value={{
-        groups,
-        activeGroup,
-        setActiveGroupValue: handleSetActiveGroup,
-        activeSwaggerGroup,
-        swaggerDoc,
-        swaggerUiConfig,
-        menuTags,
-        operationRetrievalUri,
-        operationEnumerationLimit,
-        markdownDocs,
-        schemas,
-        loading,
-        routeGroupReady,
-        usingMock,
-        groupError,
-        documentDiagnostics: [...documentDiagnostics, ...metadataDiagnostics],
-        setOperationResourceSnapshot,
-      }}
-    >
-      {children}
-    </GroupContext.Provider>
+  const contextValue = useMemo<GroupContextValue>(
+    () => ({
+      groups,
+      activeGroup,
+      setActiveGroupValue: handleSetActiveGroup,
+      activeSwaggerGroup,
+      swaggerDoc,
+      swaggerUiConfig,
+      menuTags,
+      operationRetrievalUri,
+      operationEnumerationLimit,
+      markdownDocs,
+      schemas,
+      loading,
+      routeGroupReady,
+      usingMock,
+      groupError,
+      documentDiagnostics: allDocumentDiagnostics,
+      setOperationResourceSnapshot,
+    }),
+    [
+      groups,
+      activeGroup,
+      handleSetActiveGroup,
+      activeSwaggerGroup,
+      swaggerDoc,
+      swaggerUiConfig,
+      menuTags,
+      operationRetrievalUri,
+      operationEnumerationLimit,
+      markdownDocs,
+      schemas,
+      loading,
+      routeGroupReady,
+      usingMock,
+      groupError,
+      allDocumentDiagnostics,
+      setOperationResourceSnapshot,
+    ],
   );
+
+  return <GroupContext.Provider value={contextValue}>{children}</GroupContext.Provider>;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components

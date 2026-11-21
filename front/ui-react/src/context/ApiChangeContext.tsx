@@ -21,11 +21,10 @@ import {
   type Oas31ApiChangeEnvironment,
 } from '../apiChange/apiChangeTracker';
 import {
-  KNIFE4J_STORAGE_KEYS,
-  getKnife4jStorageItemSnapshot,
+  getKnife4jStorageItem,
   setKnife4jStorageItem,
+  subscribeKnife4jStorageCleanup,
   updateKnife4jStorageItem,
-  type Knife4jStorageItemSnapshot,
 } from '../storage/knife4jStorage';
 import { useGroup } from './GroupContext';
 import {
@@ -99,25 +98,16 @@ function browserLocalStorage(): Storage | null {
   }
 }
 
-function readBaselineSnapshot(storage: Storage | null, key: string): Knife4jStorageItemSnapshot | null {
+function readBaseline(storage: Storage | null, key: string): string | null {
   if (!storage) return null;
-  try {
-    return getKnife4jStorageItemSnapshot(storage, key, storage);
-  } catch {
-    return null;
-  }
+  return getKnife4jStorageItem(storage, key);
 }
 
-function persistBaseline(
-  storage: Storage | null,
-  key: string,
-  baseline: ApiChangeBaseline,
-  expectedSnapshot?: Knife4jStorageItemSnapshot | null,
-): void {
+function persistBaseline(storage: Storage | null, key: string, baseline: ApiChangeBaseline): void {
   if (!storage) return;
   const serialized = serializeApiChangeBaseline(baseline);
   if (!serialized) return;
-  void setKnife4jStorageItem(storage, key, serialized, storage, undefined, expectedSnapshot ?? undefined);
+  setKnife4jStorageItem(storage, key, serialized);
 }
 
 function oas31FingerprintEnvironment(
@@ -207,12 +197,12 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const storage = browserLocalStorage();
     const refresh = () => {
-      const snapshot = readBaselineSnapshot(storage, storageKey);
+      const storedRaw = readBaseline(storage, storageKey);
       const reconciliation = reconcileApiChangeBaseline(
         identity,
         fingerprintResult.snapshotVersion,
         fingerprints,
-        snapshot?.value ?? null,
+        storedRaw,
       );
       const nextState: ApiChangeTrackerState = {
         ready: true,
@@ -227,23 +217,23 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
       commitState(nextState);
       if (reconciliation.initialized) {
-        persistBaseline(storage, storageKey, reconciliation.baseline, snapshot);
+        persistBaseline(storage, storageKey, reconciliation.baseline);
       }
     };
 
     refresh();
     const onStorage = (event: StorageEvent) => {
       if (storage && event.storageArea && event.storageArea !== storage) return;
-      if (
-        event.key === storageKey ||
-        event.key === KNIFE4J_STORAGE_KEYS.requestCacheEpoch ||
-        event.key === KNIFE4J_STORAGE_KEYS.resetGeneration
-      ) {
+      if (event.key === storageKey || event.key === null) {
         refresh();
       }
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    const unsubscribeCleanup = subscribeKnife4jStorageCleanup(() => refresh());
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      unsubscribeCleanup();
+    };
   }, [activeSwaggerGroup, commitState, loading, oas31Environment, settings.enableVersion, swaggerDoc]);
 
   const acknowledgeOperation = useCallback(
@@ -272,31 +262,22 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       commitState(nextState);
       if (!storage) return;
 
-      const acknowledgedScope = current.scopeKey;
-      void updateKnife4jStorageItem(
-        storage,
-        current.storageKey,
-        (rawBaseline) => {
-          const durableBaseline =
-            parseApiChangeBaseline(rawBaseline, identity, snapshotVersion) ??
-            acknowledgeAllApiOperations(identity, snapshotVersion, current.fingerprints);
-          const mergedBaseline = acknowledgeApiOperation(durableBaseline, current.fingerprints, method, path);
-          const serialized = serializeApiChangeBaseline(mergedBaseline);
-          if (!serialized) throw new Error('API change baseline exceeds the storage limit');
-          return serialized;
-        },
-        storage,
-      ).then((result) => {
-        const latest = stateRef.current;
-        if (!result.persisted || latest.scopeKey !== acknowledgedScope || !latest.identity) return;
-        if (!latest.snapshotVersion) return;
-        const durableBaseline = parseApiChangeBaseline(result.value, latest.identity, latest.snapshotVersion);
-        if (!durableBaseline) return;
-        commitState({
-          ...latest,
-          baseline: durableBaseline,
-          statuses: compareApiChangeBaseline(durableBaseline, latest.fingerprints),
-        });
+      const result = updateKnife4jStorageItem(storage, current.storageKey, (rawBaseline) => {
+        const durableBaseline =
+          parseApiChangeBaseline(rawBaseline, identity, snapshotVersion) ??
+          acknowledgeAllApiOperations(identity, snapshotVersion, current.fingerprints);
+        const mergedBaseline = acknowledgeApiOperation(durableBaseline, current.fingerprints, method, path);
+        const serialized = serializeApiChangeBaseline(mergedBaseline);
+        if (!serialized) throw new Error('API change baseline exceeds the storage limit');
+        return serialized;
+      });
+      if (!result.persisted) return;
+      const durableBaseline = parseApiChangeBaseline(result.value, identity, snapshotVersion);
+      if (!durableBaseline) return;
+      commitState({
+        ...nextState,
+        baseline: durableBaseline,
+        statuses: compareApiChangeBaseline(durableBaseline, current.fingerprints),
       });
     },
     [commitState],
@@ -313,8 +294,7 @@ export const ApiChangeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       statuses: compareApiChangeBaseline(nextBaseline, current.fingerprints),
     };
     commitState(nextState);
-    const storage = browserLocalStorage();
-    persistBaseline(storage, current.storageKey, nextBaseline, readBaselineSnapshot(storage, current.storageKey));
+    persistBaseline(browserLocalStorage(), current.storageKey, nextBaseline);
   }, [commitState]);
 
   const summary = useMemo(() => (state.ready ? summarizeApiChanges(state.statuses) : EMPTY_SUMMARY), [state]);

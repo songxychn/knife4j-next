@@ -25,7 +25,7 @@ export interface Oas31DebugExampleLoaderProps {
   readonly generateExamples?: GenerateDebugExamples;
 }
 
-export function Oas31DebugExampleLoader({
+export function useOas31DebugExampleLoader({
   enabled,
   document,
   operation,
@@ -34,7 +34,7 @@ export function Oas31DebugExampleLoader({
   identity,
   setState,
   generateExamples = generateOas31DebugBodyExamples,
-}: Oas31DebugExampleLoaderProps) {
+}: Oas31DebugExampleLoaderProps): void {
   useEffect(() => {
     if (!enabled || !document || !operation || !debugModel || !session || !identity) {
       setState({ status: 'idle' });
@@ -57,8 +57,6 @@ export function Oas31DebugExampleLoader({
       });
     return () => controller.abort();
   }, [debugModel, document, enabled, generateExamples, identity, operation, session, setState]);
-
-  return null;
 }
 
 export interface Oas31DebugDefaultHydratorProps {
@@ -74,7 +72,7 @@ export interface Oas31DebugDefaultHydratorProps {
   readonly setFormFields: Dispatch<SetStateAction<Record<string, string>>>;
 }
 
-export function Oas31DebugDefaultHydrator({
+export function useOas31DebugDefaultHydrator({
   activeExamples,
   state,
   identity,
@@ -85,7 +83,7 @@ export function Oas31DebugDefaultHydrator({
   selectedBody,
   setBody,
   setFormFields,
-}: Oas31DebugDefaultHydratorProps) {
+}: Oas31DebugDefaultHydratorProps): void {
   useEffect(() => {
     const hydrationState: Oas31DebugExampleState =
       activeExamples && identity ? { status: 'ready', identity, examples: activeExamples } : state;
@@ -119,6 +117,4 @@ export function Oas31DebugDefaultHydrator({
     setFormFields,
     state,
   ]);
-
-  return null;
 }
