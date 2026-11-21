@@ -24,7 +24,6 @@ import com.github.xiaoymin.knife4j.spring.extension.Knife4jJakartaOperationCusto
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jKotlinIsPrefixOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.extension.Knife4jOpenApiCustomizer;
 import com.github.xiaoymin.knife4j.spring.filter.JakartaProductionSecurityFilter;
-import com.github.xiaoymin.knife4j.spring.util.EnvironmentUtils;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.DispatcherType;
 import lombok.AllArgsConstructor;
@@ -176,22 +175,15 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnExpression("${knife4j.basic.enable:true}")
     public FilterRegistrationBean<JakartaServletSecurityBasicAuthFilter> securityBasicAuthFilter(Knife4jProperties knife4jProperties) {
         JakartaServletSecurityBasicAuthFilter authFilter = new JakartaServletSecurityBasicAuthFilter();
-        if (knife4jProperties == null) {
-            authFilter.setEnableBasicAuth(EnvironmentUtils.resolveBool(environment, "knife4j.basic.enable", Boolean.FALSE));
-            authFilter.setUserName(EnvironmentUtils.resolveString(environment, "knife4j.basic.username", GlobalConstants.BASIC_DEFAULT_USERNAME));
-            authFilter.setPassword(EnvironmentUtils.resolveString(environment, "knife4j.basic.password", GlobalConstants.BASIC_DEFAULT_PASSWORD));
+        if (knife4jProperties.getBasic() == null) {
+            authFilter.setEnableBasicAuth(Boolean.FALSE);
+            authFilter.setUserName(GlobalConstants.BASIC_DEFAULT_USERNAME);
+            authFilter.setPassword(GlobalConstants.BASIC_DEFAULT_PASSWORD);
         } else {
-            // 判断非空
-            if (knife4jProperties.getBasic() == null) {
-                authFilter.setEnableBasicAuth(Boolean.FALSE);
-                authFilter.setUserName(GlobalConstants.BASIC_DEFAULT_USERNAME);
-                authFilter.setPassword(GlobalConstants.BASIC_DEFAULT_PASSWORD);
-            } else {
-                authFilter.setEnableBasicAuth(knife4jProperties.getBasic().isEnable());
-                authFilter.setUserName(knife4jProperties.getBasic().getUsername());
-                authFilter.setPassword(knife4jProperties.getBasic().getPassword());
-                authFilter.addRule(knife4jProperties.getBasic().getInclude());
-            }
+            authFilter.setEnableBasicAuth(knife4jProperties.getBasic().isEnable());
+            authFilter.setUserName(knife4jProperties.getBasic().getUsername());
+            authFilter.setPassword(knife4jProperties.getBasic().getPassword());
+            authFilter.addRule(knife4jProperties.getBasic().getInclude());
         }
         FilterRegistrationBean<JakartaServletSecurityBasicAuthFilter> registration = new FilterRegistrationBean<>();
         registration.setDispatcherTypes(DispatcherType.REQUEST);
@@ -204,20 +196,7 @@ public class Knife4jAutoConfiguration {
     @ConditionalOnMissingBean(JakartaProductionSecurityFilter.class)
     @ConditionalOnProperty(name = "knife4j.production", havingValue = "true")
     public FilterRegistrationBean<JakartaProductionSecurityFilter> productionSecurityFilter(Environment environment) {
-        boolean prod = false;
-        JakartaProductionSecurityFilter p = null;
-        if (properties == null) {
-            if (environment != null) {
-                String prodStr = environment.getProperty("knife4j.production");
-                if (log.isDebugEnabled()) {
-                    log.debug("swagger.production:{}", prodStr);
-                }
-                prod = Boolean.valueOf(prodStr);
-            }
-            p = new JakartaProductionSecurityFilter(prod);
-        } else {
-            p = new JakartaProductionSecurityFilter(properties.isProduction());
-        }
+        JakartaProductionSecurityFilter p = new JakartaProductionSecurityFilter(properties.isProduction());
         FilterRegistrationBean<JakartaProductionSecurityFilter> registration = new FilterRegistrationBean<>();
         registration.setDispatcherTypes(DispatcherType.REQUEST);
         registration.setFilter(p);

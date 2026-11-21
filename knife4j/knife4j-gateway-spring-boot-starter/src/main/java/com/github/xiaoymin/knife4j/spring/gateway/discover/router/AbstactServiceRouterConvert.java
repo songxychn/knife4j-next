@@ -31,7 +31,7 @@ import com.github.xiaoymin.knife4j.spring.gateway.enums.OpenApiVersion;
 import com.github.xiaoymin.knife4j.spring.gateway.spec.v2.OpenAPI2Resource;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.PathUtils;
 import com.github.xiaoymin.knife4j.spring.gateway.utils.ServiceUtils;
-import com.github.xiaoymin.knife4j.spring.gateway.utils.StrUtil;
+import com.github.xiaoymin.knife4j.core.util.StrUtil;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

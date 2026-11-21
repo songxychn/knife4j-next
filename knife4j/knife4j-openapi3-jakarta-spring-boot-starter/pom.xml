@@ -16,7 +16,6 @@
         <knife4j-java.version>17</knife4j-java.version>
 
         <knife4j-javassist.version>3.30.2-GA</knife4j-javassist.version>
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <knife4j-skipTests>true</knife4j-skipTests>
     </properties>
     <dependencyManagement>
@@ -98,7 +97,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <source>${knife4j-java.version}</source>
                     <target>${knife4j-java.version}</target>

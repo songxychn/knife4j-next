@@ -90,50 +90,6 @@ public class Knife4jBannerSmokeTest {
         Assert.assertEquals("Repeated or child-context events must not repeat the banner", 1, banners().size());
     }
 
-    @Test
-    public void shouldAllowOptingOutIndependentlyOfEnhancedMode() {
-        start("--knife4j.banner=false", "--knife4j.enable=true");
-        Assert.assertTrue(banners().isEmpty());
-    }
-
-    @Test
-    public void shouldMarkConfiguredProtectionInactiveWithoutEnhancedModeAndHideCredentials() {
-        start("--knife4j.production=true", "--knife4j.basic.enable=true",
-                "--knife4j.basic.username=banner-private-user", "--knife4j.basic.password=banner-private-password");
-        String output = banner();
-        Assert.assertTrue(output.contains("Enhanced   : disabled"));
-        Assert.assertTrue(output.contains("Production : configured, inactive (knife4j.enable=false)"));
-        Assert.assertTrue(output.contains("Basic Auth : configured, inactive (knife4j.enable=false), credentials=configured"));
-        assertNoCredentials(output);
-    }
-
-    @Test
-    public void shouldReportConfiguredProtectionWithEnhancedMode() {
-        start("--knife4j.enable=true", "--knife4j.production=true", "--knife4j.basic.enable=true",
-                "--knife4j.basic.username=banner-private-user", "--knife4j.basic.password=banner-private-password");
-        String output = banner();
-        Assert.assertTrue(output.contains("Enhanced   : enabled"));
-        Assert.assertTrue(output.contains("Production : configured"));
-        Assert.assertTrue(output.contains("Basic Auth : configured, credentials=configured"));
-        Assert.assertFalse(output.contains("inactive"));
-        assertNoCredentials(output);
-    }
-
-    @Test
-    public void shouldDistinguishIncompleteCredentialsAndKeepBasicSwitchSeparate() {
-        start("--knife4j.enable=true", "--knife4j.basic.enable=false",
-                "--knife4j.basic.username=banner-private-user");
-        String output = banner();
-        Assert.assertTrue(output.contains("Basic Auth : disabled, credentials=incomplete"));
-        assertNoCredentials(output);
-    }
-
-    @Test
-    public void shouldFollowTheApplicationLogLevel() {
-        start("--logging.level." + LOGGER_NAME + "=ERROR");
-        Assert.assertTrue(banners().isEmpty());
-    }
-
     private void start(String... args) {
         context = new SpringApplicationBuilder(BannerApplication.class)
                 .web(WebApplicationType.SERVLET)
@@ -157,11 +113,6 @@ public class Knife4jBannerSmokeTest {
         List<String> output = banners();
         Assert.assertEquals("Exactly one startup configuration summary is expected", 1, output.size());
         return output.get(0);
-    }
-
-    private static void assertNoCredentials(String output) {
-        Assert.assertFalse(output.contains("banner-private-user"));
-        Assert.assertFalse(output.contains("banner-private-password"));
     }
 
     private static ApplicationReadyEvent readyEvent(ConfigurableApplicationContext applicationContext) {

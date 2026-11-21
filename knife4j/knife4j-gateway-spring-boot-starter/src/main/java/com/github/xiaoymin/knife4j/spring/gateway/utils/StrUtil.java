@@ -17,50 +17,25 @@
 
 package com.github.xiaoymin.knife4j.spring.gateway.utils;
 
-/***
- *
- * @since  2.0.4
- * @author <a href="mailto:xiaoymin@foxmail.com">xiaoymin@foxmail.com</a> 
- * 2020/06/17 10:32
+/**
+ * @deprecated Use {@link com.github.xiaoymin.knife4j.core.util.StrUtil} instead.
  */
+@Deprecated
 public class StrUtil {
 
     public static boolean isBlankChar(int c) {
-        return Character.isWhitespace(c) || Character.isSpaceChar(c) || c == '\ufeff' || c == '\u202a';
+        return com.github.xiaoymin.knife4j.core.util.StrUtil.isBlankChar(c);
     }
 
     public static boolean isBlank(CharSequence str) {
-        int length;
-
-        if ((str == null) || ((length = str.length()) == 0)) {
-            return true;
-        }
-
-        for (int i = 0; i < length; i++) {
-            // 只要有一个非空字符即为非空字符串
-            if (!isBlankChar(str.charAt(i))) {
-                return false;
-            }
-        }
-        return true;
+        return com.github.xiaoymin.knife4j.core.util.StrUtil.isBlank(str);
     }
 
     public static boolean isNotBlank(CharSequence str) {
-        return !isBlank(str);
+        return com.github.xiaoymin.knife4j.core.util.StrUtil.isNotBlank(str);
     }
 
-    /**
-     * 判断当前内容是否非空，如果是空，这用默认值替换
-     * @param value 判断值
-     * @param defaultStr 默认值
-     * @return 非空判断值
-     * @since v4.3.0
-     */
     public static String defaultTo(String value, String defaultStr) {
-        if (isNotBlank(value)) {
-            return value;
-        } else {
-            return defaultStr;
-        }
+        return com.github.xiaoymin.knife4j.core.util.StrUtil.defaultTo(value, defaultStr);
     }
 }

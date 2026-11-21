@@ -18,11 +18,11 @@
 package com.github.xiaoymin.knife4j.core.spi;
 
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Registry for {@link Knife4jValidatorAnnotationResolver} instances.
@@ -42,7 +42,7 @@ public final class ValidatorAnnotationResolverRegistry {
     private static final ValidatorAnnotationResolverRegistry INSTANCE =
             new ValidatorAnnotationResolverRegistry();
 
-    private final List<Knife4jValidatorAnnotationResolver> resolvers = new ArrayList<>();
+    private final List<Knife4jValidatorAnnotationResolver> resolvers = new CopyOnWriteArrayList<>();
 
     private ValidatorAnnotationResolverRegistry() {
         // Load custom resolvers from ServiceLoader
@@ -69,7 +69,7 @@ public final class ValidatorAnnotationResolverRegistry {
      * @param resolver the resolver to add
      */
     public void register(Knife4jValidatorAnnotationResolver resolver) {
-        if (resolver != null) {
+        if (resolver != null && !resolvers.contains(resolver)) {
             resolvers.add(0, resolver);
         }
     }
