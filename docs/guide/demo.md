@@ -13,7 +13,7 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 | `knife4j-demo-openapi3` | Spring Boot 4.0 + springdoc + `knife4j-openapi3-boot4-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
 | `knife4j-demo-openapi2` | Spring Boot 2.7 + springfox 2.10.5 + `knife4j-openapi2-spring-boot-starter` | Vue 3（`knife4j-openapi2-ui`） | [https://openapi2.demo.knife4jnext.com/doc.html](https://openapi2.demo.knife4jnext.com/doc.html) |
 
-两个站点都跟随 `master` 分支自动构建与刷新，建议直接打开比对，看看 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
+两个站点都跟随正式发布 tag（`v*`）自动构建与刷新（与 Maven Central 同步），建议直接打开比对，看看 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
 
 如果访问失败，优先在本地跑一遍，避免把预览环境问题当成功能问题。
 
@@ -60,13 +60,13 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 
 ```bash [Maven]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi3 -am spring-boot:run
+mvn -pl knife4j-demo-openapi3 -am spring-boot:run
 # 浏览器打开 http://localhost:8080/doc.html
 ```
 
 ```bash [打包后运行]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi3 -am package -DskipTests
+mvn -pl knife4j-demo-openapi3 -am package -DskipTests
 java -jar knife4j-demo-openapi3/target/knife4j-demo-openapi3-*.jar
 ```
 
@@ -127,13 +127,13 @@ docker run --rm -p 8080:8080 \
 
 ```bash [Maven]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi2 -am spring-boot:run
+mvn -pl knife4j-demo-openapi2 -am spring-boot:run
 # 浏览器打开 http://localhost:8081/doc.html
 ```
 
 ```bash [打包后运行]
 cd knife4j
-./mvnw -pl knife4j-demo-openapi2 -am package -DskipTests
+mvn -pl knife4j-demo-openapi2 -am package -DskipTests
 java -jar knife4j-demo-openapi2/target/knife4j-demo-openapi2-*.jar
 ```
 

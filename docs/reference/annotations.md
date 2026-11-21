@@ -155,8 +155,9 @@ public class UserController { ... }
 | `authors` | `String[]` | `{}` | 开发者（多值，与 `author` 合并展示；since 4.2.0） |
 | `params` | `DynamicParameters` | `@DynamicParameters` | 动态请求参数（⚠️ 自 4.0 起放弃维护） |
 | `responses` | `DynamicResponseParameters` | `@DynamicResponseParameters` | 动态响应参数（⚠️ 自 4.0 起放弃维护） |
-| `ignoreParameters` | `String[]` | `{}` | 忽略参数名（⚠️ 自 4.0 起放弃维护） |
-| `includeParameters` | `String[]` | `{}` | 包含参数名（⚠️ 自 4.0 起放弃维护） |
+| `ignoreParameters` | `String[]` | `{}` | 忽略参数名（⚠️ 仅 openapi2 生效，自 4.0 起放弃维护） |
+| `includeParameters` | `String[]` | `{}` | 包含参数名（⚠️ 仅 openapi2 生效，自 4.0 起放弃维护） |
+| `validationGroups` | `Class<?>[]` | `{}` | 指定 Bean Validation 分组，后端输出 `x-validation-groups` 供 React UI 标记分组必填字段 |
 
 **目标**：`ElementType.METHOD`, `ElementType.ANNOTATION_TYPE`
 
@@ -180,7 +181,7 @@ public UserVO create(@RequestBody UserCreateRequest req) { ... }
 @ApiOperationSupport(includeParameters = {"name", "email"})
 ```
 
-> **React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 会由后端合并为 operation `x-author`，React 在接口详情页展示该 operation 作者信息。`ignoreParameters`/`includeParameters` 依赖后端 OpenAPI customizer 修改 schema，React 前端可以消费其结果。
+> **OpenAPI 3 / React UI 注意**：`order` 会通过 `x-order` 写入 OpenAPI spec，React 前端已按该字段排序；`author`/`authors` 会由后端合并为 operation `x-author`，React 在接口详情页展示该 operation 作者信息；`validationGroups` 会写入 `x-validation-groups` 供前端区分校验分组必填项。`ignoreParameters` / `includeParameters` **仅在 openapi2（Springfox）中生效**，OpenAPI 3 starter 不处理这两个属性，请改用 `@Schema(hidden = true)` 或拆分 DTO。
 
 ### 3.3 `@DynamicParameter` / `@DynamicParameters` / `@DynamicResponseParameters` — 动态模型
 
@@ -246,7 +247,7 @@ public class UserCreateRequest {
 public String internal() { ... }
 ```
 
-> 💡 OpenAPI 3 标准方案是 `@Hidden`，Knife4j 的 `@Ignore` 是其增强版（可附带原因说明）。两者功能重叠，推荐优先使用 `@Hidden`。
+> 💡 在 OpenAPI 3 中，Knife4j 后端 **不处理 `@Ignore`**，请直接使用 OpenAPI 3 标准的 `@Hidden`（或 `@Operation(hidden = true)` / `@Schema(hidden = true)`）。`@Ignore` 仅作为历史注解保留定义。
 
 ### 3.5 `@EnableKnife4j` — 启用增强
 
@@ -357,9 +358,10 @@ Knife4j 专有注解的后端增强逻辑通过 `Knife4jOpenApiCustomizer` / `Kn
 | `@ApiSupport.author/authors` | ✅ 写入 spec | ✅ | ✅ | 类级作者由后端回退写入 operation `x-author`，React 展示 operation 作者信息，不做 Tag 级聚合 |
 | `@ApiOperationSupport.order` 操作排序 | ✅ 写入 spec | ✅ | ✅ | React 按 `x-order` 排序，缺失时保持原排序策略 |
 | `@ApiOperationSupport.author/authors` | ✅ 写入 spec | ✅ | ✅ | 后端合并为 operation `x-author`，React 在接口详情页展示非空字符串值 |
-| `ignoreParameters` / `includeParameters` | ✅ 修改 schema | ✅ | ⚠️ | 后端已修改 schema，React 能读到结果 |
+| `@ApiOperationSupport.validationGroups` | ✅ 写入 spec | ❌ | ✅ | 后端输出 `x-validation-groups`，React 按分组标注必填字段 |
+| `ignoreParameters` / `includeParameters` | ⚠️ 仅 openapi2 | ✅ | ❌ | OpenAPI 3 后端不处理；请改用 `@Schema(hidden = true)` 或拆分 DTO |
 | `@DynamicParameter` 系列 | ⚠️ 仅 openapi2 | ✅ | ❌ | 4.0 起放弃维护 |
-| `@Ignore` | ✅ 过滤接口 | ✅ | ⚠️ | 后端过滤后 React 不展示被忽略接口 |
+| `@Ignore` | ❌ 不处理 | ❌ | ❌ | OpenAPI 3 请使用标准 `@Hidden` |
 
 ---
 
@@ -401,4 +403,4 @@ private String name;
 
 ### `@Ignore` vs `@Hidden` 用哪个？
 
-功能重叠，推荐优先使用 OpenAPI 3 标准的 `@Hidden`。`@Ignore` 的额外好处是可附带忽略原因说明，但当前无 UI 消费此信息。
+请使用 OpenAPI 3 标准的 `@Hidden`（或 `@Operation(hidden = true)`）。Knife4j 专有的 `@Ignore` 在 OpenAPI 3 后端不生效。

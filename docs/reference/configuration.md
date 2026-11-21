@@ -87,10 +87,11 @@ public OpenAPI customOpenAPI() {
 | `knife4j.setting.enableSearch` | `boolean` | `true` | 显示搜索框 | ✅ |
 | `knife4j.setting.enableOpenApi` | `boolean` | `true` | 显示 OpenAPI 原始结构 Tab | ✅ |
 | `knife4j.setting.enableHomeCustom` | `boolean` | `false` | 启用首页自定义 | ✅ |
-| `knife4j.setting.homeCustomLocation` | `String` | — | 首页自定义 Markdown 内容（通常由后端根据 `homeCustomPath` 读取后注入） | ✅ |
+| `knife4j.setting.homeCustomPath` | `String` | — | 自定义首页 Markdown 文件路径（如 `classpath:markdown/home.md`，由后端读取并填充到 `homeCustomLocation`） | 后端读取 |
+| `knife4j.setting.homeCustomLocation` | `String` | — | 首页自定义 Markdown 内容（后端读取 `homeCustomPath` 后注入） | ✅ |
 | `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ✅ |
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态码栏 | ⚠️ |
-| `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义 HTTP 状态码 | ✅ |
+| `knife4j.setting.customCode` | `Integer` | `200` | 生产环境屏蔽时的自定义状态码（仅 openapi2 `ProductionSecurityFilter` 生效；openapi3 Jakarta/Boot4 固定返回 HTTP 403） | ❌（后端配置） |
 
 > React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，但只消费表中标 ✅ 的 UI 字段；用户在前端设置面板中的本地选择会覆盖后端默认值。标 ⚠️ 的配置仍会由后端写入 extension，但 React 暂不消费。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
@@ -149,7 +150,7 @@ knife4j:
 
 ---
 
-## Gateway Starter 配置
+## Gateway Starter 配置 {#gateway}
 
 适用于 `knife4j-gateway-spring-boot-starter`、`knife4j-gateway-webmvc-spring-boot-starter` 和 `knife4j-gateway-boot4-spring-boot-starter`。
 
@@ -164,6 +165,7 @@ knife4j:
 | `knife4j.gateway.tagsSorter` | `alpha` / `order` | `alpha` | Tag 排序规则 |
 | `knife4j.gateway.operationsSorter` | `alpha` / `order` | `alpha` | Operation 排序规则 |
 | `knife4j.gateway.basic` | Object | — | Basic 认证（同 `knife4j.basic`） |
+| `knife4j.gateway.setting` | Object | — | Gateway 聚合 UI 个性化设置（结构同 `knife4j.setting`） |
 | `knife4j.gateway.discover` | Object | — | 服务发现配置 |
 | `knife4j.gateway.routes` | List | — | 手动路由配置 |
 
@@ -174,6 +176,9 @@ knife4j:
 | `enabled` | `Boolean` | `FALSE` | 启用服务发现 |
 | `excludedServices` | `Set<String>` | — | 排除的服务名（支持正则，since 4.3.0） |
 | `version` | `OpenAPI3` / `Swagger2` | `OpenAPI3` | 规范版本 |
+| `oas3` | Object | — | OpenAPI 3 发现选项（如 `oas3.url`，默认 `/v3/api-docs`） |
+| `swagger2` | Object | — | Swagger 2 发现选项（如 `swagger2.url`，默认 `/v2/api-docs`） |
+| `serviceConfig` | `Map<String, ServiceConfigInfo>` | — | 按服务名覆盖 `groupName`、`order`、`groupNames`、`contextPath` 等 |
 
 ### `knife4j.gateway.routes[]`
 
@@ -199,7 +204,7 @@ knife4j:
 
 ---
 
-## 聚合 Starter 配置
+## 聚合 Starter 配置 {#aggregation}
 
 适用于 `knife4j-aggregation-spring-boot-starter`、`knife4j-aggregation-jakarta-spring-boot-starter` 和 `knife4j-aggregation-boot4-spring-boot-starter`。
 

@@ -32,9 +32,8 @@ title: 路线图
 | React 前端 | ApiDebug 接口调试（类型感知参数输入 + requestBody 多 content-type + cURL 预览 + 响应复制/下载） | ✅ |
 | React 前端 | SwaggerModels 数据模型展示 | ✅ |
 | React 前端 | Authorize 鉴权配置（securitySchemes 动态渲染 + OAuth2 四种 flow 基础 token 获取/注入） | ✅ |
-| React 前端 | GlobalParam 全局参数 | ✅ |
+| React 前端 | GlobalParam 全局参数（含分组隔离、请求取值与 Cookie 会话） | ✅ |
 | React 前端 | Home 首页统计概览（重设计） | ✅ |
-| React 前端 | 离线文档导出（HTML / Word） | ✅ |
 | React 前端 | 真实 API 数据对接（/v3/api-docs） | ✅ |
 | React 前端 | 集成到 `knife4j-openapi3-ui` webjar | ✅ |
 | React 前端 | i18n 中英日切换 | ✅ |
@@ -42,10 +41,9 @@ title: 路线图
 | React 前端 | Tab 右键菜单 + 刷新后状态持久化 | ✅ |
 | React 前端 | 侧边栏接口搜索高亮 + Method 过滤条 | ✅ |
 | React 前端 | Markdown 渲染（API/tag/info description） | ✅ |
-| React 前端 | OAuth2 四种 flow 的基础鉴权调试 | ✅ |
 | React 前端 | 离线文档导出（HTML / Word / Markdown / OpenAPI JSON） | ✅ |
 | React 前端 | 尊重后端 tags-sorter / operations-sorter 配置 | ✅ |
-| React 前端 | 调试器请求 baseUrl 智能解析（`enableHost` > OpenAPI `servers[0].url` > origin） | ✅ |
+| React 前端 | 调试器请求 baseUrl 分级解析（`enableHost` > Gateway `contextPath` > OpenAPI `servers` > origin） | ✅ |
 | React 前端 | 设置面板默认值与后端 starter 对齐，能读取 OpenAPI 文档中的 `enableHost` 等服务端注入项 | ✅ |
 | React 前端 | 调试器 raw body 多格式 Beautify（JSON / XML / HTML / JavaScript）与完整 MIME 展示 | ✅ |
 | React 前端 | `enableSwaggerModels=false` 时 Schema 页以 403 提示填充，路由守卫防止被禁用路径被访问 | ✅ |
@@ -57,7 +55,7 @@ title: 路线图
 
 ---
 
-## React UI 对齐 Vue3 功能缺口清单
+## React UI 对齐 Vue3 功能缺口清单 {#react-ui-coverage}
 
 以下表格对比本仓库 `front/vue3`（Vue 3，OAS2 starter 前端）与 `knife4j-ui-react`（React，OAS3 starter 前端）的功能覆盖。⬜ = 未实现，🔲 = 部分实现，✅ = 已实现。
 
@@ -103,7 +101,7 @@ title: 路线图
 
 | 模块 | 状态 | 说明 |
 | --- | --- | --- |
-| `resolveRef(ref, doc)` | ✅ | 统一 OAS2/OAS3 $ref 解析 |
+| `resolveRef(ref, doc)` | ✅ | OpenAPI 3 `$ref` 解析 |
 | `OperationDebugModel` | ✅ | 从 operation 解析参数模型 |
 | `requestBuilder` | ✅ | 统一请求构造 + curl 输出 |
 | `buildSchemaExample` | ✅ | schema 示例生成 |
@@ -119,16 +117,6 @@ title: 路线图
 3. **核心层先行**：knife4j-core 抽取完成后，UI 层改动才可控
 4. **小步快跑**：一个 PR 只做一件事，可独立验证和回滚
 5. **不破坏现有体验**：任何改动不能让 `doc.html` 用户降级
-
----
-
-## 暂时不要做的事
-
-- 不要同时重构后端、前端、文档和品牌
-- 不要假设所有历史文档都要立刻迁完
-- 不要把实验性的 UI 线写成当前默认实现
-- 不要为了代码优雅牺牲向后兼容
-- 不要一次性停掉 OAS2 兼容维护（`front/vue3` 仍然可用）
 
 ---
 

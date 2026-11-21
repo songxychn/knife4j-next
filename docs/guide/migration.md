@@ -158,7 +158,7 @@ curl -I http://localhost:8080/doc.html   # 403 即正确
 - [ ] `/v3/api-docs`（或 `/v2/api-docs`）返回正确的 OpenAPI JSON
 - [ ] 业务代码**没有**改动，只有 `pom.xml` 的 groupId 改了
 - [ ] 如果启用了 `knife4j.production` 或 `knife4j.basic`，生产发布前再做一次黑盒验证
-- [ ] 如果依赖新 React 前端的 UI 行为，已阅读 [新前端覆盖范围](../roadmap/#react-ui-coverage)，确认 `enable-debug`、`enable-search`、`enable-version` 等配置是否还是你预期的效果
+- [ ] 如果依赖新 React 前端的 UI 行为，已阅读 [新前端覆盖范围](../roadmap/#react-ui-coverage)，确认 `enable-version`、`enable-after-script` 等 Vue 时代专属开关的覆盖情况
 
 ## 回滚策略
 
@@ -179,5 +179,5 @@ curl -I http://localhost:8080/doc.html   # 403 即正确
 
 - **找不到 `com.baizhukui` 坐标**：刷新 Maven 中央仓库镜像；企业私服需要手动同步（Central 已发布）。
 - **doc.html 404**：见 [FAQ / SpringBoot 访问 doc.html 404](./faq#doc-html-404)。
-- **`enable-version` / `enable-debug` 等开关对新前端无效**：见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
+- **`enable-version` / `enable-after-script` 等开关对新前端无效**：见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
 - **Gateway context-path 下聚合出错**：升级到 `5.0.0` 或更高版本即可包含该修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。

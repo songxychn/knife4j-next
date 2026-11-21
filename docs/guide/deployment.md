@@ -29,11 +29,13 @@ Knife4j 的 `doc.html` 默认嵌入在 Spring Boot 应用中。在某些场景�
 从 knife4j 的 webjar 中提取前端资源：
 
 ```bash
-# 在 Maven 仓库中找到 knife4j-openapi3-ui 的 jar
-# 解压 META-INF/resources/ 目录
+# 从 Maven 本地仓库找到 knife4j-openapi3-ui 的 jar，保留 META-INF/resources 下的子目录结构
+tmp_dir="$(mktemp -d)"
+unzip -q ~/.m2/repository/com/baizhukui/knife4j-openapi3-ui/5.2.4/knife4j-openapi3-ui-5.2.4.jar \
+  "META-INF/resources/*" -d "$tmp_dir"
 mkdir -p /opt/knife4j-static
-unzip -j ~/.m2/repository/com/baizhukui/knife4j-openapi3-ui/5.2.4/knife4j-openapi3-ui-5.2.4.jar \
-  "META-INF/resources/*" -d /opt/knife4j-static/
+cp -R "$tmp_dir/META-INF/resources/." /opt/knife4j-static/
+rm -rf "$tmp_dir"
 ```
 
 **2. 配置 Nginx**
@@ -77,7 +79,7 @@ server {
 
 ### 多服务聚合
 
-通过 `group.json` 配置多个后端服务的 OpenAPI 数据源：
+React UI（`knife4j-openapi3-ui`）通过 `/v3/api-docs/swagger-config` 发现分组列表。在 Nginx 静态部署场景下，可以提供一个静态 `swagger-config` JSON 并按路径前缀代理各下游服务：
 
 ```nginx
 server {
@@ -87,6 +89,11 @@ server {
     location / {
         root /opt/knife4j-static;
         index doc.html;
+    }
+
+    location = /v3/api-docs/swagger-config {
+        default_type application/json;
+        alias /opt/knife4j-static/swagger-config.json;
     }
 
     # 用户服务
@@ -101,23 +108,21 @@ server {
 }
 ```
 
-同时创建分组配置文件 `/opt/knife4j-static/group.json`：
+创建分组配置文件 `/opt/knife4j-static/swagger-config.json`：
 
 ```json
-[
-  {
-    "name": "用户服务",
-    "url": "/user-service/v3/api-docs?group=default",
-    "swaggerVersion": "3.0",
-    "location": "/user-service/v3/api-docs?group=default"
-  },
-  {
-    "name": "订单服务",
-    "url": "/order-service/v3/api-docs?group=default",
-    "swaggerVersion": "3.0",
-    "location": "/order-service/v3/api-docs?group=default"
-  }
-]
+{
+  "urls": [
+    {
+      "name": "用户服务",
+      "url": "/user-service/v3/api-docs"
+    },
+    {
+      "name": "订单服务",
+      "url": "/order-service/v3/api-docs"
+    }
+  ]
+}
 ```
 
 ::: warning basePath 问题
@@ -133,7 +138,7 @@ OpenAPI3 规范没有 Swagger2 的 `basePath` 字段。如果后端有 `server.s
 **1. 导出 OpenAPI JSON**
 
 ```bash
-curl http://localhost:8080/v3/api-docs -o swagger.json
+curl http://localhost:8080/v3/api-docs -o user-service.json
 ```
 
 **2. 部署目录结构**
@@ -146,26 +151,24 @@ curl http://localhost:8080/v3/api-docs -o swagger.json
 ├── json/
 │   ├── user-service.json
 │   └── order-service.json
-└── group.json
+└── swagger-config.json
 ```
 
-**3. group.json 配置**
+**3. `swagger-config.json` 配置**
 
 ```json
-[
-  {
-    "name": "用户服务",
-    "url": "/json/user-service.json",
-    "swaggerVersion": "3.0",
-    "location": "/json/user-service.json"
-  },
-  {
-    "name": "订单服务",
-    "url": "/json/order-service.json",
-    "swaggerVersion": "3.0",
-    "location": "/json/order-service.json"
-  }
-]
+{
+  "urls": [
+    {
+      "name": "用户服务",
+      "url": "/json/user-service.json"
+    },
+    {
+      "name": "订单服务",
+      "url": "/json/order-service.json"
+    }
+  ]
+}
 ```
 
 **4. Nginx 配置**
@@ -176,6 +179,11 @@ server {
     server_name doc.example.com;
     root /opt/knife4j-static;
     index doc.html;
+
+    location = /v3/api-docs/swagger-config {
+        default_type application/json;
+        alias /opt/knife4j-static/swagger-config.json;
+    }
 
     location / {
         try_files $uri $uri/ /doc.html;
@@ -189,7 +197,7 @@ server {
 
 ## 方案三：Gateway 统一入口
 
-如果你使用 Spring Cloud Gateway，推荐使用 `knife4j-gateway-spring-boot-starter`（Boot 3.x）或 `knife4j-gateway-boot4-spring-boot-starter`（Boot 4.x）在 Gateway 层聚合。详见 [Gateway 聚合](./gateway)。
+如果你使用 Spring Cloud Gateway，推荐使用 `knife4j-gateway-spring-boot-starter`（Boot 3.x WebFlux）、`knife4j-gateway-webmvc-spring-boot-starter`（Boot 3.5 Server Web MVC）或 `knife4j-gateway-boot4-spring-boot-starter`（Boot 4.x WebFlux）在 Gateway 层聚合。详见 [Gateway 聚合](./gateway)。
 
 Gateway 模式的好处：
 - 不需要提取前端静态文件
@@ -237,4 +245,4 @@ location /doc.html {
 
 - [Gateway 聚合](./gateway)：Spring Cloud Gateway 聚合方案
 - [Disk / Nacos / Eureka 聚合](./aggregation)：独立聚合服务方案
-- [FAQ / 生产环境禁用](./faq#doc-html-404)：生产环境保护
+- [FAQ / 生产环境禁用](./faq#production-disable)：生产环境保护

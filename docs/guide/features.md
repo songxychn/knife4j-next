@@ -4,45 +4,12 @@ title: 功能
 
 # 功能
 
-Knife4j Next 围绕"文档更清晰、调试更顺手、聚合更简单、交付更完整"四个方向，提供面向 Spring 生态的 OpenAPI 文档增强能力。
+Knife4j Next 面向 Spring 生态提供 OpenAPI 文档增强层，保留熟悉的 `doc.html` 入口，覆盖四类核心场景：
 
-## 核心功能
-
-### API 文档浏览
-
-- 提供更清晰的接口分组、参数说明和模型结构展示。
-- 让大型项目里的接口更容易被查找、理解和复用。
-
-### 在线接口调试
-
-- 支持直接在文档页面内发起请求。
-- 覆盖常见鉴权、全局参数和请求调试场景。
-
-### 微服务文档聚合
-
-- 面向 Spring Cloud Gateway 和多服务项目提供统一的文档入口。
-- 适合按分组、按服务汇总 OpenAPI 文档。
-
-### 离线文档导出
-
-- 支持团队评审、归档和交付所需的离线文档能力。
-- 方便将接口说明带出运行环境单独分发。
-
-## 主要能力
-
-- **接口分组与搜索**：让大型项目中的接口更容易查找、定位和理解。
-- **请求参数增强**：支持全局参数、动态参数、参数缓存和请求过滤。
-- **鉴权调试**：覆盖 Basic Auth、OAuth2 等常见接口调试场景。
-- **模型展示增强**：更友好地展示请求体、响应体和嵌套模型结构。
-- **网关聚合**：适合 Spring Cloud Gateway、多服务、多分组的文档统一展示。
-- **离线交付**：支持将接口文档导出为离线格式，方便评审、归档和交付。
-- **访问控制**：支持生产环境禁用、基础访问控制和文档入口保护。
-
-## 适合哪些场景
-
-如果你的团队已经在使用 Swagger、OpenAPI、Springfox 或 springdoc-openapi，但默认 UI 不够好用，Knife4j Next 可以作为更完整的文档增强层。
-
-它保留熟悉的 `doc.html` 访问入口，同时提供更适合团队协作、联调和微服务聚合的功能。
+- **API 文档浏览**：接口分组、搜索、模型嵌套展示、自定义 Markdown 与自定义首页/Footer。
+- **在线接口调试**：支持常见鉴权（Basic Auth / OAuth2）、全局参数、参数缓存与请求历史。
+- **微服务文档聚合**：支持 Spring Cloud Gateway（WebFlux / Server Web MVC）与独立 Aggregation 服务聚合。
+- **离线文档与访问控制**：支持 Markdown / HTML / Word / OpenAPI JSON 导出，以及生产禁用和 Basic 认证保护。
 
 ---
 
@@ -140,7 +107,7 @@ Knife4j UI 支持中文（`zh-CN`）、英文（`en-US`）和日语（`ja-JP`）
 knife4j:
   enable: true
   setting:
-    language: zh-CN   # 也可使用 en-US 或 ja-JP
+    language: zh_cn   # 可选 zh_cn / en / ja_jp（对应枚举 ZH_CN / EN / JA_JP）
 ```
 
 ::: warning React UI
@@ -149,14 +116,10 @@ React 新前端支持 i18n 切换，并会读取后端注入到 `x-openapi.x-set
 
 ### 全局参数
 
-Knife4j 提供 UI 端临时设置全局参数的功能，适用于后台全局 Token 等场景。支持两种参数类型：
+Knife4j 提供 UI 端全局参数设置，适用于统一透传 Token、租户头等调试场景，入口为 **文档管理 → 全局参数设置**。
 
-- **query**（表单参数）
-- **header**（请求头）
-
-入口：**文档管理 → 全局参数设置**。
-
-如果后端已经在 `Docket` 或 `@SecurityScheme` 中配置了全局参数，UI 全局参数可忽略。
+- 支持 **header**、**query**（React UI 自 `5.2.0` 起还支持 **分组级隔离**、**Cookie 会话参数**、从响应体通过 **JSONPath 自动提取值** 以及敏感值掩码展示）。
+- 如果后端已经在 `Docket` 或 `@SecurityScheme` 中配置了全局参数，UI 全局参数可按需省略。
 
 ### AfterScript（请求后脚本）
 
@@ -236,18 +199,17 @@ Host 地址支持以下格式：
 - `knife4j.example.com`（域名）
 - `http://192.168.0.111:8080/v1`（带 basePath）
 
-::: tip 调试器请求 baseUrl 优先级（自 5.0.3 起）
+::: tip 调试器请求 baseUrl 优先级
 React 新前端在发起接口调试时，按以下顺序解析请求 baseUrl：
 
-1. **`setting.enable-host` / `enable-host-text`** —— 用户在设置面板手动开启的 Host 覆盖。React UI 也会从 OpenAPI 文档中读取后端注入的 `enableHost` / `enableHostText` 作为默认值（PR #358）。
-2. **operation `servers[0].url`** —— 接口级 `servers` 优先于路径和根文档，用于单个接口覆盖调试地址（PR #374）。
-3. **path item `servers[0].url`** —— 路径级 `servers` 用于同一路径下多个操作共享覆盖地址（PR #374）。
-4. **root `servers[0].url`** —— 文档根级 server URL，包含 context-path；相对路径会基于当前 UI origin 解析（PR #363）。
-5. **当前 UI origin** —— 兜底使用 `window.location.origin`，与历史行为一致。
+1. **`setting.enable-host` / `enable-host-text`** —— 手动开启的 Host 覆盖（支持读取后端注入的 `enableHost` / `enableHostText` 默认值）。
+2. **Gateway / 聚合分组 `contextPath`** —— 网关聚合场景下优先拼接分组声明的上下文路径，避免请求打到网关根路径。
+3. **operation `servers[0].url`** —— 接口级 `servers` 覆盖地址。
+4. **path item `servers[0].url`** —— 路径级 `servers` 覆盖地址。
+5. **root `servers[0].url`** —— 文档根级 server URL（含 context-path；相对路径基于当前 UI origin 解析）。
+6. **当前 UI origin** —— 兜底使用 `window.location.origin`。
 
-当文档未显式声明协议、且调试地址与当前页面同源时，React UI 会保留当前页面协议，避免 HTTPS 页面错误降级到 HTTP（PR #377）。
-
-OAS2 Vue3 UI 仍保持原有 Host 覆盖行为，不读取 `servers`。
+当文档未显式声明协议且调试地址与当前页面同源时，React UI 会保留当前页面协议，避免 HTTPS 页面错误降级到 HTTP。OAS2 Vue3 UI 仅保留原有 Host 覆盖行为，不读取 `servers`。
 :::
 
 ::: tip 前置条件：跨域
@@ -288,8 +250,8 @@ knife4j:
 - 后端 `@Schema(example = "张飞")` 提供了 example 的字段，**始终使用 example 值**，不使用缓存。
 - 未提供 example 的字段，使用上次调试时填写的缓存值。
 
-::: warning ⚠️ React UI 暂不支持
-此配置仅在 Vue3 UI（OAS2 starter）中生效。React 新前端暂不读取。
+::: tip React UI 支持状态
+React 新前端已支持请求参数缓存，并读取后端注入的 `enable-request-cache` 默认值；用户在前端设置面板中的修改会覆盖后端默认值。
 :::
 
 ### 接口版本控制

@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'Lota Grotesque';
-  /* 字体文件放在 docs-site/public/font/，通过 Vite public 目录以绝对路径引用，
+  /* 字体文件放在 docs/public/font/，通过 Vite public 目录以绝对路径引用，
      避免跨目录引用触发 "outside of Vite serving allow list" 告警。 */
   src: url('/font/lota.woff2') format('woff2');
   font-weight: 400 700;

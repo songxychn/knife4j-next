@@ -28,22 +28,15 @@ mvn -B -ntp -Dknife4j-skipTests=false verify
 # fails loudly if a future change silently drops a smoke module from the build.
 # ---------------------------------------------------------------------------
 
-SMOKE_MODULES=(
-  "boot2-app"
-  "boot2-openapi3-app"
-  "boot2-webflux-app"
-  "aggregation-boot2-app"
-  "boot3-aggregation-jakarta-app"
-  "boot4-aggregation-app"
-  "boot3-app"
-  "boot3-jakarta-app"
-  "boot3-webflux-jakarta-app"
-  "boot3-gateway-app"
-  "boot35-gateway-webmvc-app"
-  "boot35-jakarta-app"
-  "boot4-jakarta-app"
-  "boot4-gateway-app"
-)
+SMOKE_MODULES_FILE="$REPO_ROOT/tools/smoke-modules.txt"
+SMOKE_MODULES=()
+while IFS= read -r line; do
+  line="${line%%#*}"
+  line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  if [ -n "$line" ]; then
+    SMOKE_MODULES+=("$line")
+  fi
+done < "$SMOKE_MODULES_FILE"
 
 SMOKE_ROOT="$REPO_ROOT/knife4j/knife4j-smoke-tests"
 missing=()
@@ -99,7 +92,7 @@ if [ "${#missing[@]}" -ne 0 ]; then
   echo ""
   echo "Smoke evidence gate failed for: ${missing[*]}" >&2
   echo "The main 'mvn verify' must exercise every module under knife4j-smoke-tests/." >&2
-  echo "If a module was intentionally removed, update SMOKE_MODULES in tools/test-java.sh." >&2
+  echo "If a module was intentionally removed, update tools/smoke-modules.txt." >&2
   exit 1
 fi
 

@@ -12,6 +12,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # 仅允许在正式 vX.Y.Z tag（排除 -rc）上触发发布，避免 workflow_dispatch 在普通分支误发布
     if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-rc') }}
     permissions:
       contents: write
@@ -49,6 +50,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: front/package.json
 
       - name: Install front/vue3 dependencies (bun)
         run: bun install --frozen-lockfile

@@ -81,33 +81,6 @@ WebFlux starter 是纯依赖编排，不声明 `/knife4j/config` 等 WebMvc star
 ./tools/test-java.sh
 ```
 
-## 选型决策树
+## 选型与避坑
 
-```
-你的 Spring Boot 版本是？
-├── 2.x
-│   ├── 需要继续用 Swagger 2 / Springfox？
-│   │   └── knife4j-openapi2-spring-boot-starter（Vue 3 UI）
-│   └── 用 OpenAPI 3 / springdoc？
-│       ├── WebMvc → knife4j-openapi3-spring-boot-starter（React UI）
-│       └── WebFlux → knife4j-openapi3-webflux-spring-boot-starter（React UI）
-├── 3.x
-│   ├── WebMvc → knife4j-openapi3-jakarta-spring-boot-starter（React UI）
-│   ├── WebFlux → knife4j-openapi3-webflux-jakarta-spring-boot-starter（React UI）
-│   └── Spring Cloud Gateway？
-│       ├── WebFlux → knife4j-gateway-spring-boot-starter
-│       └── Server Web MVC（Boot 3.5）→ knife4j-gateway-webmvc-spring-boot-starter
-└── 4.x
-    ├── WebMvc → knife4j-openapi3-boot4-spring-boot-starter（React UI）
-    ├── Spring Cloud Gateway WebFlux → knife4j-gateway-boot4-spring-boot-starter
-    └── 非网关聚合 → knife4j-aggregation-boot4-spring-boot-starter
-```
-
-## 不要做的事
-
-- ❌ 不要在 Boot 3.x 上使用 openapi2 starter（Springfox 不兼容 Jakarta）。
-- ❌ 不要同时引入 WebMvc 和 WebFlux 版 starter。
-- ❌ 不要在 Boot 2.x 上使用 Jakarta 版 starter。
-- ❌ 不要在 Boot 3.x 上使用非 Jakarta 版 starter（springdoc 1.x 不兼容）。
-- ❌ 不要在 Boot 4.x 上使用 Boot 3.x Jakarta starter，请使用 Boot4 专用 starter。
-- ❌ 不要把 Gateway starter 和 WebMvc/WebFlux starter 混用。
+完整的 Starter 选型决策树与混用禁忌统一维护在 [模块说明](./modules)。

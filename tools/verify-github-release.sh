@@ -32,6 +32,7 @@ if [ -n "$expected_body_file" ]; then
   fi
 
   actual_body="$(mktemp)"
+  trap 'rm -f "$actual_body"' EXIT
   gh release view "$tag" --repo "$repo" --json body --template '{{.body}}' > "$actual_body"
   if ! diff -u "$expected_body_file" "$actual_body"; then
     echo "GitHub Release body differs from expected release notes for $tag." >&2

@@ -163,7 +163,7 @@ knife4j:
     routes:
       - name: 用户服务
         service-name: user-service
-        namespace: public
+        namespace-id: public
         group-name: DEFAULT_GROUP
         location: /v3/api-docs
         swagger-version: "3.0"
@@ -204,28 +204,27 @@ knife4j:
   enable-aggregation: true
   polaris:
     enable: true
-    server-addr: grpc://polaris-server:8091
-    namespace: default
+    service-url: http://polaris-server:8080
     routes:
       - name: 用户服务
-        service-name: user-service
+        service: user-service
+        namespace: default
         location: /v3/api-docs
         swagger-version: "3.0"
         order: 1
 ```
 
-Polaris 使用 gRPC 协议，聚合服务作为 Polaris SDK 客户端。
+Polaris 模式通过 HTTP OpenAPI 从北极星服务端拉取服务实例列表（若开启鉴权可配置 `service-auth` 或 `jwt-cookie`，完整字段见 [配置参考](../reference/configuration#aggregation)）。
 
 ## HTTP 连接参数调优
 
 ```yaml
 knife4j:
   connection-setting:
-    socket-timeout: 60000       # 毫秒
-    connect-timeout: 10000      # 毫秒
-    connection-request-timeout: 10000
-    max-total: 200              # 连接池总数
-    default-max-per-route: 20   # 每个目标地址最多连接数
+    socket-timeout: 10000        # 毫秒，默认 10000
+    connect-timeout: 10000       # 毫秒，默认 10000
+    max-connection-total: 200    # 连接池最大总数，默认 200
+    max-pre-route: 20            # 单个路由最大连接数，默认 20
 ```
 
 这些参数影响 cloud / nacos / eureka / polaris 四种模式（disk 不走 HTTP）。

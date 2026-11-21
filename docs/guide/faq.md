@@ -27,38 +27,13 @@ title: 常见问题
 
 ### 本 fork 相比 upstream 多了哪些修复
 
-| 版本 | 修复/新增内容 | 对应 upstream issue |
-| --- | --- | --- |
-| `5.2.4` | 补丁修复：宽屏固定页面布局与区域滚动，窄屏保留 document 滚动回退 | — |
-| `5.2.3` | 补丁修复：独立聚合场景补齐并限制 `knife4j-gateway-request` 路由头发送范围，避免下游 api-docs 404 | — |
-| `5.2.2` | 补丁修复：数组枚举多选与查询参数序列化、集合请求体分组校验、JSON example 原生类型，以及移除非规范 `extensions` 包装兼容 | — |
-| `5.2.1` | 补丁修复：修复 JSON/XML 调试编辑器运行时错误，完善二进制响应、响应 Header、media type 与 example 的文档展示 | — |
-| `5.2.0` | 次版本：React 分组级全局参数、请求取值、Cookie 会话与敏感值查看交互；聚合 starter 移除 Hutool，并更新兼容线依赖 | — |
-| `5.1.0` | 次版本：React 嵌入式启动、调试器响应进度、multipart 必填文件校验、响应示例与长 Token 预览，以及中英日国际化 | — |
-| `5.0.18` | 补丁修复：新增 Gateway Server Web MVC 聚合 starter 和 Boot 3.5 smoke，starter 发布包补齐 Spring Boot 配置元数据 | — |
-| `5.0.17` | 补丁修复：React UI Tab 右键菜单只在标签上触发，避免文档内容区右键误弹菜单；在线 demo 仅随发布 tag 更新 | — |
-| `5.0.16` | 补丁修复：React UI 调试页按接口请求历史、自定义 Markdown 超长英文换行，以及仓库按产品线重组与文档默认 Boot4 坐标 | — |
-| `5.0.15` | 补丁修复：新增 Boot4 独立聚合 starter 和 smoke 验证，README 默认使用 Boot4 Maven 坐标，React UI 调试页保留数值参数输入精度，并清理闲置前端占位与历史备份文件 | — |
-| `5.0.14` | 补丁修复：React UI Gateway 聚合调试地址、SSE 调试响应展示、多方法接口过滤、文档管理开关、OpenAPI 文档标题展示、请求体校验分组必填字段，以及 OpenAPI3 demo 升级 Boot4 | — |
-| `5.0.13` | 补丁修复：React UI 请求示例显式值、调试默认示例值、自定义 Footer 配置优先级、描述换行展示，以及 `@ApiSupport` 全局扫描包排序 | — |
-| `5.0.12` | 补丁修复：React UI 语言切换后重新请求接口文档、深层响应字段表格布局、`oneOf` / `anyOf` 分支展示、数据模型默认折叠 | — |
-| `5.0.11` | 补丁修复：OpenAPI 3.2 文档信息展示、调试页服务地址选择和文件上传识别、首页空分组统计、OpenAPI3 starter `commons-lang3` 传递依赖安全基线 | — |
-| `5.0.10` | 补丁修复：Gateway 聚合刷新非默认文档分组深链时的分组恢复、Boot4 Kotlin `is` 前缀字段文档命名、异常 `api-docs` 响应诊断提示 | — |
-| `5.0.9` | 补丁修复：React UI 接入请求参数缓存默认值、自定义 Footer、自定义首页 Markdown 与 operation `x-author` 作者展示，并补充接口作者 smoke 覆盖 | — |
-| `5.0.8` | 补丁修复：Jakarta 独立聚合 cloud route 缺少 `servicePath` 时的 `swagger-config` 500、React `x-order` 排序、Boot 2/3 WebFlux 与独立聚合 smoke 覆盖 | — |
-| `5.0.7` | 补丁修复：Jakarta Swagger BOM 依赖版本统一、Vue3 独立验证脚本、Vue3 运行时调试输出清理、Vue3 Markdown 预览产物瘦身 | — |
-| `5.0.6` | 补丁修复：React 调试页接口标签状态与响应结果保持、GitHub Release 正文直接取自文档站发布说明 | — |
-| `5.0.5` | 补丁修复：Boot4 Gateway 聚合 starter、Gateway `Referer` 读取兼容 Spring 7、React 调试页请求参数缓存、GitHub Release 正文校验换行误报修复 | — |
-| `5.0.4` | 补丁修复：GitHub Release 自动创建与正文一致性校验、release note 抽取边界修复、全局参数 ID 生成兼容性、本地 Vite 代理 Host 保留 | — |
-| `5.0.3` | 补丁修复：调试器 baseUrl 支持 operation / path item / root `servers` 分级解析、HTTPS 同域调试不再降级、双前端首页信息展示优化、发布清单自动校验与协作门禁收口 | — |
-| `5.0.2` | 补丁修复：Boot4 starter 构件补发与 release 发布清单校验、BOM 补登 Boot4 starter、Schema 路由守卫与 React 设置默认对齐（含读取后端 `enableHost` 等注入项）、调试器 raw body 多格式 Beautify（JSON/XML/HTML/JS）、调试器 baseUrl 智能解析（servers[0] 优先于 origin）、Cookie header 大小写合并 | — |
-| `5.0.1` | 补丁修复：反向代理 prefix / swagger-config 发现、OAS2 webjar 构建产物、特殊字符路由、分组搜索状态、schema 显示细节 | — |
-| `5.0.0` | Bug 修复 & 功能增强：petstore 闪烁、OAuth2 四种 flow 基础鉴权、离线文档 Markdown/OpenAPI JSON、tags-sorter | — |
-| `1.0.0` | 正式版：全部 fork 安全修复 + Boot 3.4/3.5 兼容 + React UI 完整集成 | — |
-| `4.6.0.3` (Preview) | `/v2/api-docs;xxx` 分号绕过 Basic 认证漏洞 | [#886](https://github.com/xiaoymin/knife4j/issues/886) |
-| `4.6.0.3` (Preview) | Gateway context-path 导致 host 缺少斜杠 | [#954](https://github.com/xiaoymin/knife4j/issues/954) |
-| `4.6.0.3` (Preview) | Spring Boot 3.4/3.5 兼容（springdoc 版本升级） | [#874](https://github.com/xiaoymin/knife4j/issues/874) [#882](https://github.com/xiaoymin/knife4j/issues/882) [#913](https://github.com/xiaoymin/knife4j/issues/913) |
-| `4.6.0.3` (Preview) | 新 React 前端首次集成 | — |
+相对于 upstream 最后一个 Maven Central 发布版 `4.5.0`，本 fork 从 `5.0.0` 到 `5.2.4` 持续交付了以下几类改动：
+
+- **框架与聚合兼容**：Spring Boot 3.4 / 3.5 / 4.x 与 springdoc 2.x / 3.x 兼容、Gateway WebFlux / Server Web MVC / Boot 4 聚合 starter、独立聚合 Jakarta / Boot 4 starter 与配置元数据补齐。
+- **安全与路由修复**：Basic Auth 分号绕过修复（[#886](https://github.com/xiaoymin/knife4j/issues/886)）、Gateway `context-path` 与反向代理 `X-Forwarded-Prefix` 路由兼容（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。
+- **React 新前端（OAS3 主线）**：OAuth2 四种 flow、离线导出（Markdown / HTML / Word / OpenAPI JSON）、分组级全局参数与 JSONPath 取值、请求缓存与历史、SSE 与二进制响应调试、自定义 Markdown / 首页 / Footer 与中英日国际化。
+
+完整逐版本变更记录统一维护在 [发布说明](../release-notes/)。
 
 ## 访问与路径
 
@@ -127,7 +102,7 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
 ## 生产环境 & 安全
 
-### 生产环境怎么禁用 `doc.html`
+### 生产环境怎么禁用 `doc.html` {#production-disable}
 
 ```yaml
 knife4j:
@@ -173,12 +148,13 @@ connect-src 'self';
 
 ### 为什么我的 `knife4j.setting.*` 配置不生效 {#react-setting-not-effective}
 
-如果你用的是 `knife4j-openapi3-spring-boot-starter` 或 `knife4j-openapi3-jakarta-spring-boot-starter`（也就是新 React 前端），React 会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，并消费以下已接入字段：
+如果你用的是 OpenAPI 3 系列 starter（`knife4j-openapi3-spring-boot-starter`、`knife4j-openapi3-jakarta-spring-boot-starter`、`knife4j-openapi3-boot4-spring-boot-starter`，也就是新 React 前端），React 会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，并消费以下已接入字段：
 
 - `knife4j.setting.language`
 - `knife4j.setting.enable-search`
 - `knife4j.setting.enable-debug`
 - `knife4j.setting.enable-open-api`
+- `knife4j.setting.enable-document-manage`
 - `knife4j.setting.enable-swagger-models` / `swagger-model-name`
 - `knife4j.setting.enable-host` / `enable-host-text`
 - `knife4j.setting.enable-group`
@@ -296,14 +272,6 @@ public UserVO getById(
     @PathVariable("id") Long id) { ... }
 ```
 
-**降级兜底**：Knife4j UI 会在 OpenAPI 文档里 `parameters: []` 但 URL 模板含 `{xxx}` 时，自动把占位符补成 `string` 类型的 path 参数输入框——因此**即便后端 OpenAPI 文档不完整，调试页也不会再整页灰掉**。但补出来的参数丢失了原始 `description` / `type` / `example`，仍建议按上面两种方式从源头修复。
-
-### Spring Boot 3.4 / 3.5 启动报错
-
-如果你用的是 upstream `4.5.0` 或更早版本，在 Boot 3.4+ 上会遇到 `NoSuchMethodError` 或 `ClassNotFoundException`。本 fork `5.0.0` 起已将 springdoc-openapi 升级到 `2.8.9`，解决了此问题。
-
-修复方法：升级到 `com.baizhukui:knife4j-openapi3-jakarta-spring-boot-starter:5.0.0` 或更高版本。
-
 ## 全局响应封装导致文档异常
 
 ### Knife4j 文档请求异常弹窗
@@ -332,8 +300,9 @@ public class GlobalResponseWrapper implements ResponseBodyAdvice<Object> {
             Class<? extends HttpMessageConverter<?>> selectedConverterType,
             ServerHttpRequest request, ServerHttpResponse response) {
         String path = request.getURI().getPath();
-        // 排除 OpenAPI 文档相关接口
+        // 排除 OpenAPI 文档及 Knife4j 运行时配置接口
         if (path.startsWith("/v3/api-docs") || path.startsWith("/v2/api-docs")
+                || path.startsWith("/knife4j/config")
                 || path.startsWith("/swagger-resources") || path.startsWith("/swagger-ui")) {
             return body;
         }
@@ -425,8 +394,8 @@ upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` �
 
 ### 聚合模式（Disk / Cloud / Nacos / Eureka / Polaris）怎么选
 
-- **Disk**：开发/测试环境，Swagger JSON 文件在本地 classpath。
-- **Cloud**：通过 Spring Cloud Discovery 发现服务。
+- **Disk**：开发/测试环境，Swagger JSON 文件在本地 classpath 或磁盘。
+- **Cloud**：通过 HTTP 直连固定 `uri` 拉取下游 OpenAPI 文档（不依赖注册中心）。
 - **Nacos**：从 Nacos 注册中心拉取服务列表。
 - **Eureka**：从 Eureka 注册中心拉取服务列表。
 - **Polaris**：从北极星注册中心拉取服务列表。
@@ -446,6 +415,7 @@ upstream `4.5.0` 及更早版本在 Boot 3.4+ 上会遇到 `NoSuchMethodError` �
 | `/doc.html` | Knife4j 文档页面 |
 | `/webjars/**` | 前端静态资源 |
 | `/v3/api-docs/**` | OpenAPI3 JSON 端点 |
+| `/knife4j/config` | Knife4j 运行时配置发现入口（自定义 `api-docs.path` 时必需） |
 | `/swagger-ui/**` | springdoc 自带的 Swagger UI（如需访问） |
 
 **OpenAPI2（Springfox）额外需要放行的路径：**
@@ -470,7 +440,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/doc.html",
                     "/webjars/**",
-                    "/v3/api-docs/**"
+                    "/v3/api-docs/**",
+                    "/knife4j/config"
                 ).permitAll()
                 .anyRequest().authenticated()
         );
@@ -515,18 +486,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 ### 枚举类型在文档中显示不正确
 
-**问题**：枚举字段在 UI 上只显示类型名（如 `UserStatus`），不显示可选值。
+**问题**：枚举字段在 UI 上未按期望展示枚举说明或字符串值。
 
-**原因**：springdoc 默认不解析枚举值。需要配置：
-
-```yaml
-springdoc:
-  swagger-ui:
-    display-request-duration: true
-  show-enum-values: true    # springdoc-openapi 2.6.0+
-```
-
-或在枚举类上使用 `@Schema` 注解：
+**解决**：在枚举类或字段上使用 `@Schema` 注解补充说明：
 
 ```java
 @Getter
@@ -542,7 +504,7 @@ public enum UserStatus {
 }
 ```
 
-**Jackson 配置**（将枚举序列化为字符串而非序号）：
+**Jackson 配置**（按 `toString()` 序列化枚举）：
 
 ```yaml
 spring:
@@ -551,9 +513,9 @@ spring:
       write-enums-using-to-string: true
 ```
 
-### Date / LocalDateTime 显示为时间戳
+### Date / LocalDateTime 响应显示为时间戳或数组
 
-springdoc 默认将日期类型映射为 `integer`（时间戳）。添加：
+OpenAPI Schema 中 `LocalDateTime` 默认映射为 `string`（`format: date-time`），但在实际 HTTP 响应中 Jackson 默认可能将其序列化为数组或时间戳。可关闭时间戳序列化：
 
 ```yaml
 spring:
@@ -562,7 +524,7 @@ spring:
       write-dates-as-timestamps: false
 ```
 
-或在字段上显式声明：
+或在字段上显式声明示例：
 
 ```java
 @Schema(description = "创建时间", example = "2024-01-01T00:00:00")
@@ -575,10 +537,10 @@ OpenAPI3 规范对自由格式 Map 的描述有限。推荐做法：
 
 1. **定义明确的 DTO**：替代 `Map<String, Object>`，使用强类型字段。
 2. **`@DynamicParameters`**：仅在 openapi2 starter 中可用（前端为本仓库 `front/vue3`），详见 [Springfox 迁移](./springfox-migration)。
-3. **`additionalProperties`**：OpenAPI3 的 Map 描述方式：
+3. **`additionalPropertiesSchema`**：OpenAPI3 的 Map 值类型描述方式：
 
 ```java
-@Schema(description = "扩展属性", additionalProperties = String.class)
+@Schema(description = "扩展属性", additionalPropertiesSchema = String.class)
 private Map<String, String> extensions;
 ```
 

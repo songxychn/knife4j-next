@@ -35,7 +35,7 @@ title: WebFlux 接入
 - `knife4j.documents`、`knife4j.production`、`knife4j.basic` 相关 Servlet 过滤器**不存在**
 - i18n、自定义主页、自定义 Footer 等 `knife4j.setting.*` 的服务端注入缺失
 
-如果需要以上能力，建议继续使用 WebMvc 技术栈，或等待 `knife4j-openapi3-webflux-*-starter` 后续补齐（已列入 [路线图](../roadmap/)）。
+如果需要以上后端增强能力，建议使用 WebMvc starter；WebFlux 场景下建议通过网关或 Spring Security 做访问控制。
 :::
 
 ## Boot 3.x（Jakarta）最小例

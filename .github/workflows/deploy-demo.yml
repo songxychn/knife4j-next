@@ -16,6 +16,8 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # 排除 -rc 预发布 tag，避免把 RC 镜像覆盖到线上 latest
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.ref_name, '-rc') }}
     permissions:
       contents: read
       packages: write
@@ -47,6 +49,8 @@ jobs:
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: front/package.json
 
       - name: Install front workspace dependencies
         run: bun install --frozen-lockfile

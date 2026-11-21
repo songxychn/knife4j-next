@@ -13,17 +13,18 @@
 
 | 改动 | 命令 | 说明 |
 |---|---|---|
-| `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + smoke 证据门禁 |
+| `knife4j/**` Java | `./tools/test-java.sh` | spotless + verify + 配置元数据 + smoke 证据门禁 |
 | `front/core`、`front/ui-react` | `./tools/test-front-core.sh` | format / lint / test / build（对齐 CI） |
 | `front/vue3` | `./tools/test-vue3.sh` | 构建并检查 `doc.html` / webjars |
 | `docs/**` | `./tools/test-docs.sh` | 文档站构建 |
-| 跨多区域 | `./tools/test-all.sh` | 依次跑上述（含 vue3） |
+| `knife4x/go/**` | `./tools/test-knife4x-go.sh` | Go fmt / vet / test（前端改动同步跑 `./tools/sync-knife4x-ui.sh --check`） |
+| 跨多区域 | `./tools/test-all.sh` | 依次跑上述全部脚本 |
 
 强制：
 
 - 改前端源码时用对应脚本，不要用单独 `tsc` / `vite build` 冒充全量。
 - Java 改动的 PR / issue 应能指向 smoke 证据：本地 `test-java.sh` 尾部 `Smoke-tests evidence OK`，或 CI 的 smoke summary。
-- 增删 smoke 模块时同步更新 `tools/test-java.sh` 的 `SMOKE_MODULES` 与 `.github/workflows/build.yml` 中的 summary 列表（若仓库已抽出 `tools/smoke-modules.txt` 则只改该文件）。
+- 增删 smoke 模块时同步更新 `tools/smoke-modules.txt`（`tools/test-java.sh` 与 `.github/workflows/build.yml` 共用）。
 
 ## Bug 复现（强制）
 

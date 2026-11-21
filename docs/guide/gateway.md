@@ -122,7 +122,7 @@ knife4j:
     enabled: true
     strategy: DISCOVER
     tags-sorter: alpha        # tag 排序，可选 alpha / order
-    operations-sorter: alpha  # 接口排序，可选 alpha / method / order
+    operations-sorter: alpha  # 接口排序，可选 alpha / order
     discover:
       enabled: true
       version: OpenAPI3       # 或 Swagger2
@@ -259,14 +259,14 @@ knife4j:
 curl http://user-service:9001/v3/api-docs | head
 
 # 2. 启动 gateway
-# 3. 确认 gateway 能拉到下游文档（DISCOVER 模式路径就是 /v3/api-docs）
-curl http://gateway:8080/v3/api-docs
-
-# 4. 浏览器打开 gateway doc.html
-open http://gateway:8080/doc.html
-
-# 5. 手动触发聚合接口（Knife4j 用来发现服务的自定义接口）
+# 3. 确认 gateway 聚合配置接口返回了下游分组列表
 curl http://gateway:8080/v3/api-docs/swagger-config
+
+# 4. 确认 gateway 能经由路由转发拉到下游文档（按实际路由前缀替换 user-service）
+curl http://gateway:8080/user-service/v3/api-docs | head
+
+# 5. 浏览器打开 gateway doc.html
+open http://gateway:8080/doc.html
 ```
 
 ## 排错清单

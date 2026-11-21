@@ -178,7 +178,7 @@ UI 同样是新 React 版本，注意覆盖范围提示。
 
 ::: info 何时选这条
 - 项目深度依赖 Springfox 专属注解（`@ApiOperationSupport(ignoreParameters/includeParameters)`、`@DynamicParameters`、`@DynamicResponseParameters`）。
-- 需要 upstream knife4j 文档上提到的完整 UI 能力（自定义首页、Postman 导出、版本小蓝点、afterScript）。
+- 需要 upstream knife4j 文档上提到的部分 Vue 时代专属能力（Postman 导出、版本小蓝点、afterScript）。
 - 这些特性在本 fork 的新 React 前端中尚未覆盖，但在本仓库 `front/vue3`（`knife4j-openapi2-ui` 打包产物）中完整保留。
 :::
 

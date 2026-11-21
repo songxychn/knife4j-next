@@ -5,7 +5,7 @@
 | 子目录 | 说明 | 产物 |
 |---|---|---|
 | `core/` | TypeScript 解析 / 调试核心（package name: `knife4j-core`） | 供 `ui-react` 依赖 |
-| `ui-react/` | OpenAPI 3 主线 UI（package name: `knife4j-ui-react`） | `knife4j-openapi3-ui` webjar；未来亦供 Knife4x embed |
+| `ui-react/` | OpenAPI 3 主线 UI（package name: `knife4j-ui-react`） | `knife4j-openapi3-ui` webjar；同步供 `knife4x/go` embed |
 | `vue3/` | OpenAPI 2 / Swagger 2 兼容 UI（独立 bun 工程） | `knife4j-openapi2-ui` webjar |
 
 ## OAS3 workspace（core + ui-react）

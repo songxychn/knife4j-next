@@ -144,7 +144,8 @@ bun run dev
 | React 前端 / `knife4j-core` | `./tools/test-front-core.sh` |
 | Vue3 前端（OAS2 `doc.html`） | `./tools/test-vue3.sh` |
 | 文档站 | `./tools/test-docs.sh` |
-| 跨多个区域 | `./tools/test-all.sh`（java / front-core / vue3 / docs） |
+| Knife4x Go | `./tools/test-knife4x-go.sh` |
+| 跨多个区域 | `./tools/test-all.sh`（java / front-core / vue3 / docs / knife4x-go / 资产同步校验） |
 
 `./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据。不要用单独的
 `mvn -B -ntp verify` 替代提交前验证。
@@ -180,5 +181,4 @@ bun run dev
 
 ## 迁移提醒
 
-- 本仓库当前仍可能保留部分历史文档、图片、站点配置和旧链接，后续会逐步替换为 fork 自己的叙事与入口。
-- 如果你正在从 upstream 迁移，短期内最重要的变化是 Maven `groupId` 已切换为 `com.baizhukui`；详见 [迁移指南](./knife4j/MIGRATION.md)。
+如果你正在从 upstream 迁移，短期内最重要的变化是 Maven `groupId` 已切换为 `com.baizhukui`；详见 [迁移指南](./knife4j/MIGRATION.md) 或文档站 [迁移指引](https://knife4jnext.com/guide/migration)。

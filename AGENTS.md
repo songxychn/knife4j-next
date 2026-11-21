@@ -62,6 +62,7 @@
 | React / core | `./tools/test-front-core.sh` |
 | Vue3（OAS2 UI） | `./tools/test-vue3.sh` |
 | 文档站 | `./tools/test-docs.sh` |
+| Knife4x Go | `./tools/test-knife4x-go.sh` |
 | 跨区域 | `./tools/test-all.sh` |
 
 优先用脚本，勿用零散 `tsc` / 单次 `vite build` 冒充全量。细节与发版验收见 `.agent/RUNBOOK.md`。

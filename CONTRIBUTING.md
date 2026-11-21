@@ -15,8 +15,9 @@ cd front && bun install --frozen-lockfile && cd ..
 # 3. Enable the versioned pre-commit checks (optional)
 git config core.hooksPath .githooks
 
-# 4. Build Java modules (JDK 17, see .java-version)
-cd knife4j && mvn -B -ntp verify && cd ..
+# 4. Build and test Java modules (JDK 17, see .java-version)
+# Note: knife4j/pom.xml sets knife4j-skipTests=true by default; always use ./tools/test-java.sh
+./tools/test-java.sh
 ```
 
 The optional pre-commit hook checks formatting and lint only for staged changes under `front/core/` and `front/ui-react/`. CI remains the required merge gate.
@@ -27,8 +28,8 @@ There are two independent front-end product lines. Work in the one that matches 
 
 | Source | Package manager | Build output (webjar) | Downstream starter | OpenAPI |
 |---|---|---|---|---|
-| `front/ui-react` (React + Vite) | Bun (see `front/package.json` and `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | `knife4j-openapi3-spring-boot-starter`, `knife4j-openapi3-jakarta-spring-boot-starter`, `knife4j-gateway-spring-boot-starter`, `knife4j-aggregation-jakarta-spring-boot-starter` | **OAS 3 only — main line** |
-| `front/vue3` (Vue 3 + Vite) | Bun (`packageManager: "bun@1.3.13"`, see `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
+| `front/ui-react` (React + Vite) | Bun (see `front/package.json` and `front/bun.lock`) | `knife4j/knife4j-openapi3-ui` | All OpenAPI 3, Gateway, WebFlux, and Jakarta/Boot 4 Aggregation starters (see [docs/reference/modules.md](docs/reference/modules.md)) | **OAS 3 only — main line** |
+| `front/vue3` (Vue 3 + Vite) | Bun (`front/vue3/package.json` and `front/vue3/bun.lock`) | `knife4j/knife4j-openapi2-ui` | `knife4j-openapi2-spring-boot-starter`, `knife4j-aggregation-spring-boot-starter` | **Swagger 2 / OAS 2 only — compatibility maintenance** |
 
 The upstream Vue 2 source under `legacy/vue2/` is frozen as of `5.0.0-SNAPSHOT` and is no longer part of any Maven build. See `legacy/vue2/README.md`.
 
@@ -50,7 +51,7 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Maven pipeline: `knife4j/knife4j-openapi2-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun run build --outDir=...` during `generate-resources` and copies the dist into `META-INF/resources/`.
+Maven pipeline: `knife4j/knife4j-openapi2-ui/pom.xml` drives `bun install --frozen-lockfile` + `bun run build:Knife4jSpringUi --outDir=...` during `generate-resources` and copies the dist into `META-INF/resources/`.
 
 Scope reminder (also in `.agent/PROJECT.md`): the OAS 2 line only takes regression fixes, security patches, and display-layer bugs. New features go to the OAS 3 main line.
 
@@ -95,7 +96,7 @@ IntelliJ IDEA does not automatically follow the project's formatter rules. To av
 1. **Disable auto-format on save**: `Settings → Tools → Actions on Save → uncheck "Reformat code" and "Optimize imports"`.
 2. **Import the Eclipse code style** (optional, for manual reformat):
    - `Settings → Editor → Code Style → Java → ⚙ → Import Scheme → Eclipse XML Profile`
-   - Select `knife4j/knife4j-openapi3-ui/src/main/resources/spotless_knife4j_formatter.xml`
+   - Select `knife4j/src/main/resources/spotless_knife4j_formatter.xml`
 3. **Install EditorConfig plugin** (bundled in IDEA 2024+): ensures indentation and line endings match `.editorconfig`.
 
 ### VS Code Users
@@ -133,6 +134,9 @@ Run the same checks that CI runs:
 
 # Docs site build
 ./tools/test-docs.sh
+
+# Knife4x Go module & Gin example
+./tools/test-knife4x-go.sh
 
 # Cross-area
 ./tools/test-all.sh

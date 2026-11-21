@@ -49,6 +49,16 @@ Swagger2 注解 (@Api, @ApiOperation…)  →  OpenAPI3 注解 (@Tag, @Operation
 </dependency>
 ```
 
+### Spring Boot 4.x（推荐）
+
+```xml
+<dependency>
+    <groupId>com.baizhukui</groupId>
+    <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+    <version>5.2.4</version>
+</dependency>
+```
+
 ### Spring Boot 3.x（Jakarta）
 
 ```xml
@@ -213,12 +223,10 @@ springdoc:
 @ApiOperationSupport(
     author = "张三",
     order = 1,
-    params = {
-        @DynamicParameters(name = "UserCreateDTO", properties = {
-            @DynamicParameter(name = "name", value = "用户名", required = true, dataTypeClass = String.class),
-            @DynamicParameter(name = "age", value = "年龄", dataTypeClass = Integer.class)
-        })
-    }
+    params = @DynamicParameters(name = "UserCreateDTO", properties = {
+        @DynamicParameter(name = "name", value = "用户名", required = true, dataTypeClass = String.class),
+        @DynamicParameter(name = "age", value = "年龄", dataTypeClass = Integer.class)
+    })
 )
 @PostMapping
 public UserVO create(@RequestBody Object dto) {/* ... */}
@@ -288,29 +296,34 @@ public class UserVO {
 
 ```java
 // 旧配置
-http.authorizeRequests() //
-    .antMatchers("/doc.html", "/webjars/**", //
-        "/v2/api-docs", "/swagger-resources/**", "/swagger-ui.html") //
-    .permitAll();
+http.authorizeRequests()
+    .antMatchers(
+        "/doc.html",
+        "/webjars/**",
+        "/v2/api-docs",
+        "/swagger-resources/**",
+        "/swagger-ui.html"
+    ).permitAll();
 ```
 
 ### OpenAPI3 时代的放行路径
 
 ```java
 // 新配置
-http.authorizeHttpRequests(auth -> auth //
-        .requestMatchers(
-            "/doc.html", //
-            "/webjars/**", //
-            "/v3/api-docs/**", //
-            "/swagger-ui/**", //
-            "/swagger-ui.html" //
-        ).permitAll() //
+http.authorizeHttpRequests(auth -> auth
+    .requestMatchers(
+        "/doc.html",
+        "/webjars/**",
+        "/v3/api-docs/**",
+        "/knife4j/config",
+        "/swagger-ui/**",
+        "/swagger-ui.html"
+    ).permitAll()
 );
 ```
 
 ::: tip 使用 Knife4j 的 production / basic 代替
-Knife4j 提供了 `knife4j.production` 和 `knife4j.basic` 配置，可以在不修改 Security 规则的情况下控制文档访问。详见 [FAQ / 生产环境禁用](./faq#doc-html-404)。
+Knife4j 提供了 `knife4j.production` 和 `knife4j.basic` 配置，可以在不修改 Security 规则的情况下控制文档访问。详见 [FAQ / 生产环境禁用](./faq#production-disable)。
 :::
 
 ## 第六步：验证
@@ -352,7 +365,7 @@ Springfox 的 `@Api(position = N)` 在 OpenAPI3 中不生效。改用 Knife4j �
 public class UserController {/* ... */}
 ```
 
-或使用 springdoc 的 `@SortTag` / `@SortOperation`（springdoc 2.3.0+）。
+或在 `application.yml` 中配置 springdoc 的 `springdoc.swagger-ui.tags-sorter` / `operations-sorter`。
 
 ### `springfox-swagger2` 和 `knife4j-openapi2` 能继续用吗？
 
