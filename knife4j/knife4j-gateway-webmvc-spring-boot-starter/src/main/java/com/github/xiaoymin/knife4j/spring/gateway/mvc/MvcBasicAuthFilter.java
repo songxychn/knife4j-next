@@ -17,6 +17,7 @@
 
 package com.github.xiaoymin.knife4j.spring.gateway.mvc;
 
+import com.github.xiaoymin.knife4j.extend.filter.BasicFilter;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,6 +25,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,10 +42,12 @@ final class MvcBasicAuthFilter implements Filter {
 
     MvcBasicAuthFilter(Knife4jGatewayMvcProperties.Basic basic) {
         this.basic = basic;
-        protectedUrls.add(Pattern.compile(".*/doc\\.html.*", Pattern.CASE_INSENSITIVE));
-        protectedUrls.add(Pattern.compile(".*/v2/api-docs.*", Pattern.CASE_INSENSITIVE));
-        protectedUrls.add(Pattern.compile(".*/v3/api-docs.*", Pattern.CASE_INSENSITIVE));
-        protectedUrls.add(Pattern.compile(".*/swagger-ui.*", Pattern.CASE_INSENSITIVE));
+        protectedUrls.add(Pattern.compile(".*?/doc\\.html.*", Pattern.CASE_INSENSITIVE));
+        protectedUrls.add(Pattern.compile(".*?/v2/api-docs.*", Pattern.CASE_INSENSITIVE));
+        protectedUrls.add(Pattern.compile(".*?/v3/api-docs.*", Pattern.CASE_INSENSITIVE));
+        protectedUrls.add(Pattern.compile(".*?/swagger-ui.*", Pattern.CASE_INSENSITIVE));
+        protectedUrls.add(Pattern.compile(".*?/swagger-resources.*", Pattern.CASE_INSENSITIVE));
+        protectedUrls.add(Pattern.compile(".*?/knife4j/config.*", Pattern.CASE_INSENSITIVE));
         for (String include : basic.getInclude()) {
             protectedUrls.add(Pattern.compile(include, Pattern.CASE_INSENSITIVE));
         }
@@ -61,7 +65,8 @@ final class MvcBasicAuthFilter implements Filter {
     }
 
     private boolean authenticated(HttpServletRequest request) {
-        if (request.getSession().getAttribute(SESSION_ATTRIBUTE) != null) {
+        HttpSession existingSession = request.getSession(false);
+        if (existingSession != null && existingSession.getAttribute(SESSION_ATTRIBUTE) != null) {
             return true;
         }
         String authorization = request.getHeader("Authorization");
@@ -75,7 +80,7 @@ final class MvcBasicAuthFilter implements Filter {
                     || !basic.getPassword().equals(credentials[1])) {
                 return false;
             }
-            request.getSession().setAttribute(SESSION_ATTRIBUTE, basic.getUsername());
+            request.getSession(true).setAttribute(SESSION_ATTRIBUTE, basic.getUsername());
             return true;
         } catch (IllegalArgumentException ignored) {
             return false;
@@ -83,10 +88,9 @@ final class MvcBasicAuthFilter implements Filter {
     }
 
     private boolean matches(String requestUri) {
-        String normalized = requestUri.replaceAll("/+", "/");
-        int semicolon = normalized.indexOf(';');
-        if (semicolon >= 0) {
-            normalized = normalized.substring(0, semicolon);
+        String normalized = BasicFilter.normalizeUri(requestUri);
+        if (normalized == null) {
+            return false;
         }
         for (Pattern protectedUrl : protectedUrls) {
             if (protectedUrl.matcher(normalized).matches()) {

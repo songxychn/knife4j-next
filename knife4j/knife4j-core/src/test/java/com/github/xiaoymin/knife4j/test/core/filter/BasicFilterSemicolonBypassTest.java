@@ -119,6 +119,22 @@ public class BasicFilterSemicolonBypassTest {
                 filter.testMatch("/v2/api-docs;a=1;b=2"));
     }
 
+    @Test
+    public void middleSegmentSemicolonsShouldMatch() {
+        Assert.assertTrue(
+                "Middle-segment semicolon must not bypass /v3/api-docs",
+                filter.testMatch("/v3;x=1/api-docs"));
+        Assert.assertTrue(
+                "Leading-segment semicolon must not bypass /doc.html",
+                filter.testMatch("/;x=1/doc.html"));
+        Assert.assertTrue(
+                "Repeated slashes and semicolons must not bypass /doc.html",
+                filter.testMatch("//;x=1//doc.html;y=2"));
+        Assert.assertTrue(
+                "Multi-segment semicolons must not bypass /v2/api-docs-ext",
+                filter.testMatch("/app;a=1/v2;b=2/api-docs-ext;c=3"));
+    }
+
     // -----------------------------------------------------------------------
     // Unrelated paths must NOT match
     // -----------------------------------------------------------------------

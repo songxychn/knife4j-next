@@ -19,9 +19,9 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>tools.jackson.core</groupId>
+            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>3.0.3</version>
+            <version>${knife4j-jackson2-boot4.version}</version>
             <scope>provided</scope>
         </dependency>
 
