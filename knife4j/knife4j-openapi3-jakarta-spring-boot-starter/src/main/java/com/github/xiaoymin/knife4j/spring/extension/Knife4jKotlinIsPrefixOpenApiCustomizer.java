@@ -247,15 +247,19 @@ public class Knife4jKotlinIsPrefixOpenApiCustomizer implements GlobalOpenApiCust
         }
         String fieldName = field.getName();
         String capitalizedFieldName = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
-        for (Method method : rawClass.getDeclaredMethods()) {
-            if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 0) {
-                continue;
+        Class<?> currentClass = rawClass;
+        while (currentClass != null && currentClass != Object.class) {
+            for (Method method : currentClass.getDeclaredMethods()) {
+                if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 0) {
+                    continue;
+                }
+                String methodName = method.getName();
+                if ((methodName.equals(fieldName) || methodName.equals("get" + capitalizedFieldName))
+                        && hasExplicitJsonPropertyName(method.getAnnotations())) {
+                    return true;
+                }
             }
-            String methodName = method.getName();
-            if ((methodName.equals(fieldName) || methodName.equals("get" + capitalizedFieldName))
-                    && hasExplicitJsonPropertyName(method.getAnnotations())) {
-                return true;
-            }
+            currentClass = currentClass.getSuperclass();
         }
         return false;
     }

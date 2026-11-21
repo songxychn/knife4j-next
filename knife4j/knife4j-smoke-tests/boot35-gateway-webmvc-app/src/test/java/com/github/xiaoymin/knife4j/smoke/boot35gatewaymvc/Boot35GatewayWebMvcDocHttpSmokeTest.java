@@ -62,7 +62,13 @@ public class Boot35GatewayWebMvcDocHttpSmokeTest {
                 "knife4j.gateway.routes[0].order=1");
 
         int port = port();
-        Assert.assertEquals(401, get(port, "/doc.html", null).statusCode);
+        HttpResponse unauthenticatedDoc = get(port, "/doc.html", null);
+        Assert.assertEquals(401, unauthenticatedDoc.statusCode);
+        Assert.assertNull("Unauthenticated 401 should not create a session cookie", unauthenticatedDoc.setCookie);
+        Assert.assertEquals(401, get(port, "/v3;x=1/api-docs/swagger-config", null).statusCode);
+        Assert.assertEquals(401, get(port, "/;x=1/doc.html", null).statusCode);
+        Assert.assertEquals(401, get(port, "/swagger-resources", null).statusCode);
+        Assert.assertEquals(401, get(port, "/knife4j/config", null).statusCode);
         Assert.assertEquals(200, get(port, "/doc.html", "Basic YWRtaW46Y2hhbmdlLW1l").statusCode);
 
         HttpResponse swaggerConfig = get(port, "/v3/api-docs/swagger-config", "Basic YWRtaW46Y2hhbmdlLW1l");
@@ -118,7 +124,7 @@ public class Boot35GatewayWebMvcDocHttpSmokeTest {
         }
         int statusCode = connection.getResponseCode();
         InputStream input = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
-        return new HttpResponse(statusCode, read(input));
+        return new HttpResponse(statusCode, read(input), connection.getHeaderField("Set-Cookie"));
     }
 
     private String read(InputStream input) throws IOException {
@@ -139,10 +145,12 @@ public class Boot35GatewayWebMvcDocHttpSmokeTest {
 
         private final int statusCode;
         private final String body;
+        private final String setCookie;
 
-        private HttpResponse(int statusCode, String body) {
+        private HttpResponse(int statusCode, String body, String setCookie) {
             this.statusCode = statusCode;
             this.body = body;
+            this.setCookie = setCookie;
         }
     }
 

@@ -77,7 +77,7 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
         String existingId = operation.getOperationId();
         String methodName = handlerMethod.getMethod().getName();
 
-        String newId = (StrUtil.isBlank(existingId)) ? className + StrUtil.UNDERLINE + existingId : className + StrUtil.UNDERLINE + methodName;
+        String newId = StrUtil.isBlank(existingId) ? className + StrUtil.UNDERLINE + methodName : className + StrUtil.UNDERLINE + existingId;
         operation.setOperationId(newId);
 
         return operation;
