@@ -2,6 +2,7 @@ import type { SchemaResolveContext } from './types';
 import { dereference } from './resolveRef';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
+import { hasOwn } from '../utils/guards';
 
 const DEFAULT_MEDIA_TYPE = 'application/json';
 
@@ -36,10 +37,6 @@ export interface SelectedMediaType<TMedia extends object> {
 
 function asSchemaRecord(schema: object | undefined): Record<string, unknown> | undefined {
   return schema as Record<string, unknown> | undefined;
-}
-
-function hasOwn(obj: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 /** Pick the media type displayed by the API document. */

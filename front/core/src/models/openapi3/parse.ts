@@ -6,7 +6,7 @@ import { Knife4jInstance } from '../knife4j/Knife4jInstance';
 import { Knife4jTagObject } from '../knife4j/tag/Knife4jTagObject';
 import { Knife4jExternalDocumentationObject } from '../knife4j/externalDoc/Knife4jExternalDocumentationObject';
 import { Knife4jInfoObject } from '../knife4j/info/Knife4jInfoObject';
-import lodash from 'lodash';
+import KUtils from '../knife4j/utils/KUtils';
 import {
   TagObject,
   InfoObject,
@@ -39,7 +39,7 @@ export class OpenAPIParser extends BaseCommonParser {
    */
   parse(data: Record<string, any>, options: Knife4jParseOptions): Knife4jInstance {
     // 当前openapi规范的版本
-    const specVersion = lodash.defaultTo(data['openapi'] as string, '3.0');
+    const specVersion = KUtils.defaultTo(data['openapi'] as string, '3.0');
     //赋值解析器,当前对象本身
     const instance = new Knife4jInstance('1', '2', specVersion, this, options);
     //赋值原始数据
@@ -88,7 +88,7 @@ export class OpenAPIParser extends BaseCommonParser {
     }
     const paths = data['paths'] as PathsObject | undefined;
     const pathItem = paths?.[operation.url];
-    if (lodash.isEmpty(pathItem)) {
+    if (KUtils.isEmpty(pathItem)) {
       return;
     }
     if (!isOpenApi31Version(data.openapi)) {
@@ -131,19 +131,19 @@ export class OpenAPIParser extends BaseCommonParser {
    * @param instance 实例对象
    */
   resolveTag(tagArray: TagObject[], instance: Knife4jInstance): void {
-    if (lodash.isEmpty(tagArray)) {
+    if (KUtils.isEmpty(tagArray)) {
       return;
     }
     tagArray.forEach((tag) => {
       const _tag = new Knife4jTagObject(tag.name);
       //desc
-      _tag.description = lodash.defaultTo(tag.description, '');
+      _tag.description = KUtils.defaultTo(tag.description, '');
       // Knife4j扩展属性
       _tag.order = tag['x-order'] || 0;
       //externalDocs
-      if (!lodash.isEmpty(tag.externalDocs)) {
-        const extObject = new Knife4jExternalDocumentationObject(lodash.defaultTo(tag.externalDocs.url, ''));
-        extObject.description = lodash.defaultTo(tag.externalDocs.description, '');
+      if (!KUtils.isEmpty(tag.externalDocs)) {
+        const extObject = new Knife4jExternalDocumentationObject(KUtils.defaultTo(tag.externalDocs.url, ''));
+        extObject.description = KUtils.defaultTo(tag.externalDocs.description, '');
         _tag.externalDocs = extObject;
       }
       instance.addTag(_tag);
@@ -157,24 +157,24 @@ export class OpenAPIParser extends BaseCommonParser {
    */
   resolveInfo(info: InfoObject, instance: Knife4jInstance): void {
     //console.log(info)
-    if (lodash.isEmpty(info)) {
+    if (KUtils.isEmpty(info)) {
       return;
     }
     const _info = new Knife4jInfoObject(info.title);
-    _info.version = lodash.defaultTo(info.version, '');
-    _info.description = lodash.defaultTo(info.description, '');
-    _info.summary = lodash.defaultTo(info.summary, '');
-    _info.termsOfService = lodash.defaultTo(info.termsOfService, '');
+    _info.version = KUtils.defaultTo(info.version, '');
+    _info.description = KUtils.defaultTo(info.description, '');
+    _info.summary = KUtils.defaultTo(info.summary, '');
+    _info.termsOfService = KUtils.defaultTo(info.termsOfService, '');
     // 判断联系人
-    if (!lodash.isEmpty(info.contact)) {
-      _info.email = lodash.defaultTo(info.contact.email, '');
-      _info.name = lodash.defaultTo(info.contact.name, '');
-      _info.url = lodash.defaultTo(info.contact.url, '');
+    if (!KUtils.isEmpty(info.contact)) {
+      _info.email = KUtils.defaultTo(info.contact.email, '');
+      _info.name = KUtils.defaultTo(info.contact.name, '');
+      _info.url = KUtils.defaultTo(info.contact.url, '');
     }
     //license
-    if (!lodash.isEmpty(info.license)) {
-      _info.licenseName = lodash.defaultTo(info.license.name, '');
-      _info.licenseUrl = lodash.defaultTo(info.license.url, '');
+    if (!KUtils.isEmpty(info.license)) {
+      _info.licenseName = KUtils.defaultTo(info.license.name, '');
+      _info.licenseUrl = KUtils.defaultTo(info.license.url, '');
     }
     //对象属性赋值
     instance.info = _info;
@@ -194,7 +194,7 @@ export class OpenAPIParser extends BaseCommonParser {
       }
       const pathItem = paths[key];
       // 判断非空
-      if (lodash.isEmpty(pathItem)) {
+      if (KUtils.isEmpty(pathItem)) {
         continue;
       }
       for (const methodType of OPENAPI_HTTP_METHODS) {
@@ -225,18 +225,18 @@ export class OpenAPIParser extends BaseCommonParser {
     instance: Knife4jInstance,
     identity?: OpenApiOperation,
   ): void {
-    if (!identity && lodash.isEmpty(operation)) {
+    if (!identity && KUtils.isEmpty(operation)) {
       return;
     }
     //此处只解析基础对象
     const _operation = new Knife4jPathItemObject(url, methodType);
     _operation.identity = identity;
-    _operation.summary = lodash.defaultTo(operation.summary, '');
-    _operation.description = lodash.defaultTo(operation.description, '');
-    _operation.operationId = lodash.defaultTo(operation.operationId, '');
-    _operation.deprecated = lodash.defaultTo(operation.deprecated, false);
+    _operation.summary = KUtils.defaultTo(operation.summary, '');
+    _operation.description = KUtils.defaultTo(operation.description, '');
+    _operation.operationId = KUtils.defaultTo(operation.operationId, '');
+    _operation.deprecated = KUtils.defaultTo(operation.deprecated, false);
     // 设置tag
-    const _tags = lodash.defaultTo(operation.tags, []);
+    const _tags = KUtils.defaultTo(operation.tags, []);
     _operation.tags = _tags;
     // 遍历tags，计数器+1
     _tags.forEach((_tagName) => {
@@ -254,7 +254,7 @@ export class OpenAPIParser extends BaseCommonParser {
    * @param instance 当前对象实例
    */
   resolveExternalDoc(extdoc: ExternalDocumentationObject, instance: Knife4jInstance): void {
-    if (lodash.isEmpty(extdoc)) return;
+    if (KUtils.isEmpty(extdoc)) return;
     const _ext = new Knife4jExternalDocumentationObject(extdoc.url);
     _ext.description = extdoc.description;
     instance.setExtDoc(_ext);
@@ -266,21 +266,21 @@ export class OpenAPIParser extends BaseCommonParser {
    * @param instance  对象实例
    */
   resolveServers(servers: ServerObject[], instance: Knife4jInstance): void {
-    if (lodash.isEmpty(servers)) {
+    if (KUtils.isEmpty(servers)) {
       return;
     }
     servers.forEach((server) => {
       const _server = new Knife4jServer(server.url);
-      _server.description = lodash.defaultTo(server.description, '');
-      if (!lodash.isEmpty(server.variables)) {
+      _server.description = KUtils.defaultTo(server.description, '');
+      if (!KUtils.isEmpty(server.variables)) {
         for (const _varKey in server.variables) {
           const _varValue = server.variables[_varKey];
-          if (lodash.isEmpty(_varValue)) {
+          if (KUtils.isEmpty(_varValue)) {
             continue;
           }
           const _serverMap = new Knife4jServerVariableObject(_varValue.default);
-          _serverMap.description = lodash.defaultTo(_varValue.description, '');
-          _serverMap.enum = lodash.defaultTo(_varValue.enum, []);
+          _serverMap.description = KUtils.defaultTo(_varValue.description, '');
+          _serverMap.enum = KUtils.defaultTo(_varValue.enum, []);
           _server.addVariable(_varKey, _serverMap);
         }
       }

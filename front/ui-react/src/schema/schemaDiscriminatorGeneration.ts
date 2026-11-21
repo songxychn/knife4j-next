@@ -1,4 +1,10 @@
-import { exampleHasOwn, physicalJsonPointerTokens, resolvePhysicalJsonPointer } from 'knife4j-core';
+import {
+  hasOwn,
+  physicalJsonPointerTokens,
+  resolvePhysicalJsonPointer,
+  appendJsonPointer,
+  encodeJsonPointerToken,
+} from 'knife4j-core';
 import type { EvaluationResult, JsonValue } from 'knife4j-schema-engine';
 import type { ResourceGraphEdge, ResourceGraphObject, ResourceGraphSnapshot } from './externalResourceGraph';
 import {
@@ -114,7 +120,7 @@ const publicReference = (value: Location): string =>
   `${value.ownerRetrievalUri}#${value.pointer.slice(1).split('/').map(encodeURIComponent).join('/')}`;
 const child = (value: Location, name: string | number): Location => ({
   ownerRetrievalUri: value.ownerRetrievalUri,
-  pointer: `${value.pointer}/${String(name).replace(/~/g, '~0').replace(/\//g, '~1')}`,
+  pointer: appendJsonPointer(value.pointer, name),
 });
 
 class GenerationStopped extends Error {
@@ -221,7 +227,7 @@ export async function generateDiscriminatorCandidate(
     if (Array.isArray(left) && left.length !== (right as unknown[]).length) return false;
     for (const key of keys) {
       inspect(depth, key.length);
-      if (!exampleHasOwn(b, key) || !equalContent(a[key], b[key], depth + 1)) return false;
+      if (!hasOwn(b, key) || !equalContent(a[key], b[key], depth + 1)) return false;
     }
     return true;
   }
@@ -413,7 +419,7 @@ export async function generateDiscriminatorCandidate(
       }
       const schema = record(raw(site).value);
       for (const keyword of ['$ref', '$dynamicRef'] as const) {
-        if (!schema || !exampleHasOwn(schema, keyword)) continue;
+        if (!schema || !hasOwn(schema, keyword)) continue;
         inspect(depth);
         const edge = edges.get(identity(child(site, keyword)));
         if (
@@ -498,10 +504,10 @@ export async function generateDiscriminatorCandidate(
     );
     for (const check of ['target', 'branch', 'root'] as const)
       if (!validations[check]?.valid) return none(`${check.toUpperCase()}_INVALID_AFTER_SEED`, `${check}-invalid`);
-    const propertyPointer = `/${metadata.propertyName.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+    const propertyPointer = `/${encodeJsonPointerToken(metadata.propertyName)}`;
     const annotationId = `https://json-schema.org/keyword/${direction === 'request' ? 'readOnly' : 'writeOnly'}`;
     if (
-      exampleHasOwn(object, metadata.propertyName) &&
+      hasOwn(object, metadata.propertyName) &&
       Object.values(validations).some((result) =>
         result.annotations.some(
           (annotation) =>

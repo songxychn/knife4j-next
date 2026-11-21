@@ -139,7 +139,6 @@ export {
   interpretExampleObject,
   serializeExampleData,
   exampleParameterInput,
-  exampleHasOwn,
   isExampleData,
 } from './exampleRepresentation';
 export type {

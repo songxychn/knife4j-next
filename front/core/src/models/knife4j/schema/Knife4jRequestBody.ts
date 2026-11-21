@@ -1,6 +1,6 @@
 import { SchemaObject } from '../../openapi3/types';
 import { Knife4jSchema } from './Knife4jSchema';
-import lodash from 'lodash';
+import KUtils from '../utils/KUtils';
 import { Knife4jParamType } from '../enums/Knife4jParamType';
 import { Knife4jInstance } from '../Knife4jInstance';
 
@@ -40,7 +40,7 @@ export class Knife4jRequestBody {
     this.description = description;
     this.required = required;
     //此处直接解析schema的properties属性
-    if (lodash.isEmpty(schema) || lodash.isEmpty(schema.properties)) {
+    if (KUtils.isEmpty(schema) || KUtils.isEmpty(schema.properties)) {
       return;
     }
     //如果是properties，直接解析

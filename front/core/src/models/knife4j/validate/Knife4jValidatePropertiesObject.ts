@@ -1,4 +1,4 @@
-import lodash from 'lodash';
+import KUtils from '../utils/KUtils';
 import { SchemaObject } from '../../openapi3/types';
 
 /**
@@ -24,12 +24,12 @@ export class Knife4jValidatePropertiesObject {
    * @param schema schema对象
    */
   resolveOpenAPI3Schema(schema: SchemaObject) {
-    if (lodash.isEmpty(schema)) {
+    if (KUtils.isEmpty(schema)) {
       return;
     }
     this.maxProperties = schema.maxProperties;
     this.minProperties = schema.minProperties;
-    if (!lodash.isEmpty(schema.required)) {
+    if (!KUtils.isEmpty(schema.required)) {
       schema.required?.forEach((v) => {
         this.required.push(v);
       });
@@ -41,7 +41,7 @@ export class Knife4jValidatePropertiesObject {
    * @param name 属性名称
    */
   isReuqire(name: string) {
-    if (!lodash.isEmpty(this.required)) {
+    if (!KUtils.isEmpty(this.required)) {
       // 包含在required数组元素中
       return this.required.indexOf(name) > -1;
     }

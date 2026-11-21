@@ -1,13 +1,10 @@
+import { isRecord } from 'knife4j-core';
 import { normalizeSupportedLanguage } from '../locales/language';
 import type { AppSettings } from '../types/settings';
 import type { MarkdownFileGroup, SwaggerDoc } from '../types/swagger';
 
 type UnknownRecord = Record<string, unknown>;
 const FILTER_MULTIPART_METHOD_TYPES = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'] as const;
-
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function readBoolean(source: UnknownRecord, key: string): boolean | undefined {
   return typeof source[key] === 'boolean' ? source[key] : undefined;

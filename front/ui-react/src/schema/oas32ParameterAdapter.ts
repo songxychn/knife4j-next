@@ -1,5 +1,5 @@
 import {
-  exampleHasOwn,
+  hasOwn,
   interpretExampleObject,
   parseJsonParameterValue,
   resolvePhysicalJsonPointer,
@@ -95,9 +95,7 @@ export async function resolveOas32ParameterSchema(
       const resolvedObject = record(resolved);
       if (
         !resolvedObject ||
-        ['type', 'properties', 'items', 'prefixItems', 'allOf', 'oneOf', 'anyOf'].some((key) =>
-          exampleHasOwn(value, key),
-        )
+        ['type', 'properties', 'items', 'prefixItems', 'allOf', 'oneOf', 'anyOf'].some((key) => hasOwn(value, key))
       )
         return value;
       shape = { ...resolvedObject, ...Object.fromEntries(Object.entries(value).filter(([key]) => key !== '$ref')) };
@@ -114,8 +112,7 @@ export async function resolveOas32ParameterSchema(
         ),
       );
     for (const key of ['items', 'additionalProperties'])
-      if (exampleHasOwn(shape, key))
-        hints[key] = (await visit(shape[key], localBase, false, seen, depth + 1)) ?? shape[key];
+      if (hasOwn(shape, key)) hints[key] = (await visit(shape[key], localBase, false, seen, depth + 1)) ?? shape[key];
     return hints;
   };
   try {
@@ -221,7 +218,7 @@ export function collectOas32ParameterInputs(
     inputs[parameter.key] = {
       kind: effective.kind,
       text: effective.text,
-      ...(exampleHasOwn(effective, 'data') ? { data: effective.data } : {}),
+      ...(hasOwn(effective, 'data') ? { data: effective.data } : {}),
       provenance: currentProvenance,
     };
   }
@@ -311,7 +308,7 @@ export function oas32ExampleParameterEntry(
     kind: input.kind,
     text: input.text,
     enabled: true,
-    ...(exampleHasOwn(input, 'data') ? { data: (input as { data: ParameterInstance }).data } : {}),
+    ...(hasOwn(input, 'data') ? { data: (input as { data: ParameterInstance }).data } : {}),
     provenance,
   };
 }

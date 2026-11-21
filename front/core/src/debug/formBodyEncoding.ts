@@ -15,8 +15,7 @@ import type {
 } from './types';
 import { isJsonMediaType, parseOas31ParameterValue, serializeOas31Parameters } from './parameterSerialization';
 import { dereferenceReferenceObject, normalizeAllOfSchema, resolveSchemaRef } from './resolveRef';
-
-type JsonRecord = Record<string, unknown>;
+import { hasOwn, isRecord } from '../utils/guards';
 
 export interface AnalyzeOas31FormBodyOptions {
   readonly mediaType: string;
@@ -35,14 +34,6 @@ const DEFAULT_LIMITS = Object.freeze({
 
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const MEDIA_TYPE_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-
-function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function hasOwn(value: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
 
 function schemaType(schema: SchemaValue): string {
   if (typeof schema === 'boolean') return 'unknown';

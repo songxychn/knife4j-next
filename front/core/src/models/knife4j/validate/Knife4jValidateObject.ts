@@ -1,4 +1,4 @@
-import lodash from 'lodash';
+import KUtils from '../utils/KUtils';
 import { SchemaObject } from '../../openapi3/types';
 import { Knife4jValidateArrayObject } from './Knife4jValidateArrayObject';
 import { Knife4jValidateNumericObject } from './Knife4jValidateNumericObject';
@@ -34,7 +34,7 @@ export class Knife4jValidateObject {
    * @param schema schema对象
    */
   resolveSchema(schema: SchemaObject) {
-    if (lodash.isEmpty(schema)) {
+    if (KUtils.isEmpty(schema)) {
       return;
     }
     this.numericValidate.resolveOpenAPI3Schema(schema);

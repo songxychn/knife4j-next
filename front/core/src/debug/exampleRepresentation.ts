@@ -8,6 +8,7 @@ import {
   serializeOas31Parameters,
 } from './parameterSerialization';
 import { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
+import { hasOwn } from '../utils/guards';
 
 export type ExampleLayer = 'parameter' | 'header' | 'media';
 export type ExampleCheck = 'valid' | 'invalid' | 'unavailable' | 'absent';
@@ -39,7 +40,6 @@ export interface ExampleRepresentationContext {
   readonly encoding?: Record<string, unknown>;
 }
 
-export const exampleHasOwn = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
 const record = (value: unknown): Record<string, unknown> | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 
@@ -73,9 +73,7 @@ const dataEqual = (left: ParameterInstance, right: ParameterInstance): boolean =
     !!a &&
     !!b &&
     Object.keys(a).length === Object.keys(b).length &&
-    Object.keys(a).every(
-      (key) => exampleHasOwn(b, key) && dataEqual(a[key] as ParameterInstance, b[key] as ParameterInstance),
-    )
+    Object.keys(a).every((key) => hasOwn(b, key) && dataEqual(a[key] as ParameterInstance, b[key] as ParameterInstance))
   );
 };
 
@@ -400,7 +398,7 @@ export function interpretExampleObject(
   context: ExampleRepresentationContext,
 ): ExampleRepresentation {
   const fields = Object.fromEntries(
-    ['dataValue', 'serializedValue', 'externalValue', 'value'].map((key) => [key, exampleHasOwn(source, key)]),
+    ['dataValue', 'serializedValue', 'externalValue', 'value'].map((key) => [key, hasOwn(source, key)]),
   ) as ExampleRepresentation['fields'];
   const diagnostics: ExampleDiagnostic[] = [];
   const add = (phase: ExampleDiagnostic['phase'], code: string) => diagnostics.push({ phase, code });

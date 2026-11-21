@@ -40,12 +40,5 @@
     "@typescript/native": "npm:typescript@7.0.2",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "@eslint/js": "10.0.1"
-  },
-  "dependencies": {
-    "@types/crypto-js": "^4.1.1",
-    "@types/lodash": "^4.17.25",
-    "class-transformer": "^0.5.1",
-    "crypto-js": "^4.1.1",
-    "lodash": "^4.17.21"
   }
 }

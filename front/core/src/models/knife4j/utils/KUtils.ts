@@ -1,12 +1,25 @@
-import lodash from 'lodash';
+let uniqueIdCounter = 0;
 
 const KUtils = {
+  isEmpty(value: unknown): value is null | undefined {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string' || Array.isArray(value)) return value.length === 0;
+    if (typeof value === 'object') return Object.keys(value).length === 0;
+    return true;
+  },
+  defaultTo<T>(value: T | null | undefined, fallback: T): T {
+    return value === null || value === undefined || Number.isNaN(value) ? fallback : value;
+  },
+  uniqueId(prefix = ''): string {
+    uniqueIdCounter += 1;
+    return `${prefix}${uniqueIdCounter}`;
+  },
   /**
    * 处理换行
    * @param str 换行字符
    */
   wrapLine(str: string): string {
-    if (!lodash.isEmpty(str)) {
+    if (!KUtils.isEmpty(str)) {
       const newLinePattern = /(\r\n|\n\r|\r|\n)/g;
       if (newLinePattern.test(str)) {
         const newDes = str.replace(newLinePattern, '\\n');
@@ -24,7 +37,7 @@ const KUtils = {
   basicType(type: string): boolean {
     const basicTypes = ['string', 'integer', 'number', 'object', 'boolean', 'int32', 'int64', 'float', 'double'];
     let flag = false;
-    if (!lodash.isEmpty(type)) {
+    if (!KUtils.isEmpty(type)) {
       if (basicTypes.indexOf(type) > -1) {
         flag = true;
       }

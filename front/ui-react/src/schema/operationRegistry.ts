@@ -10,6 +10,7 @@ import {
   type OpenApiOperation,
   type OperationReferenceKind,
   type OperationSchemaDocuments,
+  appendJsonPointer,
 } from 'knife4j-core';
 import { ExternalResourceLoader, type ResourceGraphSnapshot } from './externalResourceGraph';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
@@ -215,7 +216,7 @@ export function operationResponseLinks(
   const child = (location: OpenApiObjectLocation, key: string, value: unknown): OpenApiObjectLocation => ({
     value,
     ownerRetrievalUri: location.ownerRetrievalUri,
-    pointer: `${location.pointer}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+    pointer: appendJsonPointer(location.pointer, key),
   });
   for (const [status, value] of Object.entries(responses)) {
     if (status.startsWith('x-')) continue;

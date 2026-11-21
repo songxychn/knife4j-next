@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 import type { SecuritySchemeObject, OAuth2Flow } from '../types/swagger';
-import { dereferenceOasReferenceObject, isOpenApi31Version, type SchemeValue } from 'knife4j-core';
+import { dereferenceOasReferenceObject, isOpenApi31Version, type SchemeValue, isRecord } from 'knife4j-core';
 import { KNIFE4J_STORAGE_PREFIXES, setKnife4jSessionStorageItem } from '../storage/knife4jStorage';
 import { OAuthDeviceFlowForm } from '../auth/OAuthDeviceFlowForm';
 import { authorizeSchemeCards, resolveOas32OauthEndpoint } from '../auth/oas32SecurityUi';
@@ -14,10 +14,6 @@ import { oas32RequestBaseUrl, resolveOas32OperationServers } from '../schema/oas
 import { useExternalResources } from '../context/SchemaEngineContext';
 
 const { Text } = Typography;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 /** 从 SwaggerDoc 提取安全方案（兼容 OAS3 + OAS2） */
 // eslint-disable-next-line react-refresh/only-export-components

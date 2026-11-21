@@ -1,3 +1,4 @@
+import { appendJsonPointer as childPointer, decodeJsonPointerToken, isRecord, owns } from './guards';
 import {
   addMediaTypePlugin,
   addUriSchemePlugin,
@@ -210,12 +211,6 @@ interface RegisteredDocument {
   processingDocuments?: Map<string, Set<SchemaDocument>>;
   referencesGeneration?: number;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-const owns = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
-const childPointer = (pointer: string, key: string | number): string =>
-  `${pointer}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`;
 
 const SCHEMA_IDENTIFIER_KEYS = new Set(['$id', '$ref', '$dynamicRef', '$recursiveRef']);
 
@@ -782,7 +777,7 @@ function schemaAtCursor(schema: JsonValue, cursor: string, operationUri: string)
 
   let current: JsonValue = schema;
   for (const encodedToken of cursor.slice(1).split('/')) {
-    const token = encodedToken.replace(/~1/g, '/').replace(/~0/g, '~');
+    const token = decodeJsonPointerToken(encodedToken);
     if (current === null || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, token)) {
       throw new SchemaEngineError(
         'SCHEMA_RESOLUTION_FAILED',

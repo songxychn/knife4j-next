@@ -1,16 +1,12 @@
 import type { SchemaDocument } from '@hyperjump/json-schema/experimental';
 import { SchemaEngineError } from './errors';
+import { appendJsonPointer as pointerChild, decodeJsonPointerToken, isRecord as record, owns } from './guards';
 import { normalizeUri, parseUri, resolveUri, toAbsoluteUri } from './uri';
 import { JSON_SCHEMA_2020_12, publicSchemaDialect, processingSchemaDialect } from './openapi32Dialect';
 import type { JsonValue, SchemaDocumentRegistrationContext, SchemaLocationMetadata, SchemaNode } from './types';
 
 export const isOpenApi32 = (value: unknown): boolean =>
   record(value) && typeof value.openapi === 'string' && /^3\.2\.\d+(?:-.+)?$/.test(value.openapi);
-const record = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-const owns = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
-const pointerChild = (pointer: string, key: string | number): string =>
-  `${pointer}/${String(key).replace(/~/g, '~0').replace(/\//g, '~1')}`;
 const ANCHOR = /^[A-Za-z_][-A-Za-z0-9._]*$/;
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query'];
 const SINGLE = [
@@ -34,7 +30,7 @@ export function schemaValueAt(document: unknown, pointer: string): unknown {
   for (const token of pointer.slice(2).split('/')) {
     if (pointer === '#') return document;
     if (value === null || typeof value !== 'object') return undefined;
-    const key = token.replace(/~1/g, '/').replace(/~0/g, '~');
+    const key = decodeJsonPointerToken(token);
     if (!owns(value, key)) return undefined;
     value = (value as Record<string, unknown>)[key];
   }

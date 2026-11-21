@@ -1,3 +1,4 @@
+import { isRecord } from 'knife4j-core';
 import type { LocalizedMessage } from '../types/i18n';
 import type { AppSettings } from '../types/settings';
 import type { MarkdownFileItem, SwaggerGroup } from '../types/swagger';
@@ -142,10 +143,6 @@ function isGroupRouteSegment(name: string): boolean {
 
 function isHttpProtocol(protocol: string): boolean {
   return protocol === 'http:' || protocol === 'https:';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function configError(key: string): Knife4xBootstrap {

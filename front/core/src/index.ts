@@ -1,3 +1,4 @@
+export * from './utils/guards';
 export * from './models/SpecParserFactory';
 export * from './models/SpecType';
 export * from './debug';

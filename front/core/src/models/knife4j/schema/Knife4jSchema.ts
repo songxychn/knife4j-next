@@ -1,4 +1,3 @@
-import lodash from 'lodash';
 import { Knife4jValidateObject } from '../validate/Knife4jValidateObject';
 import { SchemaObject, ParameterObject } from '../../openapi3/types';
 import OpenAPI3TypeUtils from '../../openapi3/typeCheck';
@@ -101,7 +100,7 @@ export class Knife4jSchema {
   validate: Knife4jValidateObject;
 
   constructor(name: string, type: string) {
-    this.id = lodash.uniqueId('param-');
+    this.id = KUtils.uniqueId('param-');
     this.name = name;
     this.type = type;
     this.validate = new Knife4jValidateObject();
@@ -112,7 +111,7 @@ export class Knife4jSchema {
    * @param child 子元素
    */
   addChildren(child: Knife4jSchema) {
-    if (lodash.isEmpty(child)) {
+    if (KUtils.isEmpty(child)) {
       return;
     }
     //指定父id
@@ -127,13 +126,13 @@ export class Knife4jSchema {
    */
   resolveOpenAPI3Basic(originalParam: ParameterObject) {
     //基础赋值
-    this.deprecated = lodash.defaultTo(originalParam.deprecated, false);
-    this.description = KUtils.wrapLine(lodash.defaultTo(originalParam.description, ''));
-    this.allowEmptyValue = lodash.defaultTo(originalParam.allowEmptyValue, false);
-    this.explode = lodash.defaultTo(originalParam.explode, false);
+    this.deprecated = KUtils.defaultTo(originalParam.deprecated, false);
+    this.description = KUtils.wrapLine(KUtils.defaultTo(originalParam.description, ''));
+    this.allowEmptyValue = KUtils.defaultTo(originalParam.allowEmptyValue, false);
+    this.explode = KUtils.defaultTo(originalParam.explode, false);
     this.style = originalParam.style;
     this.allowReserved = originalParam.allowReserved;
-    this.required = lodash.defaultTo(originalParam.required, false);
+    this.required = KUtils.defaultTo(originalParam.required, false);
     const _schema = originalParam.schema;
     if (OpenAPI3TypeUtils.isSchemaObject(_schema)) {
       this.resolveOpenAPI3SchemaBasic(_schema);
@@ -145,31 +144,31 @@ export class Knife4jSchema {
    * @param schema schema对象
    */
   resolveOpenAPI3SchemaBasic(schema: SchemaObject) {
-    if (lodash.isEmpty(schema)) {
+    if (KUtils.isEmpty(schema)) {
       return;
     }
     //类型
-    if (!lodash.isEmpty(schema.type)) {
+    if (!KUtils.isEmpty(schema.type)) {
       const schemaType = schema.type;
-      if (lodash.isArray(schemaType)) {
+      if (Array.isArray(schemaType)) {
         //数组类型
         this.schema = schemaType.join();
       } else {
         //String values MUST be one of the six primitive types ("null","boolean", "object", "array", "number", or "string"), or "integer" which matches any number with a zero fractional part.
         //但类型
-        this.schema = lodash.defaultTo(schemaType, '');
+        this.schema = KUtils.defaultTo(schemaType, '');
       }
     }
-    this.format = lodash.defaultTo(schema.format, '');
+    this.format = KUtils.defaultTo(schema.format, '');
     //处理枚举
-    if (!lodash.isEmpty(schema.enum)) {
+    if (!KUtils.isEmpty(schema.enum)) {
       this.enum = schema.enum;
     }
     //处理jsr303等部分属性
     this.validate.resolveSchema(schema);
     //判断当前参数是否必须
     //this.required = this.validate.propertiesValidate.isReuqire(this.name);
-    this.title = lodash.defaultTo(schema.title, '');
+    this.title = KUtils.defaultTo(schema.title, '');
     this.default = schema.default as unknown;
     //赋值example值
     this.example = schema.example as unknown;
@@ -181,8 +180,8 @@ export class Knife4jSchema {
    */
   asyncResolveProperties(schema: SchemaObject) {
     //基础赋值
-    this.deprecated = lodash.defaultTo(schema.deprecated, false);
-    this.description = KUtils.wrapLine(lodash.defaultTo(schema.description, ''));
+    this.deprecated = KUtils.defaultTo(schema.deprecated, false);
+    this.description = KUtils.wrapLine(KUtils.defaultTo(schema.description, ''));
     //解析普通属性
     this.resolveOpenAPI3SchemaBasic(schema);
   }

@@ -1,8 +1,7 @@
+import { hasOwn as owns } from 'knife4j-core';
 import type { OpenApiObjectLocation } from 'knife4j-core';
 import type { MenuOperation, SwaggerDoc } from '../types/swagger';
 import { resolveOas32Server, selectOas32Servers } from './oas32ServerResolution';
-
-const owns = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
 
 /** C/E provide physical owners; the entry root alone participates in inheritance. */
 export function resolveOas32OperationServers(

@@ -9,6 +9,7 @@ import {
   resolveLocalJsonPointer,
   resolvePathItemObject,
 } from './document';
+import { hasOwn as owns, isRecord } from '../utils/guards';
 
 export const OAS31_SCHEMA_HELPER_VERSION = 'https://spec.openapis.org/oas/3.1/schema/2025-11-23';
 const COMPONENT_NAME_SOURCE = '^[a-zA-Z0-9._-]+$';
@@ -98,14 +99,6 @@ const COMPONENT_FIELDS = new Set<string>(OAS31_STRUCTURE_HELPER.components.field
 const PATH_ITEM_FIELDS = new Set<string>(OAS31_STRUCTURE_HELPER.pathItem.fields);
 const REFERENCE_FIELDS = new Set<string>(OAS31_STRUCTURE_HELPER.reference.fields);
 const COMPONENT_NAME = new RegExp(OAS31_STRUCTURE_HELPER.components.namePattern);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function owns(value: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
 
 function childPath(path: string, key: string): string {
   return `${path}/${escapeJsonPointerSegment(key)}`;

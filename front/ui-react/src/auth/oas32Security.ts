@@ -6,6 +6,8 @@ import {
   type OpenApiObjectLocation,
   type OpenApiOperation,
   type SchemeValue,
+  hasOwn as owns,
+  encodeJsonPointerToken as escapePointer,
 } from 'knife4j-core';
 import type {
   ResourceDiagnostic,
@@ -112,8 +114,6 @@ export interface Oas32SecurityProjection {
 
 const record = (value: unknown): value is RecordValue =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
-const owns = (value: object, name: string) => Object.prototype.hasOwnProperty.call(value, name);
-const escapePointer = (key: string) => key.replace(/~/g, '~0').replace(/\//g, '~1');
 const locationKey = (location: Pick<Location, 'ownerRetrievalUri' | 'pointer'>) =>
   JSON.stringify([location.ownerRetrievalUri, location.pointer]);
 const child = (source: Location, key: string, value: unknown): Location =>

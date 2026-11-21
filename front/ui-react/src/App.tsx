@@ -7,6 +7,7 @@ import zhCNLocale from 'antd/locale/zh_CN';
 import { Resizable } from 'react-resizable';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { safeDecodeURIComponent as decodePathname } from 'knife4j-core';
 import { GroupProvider, useGroup, ApiItem, MarkdownDocItem } from './context/GroupContext';
 import { AuthProvider } from './context/AuthContext';
 import { GlobalParamProvider } from './context/GlobalParamContext';
@@ -55,14 +56,6 @@ const compactSnapshot = () => window.matchMedia(COMPACT_QUERY).matches;
 const HOME_KEY = '/group/home';
 const DEFAULT_DOCUMENT_TITLE = 'Knife4j Next';
 const isClosablePane = (pane: { key: string }) => pane.key !== HOME_KEY;
-
-function decodePathname(pathname: string): string {
-  try {
-    return decodeURIComponent(pathname);
-  } catch {
-    return pathname;
-  }
-}
 
 const antdLocaleMap: Record<SupportedLang, typeof enUSLocale> = {
   'zh-CN': zhCNLocale,

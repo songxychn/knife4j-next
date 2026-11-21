@@ -1,5 +1,6 @@
 import { escapeJsonPointerSegment } from '../openapi31/document';
 import type { OpenApiObjectLocation, OpenApiOperationSource } from '../openapiOperations';
+import { hasOwn as owns } from '../utils/guards';
 
 export type Oas32UrlLocation = Pick<OpenApiObjectLocation, 'ownerRetrievalUri' | 'pointer'>;
 export type Oas32UrlTemplateKind = 'server' | 'path';
@@ -59,7 +60,6 @@ export interface Oas32UrlTemplate {
 
 const record = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
-const owns = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
 const child = (location: Oas32UrlLocation, key: string): Oas32UrlLocation => ({
   ...location,
   pointer: `${location.pointer}/${escapeJsonPointerSegment(key)}`,

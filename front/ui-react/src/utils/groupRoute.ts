@@ -1,3 +1,4 @@
+import { safeDecodeURIComponent } from 'knife4j-core';
 import type { SwaggerGroup } from '../types/swagger';
 
 export interface RouteApiGroup<TApi = unknown> {
@@ -20,11 +21,7 @@ export function groupNameFromPathname(pathname: string): string | null {
   const rawGroupName = segments[0];
   if (!rawGroupName) return null;
 
-  try {
-    return decodeURIComponent(rawGroupName);
-  } catch {
-    return rawGroupName;
-  }
+  return safeDecodeURIComponent(rawGroupName);
 }
 
 export function isRouteGroupReady(routeGroupName: string | null, activeGroupName: string): boolean {
