@@ -68,7 +68,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # OpenAPI 3 (Spring Boot 3 + springdoc + React UI) — deployed to openapi3.demo.knife4jnext.com
+          # OpenAPI 3 (Spring Boot 4 + springdoc + React UI) — deployed to openapi3.demo.knife4jnext.com
           - module: knife4j-demo-openapi3
             image: knife4j-next-demo-openapi3
             context: knife4j/knife4j-demo-openapi3
@@ -88,12 +88,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-
-      - name: Set up Node.js for historical release sources
-        if: hashFiles('.nvmrc') != ''
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
@@ -127,6 +121,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}},value=${{ inputs.tag }}
             type=raw,value=latest
+            type=raw,value=demo
 
       - name: Build and push image
         uses: docker/build-push-action@v7

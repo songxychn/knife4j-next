@@ -88,10 +88,6 @@ const router = createHashRouter([
       },
     ],
   },
-  {
-    path: 'test',
-    element: <Home />,
-  },
 ]);
 
 export default router;

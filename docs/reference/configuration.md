@@ -103,9 +103,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 
 ### `knife4j.setting.*`
 
-<!-- generated: settings-reference -->
-
-此表由当前 Java 字段声明与 React 默认值读取函数生成。默认值指未配置时的字段初始值；“读取”不代表完整功能或安全边界已通过验收。
+默认值指未配置时的字段初始值。
 
 | 属性 | 声明类型 | 声明默认值 | 说明 | React 读取默认值 |
 | --- | --- | --- | --- | --- |
@@ -134,8 +132,6 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.enableGroup` | `boolean` | `true` | 显示分组下拉框 | ✅ |
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态概要（状态码、说明、Schema 和 Media Type） | ✅ |
 | `knife4j.setting.homeCustomPath` | OAS2: —<br>OAS3 Boot2: `String`<br>OAS3 Jakarta / Boot4: `String` | OAS2: —<br>OAS3 Boot2: `null`<br>OAS3 Jakarta / Boot4: `null` | 后端读取的自定义首页 Markdown 文件路径；React 接收读取后的内容 | — |
-
-<!-- /generated: settings-reference -->
 
 > React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，表中标 ✅ 的字段表示读取后端默认值；用户在前端设置面板中的本地选择会覆盖后端默认值。`enableAfterScript` / `enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费；这两项存在于 Vue2 基线，并已移植到 Vue3。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 

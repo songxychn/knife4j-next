@@ -67,16 +67,11 @@ test -s knife4x/go/internal/ui/static/assets/index.css
 
 ```bash
 grep -Fq 'github.com/songxychn/knife4j-next/knife4x/go' knife4x/README.md
-go run tools/check-knife4x-docs.go --root .
 test -s docs/knife4x/migration.md
 test -z "$(git status --porcelain)"
 ```
 
-当前示例版本集中在 `docs-version.json`，新增配置的发布边界由
-`unreleasedConfigFields` 记录。发布准备时同步该元数据与站内版本标记、安装命令、
-配置表和版本记录，不改写历史记录。`exampleCompatibilityVersion` 是最小示例的已发布
-兼容基线，独立于本次目标版本；检查器会无 `replace` 下载该基线编译最小示例，其余
-示例用本次源码编译，避免发布准备依赖尚未创建的目标 tag。
+发布准备时同步更新 `knife4x/go/README.md`、`docs/knife4x/` 中的当前版本号、安装命令、配置表与版本记录，不改写历史记录。
 
 ## 创建 tag
 

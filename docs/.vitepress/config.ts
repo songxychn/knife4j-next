@@ -1,11 +1,6 @@
-import {defineConfig} from 'vitepress'
-import {execFileSync} from 'node:child_process'
-import {readFileSync, writeFileSync} from 'node:fs'
-import {join} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import { defineConfig } from 'vitepress'
 
 const siteUrl = 'https://knife4jnext.com'
-const sourceRoot = fileURLToPath(new URL('../../', import.meta.url))
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -13,17 +8,6 @@ export default defineConfig({
   description: 'Spring 生态下的 OpenAPI 文档增强与接口调试工具',
   cleanUrls: true,
   lastUpdated: true,
-  async buildEnd(config) {
-    const versions = JSON.parse(readFileSync(join(sourceRoot, 'knife4x/go/docs-version.json'), 'utf8'))
-    const git = (...args: string[]) => execFileSync('git', ['-C', sourceRoot, ...args], {encoding: 'utf8'}).trim()
-    const provenance = {
-      sourceRevision: git('rev-parse', 'HEAD'),
-      sourceDirty: git('status', '--porcelain', '--', 'docs', 'knife4x', 'README.md', 'tools') !== '',
-      knife4xVersion: versions.version,
-      exampleCompatibilityVersion: versions.exampleCompatibilityVersion
-    }
-    writeFileSync(join(config.outDir, 'build-info.json'), JSON.stringify(provenance, null, 2) + '\n')
-  },
   head: [
     ['meta', { name: 'theme-color', content: '#69aefc' }],
     ['meta', { property: 'og:type', content: 'website' }],
@@ -79,14 +63,11 @@ export default defineConfig({
           { text: '产品介绍', link: '/guide/introduction' },
           { text: '功能概览', link: '/guide/features' },
           { text: 'OpenAPI 3.1 支持与迁移', link: '/guide/openapi31' },
-          { text: 'OpenAPI 3.1 (English)', link: '/guide/openapi31-en' },
           { text: 'OpenAPI 3.2 支持与迁移', link: '/guide/openapi32' },
-          { text: 'OpenAPI 3.2 (English)', link: '/guide/openapi32-en' },
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '在线 Demo', link: '/guide/demo' },
           { text: '从 upstream 迁移', link: '/guide/migration' },
-          { text: '从 Springfox 迁移到 OpenAPI3', link: '/guide/springfox-migration' },
-          { text: 'OAS2 UI Issue 盘点', link: '/guide/oas2-issue-triage' }
+          { text: '从 Springfox 迁移到 OpenAPI3', link: '/guide/springfox-migration' }
         ]
       },
       {
@@ -122,8 +103,7 @@ export default defineConfig({
       {
         text: '项目',
         items: [
-          { text: '发布说明', link: '/release-notes/' },
-          { text: '路线图', link: '/roadmap/' }
+          { text: '发布说明', link: '/release-notes/' }
         ]
       }
     ],

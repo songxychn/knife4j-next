@@ -34,7 +34,7 @@ def pom_version(root):
 
 def tracked_markdown(root):
     output = subprocess.check_output(["git", "-C", str(root), "ls-files", "*.md"], text=True)
-    return [path for path in output.splitlines() if not path.startswith("legacy/")]
+    return [path for path in output.splitlines() if (root / path).is_file()]
 
 
 def line_number(text, offset):

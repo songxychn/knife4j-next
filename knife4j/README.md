@@ -32,7 +32,8 @@ Java `5.8.3` 接入示例：
 | `knife4j-openapi3-boot4-spring-boot-starter` | Spring Boot 4.x + springdoc-openapi 3.x / OpenAPI3 |
 | `knife4j-openapi3-webflux-spring-boot-starter` | Spring Boot 2.x WebFlux 依赖编排 |
 | `knife4j-openapi3-webflux-jakarta-spring-boot-starter` | Spring Boot 3.x WebFlux 依赖编排 |
-| `knife4j-gateway-spring-boot-starter` | Spring Boot 3.x / Spring Cloud Gateway 聚合 |
+| `knife4j-gateway-spring-boot-starter` | Spring Boot 3.x / Spring Cloud Gateway WebFlux 聚合 |
+| `knife4j-gateway-webmvc-spring-boot-starter` | Spring Boot 3.5 / Spring Cloud Gateway Server Web MVC 聚合 |
 | `knife4j-gateway-boot4-spring-boot-starter` | Spring Boot 4.x / Spring Cloud Gateway 5 聚合 |
 | `knife4j-aggregation-spring-boot-starter` | Spring Boot 2.x 独立聚合 |
 | `knife4j-aggregation-jakarta-spring-boot-starter` | Spring Boot 3.x 独立聚合 |

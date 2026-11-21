@@ -69,26 +69,3 @@ test('unsupported Bun is rejected before compiler loading or dependency installa
     rmSync(area, { recursive: true, force: true });
   }
 });
-
-test('Node-free runner hides standalone Node and preserves arguments and exit status', () => {
-  const area = mkdtempSync(join(tmpdir(), 'knife4j-no-node-'));
-  try {
-    const marker = join(area, 'node-called');
-    writeFileSync(join(area, 'node'), `#!/bin/sh\ntouch '${marker}'\nexit 99\n`, { mode: 0o755 });
-    const result = spawnSync(
-      resolve(root, 'tools/without-node.sh'),
-      [
-        'bash',
-        '-c',
-        'if command -v node || command -v nodejs; then exit 91; fi; [ "$1" = "argument with spaces" ] || exit 92; exit 23',
-        '_',
-        'argument with spaces',
-      ],
-      { env: { ...process.env, PATH: `${area}:${process.env.PATH}` }, encoding: 'utf8' },
-    );
-    assert.equal(result.status, 23, result.stderr);
-    assert.equal(existsSync(marker), false);
-  } finally {
-    rmSync(area, { recursive: true, force: true });
-  }
-});

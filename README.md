@@ -90,10 +90,9 @@ Go `v0.10.0` 新增文档鉴权、多分组与 UI 配置；可用版本以[Go �
 |---|---|
 | `knife4j/` | Java 主工程（starter、UI webjar、聚合、Gateway、WebFlux、smoke 与 demo） |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3 workspace）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.10.0`，Rust 后置；与 `front/ui-react` 共用 UI |
+| `knife4x/` | 嵌入式控制台：Go `v0.10.0`；与 `front/ui-react` 共用 UI |
 | `docs/` | VitePress 文档站 |
-| `tools/` | 验证与发布辅助脚本（原 `scripts/`） |
-| `legacy/` | 冻结参考：`vue2`、`insight`、`sandbox`（不参与主线构建） |
+| `tools/` | 验证与发布辅助脚本 |
 | `static/` | README 配图等静态资源 |
 
 ## 维护策略
@@ -106,8 +105,7 @@ Go `v0.10.0` 新增文档鉴权、多分组与 UI 配置；可用版本以[Go �
 | OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
 | OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
 | OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| Knife4x | `knife4x/` | Go / Rust 宿主壳 | Go `v0.10.0`；Rust 后置；UI 不另开工程 |
-| 历史代码 | `legacy/` | 无发布目标 | 仅参考，勿接常规功能任务 |
+| Knife4x | `knife4x/` | Go 宿主壳 | Go `v0.10.0`；UI 不另开工程 |
 | 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 
 ## 本地开发
@@ -129,8 +127,6 @@ mvn -pl knife4j-demo-openapi2 -am spring-boot:run
 ```
 
 ### 文档站
-
-标准文档验证需要 Go 1.22+，用于核对 Go 配置和编译手册示例；运行 `./tools/test-docs.sh`，同时验证站点构建与来源信息。
 
 ```bash
 cd docs
@@ -166,7 +162,7 @@ bun run dev
 | 跨多个区域 | 受影响区域脚本的并集 |
 | 全区域变更 / 整体验收 | `./tools/test-all.sh`（java / front-core / vue3 / docs / knife4x-go / Knife4x UI 生成物校验） |
 
-`./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 smoke 测试证据与 Java 兼容契约。
+`./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 WebJar 与 smoke 测试证据。
 根 POM 默认跳过测试，不要用单独的 `mvn -B -ntp verify` 替代提交前验证。
 
 ## 文档与链接

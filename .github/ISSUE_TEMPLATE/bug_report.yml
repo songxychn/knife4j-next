@@ -91,7 +91,7 @@ body:
     id: knife4j_version
     attributes:
       label: Knife4j 版本
-      placeholder: 例如：4.5.0
+      placeholder: 例如：5.8.3
     validations:
       required: true
 
@@ -99,13 +99,13 @@ body:
     id: spring_version
     attributes:
       label: Spring Boot / Spring Framework 版本
-      placeholder: 例如：Spring Boot 3.3.5
+      placeholder: 例如：Spring Boot 3.4.7 / 4.1.2
 
   - type: input
     id: openapi_dependency
     attributes:
       label: springdoc / springfox 版本
-      placeholder: 例如：springdoc-openapi 2.6.0
+      placeholder: 例如：springdoc-openapi 2.9.1 / 3.0.3
 
   - type: input
     id: java_version
@@ -118,7 +118,7 @@ body:
     attributes:
       label: 浏览器版本
       description: 仅前端展示或交互问题需要填写。
-      placeholder: 例如：Chrome 126
+      placeholder: 例如：Chrome 135
 
   - type: textarea
     id: screenshots_logs

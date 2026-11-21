@@ -13,7 +13,7 @@ knife4j-next 提供两个并列的 demo 工程，分别覆盖两条独立的 UI 
 | `knife4j-demo-openapi3` | Spring Boot 4.x + springdoc + `knife4j-openapi3-boot4-spring-boot-starter` | React（`knife4j-openapi3-ui`） | [https://openapi3.demo.knife4jnext.com/doc.html](https://openapi3.demo.knife4jnext.com/doc.html) |
 | `knife4j-demo-openapi2` | Spring Boot 2.7 + springfox 2.10.5 + `knife4j-openapi2-spring-boot-starter` | Vue 3（`knife4j-openapi2-ui`） | [https://openapi2.demo.knife4jnext.com/doc.html](https://openapi2.demo.knife4jnext.com/doc.html) |
 
-Demo 镜像有两条通道：正式 Java Release 核验后构建版本标签与 `latest`；独立安全通道仅在同一 master SHA 的 Build 和两套候选验收通过后推广 `demo` 标签。源码版本、镜像发布与线上部署是不同状态，本页不据此宣称线上已经切换。通道说明见 [Demo 镜像构建](https://github.com/songxychn/knife4j-next/blob/master/tools/demo-images/README.md)。建议打开比对 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
+Demo 镜像由正式 Java Release 核验后通过 `.github/workflows/deploy-demo.yml` 构建并推送版本标签、`latest` 与 `demo`。建议打开比对 OpenAPI 3 主线和 OpenAPI 2 兼容维护线在 UI 上的差异。
 
 如果访问失败，优先在本地跑一遍，避免把预览环境问题当成功能问题。
 
@@ -47,7 +47,7 @@ Demo 镜像有两条通道：正式 Java Release 核验后构建版本标签与 
 - `@Schema` 描述 DTO 字段
 - 分页、CRUD、路径参数、请求体参数组合
 - 文件上传（`multipart/form-data` + JSON part，`encoding.contentType=application/json`）
-- 泛型、多层嵌套、`$ref` 等回归复现 case
+- 校验分组、SSE 流式接口与文件下载
 
 建议作为接入 knife4j-next 的**基线模板**。
 

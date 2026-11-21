@@ -12,37 +12,31 @@ full=false
 while IFS= read -r path || [ -n "$path" ]; do
   saw_path=true
   case "$path" in
+    README.md|CONTRIBUTING.md|MAINTENANCE.md|SECURITY.md|AGENTS.md|.agent/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.gitignore)
+      ;;
     front/README.md|front/core/README.md|front/schema-engine/README.md|front/ui-react/README.md|front/vue3/README.md)
       ;;
-    knife4j/README.md|knife4j/MIGRATION.md|knife4j/RELEASE.md|knife4j/knife4j-demo-openapi2/SECURITY-ASSESSMENT.md|knife4j/knife4j-gateway-spring-boot-starter/README.md)
+    knife4j/README.md|knife4j/MIGRATION.md|knife4j/RELEASE.md|knife4x/README.md|knife4x/go/README.md|knife4x/go/RELEASE.md|knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md|knife4x/examples/gin/README.md)
       ;;
-    knife4x/rust/README.md|tools/demo-images/README.md|tools/spikes/*/README.md|tools/spikes/*/DECISION.md)
+    tools/README.md|tools/test-all.sh|tools/upload-images.sh|tools/extract-release-note.sh|tools/verify-github-release.sh|tools/verify-maven-central.sh|tools/verify-release-context.sh|tools/verify-release-modules.sh|tools/release-modules.txt)
       ;;
-    README.md|knife4x/README.md|knife4x/go/README.md|knife4x/go/MIGRATING_FROM_GIN_SWAGGER.md|knife4x/examples/gin/README.md)
+    docs/snippets/*)
+      java=true
       docs=true
+      ;;
+    docs/*|static/*|tools/test-docs.sh)
+      docs=true
+      ;;
+    knife4j/*|tools/test-java.sh|tools/smoke-evidence.sh|.java-version)
+      java=true
       ;;
     front/core/src/__tests__/*|front/core/src/*.test.ts|front/schema-engine/tests/*|front/ui-react/src/*.test.ts|front/ui-react/src/*.test.tsx)
       react=true
       ;;
-    docs/snippets/*|tools/docs/*|tools/test-docs-deployment.sh)
-      java=true
-      docs=true
-      ;;
-    docs/*|static/*|tools/test-docs.sh|tools/check-knife4x-docs.go|tools/check-knife4x-docs_test.go)
-      docs=true
-      ;;
-    knife4j/*)
-      java=true
-      docs=true
-      ;;
-    tools/test-java.sh|tools/smoke-evidence.sh|tools/test-smoke-evidence.sh|tools/test-java-compatibility.sh|tools/java-compatibility-*|tools/verify-java-compatibility-contracts.py|tools/test-release-tools.sh|tools/test-fixtures/mock-maven-central-curl.sh|tools/extract-release-note.sh|tools/verify-configuration-metadata.sh|tools/verify-release-context.sh|tools/verify-maven-central.sh|tools/verify-release-modules.sh|tools/release-modules.txt|.java-version)
-      java=true
-      ;;
-    front/core/*|front/schema-engine/*|front/ui-react/*|front/package.json|front/bun.lock)
+    front/core/*|front/schema-engine/*|front/ui-react/*|front/package.json|front/bun.lock|front/scripts/*)
       java=true
       react=true
       knife4x_go=true
-      docs=true
       ;;
     tools/test-front-core.sh)
       java=true
@@ -54,12 +48,9 @@ while IFS= read -r path || [ -n "$path" ]; do
       ;;
     knife4x/go/*|knife4x/examples/gin/*|tools/sync-knife4x-ui.sh|tools/test-knife4x-go.sh)
       knife4x_go=true
-      docs=true
       ;;
-    .github/workflows/*|.bun-version|.editorconfig|.gitattributes|.nvmrc|tools/without-node.sh|tools/ci-changes.sh|tools/test-ci-changes.sh)
+    .github/workflows/*|.bun-version|.editorconfig|.gitattributes|tools/ci-changes.sh|tools/ci-changed-paths.sh)
       full=true
-      ;;
-    CONTRIBUTING.md|MAINTENANCE.md|SECURITY.md|AGENTS.md|.agent/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.gitignore|tools/README.md|tools/agent-status.sh|tools/test-agent-status.sh|tools/test-fixtures/agent-status/*|tools/test-all.sh|tools/verify-github-release.sh)
       ;;
     *)
       full=true

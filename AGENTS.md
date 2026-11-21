@@ -1,82 +1,39 @@
 # AGENTS.md
 
-本仓库面向 **维护者在场** 的 AI 辅助开发。任务状态用 **GitHub Issues + Labels** 管理。
+本仓库是 `xiaoymin/knife4j` 的社区维护 fork：稳住 `doc.html` 与 starter 体验，修回归与兼容，可重复发布，前端增量演进——**不是重写产品**。任务状态用 GitHub Issues + Labels 管理。
 
-## 开工前读什么
+## 按需阅读
 
-按任务加载，不必通读全库：
+- `.agent/PROJECT.md`：产品边界与两条前端线
+- `.agent/RUNBOOK.md`：验证命令、Bug 复现、发布验收
+- `.agent/KNOWN_PITFALLS.md`：项目特有踩坑
+- `.agent/COORDINATION.md`：独立审查与多 agent 协作
 
-| 必读 | 何时 |
+## 核心约束
+
+1. **分支与合并**：不直接 push `master`，不代替维护者 merge PR；走分支 → PR → CI → 维护者合并。分支命名：`agent/<task-id>-<slug>`（无 issue 可用 `agent/adhoc-<slug>`）。
+2. **发布与高风险授权**：不擅自发布 release / tag、改 secrets 或 Maven 坐标；改 CI workflow、依赖主版本、新模块或任务外产品行为需明确授权。维护者要求“发布新版本”且未限定语言时，覆盖所有已具备正式发布流程的语言（当前为 Java 与 Knife4x Go）。
+3. **两条前端线**：OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
+4. **先复现再修**：Bug / 回归任务先在未打补丁基线复现并留证据，再修复。禁止空想 try-catch / null-guard 防御性补丁。
+5. **不兼容非规范文档**：附带 OpenAPI / Swagger 文档的 issue 先按声明版本核对规范；不为违反规范的文档加 alias、猜测或自动转换（崩溃/安全问题只修安全拒绝）。
+6. **小步可回滚**：一个分支只做一件可独立验证的事；不用 `--no-verify` 或随意 force-push。
+7. **发布文案一次到位**：发布准备 PR 同步版本入口文案，正式 tag 不留“待发布”提示。
+8. **截图上传**：本仓 issue / PR 展示非敏感截图可直接运行 `./tools/upload-images.sh`（上传前须遮盖 Token / Cookie 等凭据）。
+
+## 验证命令
+
+| 改动区域 | 命令 |
 |---|---|
-| 本文件 | 始终 |
-| `.agent/PROJECT.md` | 改产品行为、前端线、模块边界时 |
-| `.agent/RUNBOOK.md` | 选验证命令、**bug 复现**、发版验收时 |
-| `.agent/KNOWN_PITFALLS.md` | 触碰 Java 兼容、bug/upstream、审查结论时 |
-| `.agent/COORDINATION.md` | 交付 agent PR、安排独立审查或拆 worker 时 |
-
-## 使命（一句话）
-
-`knife4j-next` 是 `knife4j` 的社区维护 fork：稳住 `doc.html` 与 starter 体验，修回归与兼容，可重复发布，前端增量演进——**不是重写产品**。
-
-## 硬约束
-
-1. 不直接 push `master`，不代替维护者 merge PR；走分支 → PR → CI → 维护者合并。
-2. 不擅自发布 release / tag、改 secrets / release 凭据、改 Maven 坐标或默认兼容承诺。维护者明确要求“发布新版本”且未限定语言时，视为授权发布本仓所有已具备正式发布流程的语言版本；各语言按自身版本体系升级，不要求版本号相同。明确限定语言时按指定范围执行。尚未具备正式发布能力的语言不因此自动纳入。发布步骤与完成条件见 `.agent/RUNBOOK.md` 的“正式发布验收”。
-3. 不删除大模块或重要历史路径，不用 `--no-verify`、破坏性 git 或随意 force-push 掩盖问题，除非维护者明确批准相应动作。
-4. 维护者明确交付任务后，可直接完成任务内最小实现、定向测试、PR、后续 issue，以及由授权源码变更必需的生成物同步。改 CI workflow 逻辑、依赖主版本、大范围升级、新模块 / package 或任务外的产品行为，需要明确授权。
-5. OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
-6. 一个分支只做一件可独立验证的事；优先小而可回滚。
-7. **Bug / 回归类任务先复现再修**（本仓 issue 与 upstream 关联均适用）；证据写入 issue。细则见 `.agent/RUNBOOK.md`。
-8. 维护者已持续授权：本仓任务需要在 issue / PR 展示非敏感截图时，可直接运行 `./tools/upload-images.sh`，无需逐次询问。边界见 `.agent/RUNBOOK.md`。
-9. 维护者要求“处理 GPT 建议”时，同时授权处理当前 PR 中 GPT / Codex 自动审查的可操作评论；采纳项实现并验证后可回复并解决线程，未采纳项只回复原因、不解决线程。不适用于人工 reviewer 评论。
-10. 处理附带 OpenAPI / Swagger JSON 或 YAML 的 issue 时，必须先按文档声明的规范版本验证结构与复现路径的契约语义。违反规范或无法表达报告意图的文档，不得作为其所主张行为的 bug 契约或兼容依据：先要求报告者修正文档，禁止为接受该文档增加 alias、猜测或自动转换；若等价的规范最小夹具仍能复现，只修规范场景。非规范输入若另行暴露崩溃、安全或无法安全拒绝等问题，只修拒绝/诊断能力，不把输入兼容成合法契约。细则见 `.agent/RUNBOOK.md`。
-11. PR 开始审查前必须冻结支持版本、范围内对象与非目标。Agent PR 必须由当前实现上下文之外的独立 reviewer 审查（独立 agent 或维护者人工 review），仅符合 `.agent/COORDINATION.md`“低风险豁免”全部条件的纯文案修正可免，并须在 PR 写明判定依据；默认预算为 **一轮全量审查 + 一轮定向复核**。当前契约缺陷批量修，拒绝项说明原因并保留线程，范围外能力创建后续 issue。新规范版本、新模块、新产品承诺或第三轮审查必须停下来由维护者决定，禁止由 review 评论隐式扩张当前 PR。
-12. 任意新 push 都使旧 SHA 的 CI 与审查结论失效；修 review 用普通追加提交，不为每条评论 amend / force-push。当前 head 的本地验证、审查结论（或已写明的豁免）与 CI 全绿后，才能标 `status:review`。
-13. **发布文案随发布准备 PR 一次到位**，正式 tag 不得遗留“待发布”等准备态提示；复核清单见 `.agent/RUNBOOK.md`“正式发布验收”。
-
-需维护者决策的情形（两个合理方案外部行为不同、跨模块架构取舍、失败超出任务范围、影响 release / 兼容承诺或意图不明）：先自行调查，再说明证据与缺口，只暂停依赖该决策的步骤，继续其他已授权工作。
-
-高风险变更（Java 兼容、多模块、CI / 构建 / 发布逻辑、原因未查明或仅靠重试转绿的失败、验证标准改变）由 reviewer 重点核对真实 diff 与证据，维护者决定是否追加人工审。
-
-## 任务状态（Issue）
-
-| Label | 含义 |
-|---|---|
-| `agent-task` | 可交 agent 处理的任务 |
-| `status:ready` | 可拾取 |
-| `status:in-progress` | 进行中 |
-| `status:review` | 本地验证 + 独立审查（或低风险豁免）+ PR CI 已过，等人 merge |
-| `status:blocked` | 卡决策 / 环境 / 上游 |
-| `area:*` | 模块分区 |
-
-流转：`ready` → `in-progress` → `review` →（merge 后关 issue）。
-
-进度写在 **issue / PR**，不要另建影子任务队列。
-
-## 默认工作方式
-
-维护者在场时：主 agent 端到端负责复现、实现、验证和 PR；worker 仅在并行或上下文隔离有实际收益时使用。Agent PR 合入前必须经过独立 reviewer（独立 agent 或维护者人工 review），低风险纯文案修正按 `.agent/COORDINATION.md` 豁免。Bug 类路径为：复现并贴证据 → 实现 → `./tools/test-*` → 独立审查 → PR CI。细则见 `.agent/COORDINATION.md`。
-
-分支：`agent/<task-id>-<slug>`；无 issue 的现场小改可用 `agent/adhoc-<slug>` 并在 PR 说明原因。分支名不区分具体 agent 产品。
-
-## 验证（摘要）
-
-| 改动 | 命令 |
-|---|---|
-| Java | `./tools/test-java.sh` |
+| Java（`knife4j/`） | `./tools/test-java.sh` |
 | React / core / schema-engine | `./tools/test-front-core.sh` |
 | Vue3（OAS2 UI） | `./tools/test-vue3.sh` |
-| 文档站 | `./tools/test-docs.sh` |
+| 文档站（`docs/`） | `./tools/test-docs.sh` |
 | Knife4x Go | `./tools/test-knife4x-go.sh` |
-| 跨区域 | 受影响区域标准脚本的并集，包含生成物与消费方影响；见 RUNBOOK |
-| 全区域变更 / 整体验收 | `./tools/test-all.sh` |
+| 全区域验收 | `./tools/test-all.sh` |
 
-优先用脚本，勿用零散 `tsc` / 单次 `vite build` 冒充全量。细节与发版验收见 `.agent/RUNBOOK.md`。
+优先用脚本，勿用零散 `tsc` / 单次 `vite build` 冒充全量。
 
-## 语言
+## 语言与状态
 
-提交、issue、PR 标题与正文使用中文；代码标识、路径、命令、label 等保留原文。
-
-## 独立审查提示词
-
-- `.agent/prompts/reviewer.md`
+- 提交、issue、PR 标题与正文使用中文；代码标识、路径、命令、label 保留原文。
+- Issue 状态流转：`status:ready` → `status:in-progress` → `status:review`（本地验证 + 审查 + CI 全绿）→ merge 后关闭；阻塞标 `status:blocked`。

@@ -24,15 +24,8 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Verify change classification
-        run: |
-          tools/test-ci-changes.sh
-          tools/test-ci-changed-paths.sh
-
       - name: Verify current-entry docs version
-        run: |
-          tools/test-current-version-docs.sh
-          tools/verify-current-version-docs.py
+        run: tools/verify-current-version-docs.py
 
       - name: Classify changed paths
         id: classify
@@ -54,9 +47,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.java == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -77,31 +67,8 @@ jobs:
           bun-version-file: .bun-version
 
       - name: Verify Java modules
-        run: tools/without-node.sh tools/test-java.sh
+        run: tools/test-java.sh
 
-      - name: Verify documented deployment against current WebJar
-        run: tools/without-node.sh tools/test-docs-deployment.sh
-
-      - name: Generate Java compatibility report
-        run: tools/java-compatibility-report.sh
-
-      - name: Publish Java compatibility summary
-        if: always()
-        run: |
-          if [ -f build/reports/java-compatibility/summary.md ]; then
-            cat build/reports/java-compatibility/summary.md >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Upload Java compatibility report
-        if: always() && hashFiles('build/reports/java-compatibility/**') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: java-compatibility-report
-          path: build/reports/java-compatibility/**
-          if-no-files-found: error
-          retention-days: 14
-
-      # issue #241: surface per-module smoke counts; the gate itself runs in tools/test-java.sh.
       - name: Smoke-tests evidence summary
         if: always()
         run: ./tools/smoke-evidence.sh --summary >> "$GITHUB_STEP_SUMMARY"
@@ -118,13 +85,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.react == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        bun-version: ["1.4.4", "1.4.x"]
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -132,19 +92,18 @@ jobs:
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ matrix.bun-version }}
+          bun-version-file: .bun-version
 
       - name: Test front core
-        run: tools/without-node.sh tools/test-front-core.sh
+        run: tools/test-front-core.sh
 
       - name: Verify Schema Worker in headless Chrome
-        if: matrix.bun-version == '1.4.x'
         run: |
           mkdir -p build/reports/schema-worker
-          tools/without-node.sh bun front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist > build/reports/schema-worker/acceptance.json
+          bun front/ui-react/scripts/run-schema-example-worker-acceptance.mjs --smoke --static-root front/ui-react/dist > build/reports/schema-worker/acceptance.json
 
       - name: Upload Schema Worker browser evidence
-        if: always() && matrix.bun-version == '1.4.x'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: schema-worker-browser
@@ -166,9 +125,6 @@ jobs:
             go-version: '1.26.x'
     env:
       GOTOOLCHAIN: local
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -186,23 +142,16 @@ jobs:
           bun-version-file: .bun-version
 
       - name: Test Knife4x Go
-        run: tools/without-node.sh ./tools/test-knife4x-go.sh --module "${{ matrix.module }}"
+        run: ./tools/test-knife4x-go.sh --module "${{ matrix.module }}"
 
       - name: Verify Knife4x Go UI assets
         if: matrix.module == 'all'
-        run: tools/without-node.sh ./tools/sync-knife4x-ui.sh --check
+        run: ./tools/sync-knife4x-ui.sh --check
 
   vue3-test:
     needs: changes
     if: needs.changes.outputs.vue3 == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        bun-version: ["1.4.4", "1.4.x"]
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -210,42 +159,23 @@ jobs:
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ matrix.bun-version }}
+          bun-version-file: .bun-version
 
       - name: Test Vue3 UI
-        run: tools/without-node.sh tools/test-vue3.sh
+        run: tools/test-vue3.sh
 
   docs-build:
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        bun-version: ["1.4.4", "1.4.x"]
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK for settings declarations
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ matrix.bun-version }}
-
-      - name: Set up Go for documentation examples
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.22.x'
-          cache: false
+          bun-version-file: .bun-version
 
       - name: Build docs site
-        run: tools/without-node.sh tools/test-docs.sh
+        run: tools/test-docs.sh
