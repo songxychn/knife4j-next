@@ -179,22 +179,14 @@ export function writeDebugCache(
   storage: DebugCacheStorage | null = getDebugCacheStorage(),
 ): void {
   if (!storage) return;
-  try {
-    void setKnife4jStorageItem(
-      storage,
-      debugCacheStorageKey(cacheKey),
-      JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }),
-    );
-  } catch {
-    // localStorage can be disabled or full; debug caching should never block the UI.
-  }
+  setKnife4jStorageItem(
+    storage,
+    debugCacheStorageKey(cacheKey),
+    JSON.stringify({ ...state, version: DEBUG_CACHE_VERSION }),
+  );
 }
 
 export function removeDebugCache(cacheKey: string, storage: DebugCacheStorage | null = getDebugCacheStorage()): void {
   if (!storage) return;
-  try {
-    void removeKnife4jStorageItem(storage, debugCacheStorageKey(cacheKey));
-  } catch {
-    // ignore storage failures
-  }
+  removeKnife4jStorageItem(storage, debugCacheStorageKey(cacheKey));
 }

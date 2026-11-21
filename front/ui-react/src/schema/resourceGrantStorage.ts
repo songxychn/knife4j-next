@@ -2,7 +2,6 @@ import {
   getKnife4jStorageItem,
   KNIFE4J_STORAGE_PREFIXES,
   updateKnife4jStorageItem,
-  type Knife4jStorageLockManager,
   type Knife4jWebStorage,
 } from '../storage/knife4jStorage';
 import { safeResourceDisplay, type ResourceCandidate } from './externalResourceGraph';
@@ -27,8 +26,6 @@ interface StoredResourceGrantDocument {
 
 export interface ResourceGrantStorageOptions {
   readonly storage?: Knife4jWebStorage | null;
-  readonly leaseStorage?: Knife4jWebStorage | null;
-  readonly lockManager?: Knife4jStorageLockManager | null;
   readonly now?: () => number;
 }
 
@@ -107,12 +104,8 @@ export function readRememberedResourceGrants(
   if (!HASH.test(documentScope)) return Object.freeze([]);
   const storage = options.storage === undefined ? browserLocalStorage() : options.storage;
   if (!storage) return Object.freeze([]);
-  const leaseStorage = options.leaseStorage === undefined ? storage : options.leaseStorage;
   try {
-    return parseStoredResourceGrants(
-      getKnife4jStorageItem(storage, storageKey(documentScope), leaseStorage),
-      documentScope,
-    );
+    return parseStoredResourceGrants(getKnife4jStorageItem(storage, storageKey(documentScope)), documentScope);
   } catch {
     return Object.freeze([]);
   }
@@ -150,13 +143,8 @@ export async function rememberResourceGrants(
   if (!HASH.test(documentScope) || candidates.length === 0) return false;
   const storage = options.storage === undefined ? browserLocalStorage() : options.storage;
   if (!storage) return false;
-  const leaseStorage = options.leaseStorage === undefined ? storage : options.leaseStorage;
-  const result = await updateKnife4jStorageItem(
-    storage,
-    storageKey(documentScope),
-    (current) => serializedGrantDocument(documentScope, current, candidates, (options.now ?? Date.now)()),
-    leaseStorage,
-    options.lockManager,
+  const result = updateKnife4jStorageItem(storage, storageKey(documentScope), (current) =>
+    serializedGrantDocument(documentScope, current, candidates, (options.now ?? Date.now)()),
   );
   return result.persisted;
 }

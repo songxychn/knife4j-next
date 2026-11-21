@@ -4,12 +4,8 @@ import {
   KNIFE4J_STORAGE_KEYS,
   KNIFE4J_STORAGE_PREFIXES,
   getKnife4jStorageItem,
-  getKnife4jStorageResetSnapshot,
-  persistKnife4jStorageItem,
   removeKnife4jStorageItem,
   setKnife4jStorageItem,
-  subscribeKnife4jStorageReset,
-  type Knife4jStorageResetSnapshot,
 } from '../storage/knife4jStorage';
 import { createClientId } from '../utils/id';
 
@@ -241,14 +237,10 @@ export function loadGroup(groupId: string, storage?: GlobalParamStorage): Stored
   return { params: [], cookieSession: DEFAULT_COOKIE_SESSION };
 }
 
-async function saveGroup(groupId: string, config: StoredGroupConfig, storage?: GlobalParamStorage): Promise<boolean> {
+function saveGroup(groupId: string, config: StoredGroupConfig, storage?: GlobalParamStorage): boolean {
   const target = storage ?? browserStorage();
   if (!target) return false;
-  try {
-    return await setKnife4jStorageItem(target, groupStorageKey(groupId), JSON.stringify(config));
-  } catch {
-    return false;
-  }
+  return setKnife4jStorageItem(target, groupStorageKey(groupId), JSON.stringify(config));
 }
 
 export function loadApplicationParams(pathname: string, storage?: GlobalParamStorage): GlobalParamItem[] {
@@ -256,12 +248,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
   if (!target) return [];
 
   const key = applicationStorageKey(pathname);
-  let stored: string | null;
-  try {
-    stored = getKnife4jStorageItem(target, key);
-  } catch {
-    return [];
-  }
+  const stored = getKnife4jStorageItem(target, key);
 
   // Presence, rather than validity, decides whether migration is allowed: a
   // corrupt current value must never make an old credential spread again.
@@ -273,12 +260,7 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
     }
   }
 
-  let legacy: string | null;
-  try {
-    legacy = getKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
-  } catch {
-    return [];
-  }
+  const legacy = getKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
   if (legacy === null) return [];
 
   let migrated: GlobalParamItem[];
@@ -288,28 +270,16 @@ export function loadApplicationParams(pathname: string, storage?: GlobalParamSto
     return [];
   }
 
-  void persistKnife4jStorageItem(target, key, JSON.stringify(migrated)).then((persisted) => {
-    if (persisted) void removeKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
-  });
+  if (setKnife4jStorageItem(target, key, JSON.stringify(migrated))) {
+    removeKnife4jStorageItem(target, KNIFE4J_STORAGE_KEYS.legacyGlobalParams);
+  }
   return migrated;
 }
 
-async function saveApplicationParams(
-  pathname: string,
-  params: GlobalParamItem[],
-  storage?: GlobalParamStorage,
-): Promise<boolean> {
+function saveApplicationParams(pathname: string, params: GlobalParamItem[], storage?: GlobalParamStorage): boolean {
   const target = storage ?? browserStorage();
   if (!target) return false;
-  try {
-    return await setKnife4jStorageItem(
-      target,
-      applicationStorageKey(pathname),
-      JSON.stringify(params.map(asManualParam)),
-    );
-  } catch {
-    return false;
-  }
+  return setKnife4jStorageItem(target, applicationStorageKey(pathname), JSON.stringify(params.map(asManualParam)));
 }
 
 export function globalParamIdentity(param: Pick<GlobalParamItem, 'in' | 'name'>): string {
@@ -345,40 +315,11 @@ export function resolveEffectiveParams(
   ].filter((param) => param.enabled && param.name.trim() !== '' && param.value !== '');
 }
 
-export interface GlobalParamMemoryState {
-  resetGeneration: string;
-  resetActive: boolean;
+interface GlobalParamMemoryState {
   applicationParams: GlobalParamItem[];
   configs: Map<string, StoredGroupConfig>;
-  applicationPersistenceFailed?: boolean;
-  failedGroups?: ReadonlySet<string>;
-}
-
-/** Clear every reset-scoped in-memory collection before it can be persisted again. */
-export function invalidateGlobalParamMemoryForReset(
-  state: GlobalParamMemoryState,
-  snapshot: Knife4jStorageResetSnapshot,
-): GlobalParamMemoryState {
-  if (state.resetGeneration === snapshot.generation && state.resetActive === snapshot.active) return state;
-  if (state.resetGeneration !== snapshot.generation || snapshot.active) {
-    return {
-      resetGeneration: snapshot.generation,
-      resetActive: snapshot.active,
-      applicationParams: [],
-      configs: new Map(),
-    };
-  }
-  return { ...state, resetActive: false };
-}
-
-export function reconcileGlobalParamMemoryForReset(
-  state: GlobalParamMemoryState,
-  snapshot: Knife4jStorageResetSnapshot,
-  loadDurableApplicationParams: () => GlobalParamItem[],
-): GlobalParamMemoryState {
-  const invalidated = invalidateGlobalParamMemoryForReset(state, snapshot);
-  if (snapshot.active || invalidated === state) return invalidated;
-  return { ...invalidated, applicationParams: loadDurableApplicationParams() };
+  applicationPersistenceFailed: boolean;
+  failedGroups: ReadonlySet<string>;
 }
 
 export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?: string }> = ({
@@ -386,100 +327,57 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
   groupId = 'default',
 }) => {
   const [pathname] = useState(currentDocumentPathname);
-  const initialResetSnapshotRef = useRef<Knife4jStorageResetSnapshot | null>(null);
-  if (initialResetSnapshotRef.current === null) {
-    initialResetSnapshotRef.current = getKnife4jStorageResetSnapshot();
-  }
-  const initialResetSnapshot = initialResetSnapshotRef.current;
   const [memory, setMemoryState] = useState<GlobalParamMemoryState>(() => ({
-    resetGeneration: initialResetSnapshot.generation,
-    resetActive: initialResetSnapshot.active,
-    applicationParams: initialResetSnapshot.active ? [] : loadApplicationParams(pathname),
-    configs: initialResetSnapshot.active
-      ? new Map()
-      : (new Map([[groupId, loadGroup(groupId)]]) as Map<string, StoredGroupConfig>),
+    applicationParams: loadApplicationParams(pathname),
+    configs: new Map([[groupId, loadGroup(groupId)]]),
+    applicationPersistenceFailed: false,
+    failedGroups: new Set<string>(),
   }));
-  // Persistence is an event side effect, not a replayable React state updater.
   const memoryRef = useRef(memory);
-  const setMemory = useCallback((update: (current: GlobalParamMemoryState) => GlobalParamMemoryState) => {
-    const current = memoryRef.current;
-    const next = update(current);
-    // A storage read may synchronously announce a reset. Its invalidation wins.
-    if (memoryRef.current !== current) return;
+  const commitMemory = useCallback((next: GlobalParamMemoryState) => {
     memoryRef.current = next;
     setMemoryState(next);
   }, []);
+
   const config = useMemo(() => memory.configs.get(groupId) ?? emptyStoredGroupConfig(), [groupId, memory.configs]);
 
   useEffect(() => {
-    const handleResetSnapshot = (snapshot: Knife4jStorageResetSnapshot) => {
-      setMemory((current) =>
-        reconcileGlobalParamMemoryForReset(current, snapshot, () => loadApplicationParams(pathname)),
-      );
-    };
-    const unsubscribe = subscribeKnife4jStorageReset(handleResetSnapshot);
-    handleResetSnapshot(getKnife4jStorageResetSnapshot());
-    return unsubscribe;
-  }, [pathname, setMemory]);
-
-  useEffect(() => {
-    if (memory.resetActive || memory.configs.has(groupId)) return;
-    const snapshot = getKnife4jStorageResetSnapshot();
-    const loaded = snapshot.active ? emptyStoredGroupConfig() : loadGroup(groupId);
-    setMemory((current) => {
-      const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
-      if (invalidated !== current || snapshot.active || current.configs.has(groupId)) return invalidated;
-      return { ...current, configs: new Map(current.configs).set(groupId, loaded) };
-    });
-  }, [groupId, memory.configs, memory.resetActive, setMemory]);
+    if (memoryRef.current.configs.has(groupId)) return;
+    const loaded = loadGroup(groupId);
+    const current = memoryRef.current;
+    if (current.configs.has(groupId)) return;
+    commitMemory({ ...current, configs: new Map(current.configs).set(groupId, loaded) });
+  }, [commitMemory, groupId]);
 
   const updateGroupConfig = useCallback(
     (updater: (current: StoredGroupConfig) => StoredGroupConfig) => {
-      const snapshot = getKnife4jStorageResetSnapshot();
-      setMemory((current) => {
-        const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
-        if (snapshot.active || invalidated !== current) return invalidated;
-        const nextConfig = updater(current.configs.get(groupId) ?? emptyStoredGroupConfig());
-        void saveGroup(groupId, nextConfig).then((persisted) => {
-          setMemory((latest) => {
-            if (
-              latest.configs.get(groupId) !== nextConfig ||
-              latest.resetGeneration !== snapshot.generation ||
-              latest.resetActive
-            )
-              return latest;
-            const failedGroups = new Set(latest.failedGroups);
-            if (persisted) failedGroups.delete(groupId);
-            else failedGroups.add(groupId);
-            return { ...latest, failedGroups };
-          });
-        });
-        return { ...current, configs: new Map(current.configs).set(groupId, nextConfig) };
+      const current = memoryRef.current;
+      const nextConfig = updater(current.configs.get(groupId) ?? emptyStoredGroupConfig());
+      const persisted = saveGroup(groupId, nextConfig);
+      const failedGroups = new Set(current.failedGroups);
+      if (persisted) failedGroups.delete(groupId);
+      else failedGroups.add(groupId);
+      commitMemory({
+        ...current,
+        configs: new Map(current.configs).set(groupId, nextConfig),
+        failedGroups,
       });
     },
-    [groupId, setMemory],
+    [commitMemory, groupId],
   );
 
   const updateApplicationParams = useCallback(
     (updater: (current: GlobalParamItem[]) => GlobalParamItem[]) => {
-      const snapshot = getKnife4jStorageResetSnapshot();
-      setMemory((current) => {
-        const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
-        if (snapshot.active || invalidated !== current) return invalidated;
-        const nextParams = updater(current.applicationParams).map(asManualParam);
-        void saveApplicationParams(pathname, nextParams).then((persisted) => {
-          setMemory((latest) =>
-            latest.applicationParams === nextParams &&
-            latest.resetGeneration === snapshot.generation &&
-            !latest.resetActive
-              ? { ...latest, applicationPersistenceFailed: !persisted }
-              : latest,
-          );
-        });
-        return { ...current, applicationParams: nextParams };
+      const current = memoryRef.current;
+      const nextParams = updater(current.applicationParams).map(asManualParam);
+      const persisted = saveApplicationParams(pathname, nextParams);
+      commitMemory({
+        ...current,
+        applicationParams: nextParams,
+        applicationPersistenceFailed: !persisted,
       });
     },
-    [pathname, setMemory],
+    [commitMemory, pathname],
   );
 
   const addParam = useCallback(
@@ -555,32 +453,19 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
   );
 
   const clearGroup = useCallback(() => {
-    const snapshot = getKnife4jStorageResetSnapshot();
-    setMemory((current) => {
-      const invalidated = invalidateGlobalParamMemoryForReset(current, snapshot);
-      if (snapshot.active || invalidated !== current) return invalidated;
-      const nextConfig = emptyStoredGroupConfig();
-      const storage = browserStorage();
-      const removal = storage
-        ? removeKnife4jStorageItem(storage, groupStorageKey(groupId), undefined, undefined, snapshot)
-        : Promise.resolve(false);
-      void removal.then((persisted) => {
-        setMemory((latest) => {
-          if (
-            latest.configs.get(groupId) !== nextConfig ||
-            latest.resetGeneration !== snapshot.generation ||
-            latest.resetActive
-          )
-            return latest;
-          const failedGroups = new Set(latest.failedGroups);
-          if (persisted) failedGroups.delete(groupId);
-          else failedGroups.add(groupId);
-          return { ...latest, failedGroups };
-        });
-      });
-      return { ...current, configs: new Map(current.configs).set(groupId, nextConfig) };
+    const current = memoryRef.current;
+    const nextConfig = emptyStoredGroupConfig();
+    const storage = browserStorage();
+    const persisted = storage ? removeKnife4jStorageItem(storage, groupStorageKey(groupId)) : false;
+    const failedGroups = new Set(current.failedGroups);
+    if (persisted) failedGroups.delete(groupId);
+    else failedGroups.add(groupId);
+    commitMemory({
+      ...current,
+      configs: new Map(current.configs).set(groupId, nextConfig),
+      failedGroups,
     });
-  }, [groupId, setMemory]);
+  }, [commitMemory, groupId]);
 
   const applicationParams = useMemo<ScopedGlobalParamItem[]>(
     () => memory.applicationParams.map((param) => ({ ...param, scope: 'application' })),
