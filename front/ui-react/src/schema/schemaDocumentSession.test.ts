@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { SwaggerDoc } from '../types/swagger';
-import { createDirectionalSchemaProjection } from './schemaDirectionProjection';
+import { createDirectionalSchemaProjection } from 'knife4j-schema-engine/directional-projection';
 import {
   createSchemaDocumentSession,
   evaluateSchemaDocumentDirectionally,

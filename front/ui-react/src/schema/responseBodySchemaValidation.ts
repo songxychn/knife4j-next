@@ -4,7 +4,7 @@ import { asOpenApiRecord, locateOperationRecord, type OpenApiRecord } from './op
 import { isJsonCompatibleMediaType } from './requestBodySchemaValidation';
 import type { SchemaDocumentSession } from './schemaDocumentSession';
 import { isSchemaEngineDocument } from './schemaDocumentSession';
-import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
+import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from 'knife4j-schema-engine/evaluation-issues';
 import { locateOperationResponses, registeredObjectReference } from './registeredResponse';
 
 export type ResponseBodySchemaPreparation =

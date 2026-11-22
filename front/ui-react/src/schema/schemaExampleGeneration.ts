@@ -1,4 +1,6 @@
 import type { EvaluationIssue, EvaluationResult, JsonValue, SchemaNode } from 'knife4j-schema-engine';
+import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from 'knife4j-schema-engine/evaluation-issues';
+import { adjustedString, numberSamples, quotedStringBytes, stringSamples } from 'knife4j-schema-engine/example-values';
 import { toSchemaDocumentFailure } from './schemaDocumentSession';
 import { evaluateSchemaDocumentDirectionally, type SchemaDocumentSession } from './schemaDocumentSession';
 import { notifySelectedAuthoredExample } from './schemaExampleAuthored';
@@ -20,11 +22,7 @@ export interface ExplicitSchemaExample {
   readonly value: JsonValue;
 }
 
-export interface SchemaExampleIssue {
-  readonly instanceLocation: string;
-  readonly keyword: string;
-  readonly absoluteKeywordLocation: string;
-}
+export type SchemaExampleIssue = SchemaEvaluationIssue;
 
 export type SchemaExampleDiagnosticCode =
   | 'EXPLICIT_VALUE_INVALID'
@@ -364,22 +362,6 @@ function resolvedReferenceUri(reference: string, baseUri: string): string | null
 
 function evaluationReferenceFor(node: SchemaNode): string {
   return node.canonicalUri.endsWith('#') ? node.canonicalUri.slice(0, -1) : node.canonicalUri;
-}
-
-/** Compact JSON string bytes, including escaping and well-formed lone surrogates. */
-function quotedStringBytes(value: string): number {
-  let bytes = 2;
-  for (let offset = 0; offset < value.length; offset += 1) {
-    const point = value.codePointAt(offset)!;
-    if (point > 0xffff) {
-      bytes += 4;
-      offset += 1;
-    } else if (point === 0x22 || point === 0x5c) bytes += 2;
-    else if (point < 0x20) bytes += [0x08, 0x09, 0x0a, 0x0c, 0x0d].includes(point) ? 2 : 6;
-    else if (point >= 0xd800 && point <= 0xdfff) bytes += 6;
-    else bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : 3;
-  }
-  return bytes;
 }
 
 function valueSize(
@@ -783,59 +765,8 @@ function normalizedTypes(schema: { [key: string]: JsonValue }): string[] {
   return [];
 }
 
-function adjustedString(value: string, schema: { [key: string]: JsonValue }, maxLength: number): string | null {
-  const min = typeof schema.minLength === 'number' ? Math.max(0, Math.floor(schema.minLength)) : 0;
-  const max = typeof schema.maxLength === 'number' ? Math.max(0, Math.floor(schema.maxLength)) : maxLength;
-  if (min > max || min > maxLength) return null;
-  const cappedMax = Math.min(max, maxLength);
-  const points = Array.from(value);
-  if (points.length < min) points.push(...Array.from({ length: min - points.length }, () => 'a'));
-  return points.slice(0, cappedMax).join('');
-}
-
-function patternSamples(pattern: string, maxLength: number): string[] {
-  const samples: string[] = [];
-  const exactClass = /^\^\[([A-Za-z0-9-]+)\]\{(\d+)(?:,(\d+))?\}\$$/.exec(pattern);
-  if (exactClass) {
-    const count = Math.min(Number(exactClass[2]), maxLength);
-    const classValue = exactClass[1];
-    const char = classValue.includes('A-Z') ? 'A' : classValue.includes('a-z') ? 'a' : '0';
-    samples.push(char.repeat(count));
-  }
-  const literal = /^\^([A-Za-z0-9 _.-]+)\$$/.exec(pattern);
-  if (literal) samples.push(literal[1]);
-  if (pattern.includes('\\d') || pattern.includes('[0-9]')) samples.push('0', '000000');
-  if (pattern.includes('[A-Z]')) samples.push('A', 'ABC');
-  if (pattern.includes('[a-z]')) samples.push('a', 'abc');
-  return samples;
-}
-
 function stringCandidates(schema: { [key: string]: JsonValue }, ctx: SearchContext): JsonValue[] {
   const values: JsonValue[] = [];
-  const samplesByFormat: Record<string, string> = {
-    date: '2024-01-01',
-    'date-time': '2024-01-01T00:00:00Z',
-    time: '00:00:00Z',
-    duration: 'P1D',
-    email: 'user@example.com',
-    hostname: 'example.com',
-    ipv4: '192.0.2.1',
-    ipv6: '2001:db8::1',
-    uri: 'https://example.com',
-    uuid: '00000000-0000-4000-8000-000000000000',
-    byte: 'AA==',
-    binary: '',
-  };
-  const formatSample = typeof schema.format === 'string' ? samplesByFormat[schema.format] : undefined;
-  const rawSamples = [
-    ...(formatSample === undefined ? [] : [formatSample]),
-    ...(typeof schema.pattern === 'string' ? patternSamples(schema.pattern, ctx.limits.maxStringLength) : []),
-    '',
-    'string',
-    'example',
-    'a',
-    '0',
-  ];
   const minLength = typeof schema.minLength === 'number' ? Math.max(0, Math.floor(schema.minLength)) : 0;
   if (
     minLength > ctx.limits.maxStringLength &&
@@ -844,46 +775,17 @@ function stringCandidates(schema: { [key: string]: JsonValue }, ctx: SearchConte
     exceed(ctx, 'maxStringLength', minLength);
     return [];
   }
-  if (minLength <= ctx.limits.maxStringLength) rawSamples.push('a'.repeat(minLength), '0'.repeat(minLength));
-  if (typeof schema.contentMediaType === 'string' && schema.contentMediaType.toLowerCase().includes('json')) {
-    rawSamples.unshift('{}');
-  }
-  for (const sample of rawSamples) {
+  for (const sample of stringSamples(schema, ctx.limits.maxStringLength, minLength)) {
     const adjusted = adjustedString(sample, schema, ctx.limits.maxStringLength);
     if (adjusted !== null) appendCandidate(values, adjusted, ctx.limits.maxCandidates, ctx);
   }
   return uniqueCandidates(values, ctx.limits.maxCandidates, ctx);
 }
 
-function numberCandidates(schema: { [key: string]: JsonValue }, integer: boolean, ctx: SearchContext): JsonValue[] {
-  const values: number[] = [0, 1, -1];
-  const minimum = typeof schema.minimum === 'number' ? schema.minimum : undefined;
-  const exclusiveMinimum = typeof schema.exclusiveMinimum === 'number' ? schema.exclusiveMinimum : undefined;
-  const maximum = typeof schema.maximum === 'number' ? schema.maximum : undefined;
-  const exclusiveMaximum = typeof schema.exclusiveMaximum === 'number' ? schema.exclusiveMaximum : undefined;
-  const multipleOf = typeof schema.multipleOf === 'number' && schema.multipleOf > 0 ? schema.multipleOf : undefined;
-  if (minimum !== undefined) values.unshift(minimum);
-  if (exclusiveMinimum !== undefined) values.unshift(exclusiveMinimum + (integer ? 1 : (multipleOf ?? 0.5)));
-  if (maximum !== undefined) values.push(maximum);
-  if (exclusiveMaximum !== undefined) values.push(exclusiveMaximum - (integer ? 1 : (multipleOf ?? 0.5)));
-  if (multipleOf !== undefined) {
-    const base = exclusiveMinimum ?? minimum ?? 0;
-    const multiplier = Math.ceil(base / multipleOf + (exclusiveMinimum === undefined ? 0 : Number.EPSILON));
-    values.unshift(multiplier * multipleOf);
-  }
-  return uniqueCandidates(
-    values
-      .map((value) => (integer ? Math.round(value) : value))
-      .filter((value) => Number.isFinite(value)) as JsonValue[],
-    ctx.limits.maxCandidates,
-    ctx,
-  );
-}
-
 function primitiveCandidates(schema: { [key: string]: JsonValue }, type: string, ctx: SearchContext): JsonValue[] {
   if (type === 'string') return stringCandidates(schema, ctx);
-  if (type === 'integer') return numberCandidates(schema, true, ctx);
-  if (type === 'number') return numberCandidates(schema, false, ctx);
+  if (type === 'integer' || type === 'number')
+    return uniqueCandidates(numberSamples(schema, type === 'integer'), ctx.limits.maxCandidates, ctx);
   if (type === 'boolean') return [true, false];
   if (type === 'null') return [null];
   return [];
@@ -1537,55 +1439,6 @@ async function buildCandidates(schema: JsonValue, ctx: SearchContext): Promise<J
   return index < 0 ? [] : [candidates[index]];
 }
 
-function keywordName(issue: EvaluationIssue): string {
-  for (const value of [issue.keyword, issue.absoluteKeywordLocation]) {
-    try {
-      const url = new URL(value);
-      const fragmentParts = url.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-      const fragmentName = fragmentParts[fragmentParts.length - 1];
-      if (fragmentName) return decodeURIComponent(fragmentName).replace(/~1/g, '/').replace(/~0/g, '~');
-      const pathParts = url.pathname.split('/').filter(Boolean);
-      const pathName = pathParts[pathParts.length - 1];
-      if (pathName) return decodeURIComponent(pathName);
-    } catch {
-      const parts = value.split(/[/#]/).filter(Boolean);
-      const name = parts[parts.length - 1];
-      if (name) return name;
-    }
-  }
-  return 'schema';
-}
-
-function collectLeafIssues(
-  issues: readonly EvaluationIssue[],
-  maxIssues = 8,
-): {
-  issues: SchemaExampleIssue[];
-  totalIssues: number;
-} {
-  const collected: SchemaExampleIssue[] = [];
-  const seen = new Set<string>();
-  const visit = (issue: EvaluationIssue): void => {
-    const nested = issue.errors?.filter((candidate) => candidate.valid === false) ?? [];
-    if (nested.length > 0) {
-      nested.forEach(visit);
-      return;
-    }
-    if (issue.valid !== false) return;
-    const normalized = {
-      instanceLocation: issue.instanceLocation,
-      keyword: keywordName(issue),
-      absoluteKeywordLocation: issue.absoluteKeywordLocation,
-    };
-    const key = `${normalized.instanceLocation}\u0000${normalized.keyword}\u0000${normalized.absoluteKeywordLocation}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    collected.push(normalized);
-  };
-  issues.forEach(visit);
-  return { issues: collected.slice(0, Math.max(1, maxIssues)), totalIssues: collected.length };
-}
-
 function unavailableMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Schema evaluation is unavailable.';
 }
@@ -1665,7 +1518,7 @@ async function evaluateAuthoredCandidate(
         diagnostics: [],
       };
     }
-    const issues = collectLeafIssues(evaluation.errors);
+    const issues = collectLeafSchemaIssues(evaluation.errors);
     return {
       status: 'value',
       value: cloneValue(candidate.value),
@@ -1675,8 +1528,8 @@ async function evaluateAuthoredCandidate(
       diagnostics: [
         {
           code: 'EXPLICIT_VALUE_INVALID',
-          issues: issues.issues,
-          totalIssues: issues.totalIssues,
+          issues: issues.slice(0, 8),
+          totalIssues: issues.length,
         },
       ],
     };
@@ -1875,8 +1728,9 @@ export async function generateSchemaExample(
     if (budget.exhausted) break;
     // Prefer alternatives at failing instance locations, then visit choices in
     // document order. No subtree receives a fresh counter or candidate budget.
-    const paths = collectLeafIssues(issues, 256)
-      .issues.map((issue) => issue.instanceLocation)
+    const paths = collectLeafSchemaIssues(issues)
+      .slice(0, 256)
+      .map((issue) => issue.instanceLocation)
       .filter(Boolean);
     const choices = [...search.choices].sort((left, right) => {
       const matches = (choice: SearchChoice) =>

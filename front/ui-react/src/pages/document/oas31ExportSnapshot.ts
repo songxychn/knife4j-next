@@ -1,4 +1,22 @@
 import {
+  assembleRegisteredExportTags,
+  collectRegisteredExportOperations,
+  compactTypeDisplay,
+  effectiveExportLimits,
+  exportDiagnosticCode,
+  ExportIssueCollector,
+  exportParameterKey,
+  exportSchemaFromProjection,
+  isExportAbortError,
+  ProjectedFieldBudget,
+  projectRegisteredExportOperations,
+  recordExportProjectionIssues,
+  registeredExportDocumentInfo,
+  throwIfExportAborted,
+  type ExportBudgetDimension,
+  type RegisteredExportLimits,
+} from 'knife4j-core/lib/offlineDocumentSnapshot';
+import {
   buildExportOperation,
   isOpenApi31Version,
   type ExportDocument,
@@ -8,15 +26,9 @@ import {
   type ExportRequestBody,
   type ExportResponse,
   type ExportSchema,
-  type ExportSchemaField,
-  type SchemaFieldNode,
 } from 'knife4j-core';
 import { schemaNodeTypeLabel } from '../../components/schema/schemaUtils';
-import {
-  createSchemaDisplayProjector,
-  type SchemaDisplayProjection,
-  type SchemaDisplayProjector,
-} from '../../schema/schemaDisplayProjection';
+import { createSchemaDisplayProjector, type SchemaDisplayProjector } from '../../schema/schemaDisplayProjection';
 import type { SchemaDocumentSession } from '../../schema/schemaDocumentSession';
 import {
   formatSchemaExampleValue,
@@ -40,16 +52,7 @@ import {
   type OfflineDocumentSnapshot,
 } from './offlineDocumentSnapshot';
 
-const DEFAULT_MAX_OPERATIONS = 500;
-const DEFAULT_MAX_PROJECTED_FIELDS = 20_000;
-const DEFAULT_MAX_DIAGNOSTICS = 200;
-const PROJECTION_CONCURRENCY = 4;
-
-export interface Oas31ExportSnapshotLimits {
-  readonly maxOperations?: number;
-  readonly maxProjectedFields?: number;
-  readonly maxDiagnostics?: number;
-}
+export type Oas31ExportSnapshotLimits = RegisteredExportLimits;
 
 export interface BuildOas31ExportSnapshotOptions {
   readonly fallbackTitle?: string;
@@ -57,8 +60,6 @@ export interface BuildOas31ExportSnapshotOptions {
   readonly initialIssues?: readonly OfflineDocumentIssue[];
   readonly limits?: Oas31ExportSnapshotLimits;
 }
-
-type ExportBudgetDimension = 'operations' | 'projected-fields';
 
 export class Oas31ExportBudgetError extends Error {
   public readonly code = 'EXPORT_BUDGET_EXCEEDED';
@@ -73,18 +74,12 @@ export class Oas31ExportBudgetError extends Error {
   }
 }
 
-interface EffectiveLimits {
-  readonly maxOperations: number;
-  readonly maxProjectedFields: number;
-  readonly maxDiagnostics: number;
-}
-
 interface OperationBuildContext {
   readonly document: SwaggerDoc;
   readonly projector: SchemaDisplayProjector;
   readonly session: SchemaDocumentSession;
   readonly signal?: AbortSignal;
-  readonly issues: IssueCollector;
+  readonly issues: ExportIssueCollector;
   readonly fields: ProjectedFieldBudget;
 }
 
@@ -98,196 +93,12 @@ interface ProjectSchemaOptions {
   readonly fallback: () => ExportSchema | undefined;
 }
 
-function positiveInteger(value: number | undefined, fallback: number): number {
-  return value === undefined || !Number.isFinite(value) ? fallback : Math.max(1, Math.floor(value));
-}
-
-function effectiveLimits(limits: Oas31ExportSnapshotLimits | undefined): EffectiveLimits {
-  return {
-    maxOperations: positiveInteger(limits?.maxOperations, DEFAULT_MAX_OPERATIONS),
-    maxProjectedFields: positiveInteger(limits?.maxProjectedFields, DEFAULT_MAX_PROJECTED_FIELDS),
-    maxDiagnostics: positiveInteger(limits?.maxDiagnostics, DEFAULT_MAX_DIAGNOSTICS),
-  };
-}
-
-function abortError(): Error {
-  const error = new Error('OAS 3.1 offline export snapshot was aborted.');
-  error.name = 'AbortError';
-  return error;
-}
-
 function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw abortError();
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'AbortError';
-}
-
-function diagnosticCode(error: unknown, fallback: string): string {
-  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') return error.code;
-  return fallback;
-}
-
-class IssueCollector {
-  private readonly collected: OfflineDocumentIssue[] = [];
-  private overflow = false;
-
-  public constructor(
-    private readonly limit: number,
-    initial: readonly OfflineDocumentIssue[],
-  ) {
-    initial.forEach((issue) => this.add(issue));
-  }
-
-  public add(issue: OfflineDocumentIssue): void {
-    const contentLimit = Math.max(0, this.limit - 1);
-    if (this.collected.length < contentLimit) {
-      this.collected.push(issue);
-      return;
-    }
-    this.overflow = true;
-  }
-
-  public result(): OfflineDocumentIssue[] {
-    if (!this.overflow) return [...this.collected];
-    return [
-      ...this.collected,
-      {
-        code: 'DIAGNOSTIC_BUDGET_EXCEEDED',
-        severity: 'warning',
-      },
-    ];
-  }
-}
-
-class ProjectedFieldBudget {
-  private count = 0;
-
-  public constructor(private readonly limit: number) {}
-
-  public add(fields: number): void {
-    this.count += fields;
-    if (this.count > this.limit) {
-      throw new Oas31ExportBudgetError('projected-fields', this.limit, this.count);
-    }
-  }
-}
-
-async function mapWithConcurrency<T, R>(
-  values: readonly T[],
-  concurrency: number,
-  mapper: (value: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  if (values.length === 0) return [];
-  const results = new Array<R>(values.length);
-  let cursor = 0;
-  const worker = async () => {
-    while (cursor < values.length) {
-      const index = cursor;
-      cursor += 1;
-      results[index] = await mapper(values[index], index);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, worker));
-  return results;
+  throwIfExportAborted(signal, '3.1');
 }
 
 function operationLabel(operation: MenuOperation): string {
   return `${operation.method.toUpperCase()} ${operation.path}`;
-}
-
-function parameterKey(parameter: ParameterObject): string {
-  return `${parameter.in}:${parameter.name}`;
-}
-
-function compactTypeDisplay(typeDisplay: string): string {
-  return typeDisplay.replace(/ \/ /g, '/').replace(/ \| /g, '|') || '-';
-}
-
-function descriptionForNode(node: SchemaFieldNode): string {
-  const descriptions = [node.description];
-  if (node.refDescription && node.refDescription !== node.description) {
-    descriptions.push(`${node.refTitle ? `[${node.refTitle}] ` : ''}${node.refDescription}`);
-  }
-  return descriptions.filter((value): value is string => Boolean(value)).join('\n');
-}
-
-function fieldPath(parent: string, node: SchemaFieldNode): string {
-  if (!node.name) return parent || node.refName || schemaNodeTypeLabel(node) || '$';
-  if (node.name === 'items') return parent ? `${parent}[]` : '[]';
-  if (/^\[\d+\]$/.test(node.name)) return `${parent}${node.name}`;
-  return parent ? `${parent}.${node.name}` : node.name;
-}
-
-function flattenProjectedFields(
-  fields: readonly SchemaFieldNode[],
-  recursive: boolean,
-  parent = '',
-  depth = 0,
-): ExportSchemaField[] {
-  const rows: ExportSchemaField[] = [];
-  for (const field of fields) {
-    const path = fieldPath(parent, field);
-    rows.push({
-      fieldPath: path,
-      typeDisplay: schemaNodeTypeLabel(field),
-      required: field.required,
-      description: descriptionForNode(field),
-      truncated: Boolean(field.truncated),
-      ...(field.truncationReason === undefined ? {} : { truncationReason: field.truncationReason }),
-      depth,
-    });
-    if (recursive && field.children?.length) {
-      rows.push(...flattenProjectedFields(field.children, true, path, depth + 1));
-    }
-  }
-  return rows;
-}
-
-function exportProjectionFields(fields: readonly SchemaFieldNode[], recursive: boolean): ExportSchemaField[] {
-  if (fields.length !== 1 || fields[0].name) return flattenProjectedFields(fields, recursive);
-  const root = fields[0];
-  if (!root.children?.length) return [];
-  return flattenProjectedFields(root.children, recursive);
-}
-
-function projectionKind(root: SchemaFieldNode): ExportSchema['kind'] {
-  if (root.type === 'array') return 'array';
-  if (root.type === 'object' || root.children?.length) return 'object';
-  if (['string', 'integer', 'number', 'boolean', 'null', 'never'].includes(root.type)) return 'primitive';
-  return 'unknown';
-}
-
-function exportSchemaFromProjection(
-  mediaType: string,
-  projection: SchemaDisplayProjection,
-  fields: readonly SchemaFieldNode[],
-): ExportSchema {
-  return {
-    mediaType,
-    typeDisplay: schemaNodeTypeLabel(projection.root),
-    kind: projectionKind(projection.root),
-    shallowFields: exportProjectionFields(fields, false),
-    fields: exportProjectionFields(fields, true),
-  };
-}
-
-function recordProjectionIssues(
-  projection: SchemaDisplayProjection,
-  operation: MenuOperation,
-  region: string,
-  issues: IssueCollector,
-): void {
-  projection.diagnostics.forEach((diagnostic) => {
-    issues.add({
-      code: diagnostic.code,
-      severity: diagnostic.severity,
-      operation: operationLabel(operation),
-      region,
-      ...(diagnostic.keyword === undefined ? {} : { keyword: diagnostic.keyword }),
-    });
-  });
 }
 
 async function projectSchema(
@@ -298,15 +109,22 @@ async function projectSchema(
     throwIfAborted(context.signal);
     const projection = await context.projector.project(options.reference, { signal: context.signal });
     throwIfAborted(context.signal);
-    recordProjectionIssues(projection, options.operation, options.region, context.issues);
+    recordExportProjectionIssues(
+      context.issues,
+      projection.diagnostics,
+      operationLabel(options.operation),
+      options.region,
+    );
     const fields = prepareApiDocSchemaFields(projection.fields, options.mode, options.operationObject);
-    const schema = exportSchemaFromProjection(options.mediaType, projection, fields);
+    const schema = exportSchemaFromProjection(options.mediaType, projection.root, fields, {
+      typeLabel: schemaNodeTypeLabel,
+    });
     context.fields.add(schema.fields.length);
     return schema;
   } catch (error) {
-    if (isAbortError(error) || error instanceof Oas31ExportBudgetError) throw error;
+    if (isExportAbortError(error) || error instanceof Oas31ExportBudgetError) throw error;
     context.issues.add({
-      code: diagnosticCode(error, 'PROJECTION_FAILED'),
+      code: exportDiagnosticCode(error, 'PROJECTION_FAILED'),
       severity: 'warning',
       operation: operationLabel(options.operation),
       region: options.region,
@@ -324,7 +142,7 @@ function recordExampleResult(
   target: OperationSchemaExampleTarget | undefined,
   operation: MenuOperation,
   region: string,
-  issues: IssueCollector,
+  issues: ExportIssueCollector,
 ): ExportExample | undefined {
   if (!selection) return undefined;
   const result = selection.result;
@@ -402,9 +220,9 @@ async function buildParameterExample(
       context.issues,
     );
   } catch (error) {
-    if (isAbortError(error)) throw error;
+    if (isExportAbortError(error)) throw error;
     context.issues.add({
-      code: diagnosticCode(error, 'PARAMETER_EXAMPLE_GENERATION_FAILED'),
+      code: exportDiagnosticCode(error, 'PARAMETER_EXAMPLE_GENERATION_FAILED'),
       severity: 'warning',
       operation: operationLabel(operation),
       region,
@@ -425,7 +243,7 @@ async function buildParameters(
   const result: ExportParameter[] = [];
   for (const [index, parameter] of parameters.entries()) {
     throwIfAborted(context.signal);
-    const target = targets.get(parameterKey(parameter));
+    const target = targets.get(exportParameterKey(parameter));
     let typeDisplay = [parameter.type, parameter.format].filter(Boolean).join(' / ') || '-';
     let schema: ExportSchema | undefined;
     let example: ExportExample | undefined;
@@ -485,9 +303,9 @@ async function buildOperation(
       signal: context.signal,
     });
   } catch (error) {
-    if (isAbortError(error)) throw error;
+    if (isExportAbortError(error)) throw error;
     context.issues.add({
-      code: diagnosticCode(error, 'EXAMPLE_GENERATION_FAILED'),
+      code: exportDiagnosticCode(error, 'EXAMPLE_GENERATION_FAILED'),
       severity: 'warning',
       operation: operationLabel(operation),
       region: 'examples',
@@ -573,12 +391,6 @@ async function buildOperation(
   };
 }
 
-interface FlattenedOperation {
-  readonly tagIndex: number;
-  readonly operationIndex: number;
-  readonly operation: MenuOperation;
-}
-
 /**
  * Build the one immutable model consumed by every human-readable offline
  * renderer. The builder only reads the registry-backed session and never owns
@@ -594,17 +406,11 @@ export async function buildOas31ExportSnapshot(
     throw new TypeError('OAS 3.1 offline export snapshot requires a valid OpenAPI 3.1.x version.');
   }
   throwIfAborted(options.signal);
-  const limits = effectiveLimits(options.limits);
-  const flattened: FlattenedOperation[] = tags.flatMap((tag, tagIndex) =>
-    tag.operations.map((operation, operationIndex) => ({ tagIndex, operationIndex, operation })),
-  );
-  if (flattened.length > limits.maxOperations) {
-    throw new Oas31ExportBudgetError('operations', limits.maxOperations, flattened.length);
-  }
-
-  const issues = new IssueCollector(limits.maxDiagnostics, options.initialIssues ?? []);
+  const limits = effectiveExportLimits(options.limits);
+  const flattened = collectRegisteredExportOperations(tags, limits.maxOperations, Oas31ExportBudgetError);
+  const issues = new ExportIssueCollector(limits.maxDiagnostics, options.initialIssues ?? []);
   const projector = createSchemaDisplayProjector(session);
-  const fields = new ProjectedFieldBudget(limits.maxProjectedFields);
+  const fields = new ProjectedFieldBudget(limits.maxProjectedFields, Oas31ExportBudgetError);
   const context: OperationBuildContext = {
     document,
     projector,
@@ -613,25 +419,16 @@ export async function buildOas31ExportSnapshot(
     issues,
     fields,
   };
-  const operations = await mapWithConcurrency(
-    flattened,
-    PROJECTION_CONCURRENCY,
-    ({ operation, tagIndex, operationIndex }) => buildOperation(context, operation, [tagIndex + 1, operationIndex + 1]),
+  const operations = await projectRegisteredExportOperations(flattened, (operation, numberPath) =>
+    buildOperation(context, operation, numberPath),
   );
   throwIfAborted(options.signal);
 
-  const operationMap = new Map(
-    flattened.map((entry, index) => [`${entry.tagIndex}:${entry.operationIndex}`, operations[index]]),
-  );
   const exportDocument: ExportDocument = {
-    title: document.info.title || options.fallbackTitle || 'API Documentation',
-    version: document.info.version ?? '',
-    description: document.info.description ?? '',
-    tags: tags.map((tag, tagIndex) => ({
+    ...registeredExportDocumentInfo(document.info, options.fallbackTitle),
+    tags: assembleRegisteredExportTags(tags, flattened, operations, (tag) => ({
       name: tag.tag,
       description: tag.description ?? '',
-      numberPath: [tagIndex + 1],
-      operations: tag.operations.map((_, operationIndex) => operationMap.get(`${tagIndex}:${operationIndex}`)!),
     })),
   };
   return createOfflineDocumentSnapshot(exportDocument, issues.result());

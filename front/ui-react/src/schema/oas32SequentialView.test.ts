@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { decodeOas32SequentialBytes } from './oas32SequentialMedia';
+import { decodeOas32SequentialBytes } from 'knife4j-core/lib/openapi32/sequentialMedia';
 import { sequentialItemInstance } from './oas32SequentialResponse';
 import { formatSequentialHistoryBody, sequentialRecordPreview, toSequentialDisplayedItem } from './oas32SequentialView';
 

@@ -1,4 +1,4 @@
-import type { Oas32SequentialKind, Oas32SequentialRecord } from './oas32SequentialMedia';
+import type { Oas32SequentialKind, Oas32SequentialRecord } from 'knife4j-core/lib/openapi32/sequentialMedia';
 import type {
   Oas32SequentialConsumeResult,
   Oas32SequentialItemView,

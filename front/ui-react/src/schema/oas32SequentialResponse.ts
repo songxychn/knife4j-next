@@ -11,7 +11,7 @@ import {
   registeredObjectReference,
   type RegisteredObjectLocation,
 } from './registeredResponse';
-import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
+import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from 'knife4j-schema-engine/evaluation-issues';
 import { evaluateSchemaDocumentDirectionally, type SchemaDocumentSession } from './schemaDocumentSession';
 import { responseSchemaMediaTypeKey, responseSchemaStatusKey } from './responseBodySchemaValidation';
 import {
@@ -23,7 +23,7 @@ import {
   type Oas32SequentialKind,
   type Oas32SequentialLimits,
   type Oas32SequentialRecord,
-} from './oas32SequentialMedia';
+} from 'knife4j-core/lib/openapi32/sequentialMedia';
 
 export type Oas32SequentialTermination =
   'eof' | 'cancel' | 'timeout' | 'idle-timeout' | 'budget-bytes' | 'budget-items' | 'network-error';

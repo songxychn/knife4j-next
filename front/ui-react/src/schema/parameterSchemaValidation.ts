@@ -11,7 +11,7 @@ import {
   pointerReference,
   type LocatedRecord,
 } from './openApiDocumentPointer';
-import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
+import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from 'knife4j-schema-engine/evaluation-issues';
 import type { ExplicitSchemaExample } from './schemaExampleGeneration';
 
 export interface PreparedParameterSchemaEvaluation extends BuiltParameterInstance {

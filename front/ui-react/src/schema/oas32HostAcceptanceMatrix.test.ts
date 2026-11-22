@@ -31,7 +31,7 @@ import {
   classifyOas32SequentialMedia,
   decodeOas32SequentialBytes,
   isOas32SequentialVersion,
-} from './oas32SequentialMedia';
+} from 'knife4j-core/lib/openapi32/sequentialMedia';
 import { oas32TagMenu } from './oas32TagMenu';
 import {
   createSchemaDocumentSession,

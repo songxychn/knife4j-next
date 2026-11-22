@@ -15,7 +15,7 @@ import {
   createDirectionalSchemaProjection,
   type DirectionalSchemaProjection,
   type SchemaEvaluationDirection,
-} from './schemaDirectionProjection';
+} from 'knife4j-schema-engine/directional-projection';
 
 const FALLBACK_SCHEMA_ORIGIN = 'https://knife4j.invalid/';
 

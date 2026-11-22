@@ -3,7 +3,7 @@ import {
   consumeOas32SequentialResponse,
   shouldConsumeOas32SequentialResponse,
 } from '../../schema/oas32SequentialResponse';
-import { classifyOas32SequentialMedia } from '../../schema/oas32SequentialMedia';
+import { classifyOas32SequentialMedia } from 'knife4j-core/lib/openapi32/sequentialMedia';
 import {
   formatSequentialHistoryBody,
   sequentialStreamFromConsumeResult,

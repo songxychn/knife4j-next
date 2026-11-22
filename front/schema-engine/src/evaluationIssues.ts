@@ -1,4 +1,4 @@
-import type { EvaluationIssue } from 'knife4j-schema-engine';
+import type { EvaluationIssue } from './types';
 
 export interface SchemaEvaluationIssue {
   readonly instanceLocation: string;
