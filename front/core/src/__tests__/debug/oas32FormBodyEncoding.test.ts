@@ -63,6 +63,29 @@ describe('OAS 3.2 form body encoding', () => {
     );
   });
 
+  test('keeps a declared JSON request body even with a binary format annotation', () => {
+    const model = debugModel32('application/json', {
+      schema: {
+        type: 'object',
+        properties: { file: { type: 'string', format: 'binary' } },
+      },
+    });
+    expect(model.bodyContents[0]).toMatchObject({ mediaType: 'application/json', category: 'json' });
+    expect(model.bodyContents[0].oas32Form).toBeUndefined();
+  });
+
+  test.each([
+    ['Multipart/Form-Data; profile=Upload', 'multipart'],
+    ['text/plain; profile=multipart', 'raw'],
+  ])('classifies %s by its case-insensitive media type and preserves the declared key', (mediaType, category) => {
+    const model = debugModel32(mediaType, {
+      schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+    });
+    expect(model.bodyContents[0]).toMatchObject({ mediaType, category });
+    if (category === 'multipart') expect(model.bodyContents[0].oas32Form?.fields[0].file).toBe(true);
+    else expect(model.bodyContents[0].oas32Form).toBeUndefined();
+  });
+
   test('keeps named encoding, prefixEncoding and itemEncoding mutually exclusive', () => {
     const model = debugModel32('multipart/form-data', {
       schema: {
@@ -252,7 +275,7 @@ describe('OAS 3.2 form body encoding', () => {
     });
   });
 
-  test('enforces part, byte and time budgets and honors cancellation', () => {
+  test('enforces deterministic part and byte budgets', () => {
     const model = debugModel32('multipart/mixed', {
       schema: { type: 'array', items: { type: 'string' } },
       itemEncoding: { contentType: 'text/plain' },
@@ -265,27 +288,15 @@ describe('OAS 3.2 form body encoding', () => {
       expect.arrayContaining([expect.objectContaining({ code: 'FORM_BUDGET_EXCEEDED' })]),
     );
 
-    const cancelled = serializeOas32FormBody(model.bodyContents[0], {
-      formFields: { '0': 'x' },
-      signal: AbortSignal.abort(),
+    const overBytes = serializeOas32FormBody(model.bodyContents[0], {
+      formFields: { '0': 'abcd' },
+      limits: { maxFieldBytes: 3, maxTotalBytes: 10 },
     });
-    expect(cancelled.diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'FORM_MATERIALIZATION_TIMEOUT' })]),
-    );
-
-    const timedOut = serializeOas32FormBody(model.bodyContents[0], {
-      formFields: { '0': 'x', '1': 'y' },
-      now: (() => {
-        let current = 0;
-        return () => {
-          current += 5_000;
-          return current;
-        };
-      })(),
-      limits: { maxMaterializationMs: 1 },
-    });
-    expect(timedOut.diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'FORM_MATERIALIZATION_TIMEOUT' })]),
+    expect(overBytes.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'FORM_BUDGET_EXCEEDED', fieldName: '0' }),
+        expect.objectContaining({ code: 'FORM_BUDGET_EXCEEDED', message: expect.stringContaining('MIME framing') }),
+      ]),
     );
   });
 

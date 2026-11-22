@@ -1,5 +1,5 @@
 import { buildOperationDebugModel } from '../../debug/operationDebugModel';
-import { buildRequest } from '../../debug/requestBuilder';
+import { buildRequest, type BuildRequestOptions } from '../../debug/requestBuilder';
 import { collectOas32DocumentDiagnostics } from '../../openapi32';
 import type { DebugFormValues } from '../../debug/types';
 
@@ -72,6 +72,31 @@ describe('OAS 3.2 parameter execution baseline', () => {
       formValues: { ...emptyForm(), oas31ParameterValues: { 'path:id': 'a:b/%2F?#' } },
     });
     expect(request.url).toBe('https://example.test/items/a:b%2F%2F%3F%23');
+  });
+
+  test('keeps repeated application query values when the declared object parameter is omitted', () => {
+    const doc = documentWith([
+      {
+        name: 'filters',
+        in: 'query',
+        style: 'deepObject',
+        explode: true,
+        schema: { type: 'object', properties: { color: { type: 'string' } } },
+      },
+    ]);
+    const debugModel = buildOperationDebugModel({ doc, path: '/items', method: 'GET' });
+    const request = buildRequest({
+      baseUrl: 'https://example.test',
+      path: '/items',
+      method: 'GET',
+      debugModel,
+      formValues: emptyForm(),
+      // JavaScript callers can pass repeated application values without TypeScript's scalar type.
+      applicationParams: {
+        queries: { filters: ['red', 'blue'] },
+      } as unknown as BuildRequestOptions['applicationParams'],
+    });
+    expect(request.url).toBe('https://example.test/items?filters=red&filters=blue');
   });
 
   test('preserves ordered repeated Cookie pairs in author parameter text', () => {

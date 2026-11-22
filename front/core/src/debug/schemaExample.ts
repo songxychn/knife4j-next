@@ -1,3 +1,5 @@
+import { supportsSchemaRefSiblings } from '../openapiVersion';
+import { jsonValuesEqual } from '../utils/jsonValuesEqual';
 /**
  * Schema 示例值生成与字段树递归（TASK-030 完整实现）
  *
@@ -144,15 +146,6 @@ function isSchemaRecord(schema: unknown): schema is Record<string, unknown> {
   return schema !== null && typeof schema === 'object' && !Array.isArray(schema);
 }
 
-function supportsSchemaRefSiblings(doc: Record<string, unknown>): boolean {
-  const version = typeof doc.openapi === 'string' ? doc.openapi : '';
-  const match = version.match(/^(\d+)\.(\d+)(?:\.|$)/);
-  if (!match) return false;
-  const major = Number(match[1]);
-  const minor = Number(match[2]);
-  return major > 3 || (major === 3 && minor >= 1);
-}
-
 function firstSchemaExample(schema: Record<string, unknown>): unknown {
   if (schema.example !== undefined) return schema.example;
   if (Array.isArray(schema.examples) && schema.examples.length > 0) return schema.examples[0];
@@ -160,30 +153,6 @@ function firstSchemaExample(schema: Record<string, unknown>): unknown {
   if (schema.const !== undefined) return schema.const;
   if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0];
   return undefined;
-}
-
-function jsonValuesEqual(left: unknown, right: unknown): boolean {
-  if (left === right) return true;
-  if (Array.isArray(left) || Array.isArray(right)) {
-    return (
-      Array.isArray(left) &&
-      Array.isArray(right) &&
-      left.length === right.length &&
-      left.every((item, index) => jsonValuesEqual(item, right[index]))
-    );
-  }
-  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
-  const leftRecord = left as Record<string, unknown>;
-  const rightRecord = right as Record<string, unknown>;
-  const leftKeys = Object.keys(leftRecord);
-  const rightKeys = Object.keys(rightRecord);
-  return (
-    leftKeys.length === rightKeys.length &&
-    leftKeys.every(
-      (key) =>
-        Object.prototype.hasOwnProperty.call(rightRecord, key) && jsonValuesEqual(leftRecord[key], rightRecord[key]),
-    )
-  );
 }
 
 function schemaTypes(type: unknown): string[] | undefined {
@@ -369,7 +338,7 @@ function resolveSchema(
       },
       options,
     );
-    if (deeper.schema !== undefined && supportsSchemaRefSiblings(ctx.doc)) {
+    if (deeper.schema !== undefined && supportsSchemaRefSiblings(ctx.doc.openapi)) {
       const siblings = Object.fromEntries(Object.entries(schema).filter(([key]) => key !== '$ref'));
       if (Object.keys(siblings).length > 0) {
         if (deeper.schema === false) return { ...deeper, ref };
@@ -439,7 +408,7 @@ function deref(schema: SchemaValue | undefined, ctx: InternalCtx): SchemaValue |
   if (typeof schema.$ref !== 'string') return schema;
   if (ctx.refChain.includes(schema.$ref)) return undefined;
   const r = resolveSchemaRef(schema.$ref, ctx.doc);
-  if (r === undefined || !supportsSchemaRefSiblings(ctx.doc)) return r;
+  if (r === undefined || !supportsSchemaRefSiblings(ctx.doc.openapi)) return r;
   const siblings = Object.fromEntries(Object.entries(schema).filter(([key]) => key !== '$ref'));
   if (Object.keys(siblings).length === 0 || r === false) return r;
   return r === true ? siblings : mergeSchemaIntersection(r, siblings);

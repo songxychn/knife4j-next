@@ -43,7 +43,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import javax.servlet.DispatcherType;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /***
@@ -85,8 +84,6 @@ public class Knife4jAutoConfiguration {
     @RestController
     public static class Knife4jConfigController {
 
-        private static final String DEFAULT_API_DOCS_PATH = "v3/api-docs";
-
         private final SpringDocConfigProperties docProperties;
 
         public Knife4jConfigController(SpringDocConfigProperties docProperties) {
@@ -95,33 +92,10 @@ public class Knife4jAutoConfiguration {
 
         @GetMapping(GlobalConstants.KNIFE4J_CONFIG_PATH)
         public Map<String, Object> config() {
-            String apiDocsPath = resolveApiDocsPath();
-            Map<String, String> openapi = new LinkedHashMap<>();
-            openapi.put(GlobalConstants.EXTENSION_API_DOCS_URL, apiDocsPath);
-            openapi.put(GlobalConstants.EXTENSION_SWAGGER_CONFIG_URL, apiDocsPath + "/swagger-config");
-
-            Map<String, Object> config = new LinkedHashMap<>();
-            config.put(GlobalConstants.EXTENSION_SCHEMA_VERSION, GlobalConstants.KNIFE4J_CONFIG_SCHEMA_VERSION);
-            config.put(GlobalConstants.EXTENSION_OPENAPI, openapi);
-            return config;
-        }
-
-        private String resolveApiDocsPath() {
-            if (docProperties == null || docProperties.getApiDocs() == null) {
-                return DEFAULT_API_DOCS_PATH;
-            }
-            String path = docProperties.getApiDocs().getPath();
-            if (path == null || path.trim().isEmpty()) {
-                return DEFAULT_API_DOCS_PATH;
-            }
-            String normalized = path.trim();
-            while (normalized.startsWith("/")) {
-                normalized = normalized.substring(1);
-            }
-            while (normalized.endsWith("/")) {
-                normalized = normalized.substring(0, normalized.length() - 1);
-            }
-            return normalized.isEmpty() ? DEFAULT_API_DOCS_PATH : normalized;
+            String path = docProperties == null || docProperties.getApiDocs() == null
+                    ? null
+                    : docProperties.getApiDocs().getPath();
+            return Knife4jConfigResponse.response(path);
         }
     }
 

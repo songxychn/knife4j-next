@@ -18,7 +18,21 @@ import type {
 } from './types';
 import { isJsonMediaType, parseOas31ParameterValue, serializeOas31Parameters } from './parameterSerialization';
 import { analyzeOas31FormBody, serializeOas31FormBody } from './formBodyEncoding';
-import { dereferenceReferenceObject, normalizeAllOfSchema, resolveSchemaRef } from './resolveRef';
+import { dereferenceReferenceObject } from './resolveRef';
+import { mediaTypeEssence, splitMediaTypes, splitMediaTypeParameters, validMediaType } from './mediaType';
+import {
+  schemaType,
+  normalizedPropertySchema,
+  declaredTypes,
+  arrayItemSchema,
+  diagnostic,
+  contentEncodingValue,
+  DEFAULT_MAX_FORM_FIELD_BYTES,
+  utf8Bytes,
+  formFieldParameter,
+  representation,
+  rawFileMetadata,
+} from './formBodyValues';
 import { hasOwn, isRecord } from '../utils/guards';
 
 type JsonRecord = Record<string, unknown>;
@@ -36,15 +50,13 @@ export interface AnalyzeOas32FormBodyOptions {
 }
 
 const DEFAULT_LIMITS = Object.freeze({
-  maxFieldBytes: 256 * 1024,
+  maxFieldBytes: DEFAULT_MAX_FORM_FIELD_BYTES,
   maxTotalBytes: 8 * 1024 * 1024,
   maxParts: 100,
   maxDepth: 1,
-  maxMaterializationMs: 2_000,
 });
 
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-const MEDIA_TYPE_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const FORM_DATA_HEADERS = new Set(['content-disposition', 'content-transfer-encoding']);
 const MULTIPART_CONTENT_HEADERS = new Set([
   'content-disposition',
@@ -54,10 +66,6 @@ const MULTIPART_CONTENT_HEADERS = new Set([
   'content-location',
   'content-range',
 ]);
-
-function mediaTypeEssence(value: string): string {
-  return value.split(';', 1)[0].trim().toLowerCase();
-}
 
 function isMultipartMedia(value: string): boolean {
   return mediaTypeEssence(value).startsWith('multipart/');
@@ -79,138 +87,6 @@ function positionalEncodingApplies(mediaType: string): boolean {
   return isMultipartMedia(mediaType);
 }
 
-function diagnostic(
-  code: FormBodyDiagnostic['code'],
-  message: string,
-  fieldName?: string,
-  headerName?: string,
-): FormBodyDiagnostic {
-  return {
-    code,
-    message,
-    ...(fieldName === undefined ? {} : { fieldName }),
-    ...(headerName === undefined ? {} : { headerName }),
-  };
-}
-
-function schemaType(schema: SchemaValue): string {
-  if (typeof schema === 'boolean') return 'unknown';
-  const declared = schema.type;
-  const types = Array.isArray(declared)
-    ? declared.filter((value): value is string => typeof value === 'string' && value !== 'null')
-    : typeof declared === 'string' && declared !== 'null'
-      ? [declared]
-      : [];
-  if (types.length === 1) return types[0];
-  if (schema.properties !== undefined) return 'object';
-  if (schema.items !== undefined || schema.prefixItems !== undefined) return 'array';
-  return types[0] ?? 'unknown';
-}
-
-function declaredTypes(schema: SchemaValue): string[] {
-  if (typeof schema === 'boolean') return [];
-  if (typeof schema.type === 'string') return [schema.type];
-  if (Array.isArray(schema.type)) return schema.type.filter((value): value is string => typeof value === 'string');
-  return [];
-}
-
-function normalizedPropertySchema(value: unknown, document: Record<string, unknown>): SchemaValue {
-  if (typeof value === 'boolean') return value;
-  if (!isRecord(value)) return true;
-  if (typeof value.$ref === 'string') {
-    const resolved = resolveSchemaRef(value.$ref, document);
-    if (typeof resolved === 'boolean') {
-      if (resolved === false) return false;
-      const siblings = Object.fromEntries(Object.entries(value).filter(([key]) => key !== '$ref'));
-      return Object.keys(siblings).length > 0 ? normalizeAllOfSchema(siblings, document) : true;
-    }
-  }
-  return normalizeAllOfSchema(value, document);
-}
-
-function splitMediaTypes(value: string): string[] {
-  const result: string[] = [];
-  let start = 0;
-  let quoted = false;
-  let escaped = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const character = value[index];
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === '"') quoted = false;
-      continue;
-    }
-    if (character === '"') quoted = true;
-    else if (character === ',') {
-      result.push(value.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  result.push(value.slice(start).trim());
-  return result.filter(Boolean);
-}
-
-function splitMediaTypeParameters(value: string): string[] | null {
-  const result: string[] = [];
-  let start = 0;
-  let quoted = false;
-  let escaped = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const character = value[index];
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === '"') quoted = false;
-      continue;
-    }
-    if (character === '"') quoted = true;
-    else if (character === ';') {
-      result.push(value.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  if (quoted || escaped) return null;
-  result.push(value.slice(start).trim());
-  return result;
-}
-
-function validQuotedMediaTypeValue(value: string): boolean {
-  if (value.length < 2 || value[0] !== '"' || value[value.length - 1] !== '"') return false;
-  let escaped = false;
-  for (let index = 1; index < value.length - 1; index += 1) {
-    const character = value[index];
-    const code = character.charCodeAt(0);
-    if (escaped) {
-      if ((code < 0x20 && character !== '\t') || code === 0x7f) return false;
-      escaped = false;
-    } else if (character === '\\') {
-      escaped = true;
-    } else if (character === '"' || (code < 0x20 && character !== '\t') || code === 0x7f) {
-      return false;
-    }
-  }
-  return !escaped;
-}
-
-function validMediaType(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code <= 0x1f || code === 0x7f) return false;
-  }
-  const segments = splitMediaTypeParameters(value);
-  if (!segments || segments.length === 0) return false;
-  const [type = '', subtype = '', ...extra] = segments[0].split('/');
-  if (extra.length > 0 || !MEDIA_TYPE_TOKEN.test(type) || !MEDIA_TYPE_TOKEN.test(subtype)) return false;
-  return segments.slice(1).every((parameter) => {
-    const equals = parameter.indexOf('=');
-    if (equals <= 0) return false;
-    const name = parameter.slice(0, equals).trim();
-    const rawValue = parameter.slice(equals + 1).trim();
-    return MEDIA_TYPE_TOKEN.test(name) && (MEDIA_TYPE_TOKEN.test(rawValue) || validQuotedMediaTypeValue(rawValue));
-  });
-}
-
 export function mediaTypeBoundary(value: string): string | undefined {
   const segments = splitMediaTypeParameters(value);
   if (!segments) return undefined;
@@ -223,19 +99,6 @@ export function mediaTypeBoundary(value: string): string | undefined {
     return raw || undefined;
   }
   return undefined;
-}
-
-function arrayItemSchema(schema: SchemaValue, index: number): SchemaValue {
-  if (typeof schema === 'boolean') return true;
-  const prefixItems: readonly unknown[] = Array.isArray(schema.prefixItems)
-    ? (schema.prefixItems as readonly unknown[])
-    : [];
-  if (index < prefixItems.length) {
-    const candidate: unknown = prefixItems[index];
-    return typeof candidate === 'boolean' || isRecord(candidate) ? candidate : true;
-  }
-  const items = schema.items;
-  return typeof items === 'boolean' || isRecord(items) ? items : true;
 }
 
 function defaultContentTypes(schema: SchemaValue, arrayIndex?: number): string[] {
@@ -846,38 +709,6 @@ export function analyzeOas32FormBody(options: AnalyzeOas32FormBodyOptions): Oas3
   };
 }
 
-function utf8Bytes(value: string): number {
-  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(value).length;
-  return unescape(encodeURIComponent(value)).length;
-}
-
-function contentEncodingValue(schema: SchemaValue): string | undefined {
-  return isRecord(schema) && typeof schema.contentEncoding === 'string' && schema.contentEncoding
-    ? schema.contentEncoding
-    : undefined;
-}
-
-function fakeParameter(field: Oas31FormField): DebugParam {
-  const serialization = field.encoding;
-  return {
-    name: field.name,
-    in: 'query',
-    required: field.required,
-    type: field.type,
-    format: field.format,
-    schema: field.schema,
-    parameterSerialization:
-      serialization.kind === 'style'
-        ? {
-            kind: 'schema',
-            style: serialization.style ?? 'form',
-            explode: serialization.explode ?? true,
-            allowReserved: serialization.allowReserved ?? false,
-          }
-        : { kind: 'schema', style: 'form', explode: true, allowReserved: false },
-  };
-}
-
 function serializePartHeaders(
   field: Oas31FormField,
   rawValues: Readonly<Record<string, string>>,
@@ -955,35 +786,6 @@ function serializePartHeaders(
   return values;
 }
 
-function rawFileMetadata(value: unknown): FormFileMetadata | null {
-  if (!isRecord(value) || typeof value.name !== 'string') return null;
-  return {
-    name: value.name,
-    type: typeof value.type === 'string' ? value.type : undefined,
-    size: typeof value.size === 'number' && Number.isFinite(value.size) ? value.size : undefined,
-  };
-}
-
-function representation(
-  field: Oas31FormField,
-  instance: ParameterInstance,
-  contentType: string,
-  diagnostics: FormBodyDiagnostic[],
-): string | null {
-  if (isJsonMediaType(contentType)) return JSON.stringify(instance);
-  if (instance === null) return 'null';
-  if (typeof instance === 'string' || typeof instance === 'number' || typeof instance === 'boolean')
-    return String(instance);
-  diagnostics.push(
-    diagnostic(
-      'UNSUPPORTED_CONTENT_TYPE',
-      `Field ${field.name} cannot serialize a structured value as ${contentType}.`,
-      field.name,
-    ),
-  );
-  return null;
-}
-
 function chosenContentType(
   field: Oas32FormField,
   input: SerializeOas31FormBodyInput,
@@ -1033,7 +835,7 @@ function parsedTextValue(
   contentType: string,
   diagnostics: FormBodyDiagnostic[],
 ) {
-  const parameter = fakeParameter(field);
+  const parameter = formFieldParameter(field);
   if (isJsonMediaType(contentType)) parameter.parameterSerialization = { kind: 'content', mediaType: contentType };
   const parsed = parseOas31ParameterValue(parameter, rawValue);
   if (!parsed.ok) {
@@ -1190,7 +992,7 @@ function serializeField(
   const contentType = chosenContentType(field, input, diagnostics);
   if (!contentType) return [];
   if (field.encoding.kind === 'style') {
-    const parameter = fakeParameter(field);
+    const parameter = formFieldParameter(field);
     try {
       const serialized = serializeOas31Parameters(
         { pathParams: [], queryParams: [parameter], headerParams: [], cookieParams: [] },
@@ -1282,13 +1084,8 @@ export function serializeOas32FormBody(
   if (!bodyContent.oas32Form || (bodyContent.category !== 'urlencoded' && bodyContent.category !== 'multipart')) {
     throw new Error('The selected body does not use the OAS 3.2 form encoding path.');
   }
-  const started = (input.now ?? Date.now)();
   const limits = { ...DEFAULT_LIMITS, ...(input.limits ?? {}) };
   const diagnostics: FormBodyDiagnostic[] = [...bodyContent.oas32Form.diagnostics];
-  if (input.signal?.aborted) {
-    diagnostics.push(diagnostic('FORM_MATERIALIZATION_TIMEOUT', 'Multipart materialization was cancelled.'));
-  }
-
   if (bodyContent.category === 'urlencoded') {
     if (!bodyContent.oas31Form) {
       return { kind: 'urlencoded', body: '', entries: [], instance: {}, ignoredProperties: [], diagnostics };
@@ -1301,12 +1098,6 @@ export function serializeOas32FormBody(
   const fields = collectActiveFields(bodyContent.oas32Form, input);
   const parts: MultipartPart[] = [];
   for (const field of fields) {
-    if (input.signal?.aborted || (input.now ?? Date.now)() - started > limits.maxMaterializationMs) {
-      diagnostics.push(
-        diagnostic('FORM_MATERIALIZATION_TIMEOUT', 'Multipart materialization exceeded the time budget.'),
-      );
-      break;
-    }
     if (field.depth > limits.maxDepth) {
       diagnostics.push(
         diagnostic(

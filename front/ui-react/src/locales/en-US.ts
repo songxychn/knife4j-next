@@ -606,8 +606,6 @@ const enUS = {
     'Authored MIME text must keep the media-type boundary parameter as a pair.',
   'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'A part would collide with the MIME delimiter and was rejected.',
   'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'Multipart nesting exceeds the depth limit.',
-  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT':
-    'Request materialization was cancelled or exceeded its time budget.',
   'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
     'Browser FormData cannot represent this multipart structure; an explicit envelope or diagnostic boundary is used.',
   'apiDebug.body.choosePartContentType': 'Part Content-Type',

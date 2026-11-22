@@ -16,7 +16,6 @@
 
     <properties>
         <knife4j-java.version>17</knife4j-java.version>
-        <knife4j-spring-boot3.version>3.4.7</knife4j-spring-boot3.version>
     </properties>
 
     <dependencyManagement>

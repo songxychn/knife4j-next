@@ -1,3 +1,4 @@
+import { mediaTypeEssence } from './mediaType';
 import type {
   BuiltParameterInstance,
   DebugParam,
@@ -97,7 +98,7 @@ function encodeValue(value: string, allowReserved: boolean): string {
 }
 
 /** WHATWG application/x-www-form-urlencoded encoding for content-based query parameters. */
-function encodeFormComponent(value: string): string {
+export function encodeFormComponent(value: string): string {
   return encodeURIComponent(value)
     .replace(/%20/g, '+')
     .replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -324,12 +325,12 @@ export function parseOas31ParameterValue(param: DebugParam, rawValue: string): P
 }
 
 export function isJsonMediaType(mediaType: string): boolean {
-  const essence = mediaType.split(';', 1)[0].trim().toLowerCase();
+  const essence = mediaTypeEssence(mediaType);
   return essence === 'application/json' || essence.endsWith('+json');
 }
 
 export function isTextMediaType(mediaType: string): boolean {
-  return mediaType.split(';', 1)[0].trim().toLowerCase() === 'text/plain';
+  return mediaTypeEssence(mediaType) === 'text/plain';
 }
 
 export function isSupportedParameterContentType(mediaType: string): boolean {

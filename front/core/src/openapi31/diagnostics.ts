@@ -1,3 +1,4 @@
+import { resemblesOpenApiVersionFamily } from '../openapiVersion';
 import { collectOas31CompatibilityDiagnostics, type Oas31CompatibilityDiagnosticCode } from './compatibility';
 import {
   OPENAPI_HTTP_METHODS,
@@ -112,7 +113,7 @@ function childPath(path: string, key: string): string {
 export function collectOas31DocumentDiagnostics(document: unknown): Oas31DocumentDiagnostic[] {
   if (!isRecord(document)) return [];
   const validOas31Version = isOpenApi31Version(document.openapi);
-  const resemblesOas31 = typeof document.openapi === 'string' && /^3\.1(?:[.+-]|$)/.test(document.openapi);
+  const resemblesOas31 = resemblesOpenApiVersionFamily(document.openapi, '3.1');
   if (!validOas31Version && !resemblesOas31) return [];
 
   const diagnostics: Oas31DocumentDiagnostic[] = [];

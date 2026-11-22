@@ -7,7 +7,11 @@ import {
   type Oas32UrlDiagnostic,
 } from './urlTemplates';
 import { escapeJsonPointerSegment, resolveLocalJsonPointer } from '../openapi31/document';
-import { getOpenApiSpecificationFeatures, getOpenApiStandardHttpMethods } from '../openapiVersion';
+import {
+  getOpenApiSpecificationFeatures,
+  getOpenApiStandardHttpMethods,
+  resemblesOpenApiVersionFamily,
+} from '../openapiVersion';
 import { hasOwn as owns, isRecord } from '../utils/guards';
 
 export const OAS32_SCHEMA_HELPER_VERSION = 'https://spec.openapis.org/oas/3.2/schema/2025-11-23';
@@ -888,7 +892,7 @@ class StructureCollector {
 export function collectOas32DocumentDiagnostics(document: unknown): Oas32DocumentDiagnostic[] {
   if (!isRecord(document)) return [];
   const valid = getOpenApiSpecificationFeatures(document.openapi)?.family === '3.2';
-  const resembles = typeof document.openapi === 'string' && /^3\.2(?:[.+-]|$)/.test(document.openapi);
+  const resembles = resemblesOpenApiVersionFamily(document.openapi, '3.2');
   if (!valid && !resembles) return [];
   const diagnostics = new StructureCollector(document).collect();
   if (!valid)

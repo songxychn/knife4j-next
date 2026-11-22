@@ -44,7 +44,7 @@ export async function sendDebugHttpRequest(options: DebugHttpRequestOptions): Pr
   const multipartFiles = (formValues.fileFields ?? {}) as Record<string, File[]>;
   const init: RequestInit = {
     method: built.method,
-    headers: built.headers,
+    headers: { ...built.headers },
     credentials,
     signal: signal,
   };

@@ -33,12 +33,7 @@ describe('buildRequestPreviewSafely', () => {
       value: { curl: 'displayed' } as never,
     };
     const prepared = { curl: 'prepared' } as never;
-    expect(resolveSendPreview(prepared, displayed, () => ({ curl: 'rebuilt' }) as never).value).toBe(prepared);
-    expect(resolveSendPreview(undefined, displayed, () => ({ curl: 'rebuilt' }) as never)).toBe(displayed);
-    expect(
-      resolveSendPreview(undefined, null, () => {
-        throw new Error('rebuild-failed');
-      }),
-    ).toEqual({ ok: false, error: 'rebuild-failed' });
+    expect(resolveSendPreview(prepared, displayed).value).toBe(prepared);
+    expect(resolveSendPreview(undefined, displayed)).toBe(displayed);
   });
 });
