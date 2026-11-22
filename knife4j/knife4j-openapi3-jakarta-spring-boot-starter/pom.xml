@@ -95,6 +95,26 @@
         </resources>
         <plugins>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${knife4j-build-helper-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-openapi3-shared-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Compile the common WebMvc sources against this starter's Spring dependencies. -->
+                            <sources>
+                                <source>${project.basedir}/../knife4j-openapi3-spring-boot-starter/src/shared/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
