@@ -18,11 +18,10 @@ import {
   Oas32ExportBudgetError,
   selectOas32ExportResourceSnapshot,
 } from './oas32ExportSnapshot';
-import { renderDocx, renderHtmlDoc, renderMarkdownDoc, renderWordDoc, type OfficeDocLabels } from './OfficeDoc';
-
-vi.mock('../../context/GroupContext', () => ({
-  useGroup: () => ({}),
-}));
+import { renderHtmlDoc, renderWordDoc } from './renderDocumentHtml';
+import { renderDocx } from './renderDocumentDocx';
+import { renderSnapshotMarkdown } from './renderDocumentMarkdown';
+import { type OfficeDocLabels } from './offlineDocumentPresentation';
 
 const ENTRY_URI = 'https://docs.knife4j.example/v3/api-docs';
 const SECURITY_URI = '#/components/securitySchemes/Bearer';
@@ -315,7 +314,7 @@ describe('OAS 3.2 offline export snapshot', () => {
     );
 
     const html = renderHtmlDoc(result, labels);
-    const markdown = renderMarkdownDoc(result, labels);
+    const markdown = renderSnapshotMarkdown(result, labels);
     const word = renderWordDoc(result, labels);
     const docx = await readDocumentXml(await renderDocx(result, labels));
     for (const output of [html, markdown, word, docx]) {
@@ -392,7 +391,7 @@ describe('OAS 3.2 offline export snapshot', () => {
       expect.arrayContaining([expect.objectContaining({ code: 'ITEM_SCHEMA_ABSENT' })]),
     );
     const html = renderHtmlDoc(result, { ...labels, incompleteTitle: 'INCOMPLETE SNAPSHOT' });
-    const markdown = renderMarkdownDoc(result, labels);
+    const markdown = renderSnapshotMarkdown(result, labels);
     expect(html).toContain('INCOMPLETE SNAPSHOT');
     expect(html).toContain('Sequential media');
     expect(html).toContain('json-seq');

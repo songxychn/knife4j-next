@@ -1,11 +1,10 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import JSZip from 'jszip';
 import type { MenuTag, OperationObject, SchemaObject, SwaggerDoc } from '../../types/swagger';
-import { buildDocx, buildHtmlDoc, buildMarkdownDoc, buildWordDoc, type OfficeDocLabels } from './OfficeDoc';
-
-vi.mock('../../context/GroupContext', () => ({
-  useGroup: () => ({}),
-}));
+import { buildHtmlDoc, buildWordDoc } from './renderDocumentHtml';
+import { buildDocx } from './renderDocumentDocx';
+import { buildMarkdownDoc } from './renderDocumentMarkdown';
+import { type OfficeDocLabels } from './offlineDocumentPresentation';
 
 const labels: OfficeDocLabels = {
   language: 'ja-JP',

@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import { copyToClipboard } from '../../utils/clipboard';
 import type { OfflineDocumentSnapshot } from '../document/offlineDocumentSnapshot';
-import { renderSnapshotMarkdown, useDocumentExport } from '../document/useDocumentExport';
+import { useDocumentExport } from '../document/useDocumentExport';
+import { renderSnapshotMarkdown } from '../document/renderDocumentMarkdown';
 
 export default function CopyOperationMarkdown({
   document,

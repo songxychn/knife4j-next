@@ -1,12 +1,10 @@
 import JSZip from 'jszip';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { buildExportDocument } from 'knife4j-core';
 import type { MenuOperation, MenuTag, SwaggerDoc } from '../../types/swagger';
-import { buildDocx, buildWordDoc, type OfficeDocLabels } from './OfficeDoc';
-
-vi.mock('../../context/GroupContext', () => ({
-  useGroup: () => ({}),
-}));
+import { buildWordDoc } from './renderDocumentHtml';
+import { buildDocx } from './renderDocumentDocx';
+import { type OfficeDocLabels } from './offlineDocumentPresentation';
 
 const labels: OfficeDocLabels = {
   language: 'en-US',
