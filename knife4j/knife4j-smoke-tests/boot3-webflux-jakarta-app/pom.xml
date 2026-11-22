@@ -15,7 +15,6 @@
     <name>knife4j-smoke-boot3-webflux-jakarta-app</name>
 
     <properties>
-        <knife4j-spring-boot3.version>3.4.7</knife4j-spring-boot3.version>
     </properties>
 
     <dependencyManagement>

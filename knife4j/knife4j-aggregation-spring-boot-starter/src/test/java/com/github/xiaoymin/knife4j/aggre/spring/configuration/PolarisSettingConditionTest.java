@@ -15,20 +15,19 @@
  */
 
 
-package com.github.xiaoymin.knife4j.smoke.boot3aggregation;
+package com.github.xiaoymin.knife4j.aggre.spring.configuration;
 
 import com.github.xiaoymin.knife4j.aggre.repository.PolarisRepository;
-import com.github.xiaoymin.knife4j.aggre.spring.configuration.Knife4jAggregationAutoConfiguration;
 import com.github.xiaoymin.knife4j.aggre.spring.support.PolarisSetting;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.env.MapPropertySource;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class PolarisSettingConditionSmokeTest {
+public class PolarisSettingConditionTest {
 
     @Test
     public void shouldStartWithKebabCaseServiceUrl() {
@@ -90,12 +89,12 @@ public class PolarisSettingConditionSmokeTest {
     private void assertStarts(Map<String, Object> properties) {
         try (AnnotationConfigApplicationContext context = context(properties)) {
             context.refresh();
-            Assert.assertNotNull(context.getBean(PolarisRepository.class));
+            Assertions.assertNotNull(context.getBean(PolarisRepository.class));
             Object serviceUrl = properties.get("knife4j.polaris.serviceUrl");
             if (serviceUrl == null) {
                 serviceUrl = properties.get("knife4j.polaris.service-url");
             }
-            Assert.assertEquals(serviceUrl, context.getBean(PolarisSetting.class).getServiceUrl());
+            Assertions.assertEquals(serviceUrl, context.getBean(PolarisSetting.class).getServiceUrl());
         }
     }
 
@@ -103,13 +102,13 @@ public class PolarisSettingConditionSmokeTest {
         try (AnnotationConfigApplicationContext context = context(properties)) {
             try {
                 context.refresh();
-                Assert.fail("Expected missing configuration: " + missingProperty);
+                Assertions.fail("Expected missing configuration: " + missingProperty);
             } catch (RuntimeException exception) {
                 Throwable cause = exception;
                 while (cause.getCause() != null) {
                     cause = cause.getCause();
                 }
-                Assert.assertEquals("Lack of knife4j.polaris configuration: " + missingProperty, cause.getMessage());
+                Assertions.assertEquals("Lack of knife4j.polaris configuration: " + missingProperty, cause.getMessage());
             }
         }
     }

@@ -17,8 +17,8 @@
 
 package com.github.xiaoymin.knife4j.spring.gateway.mvc;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.gateway.server.mvc.config.GatewayMvcProperties;
@@ -48,22 +48,22 @@ public class MvcGatewayDiscoveryCacheTest {
 
     @Test
     public void discoversLateRegistrationAndRemovalOnlyWhenCacheExpires() {
-        Assert.assertTrue(service.resources("").isEmpty());
+        Assertions.assertTrue(service.resources("").isEmpty());
         discovery.result = () -> List.of("user-service", "unconfigured-service");
         time.set(TimeUnit.SECONDS.toNanos(5) - 1);
-        Assert.assertTrue(service.resources("").isEmpty());
-        Assert.assertEquals(1, discovery.calls.get());
+        Assertions.assertTrue(service.resources("").isEmpty());
+        Assertions.assertEquals(1, discovery.calls.get());
         time.incrementAndGet();
         List<MvcOpenApiResource> resources = service.resources("/gateway");
-        Assert.assertEquals(1, resources.size());
-        Assert.assertEquals("user-service", resources.get(0).getName());
-        Assert.assertEquals("/gateway/users/v3/api-docs", resources.get(0).getUrl());
-        Assert.assertEquals("/gateway/users", resources.get(0).getContextPath());
-        Assert.assertEquals("/users/v3/api-docs", service.resources("").get(0).getUrl());
+        Assertions.assertEquals(1, resources.size());
+        Assertions.assertEquals("user-service", resources.get(0).getName());
+        Assertions.assertEquals("/gateway/users/v3/api-docs", resources.get(0).getUrl());
+        Assertions.assertEquals("/gateway/users", resources.get(0).getContextPath());
+        Assertions.assertEquals("/users/v3/api-docs", service.resources("").get(0).getUrl());
         discovery.result = Collections::emptyList;
         time.addAndGet(TimeUnit.SECONDS.toNanos(5));
-        Assert.assertTrue(service.resources("").isEmpty());
-        Assert.assertEquals(3, discovery.calls.get());
+        Assertions.assertTrue(service.resources("").isEmpty());
+        Assertions.assertEquals(3, discovery.calls.get());
     }
 
     @Test
@@ -75,10 +75,10 @@ public class MvcGatewayDiscoveryCacheTest {
         service.resources("");
         discovery.result = Collections::emptyList;
         time.set(TimeUnit.SECONDS.toNanos(25) - 1);
-        Assert.assertFalse(service.resources("").isEmpty());
-        Assert.assertEquals(1, discovery.calls.get());
+        Assertions.assertFalse(service.resources("").isEmpty());
+        Assertions.assertEquals(1, discovery.calls.get());
         time.incrementAndGet();
-        Assert.assertTrue(service.resources("").isEmpty());
+        Assertions.assertTrue(service.resources("").isEmpty());
     }
 
     @Test
@@ -86,11 +86,11 @@ public class MvcGatewayDiscoveryCacheTest {
         service.refresh();
         discovery.result = () -> List.of("user-service");
         service.refresh();
-        Assert.assertEquals(1, service.resources("").size());
+        Assertions.assertEquals(1, service.resources("").size());
         discovery.result = Collections::emptyList;
         service.refresh();
-        Assert.assertTrue(service.resources("").isEmpty());
-        Assert.assertEquals(3, discovery.calls.get());
+        Assertions.assertTrue(service.resources("").isEmpty());
+        Assertions.assertEquals(3, discovery.calls.get());
     }
 
     @Test
@@ -101,15 +101,15 @@ public class MvcGatewayDiscoveryCacheTest {
             throw new IllegalStateException("registry unavailable");
         };
         time.set(TimeUnit.SECONDS.toNanos(5));
-        Assert.assertEquals(1, service.resources("").size());
+        Assertions.assertEquals(1, service.resources("").size());
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals(1, service.resources("/gateway").size());
+            Assertions.assertEquals(1, service.resources("/gateway").size());
         }
-        Assert.assertEquals(2, discovery.calls.get());
+        Assertions.assertEquals(2, discovery.calls.get());
         discovery.result = Collections::emptyList;
         time.set(TimeUnit.SECONDS.toNanos(10));
-        Assert.assertTrue(service.resources("").isEmpty());
-        Assert.assertEquals(3, discovery.calls.get());
+        Assertions.assertTrue(service.resources("").isEmpty());
+        Assertions.assertEquals(3, discovery.calls.get());
     }
 
     @Test
@@ -119,8 +119,8 @@ public class MvcGatewayDiscoveryCacheTest {
             throw new IllegalStateException("registry unavailable");
         };
         time.set(TimeUnit.SECONDS.toNanos(5));
-        Assert.assertTrue(service.resources("").isEmpty());
-        Assert.assertEquals(2, discovery.calls.get());
+        Assertions.assertTrue(service.resources("").isEmpty());
+        Assertions.assertEquals(2, discovery.calls.get());
     }
 
     @Test
@@ -130,15 +130,15 @@ public class MvcGatewayDiscoveryCacheTest {
         };
         service.refresh();
         for (int i = 0; i < 2; i++) {
-            ResponseStatusException failure = Assert.assertThrows(ResponseStatusException.class,
+            ResponseStatusException failure = Assertions.assertThrows(ResponseStatusException.class,
                     () -> service.resources(""));
-            Assert.assertEquals(503, failure.getStatusCode().value());
+            Assertions.assertEquals(503, failure.getStatusCode().value());
         }
-        Assert.assertEquals(1, discovery.calls.get());
+        Assertions.assertEquals(1, discovery.calls.get());
         discovery.result = () -> List.of("user-service");
         time.set(TimeUnit.SECONDS.toNanos(5));
-        Assert.assertEquals(1, service.resources("").size());
-        Assert.assertEquals(2, discovery.calls.get());
+        Assertions.assertEquals(1, service.resources("").size());
+        Assertions.assertEquals(2, discovery.calls.get());
     }
 
     @Test
@@ -156,23 +156,23 @@ public class MvcGatewayDiscoveryCacheTest {
         ExecutorService executor = Executors.newFixedThreadPool(8);
         try {
             Future<List<MvcOpenApiResource>> refreshing = executor.submit(() -> service.resources(""));
-            Assert.assertTrue(querying.await(5, TimeUnit.SECONDS));
+            Assertions.assertTrue(querying.await(5, TimeUnit.SECONDS));
             List<Future<List<MvcOpenApiResource>>> readers = new ArrayList<>();
             for (int i = 0; i < 16; i++) {
                 readers.add(executor.submit(() -> service.resources("/gateway")));
             }
             for (Future<List<MvcOpenApiResource>> reader : readers) {
-                Assert.assertEquals("/gateway/users/v3/api-docs", reader.get(5, TimeUnit.SECONDS).get(0).getUrl());
+                Assertions.assertEquals("/gateway/users/v3/api-docs", reader.get(5, TimeUnit.SECONDS).get(0).getUrl());
             }
-            Assert.assertEquals(2, discovery.calls.get());
+            Assertions.assertEquals(2, discovery.calls.get());
             release.countDown();
-            Assert.assertTrue(refreshing.get(5, TimeUnit.SECONDS).isEmpty());
-            Assert.assertTrue(service.resources("").isEmpty());
-            Assert.assertEquals(2, discovery.calls.get());
+            Assertions.assertTrue(refreshing.get(5, TimeUnit.SECONDS).isEmpty());
+            Assertions.assertTrue(service.resources("").isEmpty());
+            Assertions.assertEquals(2, discovery.calls.get());
         } finally {
             release.countDown();
             executor.shutdownNow();
-            Assert.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+            Assertions.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
         }
     }
 
@@ -190,18 +190,18 @@ public class MvcGatewayDiscoveryCacheTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             Future<?> request = executor.submit(() -> service.resources(""));
-            Assert.assertTrue(querying.await(5, TimeUnit.SECONDS));
+            Assertions.assertTrue(querying.await(5, TimeUnit.SECONDS));
             discovery.result = () -> List.of("user-service");
             Future<?> event = executor.submit(service::refresh);
             release.countDown();
             request.get(5, TimeUnit.SECONDS);
             event.get(5, TimeUnit.SECONDS);
-            Assert.assertEquals(1, service.resources("").size());
-            Assert.assertEquals(3, discovery.calls.get());
+            Assertions.assertEquals(1, service.resources("").size());
+            Assertions.assertEquals(3, discovery.calls.get());
         } finally {
             release.countDown();
             executor.shutdownNow();
-            Assert.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+            Assertions.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
         }
     }
 

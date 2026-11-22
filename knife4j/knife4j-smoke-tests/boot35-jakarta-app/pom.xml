@@ -15,6 +15,7 @@
     <name>knife4j-smoke-boot35-jakarta-app</name>
 
     <properties>
+        <!-- Exercise the minimum supported Boot 3.5 version for the Jakarta MVC starter. -->
         <knife4j-spring-boot3.version>3.5.1</knife4j-spring-boot3.version>
     </properties>
 
