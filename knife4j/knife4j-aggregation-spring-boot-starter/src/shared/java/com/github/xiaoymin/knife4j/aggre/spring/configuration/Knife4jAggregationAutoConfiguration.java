@@ -21,7 +21,6 @@ import com.github.xiaoymin.knife4j.aggre.core.RouteCache;
 import com.github.xiaoymin.knife4j.aggre.core.RouteDispatcher;
 import com.github.xiaoymin.knife4j.aggre.core.RouteRepository;
 import com.github.xiaoymin.knife4j.aggre.core.cache.RouteInMemoryCache;
-import com.github.xiaoymin.knife4j.aggre.core.common.ExecutorEnum;
 import com.github.xiaoymin.knife4j.aggre.core.filter.Knife4jRouteProxyFilter;
 import com.github.xiaoymin.knife4j.aggre.core.filter.Knife4jSecurityBasicAuthFilter;
 import com.github.xiaoymin.knife4j.aggre.core.pojo.BasicAuth;
@@ -110,8 +109,7 @@ public class Knife4jAggregationAutoConfiguration {
                 contextPath = RouteDispatcher.ROUTE_BASE_PATH + contextPath;
             }
         }
-        return new RouteDispatcher(routeRepository, routeCache, ExecutorEnum.APACHE, contextPath,
-                knife4jAggregationProperties.getProviderTimeoutMs());
+        return RouteDispatcherFactory.create(routeRepository, routeCache, contextPath, knife4jAggregationProperties);
     }
 
     @Bean
