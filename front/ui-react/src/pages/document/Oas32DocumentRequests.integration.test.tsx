@@ -1,6 +1,8 @@
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { GlobalParamItem } from '../../context/GlobalParamContext';
 import type { SwaggerDoc } from '../../types/swagger';
+import { createReactTestRoot, stubLayoutApis } from '../../test/reactTestRoot';
 
 const state = vi.hoisted(() => ({
   group: {} as Record<string, unknown>,
@@ -14,64 +16,13 @@ const state = vi.hoisted(() => ({
   updateParam: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
-  memoIndex: 0,
-  memos: [] as Array<{ deps: unknown[]; value: unknown }>,
-  jsx: (type: unknown, props: Record<string, unknown> | null) => ({ type, props: props ?? {} }),
 }));
 
-vi.mock('react', () => ({
-  useEffect: () => undefined,
-  useState: <T,>(initial: T) => [initial, vi.fn()],
-  useMemo: <T,>(factory: () => T, deps: unknown[]) => {
-    const index = state.memoIndex++;
-    const previous = state.memos[index];
-    if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) {
-      state.memos[index] = { deps, value: factory() };
-    }
-    return state.memos[index].value;
-  },
-}));
-vi.mock('react/jsx-runtime', () => ({ jsx: state.jsx, jsxs: state.jsx, jsxDEV: state.jsx, Fragment: 'Fragment' }));
-vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: state.jsx, Fragment: 'Fragment' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('antd', () => ({
-  Alert: 'Alert',
-  Button: 'Button',
-  Card: 'Card',
-  Collapse: 'Collapse',
-  Modal: 'Modal',
-  Popconfirm: 'Popconfirm',
-  Select: 'Select',
-  Spin: 'Spin',
-  Switch: 'Switch',
-  Table: 'Table',
-  Tabs: 'Tabs',
-  Tag: 'Tag',
-  Typography: { Text: 'Text' },
-  Space: { Compact: 'Compact' },
-  Input: { Password: 'Password', TextArea: 'TextArea' },
-  Form: {
-    Item: 'FormItem',
-    useWatch: () => undefined,
-    useForm: () => [
-      {
-        validateFields: vi.fn().mockResolvedValue({}),
-        getFieldsValue: () => state.cookieSession,
-        setFieldsValue: vi.fn(),
-      },
-    ],
-  },
+vi.mock('antd', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('antd')>()),
   message: { success: state.success, error: state.error },
 }));
-vi.mock('@ant-design/icons', () => ({
-  DeleteOutlined: 'DeleteOutlined',
-  EditOutlined: 'EditOutlined',
-  KeyOutlined: 'KeyOutlined',
-  PlusOutlined: 'PlusOutlined',
-  ReloadOutlined: 'ReloadOutlined',
-  SendOutlined: 'SendOutlined',
-}));
-vi.mock('../../components/RevealableValue', () => ({ default: 'RevealableValue' }));
 vi.mock('../../context/GroupContext', () => ({ useGroup: () => state.group }));
 vi.mock('../../context/SettingsContext', () => ({ useSettings: () => ({ settings: state.settings }) }));
 vi.mock('../../context/GlobalParamContext', () => ({
@@ -91,24 +42,7 @@ vi.mock('../../context/GlobalParamContext', () => ({
 import CookieSession from './CookieSession';
 import GlobalParam from './GlobalParam';
 
-interface Element {
-  type: unknown;
-  props: Record<string, unknown>;
-}
-
-function find(value: unknown, predicate: (element: Element) => boolean): Element | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  if ('type' in value && 'props' in value && predicate(value as Element)) return value as Element;
-  return Object.values(value)
-    .map((child) => find(child, predicate))
-    .find(Boolean);
-}
-
-function render(component: () => unknown): unknown {
-  state.memoIndex = 0;
-  const element = component() as Element;
-  return (element.type as (props: Record<string, unknown>) => unknown)(element.props);
-}
+let view: ReturnType<typeof createReactTestRoot>;
 
 const param: GlobalParamItem = {
   id: 'dynamic',
@@ -128,28 +62,17 @@ const consumers = [
 ];
 
 async function send(consumer: (typeof consumers)[number], expectedBase: string): Promise<void> {
-  const tree = render(consumer.component);
-  let actionTree = tree;
-  if (consumer.action === 'fetch') {
-    const table = find(tree, (element) => element.type === 'Table')!;
-    const columns = table.props.columns as Array<{
-      key: string;
-      render?: (value: unknown, row: GlobalParamItem) => unknown;
-    }>;
-    actionTree = columns.find((column) => column.key === 'action')!.render!(undefined, param);
-  }
-  const button = find(
-    actionTree,
-    (element) =>
-      element.type === 'Button' &&
-      (consumer.action === 'fetch'
-        ? element.props.title === 'globalParam.btn.fetch'
-        : element.props.children === `globalParam.cookie.${consumer.action}`),
-  )!;
+  const Page = consumer.component;
+  await view.render(<Page />);
+  const button = [...view.container.querySelectorAll('button')].find((item) =>
+    consumer.action === 'fetch'
+      ? item.title === 'globalParam.btn.fetch'
+      : item.textContent === `globalParam.cookie.${consumer.action}`,
+  );
   expect(button).toBeDefined();
   const completed = state.success.mock.calls.length + state.error.mock.calls.length;
-  (button.props.onClick as () => void)();
-  await vi.waitFor(() => expect(state.success.mock.calls.length + state.error.mock.calls.length).toBe(completed + 1));
+  await act(async () => button!.click());
+  expect(state.success.mock.calls.length + state.error.mock.calls.length).toBe(completed + 1);
   expect(state.error.mock.calls).toEqual([]);
   expect(fetcher).toHaveBeenLastCalledWith(
     `${expectedBase}/${consumer.suffix}`,
@@ -161,7 +84,8 @@ async function send(consumer: (typeof consumers)[number], expectedBase: string):
 
 beforeEach(() => {
   vi.clearAllMocks();
-  state.memos = [];
+  stubLayoutApis();
+  view = createReactTestRoot();
   state.settings = { enableHost: false, enableHostText: '' };
   state.params = [param];
   state.group = {
@@ -171,11 +95,14 @@ beforeEach(() => {
     loading: false,
     routeGroupReady: true,
   };
-  vi.stubGlobal('window', { location: { origin: 'https://ui.test' } });
   fetcher.mockImplementation(async () => new Response(JSON.stringify({ token: 'synthetic-token' }), { status: 200 }));
   vi.stubGlobal('fetch', fetcher);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(async () => {
+  await view.unmount();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 for (const consumer of consumers)
   describe(consumer.name, () => {
@@ -193,9 +120,24 @@ for (const consumer of consumers)
         host: 'https://override.test/custom',
         expected: 'https://override.test/custom',
       },
-      { name: 'gateway override', version: '3.2.0', contextPath: '/gateway', expected: 'https://ui.test/gateway' },
-      { name: 'OAS 3.0 behavior', version: '3.0.3', servers: [{ url: '/legacy' }], expected: 'https://ui.test/legacy' },
-      { name: 'OAS 3.1 behavior', version: '3.1.2', servers: [{ url: '/legacy' }], expected: 'https://ui.test/legacy' },
+      {
+        name: 'gateway override',
+        version: '3.2.0',
+        contextPath: '/gateway',
+        expected: `${window.location.origin}/gateway`,
+      },
+      {
+        name: 'OAS 3.0 behavior',
+        version: '3.0.3',
+        servers: [{ url: '/legacy' }],
+        expected: `${window.location.origin}/legacy`,
+      },
+      {
+        name: 'OAS 3.1 behavior',
+        version: '3.1.2',
+        servers: [{ url: '/legacy' }],
+        expected: `${window.location.origin}/legacy`,
+      },
     ])('sends using $name', async ({ version, servers, expected, host, contextPath }) => {
       state.group.swaggerDoc = {
         openapi: version,

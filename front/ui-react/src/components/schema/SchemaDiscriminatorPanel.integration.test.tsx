@@ -1,44 +1,33 @@
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { collectOas32DocumentDiagnostics } from 'knife4j-core';
 import type { SwaggerDoc } from '../../types/swagger';
 import { ExternalResourceLoader } from '../../schema/externalResourceGraph';
 import { componentDiscriminatorLocation, describeSchemaDiscriminator } from '../../schema/schemaDiscriminatorView';
 
-const { jsxFactory } = vi.hoisted(() => ({
-  jsxFactory: (type: unknown, props: Record<string, unknown>) => ({ type, props }),
-}));
-vi.mock('react/jsx-runtime', () => ({ jsx: jsxFactory, jsxs: jsxFactory, jsxDEV: jsxFactory, Fragment: 'Fragment' }));
-vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: jsxFactory, Fragment: 'Fragment' }));
-vi.mock('antd', () => ({
-  Alert: 'Alert',
-  Button: 'Button',
-  Select: 'Select',
-  Space: 'Space',
-  Typography: { Text: 'Text' },
-}));
+import { createReactTestRoot } from '../../test/reactTestRoot';
+
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('../../pages/api/CodeBlock', () => ({ default: 'CodeBlock' }));
-vi.mock('./SchemaFieldTable', () => ({ SchemaTypeLink: 'SchemaTypeLink' }));
+vi.mock('./SchemaFieldTable', () => ({
+  SchemaTypeLink: ({ node }: { node: { refName?: string } }) => (
+    <span data-model-link={node.refName}>{node.refName}</span>
+  ),
+}));
 
 import SchemaDiscriminatorPanel from './SchemaDiscriminatorPanel';
+
+let view: ReturnType<typeof createReactTestRoot>;
+beforeEach(() => {
+  view = createReactTestRoot();
+});
+afterEach(async () => {
+  await view.unmount();
+});
 
 const uri = 'https://retrieval.example/entry.json';
 const libraryUri = 'https://retrieval.example/library.json';
 
-interface Element {
-  type: unknown;
-  props: Record<string, unknown>;
-}
-
-function elements(value: unknown): Element[] {
-  if (Array.isArray(value)) return value.flatMap(elements);
-  if (value === null || typeof value !== 'object' || !('type' in value) || !('props' in value)) return [];
-  const element = value as Element;
-  return [element, ...Object.values(element.props).flatMap(elements)];
-}
-
 describe('SchemaDiscriminatorPanel', () => {
-  test('previews external same-name targets in place and keeps entry models on the model route', () => {
+  test('previews external same-name targets in place and keeps entry models on the model route', async () => {
     const document = {
       openapi: '3.2.0',
       info: { title: 'Discriminator panel', version: '1' },
@@ -65,16 +54,15 @@ describe('SchemaDiscriminatorPanel', () => {
     expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
     const snapshot = new ExternalResourceLoader(document, uri).currentSnapshot();
     const metadata = describeSchemaDiscriminator(snapshot, componentDiscriminatorLocation(uri, 'Payload'));
-    const tree = SchemaDiscriminatorPanel({ metadata, operationToken: 'payload' });
-    const nodes = elements(tree);
-    expect(nodes.some((node) => node.props['data-discriminator-preview'] === 'external')).toBe(true);
-    expect(nodes.some((node) => node.props['data-discriminator-preview'] === 'model')).toBe(true);
-    const links = nodes.filter((node) => node.type === 'SchemaTypeLink');
-    expect(links.every((link) => (link.props.node as { refName?: string }).refName !== undefined)).toBe(true);
-    expect(links.some((link) => (link.props.node as { refName?: string }).refName === 'Known')).toBe(true);
+    await view.render(<SchemaDiscriminatorPanel metadata={metadata} operationToken="payload" />);
+    const external = view.container.querySelector('[data-discriminator-preview="external"]');
+    expect(external?.textContent).toContain('schema.discriminator.preview.external');
+    expect(external?.querySelector('[data-model-link]')).toBeNull();
+    const models = [...view.container.querySelectorAll('[data-discriminator-preview="model"] [data-model-link]')];
+    expect(models.map((model) => model.textContent)).toContain('Known');
   });
 
-  test('hides the panel for OAS 3.1 documents', () => {
+  test('hides the panel for OAS 3.1 documents', async () => {
     const document = {
       openapi: '3.1.0',
       info: { title: 'OAS 3.1 discriminator regression', version: '1' },
@@ -90,10 +78,11 @@ describe('SchemaDiscriminatorPanel', () => {
     } as SwaggerDoc;
     const snapshot = new ExternalResourceLoader(document, uri).currentSnapshot();
     const metadata = describeSchemaDiscriminator(snapshot, componentDiscriminatorLocation(uri, 'Payload'));
-    expect(SchemaDiscriminatorPanel({ metadata, operationToken: 'payload' })).toBeNull();
+    await view.render(<SchemaDiscriminatorPanel metadata={metadata} operationToken="payload" />);
+    expect(view.container.childElementCount).toBe(0);
   });
 
-  test('does not pretend-select the first overlapping branch or enable generate until chosen', () => {
+  test('does not pretend-select the first overlapping branch or enable generate until chosen', async () => {
     const document = {
       openapi: '3.2.0',
       info: { title: 'Overlapping oneOf', version: '1' },
@@ -115,18 +104,18 @@ describe('SchemaDiscriminatorPanel', () => {
     expect(collectOas32DocumentDiagnostics(document)).toEqual([]);
     const snapshot = new ExternalResourceLoader(document, uri).currentSnapshot();
     const metadata = describeSchemaDiscriminator(snapshot, componentDiscriminatorLocation(uri, 'Payload'));
-    const tree = SchemaDiscriminatorPanel({
-      metadata,
-      snapshot,
-      session: { token: 'session' } as never,
-      operationToken: 'payload',
-    });
-    const nodes = elements(tree);
-    const select = nodes.find((node) => node.type === 'Select');
-    const options = select?.props.options as Array<{ value: string }> | undefined;
-    expect(select?.props.value).toBeUndefined();
-    expect(options?.length).toBeGreaterThan(1);
-    expect(options?.[0]?.value).toEqual(expect.any(String));
-    expect(nodes.find((node) => node.props['data-discriminator-generate'] === 'explicit')?.props.disabled).toBe(true);
+    await view.render(
+      <SchemaDiscriminatorPanel
+        metadata={metadata}
+        snapshot={snapshot}
+        session={{ token: 'session' } as never}
+        operationToken="payload"
+      />,
+    );
+    expect(view.container.querySelectorAll('[role="combobox"]').length).toBeGreaterThan(0);
+    expect(view.container.textContent).toContain('schema.discriminator.generate.ambiguous');
+    expect(
+      view.container.querySelector<HTMLButtonElement>('button[data-discriminator-generate="explicit"]')?.disabled,
+    ).toBe(true);
   });
 });

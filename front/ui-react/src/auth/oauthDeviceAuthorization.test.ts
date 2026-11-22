@@ -5,7 +5,7 @@ import {
   type OAuthDeviceAuthorizationInput,
   type OAuthDeviceAuthorizationResult,
   type OAuthDeviceSnapshot,
-} from './oauthDeviceAuthorization';
+} from 'knife4j-core';
 
 const deviceUrl = 'https://auth.example.test/device?tenant=test%2Btenant';
 const tokenUrl = 'https://auth.example.test/token?tenant=test%2Btenant';

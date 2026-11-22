@@ -237,7 +237,7 @@ function parseJson(text: string): Record<string, unknown> {
       else if (token === '}' || token === ']') depth--;
       else if (token === ',' && depth === 1) expectsName = true;
       else if (depth === 1 && expectsName && token.startsWith('"')) {
-        const name: string = JSON.parse(token);
+        const name = JSON.parse(token) as string;
         if (names.has(name)) throw new ProtocolFailure('invalid_response');
         names.add(name);
         expectsName = false;
@@ -272,10 +272,7 @@ function readDevice(payload: Record<string, unknown>) {
   return {
     deviceCode: payload.device_code,
     expiresMs: milliseconds(payload.expires_in),
-    intervalMs: Math.max(
-      OAUTH_DEVICE_LIMITS.minimumIntervalMs,
-      milliseconds((payload.interval as number | undefined) ?? 5),
-    ),
+    intervalMs: Math.max(OAUTH_DEVICE_LIMITS.minimumIntervalMs, milliseconds(payload.interval ?? 5)),
     verification: Object.freeze({
       uri,
       userCode: payload.user_code,

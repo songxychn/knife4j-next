@@ -2,6 +2,7 @@ export * from './utils/guards';
 export * from './models/SpecParserFactory';
 export * from './models/SpecType';
 export * from './debug';
+export * from './auth/oauthDeviceAuthorization';
 export * from './exportDocument';
 export * from './openapi31';
 export * from './openapi32';

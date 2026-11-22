@@ -1,18 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// This suite exercises the exported storage/merge helpers in a Node environment.
-// The provider itself is covered by the front build, so a minimal React facade
-// keeps Vitest from selecting React's server-only conditional export here.
-vi.mock('react', () => ({
-  default: {},
-  createContext: () => ({}),
-  useCallback: vi.fn(),
-  useContext: vi.fn(),
-  useEffect: vi.fn(),
-  useMemo: vi.fn(),
-  useRef: vi.fn(),
-  useState: vi.fn(),
-}));
 import {
   applicationStorageKey,
   type GlobalParamItem,
@@ -24,7 +11,7 @@ import {
   normalizeParam,
   normalizeStoredApplicationParams,
   resolveEffectiveParams,
-} from './GlobalParamContext';
+} from './globalParamState';
 
 function param(overrides: Partial<GlobalParamItem> & Pick<GlobalParamItem, 'id' | 'name'>): GlobalParamItem {
   return {

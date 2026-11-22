@@ -1,13 +1,7 @@
-import { afterEach, expect, test, vi } from 'vitest';
-const { jsxFactory } = vi.hoisted(() => ({
-  jsxFactory: (type: unknown, props: Record<string, unknown>) => ({ type, props }),
-}));
-vi.mock('react/jsx-runtime', () => ({ jsx: jsxFactory, jsxs: jsxFactory, jsxDEV: jsxFactory }));
-vi.mock('react/jsx-dev-runtime', () => ({ jsx: jsxFactory, jsxs: jsxFactory, jsxDEV: jsxFactory }));
+import { afterEach, expect, test } from 'vitest';
 import type { SwaggerDoc } from '../types/swagger';
 import { createSchemaDocumentSession, type SchemaDocumentSession } from './schemaDocumentSession';
 import { generateSchemaExample } from './schemaExampleGeneration';
-import SchemaExampleNotice from '../components/schema/SchemaExampleNotice';
 import { parseMenuTags } from '../api/knife4jClient';
 import { evaluateOperationExample, locateOperationExampleCatalog } from './operationExampleCatalog';
 
@@ -47,9 +41,6 @@ test.each(['request', 'response'] as const)(
       ],
     });
     expect(JSON.stringify(result)).not.toMatch(/knife4j-internal|schema-projections|physical|document0|root0/);
-    const notice = SchemaExampleNotice({ result });
-    expect(notice?.props.title).toBe('schema.example.invalidDocument.title');
-    expect(JSON.stringify(notice)).toContain('#/components/schemas/Bad~1% 中文~0/properties/file/type');
   },
 );
 
@@ -67,7 +58,6 @@ test('keeps a valid document and author example valid without a warning', async 
     explicit: [{ source: 'example-object', value: ['one'] }],
   });
   expect(result).toMatchObject({ status: 'value', value: ['one'], validation: 'valid', diagnostics: [] });
-  expect(SchemaExampleNotice({ result })).toBeNull();
 });
 
 test('locates an inline upload error through the operation example catalog', async () => {

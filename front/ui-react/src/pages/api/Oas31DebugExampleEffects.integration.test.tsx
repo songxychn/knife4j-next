@@ -73,6 +73,11 @@ function LoaderHost(props: Oas31DebugExampleLoaderProps) {
   return null;
 }
 
+function HydratorHost(props: Parameters<typeof useOas31DebugDefaultHydrator>[0]) {
+  useOas31DebugDefaultHydrator(props);
+  return null;
+}
+
 // This host supplies the same state/ref contract as ApiDebug. The production
 // effect hooks run through React's renderer, dependency tracking and cleanup.
 function DebugDefaults({
@@ -165,6 +170,89 @@ describe('real React debug example lifecycle', () => {
     expect(signals[1].aborted).toBe(true);
     await act(async () => current.resolve(examples));
     expect(setState.mock.calls.map(([value]) => value.status)).toEqual(['loading', 'loading']);
+  });
+
+  test.each(['another group', 'new document at the same address'] as const)(
+    'accepts only results owned by the latest task (%s)',
+    async (scenario) => {
+      const previous = deferred<Oas31DebugBodyExamples>();
+      const current = deferred<Oas31DebugBodyExamples>();
+      const setState = vi.fn();
+      const originalGenerator = vi.fn(() => previous.promise);
+      const currentGenerator = vi.fn(() => current.promise);
+      await act(async () =>
+        root.render(<LoaderHost {...loaderProps} setState={setState} generateExamples={originalGenerator} />),
+      );
+      expect(setState).toHaveBeenLastCalledWith({ status: 'loading', identity });
+
+      const nextDocument = { ...apiDocument };
+      const nextSession = {
+        ...session,
+        retrievalUri:
+          scenario === 'another group' ? 'https://examples.knife4j.example/other.json' : session.retrievalUri,
+      };
+      const nextOperation = scenario === 'another group' ? { ...operation, key: 'Pets/put' } : operation;
+      const nextIdentity = {
+        document: nextDocument,
+        session: nextSession,
+        retrievalUri: nextSession.retrievalUri,
+        operationKey: nextOperation.key,
+      };
+      await act(async () =>
+        root.render(
+          <LoaderHost
+            {...loaderProps}
+            document={nextDocument}
+            operation={nextOperation}
+            session={nextSession}
+            identity={nextIdentity}
+            setState={setState}
+            generateExamples={currentGenerator}
+          />,
+        ),
+      );
+      await act(async () => previous.resolve(examples));
+      expect(setState).toHaveBeenLastCalledWith({ status: 'loading', identity: nextIdentity });
+      await act(async () => current.resolve(examples));
+      const ready = setState.mock.calls.filter(([value]) => value.status === 'ready');
+      expect(ready).toEqual([[{ status: 'ready', identity: nextIdentity, examples }]]);
+    },
+  );
+
+  test('applies a current result only once and ignores edits and stale identities', async () => {
+    const state: Oas31DebugExampleState = { status: 'ready', identity, examples };
+    const editRevisionRef = { current: 1 };
+    const appliedIdentityRef: { current: Oas31DebugExampleIdentity | null } = { current: null };
+    const setBody = vi.fn();
+    const setFormFields = vi.fn();
+    const props = {
+      state,
+      editRevisionRef,
+      appliedIdentityRef,
+      hydratedDebugCacheKey: 'pets',
+      currentDebugCacheKey: 'pets',
+      selectedBody: debugModel.bodyContents[0],
+      setBody,
+      setFormFields,
+    };
+
+    await act(async () => root.render(<HydratorHost {...props} identity={identity} activeExamples={examples} />));
+    expect(setBody).not.toHaveBeenCalled();
+
+    editRevisionRef.current = 0;
+    const staleIdentity = { ...identity, document: { ...apiDocument }, session: { ...session } };
+    await act(async () => root.render(<HydratorHost {...props} identity={staleIdentity} activeExamples={null} />));
+    expect(setBody).not.toHaveBeenCalled();
+
+    await act(async () => root.render(<HydratorHost {...props} identity={identity} activeExamples={examples} />));
+    expect(setBody).toHaveBeenCalledWith(examples.defaults.bodyByMediaType['application/json']);
+    expect(setFormFields).toHaveBeenCalledWith({});
+    expect(appliedIdentityRef.current).toBe(identity);
+
+    await act(async () =>
+      root.render(<HydratorHost {...props} identity={identity} activeExamples={{ ...examples }} />),
+    );
+    expect(setBody).toHaveBeenCalledOnce();
   });
 
   test('hydrates after cache restoration and keeps subsequent edits across rerenders', async () => {
