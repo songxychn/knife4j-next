@@ -19,10 +19,17 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('antd', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('antd')>()),
-  message: { success: state.success, error: state.error },
-}));
+// The request handlers still run on real clicks and read the actual Form store.
+vi.mock('antd', async (importOriginal) => {
+  const { FixtureButton, FixtureTable, FixtureTabs } = await import('../../test/antdContentFixtures');
+  return {
+    ...(await importOriginal<typeof import('antd')>()),
+    Button: FixtureButton,
+    Table: FixtureTable,
+    Tabs: FixtureTabs,
+    message: { success: state.success, error: state.error },
+  };
+});
 vi.mock('../../context/GroupContext', () => ({ useGroup: () => state.group }));
 vi.mock('../../context/SettingsContext', () => ({ useSettings: () => ({ settings: state.settings }) }));
 vi.mock('../../context/GlobalParamContext', () => ({

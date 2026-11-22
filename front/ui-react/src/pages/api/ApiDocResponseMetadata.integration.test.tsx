@@ -5,7 +5,7 @@ import { collectOas32DocumentDiagnostics, type SchemaFieldNode } from 'knife4j-c
 import { parseMenuTags } from '../../api/knife4jClient';
 import { ExternalResourceLoader } from '../../schema/externalResourceGraph';
 import { createSchemaDocumentSession } from '../../schema/schemaDocumentSession';
-import { createReactTestRoot, stubLayoutApis } from '../../test/reactTestRoot';
+import { createReactTestRoot } from '../../test/reactTestRoot';
 import type { MenuOperation, MenuTag, SwaggerDoc } from '../../types/swagger';
 import { schemaNodeTypeLabel } from '../../components/schema/schemaUtils';
 import ApiDoc from './ApiDoc';
@@ -16,6 +16,31 @@ const state = vi.hoisted(() => ({
   tags: [] as unknown[],
   engine: { status: 'inactive' } as Record<string, unknown>,
 }));
+// This suite exercises ApiDoc's projection effects and cell content.
+vi.mock('antd', async (importOriginal) => {
+  const { FixtureButton, FixtureTable, FixtureTabs } = await import('../../test/antdContentFixtures');
+  return {
+    ...(await importOriginal<typeof import('antd')>()),
+    Alert: ({ title, description }: { title?: ReactNode; description?: ReactNode }) => (
+      <div role="alert">
+        {title}
+        {description}
+      </div>
+    ),
+    Badge: ({ text }: { text?: ReactNode }) => <span>{text}</span>,
+    Button: FixtureButton,
+    Space: ({ children }: { children?: ReactNode }) => <div data-space="">{children}</div>,
+    Table: FixtureTable,
+    Tabs: FixtureTabs,
+    Tag: ({ children }: { children?: ReactNode }) => <span data-response-tag="">{children}</span>,
+    Typography: {
+      Title: ({ children }: { children?: ReactNode }) => <h4>{children}</h4>,
+      Text: ({ children, strong, code }: { children?: ReactNode; strong?: boolean; code?: boolean }) =>
+        strong ? <strong>{children}</strong> : code ? <code>{children}</code> : <span>{children}</span>,
+      Paragraph: ({ children }: { children?: ReactNode }) => <p>{children}</p>,
+    },
+  };
+});
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('../../context/GroupContext', () => ({
   useGroup: () => ({ activeGroup: { value: 'fixture' }, menuTags: state.tags }),
@@ -44,14 +69,11 @@ vi.mock('../../components/schema/SchemaFieldTable', () => ({
 
 let view: ReturnType<typeof createReactTestRoot>;
 beforeEach(() => {
-  stubLayoutApis();
   view = createReactTestRoot();
 });
 afterEach(async () => {
   await view.unmount();
   state.engine = { status: 'inactive' };
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 async function render(document: SwaggerDoc, tags?: MenuTag[]) {
@@ -66,8 +88,10 @@ async function render(document: SwaggerDoc, tags?: MenuTag[]) {
 }
 
 function responseSection(statusCode: string) {
-  const tag = [...view.container.querySelectorAll('.ant-tag')].find((node) => node.textContent === statusCode);
-  return tag?.closest('.ant-space')?.parentElement;
+  const tag = [...view.container.querySelectorAll('[data-response-tag]')].find(
+    (node) => node.textContent === statusCode,
+  );
+  return tag?.closest('[data-space]')?.parentElement;
 }
 
 function responseSummary(statusCode: string) {
