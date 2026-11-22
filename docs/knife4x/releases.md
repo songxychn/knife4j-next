@@ -6,6 +6,13 @@ title: Go 版本记录
 
 以下保留各已发布版本的历史范围，不代表所有能力在旧版本均可用。当前接入方式见[快速开始](./index.md)，API 见[配置参考](./configuration.md)。
 
+## v0.10.1
+
+- 同步共享 React UI。请求体、响应体和数据模型的字段表在 JSON 字段名下显示属性的 Schema `title`，说明列继续显示 `description`。（[#1086](https://github.com/songxychn/knife4j-next/pull/1086)）
+- `SpecURL` 和 `Specs[].URL` 使用同一校验规则，拒绝反斜线和 URL 内凭据。`UISettings.Language` 由共享 UI 解析，不支持的值沿用语言检测。调整 Basic Auth 路径匹配，继续把原请求交给宿主 Handler。（[#1070](https://github.com/songxychn/knife4j-next/pull/1070)、[#1078](https://github.com/songxychn/knife4j-next/pull/1078)）
+
+公共库只依赖标准库，要求 Go 1.22+，独立 Gin 示例要求 Go 1.26+。部署方式和浏览器下限见[部署说明](./deployment.md)与[兼容矩阵](../reference/compatibility.md)。
+
 ## v0.10.0
 
 相较于 `v0.9.2`，新增 Go 宿主的文档访问保护、多分组与 UI 配置（PR [#1053](https://github.com/songxychn/knife4j-next/pull/1053)）：

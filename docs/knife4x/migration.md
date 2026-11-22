@@ -15,7 +15,7 @@ Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确
 入口不接受 YAML；3.1 与 3.2 的 Schema、外部资源及浏览器调试边界见
 [OpenAPI 3.1](../guide/openapi31.md)和[OpenAPI 3.2](../guide/openapi32.md)。
 
-从已有 Knife4x `v0.5.0` 单 spec 接法升级到 `v0.10.0`，不需要修改 `Config`、
+从已有 Knife4x `v0.5.0` 单 spec 接法升级到 `v0.10.1`，不需要修改 `Config`、
 `NewHandler` 或挂载路径。OAS 3.1 消费从 `v0.6.0` 起提供，OAS 3.2 从 `v0.8.0` 起提供；
 历史变化见[版本记录](./releases.md)。
 
@@ -40,7 +40,7 @@ Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确
 业务 API 仍按文档的 `servers` 和 path 解析，不会自动拼接 UI 前缀。
 
 原先挂在 Gin `/swagger/*any` 或 group 上的认证不会自动覆盖新外层 UI。
-需要把自有中间件移到最终 Handler 外层，或使用[`v0.10.0` 的 Basic Auth](./deployment.md#basic-auth-与保护范围)。
+需要把自有中间件移到最终 Handler 外层，或使用[内置 Basic Auth](./deployment.md#basic-auth-与保护范围)。
 `BasicAuth`、`Disabled`、`Specs`、`UISettings` 和 `Documents` 从 `v0.10.0` 起可用；
 旧版消费者需先升级再使用这些配置。完整定义见[配置参考](./configuration.md)。
 
