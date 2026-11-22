@@ -6,17 +6,17 @@
 
 ## 当前坐标
 
-Java `5.8.3` 接入示例：
+Java `5.8.4` 接入示例：
 
 ```xml
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 
-`5.8.3` 的 Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`），使用 springdoc `2.9.1`。Gateway 保持各自既有 Cloud/Boot 组合。
+`5.8.4` 的 Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`），使用 springdoc `2.9.1`。Gateway 保持各自既有 Cloud/Boot 组合。
 
 ## 模块概览
 
@@ -50,7 +50,7 @@ Spring Boot 4.x 使用独立 starter，避免把现有 Spring Boot 3.x + springd
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 
@@ -62,7 +62,7 @@ Spring Boot 4.x 的 Spring Cloud Gateway 5 聚合场景使用独立 gateway star
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-gateway-boot4-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 
@@ -72,7 +72,7 @@ Spring Boot 4.x 的独立聚合服务使用独立 aggregation starter：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-aggregation-boot4-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 

@@ -1,5 +1,5 @@
 # 在 Maven 仓库中找到 knife4j-openapi3-ui 的 jar
-knife4j_version="5.8.3"
+knife4j_version="5.8.4"
 # 保留 webjars/ 下的目录、Worker 和动态分块
 knife4j_unpack_dir="$(mktemp -d)"
 trap 'rm -rf "$knife4j_unpack_dir"' EXIT

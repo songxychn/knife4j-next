@@ -33,11 +33,11 @@ features:
     link: /release-notes/
     linkText: 发布说明
   - title: OpenAPI 3.1 契约
-    details: 5.8.3 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
+    details: 5.8.4 对 OpenAPI 3.1.x 使用同一 JSON Schema 2020-12、受控外部资源、调试诊断与可移植交付契约，并公开已知限制。
     link: /guide/openapi31
     linkText: 支持与迁移
   - title: OpenAPI 3.2 消费
-    details: 5.8.3 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
+    details: 5.8.4 可按 3.2 语义消费合法文档，不降级成 3.1；不能把 springdoc 3.0/3.1 输出改版本号冒充 3.2 生成。
     link: /guide/openapi32
     linkText: 支持矩阵
   - title: Gateway 与多服务聚合
@@ -46,7 +46,7 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.10.0
+::: tip Knife4x Go v0.10.1
 Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
 UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
 :::
@@ -68,7 +68,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 
@@ -78,7 +78,7 @@ UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 
@@ -97,9 +97,9 @@ knife4j:
 
 启动应用后访问 `http://localhost:8080/doc.html`。完整流程见 [快速开始](/guide/getting-started)。
 
-## 5.8.3 版本亮点
+## 5.8.4 版本亮点
 
-Java `5.8.3` 修复 Polaris 启动条件、地址读取与匿名发现；Go `v0.10.0` 新增文档鉴权、多分组、UI 默认值和 Markdown 文档。源码构建改用 Bun `1.4.x`（最低 `1.4.4`）；Java/Go、浏览器与 OpenAPI 支持边界不变，详见[发布说明](/release-notes/)。
+Java `5.8.4` 修复文档 Basic Auth、Jackson 依赖、OAS3 定制器和 CORS。Knife4x Go `v0.10.1` 同步共享 React UI，在 JSON 字段名下显示 Schema 属性标题，并统一文档 URL 校验。详见[发布说明](/release-notes/)。
 
 ## 5.8.2 版本亮点
 

@@ -20,11 +20,11 @@ With:
 <dependency>
   <groupId>com.baizhukui</groupId>
   <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
-  <version>5.8.3</version>
+  <version>5.8.4</version>
 </dependency>
 ```
 
-The example uses current Java `5.8.3`.
+The example uses current Java `5.8.4`.
 
 ## Compatibility
 

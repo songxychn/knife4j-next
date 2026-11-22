@@ -4,7 +4,7 @@ title: Go 配置参考
 
 # Go 配置参考
 
-本文以 `v0.10.0` 的公开类型为准，包含单 `SpecURL`、`BasePath`，以及新增的
+本文以 `v0.10.1` 的公开类型为准，包含 `SpecURL`、`BasePath`、
 `Specs`、`Disabled`、`BasicAuth`、`UISettings`、`Documents` 及其关联类型。
 安装与最小接入见[快速开始](./index.md)。
 
@@ -42,8 +42,7 @@ spec 路由，也不会继续为其提供文档鉴权；完整关闭方式见[�
 
 分组名用于一个路由段，不能为 `.`、`..` 或 `group`，也不能含 `/`、反斜线、`?`、`#`、`%`
 或控制字符。共享 UI 将 `group/home` 用作尚未选定分组时的入口。支持中文等非 ASCII 名称。
-新 `Specs` URL 不接受反斜线或 userinfo 凭据，
-也不接受省略协议的 `//host/path` 或非 HTTP(S) 绝对 URL。
+从 `v0.10.1` 起，`SpecURL` 与 `Specs[].URL` 统一拒绝反斜线和 URL 内的 userinfo 凭据。两种配置都要求绝对 URL 使用 HTTP(S)，并拒绝省略协议的 `//host/path`。
 
 多分组是固定 URL 列表，不包含注册中心、动态服务发现、文档代理或规范转换。
 各分组独立加载，一组失败不应阻止选择其他组。
@@ -72,7 +71,7 @@ Basic / Bearer / OAuth2 是两个独立能力。保护对象、本地/远端 URL
 
 | 字段 | Go 类型 | 可用版本 | 说明 |
 | --- | --- | --- | --- |
-| `Language` | `string` | `v0.10.0` | 共享 UI 解析语言偏好，支持 `zh-CN`、`en-US`、`ja-JP` 及同语种变体；空值或不支持的值保留语言检测 |
+| `Language` | `string` | `v0.10.0` | 语言偏好。自 `v0.10.1` 起由共享 UI 解析，支持 `zh-CN`、`en-US`、`ja-JP` 及同语种变体；空值或不支持的值沿用语言检测 |
 | `EnableDebug` | `*bool` | `v0.10.0` | 显示调试页，UI 默认 `true` |
 | `EnableSearch` | `*bool` | `v0.10.0` | 显示目录搜索，UI 默认 `true` |
 | `EnableOpenAPI` | `*bool` | `v0.10.0` | 显示原始 OpenAPI 标签页，UI 默认 `true` |

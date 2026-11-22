@@ -12,9 +12,27 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-本次版本为 Java `5.8.3` 与配套 Go `v0.10.0`。
+本次版本为 Java `5.8.4` 与 Knife4x Go `v0.10.1`。
 
-### 5.8.3 <Badge type="tip" text="最新版本" />
+### 5.8.4 <Badge type="tip" text="最新版本" />
+
+相较于 `5.8.3`，修复 Java 文档访问保护和 starter 兼容问题，并改善 OpenAPI 3 字段表的标题展示。Knife4x Go `v0.10.1` 同步共享 UI，并更新文档 URL 校验和语言偏好解析。
+
+**Java**
+
+- 修复文档 Basic Auth 路径匹配问题，补齐 MVC Gateway 文档资源和配置端点的保护，避免未认证请求创建 Session。（[#1066](https://github.com/songxychn/knife4j-next/pull/1066)）
+- 修复 `knife4j-core` 对 Jackson 3 的硬依赖。修正 Jakarta `operationId` 的回退行为，将 Kotlin `is` 前缀定制限定在 Jackson 3 环境，并修复启用凭据时通配来源的 CORS 配置。（[#1066](https://github.com/songxychn/knife4j-next/pull/1066)）
+- 收口聚合和 OAS3 WebMVC starter 的共享源码，统一 Maven 与冒烟测试中的版本来源。（[#1070](https://github.com/songxychn/knife4j-next/pull/1070)、[#1079](https://github.com/songxychn/knife4j-next/pull/1079)、[#1080](https://github.com/songxychn/knife4j-next/pull/1080)）
+
+**共享 React UI 与 Knife4x Go**
+
+- 请求体、响应体和数据模型的字段表在 JSON 字段名下显示属性的 Schema `title`，`description` 继续显示在说明列。（[#1086](https://github.com/songxychn/knife4j-next/pull/1086)）
+- 精简本地存储协调和 React 热路径，收口表单与参数序列化、Schema 注册、调试、鉴权及文档导出的实现。（[#1068](https://github.com/songxychn/knife4j-next/pull/1068)、[#1069](https://github.com/songxychn/knife4j-next/pull/1069)、[#1081](https://github.com/songxychn/knife4j-next/pull/1081)、[#1082](https://github.com/songxychn/knife4j-next/pull/1082)、[#1083](https://github.com/songxychn/knife4j-next/pull/1083)、[#1084](https://github.com/songxychn/knife4j-next/pull/1084)、[#1085](https://github.com/songxychn/knife4j-next/pull/1085)）
+- Go 的 `SpecURL` 与 `Specs[].URL` 统一拒绝反斜线和 URL 内的凭据。`UISettings.Language` 交由共享 UI 解析，不支持的值沿用语言检测。（[Go 配置参考](https://knife4jnext.com/knife4x/configuration)、[#1070](https://github.com/songxychn/knife4j-next/pull/1070)、[#1078](https://github.com/songxychn/knife4j-next/pull/1078)）
+
+Java 8/17、Boot 2/3/4、Go 1.22 和 Gin 示例 Go 1.26+ 的支持范围沿用上版。UI 可消费 OpenAPI 3.0/3.1/3.2 JSON。源码构建使用 Bun `1.4.x`（最低 `1.4.4`）。（[兼容矩阵](https://knife4jnext.com/reference/compatibility)）
+
+### 5.8.3
 
 相较于 `5.8.2`，修复独立聚合的 Polaris 启动条件与服务查询，纳入共享 UI、构建与验证维护。配套 Knife4x Go `v0.10.0` 新增宿主配置能力。
 
@@ -862,7 +880,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.3</version>
+    <version>5.8.4</version>
 </dependency>
 ```
 

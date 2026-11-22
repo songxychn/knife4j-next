@@ -9,11 +9,11 @@
 
 ## 安装与最小示例
 
-当前版本：`v0.10.0`，
-对应 tag `knife4x/go/v0.10.0`。需要 Go 1.22+，直接消费 module 无需 JavaScript 运行时。
+当前版本：`v0.10.1`，
+对应 tag `knife4x/go/v0.10.1`。需要 Go 1.22+，直接消费 module 无需 JavaScript 运行时。
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.1
 ```
 
 下面程序在宿主中提供 JSON 和业务路由，启动后访问 `http://localhost:8080/doc.html`：
