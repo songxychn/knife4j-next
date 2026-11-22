@@ -14,12 +14,11 @@ export default defineConfig({
   base: './',
   worker: { format: 'es' },
   resolve: {
-    alias: {
-      'knife4j-core': path.resolve(__dirname, '../core/lib'),
-    },
+    // Leave built-module imports under knife4j-core/lib to package resolution.
+    alias: [{ find: /^knife4j-core$/, replacement: path.resolve(__dirname, '../core/lib') }],
   },
   optimizeDeps: {
-    include: ['knife4j-core'],
+    include: ['knife4j-core', 'knife4j-core/lib/auth/oauthDeviceAuthorization'],
   },
   server: {
     proxy: {
