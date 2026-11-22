@@ -1,11 +1,6 @@
-export {
-  HyperjumpSchemaEngine,
-  JSON_SCHEMA_2020_12,
-  OPENAPI_31_BASE_DIALECT,
-  createSchemaEngine,
-} from './hyperjumpSchemaEngine';
+export { HyperjumpSchemaEngine, createSchemaEngine } from './hyperjumpSchemaEngine';
 export { DEFAULT_SCHEMA_ENGINE_LIMITS } from './budgets';
-export { OPENAPI_32_DIALECT } from './openapi32Dialect';
+export { JSON_SCHEMA_2020_12, OPENAPI_31_BASE_DIALECT, OPENAPI_32_DIALECT } from './openapi32Dialect';
 export { createOpenApi32ProjectionSource, openApi32SchemaRegistrationContext } from './openapi32Registration';
 export {
   SchemaEngineError,

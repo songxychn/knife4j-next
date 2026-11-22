@@ -111,7 +111,9 @@ describe('OpenAPI 3.2 registration isolation', () => {
     ]) {
       await expect(value.evaluate(reference, good)).resolves.toMatchObject({ valid: true });
       await expect(value.evaluate(reference, bad)).resolves.toMatchObject({ valid: false });
-      expect(JSON.stringify(await value.resolve(reference))).not.toContain('knife4j-internal');
+      const node = await value.resolve(reference);
+      expect(node.requestedUri).toBe(reference);
+      await expect(value.resolve(node.canonicalUri)).resolves.toMatchObject({ schema: node.schema });
     }
   });
 });
@@ -320,24 +322,36 @@ describe('OpenAPI 3.2 real Schema positions and public identity', () => {
 
 describe('OpenAPI 3.2 registry lifecycle', () => {
   test.each([true, false])(
-    'protects the actual registry namespace in both registration orders (3.2 first: %s)',
+    'preserves public resource ownership when two dialects declare the same ID (3.2 first: %s)',
     async (oas32First) => {
       const value = engine();
-      const publicUri = 'urn:test:collision';
-      const physicalUri = `urn:knife4j-internal:oas32:resource:${[...new TextEncoder().encode(publicUri)].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
-      const register32 = () => value.registerDocument(document32(), publicUri);
-      const register31 = () =>
-        value.registerDocument({ $schema: OPENAPI_31_BASE_DIALECT, const: 'legacy' }, physicalUri);
-      const [first, second] = oas32First ? [register32, register31] : [register31, register32];
-      await first();
-      await expect(second()).rejects.toMatchObject({ code: 'RESOURCE_URI_CONFLICT' });
-      const [uri, instance] = oas32First ? [`${publicUri}#/components/schemas/Value`, {}] : [physicalUri, 'legacy'];
-      await expect(value.evaluate(uri as string, instance)).resolves.toMatchObject({ valid: true });
-      value.unregisterDocument(oas32First ? publicUri : physicalUri);
-      await second();
-      await expect(
-        value.evaluate(oas32First ? physicalUri : `${publicUri}#/components/schemas/Value`, oas32First ? 'legacy' : {}),
-      ).resolves.toMatchObject({ valid: true });
+      const resourceUri = 'urn:test:shared-schema';
+      const document = document32();
+      const entry32 = {
+        retrievalUri: 'urn:test:owner-32',
+        document: {
+          ...document,
+          components: { schemas: { Value: { ...document.components.schemas.Value, $id: resourceUri } } },
+        },
+        instance: {},
+      };
+      const entry31 = {
+        retrievalUri: 'urn:test:owner-31',
+        document: { $schema: OPENAPI_31_BASE_DIALECT, $id: resourceUri, const: 'legacy' },
+        instance: 'legacy',
+      };
+      const [first, second] = oas32First ? [entry32, entry31] : [entry31, entry32];
+      await value.registerDocument(first.document, first.retrievalUri);
+      await expect(value.registerDocument(second.document, second.retrievalUri)).rejects.toMatchObject({
+        code: 'RESOURCE_URI_CONFLICT',
+        details: { resourceUri },
+      });
+      await expect(value.resolve(resourceUri)).resolves.toMatchObject({ resourceUri });
+      await expect(value.evaluate(resourceUri, first.instance)).resolves.toMatchObject({ valid: true });
+      await expect(value.evaluate(resourceUri, second.instance)).resolves.toMatchObject({ valid: false });
+      value.unregisterDocument(first.retrievalUri);
+      await value.registerDocument(second.document, second.retrievalUri);
+      await expect(value.evaluate(resourceUri, second.instance)).resolves.toMatchObject({ valid: true });
     },
   );
 
@@ -406,14 +420,12 @@ describe('OpenAPI 3.2 registry lifecycle', () => {
     await expect(value.evaluate('urn:test:partial#/components/schemas/Good', 1)).resolves.toMatchObject({
       valid: true,
     });
-    const failure = await value
-      .evaluate('urn:test:partial#/components/schemas/Missing', 1)
-      .catch((error: unknown) => error);
-    expect(failure).toMatchObject({
+    const missingUri = 'urn:test:partial#/components/schemas/Missing';
+    await expect(value.evaluate(missingUri, 1)).rejects.toMatchObject({
       code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
-      details: { resourceUri: 'https://external.test/a%3Ab?x=%26' },
+      message: "External schema resource loading is disabled for 'https://external.test/a%3Ab?x=%26'.",
+      details: { uri: missingUri, resourceUri: 'https://external.test/a%3Ab?x=%26' },
     });
-    expect(JSON.stringify(failure)).not.toContain('knife4j-internal');
     await expect(value.evaluate('urn:test:partial#/components/schemas/Opaque', 1)).rejects.toMatchObject({
       code: 'SCHEMA_RESOLUTION_FAILED',
     });
@@ -504,8 +516,13 @@ describe('OAS 3.2 reference scopes and retry budgets', () => {
       value.evaluate('urn:test:pointer-document#/components/schemas/Child', { child: 1 }),
     ).resolves.toMatchObject({ valid: false });
     const publicNode = await value.resolve('https://schemas.example/base%3Atree#node');
+    expect(publicNode).toMatchObject({
+      canonicalUri: 'https://schemas.example/base%3Atree#',
+      resourceUri: 'https://schemas.example/base%3Atree',
+      anchors: { node: '' },
+      dynamicAnchors: { node: 'https://schemas.example/base%3Atree#' },
+    });
     expect((await value.resolve(publicNode.canonicalUri)).schema).toEqual(publicNode.schema);
-    expect(JSON.stringify(publicNode)).not.toContain('knife4j-internal');
     value.unregisterDocument('urn:test:base-document');
     await expect(value.evaluate('https://schemas.example/strict', { name: 'root' })).rejects.toMatchObject({
       code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
@@ -578,7 +595,6 @@ describe('OAS 3.2 review regressions', () => {
           code: 'EXTERNAL_RESOURCE_LOADING_DISABLED',
           details: { uri: encoded, resourceUri: encoded },
         });
-        expect(JSON.stringify(result)).not.toContain('knife4j-internal');
       }
       if (invalid)
         await expect(value.evaluate(literal, {})).rejects.toMatchObject({ code: 'SCHEMA_RESOLUTION_FAILED' });
@@ -630,7 +646,7 @@ describe('OAS 3.2 review regressions', () => {
 
   test('restores annotations from their real keyword source and preserves opaque author values', async () => {
     const value = engine();
-    const opaque = { $schema: 'urn:knife4j-internal:oas32:schema:1', $ref: 'urn:opaque', data: { $id: 'urn:opaque' } };
+    const opaque = { $schema: 'urn:domain:record-dialect', $ref: 'urn:opaque', data: { $id: 'urn:opaque' } };
     const contentSchema = {
       $id: 'https://schemas.example/content',
       type: 'object',

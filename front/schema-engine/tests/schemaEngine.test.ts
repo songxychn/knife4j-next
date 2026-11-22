@@ -436,7 +436,7 @@ describe('OpenAPI 3.1 and resource policy', () => {
       $vocabulary: { 'https://vocabularies.knife4j.example/opaque': true },
       $ref: `https://opaque.knife4j.example/${name}-reference`,
       $dynamicRef: `https://opaque.knife4j.example/${name}-dynamic-reference`,
-      knife4jOpaqueControl$id: 'ordinary business field',
+      businessId: 'ordinary business field',
       nested: { $id: 'order#display-only' },
     });
     const schemaExample = opaquePayload('schema-example');
