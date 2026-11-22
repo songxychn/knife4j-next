@@ -1,24 +1,13 @@
 import JSZip from 'jszip';
 import { JSDOM } from 'jsdom';
 import { buildExportDocument, type ExportDocument } from 'knife4j-core';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import type { MenuOperation, MenuTag, OperationObject, SwaggerDoc } from '../../types/swagger';
 import { createOfflineDocumentSnapshot } from './offlineDocumentSnapshot';
-import {
-  buildDocx,
-  buildHtmlDoc,
-  buildMarkdownDoc,
-  buildWordDoc,
-  renderDocx,
-  renderHtmlDoc,
-  renderMarkdownDoc,
-  renderWordDoc,
-  type OfficeDocLabels,
-} from './OfficeDoc';
-
-vi.mock('../../context/GroupContext', () => ({
-  useGroup: () => ({}),
-}));
+import { buildHtmlDoc, buildWordDoc, renderHtmlDoc, renderWordDoc } from './renderDocumentHtml';
+import { buildDocx, renderDocx } from './renderDocumentDocx';
+import { buildMarkdownDoc, renderSnapshotMarkdown } from './renderDocumentMarkdown';
+import { type OfficeDocLabels } from './offlineDocumentPresentation';
 
 const labels: OfficeDocLabels = {
   language: 'en-US',
@@ -525,7 +514,7 @@ describe('offline document cross-format contract', () => {
       HTML: renderHtmlDoc(snapshot, labels),
       DOC: renderWordDoc(snapshot, labels),
       DOCX: await readDocumentXml(await renderDocx(snapshot, labels)),
-      Markdown: renderMarkdownDoc(snapshot, labels),
+      Markdown: renderSnapshotMarkdown(snapshot, labels),
     };
 
     for (const output of Object.values(outputs)) {
@@ -557,7 +546,7 @@ describe('offline document cross-format contract', () => {
       HTML: renderHtmlDoc(snapshot, snapshotLabels),
       DOC: renderWordDoc(snapshot, snapshotLabels),
       DOCX: await readDocumentXml(await renderDocx(snapshot, snapshotLabels)),
-      Markdown: renderMarkdownDoc(snapshot, snapshotLabels),
+      Markdown: renderSnapshotMarkdown(snapshot, snapshotLabels),
     };
 
     for (const output of Object.values(outputs)) {
@@ -579,7 +568,7 @@ describe('offline document cross-format contract', () => {
         operation: 'POST /unsafe|row\n> injected',
       },
     ]);
-    const markdown = renderMarkdownDoc(snapshot, labels);
+    const markdown = renderSnapshotMarkdown(snapshot, labels);
 
     expect(markdown).toContain('POST /unsafe\\|row \\> injected · BROKEN\\*MARKER');
     expect(markdown).not.toContain('\n> injected');
@@ -649,7 +638,7 @@ describe('offline document cross-format contract', () => {
     const documentXml = await readDocumentXml(await renderDocx(snapshot, labels));
     expect(documentXml).toContain(expected);
     expect(documentXml).toContain('Circular reference');
-    expect(renderMarkdownDoc(snapshot, labels)).toContain(expected);
-    expect(renderMarkdownDoc(snapshot, labels)).toContain('TupleNode (Circular reference)');
+    expect(renderSnapshotMarkdown(snapshot, labels)).toContain(expected);
+    expect(renderSnapshotMarkdown(snapshot, labels)).toContain('TupleNode (Circular reference)');
   });
 });

@@ -9,6 +9,7 @@ export interface RequestPreviewBuild {
   curl: string;
   cookieParameterSource?: CookieParameterSource;
   credentials?: 'same-origin' | 'include';
+  binaryFile?: File | null;
   materializedMultipart?: MaterializedMultipartBody;
 }
 
@@ -39,12 +40,10 @@ export function buildRequestPreviewSafely(build: () => RequestPreviewBuild): Req
 /** Bind send/cURL to the currently displayed preview instead of rematerializing. */
 export function resolveSendPreview(
   prepared: RequestPreviewBuild | undefined,
-  displayed: RequestPreviewBuildResult | null,
-  rebuild: () => RequestPreviewBuild,
+  displayed: RequestPreviewBuildResult,
 ): RequestPreviewBuildResult {
   if (prepared) return { ok: true, value: prepared };
-  if (displayed) return displayed;
-  return buildRequestPreviewSafely(rebuild);
+  return displayed;
 }
 
 export function triggerMultipartBodyDownload(body: Blob, fileName: string = OAS32_MULTIPART_CURL_BODY_FILE): void {
