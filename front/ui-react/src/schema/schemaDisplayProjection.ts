@@ -153,6 +153,7 @@ function schemaAnnotations(name: string, schema: { [key: string]: JsonValue }, r
     types: normalizedTypes(schema.type),
     format: typeof schema.format === 'string' ? schema.format : undefined,
     required,
+    title: typeof schema.title === 'string' ? schema.title : undefined,
     description: typeof schema.description === 'string' ? schema.description : undefined,
     default: schema.default,
     example: firstExample(schema),
@@ -276,6 +277,7 @@ function annotationOverlay(
   return {
     ...target,
     refName,
+    title: own.title,
     description: ownDescription ?? targetDescription,
     refDescription:
       ownDescription && targetDescription && ownDescription !== targetDescription

@@ -52,6 +52,27 @@ function fieldNames(cells: HTMLTableCellElement[]) {
 }
 
 describe('schema field names', () => {
+  test('shows property titles below the actual names and keeps descriptions in their own cells', async () => {
+    const fields = buildSchemaFieldTree(
+      {
+        type: 'object',
+        properties: {
+          customerId: { type: 'string', title: '客户编号', description: '订单中的客户唯一标识' },
+          note: { type: 'string' },
+          tag: { type: 'string', title: '   ' },
+        },
+      },
+      { doc },
+    );
+
+    const [customerId, note, tag] = await showFields(fields);
+    expect(customerId.querySelector('code')?.textContent).toBe('customerId');
+    expect(customerId.textContent).toBe('customerId客户编号');
+    expect(customerId.parentElement?.lastElementChild?.textContent).toBe('订单中的客户唯一标识');
+    expect(note.textContent).toBe('note');
+    expect(tag.textContent).toBe('tag');
+  });
+
   test('adds enum/default details to the description cell while preserving descriptions and flags', async () => {
     const schema = {
       type: 'object',

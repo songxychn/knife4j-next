@@ -568,6 +568,8 @@ export interface SchemaFieldNode {
   format?: string;
   /** 是否必填（由父 schema 的 required 列表决定） */
   required: boolean;
+  /** 当前 Schema 自身声明的标题。 */
+  title?: string;
   /** 描述 */
   description?: string;
   /** 默认值 */

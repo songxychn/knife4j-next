@@ -492,6 +492,11 @@ export const buildSchemaFieldTree: BuildSchemaFieldTreeFn = (schema, ctx) => {
   return buildFieldTreeInternal(schema, toInternalCtx(ctx));
 };
 
+function declaredSchemaTitle(schema: Record<string, unknown>, ctx: InternalCtx): string | undefined {
+  if (typeof schema.$ref === 'string' && !supportsSchemaRefSiblings(ctx.doc.openapi)) return undefined;
+  return typeof schema.title === 'string' ? schema.title : undefined;
+}
+
 function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCtx): SchemaFieldNode[] {
   if (schema === true) return [{ name: '', isRoot: true, type: 'unknown', required: false, booleanSchema: true }];
   if (schema === false) return [{ name: '', isRoot: true, type: 'never', required: false, booleanSchema: false }];
@@ -501,16 +506,21 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
   const { schema: resolved, ref, truncated } = resolveSchema(schema, ctx, { preserveComposition: true });
   if (resolved === undefined) return [];
   if (truncated) return [];
+  const title = declaredSchemaTitle(schema, ctx);
   if (resolved === true) {
-    return [{ name: '', isRoot: true, type: 'unknown', required: false, booleanSchema: true, refName: refToName(ref) }];
+    return [
+      { name: '', isRoot: true, type: 'unknown', required: false, title, booleanSchema: true, refName: refToName(ref) },
+    ];
   }
   if (resolved === false) {
-    return [{ name: '', isRoot: true, type: 'never', required: false, booleanSchema: false, refName: refToName(ref) }];
+    return [
+      { name: '', isRoot: true, type: 'never', required: false, title, booleanSchema: false, refName: refToName(ref) },
+    ];
   }
 
   const composition = getComposition(resolved);
   if (composition) {
-    return buildTopLevelCompositionNodes(resolved, composition, ctx, ref);
+    return buildTopLevelCompositionNodes(resolved, composition, ctx, ref, title);
   }
 
   const type = effectiveSchemaType(resolved);
@@ -529,6 +539,7 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
         type: 'object',
         types,
         required: false,
+        title,
         xml,
         description: typeof resolved.description === 'string' ? resolved.description : undefined,
         default: resolved.default,
@@ -549,6 +560,7 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
         types,
         format: typeof resolved.format === 'string' ? resolved.format : undefined,
         required: false,
+        title,
         description: typeof resolved.description === 'string' ? resolved.description : undefined,
         default: resolved.default,
         enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
@@ -580,6 +592,7 @@ function buildFieldTreeInternal(schema: SchemaValue | undefined, ctx: InternalCt
         types,
         format: typeof resolved.format === 'string' ? resolved.format : undefined,
         required: false,
+        title,
         description: typeof resolved.description === 'string' ? resolved.description : undefined,
         default: resolved.default,
         example: firstSchemaExample(resolved),
@@ -612,6 +625,7 @@ function buildTopLevelCompositionNodes(
   composition: { kind: CompositionKind; branches: SchemaValue[] },
   ctx: InternalCtx,
   ref: string | undefined,
+  title: string | undefined,
 ): SchemaFieldNode[] {
   const root: SchemaFieldNode[] =
     resolved.default !== undefined || (Array.isArray(resolved.enum) && resolved.enum.length > 0)
@@ -621,6 +635,7 @@ function buildTopLevelCompositionNodes(
             isRoot: true,
             type: composition.kind,
             required: false,
+            title,
             description: typeof resolved.description === 'string' ? resolved.description : undefined,
             default: resolved.default,
             enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
@@ -692,6 +707,7 @@ function buildSingleFieldNode(
   if (!rawSchema) {
     return { name, type: 'unknown', required };
   }
+  const title = declaredSchemaTitle(rawSchema, ctx);
 
   // 循环检测：$ref 重复命中 → truncated
   if (typeof rawSchema.$ref === 'string' && ctx.refChain.includes(rawSchema.$ref)) {
@@ -706,6 +722,7 @@ function buildSingleFieldNode(
         type: 'object',
         refName: refToName(rawSchema.$ref),
         required,
+        title,
         truncated: true,
         // Primary description: own description if present, otherwise fall back to ref target's description
         description: circularOwnDesc ?? circularRefDesc,
@@ -725,11 +742,14 @@ function buildSingleFieldNode(
       type: 'unknown',
       refName: refToName(ref),
       required,
+      title,
       truncated,
     };
   }
-  if (resolved === true) return { name, type: 'unknown', required, booleanSchema: true, refName: refToName(ref) };
-  if (resolved === false) return { name, type: 'never', required, booleanSchema: false, refName: refToName(ref) };
+  if (resolved === true)
+    return { name, type: 'unknown', required, title, booleanSchema: true, refName: refToName(ref) };
+  if (resolved === false)
+    return { name, type: 'never', required, title, booleanSchema: false, refName: refToName(ref) };
 
   const type = effectiveSchemaType(resolved);
   const types = normalizeTypes(resolved.type);
@@ -754,6 +774,7 @@ function buildSingleFieldNode(
         name,
         type: composition.kind,
         required,
+        title,
         default: resolved.default,
         enum: Array.isArray(resolved.enum) ? resolved.enum : undefined,
         description,
@@ -779,6 +800,7 @@ function buildSingleFieldNode(
       types,
       format,
       required,
+      title,
       description,
       refDescription,
       refTitle,
