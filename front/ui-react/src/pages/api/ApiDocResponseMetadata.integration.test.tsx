@@ -1,86 +1,101 @@
-import { describe, expect, test, vi } from 'vitest';
-import { collectOas32DocumentDiagnostics } from 'knife4j-core';
+import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { collectOas32DocumentDiagnostics, type SchemaFieldNode } from 'knife4j-core';
+import { parseMenuTags } from '../../api/knife4jClient';
+import { ExternalResourceLoader } from '../../schema/externalResourceGraph';
+import { createSchemaDocumentSession } from '../../schema/schemaDocumentSession';
+import { createReactTestRoot } from '../../test/reactTestRoot';
 import type { MenuOperation, MenuTag, SwaggerDoc } from '../../types/swagger';
+import { schemaNodeTypeLabel } from '../../components/schema/schemaUtils';
+import ApiDoc from './ApiDoc';
 
 const state = vi.hoisted(() => ({
   document: null as unknown,
   operation: null as unknown,
   tags: [] as unknown[],
-  engine: null as unknown,
-  effects: null as Array<() => void | (() => void)> | null,
-  updates: [] as unknown[],
-  jsx: (type: unknown, props: Record<string, unknown> | null, key?: unknown) => ({ type, props: props ?? {}, key }),
+  engine: { status: 'inactive' } as Record<string, unknown>,
 }));
-vi.mock('react', () => ({
-  useEffect: (effect: () => void | (() => void)) => state.effects?.push(effect),
-  useMemo: <T,>(factory: () => T) => factory(),
-  useState: <T,>(initial: T) => [initial, (value: T) => state.updates.push(value)],
-}));
-vi.mock('react/jsx-runtime', () => ({ jsx: state.jsx, jsxs: state.jsx, jsxDEV: state.jsx, Fragment: 'Fragment' }));
-vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: state.jsx, Fragment: 'Fragment' }));
+// This suite exercises ApiDoc's projection effects and cell content.
+vi.mock('antd', async (importOriginal) => {
+  const { FixtureButton, FixtureTable, FixtureTabs } = await import('../../test/antdContentFixtures');
+  return {
+    ...(await importOriginal<typeof import('antd')>()),
+    Alert: ({ title, description }: { title?: ReactNode; description?: ReactNode }) => (
+      <div role="alert">
+        {title}
+        {description}
+      </div>
+    ),
+    Badge: ({ text }: { text?: ReactNode }) => <span>{text}</span>,
+    Button: FixtureButton,
+    Space: ({ children }: { children?: ReactNode }) => <div data-space="">{children}</div>,
+    Table: FixtureTable,
+    Tabs: FixtureTabs,
+    Tag: ({ children }: { children?: ReactNode }) => <span data-response-tag="">{children}</span>,
+    Typography: {
+      Title: ({ children }: { children?: ReactNode }) => <h4>{children}</h4>,
+      Text: ({ children, strong, code }: { children?: ReactNode; strong?: boolean; code?: boolean }) =>
+        strong ? <strong>{children}</strong> : code ? <code>{children}</code> : <span>{children}</span>,
+      Paragraph: ({ children }: { children?: ReactNode }) => <p>{children}</p>,
+    },
+  };
+});
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
-vi.mock('antd', () => ({
-  Alert: 'Alert',
-  Badge: 'Badge',
-  Button: 'Button',
-  Space: 'Space',
-  Spin: 'Spin',
-  Table: 'Table',
-  Tabs: 'Tabs',
-  Tag: 'Tag',
-  Typography: { Title: 'Title', Text: 'Text' },
-  message: { success: vi.fn(), error: vi.fn() },
-}));
-vi.mock('@ant-design/icons', () => ({ CopyOutlined: 'CopyOutlined' }));
 vi.mock('../../context/GroupContext', () => ({
   useGroup: () => ({ activeGroup: { value: 'fixture' }, menuTags: state.tags }),
 }));
 vi.mock('../../context/SettingsContext', () => ({ useSettings: () => ({ settings: { enableResponseCode: true } }) }));
-vi.mock('../../context/SchemaEngineContext', () => ({ useSchemaEngine: () => state.engine ?? { status: 'inactive' } }));
+vi.mock('../../context/SchemaEngineContext', () => ({ useSchemaEngine: () => state.engine }));
+vi.mock('./CopyOperationMarkdown', () => ({ default: () => null }));
 vi.mock('./useCurrentOperation', () => ({
   useCurrentOperation: () => ({ loading: false, swaggerDoc: state.document, operation: state.operation }),
-  OperationModeLayout: 'OperationModeLayout',
+  OperationModeLayout: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
-vi.mock('../../components/DescriptionText', () => ({ default: 'DescriptionText' }));
-vi.mock('../../components/Markdown', () => ({ default: 'Markdown' }));
 vi.mock('../../components/schema/SchemaFieldTable', () => ({
-  default: 'SchemaFieldTable',
-  SchemaTypeLink: 'SchemaTypeLink',
+  default: ({ fields }: { fields: SchemaFieldNode[] }) => (
+    <div data-schema-fields="">
+      {fields.map((field) => (
+        <span key={field.name} data-projected-field="">
+          {schemaNodeTypeLabel(field)}
+        </span>
+      ))}
+    </div>
+  ),
+  SchemaTypeLink: ({ node }: { node: SchemaFieldNode }) => (
+    <span data-overview-type="">{schemaNodeTypeLabel(node)}</span>
+  ),
 }));
-vi.mock('../../components/schema/SchemaExampleNotice', () => ({ default: 'SchemaExampleNotice' }));
-vi.mock('../../components/schema/OperationExamplePicker', () => ({ default: 'OperationExamplePicker' }));
-vi.mock('../../components/schema/SchemaDiscriminatorPanel', () => ({ default: 'SchemaDiscriminatorPanel' }));
-vi.mock('./CodeBlock', () => ({ default: 'CodeBlock' }));
 
-import ApiDoc from './ApiDoc';
-import { parseMenuTags } from '../../api/knife4jClient';
-import { ExternalResourceLoader } from '../../schema/externalResourceGraph';
-import SchemaValueDetails from '../../components/schema/SchemaValueDetails';
-import { schemaNodeTypeLabel } from '../../components/schema/schemaUtils';
-import { createSchemaDocumentSession } from '../../schema/schemaDocumentSession';
-import type { ApiDocSchemaProjectionState } from './apiDocSchemaViewState';
+let view: ReturnType<typeof createReactTestRoot>;
+beforeEach(() => {
+  view = createReactTestRoot();
+});
+afterEach(async () => {
+  await view.unmount();
+  state.engine = { status: 'inactive' };
+});
 
-interface Element {
-  type: unknown;
-  props: Record<string, unknown>;
-  key?: unknown;
-}
-
-function elements(value: unknown): Element[] {
-  if (!value || typeof value !== 'object') return [];
-  return [
-    ...('type' in value && 'props' in value ? [value as Element] : []),
-    ...Object.values(value).flatMap(elements),
-  ];
-}
-
-function render(document: SwaggerDoc, tags?: MenuTag[]): Element[] {
+async function render(document: SwaggerDoc, tags?: MenuTag[]) {
   state.document = document;
   state.tags = tags ?? parseMenuTags(document, { retrievalUri: 'http://retrieved.test/specs/root.json' });
   state.operation = (state.tags as MenuTag[]).flatMap((tag) => tag.operations)[0] as MenuOperation;
-  const wrapper = ApiDoc() as unknown as Element;
-  return elements((wrapper.type as (props: Record<string, unknown>) => unknown)(wrapper.props));
+  await view.render(
+    <MemoryRouter>
+      <ApiDoc />
+    </MemoryRouter>,
+  );
+}
+
+function responseSection(statusCode: string) {
+  const tag = [...view.container.querySelectorAll('[data-response-tag]')].find(
+    (node) => node.textContent === statusCode,
+  );
+  return tag?.closest('[data-space]')?.parentElement;
+}
+
+function responseSummary(statusCode: string) {
+  return responseSection(statusCode)?.querySelector('strong')?.textContent;
 }
 
 function fixture(summary: unknown): SwaggerDoc {
@@ -126,34 +141,20 @@ describe('ApiDoc Response metadata rendering', () => {
     };
     const retrievalUri = 'http://retrieved.test/specs/root.json';
     const session = await createSchemaDocumentSession(document, retrievalUri);
-    const cleanups: Array<void | (() => void)> = [];
     state.engine = { status: 'ready', document, retrievalUri, session };
-    state.effects = [];
-    state.updates = [];
     try {
-      render(document);
-      state.effects.forEach((effect) => cleanups.push(effect()));
-      await vi.waitFor(() => {
-        const result = (state.updates as ApiDocSchemaProjectionState[]).find(
-          (update) => update.status === 'ready' && 'result' in update,
-        );
-        expect(result?.status).toBe('ready');
-        if (result?.status !== 'ready') return;
-        expect(result.result.failures).toEqual([]);
-        expect(result.result.regions[0].fields.map(schemaNodeTypeLabel)).toEqual(['string']);
-      });
+      await render(document);
+      expect(responseSection('200')?.querySelector('[data-projected-field]')?.textContent).toBe('string');
+      expect(view.container.querySelector('[role="alert"]')).toBeNull();
     } finally {
-      cleanups.forEach((cleanup) => cleanup?.());
-      state.effects = null;
-      state.engine = null;
-      state.updates = [];
+      await view.render(null);
       session.dispose();
     }
   });
 
   test.each(['3.0.3', '3.1.0', '3.2.0'])(
     'shows source response types in the overview instead of an internal reference name in OAS %s',
-    (openapi) => {
+    async (openapi) => {
       const document: SwaggerDoc = {
         openapi,
         info: { title: 'Response types', version: '1' },
@@ -180,11 +181,9 @@ describe('ApiDoc Response metadata rendering', () => {
         },
         components: { schemas: { schema: { type: 'object', properties: { id: { type: 'integer' } } } } },
       };
-      const tree = render(document);
-      const labels = ['200', '201', '202', '203'].flatMap((status) =>
-        elements(tree.find((element) => element.type === 'div' && element.key === status))
-          .filter((element) => element.type === 'SchemaTypeLink')
-          .map((element) => schemaNodeTypeLabel(element.props.node as never)),
+      await render(document);
+      const labels = ['200', '201', '202', '203'].map(
+        (status) => responseSection(status)?.querySelector('[data-overview-type]')?.textContent,
       );
       expect(labels).toEqual(['string', 'integer / int64', 'string[]', 'schema']);
     },
@@ -192,7 +191,7 @@ describe('ApiDoc Response metadata rendering', () => {
 
   test.each(['3.0.3', '3.1.0', '3.2.0'])(
     'passes parameter Schema values into the description cell in OAS %s',
-    (openapi) => {
+    async (openapi) => {
       const document: SwaggerDoc = {
         openapi,
         info: { title: 'Parameter values', version: '1' },
@@ -218,17 +217,17 @@ describe('ApiDoc Response metadata rendering', () => {
         },
       };
       const original = structuredClone(document);
-      const table = render(document).find((element) => element.type === 'Table')!;
-      const row = (table.props.dataSource as { description: string }[])[0];
-      const column = (
-        table.props.columns as { dataIndex?: string; render: (value: string, row: unknown) => unknown }[]
-      ).find((item) => item.dataIndex === 'description')!;
-      const cell = elements(column.render(row.description, row));
-      expect(cell.find((element) => element.type === 'DescriptionText')?.props.children).toBe('登录来源');
-      expect(cell.find((element) => element.type === SchemaValueDetails)?.props).toEqual({
-        enum: ['mch_web', 'mch_app', 'mch_h5'],
-        default: 'mch_web',
-      });
+      await render(document);
+      const description = view.container.querySelector('tbody tr[data-row-key] td:last-child');
+      expect(description?.textContent).toContain('登录来源');
+      expect(description?.textContent).toContain('schema.values.enum');
+      expect(description?.textContent).toContain('schema.values.default');
+      expect([...description!.querySelectorAll('code')].map((node) => node.textContent)).toEqual([
+        '"mch_web"',
+        '"mch_app"',
+        '"mch_h5"',
+        '"mch_web"',
+      ]);
       expect(document).toEqual(original);
     },
   );
@@ -239,7 +238,7 @@ describe('ApiDoc Response metadata rendering', () => {
     ['number', 42],
     ['boolean', true],
     ['null', null],
-  ])('omits invalid %s summary without mutating its diagnostic or hiding valid responses', (_name, summary) => {
+  ])('omits invalid %s summary without mutating its diagnostic or hiding valid responses', async (_name, summary) => {
     const document = fixture(summary);
     const original = structuredClone(document);
     const diagnostics = collectOas32DocumentDiagnostics(document);
@@ -248,25 +247,15 @@ describe('ApiDoc Response metadata rendering', () => {
         expect.objectContaining({ code: 'invalid-field-type', path: '#/paths/~1responses/get/responses/200/summary' }),
       ]),
     );
-    const tree = render(document);
-    const strongChildren = tree
-      .filter((element) => element.type === 'Text' && element.props.strong)
-      .map((element) => element.props.children);
-    expect(strongChildren).toEqual(['Valid summary']);
-    expect(
-      tree.some((element) => element.type === 'Title' && element.props.children === 'Response metadata regression'),
-    ).toBe(true);
-    expect(
-      tree.some((element) => element.type === 'DescriptionText' && element.props.children === 'Valid description'),
-    ).toBe(true);
-    expect(
-      tree.some(
-        (element) => element.type === 'DescriptionText' && element.props.children === 'Hidden target description',
-      ),
-    ).toBe(false);
-    const emptyResponse = tree.find((element) => element.type === 'div' && element.key === '204');
-    expect(elements(emptyResponse).some((element) => element.type === 'SchemaFieldTable')).toBe(true);
-    expect(elements(emptyResponse).some((element) => element.type === 'Alert')).toBe(false);
+    await render(document);
+    const summaries = ['200', '201', '202', '204'].map(responseSummary).filter(Boolean);
+    expect(summaries).toEqual(['Valid summary']);
+    expect(view.container.querySelector('h3, h4')?.textContent).toBe('Response metadata regression');
+    expect(responseSection('201')?.textContent).toContain('Valid description');
+    expect(view.container.textContent).not.toContain('Hidden target description');
+    const emptyResponse = responseSection('204');
+    expect(emptyResponse?.querySelector('[data-schema-fields]')).not.toBeNull();
+    expect(emptyResponse?.querySelector('[role="alert"]')).toBeNull();
     expect(document).toEqual(original);
     expect(collectOas32DocumentDiagnostics(document)).toEqual(diagnostics);
   });
@@ -311,14 +300,11 @@ describe('ApiDoc Response metadata rendering', () => {
           scope: 'generation',
         })),
       );
-      const tree = render(document, parseMenuTags(document, { retrievalUri: entryUri, resourceSnapshot: snapshot }));
-      expect(
-        tree
-          .filter((element) => element.type === 'Text' && element.props.strong)
-          .map((element) => element.props.children),
-      ).toEqual(['Outer summary']);
-      expect(tree.some((element) => element.type === 'DescriptionText')).toBe(false);
-      expect(tree.some((element) => element.type === 'Alert')).toBe(false);
+      await render(document, parseMenuTags(document, { retrievalUri: entryUri, resourceSnapshot: snapshot }));
+      const summaries = ['200', '202', '204'].map(responseSummary).filter(Boolean);
+      expect(summaries).toEqual(['Outer summary']);
+      expect(view.container.textContent).not.toContain('Hidden external description');
+      expect(view.container.querySelector('[role="alert"]')).toBeNull();
     } finally {
       loader.dispose();
     }

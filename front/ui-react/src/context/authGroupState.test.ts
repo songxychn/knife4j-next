@@ -1,18 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { SchemeValue } from 'knife4j-core';
 
-vi.mock('react', () => ({
-  default: {},
-  createContext: () => ({}),
-  useCallback: vi.fn(),
-  useContext: vi.fn(),
-  useEffect: vi.fn(),
-  useMemo: vi.fn(),
-  useRef: vi.fn(),
-  useState: vi.fn(),
-}));
-
-import { isAuthReadyForGroup, unwrapStoredAuthSchemes, updateAuthSchemesForGroup } from './AuthContext';
+import { isAuthReadyForGroup, unwrapStoredAuthSchemes, updateAuthSchemesForGroup } from './authGroupState';
 
 describe('AuthContext readiness', () => {
   it('stays pending until the initial group finishes loading', () => {

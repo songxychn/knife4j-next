@@ -2,12 +2,12 @@ import { Alert, Button, Input, Space, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeValue } from 'knife4j-core';
-import type { OAuth2Flow } from '../types/swagger';
 import {
   createOAuthDeviceAuthorizationController,
   type OAuthDeviceAuthorizationController,
   type OAuthDeviceSnapshot,
-} from './oauthDeviceAuthorization';
+} from 'knife4j-core/lib/auth/oauthDeviceAuthorization';
+import type { OAuth2Flow } from '../types/swagger';
 import { resolveOas32OauthEndpoint } from './oas32SecurityUi';
 
 const { Text } = Typography;

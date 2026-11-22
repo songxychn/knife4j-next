@@ -3,7 +3,7 @@ import path from 'path';
 
 // Keep each independent project within the same bounded worker budget.
 const maxWorkers = 2;
-const coreAlias = { 'knife4j-core': path.resolve(__dirname, '../core/lib') };
+const coreAlias = { find: /^knife4j-core$/, replacement: path.resolve(__dirname, '../core/lib') };
 
 export default defineConfig({
   test: {
@@ -20,17 +20,13 @@ export default defineConfig({
           exclude: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.tsx'],
         },
         resolve: {
-          alias: {
+          alias: [
             // These lightweight mocks belong only to the existing pure-logic tests.
-            antd: path.resolve(__dirname, 'src/__mocks__/antd.ts'),
-            '@ant-design/icons': path.resolve(__dirname, 'src/__mocks__/@ant-design/icons.ts'),
-            'react-i18next': path.resolve(__dirname, 'src/__mocks__/react-i18next.ts'),
-            'react/jsx-dev-runtime': path.resolve(__dirname, 'src/__mocks__/react-jsx-runtime.ts'),
-            'react/jsx-runtime': path.resolve(__dirname, 'src/__mocks__/react-jsx-runtime.ts'),
-            react: path.resolve(__dirname, 'src/__mocks__/react.ts'),
-            'react-dom': path.resolve(__dirname, 'src/__mocks__/react-dom.ts'),
-            ...coreAlias,
-          },
+            { find: 'antd', replacement: path.resolve(__dirname, 'src/__mocks__/antd.ts') },
+            { find: '@ant-design/icons', replacement: path.resolve(__dirname, 'src/__mocks__/@ant-design/icons.ts') },
+            { find: 'react-i18next', replacement: path.resolve(__dirname, 'src/__mocks__/react-i18next.ts') },
+            coreAlias,
+          ],
         },
       },
       {
@@ -43,7 +39,7 @@ export default defineConfig({
           include: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.tsx'],
           setupFiles: ['src/test/integrationSetup.ts'],
         },
-        resolve: { alias: coreAlias },
+        resolve: { alias: [coreAlias] },
       },
     ],
   },
