@@ -74,6 +74,18 @@ describe('OAS 3.2 form body encoding', () => {
     expect(model.bodyContents[0].oas32Form).toBeUndefined();
   });
 
+  test.each([
+    ['Multipart/Form-Data; profile=Upload', 'multipart'],
+    ['text/plain; profile=multipart', 'raw'],
+  ])('classifies %s by its case-insensitive media type and preserves the declared key', (mediaType, category) => {
+    const model = debugModel32(mediaType, {
+      schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+    });
+    expect(model.bodyContents[0]).toMatchObject({ mediaType, category });
+    if (category === 'multipart') expect(model.bodyContents[0].oas32Form?.fields[0].file).toBe(true);
+    else expect(model.bodyContents[0].oas32Form).toBeUndefined();
+  });
+
   test('keeps named encoding, prefixEncoding and itemEncoding mutually exclusive', () => {
     const model = debugModel32('multipart/form-data', {
       schema: {

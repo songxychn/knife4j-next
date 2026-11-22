@@ -23,9 +23,10 @@ import type {
   SchemaResolveContext,
   SchemaValue,
 } from './types';
-import { isSupportedParameterContentType } from './parameterSerialization';
+import { isJsonMediaType, isSupportedParameterContentType } from './parameterSerialization';
 import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSchema } from './resolveRef';
 import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/document';
+import { mediaTypeEssence } from './mediaType';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 import { analyzeOas31FormBody } from './formBodyEncoding';
@@ -251,6 +252,14 @@ function classifyContentType(mediaType: string): BodyContentType {
   if (mediaType.includes('json')) return 'json';
   if (mediaType.includes('x-www-form-urlencoded')) return 'urlencoded';
   if (mediaType.includes('multipart')) return 'multipart';
+  return 'raw';
+}
+
+function classifyOas32ContentType(mediaType: string): BodyContentType {
+  const essence = mediaTypeEssence(mediaType);
+  if (essence.startsWith('multipart/')) return 'multipart';
+  if (essence === 'application/x-www-form-urlencoded') return 'urlencoded';
+  if (isJsonMediaType(essence)) return 'json';
   return 'raw';
 }
 
@@ -975,7 +984,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
         const schema = mediaObj.schema
           ? normalizeAllOfSchema(mediaObj.schema, bodyCtx.doc, bodyCtx.maxDepth ?? 8)
           : undefined;
-        const declaredCategory = classifyContentType(mediaType);
+        const declaredCategory = isOas32 ? classifyOas32ContentType(mediaType) : classifyContentType(mediaType);
         const allowOas31Binary = isOas31(doc);
         const isMultipartFallback =
           !isOas32 &&
@@ -1015,7 +1024,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
               })
             : undefined;
         const oas32Form =
-          isOas32 && !isMultipartFallback && (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+          isOas32 && (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
             ? analyzeOas32FormBody({
                 mediaType: effectiveMediaType,
                 schema,
@@ -1032,7 +1041,6 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           isOas32 &&
           oas32Form?.layout === 'named' &&
           schema &&
-          !isMultipartFallback &&
           (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
             ? analyzeOas31FormBody({
                 mediaType: effectiveMediaType,
