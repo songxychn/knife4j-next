@@ -17,60 +17,24 @@
 
 package com.github.xiaoymin.knife4j.spring.extension;
 
-import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
-import com.github.xiaoymin.knife4j.annotations.ApiSupport;
-import com.github.xiaoymin.knife4j.core.conf.ExtensionsConstants;
 import com.github.xiaoymin.knife4j.core.util.StrUtil;
-import com.github.xiaoymin.knife4j.core.util.ValidationGroupsUtils;
-import com.github.xiaoymin.knife4j.extend.util.ExtensionUtils;
 import io.swagger.v3.oas.models.Operation;
-import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.customizers.GlobalOperationCustomizer;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ClassUtils;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.method.HandlerMethod;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * @author <a href="xiaoymin@foxmail.com">xiaoymin@foxmail.com</a>
  * 2023/2/26 12:14
  * @since knife4j
  */
-@Slf4j
 public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomizer {
 
     @Override
     public Operation customize(Operation operation, HandlerMethod handlerMethod) {
         // Unwrap CGLIB proxy (e.g. from @Validated) to get the real controller class
         Class<?> beanType = ClassUtils.getUserClass(handlerMethod.getBeanType());
-        // 解析支持作者、接口排序
-        // https://gitee.com/xiaoym/knife4j/issues/I6FB9I
-        ApiOperationSupport operationSupport = AnnotationUtils.findAnnotation(handlerMethod.getMethod(), ApiOperationSupport.class);
-        if (operationSupport != null) {
-            String author = ExtensionUtils.getAuthors(operationSupport);
-            if (StrUtil.isNotBlank(author)) {
-                operation.addExtension(ExtensionsConstants.EXTENSION_AUTHOR, author);
-            }
-            if (operationSupport.order() != 0) {
-                operation.addExtension(ExtensionsConstants.EXTENSION_ORDER, operationSupport.order());
-            }
-        } else {
-            // 如果方法级别不存在，再找一次class级别的
-            ApiSupport apiSupport = AnnotationUtils.findAnnotation(beanType, ApiSupport.class);
-            if (apiSupport != null) {
-                String author = ExtensionUtils.getAuthor(apiSupport);
-                if (StrUtil.isNotBlank(author)) {
-                    operation.addExtension(ExtensionsConstants.EXTENSION_AUTHOR, author);
-                }
-                if (apiSupport.order() != 0) {
-                    operation.addExtension(ExtensionsConstants.EXTENSION_ORDER, apiSupport.order());
-                }
-            }
-        }
-        applyValidationGroupsExtension(operation, handlerMethod, operationSupport);
+        OperationExtensions.apply(operation, handlerMethod, beanType);
 
         // 方法重名则进行处理，防止url覆盖
         String className = beanType.getSimpleName();
@@ -81,39 +45,5 @@ public class Knife4jJakartaOperationCustomizer implements GlobalOperationCustomi
         operation.setOperationId(newId);
 
         return operation;
-    }
-
-    private void applyValidationGroupsExtension(
-                                                Operation operation,
-                                                HandlerMethod handlerMethod,
-                                                ApiOperationSupport operationSupport) {
-        Class<?>[] groups = operationSupport == null ? null : operationSupport.validationGroups();
-        java.lang.reflect.Type bodyType = null;
-        java.lang.reflect.Parameter[] params = handlerMethod.getMethod().getParameters();
-        for (java.lang.reflect.Parameter p : params) {
-            if (p.isAnnotationPresent(org.springframework.web.bind.annotation.RequestBody.class)) {
-                bodyType = p.getParameterizedType();
-                if (groups == null || groups.length == 0) {
-                    Validated validated = p.getAnnotation(Validated.class);
-                    if (validated != null) {
-                        groups = validated.value();
-                    }
-                }
-                break;
-            }
-        }
-        if (bodyType == null || groups == null || groups.length == 0) {
-            return;
-        }
-        Class<?> bodyModelClass = ValidationGroupsUtils.resolveRequestBodyModelClass(bodyType);
-        Map<String, List<String>> groupMap = ValidationGroupsUtils.resolveRequiredFields(bodyModelClass, groups);
-        if (!groupMap.isEmpty()) {
-            operation.addExtension(ExtensionsConstants.EXTENSION_VALIDATION_GROUPS, groupMap);
-        }
-        Map<String, Map<String, Object>> fieldConstraints =
-                ValidationGroupsUtils.resolveFieldSchemaExtensions(bodyModelClass);
-        if (!fieldConstraints.isEmpty()) {
-            operation.addExtension(ExtensionsConstants.EXTENSION_FIELD_CONSTRAINTS, fieldConstraints);
-        }
     }
 }

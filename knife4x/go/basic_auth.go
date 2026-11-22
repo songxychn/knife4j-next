@@ -76,11 +76,17 @@ func newBasicAuth(cfg *BasicAuthConfig, browser browserConfig) (*basicAuth, erro
 // first, potentially authorizing a different path from the browser request.
 // https://url.spec.whatwg.org/#double-dot-url-path-segment
 func normalizeBrowserDots(value *url.URL) {
-	segments := strings.Split(value.EscapedPath(), "/")
+	escapedPath := value.EscapedPath()
+	if !strings.ContainsRune(escapedPath, '%') {
+		return
+	}
+	segments := strings.Split(escapedPath, "/")
 	for i, segment := range segments {
-		dots := strings.ReplaceAll(strings.ToLower(segment), "%2e", ".")
-		if dots == "." || dots == ".." {
-			segments[i] = dots
+		switch strings.ToLower(segment) {
+		case "%2e":
+			segments[i] = "."
+		case ".%2e", "%2e.", "%2e%2e":
+			segments[i] = ".."
 		}
 	}
 	value.RawPath = strings.Join(segments, "/")
@@ -149,14 +155,17 @@ func (w *privateResponseWriter) Flush() {
 	_ = w.FlushError()
 }
 
-// Match the forms commonly normalized by routers before authorizing a request.
-// Do not rewrite the request: business routing remains entirely owned by next.
+// Canonicalize only for auth matching. The host still routes the original path.
+// Clean handles repeated slashes and dot segments. Keep the documented
+// backslash and semicolon aliases for custom host path handling.
 func canonicalAuthPath(value string) string {
-	segments := strings.Split(strings.ReplaceAll(value, `\`, "/"), "/")
-	for i, segment := range segments {
-		if index := strings.IndexByte(segment, ';'); index >= 0 {
-			segments[i] = segment[:index]
+	value = strings.ReplaceAll(value, `\`, "/")
+	if strings.ContainsRune(value, ';') {
+		segments := strings.Split(value, "/")
+		for i, segment := range segments {
+			segments[i], _, _ = strings.Cut(segment, ";")
 		}
+		value = strings.Join(segments, "/")
 	}
-	return path.Clean("/" + strings.Join(segments, "/"))
+	return path.Clean("/" + value)
 }

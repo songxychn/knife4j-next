@@ -148,16 +148,22 @@ export function collectOpenApi32SchemaLocations(document: unknown, baseUri: stri
   return locations;
 }
 
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder();
 function hex(value: string): string {
-  return [...new TextEncoder().encode(value)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(utf8Encoder.encode(value), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
+
+// Hyperjump normalizes registry keys as IRIs. Hex leaves distinct RFC 3986
+// identities distinct through that normalization and preserves the public URI
+// even when reporting a reference to an unregistered resource.
 const PHYSICAL_PREFIX = 'urn:knife4j-internal:oas32:resource:';
-export const physicalResourceUri = (uri: string): string => `${PHYSICAL_PREFIX}${hex(toAbsoluteUri(uri))}`;
+const physicalResourceUri = (uri: string): string => `${PHYSICAL_PREFIX}${hex(toAbsoluteUri(uri))}`;
 export function publicResourceUri(uri: string): string {
   if (!uri.startsWith(PHYSICAL_PREFIX)) return uri;
   const encoded = uri.slice(PHYSICAL_PREFIX.length).split('#')[0];
   if (!/^(?:[0-9a-f]{2})+$/.test(encoded)) return uri;
-  return new TextDecoder().decode(Uint8Array.from(encoded.match(/../g)!, (pair) => Number.parseInt(pair, 16)));
+  return utf8Decoder.decode(Uint8Array.from(encoded.match(/../g)!, (pair) => Number.parseInt(pair, 16)));
 }
 const physicalAnchor = (name: string): string => `a${hex(name)}`;
 const physicalPointer = (pointer: string): string => `p${hex(pointer)}`;
@@ -202,8 +208,7 @@ export class OpenApi32Registration {
   readonly locations = new Map<string, OpenApi32SchemaLocation>();
   readonly resourceAliases = new Map<string, string>();
   readonly exactAliases = new Map<string, string>();
-  readonly physicalResources = new Map<string, string>();
-  readonly resourcePointers = new Map<string, string>();
+  readonly processingResources = new Map<string, { publicUri: string; pointer: string }>();
   readonly references: OpenApi32Reference[] = [];
   readonly metaRoots: { schema: JsonValue; pointer: string }[] = [];
   private readonly roots: string[] = [];
@@ -225,8 +230,7 @@ export class OpenApi32Registration {
     this.resourceAliases.set(this.retrievalUri, '#');
     if (!this.selfUri || !parseUri(this.selfUri).fragment) this.resourceAliases.set(this.documentBaseUri, '#');
     if (this.selfUri) this.exactAliases.set(normalizePublicUri(this.selfUri), '#');
-    this.physicalResources.set(this.physicalRootUri, rootIdentity);
-    this.resourcePointers.set(this.physicalRootUri, '#');
+    this.processingResources.set(this.physicalRootUri, { publicUri: rootIdentity, pointer: '#' });
     const metadata = context?.schemaLocations ?? collectOpenApi32SchemaLocations(document, this.documentBaseUri);
     const ordered = [...metadata].sort((left, right) => left.pointer.length - right.pointer.length);
     for (const entry of ordered) {
@@ -283,8 +287,7 @@ export class OpenApi32Registration {
             resourceUri: node.resourceUri,
           });
         this.resourceAliases.set(node.resourceUri, entry.pointer);
-        this.physicalResources.set(physicalResource, node.resourceUri);
-        this.resourcePointers.set(physicalResource, entry.pointer);
+        this.processingResources.set(physicalResource, { publicUri: node.resourceUri, pointer: entry.pointer });
       }
       this.locations.set(entry.pointer, node);
       // Hyperjump emits encodeURI(cursor), then appends the raw JSON Pointer
@@ -453,11 +456,11 @@ export class OpenApi32Registration {
     const node = source?.node ?? this.processingLocations.get(uri);
     if (node) {
       const pointer = source ? pointerChild(node.relativePointer, source.keyword) : node.relativePointer;
-      return `${this.physicalResources.get(node.physicalResource)!}#${encodedPointer(pointer)}`;
+      return `${this.processingResources.get(node.physicalResource)!.publicUri}#${encodedPointer(pointer)}`;
     }
     const hash = uri.indexOf('#');
     const base = hash < 0 ? uri : uri.slice(0, hash);
-    const publicBase = this.physicalResources.get(base);
+    const publicBase = this.processingResources.get(base)?.publicUri;
     return publicBase ? `${publicBase}${hash < 0 ? '' : uri.slice(hash)}` : uri;
   }
 }

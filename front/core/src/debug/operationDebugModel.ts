@@ -1,5 +1,6 @@
+import { jsonValuesEqual } from '../utils/jsonValuesEqual';
 import { enumerateOpenApiOperations, type OpenApiOperation, type OperationSchemaDocuments } from '../openapiOperations';
-import { getOpenApiSpecificationFeatures } from '../openapiVersion';
+import { getOpenApiSpecificationFeatures, supportsSchemaRefSiblings } from '../openapiVersion';
 /**
  * OperationDebugModel — 从 OAS2/OAS3 operation 解析出统一的调试参数模型
  *
@@ -22,9 +23,10 @@ import type {
   SchemaResolveContext,
   SchemaValue,
 } from './types';
-import { isSupportedParameterContentType } from './parameterSerialization';
+import { isJsonMediaType, isSupportedParameterContentType } from './parameterSerialization';
 import { resolveRef, dereference, dereferenceReferenceObject, normalizeAllOfSchema } from './resolveRef';
 import { isOpenApi31Version, resolvePathItemOperation } from '../openapi31/document';
+import { mediaTypeEssence } from './mediaType';
 import { buildSchemaExample } from './schemaExample';
 import { buildMediaTypeExampleValue } from './mediaTypeExample';
 import { analyzeOas31FormBody } from './formBodyEncoding';
@@ -197,16 +199,6 @@ function extractEnum(
   return (param as OAS2Param).enum;
 }
 
-function supportsSchemaRefSiblings(doc: DocLike): boolean {
-  if (isOpenApi31Version(doc.openapi)) return true;
-  // Keep the pre-existing behavior for later, out-of-scope OAS versions while
-  // requiring a complete patch version before enabling the 3.1 contract.
-  const [majorText, minorText] = (doc.openapi ?? '').split('.');
-  const major = Number(majorText);
-  const minor = Number(minorText);
-  return major > 3 || (major === 3 && minor > 1);
-}
-
 function schemaDeclaresType(schema: Record<string, unknown>, expected: string): boolean {
   return schema.type === expected || (Array.isArray(schema.type) && schema.type.includes(expected));
 }
@@ -218,30 +210,6 @@ function isObjectSchemaShape(schema: Record<string, unknown>): boolean {
       schema.properties !== null &&
       typeof schema.properties === 'object' &&
       !Array.isArray(schema.properties))
-  );
-}
-
-function jsonValuesEqual(left: unknown, right: unknown): boolean {
-  if (left === right) return true;
-  if (Array.isArray(left) || Array.isArray(right)) {
-    return (
-      Array.isArray(left) &&
-      Array.isArray(right) &&
-      left.length === right.length &&
-      left.every((item, index) => jsonValuesEqual(item, right[index]))
-    );
-  }
-  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
-  const leftRecord = left as Record<string, unknown>;
-  const rightRecord = right as Record<string, unknown>;
-  const leftKeys = Object.keys(leftRecord);
-  const rightKeys = Object.keys(rightRecord);
-  return (
-    leftKeys.length === rightKeys.length &&
-    leftKeys.every(
-      (key) =>
-        Object.prototype.hasOwnProperty.call(rightRecord, key) && jsonValuesEqual(leftRecord[key], rightRecord[key]),
-    )
   );
 }
 
@@ -258,7 +226,7 @@ function intersectEnums(left: unknown[] | undefined, right: unknown[]): unknown[
  * 因此 3.1+ 中多个 enum 约束必须取交集，而不能用任一侧覆盖另一侧。
  */
 function extractArrayItemEnum(items: Record<string, unknown>, doc: DocLike): unknown[] | undefined {
-  const allowRefSiblings = supportsSchemaRefSiblings(doc);
+  const allowRefSiblings = supportsSchemaRefSiblings(doc.openapi);
   const seenRefs = new Set<string>();
   let current = items;
   let candidates: unknown[] | undefined;
@@ -284,6 +252,14 @@ function classifyContentType(mediaType: string): BodyContentType {
   if (mediaType.includes('json')) return 'json';
   if (mediaType.includes('x-www-form-urlencoded')) return 'urlencoded';
   if (mediaType.includes('multipart')) return 'multipart';
+  return 'raw';
+}
+
+function classifyOas32ContentType(mediaType: string): BodyContentType {
+  const essence = mediaTypeEssence(mediaType);
+  if (essence.startsWith('multipart/')) return 'multipart';
+  if (essence === 'application/x-www-form-urlencoded') return 'urlencoded';
+  if (isJsonMediaType(essence)) return 'json';
   return 'raw';
 }
 
@@ -744,11 +720,12 @@ export interface BuildDebugModelOptions {
 export function buildOperationDebugModel(options: BuildDebugModelOptions): OperationDebugModel {
   const { doc, path, method, isOAS2 = Boolean(doc.swagger), schemaCtx } = options;
   const useOas31ParameterPath = !isOAS2 && isOas31(doc);
+  const isOas32 = !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2';
 
   // 定位 PathItem 和 Operation
   const identity =
     options.operationIdentity ??
-    (getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
+    (isOas32
       ? enumerateOpenApiOperations(doc as Record<string, unknown>).find(
           (operation) =>
             operation.source === 'path' &&
@@ -808,16 +785,15 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
 
   // 合并 path-level parameters + operation-level parameters
   // operation 级参数覆盖 path 级（按 name+in 去重）
-  const allRawParams: Array<OAS3Param | OAS2Param> =
-    !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2'
-      ? []
-      : (resolvedPathOperation || identity
-          ? (operation.parameters ?? [])
-          : [
-              ...((pathItem.parameters as Array<OAS3Param | OAS2Param> | undefined) ?? []),
-              ...(operation.parameters ?? []),
-            ]
-        ).map((parameter) => resolveParameter(parameter, doc));
+  const allRawParams: Array<OAS3Param | OAS2Param> = isOas32
+    ? []
+    : (resolvedPathOperation || identity
+        ? (operation.parameters ?? [])
+        : [
+            ...((pathItem.parameters as Array<OAS3Param | OAS2Param> | undefined) ?? []),
+            ...(operation.parameters ?? []),
+          ]
+      ).map((parameter) => resolveParameter(parameter, doc));
 
   // 去重（同名同位置，后者覆盖前者）
   const paramMap = new Map<string, OAS3Param | OAS2Param>();
@@ -827,9 +803,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     paramMap.set(`${in_}:${name}`, p);
   }
   const oas32Parameters =
-    !isOAS2 && getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2' && identity
-      ? buildOas32ParameterCollection(doc, identity, options.parameterContext)
-      : undefined;
+    isOas32 && identity ? buildOas32ParameterCollection(doc, identity, options.parameterContext) : undefined;
   const uniqueParams = oas32Parameters ? [] : Array.from(paramMap.values());
 
   // 分组
@@ -1010,9 +984,10 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
         const schema = mediaObj.schema
           ? normalizeAllOfSchema(mediaObj.schema, bodyCtx.doc, bodyCtx.maxDepth ?? 8)
           : undefined;
-        const declaredCategory = classifyContentType(mediaType);
+        const declaredCategory = isOas32 ? classifyOas32ContentType(mediaType) : classifyContentType(mediaType);
         const allowOas31Binary = isOas31(doc);
         const isMultipartFallback =
+          !isOas32 &&
           !hasDeclaredMultipart &&
           declaredCategory !== 'multipart' &&
           hasBinaryUploadField(schema, allowOas31Binary, doc);
@@ -1020,7 +995,6 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
         const effectiveCategory: BodyContentType = isMultipartFallback ? 'multipart' : declaredCategory;
         const isMultipart = effectiveCategory === 'multipart';
         const encoding = mediaObj.encoding;
-        const isOas32 = getOpenApiSpecificationFeatures(doc.openapi)?.family === '3.2';
         const itemSchema =
           isOas32 && Object.prototype.hasOwnProperty.call(mediaObj, 'itemSchema')
             ? (mediaObj.itemSchema as SchemaValue)
@@ -1050,7 +1024,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
               })
             : undefined;
         const oas32Form =
-          isOas32 && !isMultipartFallback && (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
+          isOas32 && (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
             ? analyzeOas32FormBody({
                 mediaType: effectiveMediaType,
                 schema,
@@ -1067,7 +1041,6 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
           isOas32 &&
           oas32Form?.layout === 'named' &&
           schema &&
-          !isMultipartFallback &&
           (effectiveCategory === 'urlencoded' || effectiveCategory === 'multipart')
             ? analyzeOas31FormBody({
                 mediaType: effectiveMediaType,
@@ -1104,29 +1077,7 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
     }
   }
 
-  // ── 兜底：从 path 模板中提取未声明的 path 参数 ──
-  // 某些 OpenAPI 文档（如 Springdoc 在特定配置下）可能遗漏 path 参数声明，
-  // 但 URL 模板中存在 {xxx} 占位符。为避免调试页所有 tab 全部灰掉，
-  // 我们从 path 模板自动补充缺失的 path 参数。
-  const existingPathNames = new Set(pathParams.map((p) => p.name));
-  const templateParamRe = /\{([^}]+)\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = templateParamRe.exec(path)) !== null) {
-    const name = match[1];
-    if (!existingPathNames.has(name)) {
-      pathParams.push({
-        name,
-        in: 'path',
-        required: true,
-        description: undefined,
-        type: 'string',
-      });
-      existingPathNames.add(name);
-    }
-  }
-
   if (oas32Parameters) {
-    pathParams.length = 0;
     for (const parameter of oas32Parameters.parameters) {
       if (parameter.in === 'querystring') continue;
       const display = oas32EditorParameter(
@@ -1143,6 +1094,27 @@ export function buildOperationDebugModel(options: BuildDebugModelOptions): Opera
       if (parameter.in === 'query') queryParams.push(debugParam);
       if (parameter.in === 'header') headerParams.push(debugParam);
       if (parameter.in === 'cookie') cookieParams.push(debugParam);
+    }
+  } else if (!isOas32) {
+    // ── 兜底：从 path 模板中提取未声明的 path 参数 ──
+    // 某些 OpenAPI 文档（如 Springdoc 在特定配置下）可能遗漏 path 参数声明，
+    // 但 URL 模板中存在 {xxx} 占位符。为避免调试页所有 tab 全部灰掉，
+    // 我们从 path 模板自动补充缺失的 path 参数。
+    const existingPathNames = new Set(pathParams.map((p) => p.name));
+    const templateParamRe = /\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = templateParamRe.exec(path)) !== null) {
+      const name = match[1];
+      if (!existingPathNames.has(name)) {
+        pathParams.push({
+          name,
+          in: 'path',
+          required: true,
+          description: undefined,
+          type: 'string',
+        });
+        existingPathNames.add(name);
+      }
     }
   }
 

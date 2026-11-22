@@ -17,6 +17,8 @@ type Spec struct {
 // the UI default; a pointer to false explicitly disables that option. These are
 // presentation preferences, not authorization controls.
 type UISettings struct {
+	// Language is interpreted by the embedded UI. An unsupported value leaves
+	// language selection to the UI's existing settings and detection.
 	Language             string `json:"language,omitempty"`
 	EnableDebug          *bool  `json:"enableDebug,omitempty"`
 	EnableSearch         *bool  `json:"enableSearch,omitempty"`
@@ -61,6 +63,8 @@ func prepareBrowserConfig(cfg Config, basePath string) (browserConfig, error) {
 			if name == "" || names[name] {
 				return browser, fmt.Errorf("knife4x: Specs[%d] must have a non-empty unique name", i)
 			}
+			// The shared UI reserves group/home as its landing route before a
+			// group is active. Reject that group name before serving the UI.
 			if name == "." || name == ".." || name == "group" || strings.ContainsAny(name, `/\?#%`) || strings.ContainsFunc(name, unicode.IsControl) {
 				return browser, fmt.Errorf("knife4x: Specs[%d] name must be usable as a single route segment", i)
 			}
@@ -77,13 +81,6 @@ func prepareBrowserConfig(cfg Config, basePath string) (browserConfig, error) {
 			return browser, err
 		}
 		browser.SpecURL = value
-	}
-	if setting := cfg.UISettings; setting != nil {
-		switch setting.Language {
-		case "", "zh-CN", "en-US", "ja-JP":
-		default:
-			return browser, fmt.Errorf("knife4x: UISettings.Language must be zh-CN, en-US, or ja-JP")
-		}
 	}
 	for i, doc := range cfg.Documents {
 		title := strings.TrimSpace(doc.Title)

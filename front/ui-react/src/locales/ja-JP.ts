@@ -613,8 +613,6 @@ const jaJP = {
     '著者の MIME 原文はメディアタイプの boundary パラメータと対で保持する必要があります。',
   'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'part 内容が区切り文字と衝突するため生成を拒否しました。',
   'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'multipart のネスト深度が制限を超えています。',
-  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT':
-    'リクエスト実体化がキャンセルされたか、時間予算を超えました。',
   'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
     'ブラウザ FormData ではこの multipart 構造を表せないため、明示的なエンベロープまたは診断境界を使います。',
   'apiDebug.body.choosePartContentType': 'Part Content-Type',

@@ -35,7 +35,6 @@ func TestConfigRejectsInvalidNewOptions(t *testing.T) {
 		{"spec URL credentials", Config{Specs: []Spec{{Name: "a", URL: "https://user:pass@example.com/spec.json"}}}},
 		{"backslash spec URL", Config{Specs: []Spec{{Name: "a", URL: `/specs\openapi.json`}}}},
 		{"browser network-path spec URL", Config{Specs: []Spec{{Name: "a", URL: `/\remote.example.test/openapi.json`}}}},
-		{"invalid language", Config{SpecURL: "/a.json", UISettings: &UISettings{Language: "fr-FR"}}},
 		{"empty document title", Config{SpecURL: "/a.json", Documents: []MarkdownDocument{{Title: " "}}}},
 		{"file without filesystem", Config{SpecURL: "/a.json", Documents: []MarkdownDocument{{Title: "Guide", Path: "guide.md"}}}},
 		{"filesystem without file", Config{SpecURL: "/a.json", Documents: []MarkdownDocument{{Title: "Guide", FS: inlineFS}}}},
@@ -98,6 +97,26 @@ func TestNamedSpecsSettingsAndDocumentsBootstrap(t *testing.T) {
 	wantDocuments := []browserDocument{{Title: "Introduction", Content: "# Embedded guide"}, {Title: malicious, Content: malicious}, {Title: "Empty document", Content: ""}}
 	if !reflect.DeepEqual(config.Documents, wantDocuments) {
 		t.Fatalf("Documents = %#v, want %#v", config.Documents, wantDocuments)
+	}
+}
+
+func TestUISettingsPassesLanguagePreferenceThroughToUI(t *testing.T) {
+	t.Parallel()
+	for _, language := range []string{"en-GB", "fr-FR"} {
+		t.Run(language, func(t *testing.T) {
+			handler, err := NewHandler(Config{
+				SpecURL:    "/openapi.json",
+				UISettings: &UISettings{Language: language},
+			}, nil)
+			if err != nil {
+				t.Fatalf("NewHandler() error = %v", err)
+			}
+			doc := request(t, handler, http.MethodGet, "/doc.html", http.StatusOK)
+			config := readBrowserConfig(t, doc.Body.String())
+			if config.Settings == nil || config.Settings.Language != language {
+				t.Fatalf("settings = %#v, want language %q", config.Settings, language)
+			}
+		})
 	}
 }
 
@@ -247,7 +266,10 @@ func TestBasicAuthMatchesCommonRouterPathAliasesBeforePassThrough(t *testing.T) 
 		BasePath:  "/internal",
 		SpecURL:   "/specs/openapi.json",
 		BasicAuth: &BasicAuthConfig{Username: "user", Password: "secret"},
-	}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(nextStatus) }))
+	}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(nextStatus)
+		_, _ = w.Write([]byte(r.URL.RequestURI()))
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,10 +280,12 @@ func TestBasicAuthMatchesCommonRouterPathAliasesBeforePassThrough(t *testing.T) 
 		"/specs%5Copenapi.json", "/internal/assets/../doc.html",
 	} {
 		request(t, got, http.MethodGet, target, http.StatusUnauthorized)
-		// Auth matching does not rewrite or newly serve a router alias.
 		response := authenticatedRequest(got, http.MethodGet, target, "user", "secret")
-		if response.Code != nextStatus && response.Code != http.StatusOK {
-			t.Fatalf("authorized alias %s status = %d", target, response.Code)
+		if response.Code != nextStatus || response.Body.String() != target {
+			t.Errorf("authorized alias %q did not reach the host unchanged: status = %d, URI = %q", target, response.Code, response.Body.String())
+		}
+		if cacheControl := response.Result().Header.Get("Cache-Control"); cacheControl != "private, no-store" {
+			t.Errorf("authorized alias %q Cache-Control = %q, want private, no-store", target, cacheControl)
 		}
 	}
 }

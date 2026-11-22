@@ -1,17 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { Modal, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
-import {
-  buildExportDocument,
-  getOpenApiSpecificationFeatures,
-  renderExportDocumentMarkdown,
-  renderExportOperationMarkdown,
-  type ApiMarkdownLabels,
-} from 'knife4j-core';
+import { buildExportDocument, getOpenApiSpecificationFeatures } from 'knife4j-core';
 import { useExternalResources, useSchemaEngine } from '../../context/SchemaEngineContext';
 import { DEFAULT_LANGUAGE, normalizeSupportedLanguage } from '../../locales/language';
 import { isOas31SchemaDocument } from '../../schema/schemaDocumentSession';
-import type { SupportedLang } from '../../types/settings';
 import type { SwaggerDoc, MenuTag } from '../../types/swagger';
 import {
   createOfflineDocumentSnapshot,
@@ -28,94 +21,11 @@ import {
   selectOas32ExportResourceSnapshot,
 } from './oas32ExportSnapshot';
 
+import { renderedExportIssueLines, type OfficeDocLabels } from './offlineDocumentPresentation';
+
 const { Paragraph } = Typography;
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
-}
-
-export interface OfficeDocLabels {
-  language: SupportedLang;
-  version: string;
-  description: string;
-  name: string;
-  location: string;
-  required: string;
-  type: string;
-  field: string;
-  yes: string;
-  no: string;
-  requestBody: string;
-  requestExample: string;
-  mediaType: string;
-  responses: string;
-  response: string;
-  responseExample: string;
-  statusCode: string;
-  schema: string;
-  deprecated: string;
-  parameters: string;
-  circularReference: string;
-  truncated?: string;
-  fallbackTitle: string;
-  incompleteTitle?: string;
-  incompleteSummary?: (count: number) => string;
-  incompleteMore?: (count: number) => string;
-  security?: string;
-  servers?: string;
-  itemSchema?: string;
-  sequentialKind?: string;
-  encoding?: string;
-  notes?: string;
-  markdown: ApiMarkdownLabels;
-}
-
-function escapeMarkdownInline(value: string): string {
-  return value
-    .replace(/\r\n?|\n/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/([`*[\]<>|])/g, '\\$1');
-}
-
-const MAX_RENDERED_EXPORT_ISSUES = 20;
-
-export function renderedExportIssueLines(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string[] {
-  const issues = incompleteOfflineDocumentIssues(snapshot);
-  const visible = issues.slice(0, MAX_RENDERED_EXPORT_ISSUES).map((issue) => {
-    const diagnostic = issue.keyword ? `${issue.code} (${issue.keyword})` : issue.code;
-    return [issue.operation, issue.region, diagnostic].filter(Boolean).join(' · ');
-  });
-  const remaining = issues.length - visible.length;
-  if (remaining > 0) visible.push(labels.incompleteMore?.(remaining) ?? `${remaining} more issue(s)`);
-  return visible;
-}
-
-export function incompleteExportTitle(labels: OfficeDocLabels): string {
-  return labels.incompleteTitle ?? 'Incomplete export';
-}
-
-export function incompleteExportSummary(snapshot: OfflineDocumentSnapshot, labels: OfficeDocLabels): string {
-  const count = incompleteOfflineDocumentIssues(snapshot).length;
-  return labels.incompleteSummary?.(count) ?? `${count} semantic issue(s) could not be represented completely.`;
-}
-
-export function renderSnapshotMarkdown(
-  snapshot: OfflineDocumentSnapshot,
-  labels: OfficeDocLabels,
-  singleOperation = false,
-): string {
-  const operation = snapshot.document.tags[0]?.operations[0];
-  const document = singleOperation
-    ? operation
-      ? renderExportOperationMarkdown(operation, { labels: labels.markdown, headingLevel: 1 })
-      : ''
-    : renderExportDocumentMarkdown(snapshot.document, { labels: labels.markdown });
-  if (snapshot.complete) return document;
-  const notice = [
-    `> **${incompleteExportTitle(labels)}**`,
-    `> ${incompleteExportSummary(snapshot, labels)}`,
-    ...renderedExportIssueLines(snapshot, labels).map((issue) => `> - ${escapeMarkdownInline(issue)}`),
-  ].join('\n');
-  return `${notice}\n\n${document}`;
 }
 
 export function useDocumentExport(swaggerDoc: SwaggerDoc | null, menuTags: MenuTag[]) {

@@ -121,7 +121,6 @@ export interface FormBodyDiagnostic {
     | 'AUTHORED_BOUNDARY_MISMATCH'
     | 'BOUNDARY_INJECTION'
     | 'FORM_DEPTH_EXCEEDED'
-    | 'FORM_MATERIALIZATION_TIMEOUT'
     | 'FORMDATA_UNREPRESENTABLE';
   readonly message: string;
   readonly fieldName?: string;
@@ -314,7 +313,6 @@ export interface FormBodyInputLimits {
   readonly maxTotalBytes?: number;
   readonly maxParts?: number;
   readonly maxDepth?: number;
-  readonly maxMaterializationMs?: number;
 }
 
 export interface SerializeOas31FormBodyInput {
@@ -325,8 +323,6 @@ export interface SerializeOas31FormBodyInput {
   readonly partContentTypes?: Readonly<Record<string, string>>;
   readonly bodyRequired?: boolean;
   readonly limits?: FormBodyInputLimits;
-  readonly signal?: AbortSignal;
-  readonly now?: () => number;
 }
 
 export interface UrlencodedFormEntry {

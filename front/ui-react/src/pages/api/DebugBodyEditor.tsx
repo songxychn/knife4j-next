@@ -68,8 +68,8 @@ interface BodyTabProps {
   enableDynamicParameter: boolean;
   customBodyParams: CustomParamRow[];
   setCustomBodyParams: (rows: CustomParamRow[]) => void;
-  fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
-  binaryBodyFileRef: React.MutableRefObject<File | null>;
+  setFileFields: React.Dispatch<React.SetStateAction<Record<string, File[]>>>;
+  setBinaryBodyFile: (file: File | null) => void;
   rawMode: RawMode;
   setRawMode: (v: RawMode) => void;
 }
@@ -90,8 +90,8 @@ export function BodyTab({
   enableDynamicParameter,
   customBodyParams,
   setCustomBodyParams,
-  fileFieldsRef,
-  binaryBodyFileRef,
+  setFileFields,
+  setBinaryBodyFile,
   rawMode,
   setRawMode,
 }: BodyTabProps) {
@@ -129,8 +129,8 @@ export function BodyTab({
       setFormPartContentTypes({});
       setCustomBodyParams([]);
       // 重置 fileFields
-      fileFieldsRef.current = {};
-      binaryBodyFileRef.current = null;
+      setFileFields({});
+      setBinaryBodyFile(null);
 
       // 更新 body 文本
       if (target.category === 'json') {
@@ -193,7 +193,7 @@ export function BodyTab({
           setFormPartHeaders={setFormPartHeaders}
           formPartContentTypes={formPartContentTypes}
           setFormPartContentTypes={setFormPartContentTypes}
-          fileFieldsRef={fileFieldsRef}
+          setFileFields={setFileFields}
         />
       )}
 
@@ -209,7 +209,7 @@ export function BodyTab({
       )}
 
       {category === 'raw' && currentBody.binary && (
-        <BinaryBodyInput key={currentBody.mediaType} contentType={currentBody.mediaType} fileRef={binaryBodyFileRef} />
+        <BinaryBodyInput key={currentBody.mediaType} contentType={currentBody.mediaType} setFile={setBinaryBodyFile} />
       )}
 
       {category === 'raw' && !currentBody.binary && (
@@ -227,17 +227,17 @@ export function BodyTab({
 
 interface BinaryBodyInputProps {
   contentType: string;
-  fileRef: React.MutableRefObject<File | null>;
+  setFile: (file: File | null) => void;
 }
 
-function BinaryBodyInput({ contentType, fileRef }: BinaryBodyInputProps) {
+function BinaryBodyInput({ contentType, setFile }: BinaryBodyInputProps) {
   const { t } = useTranslation();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
 
   const handleChange = (info: { fileList: UploadFile[] }) => {
     const nextList = info.fileList.slice(-1);
     setFileList(nextList);
-    fileRef.current = nextList[0]?.originFileObj ?? null;
+    setFile(nextList[0]?.originFileObj ?? null);
   };
 
   return (
@@ -355,7 +355,7 @@ interface MultipartFormProps {
   setFormPartHeaders: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
   formPartContentTypes: Record<string, string>;
   setFormPartContentTypes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  fileFieldsRef: React.MutableRefObject<Record<string, File[]>>;
+  setFileFields: React.Dispatch<React.SetStateAction<Record<string, File[]>>>;
 }
 
 function MultipartForm({
@@ -366,7 +366,7 @@ function MultipartForm({
   setFormPartHeaders,
   formPartContentTypes,
   setFormPartContentTypes,
-  fileFieldsRef,
+  setFileFields,
 }: MultipartFormProps) {
   const { t } = useTranslation();
   const [fileListMap, setFileListMap] = useState<Record<string, UploadFile[]>>({});
@@ -398,12 +398,11 @@ function MultipartForm({
 
   const handleFileChange = (name: string, info: { fileList: UploadFile[] }) => {
     setFileListMap((prev) => ({ ...prev, [name]: info.fileList }));
-    // 提取原始 File 对象存入 ref（originFileObj 是 RcFile，extends File）
     const files: File[] = [];
     for (const f of info.fileList) {
       if (f.originFileObj) files.push(f.originFileObj);
     }
-    fileFieldsRef.current[name] = files;
+    setFileFields((previous) => ({ ...previous, [name]: files }));
   };
 
   const addExtraPart = () => {
