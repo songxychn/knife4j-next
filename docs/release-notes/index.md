@@ -28,9 +28,9 @@ title: 发布说明
 
 - 请求体、响应体和数据模型的字段表在 JSON 字段名下显示属性的 Schema `title`，`description` 继续显示在说明列。（[#1086](https://github.com/songxychn/knife4j-next/pull/1086)）
 - 精简本地存储协调和 React 热路径，收口表单与参数序列化、Schema 注册、调试、鉴权及文档导出的实现。（[#1068](https://github.com/songxychn/knife4j-next/pull/1068)、[#1069](https://github.com/songxychn/knife4j-next/pull/1069)、[#1081](https://github.com/songxychn/knife4j-next/pull/1081)、[#1082](https://github.com/songxychn/knife4j-next/pull/1082)、[#1083](https://github.com/songxychn/knife4j-next/pull/1083)、[#1084](https://github.com/songxychn/knife4j-next/pull/1084)、[#1085](https://github.com/songxychn/knife4j-next/pull/1085)）
-- Go 的 `SpecURL` 与 `Specs[].URL` 统一拒绝反斜线和 URL 内的凭据。`UISettings.Language` 交由共享 UI 解析，不支持的值沿用语言检测。详见 [Go 配置参考](../knife4x/configuration.md)。（[#1070](https://github.com/songxychn/knife4j-next/pull/1070)、[#1078](https://github.com/songxychn/knife4j-next/pull/1078)）
+- Go 的 `SpecURL` 与 `Specs[].URL` 统一拒绝反斜线和 URL 内的凭据。`UISettings.Language` 交由共享 UI 解析，不支持的值沿用语言检测。（[Go 配置参考](https://knife4jnext.com/knife4x/configuration)、[#1070](https://github.com/songxychn/knife4j-next/pull/1070)、[#1078](https://github.com/songxychn/knife4j-next/pull/1078)）
 
-Java 8/17、Boot 2/3/4、Go 1.22 和 Gin 示例 Go 1.26+ 的支持范围沿用上版。浏览器下限和 OpenAPI 3.0/3.1/3.2 JSON 消费范围见[兼容矩阵](../reference/compatibility.md)。源码构建使用 Bun `1.4.x`（最低 `1.4.4`）。
+Java 8/17、Boot 2/3/4、Go 1.22 和 Gin 示例 Go 1.26+ 的支持范围沿用上版。UI 可消费 OpenAPI 3.0/3.1/3.2 JSON。源码构建使用 Bun `1.4.x`（最低 `1.4.4`）。（[兼容矩阵](https://knife4jnext.com/reference/compatibility)）
 
 ### 5.8.3
 
