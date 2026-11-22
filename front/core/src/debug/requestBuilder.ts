@@ -20,7 +20,12 @@ import type {
   QueryParamValue,
   ValidationError,
 } from './types';
-import { replaceSerializedPathParams, serializeOas31Parameters } from './parameterSerialization';
+import {
+  replaceSerializedPathParams,
+  serializeOas31Parameters,
+  type SerializedOas31Parameters,
+} from './parameterSerialization';
+import { mediaTypeEssence } from './mediaType';
 import { serializeOas31FormBody } from './formBodyEncoding';
 import { authoredMultipartPlan, serializeOas32FormBody } from './oas32FormBodyEncoding';
 import { buildRequestWithOas32Parameters, oas32ParameterInputs, validateOas32Required } from './oas32ParameterRequest';
@@ -431,17 +436,28 @@ export interface BuildRequestOptions {
  * 构建最终请求对象
  */
 export function buildRequest(options: BuildRequestOptions): BuiltRequest {
-  if (options.debugModel.oas32Parameters) return buildRequestWithOas32Parameters(options, buildRequest);
-  const { baseUrl, path, method, debugModel, formValues, globalParams, applicationParams, auth, securityKeys } =
-    options;
+  const { debugModel, formValues } = options;
+  if (debugModel.oas32Parameters)
+    return buildRequestWithOas32Parameters(options, (remainder) => buildRequestBase(remainder, emptyParameters));
 
   const parameterDiagnostic = debugModel.parameterDiagnostics?.[0];
   if (parameterDiagnostic) throw new Error(parameterDiagnostic.message);
-  const serializedParameters = serializeOas31Parameters(
-    debugModel,
-    formValues.oas31ParameterValues,
-    formValues.serializedExampleParameters,
+  return buildRequestBase(
+    options,
+    serializeOas31Parameters(debugModel, formValues.oas31ParameterValues, formValues.serializedExampleParameters),
   );
+}
+
+const emptyParameters = serializeOas31Parameters({
+  pathParams: [],
+  queryParams: [],
+  headerParams: [],
+  cookieParams: [],
+});
+
+function buildRequestBase(options: BuildRequestOptions, serializedParameters: SerializedOas31Parameters): BuiltRequest {
+  const { baseUrl, path, method, debugModel, formValues, globalParams, applicationParams, auth, securityKeys } =
+    options;
 
   // 1. path 替换
   const resolvedPath = replacePathParams(
@@ -600,8 +616,11 @@ export function buildRequest(options: BuildRequestOptions): BuiltRequest {
   }
 
   // 5. URL
+  // OAS 3.2 applies its declared codecs separately. The shared request keeps
+  // only the default encoding for application, group and custom query values.
+  const legacyQueryParams = debugModel.oas32Parameters ? [] : debugModel.queryParams;
   const queryEncodings = Object.fromEntries(
-    debugModel.queryParams.map((param) => [param.name, { style: param.style, explode: param.explode }]),
+    legacyQueryParams.map((param) => [param.name, { style: param.style, explode: param.explode }]),
   );
   const legacyQueryString = buildQueryString(mergedQuery, queryEncodings);
   const parameterQueryString = serializedParameters.query
@@ -672,10 +691,6 @@ function multipartMediaTypeWithoutBoundary(value: string): string {
     .join('; ');
 }
 
-function multipartMediaTypeEssence(value: string): string {
-  return value.split(';', 1)[0].trim().toLowerCase();
-}
-
 function mimeQuotedParameter(value: string): string {
   if (/\r|\n/.test(value)) throw new Error('Multipart disposition metadata contains a forbidden line break.');
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -707,7 +722,7 @@ export function buildCurl(req: BuiltRequest): string {
   const legacyMultipart =
     plannedMultipart === undefined &&
     typeof req.contentType === 'string' &&
-    multipartMediaTypeEssence(req.contentType) === 'multipart/form-data';
+    mediaTypeEssence(req.contentType) === 'multipart/form-data';
   const isMultipart = !encodedMultipart && (plannedMultipart !== undefined || legacyMultipart);
 
   // headers（3.1 multipart 不带 Content-Type，让 curl 自动生成 boundary）
@@ -727,8 +742,7 @@ export function buildCurl(req: BuiltRequest): string {
     const contentType = multipartMediaTypeWithoutBoundary(plannedMultipart.mediaType);
     if (
       contentType &&
-      (multipartMediaTypeEssence(contentType) !== 'multipart/form-data' ||
-        contentType.toLowerCase() !== 'multipart/form-data')
+      (mediaTypeEssence(contentType) !== 'multipart/form-data' || contentType.toLowerCase() !== 'multipart/form-data')
     ) {
       // Native curl can generate only the bare multipart/form-data header;
       // preserve every other declared parameter while curl appends boundary.

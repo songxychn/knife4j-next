@@ -217,9 +217,20 @@ describe('OAS 3.2 whole query representations', () => {
   test('unsafe JSON numbers remain unavailable and malformed JSON is invalid', () => {
     const parameter = whole('application/json', true).oas32Parameters!.parameters[0];
     const unsafe = serializeOas32Parameter(parameter, { kind: 'media', text: '9007199254740993' });
-    expect(unsafe).toMatchObject({ dataStatus: 'unavailable', serialization: 'unavailable' });
+    expect(unsafe).toMatchObject({
+      dataStatus: 'unavailable',
+      serialization: 'unavailable',
+      parameterText: '9007199254740993',
+      diagnostics: [expect.objectContaining({ phase: 'serialization', code: 'CODEC_UNAVAILABLE', blocks: 'none' })],
+    });
     expect(unsafe).not.toHaveProperty('decodedData');
-    expect(serializeOas32Parameter(parameter, { kind: 'media', text: '' })).toMatchObject({ serialization: 'invalid' });
+    expect(serializeOas32Parameter(parameter, { kind: 'media', text: '' })).toMatchObject({
+      serialization: 'invalid',
+      parameterText: '',
+      diagnostics: [
+        expect.objectContaining({ phase: 'serialization', code: 'INVALID_JSON_SERIALIZATION', blocks: 'all' }),
+      ],
+    });
   });
 });
 

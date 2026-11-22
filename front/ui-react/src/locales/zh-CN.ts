@@ -542,7 +542,6 @@ const zhCN = {
   'apiDebug.formDiagnostic.AUTHORED_BOUNDARY_MISMATCH': '作者原始 MIME 文本必须与媒体类型 boundary 参数成对保留。',
   'apiDebug.formDiagnostic.BOUNDARY_INJECTION': 'part 内容与分隔符冲突，已拒绝生成。',
   'apiDebug.formDiagnostic.FORM_DEPTH_EXCEEDED': 'multipart 嵌套深度超出限制。',
-  'apiDebug.formDiagnostic.FORM_MATERIALIZATION_TIMEOUT': '请求物化被取消或超出时间预算。',
   'apiDebug.formDiagnostic.FORMDATA_UNREPRESENTABLE':
     '浏览器 FormData 无法表示该 multipart 结构，已使用明确编码或诊断边界。',
   'apiDebug.body.choosePartContentType': 'Part Content-Type',

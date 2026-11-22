@@ -13,8 +13,27 @@ import type {
   SerializeOas31FormBodyInput,
   UrlencodedFormEntry,
 } from './types';
-import { isJsonMediaType, parseOas31ParameterValue, serializeOas31Parameters } from './parameterSerialization';
-import { dereferenceReferenceObject, normalizeAllOfSchema, resolveSchemaRef } from './resolveRef';
+import {
+  encodeFormComponent,
+  isJsonMediaType,
+  parseOas31ParameterValue,
+  serializeOas31Parameters,
+} from './parameterSerialization';
+import { dereferenceReferenceObject } from './resolveRef';
+import { mediaTypeEssence, splitMediaTypes, validMediaType } from './mediaType';
+import {
+  schemaType,
+  normalizedPropertySchema,
+  declaredTypes,
+  arrayItemSchema,
+  diagnostic,
+  contentEncodingValue,
+  DEFAULT_MAX_FORM_FIELD_BYTES,
+  utf8Bytes,
+  formFieldParameter,
+  representation,
+  rawFileMetadata,
+} from './formBodyValues';
 import { hasOwn, isRecord } from '../utils/guards';
 
 export interface AnalyzeOas31FormBodyOptions {
@@ -27,150 +46,12 @@ export interface AnalyzeOas31FormBodyOptions {
 }
 
 const DEFAULT_LIMITS = Object.freeze({
-  maxFieldBytes: 256 * 1024,
+  maxFieldBytes: DEFAULT_MAX_FORM_FIELD_BYTES,
   maxTotalBytes: 1024 * 1024,
   maxParts: 1_000,
 });
 
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-const MEDIA_TYPE_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-
-function schemaType(schema: SchemaValue): string {
-  if (typeof schema === 'boolean') return 'unknown';
-  const declared = schema.type;
-  const types = Array.isArray(declared)
-    ? declared.filter((value): value is string => typeof value === 'string' && value !== 'null')
-    : typeof declared === 'string' && declared !== 'null'
-      ? [declared]
-      : [];
-  if (types.length === 1) return types[0];
-  if (schema.properties !== undefined) return 'object';
-  if (schema.items !== undefined || schema.prefixItems !== undefined) return 'array';
-  return types[0] ?? 'unknown';
-}
-
-function normalizedPropertySchema(value: unknown, document: Record<string, unknown>): SchemaValue {
-  if (typeof value === 'boolean') return value;
-  if (!isRecord(value)) return true;
-  if (typeof value.$ref === 'string') {
-    const resolved = resolveSchemaRef(value.$ref, document);
-    if (typeof resolved === 'boolean') {
-      if (resolved === false) return false;
-      const siblings = Object.fromEntries(Object.entries(value).filter(([key]) => key !== '$ref'));
-      return Object.keys(siblings).length > 0 ? normalizeAllOfSchema(siblings, document) : true;
-    }
-  }
-  return normalizeAllOfSchema(value, document);
-}
-
-function mediaTypeEssence(value: string): string {
-  return value.split(';', 1)[0].trim().toLowerCase();
-}
-
-function splitMediaTypes(value: string): string[] {
-  const result: string[] = [];
-  let start = 0;
-  let quoted = false;
-  let escaped = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const character = value[index];
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === '"') quoted = false;
-      continue;
-    }
-    if (character === '"') quoted = true;
-    else if (character === ',') {
-      result.push(value.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  result.push(value.slice(start).trim());
-  return result.filter(Boolean);
-}
-
-function splitMediaTypeParameters(value: string): string[] | null {
-  const result: string[] = [];
-  let start = 0;
-  let quoted = false;
-  let escaped = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const character = value[index];
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === '"') quoted = false;
-      continue;
-    }
-    if (character === '"') quoted = true;
-    else if (character === ';') {
-      result.push(value.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  if (quoted || escaped) return null;
-  result.push(value.slice(start).trim());
-  return result;
-}
-
-function validQuotedMediaTypeValue(value: string): boolean {
-  if (value.length < 2 || value[0] !== '"' || value[value.length - 1] !== '"') return false;
-  let escaped = false;
-  for (let index = 1; index < value.length - 1; index += 1) {
-    const character = value[index];
-    const code = character.charCodeAt(0);
-    if (escaped) {
-      if ((code < 0x20 && character !== '\t') || code === 0x7f) return false;
-      escaped = false;
-    } else if (character === '\\') {
-      escaped = true;
-    } else if (character === '"' || (code < 0x20 && character !== '\t') || code === 0x7f) {
-      return false;
-    }
-  }
-  return !escaped;
-}
-
-function validMediaType(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code <= 0x1f || code === 0x7f) return false;
-  }
-  const segments = splitMediaTypeParameters(value);
-  if (!segments || segments.length === 0) return false;
-  const [type = '', subtype = '', ...extra] = segments[0].split('/');
-  if (extra.length > 0 || !MEDIA_TYPE_TOKEN.test(type) || !MEDIA_TYPE_TOKEN.test(subtype)) return false;
-  return segments.slice(1).every((parameter) => {
-    const equals = parameter.indexOf('=');
-    if (equals <= 0) return false;
-    const name = parameter.slice(0, equals).trim();
-    const rawValue = parameter.slice(equals + 1).trim();
-    return MEDIA_TYPE_TOKEN.test(name) && (MEDIA_TYPE_TOKEN.test(rawValue) || validQuotedMediaTypeValue(rawValue));
-  });
-}
-
-function declaredTypes(schema: SchemaValue): string[] {
-  if (typeof schema === 'boolean') return [];
-  if (typeof schema.type === 'string') return [schema.type];
-  if (Array.isArray(schema.type)) {
-    return schema.type.filter((value): value is string => typeof value === 'string');
-  }
-  return [];
-}
-
-function arrayItemSchema(schema: SchemaValue, index: number): SchemaValue {
-  if (typeof schema === 'boolean') return true;
-  const prefixItems: readonly unknown[] = Array.isArray(schema.prefixItems)
-    ? (schema.prefixItems as readonly unknown[])
-    : [];
-  if (index < prefixItems.length) {
-    const candidate: unknown = prefixItems[index];
-    return typeof candidate === 'boolean' || isRecord(candidate) ? candidate : true;
-  }
-  const items = schema.items;
-  return typeof items === 'boolean' || isRecord(items) ? items : true;
-}
 
 function defaultContentTypes(schema: SchemaValue, arrayIndex?: number): string[] {
   if (typeof schema === 'boolean') return ['application/octet-stream'];
@@ -215,20 +96,6 @@ function contentTypeCategory(value: string): 'json' | 'text' | 'binary' {
   if (isJsonMediaType(essence)) return 'json';
   if (essence === 'text/plain') return 'text';
   return 'binary';
-}
-
-function diagnostic(
-  code: FormBodyDiagnostic['code'],
-  message: string,
-  fieldName?: string,
-  headerName?: string,
-): FormBodyDiagnostic {
-  return {
-    code,
-    message,
-    ...(fieldName === undefined ? {} : { fieldName }),
-    ...(headerName === undefined ? {} : { headerName }),
-  };
 }
 
 function analyzeHeader(
@@ -319,12 +186,6 @@ function analyzeHeader(
     default: schemaRecord?.default,
     example: example ?? schemaRecord?.example,
   };
-}
-
-function contentEncodingValue(schema: SchemaValue): string | undefined {
-  return isRecord(schema) && typeof schema.contentEncoding === 'string' && schema.contentEncoding
-    ? schema.contentEncoding
-    : undefined;
 }
 
 function headerAllowsValue(header: Oas31FormPartHeader, value: string): boolean {
@@ -479,39 +340,8 @@ export function analyzeOas31FormBody(options: AnalyzeOas31FormBodyOptions): Oas3
   return { fields, diagnostics };
 }
 
-function utf8Bytes(value: string): number {
-  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(value).length;
-  return unescape(encodeURIComponent(value)).length;
-}
-
-function fakeParameter(field: Oas31FormField, serialization = field.encoding): DebugParam {
-  return {
-    name: field.name,
-    in: 'query',
-    required: field.required,
-    type: field.type,
-    format: field.format,
-    schema: field.schema,
-    parameterSerialization:
-      serialization.kind === 'style'
-        ? {
-            kind: 'schema',
-            style: serialization.style ?? 'form',
-            explode: serialization.explode ?? true,
-            allowReserved: serialization.allowReserved ?? false,
-          }
-        : { kind: 'schema', style: 'form', explode: true, allowReserved: false },
-  };
-}
-
-function encodeFormComponent(value: string): string {
-  return encodeURIComponent(value)
-    .replace(/%20/g, '+')
-    .replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
-}
-
 function parsedFieldValue(field: Oas31FormField, rawValue: string, contentType?: string) {
-  const parameter = fakeParameter(field);
+  const parameter = formFieldParameter(field);
   if (contentType && isJsonMediaType(contentType)) {
     parameter.parameterSerialization = { kind: 'content', mediaType: contentType };
   }
@@ -522,40 +352,10 @@ function parseDiagnostic(field: Oas31FormField, kind: 'invalid-json' | 'unsafe-n
   return diagnostic(kind === 'unsafe-number' ? 'FORM_UNSAFE_NUMBER' : 'FORM_INPUT_INVALID_JSON', message, field.name);
 }
 
-function representation(
-  field: Oas31FormField,
-  instance: ParameterInstance,
-  contentType: string,
-  diagnostics: FormBodyDiagnostic[],
-): string | null {
-  if (isJsonMediaType(contentType)) return JSON.stringify(instance);
-  if (instance === null) return 'null';
-  if (typeof instance === 'string' || typeof instance === 'number' || typeof instance === 'boolean') {
-    return String(instance);
-  }
-  diagnostics.push(
-    diagnostic(
-      'UNSUPPORTED_CONTENT_TYPE',
-      `Field ${field.name} cannot serialize a structured value as ${contentType}.`,
-      field.name,
-    ),
-  );
-  return null;
-}
-
 function contentTypeForValue(field: Oas31FormField, index?: number): string {
   if (field.encoding.contentTypeExplicit) return field.encoding.contentTypes[0] ?? 'application/octet-stream';
   const defaults = defaultContentTypes(field.schema, index);
   return defaults.length === 1 ? defaults[0] : 'application/octet-stream';
-}
-
-function rawFileMetadata(value: unknown): FormFileMetadata | null {
-  if (!isRecord(value) || typeof value.name !== 'string') return null;
-  return {
-    name: value.name,
-    type: typeof value.type === 'string' ? value.type : undefined,
-    size: typeof value.size === 'number' && Number.isFinite(value.size) ? value.size : undefined,
-  };
 }
 
 function mediaTypeMatches(actual: string, expected: string): boolean {
@@ -658,7 +458,7 @@ function styleEntries(
   rawValue: string,
   diagnostics: FormBodyDiagnostic[],
 ): { entries: UrlencodedFormEntry[]; instance?: ParameterInstance } {
-  const parameter = fakeParameter(field);
+  const parameter = formFieldParameter(field);
   try {
     const serialized = serializeOas31Parameters(
       { pathParams: [], queryParams: [parameter], headerParams: [], cookieParams: [] },
