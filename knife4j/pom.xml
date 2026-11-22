@@ -50,7 +50,11 @@
         <knife4j-java.version>1.8</knife4j-java.version>
         <knife4j-spring.version>5.3.31</knife4j-spring.version>
         <knife4j-spring-boot.version>2.7.18</knife4j-spring-boot.version>
+        <!-- Boot 3.4 minimum supported by the Jakarta starters and their smoke apps. -->
         <knife4j-spring-boot3.version>3.4.7</knife4j-spring-boot3.version>
+        <!-- Keep the Gateway WebMVC starter and its smoke app on the same Boot and Cloud BOMs. -->
+        <knife4j-gateway-webmvc-boot.version>3.5.16</knife4j-gateway-webmvc-boot.version>
+        <knife4j-gateway-webmvc-cloud.version>2025.0.3</knife4j-gateway-webmvc-cloud.version>
         <knife4j-spring-boot4.version>4.1.2</knife4j-spring-boot4.version>
         <knife4j-jackson2-boot4.version>2.22.4</knife4j-jackson2-boot4.version>
         <knife4j-jackson3-boot4.version>3.1.8</knife4j-jackson3-boot4.version>
