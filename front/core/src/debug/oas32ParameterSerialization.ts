@@ -1,6 +1,8 @@
 import { resolveLocalJsonPointer } from '../openapi31/document';
+import { mediaTypeEssence } from './mediaType';
 import { isExampleData } from './exampleRepresentation';
 import {
+  encodeFormComponent,
   encodeParameterComponent,
   isJsonMediaType,
   isTextMediaType,
@@ -20,29 +22,49 @@ import type {
 } from './oas32ParameterTypes';
 import type { DebugParam, ParameterInstance, SchemaValue } from './types';
 
-const essence = (mediaType: string): string => mediaType.split(';', 1)[0].trim().toLowerCase();
-const isForm = (mediaType: string): boolean => essence(mediaType) === 'application/x-www-form-urlencoded';
+const isForm = (mediaType: string): boolean => mediaTypeEssence(mediaType) === 'application/x-www-form-urlencoded';
 const scalarText = (value: ParameterInstance): string => (value === null ? '' : String(value));
 const primitive = (value: ParameterInstance): boolean => value === null || typeof value !== 'object';
-const formEncode = (value: string): string => encodeParameterComponent(value).replace(/%20/g, '+').replace(/~/g, '%7E');
+const formEncode = (value: string): string => encodeFormComponent(value).replace(/\*/g, '%2A');
 const decodeForm = (value: string): string => decodeURIComponent(value.replace(/\+/g, ' '));
 
-class CodecFailure extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly unavailable = false,
-  ) {
-    super(message);
-    Object.setPrototypeOf(this, CodecFailure.prototype);
+const codecStatus = Symbol('parameter codec status');
+type CodecError = {
+  readonly [codecStatus]: 'invalid' | 'unavailable';
+  readonly code: string;
+  readonly message: string;
+};
+type CodecResult<T> = T | CodecError;
+
+const unavailable = (message: string): CodecError => ({
+  [codecStatus]: 'unavailable',
+  code: 'CODEC_UNAVAILABLE',
+  message,
+});
+const invalid = (code: string, message: string): CodecError => ({ [codecStatus]: 'invalid', code, message });
+
+function isCodecError(value: unknown): value is CodecError {
+  return value !== null && typeof value === 'object' && codecStatus in value;
+}
+
+function mapCodec<T, U>(items: readonly T[], transform: (item: T) => CodecResult<U>): CodecResult<U[]> {
+  const mapped: U[] = [];
+  for (const item of items) {
+    const result = transform(item);
+    if (isCodecError(result)) return result;
+    mapped.push(result);
+  }
+  return mapped;
+}
+
+function runCodec<T>(operation: () => CodecResult<T>): CodecResult<T> {
+  try {
+    return operation();
+  } catch (error) {
+    // URI component encoders/decoders can still throw on malformed text.
+    return invalid('SERIALIZATION_INVALID', error instanceof Error ? error.message : 'Parameter serialization failed.');
   }
 }
-const unavailable = (message: string): never => {
-  throw new CodecFailure('CODEC_UNAVAILABLE', message, true);
-};
-const invalid = (code: string, message: string): never => {
-  throw new CodecFailure(code, message);
-};
 
 /** Destination-sensitive reserved expansion; never gives data permission to delimit URL components. */
 export function encodeOas32ParameterValue(
@@ -74,43 +96,29 @@ export function encodeOas32ParameterValue(
   return result;
 }
 
-function flatArray(data: ParameterInstance[]): ParameterInstance[] {
+function flatArray(data: ParameterInstance[]): CodecResult<ParameterInstance[]> {
   if (!data.every(primitive)) return unavailable('Nested parameter arrays have no defined OAS style serialization.');
   return data.filter((value) => value !== null);
 }
-function flatEntries(data: Record<string, ParameterInstance>): Array<[string, ParameterInstance]> {
+function flatEntries(data: Record<string, ParameterInstance>): CodecResult<Array<[string, ParameterInstance]>> {
   const entries = Object.entries(data);
   if (!entries.every(([, value]) => primitive(value)))
     return unavailable('Nested parameter object values have no defined OAS style serialization.');
   return entries.filter(([, value]) => value !== null);
 }
-function compositeEmpty(data: ParameterInstance): boolean {
-  if (Array.isArray(data)) return flatArray(data).length === 0;
-  const object = parameterRecord(data);
-  return !!object && flatEntries(object as Record<string, ParameterInstance>).length === 0;
-}
-function simple(
+function styleText(
+  parameter: Oas32Parameter,
   data: ParameterInstance,
-  explode: boolean,
-  separator: string,
-  encode: (value: string) => string,
-): string {
-  if (Array.isArray(data))
-    return flatArray(data)
-      .map((value) => encode(scalarText(value)))
-      .join(separator);
-  const object = parameterRecord(data);
-  if (object)
-    return flatEntries(object as Record<string, ParameterInstance>)
-      .map(([key, value]) => `${encode(key)}${explode ? '=' : separator}${encode(scalarText(value))}`)
-      .join(separator);
-  return encode(scalarText(data));
-}
-function styleText(parameter: Oas32Parameter, data: ParameterInstance): { text: string; present: boolean } {
+): CodecResult<{ text: string; present: boolean }> {
   const codec = parameter.serialization;
   if (codec?.kind !== 'schema') return unavailable('A schema style codec is required.');
   const { style, explode, allowReserved } = codec;
-  if (compositeEmpty(data)) return { text: '', present: false };
+  const object = parameterRecord(data);
+  const entries = object ? flatEntries(object as Record<string, ParameterInstance>) : undefined;
+  if (isCodecError(entries)) return entries;
+  const array = Array.isArray(data) ? flatArray(data) : undefined;
+  if (isCodecError(array)) return array;
+  if (array?.length === 0 || entries?.length === 0) return { text: '', present: false };
   const encode = (value: string) =>
     parameter.in === 'header' || (parameter.in === 'cookie' && style === 'cookie')
       ? value
@@ -121,17 +129,23 @@ function styleText(parameter: Oas32Parameter, data: ParameterInstance): { text: 
         );
   const name =
     parameter.in === 'cookie' && style === 'cookie' ? parameter.name : encodeParameterComponent(parameter.name);
-  const entries = parameterRecord(data) ? flatEntries(data as Record<string, ParameterInstance>) : undefined;
-  const array = Array.isArray(data) ? flatArray(data) : undefined;
-  if (style === 'simple') return { text: simple(data, explode, ',', encode), present: true };
-  if (style === 'label') return { text: `.${simple(data, explode, explode ? '.' : ',', encode)}`, present: true };
+  const simple = (explodeObject: boolean, separator: string): string => {
+    if (array) return array.map((value) => encode(scalarText(value))).join(separator);
+    if (entries)
+      return entries
+        .map(([key, value]) => `${encode(key)}${explodeObject ? '=' : separator}${encode(scalarText(value))}`)
+        .join(separator);
+    return encode(scalarText(data));
+  };
+  if (style === 'simple') return { text: simple(explode, ','), present: true };
+  if (style === 'label') return { text: `.${simple(explode, explode ? '.' : ',')}`, present: true };
   if (style === 'matrix') {
     const pairs =
       explode && array
         ? array.map((value) => `${name}=${encode(scalarText(value))}`)
         : explode && entries
           ? entries.map(([key, value]) => `${encode(key)}=${encode(scalarText(value))}`)
-          : [data === null ? name : `${name}=${simple(data, false, ',', encode)}`];
+          : [data === null ? name : `${name}=${simple(false, ',')}`];
     return { text: `;${pairs.join(';')}`, present: true };
   }
   if (style === 'form' || style === 'cookie') {
@@ -140,7 +154,7 @@ function styleText(parameter: Oas32Parameter, data: ParameterInstance): { text: 
         ? array.map((value) => `${name}=${encode(scalarText(value))}`)
         : explode && entries
           ? entries.map(([key, value]) => `${encode(key)}=${encode(scalarText(value))}`)
-          : [`${name}=${simple(data, false, ',', encode)}`];
+          : [`${name}=${simple(false, ',')}`];
     return { text: pairs.join(style === 'cookie' ? '; ' : '&'), present: true };
   }
   if (style === 'deepObject') {
@@ -171,7 +185,7 @@ function directTypes(schema: unknown): string[] {
   if (typeof value.type === 'string') return [value.type];
   return Array.isArray(value.type) && value.type.every((type) => typeof type === 'string') ? value.type : [];
 }
-function scalarData(text: string, schema: unknown, nullText = ''): ParameterInstance | undefined {
+function scalarData(text: string, schema: unknown, nullText = ''): CodecResult<ParameterInstance | undefined> {
   const types = directTypes(schema);
   const values: ParameterInstance[] = [];
   if (types.includes('string')) values.push(text);
@@ -194,11 +208,11 @@ function ownSchemaProperty(schema: unknown, name: string): unknown {
   const properties = parameterRecord(parameterRecord(schema)?.properties);
   return properties && parameterOwn(properties, name) ? properties[name] : undefined;
 }
-function jsonText(data: ParameterInstance): string {
+function jsonText(data: ParameterInstance): CodecResult<string> {
   if (!isExampleData(data)) return unavailable('The parameter data cannot be represented safely as JSON.');
   return JSON.stringify(data);
 }
-function formProperty(parameter: Oas32Parameter, name: string): Oas32Parameter {
+function formProperty(parameter: Oas32Parameter, name: string): CodecResult<Oas32Parameter> {
   const schema = ownSchemaProperty(parameter.schemaView, name);
   const media = parameterRecord(parameter.mediaLocation?.value);
   const encodings = parameterRecord(media?.encoding);
@@ -237,7 +251,7 @@ function formProperty(parameter: Oas32Parameter, name: string): Oas32Parameter {
       : { kind: 'content', mediaType: contentType ?? '' },
   };
 }
-function contentData(parameter: Oas32Parameter, data: ParameterInstance): string {
+function contentData(parameter: Oas32Parameter, data: ParameterInstance): CodecResult<string> {
   const codec = parameter.serialization;
   if (codec?.kind !== 'content') return unavailable('A media codec is required.');
   const mediaType = codec.mediaType;
@@ -254,41 +268,48 @@ function contentData(parameter: Oas32Parameter, data: ParameterInstance): string
       return unavailable(
         'Structured form encoding requires resolved property schemas. Raw form text remains available.',
       );
-    return Object.entries(object)
-      .map(([name, value]) => {
-        if (!parameterOwn(properties, name))
-          return unavailable('An additional form property has no supported encoding schema.');
-        const field = formProperty(parameter, name);
-        if (field.serialization?.kind === 'schema') return styleText(field, value as ParameterInstance).text;
-        const types = directTypes(field.schemaView);
-        if (Array.isArray(value) && types.length === 1 && types[0] === 'array') {
-          const item = parameterRecord(field.schemaView)?.items;
-          const itemTypes = directTypes(item);
-          const declared = field.serialization?.kind === 'content' ? field.serialization.mediaType : '';
-          const mediaType =
-            declared ||
-            (itemTypes.length === 1 && itemTypes[0] === 'object'
-              ? 'application/json'
-              : itemTypes.length === 1 && !['array', 'object'].includes(itemTypes[0])
-                ? 'text/plain'
-                : '');
-          const itemParameter = {
-            ...field,
-            schemaView: item as SchemaValue,
-            serialization: { kind: 'content' as const, mediaType },
-          };
-          return value
-            .map((item) => `${formEncode(name)}=${formEncode(contentData(itemParameter, item as ParameterInstance))}`)
-            .join('&');
-        }
-        return `${formEncode(name)}=${formEncode(contentData(field, value as ParameterInstance))}`;
-      })
-      .filter((text) => text !== '')
-      .join('&');
+    const fields = mapCodec(Object.entries(object), ([name, value]) => {
+      if (!parameterOwn(properties, name))
+        return unavailable('An additional form property has no supported encoding schema.');
+      const field = formProperty(parameter, name);
+      if (isCodecError(field)) return field;
+      if (field.serialization?.kind === 'schema') {
+        const styled = styleText(field, value as ParameterInstance);
+        return isCodecError(styled) ? styled : styled.text;
+      }
+      const types = directTypes(field.schemaView);
+      if (Array.isArray(value) && types.length === 1 && types[0] === 'array') {
+        const item = parameterRecord(field.schemaView)?.items;
+        const itemTypes = directTypes(item);
+        const declared = field.serialization?.kind === 'content' ? field.serialization.mediaType : '';
+        const mediaType =
+          declared ||
+          (itemTypes.length === 1 && itemTypes[0] === 'object'
+            ? 'application/json'
+            : itemTypes.length === 1 && !['array', 'object'].includes(itemTypes[0])
+              ? 'text/plain'
+              : '');
+        const itemParameter = {
+          ...field,
+          schemaView: item as SchemaValue,
+          serialization: { kind: 'content' as const, mediaType },
+        };
+        const items = mapCodec(value, (item) => {
+          const encodedName = formEncode(name);
+          const text = contentData(itemParameter, item as ParameterInstance);
+          return isCodecError(text) ? text : `${encodedName}=${formEncode(text)}`;
+        });
+        return isCodecError(items) ? items : items.join('&');
+      }
+      const encodedName = formEncode(name);
+      const text = contentData(field, value as ParameterInstance);
+      return isCodecError(text) ? text : `${encodedName}=${formEncode(text)}`;
+    });
+    return isCodecError(fields) ? fields : fields.filter((text) => text !== '').join('&');
   }
   return unavailable(`No logical codec is available for ${mediaType}. Author text can still be inspected.`);
 }
-function outerContent(parameter: Oas32Parameter, text: string): string {
+function outerContent(parameter: Oas32Parameter, text: string): CodecResult<string> {
   const codec = parameter.serialization;
   if (codec?.kind !== 'content') return unavailable('Media-layer text requires content-based serialization.');
   if (parameter.in === 'header') return text;
@@ -298,7 +319,7 @@ function outerContent(parameter: Oas32Parameter, text: string): string {
   return `${parameter.name}=${text}`;
 }
 
-function validateUriText(text: string, inPath: boolean): void {
+function validateUriText(text: string, inPath: boolean): CodecError | undefined {
   const allowed = inPath ? /^[A-Za-z0-9._~!$&'()*+,;=:@%-]*$/ : /^[A-Za-z0-9._~!$&'()*+,;=:@/?%-]*$/;
   if (!allowed.test(text) || /%(?![0-9a-f]{2})/i.test(text))
     return invalid(
@@ -311,7 +332,7 @@ function validateUriText(text: string, inPath: boolean): void {
     return invalid('URI_PERCENT_DECODE_INVALID', 'The author parameter text cannot be percent-decoded.');
   }
 }
-export function validateOas32Header(name: string, value: string): void {
+function headerError(name: string, value: string): CodecError | undefined {
   if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name))
     return invalid('HEADER_NAME_INVALID', 'The header name is not an HTTP field-name token.');
   if (
@@ -321,6 +342,10 @@ export function validateOas32Header(name: string, value: string): void {
     })
   )
     return invalid('HEADER_CONTROL_CHARACTER', 'Header values cannot contain control characters.');
+}
+export function validateOas32Header(name: string, value: string): void {
+  const failure = headerError(name, value);
+  if (failure) throw Object.assign(new Error(failure.message), { code: failure.code, unavailable: false });
 }
 export function parseOas32QueryPairs(text: string): SerializedQueryParameter[] {
   if (text === '') return [];
@@ -359,7 +384,7 @@ export function oas32CookiePairs(text: string, key: string): { pairs: Oas32Cooki
   return { pairs, valid };
 }
 
-function decodeMedia(parameter: Oas32Parameter, text: string): ParameterInstance | undefined {
+function decodeMedia(parameter: Oas32Parameter, text: string): CodecResult<ParameterInstance | undefined> {
   const codec = parameter.serialization;
   if (codec?.kind !== 'content') return undefined;
   if (isJsonMediaType(codec.mediaType)) {
@@ -379,6 +404,7 @@ function decodeMedia(parameter: Oas32Parameter, text: string): ParameterInstance
     for (const name of Array.from(new Set(pairs.map((pair) => pair.name)))) {
       if (!parameterOwn(properties, name)) return undefined;
       const field = formProperty(parameter, name);
+      if (isCodecError(field)) return field;
       if (field.serialization?.kind !== 'content') return undefined;
       const group = pairs.filter((pair) => pair.name === name);
       const type = directTypes(field.schemaView);
@@ -392,17 +418,19 @@ function decodeMedia(parameter: Oas32Parameter, text: string): ParameterInstance
             : itemType.length === 1 && itemType[0] !== 'array'
               ? 'text/plain'
               : '');
-        const values = group.map((pair) =>
+        const values = mapCodec(group, (pair) =>
           decodeMedia(
             { ...field, schemaView: items as SchemaValue, serialization: { kind: 'content', mediaType } },
             pair.value,
           ),
         );
+        if (isCodecError(values)) return values;
         if (values.some((value) => value === undefined)) return undefined;
         result[name] = values as ParameterInstance[];
       } else {
         if (group.length !== 1) return undefined;
         const value = decodeMedia(field, group[0].value);
+        if (isCodecError(value)) return value;
         if (value === undefined) return undefined;
         result[name] = value;
       }
@@ -412,7 +440,7 @@ function decodeMedia(parameter: Oas32Parameter, text: string): ParameterInstance
   return undefined;
 }
 
-function decodeParameter(parameter: Oas32Parameter, text: string): ParameterInstance | undefined {
+function decodeParameter(parameter: Oas32Parameter, text: string): CodecResult<ParameterInstance | undefined> {
   const codec = parameter.serialization;
   if (!codec) return undefined;
   if (codec.kind === 'content') {
@@ -530,20 +558,22 @@ function decodeParameter(parameter: Oas32Parameter, text: string): ParameterInst
     for (const [key, text] of entries) {
       if (parameterOwn(result, key)) return undefined;
       const value = scalarData(text, ownSchemaProperty(schema, key));
+      if (isCodecError(value)) return value;
       if (value === undefined) return undefined;
       result[key] = value;
     }
     return result;
   }
   if (array) {
-    const data = values.map((value) => scalarData(value, parameterRecord(schema)?.items));
+    const data = mapCodec(values, (value) => scalarData(value, parameterRecord(schema)?.items));
+    if (isCodecError(data)) return data;
     return data.some((value) => value === undefined) ? undefined : (data as ParameterInstance[]);
   }
   return values.length === 1 ? scalarData(values[0], schema) : undefined;
 }
 
 /** Names that are part of the serialization cannot be replaced by arbitrary author names. */
-function validateAuthorBoundary(parameter: Oas32Parameter, text: string): void {
+function validateAuthorBoundary(parameter: Oas32Parameter, text: string): CodecError | undefined {
   const codec = parameter.serialization;
   if (!codec || text === '') return;
   const types = directTypes(parameter.schemaView);
@@ -552,9 +582,9 @@ function validateAuthorBoundary(parameter: Oas32Parameter, text: string): void {
     const pairs = parseOas32QueryPairs(text);
     if (codec.kind === 'schema' && codec.style === 'deepObject') {
       if (pairs.some((pair) => !pair.name.startsWith(`${parameter.name}[`) || !pair.name.endsWith(']')))
-        invalid('PARAMETER_NAME_MISMATCH', 'The deepObject author names must use the declared parameter name.');
+        return invalid('PARAMETER_NAME_MISMATCH', 'The deepObject author names must use the declared parameter name.');
     } else if (!objectExpansion && pairs.some((pair) => pair.name !== parameter.name))
-      invalid('PARAMETER_NAME_MISMATCH', 'The author query name does not match its Parameter declaration.');
+      return invalid('PARAMETER_NAME_MISMATCH', 'The author query name does not match its Parameter declaration.');
   }
   if (parameter.in === 'cookie' && !objectExpansion) {
     const names =
@@ -562,13 +592,13 @@ function validateAuthorBoundary(parameter: Oas32Parameter, text: string): void {
         ? text.split('&').map((pair) => decodeURIComponent(pair.split('=', 1)[0]))
         : oas32CookiePairs(text, parameter.key).pairs.map((pair) => pair.name);
     if (names.some((name) => name !== parameter.name))
-      invalid('PARAMETER_NAME_MISMATCH', 'The author Cookie name does not match its Parameter declaration.');
+      return invalid('PARAMETER_NAME_MISMATCH', 'The author Cookie name does not match its Parameter declaration.');
   }
   if (parameter.in === 'path' && codec.kind === 'schema') {
     if (codec.style === 'label' && !text.startsWith('.'))
-      invalid('PATH_STYLE_PREFIX', 'A label author example must include its leading dot.');
+      return invalid('PATH_STYLE_PREFIX', 'A label author example must include its leading dot.');
     if (codec.style === 'matrix' && !text.startsWith(';'))
-      invalid('PATH_STYLE_PREFIX', 'A matrix author example must include its leading semicolon.');
+      return invalid('PATH_STYLE_PREFIX', 'A matrix author example must include its leading semicolon.');
   }
 }
 
@@ -679,9 +709,9 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
   let present = true;
   let serialization: Oas32ParameterResult['serialization'] = 'unavailable';
   let pairing: Oas32ParameterResult['pairing'] = 'absent';
-  try {
+  const result = runCodec((): CodecResult<Oas32ParameterResult | undefined> => {
     if ('text' in input && input.text.length > 1024 * 1024)
-      invalid('PARAMETER_TEXT_LIMIT', 'Parameter text exceeds the one MiB codec input limit.');
+      return invalid('PARAMETER_TEXT_LIMIT', 'Parameter text exceeds the one MiB codec input limit.');
     if (input.kind === 'data') data = input.value;
     else if (input.kind === 'editor') {
       const parsed =
@@ -713,13 +743,20 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
     if (input.kind === 'parameter') parameterText = input.text;
     else if (input.kind === 'media') {
       mediaText = input.text;
-      parameterText = outerContent(parameter, mediaText);
+      const wire = outerContent(parameter, mediaText);
+      if (isCodecError(wire)) return wire;
+      parameterText = wire;
     } else if (data !== undefined) {
       if (parameter.serialization?.kind === 'content') {
-        mediaText = contentData(parameter, data);
-        parameterText = outerContent(parameter, mediaText);
+        const encoded = contentData(parameter, data);
+        if (isCodecError(encoded)) return encoded;
+        mediaText = encoded;
+        const wire = outerContent(parameter, mediaText);
+        if (isCodecError(wire)) return wire;
+        parameterText = wire;
       } else {
         const styled = styleText(parameter, data);
+        if (isCodecError(styled)) return styled;
         parameterText = styled.text;
         present = styled.present;
       }
@@ -727,22 +764,27 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
     if (parameterText !== undefined) {
       if ((parameter.in === 'query' || parameter.in === 'cookie') && parameterText === '') present = false;
       if (parameter.in === 'header') {
-        validateOas32Header(parameter.name, parameterText);
+        const failure = headerError(parameter.name, parameterText);
+        if (failure) return failure;
         if (input.kind === 'parameter' && parameterText.toLowerCase().startsWith(`${parameter.name.toLowerCase()}:`))
-          invalid('HEADER_NAME_IN_VALUE', 'An author Header example must not include the field name.');
+          return invalid('HEADER_NAME_IN_VALUE', 'An author Header example must not include the field name.');
       } else if (parameter.in === 'cookie') {
-        validateOas32Header('Cookie', parameterText);
+        const failure = headerError('Cookie', parameterText);
+        if (failure) return failure;
         if (
           (input.kind === 'data' || input.kind === 'editor') &&
           data !== undefined &&
           parameter.serialization?.kind === 'schema' &&
           parameter.serialization.style === 'cookie'
         ) {
-          const cells: Array<[string, ParameterInstance]> = Array.isArray(data)
-            ? flatArray(data).map((value) => [parameter.name, value])
+          const values = Array.isArray(data) ? flatArray(data) : undefined;
+          if (isCodecError(values)) return values;
+          const cells: CodecResult<Array<[string, ParameterInstance]>> = values
+            ? values.map((value) => [parameter.name, value])
             : parameterRecord(data)
               ? flatEntries(data as Record<string, ParameterInstance>)
               : [[parameter.name, data]];
+          if (isCodecError(cells)) return cells;
           if (
             cells.some(
               ([name, value]) =>
@@ -786,9 +828,13 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
             'browser',
           );
       } else {
-        validateUriText(parameterText, parameter.in === 'path');
+        const failure = validateUriText(parameterText, parameter.in === 'path');
+        if (failure) return failure;
         if (parameter.in !== 'path' && /^[?&]/.test(parameterText))
-          invalid('QUERY_LEADING_DELIMITER', 'A query parameter example must not include a leading ? or & delimiter.');
+          return invalid(
+            'QUERY_LEADING_DELIMITER',
+            'A query parameter example must not include a leading ? or & delimiter.',
+          );
         if (parameter.in !== 'path' && parameterText.includes("'"))
           report(
             'browser',
@@ -797,10 +843,15 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
             'browser',
           );
       }
-      if (input.kind === 'parameter') validateAuthorBoundary(parameter, parameterText);
+      if (input.kind === 'parameter') {
+        const failure = validateAuthorBoundary(parameter, parameterText);
+        if (failure) return failure;
+      }
       if (input.kind === 'data' || input.kind === 'editor') serialization = 'valid';
       else {
-        decodedData = decodeParameter(parameter, parameterText);
+        const decoded = decodeParameter(parameter, parameterText);
+        if (isCodecError(decoded)) return decoded;
+        decodedData = decoded;
         serialization = decodedData === undefined ? 'unavailable' : 'valid';
         if (decodedData === undefined)
           report(
@@ -812,22 +863,20 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
       if ((input.kind === 'media' || input.kind === 'parameter') && parameterOwn(input, 'data') && data !== undefined) {
         pairing = 'unavailable';
         // Forward equality proves this pair even where wire decoding is non-injective.
-        try {
-          const expected =
-            parameter.serialization?.kind === 'content'
-              ? contentData(parameter, data)
-              : styleText(parameter, data).text;
-          const expectedText =
-            input.kind === 'media'
-              ? expected
-              : parameter.serialization?.kind === 'content'
-                ? outerContent(parameter, expected)
-                : expected;
+        const providedData = data;
+        const expectedText = runCodec((): CodecResult<string> => {
+          if (parameter.serialization?.kind !== 'content') {
+            const styled = styleText(parameter, providedData);
+            return isCodecError(styled) ? styled : styled.text;
+          }
+          const expected = contentData(parameter, providedData);
+          if (isCodecError(expected) || input.kind === 'media') return expected;
+          return outerContent(parameter, expected);
+        });
+        if (!isCodecError(expectedText)) {
           if (expectedText === input.text || (decodedData !== undefined && equalData(data, decodedData)))
             pairing = 'valid';
           else if (decodedData !== undefined) pairing = 'invalid';
-        } catch {
-          /* Keep a separate unavailable pairing result. */
         }
         if (pairing !== 'valid')
           report(
@@ -837,22 +886,17 @@ export function serializeOas32Parameter(parameter: Oas32Parameter, input: Oas32P
           );
       }
     }
-  } catch (error) {
-    const failure =
-      error instanceof CodecFailure
-        ? error
-        : new CodecFailure(
-            'SERIALIZATION_INVALID',
-            error instanceof Error ? error.message : 'Parameter serialization failed.',
-          );
-    serialization = failure.unavailable ? 'unavailable' : 'invalid';
+    return undefined;
+  });
+  if (isCodecError(result)) {
+    serialization = result[codecStatus];
     report(
       'serialization',
-      failure.code,
-      failure.message,
-      failure.unavailable && parameterText !== undefined ? 'none' : 'all',
+      result.code,
+      result.message,
+      serialization === 'unavailable' && parameterText !== undefined ? 'none' : 'all',
     );
-  }
+  } else if (result) return result;
   return {
     parameter,
     input,

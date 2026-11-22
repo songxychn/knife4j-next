@@ -52,6 +52,17 @@ export function isOpenApi31Version(value: unknown): boolean {
   return version?.major === 3 && version.minor === 1;
 }
 
+/** JSON Schema-based versions allow adjacent keywords to apply next to a Schema Object's $ref. */
+export function supportsSchemaRefSiblings(value: unknown): boolean {
+  const version = parseOpenApiVersion(value);
+  return version !== null && (version.major > 3 || (version.major === 3 && version.minor >= 1));
+}
+
+/** Select malformed version strings for diagnostics without enabling specification features. */
+export function resemblesOpenApiVersionFamily(value: unknown, family: OpenApiVersionFamily): boolean {
+  return typeof value === 'string' && /^(3\.[012])(?:[.+-]|$)/.exec(value)?.[1] === family;
+}
+
 /** Return specification metadata only for known families, without inferring product support. */
 export function getOpenApiSpecificationFeatures(value: unknown): OpenApiSpecificationFeatures | null {
   const version = parseOpenApiVersion(value);

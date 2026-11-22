@@ -149,7 +149,7 @@ export function assertOas32BrowserRequest(request: BuiltRequest): void {
 
 export function buildRequestWithOas32Parameters(
   options: BuildRequestOptions,
-  buildLegacy: (options: BuildRequestOptions) => BuiltRequest,
+  buildRemainder: (options: BuildRequestOptions) => BuiltRequest,
 ): BuiltRequest {
   const collection = options.debugModel.oas32Parameters;
   if (!collection) throw new Error('An OAS 3.2 parameter collection is required.');
@@ -230,18 +230,9 @@ export function buildRequestWithOas32Parameters(
   const removeHeaders = (headers: Record<string, string>) =>
     Object.fromEntries(Object.entries(headers).filter(([name]) => !declaredHeaderNames.has(name.toLowerCase())));
   const form = options.formValues;
-  const remainder = buildLegacy({
+  const remainder = buildRemainder({
     ...options,
     path: resolvedPath,
-    debugModel: {
-      ...options.debugModel,
-      oas32Parameters: undefined,
-      pathParams: [],
-      queryParams: [],
-      headerParams: [],
-      cookieParams: [],
-      parameterDiagnostics: undefined,
-    },
     formValues: {
       ...form,
       pathParams: {},
@@ -252,9 +243,6 @@ export function buildRequestWithOas32Parameters(
           ([name]) => !collection.parameters.some((parameter) => parameter.in === 'cookie' && parameter.name === name),
         ),
       ),
-      oas31ParameterValues: undefined,
-      serializedExampleParameters: undefined,
-      oas32ParameterInputs: undefined,
     },
   });
   const headerMap: Record<string, string> = Object.assign(

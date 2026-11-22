@@ -1,4 +1,4 @@
-import { enumerateOpenApiOperations } from '../openapiOperations';
+import { enumerateOpenApiOperations, OperationEnumerationBudget } from '../openapiOperations';
 import { OpenAPIParser } from '../models/openapi3/parse';
 
 const document = (openapi = '3.2.0') => ({
@@ -73,5 +73,29 @@ describe('versioned OpenAPI operation identity', () => {
     expect(op).toBeDefined();
     parser.parsePathAsync(op!, instance, {} as never);
     expect(op!.parameters).toHaveLength(1);
+  });
+});
+
+test('returns completed operations when the work budget runs out during parameter projection', () => {
+  const budget = new OperationEnumerationBudget({ maxWork: 6 });
+  const operations = enumerateOpenApiOperations(
+    {
+      openapi: '3.2.0',
+      paths: {
+        '/first': { get: {} },
+        '/second': { get: { parameters: [{ name: 'q', in: 'query', schema: { type: 'string' } }] } },
+        '/third': { get: {} },
+      },
+    },
+    { budget },
+  );
+
+  expect(operations.map((operation) => operation.path)).toEqual(['/first']);
+  expect(budget.diagnostic).toMatchObject({
+    code: 'OPERATION_EXPANSION_LIMIT',
+    resource: 'work',
+    work: 6,
+    operations: 2,
+    pointer: '#/paths/~1second/get/parameters/0',
   });
 });

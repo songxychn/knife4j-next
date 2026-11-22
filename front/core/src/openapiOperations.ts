@@ -73,13 +73,6 @@ export interface OperationEnumerationDiagnostic {
   readonly pointer: string;
 }
 
-class OperationEnumerationLimitReached extends Error {
-  constructor(readonly budget: OperationEnumerationBudget) {
-    super('Operation expansion reached a local limit.');
-    Object.setPrototypeOf(this, OperationEnumerationLimitReached.prototype);
-  }
-}
-
 /** One budget is shared by every mount, prototype, callback branch and loaded Link target. */
 export class OperationEnumerationBudget {
   readonly limits: OperationEnumerationLimits;
@@ -96,7 +89,7 @@ export class OperationEnumerationBudget {
     });
   }
 
-  consume(resource: 'work' | 'operations', location: OpenApiObjectLocation): void {
+  consume(resource: 'work' | 'operations', location: OpenApiObjectLocation): boolean {
     const maximum = resource === 'work' ? this.limits.maxWork : this.limits.maxOperations;
     if (this.diagnostic || this[resource] >= maximum) {
       this.diagnostic ??= Object.freeze({
@@ -108,9 +101,10 @@ export class OperationEnumerationBudget {
         ownerRetrievalUri: location.ownerRetrievalUri,
         pointer: location.pointer,
       });
-      throw new OperationEnumerationLimitReached(this);
+      return false;
     }
     this[resource] += 1;
+    return true;
   }
 }
 
@@ -197,7 +191,7 @@ export function enumerateOpenApiOperations(
     const seen = new Set<string>();
     let current = location;
     for (let depth = 0; depth <= 20; depth++) {
-      budget.consume('work', current);
+      if (!budget.consume('work', current)) return null;
       if (!record(current.value)) return null;
       if (typeof current.value.$ref !== 'string') return current;
       const key = JSON.stringify([current.ownerRetrievalUri, current.pointer]);
@@ -213,7 +207,7 @@ export function enumerateOpenApiOperations(
     location: OpenApiObjectLocation,
     seen = new Set<string>(),
   ): Record<string, OpenApiObjectLocation> | null => {
-    budget.consume('work', location);
+    if (!budget.consume('work', location)) return null;
     if (!record(location.value) || seen.size > 20) return null;
     const key = JSON.stringify([location.ownerRetrievalUri, location.pointer]);
     if (seen.has(key)) return null;
@@ -245,13 +239,15 @@ export function enumerateOpenApiOperations(
         ['headers', 'header'],
         ['links', 'link'],
       ] as const) {
-        if (record(value[name]))
-          value[name] = Object.fromEntries(
-            Object.entries(value[name]).map(([key, entry]) => [
-              key,
-              projectReference(child(child(resolved, name, value[name]), key, entry), targetKind) ?? {},
-            ]),
-          );
+        const entries = value[name];
+        if (!record(entries)) continue;
+        const projected: Array<[string, unknown]> = [];
+        for (const [key, entry] of Object.entries(entries)) {
+          const childValue = projectReference(child(child(resolved, name, entries), key, entry), targetKind);
+          if (budget.diagnostic) return undefined;
+          projected.push([key, childValue ?? {}]);
+        }
+        value[name] = Object.fromEntries(projected);
       }
     }
     return value;
@@ -264,7 +260,7 @@ export function enumerateOpenApiOperations(
     ancestry: ReadonlySet<string>,
     linkedOperation?: OpenApiObjectLocation,
   ): void => {
-    budget.consume('work', location);
+    if (!budget.consume('work', location)) return;
     const visitKey = JSON.stringify([location.ownerRetrievalUri, location.pointer]);
     if (ancestry.has(visitKey) || ancestry.size > 32) return;
     const fields = fieldsForPathItem(location);
@@ -286,7 +282,7 @@ export function enumerateOpenApiOperations(
     }
     if (linkedOperation && !location.pointer) entries.push({ field: '', source: 'unknown', location: linkedOperation });
     for (const entry of entries) {
-      budget.consume('work', entry.location);
+      if (!budget.consume('work', entry.location)) return;
       if (
         linkedOperation &&
         (entry.location.pointer !== linkedOperation.pointer ||
@@ -294,44 +290,55 @@ export function enumerateOpenApiOperations(
       )
         continue;
       if (!record(entry.location.value)) continue;
-      budget.consume('operations', entry.location);
+      if (!budget.consume('operations', entry.location)) return;
       const raw = entry.location.value;
       const projectedRaw = { ...raw };
       const parameterLocations: Record<string, OpenApiObjectLocation> = {};
       const responseLocations: Record<string, OpenApiObjectLocation> = {};
-      const projectParameters = (parameterLocation: OpenApiObjectLocation | undefined): unknown[] =>
-        parameterLocation && Array.isArray(parameterLocation.value)
-          ? parameterLocation.value.flatMap((value, index) => {
-              const site = child(parameterLocation, String(index), value);
-              const projected = projectReference(site, 'parameter');
-              const target = dereference(site, 'parameter');
-              if (record(projected) && typeof projected.in === 'string' && typeof projected.name === 'string' && target)
-                parameterLocations[`${projected.in}:${projected.name}`] = target;
-              return projected ? [projected] : [];
-            })
-          : [];
+      const projectParameters = (parameterLocation: OpenApiObjectLocation | undefined): unknown[] => {
+        if (!parameterLocation || !Array.isArray(parameterLocation.value)) return [];
+        const result: unknown[] = [];
+        for (const [index, value] of parameterLocation.value.entries()) {
+          const site = child(parameterLocation, String(index), value);
+          const projected = projectReference(site, 'parameter');
+          if (budget.diagnostic) break;
+          const target = dereference(site, 'parameter');
+          if (budget.diagnostic) break;
+          if (record(projected) && typeof projected.in === 'string' && typeof projected.name === 'string' && target)
+            parameterLocations[`${projected.in}:${projected.name}`] = target;
+          if (projected) result.push(projected);
+        }
+        return result;
+      };
       const projectedPathItem = { ...pathItem, parameters: projectParameters(fields.parameters) };
+      if (budget.diagnostic) return;
       if (Array.isArray(raw.parameters))
         projectedRaw.parameters = projectParameters(child(entry.location, 'parameters', raw.parameters));
+      if (budget.diagnostic) return;
       const requestBodyLocation = record(raw.requestBody)
         ? (dereference(child(entry.location, 'requestBody', raw.requestBody), 'requestBody') ?? undefined)
         : undefined;
+      if (budget.diagnostic) return;
       if (record(raw.requestBody))
         projectedRaw.requestBody = projectReference(
           child(entry.location, 'requestBody', raw.requestBody),
           'requestBody',
         );
-      if (record(raw.responses))
-        projectedRaw.responses = Object.fromEntries(
-          Object.entries(raw.responses)
-            .filter(([key]) => !key.startsWith('x-'))
-            .map(([key, value]) => {
-              const site = child(child(entry.location, 'responses', raw.responses), key, value);
-              const target = dereference(site, 'response');
-              if (target) responseLocations[key] = target;
-              return [key, projectReference(site, 'response') ?? {}];
-            }),
-        );
+      if (budget.diagnostic) return;
+      if (record(raw.responses)) {
+        const responses: Array<[string, unknown]> = [];
+        for (const [key, value] of Object.entries(raw.responses)) {
+          if (key.startsWith('x-')) continue;
+          const site = child(child(entry.location, 'responses', raw.responses), key, value);
+          const target = dereference(site, 'response');
+          if (budget.diagnostic) return;
+          const response = projectReference(site, 'response');
+          if (budget.diagnostic) return;
+          if (target) responseLocations[key] = target;
+          responses.push([key, response ?? {}]);
+        }
+        projectedRaw.responses = Object.fromEntries(responses);
+      }
       const operation = projectPathItemOperation(projectedPathItem, projectedRaw, document).operation;
       const method = entry.source === 'fixed' ? entry.field.toUpperCase() : entry.field;
       const descriptor: OpenApiOperation = {
@@ -378,6 +385,7 @@ export function enumerateOpenApiOperations(
             new Set([...Array.from(ancestry), visitKey]),
             source === 'component' || source === 'link' ? source : 'callback',
           );
+          if (budget.diagnostic) return;
         }
     }
   };
@@ -390,7 +398,7 @@ export function enumerateOpenApiOperations(
     const resolved = dereference(location, 'callback');
     if (!resolved || !record(resolved.value)) return;
     for (const [expression, pathItem] of Object.entries(resolved.value)) {
-      budget.consume('work', resolved);
+      if (!budget.consume('work', resolved)) return;
       if (!expression.startsWith('x-'))
         visitPathItem(
           child(resolved, expression, pathItem),
@@ -399,54 +407,55 @@ export function enumerateOpenApiOperations(
           `${mountPointer}/${escapeJsonPointerSegment(expression)}`,
           ancestry,
         );
+      if (budget.diagnostic) return;
     }
   };
-  try {
-    for (const [collection, source] of [
-      ['paths', 'path'],
-      ['webhooks', 'webhook'],
-    ] as const) {
-      if (!record(document[collection])) continue;
-      for (const [path, pathItem] of Object.entries(document[collection])) {
-        if (collection === 'paths' && !path.startsWith('/')) continue;
-        const location = child(child(root, collection, document[collection]), path, pathItem);
-        visitPathItem(location, path, source, location.pointer, new Set());
+  for (const [collection, source] of [
+    ['paths', 'path'],
+    ['webhooks', 'webhook'],
+  ] as const) {
+    if (!record(document[collection])) continue;
+    for (const [path, pathItem] of Object.entries(document[collection])) {
+      if (collection === 'paths' && !path.startsWith('/')) continue;
+      const location = child(child(root, collection, document[collection]), path, pathItem);
+      visitPathItem(location, path, source, location.pointer, new Set());
+      if (budget.diagnostic) return result;
+    }
+  }
+  if (record(document.components)) {
+    const components = child(root, 'components', document.components);
+    if (record(document.components.pathItems))
+      for (const [name, pathItem] of Object.entries(document.components.pathItems)) {
+        const location = child(child(components, 'pathItems', document.components.pathItems), name, pathItem);
+        visitPathItem(location, name, 'component', location.pointer, new Set());
+        if (budget.diagnostic) return result;
       }
-    }
-    if (record(document.components)) {
-      const components = child(root, 'components', document.components);
-      if (record(document.components.pathItems))
-        for (const [name, pathItem] of Object.entries(document.components.pathItems)) {
-          const location = child(child(components, 'pathItems', document.components.pathItems), name, pathItem);
-          visitPathItem(location, name, 'component', location.pointer, new Set());
-        }
-      if (record(document.components.callbacks))
-        for (const [name, callback] of Object.entries(document.components.callbacks)) {
-          const location = child(child(components, 'callbacks', document.components.callbacks), name, callback);
-          visitCallback(location, location.pointer, new Set(), 'component');
-        }
-    }
-    const knownTargets = new Set(
-      result.map((operation) => JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer])),
+    if (record(document.components.callbacks))
+      for (const [name, callback] of Object.entries(document.components.callbacks)) {
+        const location = child(child(components, 'callbacks', document.components.callbacks), name, callback);
+        visitCallback(location, location.pointer, new Set(), 'component');
+        if (budget.diagnostic) return result;
+      }
+  }
+  const knownTargets = new Set(
+    result.map((operation) => JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer])),
+  );
+  for (const target of options.linkTargets ?? []) {
+    if (!budget.consume('work', target.operation)) return result;
+    const key = JSON.stringify([target.operation.ownerRetrievalUri, target.operation.pointer]);
+    if (knownTargets.has(key)) continue;
+    const start = result.length;
+    visitPathItem(
+      target.pathItem ?? { value: {}, pointer: '', ownerRetrievalUri: target.operation.ownerRetrievalUri },
+      target.pathItem?.pointer ?? target.operation.pointer,
+      'link',
+      '',
+      new Set(),
+      target.operation,
     );
-    for (const target of options.linkTargets ?? []) {
-      budget.consume('work', target.operation);
-      const key = JSON.stringify([target.operation.ownerRetrievalUri, target.operation.pointer]);
-      if (knownTargets.has(key)) continue;
-      const start = result.length;
-      visitPathItem(
-        target.pathItem ?? { value: {}, pointer: '', ownerRetrievalUri: target.operation.ownerRetrievalUri },
-        target.pathItem?.pointer ?? target.operation.pointer,
-        'link',
-        '',
-        new Set(),
-        target.operation,
-      );
-      for (const operation of result.slice(start))
-        knownTargets.add(JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer]));
-    }
-  } catch (error) {
-    if (!(error instanceof OperationEnumerationLimitReached) || error.budget !== budget) throw error;
+    if (budget.diagnostic) return result;
+    for (const operation of result.slice(start))
+      knownTargets.add(JSON.stringify([operation.ownerRetrievalUri, operation.operationPointer]));
   }
   return result;
 }
