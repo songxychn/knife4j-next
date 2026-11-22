@@ -1,10 +1,9 @@
-import { describe, expect, test } from 'vitest';
 import {
   classifyOas32SequentialMedia,
   createOas32SequentialDecoder,
   decodeOas32SequentialBytes,
   sequentialMediaBoundary,
-} from './oas32SequentialMedia';
+} from '../openapi32/sequentialMedia';
 
 const bytes = (...chunks: string[]) => chunks.map((chunk) => new TextEncoder().encode(chunk));
 

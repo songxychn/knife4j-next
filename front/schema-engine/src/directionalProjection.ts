@@ -1,6 +1,13 @@
-import { isRecord } from 'knife4j-core';
-import type { JsonValue } from 'knife4j-schema-engine';
-import type { SwaggerDoc } from '../types/swagger';
+import { isRecord } from './guards';
+import type { JsonValue } from './types';
+
+interface OpenApiSchemaSource {
+  readonly $id?: unknown;
+  readonly components?: unknown;
+  readonly paths?: unknown;
+  readonly webhooks?: unknown;
+  readonly jsonSchemaDialect?: unknown;
+}
 
 export type SchemaEvaluationDirection = 'request' | 'response';
 
@@ -153,7 +160,7 @@ function referenceLookupKey(reference: string): string {
   }
 }
 
-function collectOpenApiSchemaRoots(document: SwaggerDoc): SchemaRoot[] {
+function collectOpenApiSchemaRoots(document: OpenApiSchemaSource): SchemaRoot[] {
   const roots: SchemaRoot[] = [];
   const addSchema = (schema: unknown, path: readonly string[]): void => {
     if (isSchemaValue(schema)) roots.push({ path, schema, key: `schema${roots.length}` });
@@ -227,7 +234,7 @@ function collectOpenApiSchemaRoots(document: SwaggerDoc): SchemaRoot[] {
     visitMap(components.pathItems, ['components', 'pathItems'], visitPathItem);
   }
   visitMap(document.paths, ['paths'], visitPathItem);
-  visitMap((document as SwaggerDoc & { webhooks?: unknown }).webhooks, ['webhooks'], visitPathItem);
+  visitMap(document.webhooks, ['webhooks'], visitPathItem);
   return roots;
 }
 
@@ -272,7 +279,7 @@ function cloneRecord(): { [key: string]: JsonValue } {
  * candidates are evaluated against this projection.
  */
 export function createDirectionalSchemaProjection(
-  document: SwaggerDoc,
+  document: OpenApiSchemaSource,
   retrievalUri: string,
   direction: SchemaEvaluationDirection,
   namespaceUri: string,
@@ -283,9 +290,8 @@ export function createDirectionalSchemaProjection(
     ? new Set([...SCHEMA_VALUE_KEYS].filter((key) => key !== 'additionalItems'))
     : SCHEMA_VALUE_KEYS;
   const originalRetrieval = resourcePart(retrievalUri);
-  const documentRecord = document as SwaggerDoc & { $id?: unknown };
   const originalDocumentResource =
-    typeof documentRecord.$id === 'string' ? resolveResource(documentRecord.$id, originalRetrieval) : originalRetrieval;
+    typeof document.$id === 'string' ? resolveResource(document.$id, originalRetrieval) : originalRetrieval;
   const namespace = new URL(`${direction}/`, namespaceUri).href;
   const projectedRetrieval = new URL('bundle', namespace).href;
   const roots = collectOpenApiSchemaRoots(document);

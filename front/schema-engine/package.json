@@ -14,6 +14,18 @@
     "./uri": {
       "types": "./lib/uri.d.ts",
       "import": "./lib/uri.js"
+    },
+    "./directional-projection": {
+      "types": "./lib/directionalProjection.d.ts",
+      "import": "./lib/directionalProjection.js"
+    },
+    "./evaluation-issues": {
+      "types": "./lib/evaluationIssues.d.ts",
+      "import": "./lib/evaluationIssues.js"
+    },
+    "./example-values": {
+      "types": "./lib/exampleValues.d.ts",
+      "import": "./lib/exampleValues.js"
     }
   },
   "files": [

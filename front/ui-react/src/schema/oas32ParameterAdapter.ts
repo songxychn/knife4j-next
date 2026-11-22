@@ -20,7 +20,7 @@ import type { MenuOperation } from '../types/swagger';
 import { evaluateSchemaDocumentDirectionally, type SchemaDocumentSession } from './schemaDocumentSession';
 import type { OperationExampleResult, OperationExampleTarget } from './operationExampleCatalog';
 import { asOpenApiRecord as record } from './openApiDocumentPointer';
-import { collectLeafSchemaIssues } from './schemaEvaluationIssues';
+import { collectLeafSchemaIssues } from 'knife4j-schema-engine/evaluation-issues';
 
 const own = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
 

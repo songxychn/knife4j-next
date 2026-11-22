@@ -12,7 +12,7 @@ import {
   locateOperationRecord,
   pointerReference,
 } from './openApiDocumentPointer';
-import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from './schemaEvaluationIssues';
+import { collectLeafSchemaIssues, type SchemaEvaluationIssue } from 'knife4j-schema-engine/evaluation-issues';
 
 export type RequestBodySchemaPreparation =
   | {

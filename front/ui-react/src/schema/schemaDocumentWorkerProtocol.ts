@@ -1,7 +1,7 @@
 import type { EvaluationResult, SchemaDocumentRegistrationContext, SchemaNode } from 'knife4j-schema-engine';
 import type { SwaggerDoc } from '../types/swagger';
 import type { SchemaDocumentResource } from './schemaDocumentSession';
-import type { SchemaEvaluationDirection } from './schemaDirectionProjection';
+import type { SchemaEvaluationDirection } from 'knife4j-schema-engine/directional-projection';
 import type { GenerateSchemaExampleOptions, SchemaExampleResult } from './schemaExampleGeneration';
 import type { SelectedAuthoredExample } from './schemaExampleAuthored';
 

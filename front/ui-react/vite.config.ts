@@ -18,7 +18,15 @@ export default defineConfig({
     alias: [{ find: /^knife4j-core$/, replacement: path.resolve(__dirname, '../core/lib') }],
   },
   optimizeDeps: {
-    include: ['knife4j-core', 'knife4j-core/lib/auth/oauthDeviceAuthorization'],
+    include: [
+      'knife4j-core',
+      'knife4j-core/lib/auth/oauthDeviceAuthorization',
+      'knife4j-core/lib/auth/oas32Security',
+      'knife4j-core/lib/offlineDocumentSnapshot',
+      'knife4j-core/lib/openApiOperationExport',
+      'knife4j-core/lib/openapi32/sequentialMedia',
+      'knife4j-core/lib/utils/stableJson',
+    ],
   },
   server: {
     proxy: {

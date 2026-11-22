@@ -1,4 +1,4 @@
-import { getOpenApiSpecificationFeatures } from 'knife4j-core';
+import { getOpenApiSpecificationFeatures } from '../openapiVersion';
 
 export type Oas32SequentialKind = 'sse' | 'jsonl' | 'json-seq' | 'multipart';
 export type Oas32SequentialRecordKind = Oas32SequentialKind | 'unknown';

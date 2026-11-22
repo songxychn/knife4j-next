@@ -128,6 +128,29 @@ afterEach(() => {
 });
 
 describe('OAS 3.1 offline export snapshot', () => {
+  test('keeps operations with the original tag index if a preceding tag changes during projection', async () => {
+    const document: SwaggerDoc = {
+      openapi: '3.1.1',
+      info: { title: 'Grouped operations', version: '1' },
+      tags: [{ name: 'First' }, { name: 'Second' }],
+      paths: {
+        '/first': { get: { tags: ['First'], responses: { '200': { description: 'OK' } } } },
+        '/second': { get: { tags: ['Second'], responses: { '200': { description: 'OK' } } } },
+      },
+    };
+    const tags = parseMenuTags(document);
+    const session = await openSession(document, false);
+
+    const pending = buildOas31ExportSnapshot(document, tags, session);
+    tags[0].operations.splice(0);
+
+    const snapshot = await pending;
+    expect(snapshot.document.tags[0].operations).toEqual([]);
+    expect(snapshot.document.tags[1].operations).toEqual([
+      expect.objectContaining({ path: '/second', numberPath: [2, 1] }),
+    ]);
+  });
+
   test.each(
     ['3.1.0', '3.1.1', '3.1.2'].flatMap((openapi) => [true, false].map((withSchema) => ({ openapi, withSchema }))),
   )(

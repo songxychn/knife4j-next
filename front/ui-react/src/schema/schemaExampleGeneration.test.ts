@@ -92,6 +92,22 @@ describe('authored example priority', () => {
     });
   });
 
+  test('caps authored diagnostics while retaining the full leaf error count', async () => {
+    const names = Array.from({ length: 12 }, (_, index) => `field${index}`);
+    const session = await sessionFor({
+      Value: { type: 'object', properties: Object.fromEntries(names.map((name) => [name, { type: 'integer' }])) },
+    });
+    const result = await generateSchemaExample(session, reference('Value'), {
+      direction: 'request',
+      explicit: [{ source: 'media-example', value: Object.fromEntries(names.map((name) => [name, 'text'])) }],
+    });
+    const diagnostic = expectValue(result).diagnostics[0];
+    expect(diagnostic).toMatchObject({ code: 'EXPLICIT_VALUE_INVALID', totalIssues: names.length });
+    expect(diagnostic.issues?.map((issue) => issue.instanceLocation)).toEqual(
+      names.slice(0, 8).map((name) => `/${name}`),
+    );
+  });
+
   test('uses schema examples, compatibility example, const, default and enum in the frozen order', async () => {
     const schemaVariants: Array<[string, JsonValue, string, JsonValue]> = [
       [
