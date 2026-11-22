@@ -294,19 +294,26 @@ export default function SchemaFieldTable({ fields, emptyText }: SchemaFieldTable
       dataIndex: 'name',
       width: columnWidths.fieldName,
       onHeaderCell: () => resizableHeader('fieldName'),
-      render: (_, record) => (
-        <Text
-          code
-          title={fieldDisplayName(record, t('schema.rootNode'))}
-          style={{
-            whiteSpace: 'normal',
-            overflowWrap: 'anywhere',
-            lineHeight: '20px',
-          }}
-        >
-          {fieldDisplayName(record, t('schema.rootNode'))}
-        </Text>
-      ),
+      render: (_, record) => {
+        const name = fieldDisplayName(record, t('schema.rootNode'));
+        const title = record.title?.trim();
+        const fieldName = (
+          <Text code title={name} style={{ whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: '20px' }}>
+            {name}
+          </Text>
+        );
+        if (!title) return fieldName;
+
+        return (
+          // Keep both lines next to the table's floated indentation and expand control.
+          <span style={{ display: 'flow-root' }}>
+            {fieldName}
+            <Text type="secondary" style={{ display: 'block', fontSize: '0.875em', overflowWrap: 'anywhere' }}>
+              {title}
+            </Text>
+          </span>
+        );
+      },
     },
     {
       title: t('schema.col.type'),

@@ -228,6 +228,7 @@ describe('SchemaDisplayProjector', () => {
         properties: {
           value: {
             $ref: '#/components/schemas/Value',
+            title: 'Field title',
             description: 'Field description',
             default: 'ok',
             examples: ['ready'],
@@ -248,6 +249,7 @@ describe('SchemaDisplayProjector', () => {
       name: 'value',
       type: 'string',
       refName: 'Value',
+      title: 'Field title',
       description: 'Field description',
       refDescription: 'Shared description',
       refTitle: 'Shared value',
@@ -267,6 +269,7 @@ describe('SchemaDisplayProjector', () => {
       truncated: true,
       truncationReason: 'projection-loss',
     });
+    expect(result.fields[1].title).toBeUndefined();
     expect(result.diagnostics.filter(({ keyword }) => keyword === 'if')).toHaveLength(1);
   });
 
