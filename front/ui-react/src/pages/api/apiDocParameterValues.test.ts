@@ -4,13 +4,23 @@ import { apiDocParameterValues } from './apiDocParameterValues';
 
 describe('ApiDoc parameter Schema values', () => {
   test.each(['3.0.3', '3.1.0', '3.2.0'])('reads inline and local referenced values in OAS %s', (openapi) => {
-    const schema = { type: 'string', enum: ['mch_web', 'mch_app', 'mch_h5'], default: 'mch_web', example: 'mch_app' };
+    const schema = {
+      type: 'string',
+      title: '来源渠道',
+      enum: ['mch_web', 'mch_app', 'mch_h5'],
+      default: 'mch_web',
+      example: 'mch_app',
+    };
     const document = { openapi, components: { schemas: { Source: schema } } };
     for (const source of [schema, { $ref: '#/components/schemas/Source' }]) {
       for (const location of ['query', 'path', 'header', 'cookie'] as const) {
         const parameter = { name: 'from', in: location, schema: source } as ParameterObject;
         const original = structuredClone(parameter);
-        expect(apiDocParameterValues(parameter, document)).toEqual({ enum: schema.enum, default: 'mch_web' });
+        expect(apiDocParameterValues(parameter, document)).toEqual({
+          title: source === schema ? schema.title : undefined,
+          enum: schema.enum,
+          default: 'mch_web',
+        });
         expect(parameter).toEqual(original);
       }
     }
@@ -33,10 +43,14 @@ describe('ApiDoc parameter Schema values', () => {
       name: 'filter',
       in: 'query',
       content: {
-        'application/json': { schema: { type: 'object', default: { enabled: false } }, example: { enabled: true } },
+        'application/json': {
+          schema: { type: 'object', title: '筛选条件', default: { enabled: false } },
+          example: { enabled: true },
+        },
       },
     };
     expect(apiDocParameterValues(parameter, { openapi: '3.1.0' })).toEqual({
+      title: '筛选条件',
       enum: undefined,
       default: { enabled: false },
     });
@@ -60,10 +74,16 @@ describe('ApiDoc parameter Schema values', () => {
     const parameter: ParameterObject = {
       name: 'value',
       in: 'query',
-      schema: { $ref: '#/components/schemas/Value', default: 0 },
+      schema: { $ref: '#/components/schemas/Value', title: '参数标题', default: 0 },
     };
     const components = { schemas: { Value: { type: 'integer', enum: [0, 1], default: 1 } } };
-    expect(apiDocParameterValues(parameter, { openapi: '3.0.3', components }).default).toBe(1);
-    expect(apiDocParameterValues(parameter, { openapi: '3.1.0', components }).default).toBe(0);
+    expect(apiDocParameterValues(parameter, { openapi: '3.0.3', components })).toMatchObject({
+      title: undefined,
+      default: 1,
+    });
+    expect(apiDocParameterValues(parameter, { openapi: '3.1.0', components })).toMatchObject({
+      title: '参数标题',
+      default: 0,
+    });
   });
 });

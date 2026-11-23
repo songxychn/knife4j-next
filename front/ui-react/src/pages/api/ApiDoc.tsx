@@ -82,6 +82,7 @@ type ApiDocSchemaValue = SchemaObject | boolean;
 interface ParamRow extends SchemaValueDetailsProps {
   key: string;
   name: string;
+  title?: string;
   in: string;
   type: string;
   required: boolean;
@@ -387,9 +388,23 @@ function ApiDocContent({ swaggerDoc, operation }: { swaggerDoc: SwaggerDoc; oper
 
   const paramColumns: ColumnsType<ParamRow> = [
     {
+      title: t('apiDoc.col.paramName'),
       dataIndex: 'name',
       width: 180,
-      render: (value) => <Text code>{value}</Text>,
+      render: (name, record) => {
+        const title = record.title?.trim();
+        const parameterName = <Text code>{name}</Text>;
+        if (!title) return parameterName;
+
+        return (
+          <>
+            {parameterName}
+            <Text type="secondary" style={{ display: 'block', fontSize: '0.875em', overflowWrap: 'anywhere' }}>
+              {title}
+            </Text>
+          </>
+        );
+      },
     },
     {
       title: t('apiDoc.col.location'),

@@ -190,7 +190,7 @@ describe('ApiDoc Response metadata rendering', () => {
   );
 
   test.each(['3.0.3', '3.1.0', '3.2.0'])(
-    'passes parameter Schema values into the description cell in OAS %s',
+    'shows the parameter Schema title below its name and keeps values in the description cell in OAS %s',
     async (openapi) => {
       const document: SwaggerDoc = {
         openapi,
@@ -205,11 +205,14 @@ describe('ApiDoc Response metadata rendering', () => {
                   description: '登录来源',
                   schema: {
                     type: 'string',
+                    title: ' 来源渠道 ',
                     enum: ['mch_web', 'mch_app', 'mch_h5'],
                     default: 'mch_web',
                     example: 'mch_app',
                   },
                 },
+                { name: 'id', in: 'query', schema: { type: 'integer', title: '   ' } },
+                { name: 'name', in: 'query', schema: { type: 'string' } },
               ],
               responses: { '200': { description: 'OK' } },
             },
@@ -218,8 +221,18 @@ describe('ApiDoc Response metadata rendering', () => {
       };
       const original = structuredClone(document);
       await render(document);
-      const description = view.container.querySelector('tbody tr[data-row-key] td:last-child');
+      const parameterRows = view.container.querySelectorAll('tbody tr[data-row-key]');
+      const nameCell = parameterRows[0]?.firstElementChild;
+      expect(nameCell?.querySelector('code')?.textContent).toBe('from');
+      expect(nameCell?.querySelector('code + span')?.textContent).toBe('来源渠道');
+      for (const [index, name] of ['id', 'name'].entries()) {
+        const cell = parameterRows[index + 1]?.firstElementChild;
+        expect(cell?.firstElementChild?.textContent).toBe(name);
+        expect(cell?.firstElementChild?.tagName).toBe('CODE');
+      }
+      const description = parameterRows[0]?.lastElementChild;
       expect(description?.textContent).toContain('登录来源');
+      expect(description?.textContent).not.toContain('来源渠道');
       expect(description?.textContent).toContain('schema.values.enum');
       expect(description?.textContent).toContain('schema.values.default');
       expect([...description!.querySelectorAll('code')].map((node) => node.textContent)).toEqual([

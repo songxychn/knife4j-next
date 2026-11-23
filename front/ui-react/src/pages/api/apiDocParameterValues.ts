@@ -6,7 +6,7 @@ import type { ParameterObject } from '../../types/swagger';
 export function apiDocParameterValues(
   parameter: ParameterObject,
   document: Record<string, unknown>,
-): SchemaValueDetailsProps {
+): SchemaValueDetailsProps & { title?: string } {
   const media = Object.values(parameter.content ?? {});
   const schema = parameter.schema ?? (media.length === 1 ? media[0].schema : undefined);
   if (schema === undefined) return {};
@@ -14,5 +14,5 @@ export function apiDocParameterValues(
     { type: 'object', properties: { parameter: schema } },
     { doc: document, maxDepth: 8 },
   );
-  return { enum: field?.enum, default: field?.default };
+  return { title: field?.title, enum: field?.enum, default: field?.default };
 }
