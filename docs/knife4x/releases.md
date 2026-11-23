@@ -6,6 +6,10 @@ title: Go 版本记录
 
 以下保留各已发布版本的历史范围，不代表所有能力在旧版本均可用。当前接入方式见[快速开始](./index.md)，API 见[配置参考](./configuration.md)。
 
+## v0.10.2
+
+同步共享 React UI。在 OpenAPI 3 接口文档的请求参数表中，Schema 的 `title` 显示在参数名下，`description` 继续显示在说明列。（[#1088](https://github.com/songxychn/knife4j-next/pull/1088)）
+
 ## v0.10.1
 
 - 同步共享 React UI。请求体、响应体和数据模型的字段表在 JSON 字段名下显示属性的 Schema `title`，说明列继续显示 `description`。（[#1086](https://github.com/songxychn/knife4j-next/pull/1086)）

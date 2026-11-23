@@ -8,6 +8,7 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
+| `5.8.5` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | OAS3 请求参数表显示 Schema 标题 |
 | `5.8.4` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Java 文档鉴权和 starter 修复、OAS3 Schema 属性标题显示 |
 | `5.8.3` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Polaris 修复、Go 宿主配置与 Bun 构建维护 |
 | `5.8.2` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | 窄屏导航、按需加载、键盘与标签语义、数组示例及类型标签修复 |
@@ -59,7 +60,7 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.8.4` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.4`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.4`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.4` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.4`。
+> `5.8.5` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.5`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.5`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.5` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.5`。
 
 ## 5.7.7 依赖更新
 
@@ -128,9 +129,13 @@ Java 修复 Polaris 启动条件、地址读取与匿名实例查询；Go `v0.10
 
 Java 修复文档 Basic Auth、Jackson 依赖、OAS3 定制器与 CORS 问题。共享 React UI 在 JSON 字段名下显示属性的 Schema `title`，Knife4x Go `v0.10.1` 同步该 UI。详见[发布说明](../release-notes/)。
 
+## 5.8.5 请求参数标题
+
+共享 React UI 在请求参数名下显示 Schema `title`，Java `5.8.5` 和 Knife4x Go `v0.10.2` 均包含此修复。详见[发布说明](../release-notes/)。
+
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.8.4` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.8.5` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -183,7 +188,8 @@ Java 修复文档 Basic Auth、Jackson 依赖、OAS3 定制器与 CORS 问题。
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.4` | Java 文档鉴权和 starter 修复、OAS3 Schema 属性标题显示 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.5` | OAS3 请求参数表显示 Schema 标题 |
+| `4.5.0` | `5.8.4` | Java 文档鉴权和 starter 修复、OAS3 Schema 属性标题显示 |
 | `4.5.0` | `5.8.3` | Polaris 修复、Go 宿主配置与 Bun 构建维护 |
 | `4.5.0` | `5.8.2` | 窄屏导航、按需加载、键盘与标签语义、数组示例及类型标签修复 |
 | `4.5.0` | `5.8.1` | Schema 引用与诊断、Markdown 路由/导出、布局与保存反馈修复 |

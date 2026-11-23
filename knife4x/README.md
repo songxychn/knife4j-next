@@ -10,10 +10,10 @@ Go module、版本和发布流程独立，不另建前端。
 
 ## 安装与体验
 
-Go 1.22+ 接入版本为 `v0.10.1`（tag `knife4x/go/v0.10.1`）：
+Go 1.22+ 接入版本为 `v0.10.2`（tag `knife4x/go/v0.10.2`）：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.1
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.2
 ```
 
 最小标准库程序见 [Go module README](go/README.md)。仓库内也可运行独立 Gin 示例

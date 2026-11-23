@@ -4,7 +4,7 @@ title: Go 配置参考
 
 # Go 配置参考
 
-本文以 `v0.10.1` 的公开类型为准，包含 `SpecURL`、`BasePath`、
+本文以 `v0.10.2` 的公开类型为准，包含 `SpecURL`、`BasePath`、
 `Specs`、`Disabled`、`BasicAuth`、`UISettings`、`Documents` 及其关联类型。
 安装与最小接入见[快速开始](./index.md)。
 
