@@ -134,49 +134,50 @@ describe('ApiDebug parameter naming and empty-state presentation', () => {
     }
   });
 
-  test('expands custom parameter table on add and collapses back to lightweight button when cleared', async () => {
-    setOperation({
-      summary: 'Ping',
-      responses: { 200: { description: 'OK' } },
-    });
+  test.each([
+    {
+      tab: 'apiDebug.tab.query',
+      hint: 'apiDebug.noQueryParams',
+      add: 'apiDebug.customQuery.add',
+      title: 'apiDebug.customQuery.title',
+    },
+    {
+      tab: 'apiDebug.tab.header',
+      hint: 'apiDebug.noHeaderParams',
+      add: 'apiDebug.customHeaders.add',
+      title: 'apiDebug.customHeaders.title',
+    },
+    {
+      tab: 'apiDebug.tab.cookie',
+      hint: 'apiDebug.noCookieParams',
+      add: 'apiDebug.customCookie.add',
+      title: 'apiDebug.customCookie.title',
+    },
+  ])(
+    'expands custom parameter table on add and collapses back to lightweight button in $tab',
+    async ({ tab, hint, add, title }) => {
+      setOperation({
+        summary: 'Ping',
+        responses: { 200: { description: 'OK' } },
+      });
 
-    await view.render(
-      <MemoryRouter initialEntries={['/default/demo/op-test/debug']}>
-        <ApiDebug />
-      </MemoryRouter>,
-    );
+      await view.render(
+        <MemoryRouter initialEntries={['/default/demo/op-test/debug']}>
+          <ApiDebug />
+        </MemoryRouter>,
+      );
 
-    for (const tabCase of [
-      {
-        tab: 'apiDebug.tab.query',
-        hint: 'apiDebug.noQueryParams',
-        add: 'apiDebug.customQuery.add',
-        title: 'apiDebug.customQuery.title',
-      },
-      {
-        tab: 'apiDebug.tab.header',
-        hint: 'apiDebug.noHeaderParams',
-        add: 'apiDebug.customHeaders.add',
-        title: 'apiDebug.customHeaders.title',
-      },
-      {
-        tab: 'apiDebug.tab.cookie',
-        hint: 'apiDebug.noCookieParams',
-        add: 'apiDebug.customCookie.add',
-        title: 'apiDebug.customCookie.title',
-      },
-    ]) {
-      await selectTab(view.container, tabCase.tab);
+      await selectTab(view.container, tab);
       let panel = activePanel(view.container);
       expect(panel.querySelectorAll('table')).toHaveLength(0);
 
-      const addButton = Array.from(panel.querySelectorAll('button')).find((b) => b.textContent?.includes(tabCase.add))!;
+      const addButton = Array.from(panel.querySelectorAll('button')).find((b) => b.textContent?.includes(add))!;
       await act(async () => addButton.click());
 
       panel = activePanel(view.container);
       expect(panel.querySelectorAll('table')).toHaveLength(1);
-      expect(panel.textContent).toContain(tabCase.title);
-      expect(panel.textContent).not.toContain(tabCase.hint);
+      expect(panel.textContent).toContain(title);
+      expect(panel.textContent).not.toContain(hint);
 
       const deleteButton = panel.querySelector<HTMLButtonElement>('button[aria-label="globalParam.btn.delete"]')!;
       expect(deleteButton).not.toBeNull();
@@ -184,10 +185,10 @@ describe('ApiDebug parameter naming and empty-state presentation', () => {
 
       panel = activePanel(view.container);
       expect(panel.querySelectorAll('table')).toHaveLength(0);
-      expect(panel.textContent).toContain(tabCase.hint);
-      expect(panel.textContent).toContain(tabCase.add);
-    }
-  });
+      expect(panel.textContent).toContain(hint);
+      expect(panel.textContent).toContain(add);
+    },
+  );
 
   test('renders inherited global parameters with updated section title and no empty doc/custom tables', async () => {
     state.globalParams = {
