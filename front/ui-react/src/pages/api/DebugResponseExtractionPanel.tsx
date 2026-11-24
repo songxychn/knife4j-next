@@ -1,7 +1,6 @@
 import { DeleteOutlined, EditOutlined, LockOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { Alert, Button, Form, Input, Modal, Radio, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import { createClientId } from '../../utils/id';
@@ -45,7 +44,6 @@ const BEARER_TOKEN_TEMPLATE: RuleFormValues = {
 };
 
 interface DebugResponseExtractionPanelProps {
-  group: string | undefined;
   rules: readonly ResponseExtractionRule[];
   persistenceFailed: boolean;
   currentResponseInput: ResponseExtractionInput | null;
@@ -65,7 +63,6 @@ function renderReasonText(
 }
 
 export function DebugResponseExtractionPanel({
-  group,
   rules,
   persistenceFailed,
   currentResponseInput,
@@ -328,24 +325,21 @@ export function DebugResponseExtractionPanel({
     <Space orientation="vertical" style={{ width: '100%' }} size={10}>
       {persistenceFailed && <Alert type="warning" showIcon title={t('storage.persistenceFailed')} />}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <Space wrap size={8}>
-          <Button type="primary" size="small" icon={<PlusOutlined />} disabled={limitReached} onClick={openAdd}>
-            {t('apiDebug.extract.addRule')}
+      <Space wrap size={8} align="center">
+        <Button type="primary" size="small" icon={<PlusOutlined />} disabled={limitReached} onClick={openAdd}>
+          {t('apiDebug.extract.addRule')}
+        </Button>
+        {rules.length === 0 && (
+          <Button size="small" icon={<ThunderboltOutlined />} disabled={limitReached} onClick={openBearerTemplate}>
+            {t('apiDebug.extract.quickBearer')}
           </Button>
-          {rules.length === 0 && (
-            <Button size="small" icon={<ThunderboltOutlined />} disabled={limitReached} onClick={openBearerTemplate}>
-              {t('apiDebug.extract.quickBearer')}
-            </Button>
-          )}
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {limitReached
-              ? t('apiDebug.extract.maxRulesReached', { max: RESPONSE_EXTRACTION_MAX_RULES })
-              : t('apiDebug.extract.shortHint')}
-          </Text>
-        </Space>
-        <Link to={`/${encodeURIComponent(group ?? '')}/globalParam`}>{t('apiDebug.extract.viewGlobalParams')}</Link>
-      </div>
+        )}
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {limitReached
+            ? t('apiDebug.extract.maxRulesReached', { max: RESPONSE_EXTRACTION_MAX_RULES })
+            : t('apiDebug.extract.shortHint')}
+        </Text>
+      </Space>
 
       {extractionLog?.status === 'skipped' && extractionLog.skipReason !== 'no-enabled-rules' && (
         <Alert

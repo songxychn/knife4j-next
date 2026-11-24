@@ -791,11 +791,10 @@ const jaJP = {
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': 'プレビュー',
   'apiDebug.tab.extract': 'レスポンス抽出',
-  'apiDebug.extract.shortHint': '2xx レスポンス後に自動更新（JS 非実行、失敗時は既存値を保持）',
+  'apiDebug.extract.shortHint': '2xx レスポンス後に自動更新（失敗時は既存値を保持）',
   'apiDebug.extract.addRule': 'ルールを追加',
   'apiDebug.extract.quickBearer': 'クイック追加: Bearer Token',
   'apiDebug.extract.applied': '抽出結果をリクエストパラメータへ反映しました',
-  'apiDebug.extract.viewGlobalParams': 'リクエストパラメータを見る',
   'apiDebug.extract.viewLog': '詳細を見る',
   'apiDebug.extract.maxRulesReached': '1 つの API あたり最大 {{max}} 件まで設定できます',
   'apiDebug.extract.ruleEnabled': '{{index}} 番目の抽出ルールを有効化',

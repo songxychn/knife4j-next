@@ -712,11 +712,10 @@ const zhCN = {
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': '请求预览',
   'apiDebug.tab.extract': '响应提取',
-  'apiDebug.extract.shortHint': '2xx 响应后自动更新请求参数（不执行 JS，失败不覆盖已有值）',
+  'apiDebug.extract.shortHint': '2xx 响应后自动更新请求参数（失败不覆盖已有值）',
   'apiDebug.extract.addRule': '新增规则',
   'apiDebug.extract.quickBearer': '快速添加：Bearer Token',
   'apiDebug.extract.applied': '已将提取结果更新到请求参数',
-  'apiDebug.extract.viewGlobalParams': '查看请求参数',
   'apiDebug.extract.viewLog': '查看详情',
   'apiDebug.extract.maxRulesReached': '单接口最多支持 {{max}} 条规则',
   'apiDebug.extract.ruleEnabled': '启用第 {{index}} 条提取规则',

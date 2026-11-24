@@ -785,11 +785,10 @@ const enUS = {
   // ApiDebug — Preview Tab (TASK-028)
   'apiDebug.tab.preview': 'Preview',
   'apiDebug.tab.extract': 'Response Extraction',
-  'apiDebug.extract.shortHint': 'Auto-updates parameters after 2xx responses (no JS; failures keep existing values)',
+  'apiDebug.extract.shortHint': 'Auto-updates parameters after 2xx responses (failures keep existing values)',
   'apiDebug.extract.addRule': 'Add rule',
   'apiDebug.extract.quickBearer': 'Quick add: Bearer Token',
   'apiDebug.extract.applied': 'Extracted values applied to request parameters',
-  'apiDebug.extract.viewGlobalParams': 'View request parameters',
   'apiDebug.extract.viewLog': 'View details',
   'apiDebug.extract.maxRulesReached': 'Up to {{max}} rules per operation',
   'apiDebug.extract.ruleEnabled': 'Enable extraction rule {{index}}',

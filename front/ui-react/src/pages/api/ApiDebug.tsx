@@ -2429,7 +2429,6 @@ export default function ApiDebug() {
             disabled: false,
             children: (
               <DebugResponseExtractionPanel
-                group={group}
                 rules={extractionRules}
                 persistenceFailed={extractionPersistenceFailed}
                 currentResponseInput={currentResponseExtractionInput}
