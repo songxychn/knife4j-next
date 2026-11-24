@@ -103,6 +103,9 @@ export function extractKnife4jSettings(doc: SwaggerDoc | null | undefined): Part
   const enableRequestCache = readBoolean(setting, 'enableRequestCache');
   if (enableRequestCache !== undefined) next.enableRequestCache = enableRequestCache;
 
+  const enableAfterScript = readBoolean(setting, 'enableAfterScript');
+  if (enableAfterScript !== undefined) next.enableAfterScript = enableAfterScript;
+
   const enableDynamicParameter = readBoolean(setting, 'enableDynamicParameter');
   if (enableDynamicParameter !== undefined) next.enableDynamicParameter = enableDynamicParameter;
 

@@ -1,8 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createClientId } from '../utils/id';
 import {
+  applyUpsertGlobalParams,
   asManualParam,
   emptyStoredGroupConfig,
+  findShadowedApplicationIdentities,
   loadApplicationParams,
   loadGroup,
   removeStoredGroup,
@@ -12,6 +14,7 @@ import {
   type CookieSessionConfig,
   type GlobalParamItem,
   type GlobalParamScope,
+  type GlobalParamUpsertInput,
   type ScopedGlobalParamItem,
   type StoredGroupConfig,
 } from './globalParamState';
@@ -25,6 +28,7 @@ export type {
   GlobalParamRequestMethod,
   GlobalParamScope,
   GlobalParamStorage,
+  GlobalParamUpsertInput,
   GlobalParamValueRequest,
   GlobalParamValueSource,
   ScopedGlobalParamItem,
@@ -52,6 +56,10 @@ interface RemoveGlobalParam {
   (id: string): void;
 }
 
+export interface UpsertGlobalParamsResult {
+  readonly shadowedApplicationIdentities: ReadonlySet<string>;
+}
+
 interface GlobalParamContextValue {
   groupId: string;
   applicationPersistenceFailed: boolean;
@@ -64,6 +72,7 @@ interface GlobalParamContextValue {
   cookieSession: CookieSessionConfig;
   addParam: AddGlobalParam;
   updateParam: UpdateGlobalParam;
+  upsertParams: (updates: readonly GlobalParamUpsertInput[]) => UpsertGlobalParamsResult;
   removeParam: RemoveGlobalParam;
   clearParams: (scope: GlobalParamScope) => void;
   setCookieSession: (config: CookieSessionConfig) => void;
@@ -184,6 +193,55 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
     [updateApplicationParams, updateGroupConfig],
   ) as UpdateGlobalParam;
 
+  const upsertParams = useCallback(
+    (updates: readonly GlobalParamUpsertInput[]): UpsertGlobalParamsResult => {
+      if (updates.length === 0) {
+        return { shadowedApplicationIdentities: new Set<string>() };
+      }
+      const appUpdates = updates.filter((item) => item.scope === 'application');
+      const groupUpdates = updates.filter((item) => item.scope === 'group');
+      const current = memoryRef.current;
+      let nextApplicationParams = current.applicationParams;
+      let nextApplicationPersistenceFailed = current.applicationPersistenceFailed;
+      let nextConfigs = current.configs;
+      let nextFailedGroups = current.failedGroups;
+
+      if (appUpdates.length > 0) {
+        nextApplicationParams = applyUpsertGlobalParams(current.applicationParams, appUpdates, 'application');
+        nextApplicationPersistenceFailed = !saveApplicationParams(pathname, nextApplicationParams);
+      }
+
+      let activeGroupConfig = current.configs.get(groupId) ?? emptyStoredGroupConfig();
+      if (groupUpdates.length > 0) {
+        activeGroupConfig = {
+          ...activeGroupConfig,
+          params: applyUpsertGlobalParams(activeGroupConfig.params, groupUpdates, 'group'),
+        };
+        const persisted = saveGroup(groupId, activeGroupConfig);
+        const failed = new Set(current.failedGroups);
+        if (persisted) failed.delete(groupId);
+        else failed.add(groupId);
+        nextFailedGroups = failed;
+        nextConfigs = new Map(current.configs).set(groupId, activeGroupConfig);
+      }
+
+      commitMemory({
+        ...current,
+        applicationParams: nextApplicationParams,
+        applicationPersistenceFailed: nextApplicationPersistenceFailed,
+        configs: nextConfigs,
+        failedGroups: nextFailedGroups,
+      });
+
+      const shadowedApplicationIdentities =
+        appUpdates.length > 0
+          ? findShadowedApplicationIdentities(activeGroupConfig.params, appUpdates)
+          : new Set<string>();
+      return { shadowedApplicationIdentities };
+    },
+    [commitMemory, groupId, pathname],
+  );
+
   const removeParam = useCallback(
     (scopeOrId: GlobalParamScope | string, scopedId?: string) => {
       const scope = scopedId === undefined ? 'group' : (scopeOrId as GlobalParamScope);
@@ -256,6 +314,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
       cookieSession: config.cookieSession,
       addParam,
       updateParam,
+      upsertParams,
       removeParam,
       clearParams,
       setCookieSession,
@@ -275,6 +334,7 @@ export const GlobalParamProvider: React.FC<{ children: React.ReactNode; groupId?
       removeParam,
       setCookieSession,
       updateParam,
+      upsertParams,
     ],
   );
 

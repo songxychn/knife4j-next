@@ -23,7 +23,7 @@ title: 常见问题
 **大多数情况仍然有效**。upstream 文档 <https://doc.xiaominfo.com/> 上关于 `@ApiOperationSupport`、`knife4j.*` 配置、UI 行为的内容，本 fork 保持兼容。使用时需要注意以下边界：
 
 1. 版本发布节奏：upstream 最后一个 Maven Central 发布版本是 `4.5.0`（2024-01-08），fork 是 `5.8.5`（采用独立 SemVer 版本号）；fork 包含已确认并合入的兼容/安全修复和 React 新前端。
-2. 新前端覆盖范围：能力基线是 upstream Vue2，不是本仓库的 Vue3 重写。Vue3（`front/vue3` / `knife4j-openapi2-ui`）与 React（`front/ui-react` / `knife4j-openapi3-ui`）都是维护者重写，各自可能漏掉 Vue2 能力。React 已补齐或重做 OAuth2、接口变化提示（NEW / 变化标记，UX 不同于 Vue2 小蓝点）、请求参数缓存、离线导出、自定义 Markdown 文档、自定义 Footer 等。Vue2 / Vue3 仍有、React 尚未覆盖的典型能力是 afterScript 与调试后刷新变量（`enable-reload-cache-parameter`）。三端都没有独立的 Postman Collection 导出器，真实能力是 OpenAPI 复制/下载（React 另外支持 YAML 与单接口闭包）。Vue3 相对 Vue2 的网关路由头拼写（`knife4j-gateway-request`）与 Tag 名称搜索展开回归已在本仓库修复。详见下文 [React 配置不生效](#react-setting-not-effective) 和 [功能概览](./features)。
+2. 新前端覆盖范围：能力基线是 upstream Vue2，不是本仓库的 Vue3 重写。Vue3（`front/vue3` / `knife4j-openapi2-ui`）与 React（`front/ui-react` / `knife4j-openapi3-ui`）都是维护者重写，各自可能漏掉 Vue2 能力。React 已补齐或重做 OAuth2、接口变化提示（NEW / 变化标记，UX 不同于 Vue2 小蓝点）、请求参数缓存、离线导出、自定义 Markdown 文档、自定义 Footer，以及受 `enable-after-script` 控制的声明式响应提取（不执行任意 JavaScript，不兼容旧 `ke.*` 脚本）。Vue2 / Vue3 仍有、React 尚未覆盖的典型能力是任意 JS 版 afterScript 与调试后刷新变量（`enable-reload-cache-parameter`）。三端都没有独立的 Postman Collection 导出器，真实能力是 OpenAPI 复制/下载（React 另外支持 YAML 与单接口闭包）。Vue3 相对 Vue2 的网关路由头拼写（`knife4j-gateway-request`）与 Tag 名称搜索展开回归已在本仓库修复。详见下文 [React 配置不生效](#react-setting-not-effective) 和 [功能概览](./features)。
 3. Spring Security 注解展示：upstream 与本 fork 的实现都只位于 `knife4j-openapi2-spring-boot-starter`（OAS2 / Springfox）；OAS3 / springdoc 系列 starter 不会自动追加这些注解。详见 [Spring Security 注解展示](./features#spring-security-注解展示)。
 
 ### 本 fork 相比 upstream 多了哪些修复
@@ -213,6 +213,7 @@ connect-src 'self';
 - `knife4j.setting.enable-footer-custom` / `footer-custom-content`
 - `knife4j.setting.enable-request-cache`
 - `knife4j.setting.enable-version`
+- `knife4j.setting.enable-after-script`（在 React UI 中控制安全的声明式响应后变量提取，不执行任意 JavaScript）
 - `knife4j.setting.enable-response-code`
 - `knife4j.setting.enable-dynamic-parameter`
 - `knife4j.setting.enable-home-custom` / `home-custom-location`
@@ -224,16 +225,15 @@ connect-src 'self';
 
 以下 UI 配置在 React 中暂不生效（Vue2 与 Vue3 端口均已提供）：
 
-- `knife4j.setting.enable-after-script`
 - `knife4j.setting.enable-reload-cache-parameter`
 
-`enable-version` 已在 React 接通：新增接口显示绿色 `NEW`，已有接口变化显示橙色标记；Vue2 / Vue3 仍使用侧边栏小蓝点，交互不同，但都受该开关控制。`enable-request-cache` 也已在 React 接通。
+`enable-after-script` 已在 React 接通，但出于安全边界与严格 CSP 要求，React 提供的是声明式「响应提取」规则（JSONPath / Response Header 提取到请求参数），不执行旧版 `ke.*` 任意 JavaScript。`enable-version` 已在 React 接通：新增接口显示绿色 `NEW`，已有接口变化显示橙色标记；Vue2 / Vue3 仍使用侧边栏小蓝点，交互不同，但都受该开关控制。`enable-request-cache` 也已在 React 接通。
 
 后端 `ProductionSecurityFilter`、`knife4j.basic`、`knife4j.documents` 等服务端侧能力不受影响。
 
 过渡方案：
 
-- 如果重度依赖 afterScript 或调试后刷新变量，使用 `knife4j-openapi2-spring-boot-starter`（本仓库 `front/vue3`），或 upstream `com.github.xiaoymin` 的同名依赖（upstream Vue2 webjar）。
+- 如果重度依赖任意 JS 版 afterScript（`ke.*`）或调试后刷新变量，使用 `knife4j-openapi2-spring-boot-starter`（本仓库 `front/vue3`），或 upstream `com.github.xiaoymin` 的同名依赖（upstream Vue2 webjar）。
 - 或者在 [GitHub Issues](https://github.com/songxychn/knife4j-next/issues) 跟进覆盖进度。
 
 ### `knife4j.enable=true` 了但 UI 上看不到接口

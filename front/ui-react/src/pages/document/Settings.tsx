@@ -26,6 +26,7 @@ const ALL_LOCAL_DATA_CATEGORY_KEYS = [
   ...REQUEST_CACHE_CATEGORY_KEYS,
   'settings.localData.category.settings',
   'settings.localData.category.globalParams',
+  'settings.localData.category.responseExtraction',
   'settings.localData.category.cookieSession',
   'settings.localData.category.oauth',
   'settings.localData.category.auth',
@@ -142,6 +143,17 @@ export default function Settings() {
           onChange={(e) => setSetting('enableRequestHistory', e.target.checked)}
         >
           {t('settings.enableRequestHistory')}
+        </Checkbox>
+      </div>
+      <Divider style={{ margin: '4px 0' }} />
+
+      {/* 响应后变量提取 */}
+      <div style={{ height: 50, lineHeight: '50px' }}>
+        <Checkbox
+          checked={settings.enableAfterScript}
+          onChange={(e) => setSetting('enableAfterScript', e.target.checked)}
+        >
+          {t('settings.enableAfterScript')}
         </Checkbox>
       </div>
       <Divider style={{ margin: '4px 0' }} />

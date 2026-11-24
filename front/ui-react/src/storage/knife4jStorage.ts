@@ -21,6 +21,8 @@ export const KNIFE4J_STORAGE_PREFIXES = {
   apiVersionBaseline: 'knife4j-next:api-version-baseline:',
   /** Exact-URI hash grants for one immutable OAS document scope; never stores response bodies or full query values. */
   resourceGrants: 'knife4j-next:resource-grants:',
+  /** Per-operation declarative response extraction rules (never stores extracted secret logs). */
+  responseExtractionRules: 'knife4j-next:response-extraction:',
   groupGlobalParams: 'knife4j:global-params:',
   applicationGlobalParams: 'knife4j:application-global-params:',
   oauth2Pending: 'knife4j:oauth2:pending:',
@@ -47,6 +49,7 @@ export const KNIFE4J_STORAGE_REGISTRY = {
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyGlobalParams, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyAuth, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, scope: 'all-local-data' },
+    { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.responseExtractionRules, scope: 'all-local-data' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.groupGlobalParams, scope: 'all-local-data' },
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.applicationGlobalParams, scope: 'all-local-data' },
   ],

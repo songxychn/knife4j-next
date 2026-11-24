@@ -90,6 +90,7 @@ describe('clearRegisteredKnife4jStorage', () => {
       [`${KNIFE4J_STORAGE_PREFIXES.debugHistory}g1`]: '[]',
       [`${KNIFE4J_STORAGE_PREFIXES.apiVersionBaseline}g1`]: '{}',
       [KNIFE4J_STORAGE_KEYS.settings]: '{"version":1}',
+      [`${KNIFE4J_STORAGE_PREFIXES.responseExtractionRules}g1`]: '{"version":1,"rules":[]}',
       [`${KNIFE4J_STORAGE_PREFIXES.groupGlobalParams}g1`]: '{}',
       'host-app-key': 'keep',
     });
@@ -115,6 +116,7 @@ describe('clearRegisteredKnife4jStorage', () => {
     expect(removedKnife4jStorageEntryCount(result)).toBe(5);
     expect(localStorage.dump()).toEqual({
       [KNIFE4J_STORAGE_KEYS.settings]: '{"version":1}',
+      [`${KNIFE4J_STORAGE_PREFIXES.responseExtractionRules}g1`]: '{"version":1,"rules":[]}',
       [`${KNIFE4J_STORAGE_PREFIXES.groupGlobalParams}g1`]: '{}',
       'host-app-key': 'keep',
     });
@@ -129,6 +131,7 @@ describe('clearRegisteredKnife4jStorage', () => {
     const localStorage = createMemoryStorage({
       [`${KNIFE4J_STORAGE_PREFIXES.debugCache}g1`]: '{}',
       [`${KNIFE4J_STORAGE_PREFIXES.resourceGrants}doc`]: '{}',
+      [`${KNIFE4J_STORAGE_PREFIXES.responseExtractionRules}g1`]: '{"version":1,"rules":[]}',
       [KNIFE4J_STORAGE_KEYS.settings]: '{}',
       [KNIFE4J_STORAGE_KEYS.language]: 'en-US',
       [`${KNIFE4J_STORAGE_PREFIXES.applicationGlobalParams}/`]: '[]',
@@ -151,8 +154,8 @@ describe('clearRegisteredKnife4jStorage', () => {
     });
 
     expect(result.failures).toEqual([]);
-    expect(result.removed).toEqual({ localStorage: 5, sessionStorage: 2, indexedDB: 1 });
-    expect(removedKnife4jStorageEntryCount(result)).toBe(8);
+    expect(result.removed).toEqual({ localStorage: 6, sessionStorage: 2, indexedDB: 1 });
+    expect(removedKnife4jStorageEntryCount(result)).toBe(9);
     expect(localStorage.dump()).toEqual({ 'host-app-key': 'keep' });
     expect(sessionStorage.dump()).toEqual({ 'host-session-key': 'keep' });
     expect(indexedDB.dump()).toEqual(['host-idb-key']);
