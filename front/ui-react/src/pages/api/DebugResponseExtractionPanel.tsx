@@ -2,6 +2,7 @@ import { DeleteOutlined, EditOutlined, LockOutlined, PlusOutlined, ThunderboltOu
 import { Alert, Button, Form, Input, Modal, Radio, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import RevealableValue from '../../components/RevealableValue';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import { createClientId } from '../../utils/id';
 import {
@@ -215,10 +216,8 @@ export function DebugResponseExtractionPanel({
         <Tag color={item.status === 'updated' ? 'success' : 'processing'} style={{ marginInlineEnd: 0 }}>
           {t(item.status === 'updated' ? 'apiDebug.extract.status.updated' : 'apiDebug.extract.status.preview')}
         </Tag>
-        {item.valuePreview !== undefined && (
-          <Text code style={{ fontSize: 12 }}>
-            {item.valuePreview}
-          </Text>
+        {(item.extractedValue !== undefined || item.valuePreview !== undefined) && (
+          <RevealableValue value={item.extractedValue ?? item.valuePreview ?? ''} masked={item.masked} />
         )}
         {item.shadowedByGroup && (
           <Tooltip title={t('apiDebug.extract.shadowedByGroup')}>

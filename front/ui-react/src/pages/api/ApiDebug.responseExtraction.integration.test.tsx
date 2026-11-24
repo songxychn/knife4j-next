@@ -222,13 +222,25 @@ describe('ApiDebug post-response variable extraction', () => {
       expect(container.textContent).toContain('已更新 2 项请求参数');
     });
 
-    // Switch to the extraction tab and verify redacted previews in the execution log.
+    // Switch to the extraction tab and verify redacted previews + on-demand reveal in the status column.
     await act(async () => {
       findTabByText('响应提取').click();
     });
-    expect(container.textContent).toContain(MASKED_VALUE_PREVIEW);
-    expect(container.textContent).toContain('Authorization');
-    expect(container.textContent).toContain('X-Refresh-Token');
+    const extractionTable = Array.from(container.querySelectorAll('table')).find((table) =>
+      table.textContent?.includes('从响应提取'),
+    );
+    expect(extractionTable).toBeDefined();
+    expect(extractionTable!.textContent).toContain(MASKED_VALUE_PREVIEW);
+    expect(extractionTable!.textContent).toContain('Authorization');
+    expect(extractionTable!.textContent).toContain('X-Refresh-Token');
+    expect(extractionTable!.textContent).not.toContain('Bearer secret-token-1');
+
+    const revealBtn = extractionTable!.querySelector('button[aria-label="显示真实值"]') as HTMLButtonElement | null;
+    expect(revealBtn).not.toBeNull();
+    await act(async () => {
+      revealBtn!.click();
+    });
+    expect(extractionTable!.textContent).toContain('Bearer secret-token-1');
 
     // Second send automatically includes the extracted Authorization and X-Refresh-Token headers.
     await act(async () => {
