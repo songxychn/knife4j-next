@@ -424,7 +424,15 @@ export function DebugResponseExtractionPanel({
             />
           </Form.Item>
 
-          <Form.Item name="prefix" label={t('apiDebug.extract.prefix')} extra={t('apiDebug.extract.prefixTip')}>
+          <Form.Item
+            name="prefix"
+            label={t('apiDebug.extract.prefix')}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                {t('apiDebug.extract.prefixTip')}
+              </Text>
+            }
+          >
             <Input
               maxLength={RESPONSE_EXTRACTION_MAX_PREFIX_LENGTH}
               placeholder={t('apiDebug.extract.prefixPlaceholder')}
@@ -480,7 +488,11 @@ export function DebugResponseExtractionPanel({
             <Form.Item
               name="masked"
               label={t('apiDebug.extract.masked')}
-              extra={t('apiDebug.extract.maskedTip')}
+              extra={
+                <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                  {t('apiDebug.extract.maskedTip')}
+                </Text>
+              }
               valuePropName="checked"
               style={{ marginBottom: 8 }}
             >

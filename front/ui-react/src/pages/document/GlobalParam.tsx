@@ -351,7 +351,11 @@ function GlobalParamInner() {
           <Form.Item
             name="masked"
             label={t('globalParam.masked')}
-            extra={t('apiDebug.extract.maskedTip')}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                {t('apiDebug.extract.maskedTip')}
+              </Text>
+            }
             valuePropName="checked"
           >
             <Switch />
@@ -402,7 +406,11 @@ function GlobalParamInner() {
                 <Form.Item
                   name={['request', 'prefix']}
                   label={t('globalParam.request.prefix')}
-                  extra={t('globalParam.request.prefixTip')}
+                  extra={
+                    <Text type="secondary" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                      {t('globalParam.request.prefixTip')}
+                    </Text>
+                  }
                   style={{ width: 240 }}
                 >
                   <Input placeholder="Bearer " />
