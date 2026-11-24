@@ -11,7 +11,9 @@ import { clearDebugSessionStatesForTest } from './debugSessionState';
 import { writeResponseExtractionRules, type ResponseExtractionStorage } from './responseExtractionStorage';
 import { MASKED_VALUE_PREVIEW, type ResponseExtractionRule } from './responseExtraction';
 
-vi.setConfig({ testTimeout: 30_000 });
+// Rendering full ApiDebug with Ant Design, CodeMirror, and multiple request cycles
+// under parallel Linux CI load can exceed 60s per test.
+vi.setConfig({ testTimeout: 120_000 });
 
 const state = vi.hoisted(() => ({
   document: null as SwaggerDoc | null,
