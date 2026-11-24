@@ -14,3 +14,8 @@
 
 - **`@Bean` 方法参数上的 `if (x == null)` 几乎是死代码**（Spring 不会注入 null）。不要包装成 bugfix。
 - 兼容修复常绑 Spring Boot 2/3/4 与 jakarta 矩阵；改 starter 默认行为前先想清楚下游。
+
+## 前端 / Knife4x Go
+
+- **Go 嵌入式 UI 静态资源必须同步提交**：`knife4x/go/internal/ui/static` 通过 `//go:embed` 直接进入 Go 模块，改动 `front/{ui-react,core,schema-engine}` 后须运行 `./tools/sync-knife4x-ui.sh`（`./tools/test-front-core.sh` 末尾已内置 `--check`）。
+- **渲染完整 `ApiDebug` 的集成测试需放大超时**：Linux CI 并发运行全部 Vitest 文件时，完整 `ApiDebug` 渲染可能超过默认 5s；需在文件顶部加 `vi.setConfig({ testTimeout: 60_000 })`。

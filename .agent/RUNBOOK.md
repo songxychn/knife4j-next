@@ -21,6 +21,7 @@
 | 全区域验收 | `./tools/test-all.sh` |
 
 - 根 POM 默认 `knife4j-skipTests=true`，勿用裸 `mvn verify` 替代 `./tools/test-java.sh`。
+- 改动 `front/schema-engine`、`front/core` 或 `front/ui-react` 产物时，先运行 `./tools/sync-knife4x-ui.sh` 同步 `knife4x/go/internal/ui/static`；`./tools/test-front-core.sh` 已内置 `--check` 自动拦截过期资源。
 - 增删 `knife4j-smoke-tests/` 子模块时同步更新 `knife4j-smoke-tests/pom.xml` 的 `<modules>`，`tools/smoke-evidence.sh` 会自动核对。
 - Schema Worker 浏览器门禁（前端构建后）：
   ```bash

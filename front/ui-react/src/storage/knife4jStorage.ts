@@ -12,6 +12,7 @@ export const KNIFE4J_STORAGE_KEYS = {
   legacyAuthMigrated: 'knife4j_auth_migrated',
   tabItems: 'knife4j-next:tab-items',
   tabActive: 'knife4j-next:tab-active',
+  debugPanelLayout: 'knife4j-next:debug-panel-layout',
 } as const;
 
 export const KNIFE4J_STORAGE_PREFIXES = {
@@ -46,6 +47,7 @@ export const KNIFE4J_STORAGE_REGISTRY = {
     { match: 'prefix', value: KNIFE4J_STORAGE_PREFIXES.resourceGrants, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.settings, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.language, scope: 'all-local-data' },
+    { match: 'exact', value: KNIFE4J_STORAGE_KEYS.debugPanelLayout, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyGlobalParams, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyAuth, scope: 'all-local-data' },
     { match: 'exact', value: KNIFE4J_STORAGE_KEYS.legacyAuthMigrated, scope: 'all-local-data' },

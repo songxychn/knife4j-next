@@ -37,7 +37,7 @@ import {
 } from './oas32ParameterForm';
 import { useOperationExampleDefaults } from '../../schema/useOperationExampleDefaults';
 import { operationSchemaDocuments } from '../../schema/operationRegistry';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AutoComplete,
@@ -55,7 +55,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { ReloadOutlined, SendOutlined } from '@ant-design/icons';
+import { DownOutlined, ReloadOutlined, SendOutlined, UpOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type {
@@ -79,6 +79,7 @@ import {
 import { OperationModeLayout, useCurrentOperation } from './useCurrentOperation';
 import Tabs from '../../components/AccessibleTabs';
 import CodeEditor from '../../components/CodeEditor';
+import ResizableBox from '../../components/ResizableBox';
 import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
@@ -178,6 +179,14 @@ import {
 import { useOas31DebugDefaultHydrator, useOas31DebugExampleLoader } from './useOas31DebugExamples';
 import { CustomParamsSection, InjectedGlobalParamsSection, type InjectedGlobalParamRow } from './DebugParamInputs';
 import { BodyTab } from './DebugBodyEditor';
+import {
+  DEBUG_PANEL_DEFAULT_MAX_HEIGHT,
+  DEBUG_PANEL_MAX_HEIGHT,
+  DEBUG_PANEL_MIN_HEIGHT,
+  readDebugPanelLayout,
+  writeDebugPanelLayout,
+  type DebugPanelLayout,
+} from './debugPanelLayout';
 import { PreviewTabPanel } from './DebugRequestPreview';
 import { DebugParameterTable } from './DebugParameterTable';
 import { globalParamValuesForScope, METHOD_COLORS } from './apiDebugShared';
@@ -491,6 +500,25 @@ export default function ApiDebug() {
   // ── TASK-028: 校验错误与预览 ──
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  const requestSectionId = useId();
+  const [requestCollapsed, setRequestCollapsed] = useState(false);
+  const [panelLayout, setPanelLayout] = useState<DebugPanelLayout>(() => readDebugPanelLayout());
+
+  const handleRequestBodyHeightChange = useCallback((height: number | undefined) => {
+    setPanelLayout((prev) => {
+      const next: DebugPanelLayout = { ...prev, requestBodyHeight: height };
+      writeDebugPanelLayout(next);
+      return next;
+    });
+  }, []);
+
+  const handleResponseBodyHeightChange = useCallback((height: number | undefined) => {
+    setPanelLayout((prev) => {
+      const next: DebugPanelLayout = { ...prev, responseBodyHeight: height };
+      writeDebugPanelLayout(next);
+      return next;
+    });
+  }, []);
 
   /** 当前缺失必填的 key 集合（统一 `${in}:${name}` 或 `body:requestBody`） */
   const errorKeys = useMemo(() => new Set(validationErrors.map((e) => e.key)), [validationErrors]);
@@ -547,6 +575,7 @@ export default function ApiDebug() {
       setValidationErrors([]);
       if (options.resetActiveTab) {
         setActiveTab(undefined);
+        setRequestCollapsed(false);
       }
       setResetNonce((value) => value + 1);
     },
@@ -1284,7 +1313,10 @@ export default function ApiDebug() {
   const handleSend = async (options: HandleSendOptions = {}) => {
     if (!previewResult) return;
     const failWithoutFetch = (message: string, tab?: string) => {
-      if (tab) setActiveTab(tab);
+      if (tab) {
+        setActiveTab(tab);
+        setRequestCollapsed(false);
+      }
       discardUnsentDebugResponse(response);
       sseAbortRef.current?.abort();
       sseAbortRef.current = null;
@@ -1587,6 +1619,7 @@ export default function ApiDebug() {
       if (diagnosticIssues.length > 0) {
         const first = diagnosticIssues[0];
         setActiveTab(first.target === 'body' ? 'body' : first.in === 'querystring' ? 'querystring' : first.in);
+        setRequestCollapsed(false);
         setPendingSchemaOverride({
           preview: requestPreview.value,
           debugCacheKey: validationDebugCacheKey,
@@ -2305,12 +2338,25 @@ export default function ApiDebug() {
                 </Button>
               </Space>
               <Typography.Text>{t('schema.example32.serialized')}</Typography.Text>
-              <CodeEditor
-                ariaLabel={t('apiDoc.requestBody')}
-                value={body}
-                onChange={setBodyFromUser}
-                language={bodyCategory === 'json' ? 'json' : 'text'}
-              />
+              <ResizableBox
+                height={panelLayout.requestBodyHeight}
+                defaultMaxHeight={DEBUG_PANEL_DEFAULT_MAX_HEIGHT}
+                minHeight={DEBUG_PANEL_MIN_HEIGHT}
+                maxHeight={DEBUG_PANEL_MAX_HEIGHT}
+                onHeightChange={handleRequestBodyHeightChange}
+                handleLabel={t('apiDebug.request.resizeHandle')}
+                resetTitle={t('apiDebug.panel.resizeResetTitle')}
+              >
+                <CodeEditor
+                  ariaLabel={t('apiDoc.requestBody')}
+                  value={body}
+                  onChange={setBodyFromUser}
+                  language={bodyCategory === 'json' ? 'json' : 'text'}
+                  height={panelLayout.requestBodyHeight !== undefined ? '100%' : undefined}
+                  minHeight={DEBUG_PANEL_MIN_HEIGHT}
+                  maxHeight={DEBUG_PANEL_DEFAULT_MAX_HEIGHT}
+                />
+              </ResizableBox>
             </Space>
           ) : (
             <BodyTab
@@ -2355,6 +2401,8 @@ export default function ApiDebug() {
               setBinaryBodyFile={setBinaryBodyFile}
               rawMode={rawMode}
               setRawMode={setRawMode}
+              bodyHeight={panelLayout.requestBodyHeight}
+              onBodyHeightChange={handleRequestBodyHeightChange}
             />
           )}
         </>
@@ -2426,8 +2474,10 @@ export default function ApiDebug() {
           schemaValidationRevisionRef.current += 1;
           const first = pendingSchemaOverride?.issues[0];
           setPendingSchemaOverride(null);
-          if (first)
+          if (first) {
             setActiveTab(first.target === 'body' ? 'body' : first.in === 'querystring' ? 'querystring' : first.in);
+            setRequestCollapsed(false);
+          }
         }}
         onOk={() => {
           const pending = pendingSchemaOverride;
@@ -2722,14 +2772,63 @@ export default function ApiDebug() {
             </Button>
           </Space.Compact>
 
-          <Tabs
-            tabListLabel={t('apiDebug.tabs.label')}
-            activeKey={currentActiveTab}
-            defaultActiveKey={defaultTab}
-            onChange={(key) => setActiveTab(key)}
-            size="small"
-            items={tabItems}
-          />
+          {requestCollapsed ? (
+            <div
+              data-request-collapsed-bar=""
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                padding: '6px 12px',
+                background: '#fafafa',
+                border: '1px solid #f0f0f0',
+                borderRadius: 6,
+              }}
+            >
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {t('apiDebug.request.collapsedSummary')}
+              </Text>
+              <Button
+                size="small"
+                type="text"
+                icon={<DownOutlined />}
+                aria-expanded={false}
+                aria-controls={requestSectionId}
+                data-request-collapse-toggle=""
+                onClick={() => setRequestCollapsed(false)}
+                style={{ flexShrink: 0 }}
+              >
+                {t('apiDebug.request.expand')}
+              </Button>
+            </div>
+          ) : (
+            <div id={requestSectionId} data-request-section="">
+              <Tabs
+                tabListLabel={t('apiDebug.tabs.label')}
+                activeKey={currentActiveTab}
+                defaultActiveKey={defaultTab}
+                onChange={(key) => setActiveTab(key)}
+                size="small"
+                tabBarExtraContent={{
+                  right: (
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<UpOutlined />}
+                      aria-expanded={true}
+                      aria-controls={requestSectionId}
+                      data-request-collapse-toggle=""
+                      onClick={() => setRequestCollapsed(true)}
+                    >
+                      {t('apiDebug.request.collapse')}
+                    </Button>
+                  ),
+                }}
+                items={tabItems}
+              />
+            </div>
+          )}
 
           <Divider style={{ margin: '12px 0' }} />
 
@@ -2739,8 +2838,15 @@ export default function ApiDebug() {
               showIcon
               title={t(extractionSummary.key, extractionSummary.params)}
               action={
-                currentActiveTab !== 'extract' ? (
-                  <Button size="small" type="link" onClick={() => setActiveTab('extract')}>
+                currentActiveTab !== 'extract' || requestCollapsed ? (
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => {
+                      setRequestCollapsed(false);
+                      setActiveTab('extract');
+                    }}
+                  >
                     {t('apiDebug.extract.viewLog')}
                   </Button>
                 ) : undefined
@@ -2763,6 +2869,8 @@ export default function ApiDebug() {
             onSseAbort={handleSseAbort}
             sseStreaming={sseStreaming}
             schemaDiagnostic={responseSchemaDiagnostic}
+            bodyHeight={panelLayout.responseBodyHeight}
+            onBodyHeightChange={handleResponseBodyHeightChange}
           />
         </div>
 
