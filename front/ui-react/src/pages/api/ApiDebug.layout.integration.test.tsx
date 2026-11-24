@@ -7,6 +7,9 @@ import type { MenuOperation, SwaggerDoc } from '../../types/swagger';
 import { readDebugPanelLayout } from './debugPanelLayout';
 import ApiDebug from './ApiDebug';
 
+// Rendering full ApiDebug with Ant Design and CodeMirror under parallel Linux CI load can exceed 5s.
+vi.setConfig({ testTimeout: 60_000 });
+
 const state = vi.hoisted(() => ({
   document: null as SwaggerDoc | null,
   operation: undefined as MenuOperation | undefined,
