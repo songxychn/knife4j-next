@@ -3,6 +3,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { DebugParam } from 'knife4j-core';
 import RevealableValue from '../../components/RevealableValue';
+import { createClientId } from '../../utils/id';
 import { type DebugCacheCustomParamRow } from './debugCache';
 import {
   enumParamSelectMode,
@@ -24,6 +25,9 @@ export type CustomParamRow = DebugCacheCustomParamRow;
 interface CustomParamsSectionProps {
   title: string;
   addLabel: string;
+  emptyAddLabel?: string;
+  emptyHint?: string;
+  compact?: boolean;
   namePlaceholder: string;
   valuePlaceholder: string;
   rows: CustomParamRow[];
@@ -34,6 +38,9 @@ interface CustomParamsSectionProps {
 export function CustomParamsSection({
   title,
   addLabel,
+  emptyAddLabel,
+  emptyHint,
+  compact = false,
   namePlaceholder,
   valuePlaceholder,
   rows,
@@ -51,11 +58,36 @@ export function CustomParamsSection({
   };
 
   const addRow = () => {
-    onChange([...rows, { id: `custom-${Date.now()}`, name: '', value: '' }]);
+    onChange([...rows, { id: `custom-${createClientId()}`, name: '', value: '' }]);
   };
 
+  if (rows.length === 0) {
+    return (
+      <div
+        data-custom-params-empty=""
+        style={{
+          marginTop: compact ? 0 : 12,
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+          padding: emptyHint ? '8px 0' : 0,
+        }}
+      >
+        {emptyHint && (
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {emptyHint}
+          </Text>
+        )}
+        <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={addRow}>
+          {emptyAddLabel ?? addLabel}
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ marginTop: 16 }}>
+    <div data-custom-params-table="" style={{ marginTop: compact ? 0 : 16 }}>
       <Table
         bordered
         size="small"
@@ -109,11 +141,17 @@ export function CustomParamsSection({
             width: 72,
             align: 'center',
             render: (_value: unknown, row: CustomParamRow) => (
-              <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => deleteRow(row.id)} />
+              <Button
+                size="small"
+                type="text"
+                danger
+                aria-label={t('globalParam.btn.delete')}
+                icon={<DeleteOutlined />}
+                onClick={() => deleteRow(row.id)}
+              />
             ),
           },
         ]}
-        locale={{ emptyText: t('apiDebug.customParams.empty') }}
       />
     </div>
   );
@@ -374,15 +412,23 @@ export interface InjectedGlobalParamRow {
   source: 'application' | 'global';
 }
 
-export function InjectedGlobalParamsSection({ rows }: { rows: InjectedGlobalParamRow[] }) {
+export function InjectedGlobalParamsSection({
+  rows,
+  compact = false,
+}: {
+  rows: InjectedGlobalParamRow[];
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   if (rows.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <Space size={8} style={{ marginBottom: 8 }}>
-        <Text strong>{t('globalParam.title')}</Text>
-        <Text type="secondary">{t('apiDebug.globalParams.readOnly')}</Text>
+    <div data-injected-global-params="" style={{ marginTop: compact ? 0 : 16 }}>
+      <Space size={8} wrap style={{ marginBottom: 8 }}>
+        <Text strong>{t('apiDebug.globalParams.title')}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {t('apiDebug.globalParams.readOnly')}
+        </Text>
       </Space>
       <Table
         bordered
