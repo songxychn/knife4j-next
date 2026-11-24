@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Button, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Compartment, EditorState } from '@codemirror/state';
@@ -127,6 +127,7 @@ const theme = EditorView.theme({
     background: '#f6f8fa',
     color: '#24292e',
     borderRadius: '4px',
+    height: 'var(--knife4j-json-viewer-height, auto)',
     '--response-description-width': '200px',
   },
   '@media (max-width: 600px)': {
@@ -134,6 +135,8 @@ const theme = EditorView.theme({
   },
   '.cm-scroller': {
     overflow: 'auto',
+    height: 'var(--knife4j-json-viewer-height, auto)',
+    maxHeight: 'var(--knife4j-json-viewer-max-height, 400px)',
     fontFamily: "Menlo, Monaco, Consolas, 'Courier New', monospace",
   },
   '.cm-content': { padding: '12px 0' },
@@ -171,19 +174,24 @@ export default function JsonViewer({
   resetKey = model,
   descMap,
   showDescription = false,
+  height,
   maxHeight = 400,
   ariaLabel,
   lineWrapping = true,
+  wrapEditor,
 }: {
   model: JsonDocument;
   resetKey?: unknown;
   descMap?: Map<string, string>;
   showDescription?: boolean;
+  height?: number | string;
   maxHeight?: number | string;
   ariaLabel?: string;
   lineWrapping?: boolean;
+  wrapEditor?: (editor: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
+  const resolvedAriaLabel = ariaLabel ?? t('json.viewer');
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const descriptions = useMemo(() => new Compartment(), []);
@@ -204,7 +212,7 @@ export default function JsonViewer({
         EditorState.readOnly.of(true),
         EditorState.lineSeparator.of('\n'),
         EditorView.editable.of(false),
-        EditorView.contentAttributes.of({ tabindex: '0', 'aria-label': ariaLabel ?? t('json.viewer') }),
+        EditorView.contentAttributes.of({ tabindex: '0', 'aria-label': resolvedAriaLabel }),
         foldableJsonLanguage,
         syntaxHighlighting(defaultHighlightStyle),
         foldService.of((_state, from) => foldByLine.get(from) ?? null),
@@ -213,9 +221,6 @@ export default function JsonViewer({
         descriptions.of([]),
         theme,
         ...(lineWrapping ? [EditorView.lineWrapping] : []),
-        EditorView.theme({
-          '.cm-scroller': { maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight },
-        }),
       ],
     });
     state = state.update({ effects: firstLevelFoldEffects(state, model.folds) }).state;
@@ -226,11 +231,21 @@ export default function JsonViewer({
       viewRef.current = null;
     };
     // A new response resets folds even when its text is unchanged; other viewers reset when their model changes.
-  }, [resetKey, model, descriptions, t, maxHeight, ariaLabel, lineWrapping]);
+  }, [resetKey, model, descriptions, resolvedAriaLabel, lineWrapping]);
 
   useEffect(() => {
     viewRef.current?.dispatch({ effects: descriptions.reconfigure(annotations) });
-  }, [annotations, descriptions, resetKey, model, t, maxHeight, ariaLabel, lineWrapping]);
+  }, [annotations, descriptions, resetKey, model, resolvedAriaLabel, lineWrapping]);
+
+  const resolvedHeight = height !== undefined ? (typeof height === 'number' ? `${height}px` : height) : 'auto';
+  const resolvedMaxHeight =
+    height !== undefined ? 'none' : typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight;
+  const editorContainerStyle = {
+    '--knife4j-json-viewer-height': resolvedHeight,
+    '--knife4j-json-viewer-max-height': resolvedMaxHeight,
+    ...(height !== undefined ? { height: resolvedHeight } : {}),
+  } as CSSProperties;
+  const editor = <div ref={containerRef} style={editorContainerStyle} />;
 
   return (
     <div data-json-viewer>
@@ -250,7 +265,7 @@ export default function JsonViewer({
           </Button>
         </Space>
       )}
-      <div ref={containerRef} />
+      {wrapEditor ? wrapEditor(editor) : editor}
     </div>
   );
 }

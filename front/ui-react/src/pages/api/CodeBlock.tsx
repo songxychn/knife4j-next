@@ -24,6 +24,7 @@ interface CodeBlockProps {
   preserveText?: boolean;
   /** Called when the copy button is clicked */
   onCopy?: () => void;
+  height?: number | string;
   maxHeight?: number | string;
 }
 
@@ -35,6 +36,7 @@ export default function CodeBlock({
   code,
   language = 'json',
   onCopy,
+  height,
   maxHeight = 400,
   preserveText = false,
 }: CodeBlockProps) {
@@ -65,14 +67,15 @@ export default function CodeBlock({
         />
       )}
       {model?.valid ? (
-        <JsonViewer model={model} maxHeight={maxHeight} />
+        <JsonViewer model={model} height={height} maxHeight={maxHeight} />
       ) : (
         <pre
           className="hljs"
           style={{
             borderRadius: 4,
             fontSize: 13,
-            maxHeight,
+            height,
+            maxHeight: height !== undefined ? 'none' : maxHeight,
             margin: 0,
             padding: '12px 16px',
             overflowX: 'auto',
@@ -81,6 +84,7 @@ export default function CodeBlock({
             wordBreak: 'break-all',
             background: '#f6f8fa',
             color: '#24292e',
+            boxSizing: 'border-box',
           }}
         >
           <code dangerouslySetInnerHTML={{ __html: highlighted }} />

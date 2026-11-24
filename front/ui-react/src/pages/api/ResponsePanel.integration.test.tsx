@@ -189,7 +189,7 @@ describe('ResponsePanel diagnostic integration', () => {
     );
   });
 
-  test('keeps a successful response body, raw content, headers, and actions accessible beside diagnostics', async () => {
+  test('collapses schema diagnostics into the status bar by default and expands details on demand', async () => {
     await view.render(
       <ResponsePanel
         response={response}
@@ -209,8 +209,14 @@ describe('ResponsePanel diagnostic integration', () => {
       />,
     );
 
-    const diagnostic = view.container.querySelector('[data-diagnostic-status="invalid-schema"]');
-    expect(diagnostic?.textContent).toContain('$/items/0/id');
+    const toggle = view.container.querySelector<HTMLButtonElement>(
+      '[data-diagnostic-toggle][data-diagnostic-status="invalid-schema"]',
+    );
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.textContent).toContain('apiDebug.responseSchemaValidation.toggleInvalid:{"count":1}');
+    expect(view.container.querySelector('#knife4j-response-schema-diagnostics')).toBeNull();
+
     expect(view.container.textContent).toContain('200 OK');
     expect(button('apiDebug.response.copyRaw').disabled).toBe(false);
     expect(button('apiDebug.response.copyCurl').disabled).toBe(true);
@@ -221,6 +227,17 @@ describe('ResponsePanel diagnostic integration', () => {
       'apiDebug.response.tab.headers',
     ]);
     expect(view.container.querySelector('[data-response-json-viewer] .cm-content')?.textContent).toContain('"items"');
+
+    await act(async () => toggle!.click());
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    const diagnostic = view.container.querySelector('#knife4j-response-schema-diagnostics');
+    expect(diagnostic?.getAttribute('data-diagnostic-status')).toBe('invalid-schema');
+    expect(diagnostic?.textContent).toContain('$/items/0/id');
+
+    await act(async () => button('apiDebug.responseSchemaValidation.collapse').click());
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(view.container.querySelector('#knife4j-response-schema-diagnostics')).toBeNull();
+
     await selectTab('raw');
     expect(view.container.querySelector('[role="tabpanel"]:not([hidden]) pre')?.textContent).toBe(response.rawText);
     await selectTab('headers');
@@ -232,6 +249,70 @@ describe('ResponsePanel diagnostic integration', () => {
       ['content-type', 'application/json'],
       ['x-trace-id', 'trace-698'],
     ]);
+  });
+
+  test('supports collapsing the response section and resizing the response body without remounting CodeMirror', async () => {
+    const diagnostic = {
+      status: 'invalid' as const,
+      issues: [
+        {
+          instanceLocation: '/items/0/id',
+          keyword: 'type',
+          absoluteKeywordLocation: '#/properties/items/items/properties/id/type',
+        },
+      ],
+      totalIssues: 1,
+    };
+
+    await view.render(
+      <ResponsePanel response={response} error={null} builtRequest={null} schemaDiagnostic={diagnostic} />,
+    );
+
+    const editorBefore = view.container.querySelector('[data-response-json-viewer] .cm-editor');
+    const handle = view.container.querySelector<HTMLElement>('[data-resize-handle="vertical"]')!;
+    expect(editorBefore).not.toBeNull();
+
+    await act(async () => {
+      handle.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+
+    const resizedContent = view.container.querySelector<HTMLElement>('.knife4j-resizable-box-content')!;
+    expect(resizedContent.dataset.resized).toBe('true');
+    expect(resizedContent.style.height).toBe('496px');
+    expect(view.container.querySelector('[data-response-json-viewer] .cm-editor')).toBe(editorBefore);
+
+    await selectTab('raw');
+    const rawResized = view.container.querySelector<HTMLElement>(
+      '[role="tabpanel"]:not([hidden]) .knife4j-resizable-box-content',
+    )!;
+    expect(rawResized.style.height).toBe('496px');
+
+    const collapseBtn = view.container.querySelector<HTMLButtonElement>('[data-response-collapse-toggle]')!;
+    expect(collapseBtn.getAttribute('aria-expanded')).toBe('true');
+    await act(async () => collapseBtn.click());
+    expect(collapseBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(view.container.querySelector('[data-response-body-section]')).toBeNull();
+    expect(view.container.textContent).toContain('200 OK');
+
+    // Expanding diagnostics from a collapsed response re-opens both the response section and alert.
+    const diagnosticToggle = view.container.querySelector<HTMLButtonElement>('[data-diagnostic-toggle]')!;
+    await act(async () => diagnosticToggle.click());
+    expect(collapseBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(view.container.querySelector('#knife4j-response-schema-diagnostics')).not.toBeNull();
+
+    // Arriving response resets diagnostics back to collapsed in the status bar.
+    await view.render(
+      <ResponsePanel
+        response={{ ...response, rawText: '{"items":[{"id":2}]}' }}
+        error={null}
+        builtRequest={null}
+        schemaDiagnostic={diagnostic}
+      />,
+    );
+    expect(view.container.querySelector('#knife4j-response-schema-diagnostics')).toBeNull();
+    expect(view.container.querySelector('[data-response-body-section]')).not.toBeNull();
   });
 
   test('renders OAS 3.2 sequential items with per-item and complete schema status', async () => {

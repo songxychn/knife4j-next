@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, type CSSProperties } from 'react';
 import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, placeholder } from '@codemirror/view';
 import { Compartment, EditorState } from '@codemirror/state';
-import { foldableJsonLanguage } from '../utils/jsonFolding';
+import { firstLevelFoldEffects, foldableJsonLanguage, prepareJsonDocument } from '../utils/jsonFolding';
 import { xml } from '@codemirror/lang-xml';
 import {
   bracketMatching,
@@ -10,19 +10,27 @@ import {
   indentOnInput,
   foldGutter,
   foldKeymap,
+  unfoldAll,
 } from '@codemirror/language';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 
 export type CodeEditorLanguage = 'json' | 'xml' | 'text';
 
+export interface CodeEditorHandle {
+  expandAll: () => void;
+  collapseToFirstLevel: () => void;
+}
+
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   language?: CodeEditorLanguage;
+  /** explicit height in px or CSS length; overrides natural sizing without remounting */
+  height?: number | string;
   /** min height in px, default 120 */
   minHeight?: number;
   /** max height in px, default 400 */
-  maxHeight?: number;
+  maxHeight?: number | string;
   placeholderText?: string;
   ariaLabel?: string;
 }
@@ -34,6 +42,9 @@ const baseTheme = EditorView.theme({
     border: '1px solid #d9d9d9',
     borderRadius: '6px',
     backgroundColor: '#fff',
+    height: 'var(--knife4j-code-editor-height, auto)',
+    minHeight: 'var(--knife4j-code-editor-min-height, 120px)',
+    maxHeight: 'var(--knife4j-code-editor-max-height, 400px)',
   },
   '&.cm-focused': {
     outline: 'none',
@@ -55,20 +66,34 @@ const baseTheme = EditorView.theme({
   },
 });
 
-export default function CodeEditor({
-  value,
-  onChange,
-  language = 'text',
-  minHeight = 120,
-  maxHeight = 400,
-  placeholderText,
-  ariaLabel,
-}: CodeEditorProps) {
+const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor(
+  { value, onChange, language = 'text', height, minHeight = 120, maxHeight = 400, placeholderText, ariaLabel },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const accessibleNameRef = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      expandAll: () => {
+        const view = viewRef.current;
+        if (view) unfoldAll(view);
+      },
+      collapseToFirstLevel: () => {
+        const view = viewRef.current;
+        if (!view || language !== 'json') return;
+        const doc = prepareJsonDocument(view.state.doc.toString(), true);
+        if (!doc.valid || doc.folds.length === 0) return;
+        const effects = firstLevelFoldEffects(view.state, doc.folds);
+        if (effects.length > 0) view.dispatch({ effects });
+      },
+    }),
+    [language],
+  );
 
   const buildExtensions = useCallback(
     (onChange: (v: string) => void) => {
@@ -140,14 +165,24 @@ export default function CodeEditor({
     }
   }, [value]);
 
+  const resolvedHeight = height !== undefined ? (typeof height === 'number' ? `${height}px` : height) : 'auto';
+  const resolvedMinHeight = `${minHeight}px`;
+  const resolvedMaxHeight =
+    height !== undefined ? 'none' : typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight;
+
   return (
     <div
       ref={containerRef}
-      style={{
-        minHeight,
-        maxHeight,
-        overflow: 'auto',
-      }}
+      style={
+        {
+          '--knife4j-code-editor-height': resolvedHeight,
+          '--knife4j-code-editor-min-height': resolvedMinHeight,
+          '--knife4j-code-editor-max-height': resolvedMaxHeight,
+          ...(height !== undefined ? { height: resolvedHeight } : {}),
+        } as CSSProperties
+      }
     />
   );
-}
+});
+
+export default CodeEditor;

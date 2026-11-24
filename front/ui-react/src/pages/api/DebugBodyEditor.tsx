@@ -1,6 +1,6 @@
 import { inferRawMode } from './debugFormState';
 import { useBodyBeautify } from './useBodyBeautify';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AutoComplete,
@@ -20,8 +20,10 @@ import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
 import type { BodyContent, OperationDebugModel } from 'knife4j-core';
-import CodeEditor, { type CodeEditorLanguage } from '../../components/CodeEditor';
+import CodeEditor, { type CodeEditorHandle, type CodeEditorLanguage } from '../../components/CodeEditor';
 import DescriptionText from '../../components/DescriptionText';
+import ResizableBox from '../../components/ResizableBox';
+import { DEBUG_PANEL_DEFAULT_MAX_HEIGHT, DEBUG_PANEL_MAX_HEIGHT, DEBUG_PANEL_MIN_HEIGHT } from './debugPanelLayout';
 import { type DebugCacheRawMode } from './debugCache';
 import {
   extractSchemaFields,
@@ -72,6 +74,8 @@ interface BodyTabProps {
   setBinaryBodyFile: (file: File | null) => void;
   rawMode: RawMode;
   setRawMode: (v: RawMode) => void;
+  bodyHeight?: number;
+  onBodyHeightChange?: (height: number | undefined) => void;
 }
 
 export function BodyTab({
@@ -94,6 +98,8 @@ export function BodyTab({
   setBinaryBodyFile,
   rawMode,
   setRawMode,
+  bodyHeight,
+  onBodyHeightChange,
 }: BodyTabProps) {
   const { t } = useTranslation();
   const bodyContents = debugModel.bodyContents;
@@ -177,6 +183,8 @@ export function BodyTab({
           rawMode={rawMode}
           setRawMode={setRawMode}
           onBeautify={handleBeautify}
+          bodyHeight={bodyHeight}
+          onBodyHeightChange={onBodyHeightChange}
         />
       )}
 
@@ -219,6 +227,8 @@ export function BodyTab({
           rawMode={rawMode}
           setRawMode={setRawMode}
           onBeautify={handleBeautify}
+          bodyHeight={bodyHeight}
+          onBodyHeightChange={onBodyHeightChange}
         />
       )}
     </div>
@@ -584,6 +594,8 @@ interface RawEditorProps {
   rawMode: RawMode;
   setRawMode: (v: RawMode) => void;
   onBeautify: () => void;
+  bodyHeight?: number;
+  onBodyHeightChange?: (height: number | undefined) => void;
 }
 
 const RAW_MODE_LANGUAGE: Record<RawMode, CodeEditorLanguage> = {
@@ -594,8 +606,12 @@ const RAW_MODE_LANGUAGE: Record<RawMode, CodeEditorLanguage> = {
   html: 'text',
 };
 
-function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditorProps) {
+function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify, bodyHeight, onBodyHeightChange }: RawEditorProps) {
   const { t } = useTranslation();
+  const editorRef = useRef<CodeEditorHandle>(null);
+  const [uncontrolledHeight, setUncontrolledHeight] = useState<number | undefined>(undefined);
+  const effectiveHeight = onBodyHeightChange ? bodyHeight : uncontrolledHeight;
+  const handleHeightChange = onBodyHeightChange ?? setUncontrolledHeight;
   const useCodeEditor = rawMode === 'json' || rawMode === 'xml';
   const canBeautify = rawMode !== 'text';
 
@@ -625,26 +641,55 @@ function RawEditor({ body, setBody, rawMode, setRawMode, onBeautify }: RawEditor
               {t('apiDebug.body.beautify')}
             </Button>
           )}
+          {rawMode === 'json' && (
+            <>
+              <Button size="small" onClick={() => editorRef.current?.expandAll()}>
+                {t('json.expandAll')}
+              </Button>
+              <Button size="small" onClick={() => editorRef.current?.collapseToFirstLevel()}>
+                {t('json.collapseToFirstLevel')}
+              </Button>
+            </>
+          )}
         </Space>
       </div>
-      {useCodeEditor ? (
-        <CodeEditor
-          ariaLabel={t('apiDoc.requestBody')}
-          value={body}
-          onChange={setBody}
-          language={RAW_MODE_LANGUAGE[rawMode]}
-          placeholderText={`${RAW_CONTENT_TYPES[rawMode]} request body`}
-        />
-      ) : (
-        <TextArea
-          aria-label={t('apiDoc.requestBody')}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          rows={10}
-          style={{ fontFamily: 'monospace', fontSize: 13 }}
-          placeholder={`${RAW_CONTENT_TYPES[rawMode]} request body`}
-        />
-      )}
+      <ResizableBox
+        height={effectiveHeight}
+        defaultMaxHeight={DEBUG_PANEL_DEFAULT_MAX_HEIGHT}
+        minHeight={DEBUG_PANEL_MIN_HEIGHT}
+        maxHeight={DEBUG_PANEL_MAX_HEIGHT}
+        onHeightChange={handleHeightChange}
+        handleLabel={t('apiDebug.request.resizeHandle')}
+        resetTitle={t('apiDebug.panel.resizeResetTitle')}
+      >
+        {useCodeEditor ? (
+          <CodeEditor
+            ref={editorRef}
+            ariaLabel={t('apiDoc.requestBody')}
+            value={body}
+            onChange={setBody}
+            language={RAW_MODE_LANGUAGE[rawMode]}
+            height={effectiveHeight !== undefined ? '100%' : undefined}
+            minHeight={DEBUG_PANEL_MIN_HEIGHT}
+            maxHeight={DEBUG_PANEL_DEFAULT_MAX_HEIGHT}
+            placeholderText={`${RAW_CONTENT_TYPES[rawMode]} request body`}
+          />
+        ) : (
+          <TextArea
+            aria-label={t('apiDoc.requestBody')}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            rows={effectiveHeight !== undefined ? undefined : 10}
+            style={{
+              fontFamily: 'monospace',
+              fontSize: 13,
+              resize: 'none',
+              ...(effectiveHeight !== undefined ? { height: '100%' } : {}),
+            }}
+            placeholder={`${RAW_CONTENT_TYPES[rawMode]} request body`}
+          />
+        )}
+      </ResizableBox>
     </div>
   );
 }
