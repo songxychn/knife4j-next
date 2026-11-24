@@ -480,6 +480,7 @@ export function DebugResponseExtractionPanel({
             <Form.Item
               name="masked"
               label={t('apiDebug.extract.masked')}
+              extra={t('apiDebug.extract.maskedTip')}
               valuePropName="checked"
               style={{ marginBottom: 8 }}
             >

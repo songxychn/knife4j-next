@@ -348,7 +348,12 @@ function GlobalParamInner() {
               />
             </Form.Item>
           )}
-          <Form.Item name="masked" label={t('globalParam.masked')} valuePropName="checked">
+          <Form.Item
+            name="masked"
+            label={t('globalParam.masked')}
+            extra={t('apiDebug.extract.maskedTip')}
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
           {valueSource === 'manual' && (

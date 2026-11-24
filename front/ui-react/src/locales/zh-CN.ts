@@ -743,7 +743,8 @@ const zhCN = {
   'apiDebug.extract.targetIn': '位置',
   'apiDebug.extract.targetName': '目标参数名',
   'apiDebug.extract.targetNamePlaceholder': '例如 Authorization',
-  'apiDebug.extract.masked': '隐藏显示',
+  'apiDebug.extract.masked': '隐藏明文',
+  'apiDebug.extract.maskedTip': '界面以 •••••• 展示',
   'apiDebug.extract.livePreview.matched': '当前响应实时预览：{{preview}}',
   'apiDebug.extract.livePreview.matchedMasked': '当前响应实时预览：已命中 {{preview}}（共 {{length}} 字符，已隐藏）',
   'apiDebug.extract.status.updated': '已更新',
@@ -903,7 +904,7 @@ const zhCN = {
   'globalParam.scope.groupDescription': '仅发送至当前 OpenAPI 分组：{{group}}',
   'globalParam.scope.applicationTip': '“全部分组”参数会被当前分组的同名参数覆盖；接口调试页显式参数仍具有最高优先级。',
   'globalParam.scope.applicationStorage':
-    '这些值会以明文保存在浏览器 localStorage 中；“隐藏显示”只影响界面展示，不会加密存储。',
+    '这些值会以明文保存在浏览器 localStorage 中；“隐藏明文”只影响界面展示，不会加密存储。',
   'globalParam.scope.groupTip':
     '当前分组参数优先于“全部分组”参数；同名分组项禁用或留空会阻止继承，删除该分组项后恢复继承。接口调试页显式参数仍具有最高优先级。',
   'globalParam.scope.currentGroupOnly': '仅属于当前分组：{{group}}。切换分组后将使用对应分组的配置。',
@@ -915,7 +916,7 @@ const zhCN = {
   'globalParam.col.enabled': '启用',
   'globalParam.col.source': '值来源',
   'globalParam.col.action': '操作',
-  'globalParam.masked': '隐藏显示',
+  'globalParam.masked': '隐藏明文',
   'globalParam.placeholder.name': '参数名',
   'globalParam.validation.name': '名称不能为空',
   'globalParam.placeholder.value': '参数值',

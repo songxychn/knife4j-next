@@ -823,6 +823,7 @@ const jaJP = {
   'apiDebug.extract.targetName': '対象パラメータ名',
   'apiDebug.extract.targetNamePlaceholder': '例: Authorization',
   'apiDebug.extract.masked': '値を隠す',
+  'apiDebug.extract.maskedTip': '画面上は •••••• で表示',
   'apiDebug.extract.livePreview.matched': '現在のレスポンスでのリアルタイムプレビュー: {{preview}}',
   'apiDebug.extract.livePreview.matchedMasked':
     '現在のレスポンスでのリアルタイムプレビュー: 一致 {{preview}}（{{length}} 文字、非表示）',

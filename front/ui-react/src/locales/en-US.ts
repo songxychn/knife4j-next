@@ -817,6 +817,7 @@ const enUS = {
   'apiDebug.extract.targetName': 'Parameter name',
   'apiDebug.extract.targetNamePlaceholder': 'e.g. Authorization',
   'apiDebug.extract.masked': 'Mask value',
+  'apiDebug.extract.maskedTip': 'Shown as •••••• in the UI',
   'apiDebug.extract.livePreview.matched': 'Live preview on current response: {{preview}}',
   'apiDebug.extract.livePreview.matchedMasked':
     'Live preview on current response: matched {{preview}} ({{length}} chars, masked)',
