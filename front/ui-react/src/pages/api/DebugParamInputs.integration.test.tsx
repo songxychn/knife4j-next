@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createReactTestRoot, stubLayoutApis } from '../../test/reactTestRoot';
 import { CustomParamsSection, InjectedGlobalParamsSection, type CustomParamRow } from './DebugParamInputs';
 
+// Rendering Ant Design Table under parallel Linux CI load can exceed the default 5s timeout.
+vi.setConfig({ testTimeout: 60_000 });
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
