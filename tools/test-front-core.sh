@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/../front"
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$repo_root/front"
 
 bun scripts/check-bun.cjs
 bun test ./scripts/check-bun.test.cjs
@@ -27,3 +28,6 @@ bun run --filter knife4j-ui-react format:check
 bun run --filter knife4j-ui-react test
 bun run --filter knife4j-ui-react build
 bun run --filter knife4j-ui-react lint
+
+# --- knife4x Go embedded UI assets ---
+"$repo_root/tools/sync-knife4x-ui.sh" --check
