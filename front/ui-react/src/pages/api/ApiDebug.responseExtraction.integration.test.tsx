@@ -244,7 +244,7 @@ describe('ApiDebug post-response variable extraction', () => {
     expect(secondHeaders['X-Refresh-Token']).toBe('refresh-secret-1');
   });
 
-  test('dry-run previews extraction without mutating global parameters until applied', async () => {
+  test('live preview in modal matches current response without mutating until save-and-apply', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ data: { token: 'dry-run-tok' } }), {
         status: 200,
@@ -263,42 +263,28 @@ describe('ApiDebug post-response variable extraction', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    // Open extraction tab, add a rule, fill fields via DOM inputs, and run dry-run.
+    // Open extraction tab and click the Bearer Token quick template.
     await act(async () => {
       findTabByText('响应提取').click();
     });
     await act(async () => {
-      findButtonByText('新增规则').click();
+      findButtonByText('快速添加：Bearer Token').click();
     });
 
-    const exprInput = container.querySelector('input[aria-label="提取表达式"]') as HTMLInputElement;
-    const prefixInput = container.querySelector('input[aria-label="值前缀（可选）"]') as HTMLInputElement;
-    const nameInput = container.querySelector('input[aria-label="目标参数名"]') as HTMLInputElement;
-    expect(exprInput).not.toBeNull();
-    expect(nameInput).not.toBeNull();
-
-    const setInputValue = (input: HTMLInputElement, value: string) => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-      setter.call(input, value);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
-    await act(async () => {
-      setInputValue(exprInput, '$.data.token');
-      setInputValue(prefixInput, 'Bearer ');
-      setInputValue(nameInput, 'Authorization');
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('当前响应实时预览：已命中');
+      expect(document.body.textContent).toContain(MASKED_VALUE_PREVIEW);
     });
 
-    await act(async () => {
-      findButtonByText('用当前响应试运行').click();
-    });
-
-    expect(container.textContent).toContain('试运行完成：命中 1 项，失败 0 项');
-    // Still no global params persisted on dry-run.
+    // Live preview must not mutate global parameters before saving.
     expect(localStorage.getItem('knife4j:global-params:default')).toBeNull();
 
+    const saveAndApplyBtn = Array.from(document.querySelectorAll('button')).find((el) =>
+      el.textContent?.includes('保存并应用到当前响应'),
+    );
+    expect(saveAndApplyBtn).toBeDefined();
     await act(async () => {
-      findButtonByText('立即应用到请求参数').click();
+      saveAndApplyBtn!.click();
     });
 
     const savedGroup = JSON.parse(localStorage.getItem('knife4j:global-params:default') ?? '{}') as {

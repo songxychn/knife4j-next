@@ -1075,8 +1075,13 @@ export default function ApiDebug() {
   );
 
   const runResponseExtraction = useCallback(
-    (input: ResponseExtractionInput, mode: 'auto' | 'dry-run', applyMutations: boolean) => {
-      const rules = extractionRulesRef.current;
+    (
+      input: ResponseExtractionInput,
+      mode: 'auto' | 'dry-run',
+      applyMutations: boolean,
+      rulesOverride?: readonly ResponseExtractionRule[],
+    ) => {
+      const rules = rulesOverride ?? extractionRulesRef.current;
       const evaluation = evaluateResponseExtraction(rules, input, { mode });
       if (evaluation.log.status === 'skipped' && evaluation.log.skipReason === 'no-enabled-rules') {
         if (mode === 'dry-run') {
@@ -1103,7 +1108,7 @@ export default function ApiDebug() {
     [upsertParams],
   );
 
-  const buildCurrentResponseExtractionInput = useCallback((): ResponseExtractionInput | null => {
+  const currentResponseExtractionInput = useMemo<ResponseExtractionInput | null>(() => {
     if (sseEvents !== null || sequentialStream !== null) {
       return {
         status: response?.status ?? 200,
@@ -1123,18 +1128,14 @@ export default function ApiDebug() {
     };
   }, [builtRequest?.url, response, sequentialStream, sseEvents]);
 
-  const handleDryRunExtraction = useCallback(() => {
-    const input = buildCurrentResponseExtractionInput();
-    if (!input) return;
-    runResponseExtraction(input, 'dry-run', false);
-  }, [buildCurrentResponseExtractionInput, runResponseExtraction]);
-
-  const handleApplyExtractionNow = useCallback(() => {
-    const input = buildCurrentResponseExtractionInput();
-    if (!input) return;
-    runResponseExtraction(input, 'auto', true);
-    void message.success(t('apiDebug.extract.applied'));
-  }, [buildCurrentResponseExtractionInput, runResponseExtraction, t]);
+  const handleApplyExtractionNow = useCallback(
+    (rulesOverride?: readonly ResponseExtractionRule[]) => {
+      if (!currentResponseExtractionInput) return;
+      runResponseExtraction(currentResponseExtractionInput, 'auto', true, rulesOverride);
+      void message.success(t('apiDebug.extract.applied'));
+    },
+    [currentResponseExtractionInput, runResponseExtraction, t],
+  );
 
   if (docLoading || !authReady || !routeGroupReady) {
     return (
@@ -2431,11 +2432,10 @@ export default function ApiDebug() {
                 group={group}
                 rules={extractionRules}
                 persistenceFailed={extractionPersistenceFailed}
-                hasResponse={response !== null || sseEvents !== null || sequentialStream !== null}
+                currentResponseInput={currentResponseExtractionInput}
                 extractionLog={extractionLog}
                 onRulesChange={handleExtractionRulesChange}
-                onDryRun={handleDryRunExtraction}
-                onApplyNow={handleApplyExtractionNow}
+                onApplyCurrentResponse={handleApplyExtractionNow}
               />
             ),
           },
@@ -2832,24 +2832,22 @@ export default function ApiDebug() {
 
           <Divider style={{ margin: '12px 0' }} />
 
-          {extractionSummary && (
+          {extractionSummary && (currentActiveTab !== 'extract' || requestCollapsed) && (
             <Alert
               type={extractionSummary.type}
               showIcon
               title={t(extractionSummary.key, extractionSummary.params)}
               action={
-                currentActiveTab !== 'extract' || requestCollapsed ? (
-                  <Button
-                    size="small"
-                    type="link"
-                    onClick={() => {
-                      setRequestCollapsed(false);
-                      setActiveTab('extract');
-                    }}
-                  >
-                    {t('apiDebug.extract.viewLog')}
-                  </Button>
-                ) : undefined
+                <Button
+                  size="small"
+                  type="link"
+                  onClick={() => {
+                    setRequestCollapsed(false);
+                    setActiveTab('extract');
+                  }}
+                >
+                  {t('apiDebug.extract.viewLog')}
+                </Button>
               }
               style={{ marginBottom: 12 }}
             />

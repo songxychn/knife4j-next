@@ -178,6 +178,8 @@ export interface ResponseExtractionItemLog {
   readonly status: 'updated' | 'preview' | 'failed';
   /** Redacted when masked is true so logs never store plaintext tokens. */
   readonly valuePreview?: string;
+  /** Length of the extracted value (safe metadata for masked preview feedback). */
+  readonly valueLength?: number;
   readonly reasonCode?: ResponseExtractionItemReasonCode;
   readonly reasonDetail?: string;
   readonly shadowedByGroup?: boolean;
@@ -459,6 +461,7 @@ export function evaluateResponseExtraction(
       ...baseItem,
       status: mode === 'dry-run' ? 'preview' : 'updated',
       valuePreview: formatPreviewValue(finalValue, rule.masked),
+      valueLength: finalValue.length,
     });
   }
 
