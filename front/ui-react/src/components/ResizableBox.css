@@ -1,0 +1,59 @@
+.knife4j-resizable-box {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.knife4j-resizable-box-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.knife4j-resizable-box-content[data-resized='true'] > * {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.knife4j-resizable-box-handle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 12px;
+  margin-top: 2px;
+  cursor: ns-resize;
+  user-select: none;
+  touch-action: none;
+  border-radius: 4px;
+}
+
+.knife4j-resizable-box-handle::before {
+  content: '';
+  width: 36px;
+  height: 3px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  transition:
+    background 0.16s ease,
+    width 0.16s ease;
+}
+
+.knife4j-resizable-box-handle:hover::before,
+.knife4j-resizable-box-handle[data-dragging='true']::before,
+.knife4j-resizable-box-handle:focus-visible::before {
+  background: #1677ff;
+  width: 52px;
+}
+
+.knife4j-resizable-box-handle:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  .knife4j-resizable-box-handle:focus-visible {
+    outline-color: Highlight;
+  }
+}
