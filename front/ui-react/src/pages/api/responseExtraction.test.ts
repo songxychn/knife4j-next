@@ -305,6 +305,13 @@ describe('responseExtraction core', () => {
       targetIn: 'header',
       masked: true,
     });
+
+    expect(
+      normalizeResponseExtractionRules([
+        { id: 'blank', expression: '   ', targetName: '' },
+        { id: 'valid', expression: '$.token', targetName: 'Authorization' },
+      ]),
+    ).toHaveLength(1);
   });
 
   test('detects cross-origin request URLs safely', () => {

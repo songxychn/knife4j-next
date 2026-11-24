@@ -102,6 +102,10 @@ export function normalizeResponseExtractionRule(value: unknown): ResponseExtract
   const targetName =
     typeof value.targetName === 'string' ? value.targetName.slice(0, RESPONSE_EXTRACTION_MAX_TARGET_NAME_LENGTH) : '';
 
+  if (!expression.trim() && !targetName.trim()) {
+    return null;
+  }
+
   return {
     id: typeof value.id === 'string' && value.id.trim() ? value.id : createClientId(),
     enabled: value.enabled !== false,

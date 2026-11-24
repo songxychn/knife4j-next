@@ -257,9 +257,13 @@ export function DebugResponseExtractionPanel({
             <Tag style={{ marginInlineEnd: 0 }}>
               {t(rule.source === 'header' ? 'apiDebug.extract.source.header' : 'apiDebug.extract.source.jsonBody')}
             </Tag>
-            <Text code style={{ fontSize: 12 }}>
-              {rule.expression}
-            </Text>
+            {rule.expression.trim() ? (
+              <Text code style={{ fontSize: 12 }}>
+                {rule.expression}
+              </Text>
+            ) : (
+              <Text type="secondary">—</Text>
+            )}
           </Space>
           {rule.prefix && (
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -274,7 +278,7 @@ export function DebugResponseExtractionPanel({
       key: 'target',
       render: (_: unknown, rule: ResponseExtractionRule) => (
         <Space size={6} wrap>
-          <Text strong>{rule.targetName}</Text>
+          {rule.targetName.trim() ? <Text strong>{rule.targetName}</Text> : <Text type="secondary">—</Text>}
           <Tag style={{ marginInlineEnd: 0 }}>{rule.targetIn}</Tag>
           <Tag color={rule.targetScope === 'application' ? 'blue' : undefined} style={{ marginInlineEnd: 0 }}>
             {t(rule.targetScope === 'application' ? 'globalParam.scope.application' : 'globalParam.scope.group')}
