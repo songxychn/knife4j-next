@@ -2086,7 +2086,15 @@ export default function ApiDebug() {
       children: (
         <>
           {renderExamplePickers32('path')}
-          <DebugParameterTable {...parameterTableProps} params={pathParams} emptyText={t('apiDebug.noPathParams')} />
+          {pathParams.length > 0 ? (
+            <DebugParameterTable {...parameterTableProps} params={pathParams} emptyText={t('apiDebug.noPathParams')} />
+          ) : (
+            <div data-param-empty-hint="" style={{ padding: '8px 0' }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                {t('apiDebug.noPathParams')}
+              </Text>
+            </div>
+          )}
         </>
       ),
     },
@@ -2101,17 +2109,26 @@ export default function ApiDebug() {
       children: (
         <>
           {renderExamplePickers32('query')}
-          {(queryParams.length > 0 || injectedGlobalQueries.length === 0) && (
+          {queryParams.length > 0 && (
             <DebugParameterTable
               {...parameterTableProps}
               params={queryParams}
               emptyText={t('apiDebug.noQueryParams')}
             />
           )}
-          <InjectedGlobalParamsSection rows={injectedGlobalQueries} />
+          <InjectedGlobalParamsSection
+            rows={injectedGlobalQueries}
+            compact={queryParams.length === 0}
+            manageTo={group ? `/${encodeURIComponent(group)}/globalParam` : undefined}
+          />
           <CustomParamsSection
             title={t('apiDebug.customQuery.title')}
             addLabel={t('apiDebug.customParams.add')}
+            emptyAddLabel={t('apiDebug.customQuery.add')}
+            emptyHint={
+              queryParams.length === 0 && injectedGlobalQueries.length === 0 ? t('apiDebug.noQueryParams') : undefined
+            }
+            compact={queryParams.length === 0 && injectedGlobalQueries.length === 0}
             namePlaceholder={t('apiDebug.customQuery.namePlaceholder')}
             valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
             rows={customQueryParams}
@@ -2197,7 +2214,7 @@ export default function ApiDebug() {
       children: (
         <>
           {renderExamplePickers32('header')}
-          {(headerParams.length > 0 || injectedGlobalHeaders.length === 0) && (
+          {headerParams.length > 0 && (
             <DebugParameterTable
               {...parameterTableProps}
               params={headerParams}
@@ -2206,10 +2223,23 @@ export default function ApiDebug() {
               }
             />
           )}
-          <InjectedGlobalParamsSection rows={injectedGlobalHeaders} />
+          <InjectedGlobalParamsSection
+            rows={injectedGlobalHeaders}
+            compact={headerParams.length === 0}
+            manageTo={group ? `/${encodeURIComponent(group)}/globalParam` : undefined}
+          />
           <CustomParamsSection
             title={t('apiDebug.customHeaders.title')}
             addLabel={t('apiDebug.customParams.add')}
+            emptyAddLabel={t('apiDebug.customHeaders.add')}
+            emptyHint={
+              headerParams.length === 0 && injectedGlobalHeaders.length === 0
+                ? debugModel.bodyContents.length > 0
+                  ? t('apiDebug.header.autoInject')
+                  : t('apiDebug.noHeaderParams')
+                : undefined
+            }
+            compact={headerParams.length === 0 && injectedGlobalHeaders.length === 0}
             namePlaceholder={t('apiDebug.customHeaders.namePlaceholder')}
             valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
             rows={customHeaders}
@@ -2267,20 +2297,33 @@ export default function ApiDebug() {
               />
             </Space>
           )}
-          <DebugParameterTable
-            {...parameterTableProps}
-            params={cookieParams}
-            emptyText={t('apiDebug.noCookieParams')}
-          />
-          {effectiveCookieSource !== 'browser-session' && (
+          {cookieParams.length > 0 && (
+            <DebugParameterTable
+              {...parameterTableProps}
+              params={cookieParams}
+              emptyText={t('apiDebug.noCookieParams')}
+            />
+          )}
+          {effectiveCookieSource !== 'browser-session' ? (
             <CustomParamsSection
               title={t('apiDebug.customCookie.title')}
               addLabel={t('apiDebug.customParams.add')}
+              emptyAddLabel={t('apiDebug.customCookie.add')}
+              emptyHint={cookieParams.length === 0 ? t('apiDebug.noCookieParams') : undefined}
+              compact={cookieParams.length === 0}
               namePlaceholder={t('apiDebug.customCookie.namePlaceholder')}
               valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
               rows={customCookies}
               onChange={setCustomCookies}
             />
+          ) : (
+            cookieParams.length === 0 && (
+              <div data-param-empty-hint="" style={{ padding: '8px 0' }}>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {t('apiDebug.noCookieParams')}
+                </Text>
+              </div>
+            )
           )}
         </>
       ),

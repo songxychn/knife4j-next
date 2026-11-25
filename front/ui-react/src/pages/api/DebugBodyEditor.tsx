@@ -209,6 +209,7 @@ export function BodyTab({
         <CustomParamsSection
           title={t('apiDebug.customBody.title')}
           addLabel={t('apiDebug.customParams.add')}
+          emptyAddLabel={t('apiDebug.customBody.add')}
           namePlaceholder={t('apiDebug.customBody.namePlaceholder')}
           valuePlaceholder={t('apiDebug.customParams.valuePlaceholder')}
           rows={customBodyParams}

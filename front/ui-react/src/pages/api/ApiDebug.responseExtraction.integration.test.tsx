@@ -225,7 +225,7 @@ describe('ApiDebug post-response variable extraction', () => {
     });
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(container.textContent).toContain('已更新 2 项请求参数');
+      expect(container.textContent).toContain('已更新 2 项全局参数');
     });
 
     // Switch to the extraction tab and verify redacted previews + on-demand reveal in the status column.

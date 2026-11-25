@@ -29,4 +29,21 @@ describe('locale resources', () => {
       );
     });
   });
+
+  it('uses unified global parameter naming across zh-CN, en-US, and ja-JP', () => {
+    expect(zhCN['globalParam.title']).toBe('全局参数');
+    expect(zhCN['settings.tab.globalParam']).toBe('全局参数');
+    expect(zhCN['apiDebug.globalParams.title']).toBe('已继承的全局参数');
+    expect(zhCN['apiDebug.customHeaders.title']).toBe('本接口自定义请求头');
+    expect(zhCN['apiDebug.customQuery.title']).toBe('本接口自定义 Query 参数');
+    expect(zhCN['apiDebug.customCookie.title']).toBe('本接口自定义 Cookie');
+
+    expect(enUS['globalParam.title']).toBe('Global Parameters');
+    expect(enUS['settings.tab.globalParam']).toBe('Global Parameters');
+    expect(enUS['apiDebug.globalParams.title']).toBe('Inherited Global Parameters');
+
+    expect(jaJP['globalParam.title']).toBe('グローバルパラメータ');
+    expect(jaJP['settings.tab.globalParam']).toBe('グローバルパラメータ');
+    expect(jaJP['apiDebug.globalParams.title']).toBe('継承されたグローバルパラメータ');
+  });
 });
