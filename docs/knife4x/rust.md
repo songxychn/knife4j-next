@@ -15,7 +15,7 @@ Rust crate 将共享 React UI 编入服务的二进制文件。应用负责提�
 cargo run --locked --manifest-path knife4x/examples/axum/Cargo.toml
 ```
 
-打开 `http://127.0.0.1:8080/doc.html`，在 `GET /api/ping` 的调试页发送请求。示例通过 utoipa 生成文档，在 `/openapi.json` 提供 JSON。使用其他生成器或已有静态 JSON 时，也可以传入相同的 URL。
+打开 `http://127.0.0.1:8080/doc.html`，在 `GET /api/ping` 的调试页发送请求。示例通过 utoipa 生成文档，在 `/openapi.json` 提供 JSON。使用其他生成器或已有静态 JSON 时，也可以传入相同的 URL。示例支持用 `KNIFE4X_ADDR` 更改监听地址、用 `KNIFE4X_BASE_PATH` 设置前缀，同时设置 `KNIFE4X_BASIC_USER` 和 `KNIFE4X_BASIC_PASSWORD` 可开启文档访问认证。
 
 在自己的 Cargo 项目中使用本地源码时，把路径替换为实际检出位置：
 

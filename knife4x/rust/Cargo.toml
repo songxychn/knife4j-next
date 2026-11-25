@@ -4,6 +4,7 @@ version = "0.12.0"
 edition = "2024"
 description = "Embedded Knife4j OpenAPI 3 documentation and debugging UI for Rust services"
 license = "Apache-2.0"
+publish = ["crates-io"]
 repository = "https://github.com/songxychn/knife4j-next"
 readme = "README.md"
 keywords = ["openapi", "documentation", "axum", "knife4j"]

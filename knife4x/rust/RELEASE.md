@@ -10,11 +10,11 @@ Rust crate 名为 `knife4x`，使用 crates.io。每次双端发布从同一个�
 
 ## 首次发布
 
-在 crates.io 确认包名可用，使用已验证邮箱的维护者账号取得有权首次发布该包的短期凭据，通过 Cargo 凭据存储登录。运行：
+在 crates.io 确认包名可用，使用已验证邮箱的维护者账号取得有权首次发布该包的短期凭据，通过 `cargo login --registry crates-io` 存入 Cargo 凭据存储。运行：
 
 ```bash
-cargo publish --locked --dry-run --manifest-path knife4x/rust/Cargo.toml
-cargo publish --locked --manifest-path knife4x/rust/Cargo.toml
+cargo publish --registry crates-io --locked --dry-run --manifest-path knife4x/rust/Cargo.toml
+cargo publish --registry crates-io --locked --manifest-path knife4x/rust/Cargo.toml
 ```
 
 确认公开包可消费，再按 [Go 手册](../go/RELEASE.md) 从同一提交推送 `knife4x/go/vX.Y.Z`。在 crates.io 的 crate 设置中，为后续版本配置 Trusted Publishing，绑定 GitHub 仓库 `songxychn/knife4j-next`、工作流文件 `knife4x-rust-release.yml`、GitHub environment `crates-io`。在 GitHub 将该 environment 的部署 ref 限于 Knife4x 发布 tag。首发凭据用完可撤销；后续工作流使用 OIDC 短期凭据。参见 [crates.io 官方说明](https://blog.rust-lang.org/2025/07/11/crates-io-development-update-2025-07/)。
