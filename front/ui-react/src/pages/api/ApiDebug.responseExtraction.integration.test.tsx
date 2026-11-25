@@ -11,9 +11,7 @@ import { clearDebugSessionStatesForTest } from './debugSessionState';
 import { writeResponseExtractionRules, type ResponseExtractionStorage } from './responseExtractionStorage';
 import { MASKED_VALUE_PREVIEW, type ResponseExtractionRule } from './responseExtraction';
 
-// Rendering full ApiDebug with Ant Design, CodeMirror, and multiple request cycles
-// under parallel Linux CI load can exceed 60s per test.
-vi.setConfig({ testTimeout: 120_000 });
+vi.setConfig({ testTimeout: 60_000 });
 
 const state = vi.hoisted(() => ({
   document: null as SwaggerDoc | null,
@@ -114,8 +112,14 @@ beforeEach(() => {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }));
-  const getComputedStyle = window.getComputedStyle.bind(window);
-  vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => getComputedStyle(element));
+  vi.spyOn(window, 'getComputedStyle').mockImplementation(
+    (element) =>
+      ({
+        ...(element instanceof HTMLElement ? element.style : {}),
+        getPropertyValue: (prop: string) =>
+          element instanceof HTMLElement ? element.style.getPropertyValue(prop) : '',
+      }) as CSSStyleDeclaration,
+  );
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
