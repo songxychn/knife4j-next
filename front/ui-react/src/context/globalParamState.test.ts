@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  applyUpsertGlobalParams,
   applicationStorageKey,
+  findShadowedApplicationIdentities,
   type GlobalParamItem,
   type GlobalParamStorage,
   globalParamIdentity,
@@ -221,5 +223,57 @@ describe('effective global parameters', () => {
       { ...group[2], scope: 'group' },
       { ...group[4], scope: 'group' },
     ]);
+  });
+
+  it('upserts params by identity, preserves existing mask and request config, and reports group shadowing', () => {
+    const existingGroup: GlobalParamItem[] = [
+      {
+        ...param({ id: 'req-auth', name: 'Authorization', value: 'old', enabled: false, masked: true }),
+        valueSource: 'request',
+        request: {
+          method: 'POST',
+          url: '/login',
+          headers: '',
+          body: '',
+          jsonPath: '$.token',
+          prefix: 'Bearer ',
+        },
+      },
+    ];
+
+    const updatedGroup = applyUpsertGlobalParams(
+      existingGroup,
+      [
+        { in: 'header', name: 'authorization', value: 'Bearer fresh', masked: false },
+        { in: 'query', name: 'tenantId', value: 't-1', masked: false },
+      ],
+      'group',
+    );
+
+    expect(updatedGroup).toHaveLength(2);
+    expect(updatedGroup[0]).toMatchObject({
+      id: 'req-auth',
+      name: 'Authorization',
+      value: 'Bearer fresh',
+      enabled: true,
+      masked: true,
+      valueSource: 'request',
+    });
+    expect(updatedGroup[0].request?.url).toBe('/login');
+    expect(updatedGroup[1]).toMatchObject({
+      name: 'tenantId',
+      in: 'query',
+      value: 't-1',
+      enabled: true,
+      masked: false,
+      valueSource: 'manual',
+    });
+
+    const shadowed = findShadowedApplicationIdentities(updatedGroup, [
+      { in: 'header', name: 'AUTHORIZATION' },
+      { in: 'header', name: 'X-New-Global' },
+    ]);
+    expect(shadowed.has(globalParamIdentity({ in: 'header', name: 'Authorization' }))).toBe(true);
+    expect(shadowed.has(globalParamIdentity({ in: 'header', name: 'X-New-Global' }))).toBe(false);
   });
 });

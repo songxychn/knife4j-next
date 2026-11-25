@@ -43,6 +43,8 @@ export interface AppSettings {
   enableHostText: string;
   /** Whether the debug panel restores the last filled request parameters for each operation. */
   enableRequestCache: boolean;
+  /** Whether declarative post-response variable extraction is shown and executed in ApiDebug. */
+  enableAfterScript: boolean;
   /**
    * Whether the debug panel records per-operation send history (localStorage).
    * Independent of enableRequestCache.
@@ -83,6 +85,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableHost: false,
   enableHostText: '',
   enableRequestCache: true,
+  enableAfterScript: true,
   enableRequestHistory: true,
   enableDynamicParameter: false,
   enableFilterMultipartApis: false,

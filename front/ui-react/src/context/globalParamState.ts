@@ -256,6 +256,71 @@ function lastByIdentity(params: readonly GlobalParamItem[]): Map<string, GlobalP
   return result;
 }
 
+export interface GlobalParamUpsertInput {
+  readonly scope: GlobalParamScope;
+  readonly in: GlobalParamLocation;
+  readonly name: string;
+  readonly value: string;
+  readonly masked: boolean;
+}
+
+export function applyUpsertGlobalParams(
+  current: readonly GlobalParamItem[],
+  updates: readonly Omit<GlobalParamUpsertInput, 'scope'>[],
+  scope: GlobalParamScope,
+): GlobalParamItem[] {
+  const next = current.map((item) => (scope === 'application' ? asManualParam(item) : { ...item }));
+  for (const update of updates) {
+    const trimmedName = update.name.trim();
+    if (!trimmedName) continue;
+    const targetIdentity = globalParamIdentity({ in: update.in, name: trimmedName });
+    let matchIndex = -1;
+    for (let index = next.length - 1; index >= 0; index -= 1) {
+      if (globalParamIdentity(next[index]) === targetIdentity) {
+        matchIndex = index;
+        break;
+      }
+    }
+    if (matchIndex >= 0) {
+      const existing = next[matchIndex];
+      const merged: GlobalParamItem = {
+        ...existing,
+        value: update.value,
+        enabled: true,
+        masked: existing.masked || update.masked,
+      };
+      next[matchIndex] = scope === 'application' ? asManualParam(merged) : merged;
+    } else {
+      const created: GlobalParamItem = {
+        id: createClientId(),
+        name: trimmedName,
+        value: update.value,
+        in: update.in,
+        enabled: true,
+        masked: update.masked,
+        valueSource: 'manual',
+      };
+      next.push(scope === 'application' ? asManualParam(created) : created);
+    }
+  }
+  return next;
+}
+
+export function findShadowedApplicationIdentities(
+  groupParams: readonly GlobalParamItem[],
+  applicationUpdates: readonly Pick<GlobalParamUpsertInput, 'in' | 'name'>[],
+): Set<string> {
+  const groupIdentities = new Set(groupParams.map((item) => globalParamIdentity(item)));
+  const shadowed = new Set<string>();
+  for (const item of applicationUpdates) {
+    const identity = globalParamIdentity(item);
+    if (groupIdentities.has(identity)) {
+      shadowed.add(identity);
+    }
+  }
+  return shadowed;
+}
+
 export function resolveEffectiveParams(
   applicationParams: readonly GlobalParamItem[],
   groupParams: readonly GlobalParamItem[],

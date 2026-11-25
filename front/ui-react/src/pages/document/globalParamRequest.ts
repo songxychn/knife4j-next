@@ -1,9 +1,9 @@
-import { JSONPath } from 'jsonpath-plus';
 import type {
   GlobalParamCredentialsMode,
   GlobalParamHttpRequest,
   GlobalParamValueRequest,
 } from '../../context/GlobalParamContext';
+import { extractSingleJsonPathScalar } from '../api/responseExtraction';
 
 type Fetcher = typeof fetch;
 
@@ -68,20 +68,6 @@ export async function fetchGlobalParamValue(
     throw new Error('响应体不是有效的 JSON');
   }
 
-  // JSONPath 11 returns unknown in its types; wrap: true keeps matches in an array.
-  const matches = JSONPath({
-    path: config.jsonPath,
-    json: json as null | boolean | number | string | object,
-    wrap: true,
-    eval: false,
-  }) as unknown[];
-  if (matches.length !== 1) {
-    throw new Error(matches.length === 0 ? 'JSONPath 没有匹配到值' : 'JSONPath 匹配到多个值');
-  }
-
-  const value = matches[0];
-  if (value === null || !['string', 'number', 'boolean'].includes(typeof value)) {
-    throw new Error('JSONPath 结果必须是字符串、数字或布尔值');
-  }
-  return `${config.prefix}${String(value)}`;
+  const value = extractSingleJsonPathScalar(json, config.jsonPath);
+  return `${config.prefix}${value}`;
 }

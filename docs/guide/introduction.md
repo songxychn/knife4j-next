@@ -57,8 +57,8 @@ upstream 文档里列出的增强特性在本 fork 的实际实现状态，前�
 | 服务端能力已覆盖 | `knife4j.enable`、`knife4j.production`、`knife4j.basic`、JSR303 透传 | 安心使用 |
 | Springfox 专属增强在 OAS3 中不处理 | `@DynamicParameters`、`@DynamicResponseParameters`、`@ApiOperationSupport(ignoreParameters/includeParameters)` 等 | 迁到 OpenAPI3 时改用实体类或标准 OpenAPI 注解替代 |
 | 后端实现，新 React 前端已读取部分默认值 | `knife4j.setting.language`、`enable-debug`、`enable-search`、`enable-open-api`、`enable-host`、`enable-group`、`enable-footer`、`enable-footer-custom`、`footer-custom-content`、`enable-request-cache`、`enable-home-custom`、`home-custom-location`、`swagger-model-name` 等 | 这些是 UI 开关，不替代后端安全控制；本地设置面板选择优先 |
-| React UI 已补齐或重做 | OAuth2 四种 flow 基础鉴权、HTML/Word/Markdown/OpenAPI JSON 离线导出、`tags-sorter` / `operations-sorter`、`x-openapi.x-markdownFiles` 自定义文档、自定义 Footer、自定义首页、基础 JS/TS 代码片段 | 优先以本仓库文档和实际 demo 为准 |
-| 仍未覆盖 | afterScript、调试后刷新变量（`enable-reload-cache-parameter`） | 这些能力在 Vue2 基线与 Vue3 端口中存在，React 尚未覆盖。三端都没有独立的 Postman Collection 导出器；OpenAPI 复制/下载才是真实能力 |
+| React UI 已补齐或重做 | OAuth2 四种 flow 基础鉴权、HTML/Word/Markdown/OpenAPI JSON 离线导出、`tags-sorter` / `operations-sorter`、`x-openapi.x-markdownFiles` 自定义文档、自定义 Footer、自定义首页、基础 JS/TS 代码片段、声明式响应后变量提取（`enable-after-script`，安全替代任意 JS AfterScript） | 优先以本仓库文档和实际 demo 为准 |
+| 仍未覆盖 | 任意 JS 版 afterScript（`ke.*`）、调试后刷新变量（`enable-reload-cache-parameter`） | 任意 JS 脚本因安全与 CSP 约束不在 React 复刻，已用声明式响应提取替代；`enable-reload-cache-parameter` 仍只在 Vue2 / Vue3。三端都没有独立的 Postman Collection 导出器；OpenAPI 复制/下载才是真实能力 |
 
 完整对应关系见 [功能概览](./features) 与 [配置参考](../reference/configuration)。
 

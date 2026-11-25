@@ -124,7 +124,7 @@ Java `5.8.1` / Go `v0.9.1` 修复 Schema 跨文档引用与正则诊断、Markdo
 完整更新列表见 [发布说明](/release-notes/)。
 
 ::: warning 关于新前端覆盖范围
-能力基线是 upstream Vue2。Vue3 与 React 都是维护者重写，各自可能漏掉 Vue2 能力。React 已读取部分 `knife4j.setting.*`（含自定义 Footer、接口变化提示、请求参数缓存与后端注入的自定义首页 Markdown）；仍缺 afterScript 与调试后刷新变量。三端都没有独立的 Postman Collection 导出器，请使用 OpenAPI 复制/下载。切换前端前先查阅 [功能概览](/guide/features) 与 [配置参考](/reference/configuration)。`home-custom-path` 仍由后端读取，不是前端读取文件的入口。`knife4j-openapi2-ui` 由本仓库 `front/vue3` 构建，处于 OAS2 兼容维护状态。
+能力基线是 upstream Vue2。Vue3 与 React 都是维护者重写，各自可能漏掉 Vue2 能力。React 已读取部分 `knife4j.setting.*`（含自定义 Footer、接口变化提示、请求参数缓存、声明式响应后变量提取与后端注入的自定义首页 Markdown）；任意 JS 版 afterScript（`ke.*`）与调试后刷新变量不在 React 覆盖范围内。三端都没有独立的 Postman Collection 导出器，请使用 OpenAPI 复制/下载。切换前端前先查阅 [功能概览](/guide/features) 与 [配置参考](/reference/configuration)。`home-custom-path` 仍由后端读取，不是前端读取文件的入口。`knife4j-openapi2-ui` 由本仓库 `front/vue3` 构建，处于 OAS2 兼容维护状态。
 :::
 
 ## 文档导航
