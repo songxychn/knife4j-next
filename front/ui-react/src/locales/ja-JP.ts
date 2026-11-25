@@ -816,8 +816,8 @@ const jaJP = {
   'apiDebug.preview.source.application': 'すべてのグループ',
   'apiDebug.preview.source.global': '現在のグループ',
   'apiDebug.globalParams.title': '継承されたグローバルパラメータ',
-  'apiDebug.globalParams.readOnly':
-    '左側の「グローバルパラメータ」から継承されます。同名の場合はこの API のパラメータが優先されます',
+  'apiDebug.globalParams.readOnly': '読み取り専用。同名の場合はこの API のパラメータが優先されます',
+  'apiDebug.globalParams.manage': 'グローバルパラメータを管理',
   'apiDebug.preview.source.auth': '認証',
 
   // Authorize

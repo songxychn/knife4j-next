@@ -737,7 +737,8 @@ const zhCN = {
   'apiDebug.preview.source.application': '全部分组',
   'apiDebug.preview.source.global': '当前分组',
   'apiDebug.globalParams.title': '已继承的全局参数',
-  'apiDebug.globalParams.readOnly': '来自左侧「全局参数」，同名时由本接口参数覆盖',
+  'apiDebug.globalParams.readOnly': '只读，同名时由本接口参数覆盖',
+  'apiDebug.globalParams.manage': '管理全局参数',
   'apiDebug.preview.source.auth': '鉴权',
 
   // Authorize

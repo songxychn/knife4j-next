@@ -1981,7 +1981,11 @@ export default function ApiDebug() {
               emptyText={t('apiDebug.noQueryParams')}
             />
           )}
-          <InjectedGlobalParamsSection rows={injectedGlobalQueries} compact={queryParams.length === 0} />
+          <InjectedGlobalParamsSection
+            rows={injectedGlobalQueries}
+            compact={queryParams.length === 0}
+            manageTo={group ? `/${encodeURIComponent(group)}/globalParam` : undefined}
+          />
           <CustomParamsSection
             title={t('apiDebug.customQuery.title')}
             addLabel={t('apiDebug.customParams.add')}
@@ -2084,7 +2088,11 @@ export default function ApiDebug() {
               }
             />
           )}
-          <InjectedGlobalParamsSection rows={injectedGlobalHeaders} compact={headerParams.length === 0} />
+          <InjectedGlobalParamsSection
+            rows={injectedGlobalHeaders}
+            compact={headerParams.length === 0}
+            manageTo={group ? `/${encodeURIComponent(group)}/globalParam` : undefined}
+          />
           <CustomParamsSection
             title={t('apiDebug.customHeaders.title')}
             addLabel={t('apiDebug.customParams.add')}

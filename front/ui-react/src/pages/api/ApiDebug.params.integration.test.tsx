@@ -1,5 +1,5 @@
 import { act, type ReactNode } from 'react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ScopedGlobalParamItem } from '../../context/GlobalParamContext';
 import { createReactTestRoot, stubLayoutApis } from '../../test/reactTestRoot';
@@ -223,25 +223,29 @@ describe('ApiDebug parameter naming and empty-state presentation', () => {
 
     await view.render(
       <MemoryRouter initialEntries={['/default/demo/op-test/debug']}>
-        <ApiDebug />
+        <Routes>
+          <Route path="/:group/:tag/:operaterId/debug" element={<ApiDebug />} />
+        </Routes>
       </MemoryRouter>,
     );
 
-    // Query tab: only inherited global params table + lightweight add button
+    // Query tab: only inherited global params table + manage link + lightweight add button
     await selectTab(view.container, 'apiDebug.tab.query');
     let panel = activePanel(view.container);
     expect(panel.querySelectorAll('table')).toHaveLength(1);
     expect(panel.textContent).toContain('apiDebug.globalParams.title');
     expect(panel.textContent).toContain('apiDebug.globalParams.readOnly');
+    expect(panel.querySelector('a[href="/default/globalParam"]')?.textContent).toBe('apiDebug.globalParams.manage');
     expect(panel.textContent).toContain('locale');
     expect(panel.textContent).toContain('apiDebug.customQuery.add');
     expect(panel.textContent).not.toContain('apiDebug.noQueryParams');
 
-    // Header tab: only inherited global params table + lightweight add button
+    // Header tab: only inherited global params table + manage link + lightweight add button
     await selectTab(view.container, 'apiDebug.tab.header');
     panel = activePanel(view.container);
     expect(panel.querySelectorAll('table')).toHaveLength(1);
     expect(panel.textContent).toContain('apiDebug.globalParams.title');
+    expect(panel.querySelector('a[href="/default/globalParam"]')?.textContent).toBe('apiDebug.globalParams.manage');
     expect(panel.textContent).toContain('X-Tenant-Id');
     expect(panel.textContent).toContain('apiDebug.customHeaders.add');
     expect(panel.textContent).not.toContain('apiDebug.noHeaderParams');

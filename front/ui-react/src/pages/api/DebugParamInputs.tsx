@@ -1,6 +1,7 @@
 import { AutoComplete, Button, Input, InputNumber, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { DebugParam } from 'knife4j-core';
 import RevealableValue from '../../components/RevealableValue';
 import { createClientId } from '../../utils/id';
@@ -415,9 +416,11 @@ export interface InjectedGlobalParamRow {
 export function InjectedGlobalParamsSection({
   rows,
   compact = false,
+  manageTo,
 }: {
   rows: InjectedGlobalParamRow[];
   compact?: boolean;
+  manageTo?: string;
 }) {
   const { t } = useTranslation();
   if (rows.length === 0) return null;
@@ -429,6 +432,11 @@ export function InjectedGlobalParamsSection({
         <Text type="secondary" style={{ fontSize: 12 }}>
           {t('apiDebug.globalParams.readOnly')}
         </Text>
+        {manageTo && (
+          <Link to={manageTo} style={{ fontSize: 12 }}>
+            {t('apiDebug.globalParams.manage')}
+          </Link>
+        )}
       </Space>
       <Table
         bordered

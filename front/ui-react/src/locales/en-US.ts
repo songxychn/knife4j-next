@@ -810,8 +810,8 @@ const enUS = {
   'apiDebug.preview.source.application': 'All groups',
   'apiDebug.preview.source.global': 'Current group',
   'apiDebug.globalParams.title': 'Inherited Global Parameters',
-  'apiDebug.globalParams.readOnly':
-    'From Global Parameters in the sidebar; overridden by parameters on this operation with the same name',
+  'apiDebug.globalParams.readOnly': 'Read-only; overridden by parameters on this operation with the same name',
+  'apiDebug.globalParams.manage': 'Manage global parameters',
   'apiDebug.preview.source.auth': 'Auth',
 
   // Authorize

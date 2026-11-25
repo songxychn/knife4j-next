@@ -1,4 +1,5 @@
 import { act, useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createReactTestRoot, stubLayoutApis } from '../../test/reactTestRoot';
 import { CustomParamsSection, InjectedGlobalParamsSection, type CustomParamRow } from './DebugParamInputs';
@@ -88,20 +89,26 @@ describe('DebugParamInputs', () => {
     expect(view.container.textContent).toContain('apiDebug.customBody.add');
   });
 
-  test('InjectedGlobalParamsSection uses inherited global parameter heading and read-only override subtitle', async () => {
+  test('InjectedGlobalParamsSection uses inherited global parameter heading, read-only override subtitle, and manage link', async () => {
     await view.render(
-      <InjectedGlobalParamsSection
-        compact
-        rows={[
-          { key: 'app:X-Tenant-Id', name: 'X-Tenant-Id', value: 'acme', masked: false, source: 'application' },
-          { key: 'group:locale', name: 'locale', value: 'zh-CN', masked: false, source: 'global' },
-        ]}
-      />,
+      <MemoryRouter>
+        <InjectedGlobalParamsSection
+          compact
+          manageTo="/default/globalParam"
+          rows={[
+            { key: 'app:X-Tenant-Id', name: 'X-Tenant-Id', value: 'acme', masked: false, source: 'application' },
+            { key: 'group:locale', name: 'locale', value: 'zh-CN', masked: false, source: 'global' },
+          ]}
+        />
+      </MemoryRouter>,
     );
 
     expect(view.container.querySelectorAll('table')).toHaveLength(1);
     expect(view.container.textContent).toContain('apiDebug.globalParams.title');
     expect(view.container.textContent).toContain('apiDebug.globalParams.readOnly');
+    const manageLink = view.container.querySelector<HTMLAnchorElement>('a[href="/default/globalParam"]');
+    expect(manageLink).not.toBeNull();
+    expect(manageLink?.textContent).toBe('apiDebug.globalParams.manage');
     expect(view.container.textContent).toContain('X-Tenant-Id');
     expect(view.container.textContent).toContain('locale');
   });
