@@ -36,6 +36,9 @@ def assert_webjar(entries, expected):
         for name, content in entries.items()
         if name.startswith(WEBJAR_PREFIX)
     }
+    doc_html = expected["index.html"].replace(b'="./', b'="webjars/knife4j-ui-react/')
+    if entries.get("META-INF/resources/doc.html") != doc_html:
+        raise AssertionError("doc.html must reference this generation's WebJar assets")
     if actual != expected:
         extra = sorted(set(actual) - set(expected))
         missing = sorted(set(expected) - set(actual))
@@ -51,7 +54,8 @@ def package_resources(module, dist):
         "mvn", "-B", "-ntp", "-f", str(module / "pom.xml"),
         f"-Dknife4j-ui-react.outDir={dist}", "initialize",
         "clean:clean@wipe-react-webjar-output",
-        "resources:resources", "resources:copy-resources@copy-react-dist", "jar:jar",
+        "resources:resources", "antrun:run@write-react-doc-html",
+        "resources:copy-resources@copy-react-dist", "jar:jar",
         "source:jar@attach-sources",
     ], check=True)
     copied = module / "target/classes" / WEBJAR_PREFIX
@@ -75,8 +79,8 @@ def main():
         shutil.copytree(MODULE / "src/main/resources", module / "src/main/resources")
         dist = root / "dist"
         first = {
-            "index.html": b'<script src="./assets/index.js"></script>',
-            "assets/index.js": b'import "./old.js";',
+            "index.html": b'<script src="./assets/index-A1234567.js"></script>\n',
+            "assets/index-A1234567.js": b'import "./old.js";',
             "assets/old.js": b"export const old = 1;",
             "assets/nested/old.css": b".old { color: red; }",
         }
@@ -87,10 +91,11 @@ def main():
         # A later Vite build removes/renames chunks and overwrites its dist.
         shutil.rmtree(dist)
         second = {
-            "index.html": b'<script src="./assets/index.js"></script>',
-            "assets/index.js": b'import "./new.js";',
+            "index.html": (b'<script src="./assets/index-B1234567.js"></script>\n'
+                           b'<link rel="stylesheet" href="./assets/index-B1234567.css">\n'),
+            "assets/index-B1234567.js": b'import "./new.js";',
             "assets/new.js": b"export const next = 2;",
-            "assets/index.css": b".next { color: blue; }",
+            "assets/index-B1234567.css": b".next { color: blue; }",
         }
         write_files(dist, second)
         target = module / "target"
@@ -114,9 +119,6 @@ def main():
                 raise AssertionError(f"Unrelated output changed: {name}")
             if name.startswith("classes/") and entries.get(name[len("classes/"):]) != content:
                 raise AssertionError(f"Unrelated classpath output missing from JAR: {name}")
-        doc_html = (module / "src/main/resources/doc.html").read_bytes()
-        if entries.get("META-INF/resources/doc.html") != doc_html:
-            raise AssertionError("doc.html entry changed")
         if legacy.exists():
             raise AssertionError("Legacy source-tree WebJar output was not cleaned")
         if (external / "keep.txt").read_bytes() != b"external symlink target":

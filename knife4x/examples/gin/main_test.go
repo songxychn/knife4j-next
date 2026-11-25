@@ -208,8 +208,15 @@ func TestConfiguredExampleDisablesUIAndHostSpecRoutesTogether(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, suffix := range []string{"/doc.html", "/openapi.json", "/ping-openapi.json", "/oauth2-redirect.html", "/assets/index.js"} {
-			request(t, handler, basePath+suffix, http.StatusNotFound)
+		enabled, err := newHandler(basePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		docPath := basePath + "/doc.html"
+		doc := request(t, enabled, docPath, http.StatusOK)
+		asset := resolveAsset(t, docPath, string(doc), `src="./`)
+		for _, path := range []string{docPath, basePath + "/openapi.json", basePath + "/ping-openapi.json", basePath + "/oauth2-redirect.html", asset} {
+			request(t, handler, path, http.StatusNotFound)
 		}
 		request(t, handler, "/api/ping", http.StatusOK)
 	}

@@ -14,7 +14,6 @@
     <name>knife4j-openapi3-ui</name>
     <description>springdoc-openapi的Ui模块</description>
     <properties>
-        <!--<destDir>${project.build.outputDirectory}/META-INF/resources/webjars/${project.artifactId}/${project.version}</destDir>-->
         <destDir>${project.build.outputDirectory}/META-INF/resources/</destDir>
         <knife4j-front.dir>${project.basedir}/../../front</knife4j-front.dir>
         <knife4j-ui-react.dir>${project.basedir}/../../front/ui-react</knife4j-ui-react.dir>
@@ -160,6 +159,32 @@
                                 <argument>--emptyOutDir</argument>
                             </arguments>
                             <workingDirectory>${knife4j-ui-react.dir}</workingDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Expose Vite's entry at doc.html as well as inside the WebJar.
+                 Keep the rewritten URLs relative to the application's context path. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>write-react-doc-html</id>
+                        <phase>process-resources</phase>
+                        <goals><goal>run</goal></goals>
+                        <configuration>
+                            <target>
+                                <copy file="${knife4j-ui-react.outDir}/index.html" tofile="${destDir}doc.html"
+                                      overwrite="true" encoding="UTF-8">
+                                    <filterchain>
+                                        <tokenfilter>
+                                            <replaceregex pattern='(src|href)="\./' replace='\1="webjars/knife4j-ui-react/' flags="g"/>
+                                        </tokenfilter>
+                                    </filterchain>
+                                </copy>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>

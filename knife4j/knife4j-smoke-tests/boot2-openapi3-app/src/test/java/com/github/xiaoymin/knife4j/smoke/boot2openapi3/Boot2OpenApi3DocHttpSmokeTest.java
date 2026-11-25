@@ -36,6 +36,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * End-to-end smoke test for the javax-flavored OpenAPI 3 starter (Spring Boot 2.7.x).
@@ -74,8 +76,9 @@ public class Boot2OpenApi3DocHttpSmokeTest {
 
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
-        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
-        Assert.assertEquals(200, get(port, "/webjars/knife4j-ui-react/assets/index.js").statusCode);
+        Matcher entry = Pattern.compile("src=\"(webjars/knife4j-ui-react/assets/[^\"]+\\.js)\"").matcher(docHtml.body);
+        Assert.assertTrue("doc.html should reference the WebJar entry", entry.find());
+        Assert.assertEquals(200, get(port, "/" + entry.group(1)).statusCode);
 
         HttpResponse apiDocs = get(port, "/v3/api-docs");
         Assert.assertEquals(200, apiDocs.statusCode);

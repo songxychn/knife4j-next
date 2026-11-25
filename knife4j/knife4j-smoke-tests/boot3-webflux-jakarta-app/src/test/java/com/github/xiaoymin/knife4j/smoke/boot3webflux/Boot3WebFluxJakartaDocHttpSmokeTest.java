@@ -58,6 +58,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Boot3WebFluxJakartaDocHttpSmokeTest {
 
@@ -115,8 +117,9 @@ public class Boot3WebFluxJakartaDocHttpSmokeTest {
 
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
-        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
-        Assert.assertEquals(200, get(port, "/webjars/knife4j-ui-react/assets/index.js").statusCode);
+        Matcher entry = Pattern.compile("src=\"(webjars/knife4j-ui-react/assets/[^\"]+\\.js)\"").matcher(docHtml.body);
+        Assert.assertTrue("doc.html should reference the WebJar entry", entry.find());
+        Assert.assertEquals(200, get(port, "/" + entry.group(1)).statusCode);
 
         HttpResponse runtimeConfig = get(port, "/v3/api-docs/swagger-config");
         Assert.assertEquals(200, runtimeConfig.statusCode);

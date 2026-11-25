@@ -46,12 +46,5 @@ export default defineConfig({
   build: {
     // JSONPath 11 requires native RegExp v support; keep JS syntax at ES2020.
     target: ['es2020', 'edge112', 'firefox116', 'chrome112', 'safari17'],
-    rolldownOptions: {
-      output: {
-        entryFileNames: 'assets/index.js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]',
-      },
-    },
   },
 });
