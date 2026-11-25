@@ -12,7 +12,7 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-本次版本为 Java `5.9.0` 与 Knife4x Go `v0.11.0`。
+Java 当前版本为 `5.9.0`。Knife4x Go / Rust 同版发布及 Rust 首版变更见 [Knife4x 0.12.0](../knife4x/releases.md#v0-12-0)。
 
 ### 5.9.0 <Badge type="tip" text="最新版本" />
 

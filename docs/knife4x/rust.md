@@ -5,7 +5,17 @@ description: 在 Rust 服务中嵌入 Knife4j OpenAPI 3 控制台，使用 Axum 
 
 # Knife4x Rust
 
-Rust crate 将共享 React UI 编入服务的二进制文件。应用负责提供 OpenAPI 3 JSON；浏览器加载页面、读取文档并直接请求业务接口。目前可以从源码接入，首个 crates.io 版本将在双端发布时提供。
+Rust crate 将共享 React UI 编入服务的二进制文件。应用负责提供 OpenAPI 3 JSON；浏览器加载页面、读取文档并直接请求业务接口。
+
+## 安装
+
+在已有 Axum 服务中，从 crates.io 添加 `knife4x` 和可选的 `axum` feature：
+
+```bash
+cargo add knife4x@0.12.0 --features axum
+```
+
+其他宿主可以使用 `cargo add knife4x@0.12.0` 安装框架无关核心。
 
 ## 运行 Axum 示例
 

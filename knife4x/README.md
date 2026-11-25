@@ -1,7 +1,7 @@
 # Knife4x
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调试控制台。
-Go 和 Rust 与 Java OAS3 共用 `front/ui-react` 和 `front/core`。Rust 可从源码接入，双端发布后使用相同的 Knife4x 版本和 UI 构建。
+Go 和 Rust 与 Java OAS3 共用 `front/ui-react` 和 `front/core`。Go module 和 Rust crate 使用相同的 Knife4x 版本和 UI 构建。
 
 Go 公共库只依赖标准库 `net/http`，消费已有 OpenAPI 3 JSON，不生成 spec、不代理业务请求。
 完整用户手册统一维护在[文档站](https://knife4jnext.com/knife4x/)，
@@ -9,10 +9,10 @@ Go 公共库只依赖标准库 `net/http`，消费已有 OpenAPI 3 JSON，不生
 
 ## 安装与体验
 
-Go 1.22+ 接入版本为 `v0.11.0`（tag `knife4x/go/v0.11.0`）：
+Go 1.22+ 接入版本为 `v0.12.0`（tag `knife4x/go/v0.12.0`）：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.11.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.12.0
 ```
 
 最小标准库程序见 [Go module README](go/README.md)。仓库内也可运行独立 Gin 示例
@@ -28,6 +28,12 @@ go run .
 可用版本与字段以[配置参考](../docs/knife4x/configuration.md)为准。
 
 ## Rust 与 Axum
+
+在 Axum 项目中添加依赖：
+
+```bash
+cargo add knife4x@0.12.0 --features axum
+```
 
 从仓库根目录运行 `cargo run --locked --manifest-path knife4x/examples/axum/Cargo.toml`，打开 `/doc.html`。配置、鉴权和 utoipa 迁移见 [Rust 接入手册](../docs/knife4x/rust.md)，打包与正式发布见 [Rust 发布清单](rust/RELEASE.md)。
 

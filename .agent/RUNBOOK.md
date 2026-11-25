@@ -37,7 +37,7 @@
 
 ## 正式发布验收
 
-须维护者明确授权后再创建/推送 tag。当前具备正式发布流程的语言为 **Java** 与 **Knife4x Go**（版本号各自独立）。
+须维护者明确授权后再创建/推送 tag。Java 单独使用 Maven 版本；Knife4x Go 与 Rust 使用同一产品版本和 UI 构建。
 
 ### 发布文案
 发布准备 PR 同步更新 `README.md`、接入/迁移示例、发布说明等当前入口版本号，移除“待发布”等准备态文案。`tools/verify-current-version-docs.py` 校验 Maven 坐标与发布说明“最新”标记。

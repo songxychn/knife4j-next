@@ -46,9 +46,8 @@ features:
     linkText: 网关接入
 ---
 
-::: tip Knife4x Go v0.11.0
-Go 服务现在也能嵌入同一套 React UI，通过标准库 `net/http` Handler 挂载
-UI、加载已有 OpenAPI 3 文档并提供调试控制台。[查看 Go 接入](/knife4x/)。
+::: tip Knife4x 0.12.0 · Go 与 Rust
+在 Go 或 Rust 服务中嵌入同一套 OpenAPI 3 文档与调试 UI。Go 提供标准库 Handler，Rust 提供框架无关核心和可选 Axum 适配。[Go 接入](/knife4x/) · [Rust 接入](/knife4x/rust)。
 :::
 
 ## 这是 Knife4j 的 fork，不是重写

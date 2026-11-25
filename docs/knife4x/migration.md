@@ -15,7 +15,7 @@ Knife4x 替换嵌入式文档与调试 UI，不替代 OpenAPI 生成器。先确
 入口不接受 YAML；3.1 与 3.2 的 Schema、外部资源及浏览器调试边界见
 [OpenAPI 3.1](../guide/openapi31.md)和[OpenAPI 3.2](../guide/openapi32.md)。
 
-从已有 Knife4x `v0.5.0` 单 spec 接法升级到 `v0.11.0`，不需要修改 `Config`、
+从已有 Knife4x `v0.5.0` 单 spec 接法升级到 `v0.12.0`，不需要修改 `Config`、
 `NewHandler` 或挂载路径。OAS 3.1 消费从 `v0.6.0` 起提供，OAS 3.2 从 `v0.8.0` 起提供；
 历史变化见[版本记录](./releases.md)。
 

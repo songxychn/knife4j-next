@@ -8,8 +8,8 @@
 |---|---|
 | Go module | `github.com/songxychn/knife4j-next/knife4x/go` |
 | 首个版本 | `v0.1.0` |
-| 当前版本 | `v0.11.0` |
-| 发布 tag | `knife4x/go/v0.11.0` |
+| 当前版本 | `v0.12.0` |
+| 发布 tag | `knife4x/go/v0.12.0` |
 | 许可证 | Apache-2.0 |
 
 Go module 位于仓库子目录，因此按
@@ -18,9 +18,9 @@ Go module 位于仓库子目录，因此按
 workflow 的自动 tag 触发器只接收根级 `v*` tag，不接收 `knife4x/go/v*`；Demo
 由 Java Release 完成公开制品核验后调用，不由 Go tag 触发。
 
-## v0.11.0 发布范围
+## v0.12.0 发布范围
 
-版本变更见 [Go 版本记录](../../docs/knife4x/releases.md#v0-11-0)。Go 1.22+ 公共库只依赖标准库，独立 Gin 示例使用 Go 1.26+。
+版本变更见 [Knife4x 版本记录](../../docs/knife4x/releases.md#v0-12-0)。Go 1.22+ 公共库只依赖标准库，独立 Gin 示例使用 Go 1.26+。
 
 ## 发布前门禁
 
@@ -70,12 +70,11 @@ test -z "$(git status --porcelain)"
 以下命令不属于 ready-to-tag 工作项。只有维护者明确授权发布后才执行：
 
 ```bash
-git tag -a knife4x/go/v0.11.0 -m "Knife4x Go v0.11.0"
-git push origin knife4x/go/v0.11.0
+git tag -a knife4x/go/v0.12.0 -m "Knife4x Go v0.12.0"
+git push origin knife4x/go/v0.12.0
 ```
 
-不要同时创建根级 `v0.11.0` tag，不要运行 Java Maven Release，不要为本次发布新增
-registry、OIDC、secret 或 GitHub Release。
+Go 使用上述子目录 tag。Rust 首发先上传 crates.io 并验收，再从同一提交推送 Go tag；后续版本的操作顺序见 [Go / Rust 同版发布清单](../rust/RELEASE.md)。
 
 ## 发布后公共消费验证
 
@@ -84,7 +83,7 @@ proxy 记录的 origin hash 与 annotated tag 指向的 commit 一致，且 ref 
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.11.0
+version=v0.12.0
 tag="knife4x/go/${version}"
 tag_commit="$(git rev-list -n 1 "$tag")"
 proxy_info="$(curl -fsS "https://proxy.golang.org/${module}/@v/${version}.info")"
@@ -100,7 +99,7 @@ test "$proxy_ref" = "refs/tags/$tag"
 
 ```bash
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.11.0
+version=v0.12.0
 sum_response="$(curl -fsS "https://sum.golang.org/lookup/${module}@${version}")"
 printf '%s\n' "$sum_response"
 printf '%s\n' "$sum_response" | grep -F "${module} ${version} h1:"
@@ -115,7 +114,7 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
 module=github.com/songxychn/knife4j-next/knife4x/go
-version=v0.11.0
+version=v0.12.0
 export GOPROXY=https://proxy.golang.org
 export GONOPROXY=none
 export GOMODCACHE="$consumer_dir/modcache"
@@ -172,11 +171,11 @@ test -s "$module_dir/internal/ui/static/assets/index.css"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer
-编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.11.0` 发布完成。
+编译、Handler 运行和下载内容检查都通过后，才可宣布 Knife4x Go `v0.12.0` 发布完成。
 
 ## 补丁原则
 
 - 已发布 tag 不移动、不覆盖；有问题发布新的 patch 版本。
 - 只修兼容 bug 时递增 patch；新增向后兼容能力时递增 minor。
 - `0.x` 的破坏性变更至少递增 minor，并提供迁移说明。
-- Rust 尚未发布，不为本次 Go 版本创建空 crate 或同步 tag。
+- Go 和 Rust 按同一产品版本发布，共用一次 UI 构建。
