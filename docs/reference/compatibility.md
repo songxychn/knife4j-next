@@ -11,14 +11,14 @@ title: 兼容矩阵
 
 ## 依赖基线
 
-::: info Java 5.9.0 / Go v0.11.0 依赖基线
+::: info Java 5.9.0 / Go v0.12.0 依赖基线
 Boot4 WebMVC、独立聚合、Gateway 及 Demo 的源码验证基线沿用 Boot `4.1.2`，
 Cloud 保持 `2025.1.3`，springdoc 保持 `3.0.3`，Java 下限仍为 17。
 Boot4 构建另外导入 Jackson 2 `2.22.4` / Jackson 3 `3.1.8` BOM，修复 `CVE-2026-110879`；
 WebMVC 和独立聚合 starter 直接声明现有 Jackson 组件，以向没有自有 BOM 的消费方传递修复版本。
 消费方的 `dependencyManagement` 仍可覆盖这些版本，接入时请按
 [Jackson 依赖告警处理](../guide/faq#jackson-依赖告警处理) 检查最终依赖树。
-以下表格描述当前 Java `5.9.0` / Go `v0.11.0` 的依赖与兼容范围。
+以下表格描述当前 Java `5.9.0` / Go `v0.12.0` 的依赖与兼容范围。
 :::
 
 | 维度 | 版本 |
@@ -48,11 +48,11 @@ Boot4 依赖为 Boot `4.1.2` / Cloud `2025.1.3`。
 
 ## 浏览器基线
 
-以下要求适用于 **Java `5.9.0` / Knife4x Go `v0.11.0`**，不反向修改历史发布版本的要求。
+以下要求适用于 **Java `5.9.0` / Knife4x Go 与 Rust `0.12.0`**，不反向修改历史发布版本的要求。
 
 | UI | 5.7.8 / Go v0.8.7 基线 | 5.7.9 / Go v0.8.8 起沿用的最低浏览器 | 适用产物 |
 | --- | --- | --- | --- |
-| OAS3 React | 原构建目标：Chrome 87、Edge 88、Firefox 78、Safari 14 | Chrome / Edge **112**、Firefox **116**、Safari / iOS Safari **17** | OAS3 WebJar、Knife4x Go |
+| OAS3 React | 原构建目标：Chrome 87、Edge 88、Firefox 78、Safari 14 | Chrome / Edge **112**、Firefox **116**、Safari / iOS Safari **17** | OAS3 WebJar、Knife4x Go / Rust |
 | OAS2 Vue3 | Chrome / Edge 111、Firefox 114、Safari 16.4 | Chrome / Edge **117**、Firefox **119**、Safari / iOS Safari **17.4** | OAS2 WebJar |
 
 **两条 UI 的下限从 Java `5.7.9` / Go `v0.8.8` 起提高，本版本沿用。** OAS3 的 JSONPath 11 需要原生 `RegExp` 的 `v` 标志；OAS2 的 Mermaid 12 解析依赖需要原生 `Object.groupBy`。构建不会为旧浏览器补齐这些 API；升级前应确认用户实际浏览器版本，尤其是 Safari / iOS 系统版本。OAS3 旧构建目标仅作版本对照，不代表旧版所有运行时能力都在这些版本实测。

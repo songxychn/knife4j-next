@@ -12,7 +12,7 @@
 ## 核心约束
 
 1. **分支与合并**：不直接 push `master`，不代替维护者 merge PR；走分支 → PR → CI → 维护者合并。分支命名：`agent/<task-id>-<slug>`（无 issue 可用 `agent/adhoc-<slug>`）。
-2. **发布与高风险授权**：不擅自发布 release / tag、改 secrets 或 Maven 坐标；改 CI workflow、依赖主版本、新模块或任务外产品行为需明确授权。维护者要求“发布新版本”且未限定语言时，覆盖所有已具备正式发布流程的语言（当前为 Java 与 Knife4x Go）。
+2. **发布与高风险授权**：不擅自发布 release / tag、改 secrets 或 Maven 坐标；改 CI workflow、依赖主版本、新模块或任务外产品行为需明确授权。维护者要求“发布新版本”且未限定语言时，覆盖所有已具备正式发布流程的语言（当前为 Java 与 Knife4x Go / Rust）。
 3. **两条前端线**：OAS3 新功能只进 `front/ui-react`；`front/vue3` 仅 OAS2 兼容维护，不做功能扩张。
 4. **先复现再修**：Bug / 回归任务先在未打补丁基线复现并留证据，再修复。禁止空想 try-catch / null-guard 防御性补丁。
 5. **不兼容非规范文档**：附带 OpenAPI / Swagger 文档的 issue 先按声明版本核对规范；不为违反规范的文档加 alias、猜测或自动转换（崩溃/安全问题只修安全拒绝）。

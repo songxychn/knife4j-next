@@ -63,7 +63,7 @@ http://ip:port/doc.html
 Go 使用独立的 Knife4x module（Go 1.22+），不依赖 Maven starter：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.11.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.12.0
 ```
 
 完整用户手册见[文档站 Go 入口](https://knife4jnext.com/knife4x/)；仓库内可读
@@ -72,7 +72,13 @@ Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go
 
 ### Rust 服务
 
-可从源码运行 [Knife4x Rust 与 Axum 示例](docs/knife4x/rust.md)。
+在已有 Axum 服务中引入 Knife4x：
+
+```bash
+cargo add knife4x@0.12.0 --features axum
+```
+
+[接入配置与可运行示例](docs/knife4x/rust.md)
 
 ## 界面预览
 
@@ -94,7 +100,7 @@ Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go
 |---|---|
 | `knife4j/` | Java 主工程（starter、UI webjar、聚合、Gateway、WebFlux、smoke 与 demo） |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3 workspace）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.11.0`；与 `front/ui-react` 共用 UI |
+| `knife4x/` | 嵌入式控制台：Go / Rust `0.12.0`；与 `front/ui-react` 共用 UI |
 | `docs/` | VitePress 文档站 |
 | `tools/` | 验证与发布辅助脚本 |
 | `static/` | README 配图等静态资源 |
@@ -109,7 +115,7 @@ Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go
 | OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
 | OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
 | OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| Knife4x | `knife4x/` | Go module、Rust crate | 共用 React UI，Rust 从源码接入 |
+| Knife4x | `knife4x/` | Go module、Rust crate | 同版本发布，共用 React UI |
 | 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 
 ## 本地开发

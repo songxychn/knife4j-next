@@ -9,14 +9,14 @@ Knife4x 在 Go 进程中嵌入 Knife4j Next 的 React 文档与调试 UI。公�
 `net/http`，不绑定 Gin、Echo 或 Chi；它消费已有的 OpenAPI 文档，不生成 spec。
 Go module、版本和发布流程独立于 Java `5.x`，Rust 接入见 [Knife4x Rust](./rust)。
 
-当前版本：`v0.11.0`。
+当前版本：`v0.12.0`。
 
 ## 安装与最小接入
 
 公共库需要 Go 1.22 或更高版本，直接消费 module 无需 JavaScript 运行时：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.11.0
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.12.0
 ```
 
 把下面的完整程序保存为 `main.go`，在已有 Go module 中运行 `go run .`。

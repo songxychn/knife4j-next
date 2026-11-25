@@ -78,7 +78,7 @@ export default defineConfig({
           { text: 'Go 配置参考', link: '/knife4x/configuration' },
           { text: 'Go 部署与访问保护', link: '/knife4x/deployment' },
           { text: '从 gin-swagger 迁移', link: '/knife4x/migration' },
-          { text: 'Go 版本记录', link: '/knife4x/releases' },
+          { text: 'Knife4x 版本记录', link: '/knife4x/releases' },
           { text: 'Spring Cloud Gateway 聚合', link: '/guide/gateway' },
           { text: 'Disk / Nacos / Eureka 聚合', link: '/guide/aggregation' },
           { text: 'Spring WebFlux 接入', link: '/guide/webflux' },

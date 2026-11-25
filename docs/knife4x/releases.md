@@ -1,10 +1,15 @@
 ---
-title: Go 版本记录
+title: Knife4x 版本记录
 ---
 
-# Go 版本记录
+# Knife4x 版本记录
 
-以下保留各已发布版本的历史范围，不代表所有能力在旧版本均可用。当前接入方式见[快速开始](./index.md)，API 见[配置参考](./configuration.md)。
+从 `0.12.0` 起，Go module 与 Rust crate 同版发布。接入方式见 [Go 快速开始](./index.md) 和 [Rust 快速开始](./rust.md)。
+
+## v0.12.0
+
+- **Rust 首版**：`knife4x` crate 提供框架无关核心和可选的 Axum 适配，支持单文档、多分组、子路径、Basic Auth、界面默认值和附加 Markdown。迁移示例演示了如何沿用 utoipa 生成的 JSON 和现有业务路由。
+- **Go**：与 Rust 使用同一份嵌入式 React UI。Go 的公共 API 和 UI 资源沿用 `v0.11.0`；已有应用可直接更新 module 版本。
 
 ## v0.11.0
 
