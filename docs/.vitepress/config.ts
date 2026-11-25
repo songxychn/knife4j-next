@@ -74,6 +74,7 @@ export default defineConfig({
         text: '接入指南',
         items: [
           { text: 'Knife4x Go', link: '/knife4x/' },
+          { text: 'Knife4x Rust', link: '/knife4x/rust' },
           { text: 'Go 配置参考', link: '/knife4x/configuration' },
           { text: 'Go 部署与访问保护', link: '/knife4x/deployment' },
           { text: '从 gin-swagger 迁移', link: '/knife4x/migration' },

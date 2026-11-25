@@ -12,12 +12,13 @@
 | `test-vue3.sh` | Vue3（OAS2 UI）构建与产物检查 |
 | `test-docs.sh` | VitePress 文档站构建（含内置死链检查） |
 | `test-knife4x-go.sh` | Knife4x Go module 与 Gin 示例的 `gofmt` / `go vet` / `go test` |
+| `test-knife4x-rust.sh` | 核心与 Axum 测试、打包和独立消费验收；`--registry X.Y.Z` 可验收正式版本 |
 | `sync-knife4x-ui.sh` | 从共享 React 前端生成 Knife4x 内嵌 UI；`--check` 仅校验一致 |
 | `test-all.sh` | 顺序执行上述全区域验证 |
 
 ## CI 与版本检查
 
-- `ci-changed-paths.sh` / `ci-changes.sh`：计算 PR/push 变更路径并映射为 `java` / `react` / `vue3` / `docs` / `knife4x_go`。
+- `ci-changed-paths.sh` / `ci-changes.sh`：计算 PR/push 变更路径并映射为 `java` / `react` / `vue3` / `docs` / `knife4x_go` / `knife4x_rust`。
 - `verify-current-version-docs.py`：校验当前入口 Markdown 与解包脚本中的 Java Maven 坐标与 `knife4j/pom.xml` 一致。
 
 ## 发布脚本

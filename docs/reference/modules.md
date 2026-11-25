@@ -18,7 +18,7 @@ title: 模块说明
 | --- | --- |
 | `knife4j/` | Java 主工程——用户实际引入的 starter 和 webjar 都在这里构建 |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.11.0`；UI 共用 `front/ui-react` |
+| `knife4x/` | 嵌入式控制台：Go `v0.11.0` 与 [Rust 源码接入](/knife4x/rust)；UI 共用 `front/ui-react` |
 | `docs/` | 当前 VitePress 文档站 |
 | `tools/` | 验证与发布脚本 |
 

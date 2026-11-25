@@ -18,10 +18,11 @@
 | `front/vue3` | `./tools/test-vue3.sh` |
 | `docs/**` | `./tools/test-docs.sh` |
 | `knife4x/go/**` / `knife4x/examples/gin/**` | `./tools/test-knife4x-go.sh` |
+| `knife4x/rust/**` / `knife4x/examples/axum/**` | `./tools/test-knife4x-rust.sh` |
 | 全区域验收 | `./tools/test-all.sh` |
 
 - 根 POM 默认 `knife4j-skipTests=true`，勿用裸 `mvn verify` 替代 `./tools/test-java.sh`。
-- 改动 `front/schema-engine`、`front/core` 或 `front/ui-react` 产物时，先运行 `./tools/sync-knife4x-ui.sh` 同步 `knife4x/go/internal/ui/static`；`./tools/test-front-core.sh` 已内置 `--check` 自动拦截过期资源。
+- 改动 `front/schema-engine`、`front/core` 或 `front/ui-react` 产物时，先运行 `./tools/sync-knife4x-ui.sh` 同步 Go 和 Rust 的嵌入资源；`./tools/test-front-core.sh` 已内置 `--check` 自动拦截过期资源。
 - 增删 `knife4j-smoke-tests/` 子模块时同步更新 `knife4j-smoke-tests/pom.xml` 的 `<modules>`，`tools/smoke-evidence.sh` 会自动核对。
 - Schema Worker 浏览器门禁（前端构建后）：
   ```bash
@@ -46,6 +47,10 @@
 - `Release` workflow（含随后的 `deploy-demo` job）全部成功
 - Maven Central 目标构件可访问
 - GitHub Release 存在且正文与 `docs/release-notes/index.md` 对应小节一致
+
+### Rust 首发与后续版本
+
+首次上传、后续 Trusted Publishing 配置及独立消费者验收见 [Rust 发布清单](../knife4x/rust/RELEASE.md)。
 
 ### Go 完成条件
 按 [knife4x/go/RELEASE.md](../knife4x/go/RELEASE.md) 推送 `knife4x/go/vX.Y.Z` tag，并确认公共 Go proxy、`sum.golang.org` 与全新 consumer 消费通过。

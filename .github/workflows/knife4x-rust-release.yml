@@ -1,0 +1,84 @@
+name: Knife4x Rust Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knife4x-rust-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.context.outputs.version }}
+      exists: ${{ steps.registry.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify annotated Go tag and Cargo version
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" =~ ^refs/tags/knife4x/go/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]
+          version="${BASH_REMATCH[1]}"
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          test "$(git rev-parse "$GITHUB_REF^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD origin/master
+          cargo metadata --no-deps --format-version 1 --manifest-path knife4x/rust/Cargo.toml |
+            jq -e --arg version "$version" 'any(.packages[]; .name == "knife4x" and .version == $version)'
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: ./tools/sync-knife4x-ui.sh --check
+      - run: ./tools/test-knife4x-rust.sh
+      - name: Check published versions
+        id: registry
+        env:
+          VERSION: ${{ steps.context.outputs.version }}
+        run: |
+          set -euo pipefail
+          curl --retry 3 -fsS https://index.crates.io/kn/if/knife4x -o "$RUNNER_TEMP/knife4x-index"
+          exists=$(jq -s --arg version "$VERSION" 'any(.[]; .vers == $version)' "$RUNNER_TEMP/knife4x-index")
+          echo "exists=$exists" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: candidate
+    if: needs.candidate.outputs.exists == 'false'
+    environment: crates-io
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1
+        id: auth
+      - name: Publish crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish --locked --registry crates-io --manifest-path knife4x/rust/Cargo.toml
+
+  public-consumer:
+    needs: [candidate, publish]
+    if: ${{ !cancelled() && needs.candidate.result == 'success' && (needs.publish.result == 'success' || needs.candidate.outputs.exists == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install public crate and run Axum consumer
+        env:
+          VERSION: ${{ needs.candidate.outputs.version }}
+        run: ./tools/test-knife4x-rust.sh --registry "$VERSION"

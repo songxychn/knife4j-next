@@ -1,0 +1,32 @@
+[package]
+name = "knife4x"
+version = "0.12.0"
+edition = "2024"
+description = "Embedded Knife4j OpenAPI 3 documentation and debugging UI for Rust services"
+license = "Apache-2.0"
+repository = "https://github.com/songxychn/knife4j-next"
+readme = "README.md"
+keywords = ["openapi", "documentation", "axum", "knife4j"]
+categories = ["web-programming", "development-tools"]
+include = ["src/**", "tests/**", "static/**", "Cargo.toml", "Cargo.lock", "LICENSE", "README.md"]
+
+[features]
+default = []
+axum = ["dep:axum"]
+
+[dependencies]
+axum = { version = "0.8", optional = true, default-features = false }
+base64 = "0.22"
+bytes = "1"
+mime_guess = "2"
+percent-encoding = "2"
+rust-embed = { version = "8", features = ["debug-embed", "deterministic-timestamps"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+subtle = "2"
+url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }

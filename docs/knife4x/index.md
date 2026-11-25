@@ -7,7 +7,7 @@ description: 在 Go 服务中嵌入 Knife4j React UI，加载已有 OpenAPI 3 �
 
 Knife4x 在 Go 进程中嵌入 Knife4j Next 的 React 文档与调试 UI。公共库只依赖标准库
 `net/http`，不绑定 Gin、Echo 或 Chi；它消费已有的 OpenAPI 文档，不生成 spec。
-Go module、版本和发布流程独立于 Java `5.x`，Rust 仍后置。
+Go module、版本和发布流程独立于 Java `5.x`，Rust 接入见 [Knife4x Rust](./rust)。
 
 当前版本：`v0.11.0`。
 

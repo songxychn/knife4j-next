@@ -70,6 +70,10 @@ go get github.com/songxychn/knife4j-next/knife4x/go@v0.11.0
 [Go 快速开始](docs/knife4x/index.md)和[最小标准库示例](knife4x/go/README.md#安装与最小示例)。
 Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go 配置参考](docs/knife4x/configuration.md)。
 
+### Rust 服务
+
+可从源码运行 [Knife4x Rust 与 Axum 示例](docs/knife4x/rust.md)。
+
 ## 界面预览
 
 ### OpenAPI 文档概览
@@ -105,7 +109,7 @@ Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go
 | OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
 | OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
 | OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| Knife4x | `knife4x/` | Go 宿主壳 | Go `v0.11.0`；UI 不另开工程 |
+| Knife4x | `knife4x/` | Go module、Rust crate | 共用 React UI，Rust 从源码接入 |
 | 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 
 ## 本地开发
@@ -159,8 +163,9 @@ bun run dev
 | Vue3 前端（OAS2 `doc.html`） | `./tools/test-vue3.sh` |
 | 文档站 | `./tools/test-docs.sh` |
 | Knife4x Go | `./tools/test-knife4x-go.sh` |
+| Knife4x Rust | `./tools/test-knife4x-rust.sh` |
 | 跨多个区域 | 受影响区域脚本的并集 |
-| 全区域变更 / 整体验收 | `./tools/test-all.sh`（java / front-core / vue3 / docs / knife4x-go / Knife4x UI 生成物校验） |
+| 全区域变更 / 整体验收 | `./tools/test-all.sh`（java / front-core / vue3 / docs / knife4x-go / knife4x-rust / Knife4x UI 生成物校验） |
 
 `./tools/test-java.sh` 会进入 `knife4j/`，执行 `spotless:check`、带测试的 Maven `verify`，并检查 WebJar 与 smoke 测试证据。
 根 POM 默认跳过测试，不要用单独的 `mvn -B -ntp verify` 替代提交前验证。
