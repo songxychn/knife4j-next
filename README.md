@@ -10,7 +10,7 @@
 | 仓库来源 | fork 自 `xiaoymin/knife4j` |
 | 当前定位 | 社区维护分支，不是 upstream 官方仓库 |
 | Java 主坐标 | `com.baizhukui` |
-| 当前源码版本 | `5.8.5` |
+| 当前源码版本 | `5.9.0` |
 | 默认访问入口 | `http://ip:port/doc.html` |
 | 文档站 | [knife4jnext.com](https://knife4jnext.com) |
 
@@ -27,7 +27,7 @@
 
 ### 选择 Starter
 
-以下示例使用 Java `5.8.5`。Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）；升级前查看[兼容矩阵](docs/reference/compatibility.md)。
+以下示例使用 Java `5.9.0`。Boot3 Jakarta MVC、WebFlux、独立聚合要求 Boot `3.4.7+` / `3.5.1+`（Framework `6.2.8`）；升级前查看[兼容矩阵](docs/reference/compatibility.md)。
 
 | 使用场景 | Maven `artifactId` |
 |---|---|
@@ -46,7 +46,7 @@
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
-    <version>5.8.5</version>
+    <version>5.9.0</version>
 </dependency>
 ```
 
@@ -63,7 +63,7 @@ http://ip:port/doc.html
 Go 使用独立的 Knife4x module（Go 1.22+），不依赖 Maven starter：
 
 ```bash
-go get github.com/songxychn/knife4j-next/knife4x/go@v0.10.2
+go get github.com/songxychn/knife4j-next/knife4x/go@v0.11.0
 ```
 
 完整用户手册见[文档站 Go 入口](https://knife4jnext.com/knife4x/)；仓库内可读
@@ -90,7 +90,7 @@ Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go
 |---|---|
 | `knife4j/` | Java 主工程（starter、UI webjar、聚合、Gateway、WebFlux、smoke 与 demo） |
 | `front/` | 活跃前端：`core` + `ui-react`（OAS3 workspace）、`vue3`（OAS2 兼容） |
-| `knife4x/` | 嵌入式控制台：Go `v0.10.2`；与 `front/ui-react` 共用 UI |
+| `knife4x/` | 嵌入式控制台：Go `v0.11.0`；与 `front/ui-react` 共用 UI |
 | `docs/` | VitePress 文档站 |
 | `tools/` | 验证与发布辅助脚本 |
 | `static/` | README 配图等静态资源 |
@@ -105,7 +105,7 @@ Go 提供文档鉴权、多分组与 UI 配置。字段及其可用版本见 [Go
 | OAS3 主线 UI | `front/ui-react` | `knife4j-openapi3-ui` webjar；Knife4x embed | 承接新功能、UX 改进和调试器增强 |
 | OAS3 解析核心 | `front/core` | React UI 内部依赖 | 服务于 OAS3 主线，不为 OAS2 扩展 |
 | OAS2 兼容 UI | `front/vue3` | `knife4j-openapi2-ui` webjar | 只接收回归修复、安全补丁与显示层 bug |
-| Knife4x | `knife4x/` | Go 宿主壳 | Go `v0.10.2`；UI 不另开工程 |
+| Knife4x | `knife4x/` | Go 宿主壳 | Go `v0.11.0`；UI 不另开工程 |
 | 文档站 | `docs/` | [knife4jnext.com](https://knife4jnext.com) | 当前对外文档主入口 |
 
 ## 本地开发

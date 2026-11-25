@@ -8,6 +8,7 @@ title: 版本对照
 
 | knife4j-next 版本 | Spring Boot 2.x | Spring Boot 3.x | Spring Boot 4.x | 说明 |
 | --- | --- | --- | --- | --- |
+| `5.9.0` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | OAS3 声明式响应提取、调试布局和全局参数交互 |
 | `5.8.5` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | OAS3 请求参数表显示 Schema 标题 |
 | `5.8.4` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Java 文档鉴权和 starter 修复、OAS3 Schema 属性标题显示 |
 | `5.8.3` | ✅ 2.7.18 | ✅ 3.4.7+ / 3.5.1+ | ✅ 4.1.2 | Polaris 修复、Go 宿主配置与 Bun 构建维护 |
@@ -60,7 +61,7 @@ title: 版本对照
 | `5.0.0` | ✅ 2.7.18 | ✅ 3.4.0 ~ 3.5.0 | ❌ | 首个正式稳定版本 |
 
 > knife4j-next 从 `5.0.0` 起采用独立 [SemVer](https://semver.org/lang/zh-CN/) 版本号，与上游 knife4j 版本号无关。
-> `5.8.5` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.8.5`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.8.5`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.8.5` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.8.5`。
+> `5.9.0` 包含 Boot4 WebMVC starter、Boot4 Gateway starter、Boot4 独立聚合 starter，以及 Boot 3.5 Gateway Server Web MVC 聚合 starter；可直接使用 `com.baizhukui:knife4j-openapi3-boot4-spring-boot-starter:5.9.0`、`com.baizhukui:knife4j-gateway-boot4-spring-boot-starter:5.9.0`、`com.baizhukui:knife4j-aggregation-boot4-spring-boot-starter:5.9.0` 和 `com.baizhukui:knife4j-gateway-webmvc-spring-boot-starter:5.9.0`。
 
 ## 5.7.7 依赖更新
 
@@ -133,9 +134,13 @@ Java 修复文档 Basic Auth、Jackson 依赖、OAS3 定制器与 CORS 问题。
 
 共享 React UI 在请求参数名下显示 Schema `title`，Java `5.8.5` 和 Knife4x Go `v0.10.2` 均包含此修复。详见[发布说明](../release-notes/)。
 
+## 5.9.0 OpenAPI 3 调试
+
+共享 React UI 新增声明式响应提取、可折叠和调整大小的请求与响应区域，以及已继承全局参数的查看和管理入口。适用于 Java `5.9.0` 和 Knife4x Go `v0.11.0`。详见[发布说明](../release-notes/)。
+
 ## 核心依赖版本
 
-以下为 `knife4j-next 5.8.5` 内部管理的依赖版本，用户一般不需要手动指定。
+以下为 `knife4j-next 5.9.0` 内部管理的依赖版本，用户一般不需要手动指定。
 
 ### Boot 2.x（非 Jakarta）线
 
@@ -188,7 +193,8 @@ Java 修复文档 Basic Auth、Jackson 依赖、OAS3 定制器与 CORS 问题。
 
 | upstream 版本 | knife4j-next 版本 | 说明 |
 | --- | --- | --- |
-| `4.5.0`（上游 Maven Central 最后发布版本） | `5.8.5` | OAS3 请求参数表显示 Schema 标题 |
+| `4.5.0`（上游 Maven Central 最后发布版本） | `5.9.0` | OAS3 声明式响应提取、调试布局和全局参数交互 |
+| `4.5.0` | `5.8.5` | OAS3 请求参数表显示 Schema 标题 |
 | `4.5.0` | `5.8.4` | Java 文档鉴权和 starter 修复、OAS3 Schema 属性标题显示 |
 | `4.5.0` | `5.8.3` | Polaris 修复、Go 宿主配置与 Bun 构建维护 |
 | `4.5.0` | `5.8.2` | 窄屏导航、按需加载、键盘与标签语义、数组示例及类型标签修复 |

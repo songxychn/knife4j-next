@@ -4,7 +4,7 @@ title: Go 接入与部署
 
 # Go 接入与部署
 
-本页示例使用 `v0.10.2`，包含 Basic Auth、`Disabled`、多分组及 UI/Markdown 配置。
+本页示例使用 `v0.11.0`，包含 Basic Auth、`Disabled`、多分组及 UI/Markdown 配置。
 安装与最小接入见[快速开始](./index.md)，完整字段见[配置参考](./configuration.md)。
 
 ## 标准库组合

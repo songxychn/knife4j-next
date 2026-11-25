@@ -91,7 +91,7 @@ body:
     id: knife4j_version
     attributes:
       label: Knife4j 版本
-      placeholder: 例如：5.8.5
+      placeholder: 例如：5.9.0
     validations:
       required: true
 
