@@ -12,9 +12,19 @@ title: 发布说明
 
 ## knife4j-next 版本
 
-本次版本为 Java `5.8.5` 与 Knife4x Go `v0.10.2`。
+本次版本为 Java `5.9.0` 与 Knife4x Go `v0.11.0`。
 
-### 5.8.5 <Badge type="tip" text="最新版本" />
+### 5.9.0 <Badge type="tip" text="最新版本" />
+
+Java `5.9.0` 与 Knife4x Go `v0.11.0` 同步更新 OpenAPI 3 调试页。
+
+- 新增声明式响应提取。可以从成功响应的 JSON 正文或响应头提取值，写入当前分组或全部分组的 Header、Query 参数，供后续请求使用。规则支持试运行，提取结果默认遮盖。Java 可通过 `knife4j.setting.enable-after-script` 控制该功能，React 设置面板也提供开关。（[#1094](https://github.com/songxychn/knife4j-next/pull/1094)、[功能说明](https://knife4jnext.com/guide/features#afterscript-请求后脚本-与-react-响应提取)）
+- 请求区与响应区可以折叠和拖动调整大小。响应诊断默认收起，便于查看响应正文。（[#1092](https://github.com/songxychn/knife4j-next/pull/1092)）
+- 调试页集中显示已继承的全局参数，可直接跳转到管理页面。未声明参数时可直接添加本接口参数，减少空表格。（[#1096](https://github.com/songxychn/knife4j-next/pull/1096)）
+
+Java、Spring Boot、Go、浏览器及 OpenAPI 的支持范围沿用上一版。（[兼容矩阵](https://knife4jnext.com/reference/compatibility)）
+
+### 5.8.5
 
 Java `5.8.5` 与 Knife4x Go `v0.10.2` 同步更新 OpenAPI 3 接口文档的请求参数表。
 
@@ -888,7 +898,7 @@ Maven 坐标：
 <dependency>
     <groupId>com.baizhukui</groupId>
     <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-    <version>5.8.5</version>
+    <version>5.9.0</version>
 </dependency>
 ```
 

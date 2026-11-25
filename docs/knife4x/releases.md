@@ -6,6 +6,12 @@ title: Go 版本记录
 
 以下保留各已发布版本的历史范围，不代表所有能力在旧版本均可用。当前接入方式见[快速开始](./index.md)，API 见[配置参考](./configuration.md)。
 
+## v0.11.0
+
+同步共享 React UI。OpenAPI 3 调试支持声明式响应提取、请求与响应区域折叠和拖动调整大小，以及直接查看和管理已继承的全局参数。详见 [Java 5.9.0 与 Go v0.11.0 发布说明](../release-notes/index.md#_5-9-0)。
+
+公共库继续支持 Go 1.22+，独立 Gin 示例使用 Go 1.26+。已有接入可以沿用原有 `Config` 和 `NewHandler` 调用。
+
 ## v0.10.2
 
 同步共享 React UI。在 OpenAPI 3 接口文档的请求参数表中，Schema 的 `title` 显示在参数名下，`description` 继续显示在说明列。（[#1088](https://github.com/songxychn/knife4j-next/pull/1088)）
