@@ -6,6 +6,7 @@ react=false
 vue3=false
 docs=false
 knife4x_go=false
+knife4x_rust=false
 saw_path=false
 full=false
 
@@ -37,6 +38,7 @@ while IFS= read -r path || [ -n "$path" ]; do
       java=true
       react=true
       knife4x_go=true
+      knife4x_rust=true
       ;;
     tools/test-front-core.sh)
       java=true
@@ -46,7 +48,14 @@ while IFS= read -r path || [ -n "$path" ]; do
       java=true
       vue3=true
       ;;
-    knife4x/go/*|knife4x/examples/gin/*|tools/sync-knife4x-ui.sh|tools/test-knife4x-go.sh)
+    tools/sync-knife4x-ui.sh)
+      knife4x_go=true
+      knife4x_rust=true
+      ;;
+    knife4x/rust/*|knife4x/examples/axum/*|tools/test-knife4x-rust.sh)
+      knife4x_rust=true
+      ;;
+    knife4x/go/*|knife4x/examples/gin/*|tools/test-knife4x-go.sh)
       knife4x_go=true
       ;;
     .github/workflows/*|.bun-version|.editorconfig|.gitattributes|tools/ci-changes.sh|tools/ci-changed-paths.sh)
@@ -64,7 +73,8 @@ if [ "$saw_path" = false ] || [ "$full" = true ]; then
   vue3=true
   docs=true
   knife4x_go=true
+  knife4x_rust=true
 fi
 
-printf 'java=%s\nreact=%s\nvue3=%s\ndocs=%s\nknife4x_go=%s\n' \
-  "$java" "$react" "$vue3" "$docs" "$knife4x_go"
+printf 'java=%s\nreact=%s\nvue3=%s\ndocs=%s\nknife4x_go=%s\nknife4x_rust=%s\n' \
+  "$java" "$react" "$vue3" "$docs" "$knife4x_go" "$knife4x_rust"

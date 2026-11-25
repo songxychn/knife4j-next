@@ -25,7 +25,10 @@ fi
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 front_root="$repo_root/front"
 ui_root="$front_root/ui-react"
-asset_dir="$repo_root/knife4x/go/internal/ui/static"
+asset_dirs=(
+  "$repo_root/knife4x/go/internal/ui/static"
+  "$repo_root/knife4x/rust/static"
+)
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/knife4x-ui.XXXXXX")"
 build_dir="$tmp_dir/static"
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -55,20 +58,17 @@ if find "$build_dir" -type f -name '*.map' -print -quit | grep -q .; then
   exit 1
 fi
 
-if [ "$mode" = check ]; then
-  if [ ! -d "$asset_dir" ]; then
-    echo "Missing committed Knife4x UI assets: $asset_dir" >&2
+for asset_dir in "${asset_dirs[@]}"; do
+  if [ -d "$asset_dir" ] && diff -qr "$asset_dir" "$build_dir" >/dev/null; then
+    continue
+  fi
+  if [ "$mode" = check ]; then
+    echo "Missing or stale Knife4x UI assets in $asset_dir; run ./tools/sync-knife4x-ui.sh" >&2
     exit 1
   fi
-  if ! diff -qr "$asset_dir" "$build_dir"; then
-    echo "Knife4x UI assets are stale; run ./tools/sync-knife4x-ui.sh" >&2
-    exit 1
-  fi
-  echo "Knife4x UI assets are up to date"
-  exit 0
-fi
-
-mkdir -p "$(dirname "$asset_dir")"
-rm -rf "$asset_dir"
-mv "$build_dir" "$asset_dir"
-echo "Updated Knife4x UI assets in $asset_dir"
+  mkdir -p "$(dirname "$asset_dir")"
+  rm -rf "$asset_dir"
+  cp -R "$build_dir" "$asset_dir"
+  echo "Updated Knife4x UI assets in $asset_dir"
+done
+echo "Go and Rust Knife4x UI assets are up to date"

@@ -25,7 +25,7 @@
 | `front/ui-react` | OAS3 主线 UI |
 | `front/vue3` | OAS2 兼容 UI |
 | `docs/` | VitePress 文档站 |
-| `knife4x/` | Go 宿主壳（复用 `front/ui-react` 产物，不另建前端） |
+| `knife4x/` | Go / Rust 宿主壳（复用 `front/ui-react` 产物，不另建前端） |
 | `tools/` | 验证与发布脚本 |
 
 任务优先级以 GitHub Issues + Labels 为准，不维护静态路线图。

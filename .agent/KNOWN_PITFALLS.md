@@ -17,5 +17,5 @@
 
 ## 前端 / Knife4x Go
 
-- **Go 嵌入式 UI 静态资源必须同步提交**：`knife4x/go/internal/ui/static` 通过 `//go:embed` 直接进入 Go 模块，改动 `front/{ui-react,core,schema-engine}` 后须运行 `./tools/sync-knife4x-ui.sh`（`./tools/test-front-core.sh` 末尾已内置 `--check`）。
+- **Go 和 Rust 嵌入式 UI 静态资源必须同步提交**：Rust crate 打包 `knife4x/rust/static`；`knife4x/go/internal/ui/static` 通过 `//go:embed` 直接进入 Go 模块，改动 `front/{ui-react,core,schema-engine}` 后须运行 `./tools/sync-knife4x-ui.sh`（`./tools/test-front-core.sh` 末尾已内置 `--check`）。
 - **渲染完整 `ApiDebug` 的集成测试需放大超时**：Linux CI 并发运行全部 Vitest 文件时，完整 `ApiDebug` 渲染可能超过默认 5s；需在文件顶部加 `vi.setConfig({ testTimeout: 60_000 })`。

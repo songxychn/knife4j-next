@@ -18,6 +18,7 @@ jobs:
       vue3: ${{ steps.classify.outputs.vue3 }}
       docs: ${{ steps.classify.outputs.docs }}
       knife4x_go: ${{ steps.classify.outputs.knife4x_go }}
+      knife4x_rust: ${{ steps.classify.outputs.knife4x_rust }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -144,9 +145,25 @@ jobs:
       - name: Test Knife4x Go
         run: ./tools/test-knife4x-go.sh --module "${{ matrix.module }}"
 
-      - name: Verify Knife4x Go UI assets
+      - name: Verify Knife4x UI assets
         if: matrix.module == 'all'
         run: ./tools/sync-knife4x-ui.sh --check
+
+  knife4x-rust-test:
+    needs: changes
+    if: needs.changes.outputs.knife4x_rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+
+      - name: Test Knife4x Rust and packaged Axum consumer
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: ./tools/test-knife4x-rust.sh
 
   vue3-test:
     needs: changes

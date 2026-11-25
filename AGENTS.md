@@ -29,9 +29,10 @@
 | Vue3（OAS2 UI） | `./tools/test-vue3.sh` |
 | 文档站（`docs/`） | `./tools/test-docs.sh` |
 | Knife4x Go | `./tools/test-knife4x-go.sh` |
+| Knife4x Rust | `./tools/test-knife4x-rust.sh` |
 | 全区域验收 | `./tools/test-all.sh` |
 
-优先用脚本，勿用零散 `tsc` / 单次 `vite build` 冒充全量。改动 `front/{ui-react,core,schema-engine}` 后需运行 `./tools/sync-knife4x-ui.sh` 同步 Go 嵌入式 UI（`./tools/test-front-core.sh` 已内置 `--check`）。
+优先用脚本，勿用零散 `tsc` / 单次 `vite build` 冒充全量。改动 `front/{ui-react,core,schema-engine}` 后需运行 `./tools/sync-knife4x-ui.sh` 同步 Go 和 Rust 嵌入式 UI（`./tools/test-front-core.sh` 已内置 `--check`）。
 
 ## 语言与状态
 

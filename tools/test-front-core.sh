@@ -29,5 +29,5 @@ bun run --filter knife4j-ui-react test
 bun run --filter knife4j-ui-react build
 bun run --filter knife4j-ui-react lint
 
-# --- knife4x Go embedded UI assets ---
+# --- Knife4x Go and Rust embedded UI assets ---
 "$repo_root/tools/sync-knife4x-ui.sh" --check

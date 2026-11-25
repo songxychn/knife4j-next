@@ -1,10 +1,9 @@
 # Knife4x
 
 Knife4x 是面向 Go / Rust 宿主的进程内嵌入式 OpenAPI 3 文档与调试控制台。
-Go 已发布，Rust 后置。UI 与 Java OAS3 共用 `front/ui-react` 和 `front/core`，
-Go module、版本和发布流程独立，不另建前端。
+Go 和 Rust 与 Java OAS3 共用 `front/ui-react` 和 `front/core`。Rust 可从源码接入，双端发布后使用相同的 Knife4x 版本和 UI 构建。
 
-公共库只依赖标准库 `net/http`，消费已有 OpenAPI 3 JSON，不生成 spec、不代理业务请求。
+Go 公共库只依赖标准库 `net/http`，消费已有 OpenAPI 3 JSON，不生成 spec、不代理业务请求。
 完整用户手册统一维护在[文档站](https://knife4jnext.com/knife4x/)，
 仓库内可读[快速开始](../docs/knife4x/index.md)。
 
@@ -27,6 +26,10 @@ go run .
 启动后打开 `http://localhost:8080/doc.html`。flags 和环境变量见
 [Gin 示例说明](examples/gin/README.md)。`v0.10.0` 新增文档鉴权、多分组与 UI 配置，
 可用版本与字段以[配置参考](../docs/knife4x/configuration.md)为准。
+
+## Rust 与 Axum
+
+从仓库根目录运行 `cargo run --locked --manifest-path knife4x/examples/axum/Cargo.toml`，打开 `/doc.html`。配置、鉴权和 utoipa 迁移见 [Rust 接入手册](../docs/knife4x/rust.md)，打包与正式发布见 [Rust 发布清单](rust/RELEASE.md)。
 
 ## 资料入口
 
