@@ -38,6 +38,8 @@ interface ExecuteDebugRequestOptions {
   getSchemaSession: () => Parameters<typeof consumeOas32SequentialResponse>[0]['session'];
   finalizeHistory: (update: (entry: DebugHistoryEntry) => DebugHistoryEntry) => void;
   diagnoseResponse: (response: DebugResponsePayload) => void;
+  onResponseCompleted?: (response: DebugResponsePayload) => void;
+  onStreamingResponseCompleted?: (status: number) => void;
   updates: DebugResponseUpdates;
 }
 
@@ -51,6 +53,8 @@ export async function executeDebugRequest({
   getSchemaSession,
   finalizeHistory,
   diagnoseResponse,
+  onResponseCompleted,
+  onStreamingResponseCompleted,
   updates,
 }: ExecuteDebugRequestOptions): Promise<void> {
   const { built } = request;
@@ -193,6 +197,11 @@ export async function executeDebugRequest({
           rawText: historyBody,
           kind: 'text',
         });
+        try {
+          onStreamingResponseCompleted?.(res.status);
+        } catch {
+          // Ignore extraction hook errors on streaming responses.
+        }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
           finalizeHistory((entry) => ({
@@ -299,6 +308,11 @@ export async function executeDebugRequest({
             responseBody: sseHistoryBody() || undefined,
           }),
         );
+        try {
+          onStreamingResponseCompleted?.(res.status);
+        } catch {
+          // Ignore extraction hook errors on streaming responses.
+        }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
           finalizeHistory((entry) => ({
@@ -392,6 +406,12 @@ export async function executeDebugRequest({
       kind,
     };
     setResponse(completedResponse);
+
+    try {
+      onResponseCompleted?.(completedResponse);
+    } catch {
+      // Post-response extraction must never fail or corrupt the completed HTTP request.
+    }
 
     diagnoseResponse(completedResponse);
   } catch (reason: unknown) {

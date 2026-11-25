@@ -185,5 +185,5 @@ curl -i http://localhost:8080/doc.html   # 检查屏蔽 JSON；OAS3 为 403，OA
 
 - **找不到 `com.baizhukui` 坐标**：刷新 Maven 中央仓库镜像；企业私服需要手动同步（Central 已发布）。
 - **doc.html 404**：见 [FAQ / SpringBoot 访问 doc.html 404](./faq#doc-html-404)。
-- **部分 `knife4j.setting.*` 在 React 中仍不生效**：`enable-after-script` 与 `enable-reload-cache-parameter` 仍只在 Vue2 / Vue3；`enable-version` 与 `enable-debug` 已接通。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
+- **部分 `knife4j.setting.*` 在 React 中行为不同或未接通**：`enable-reload-cache-parameter` 仍只在 Vue2 / Vue3；`enable-after-script` 已在 React 接通，控制安全的声明式响应后变量提取（不执行任意 JavaScript）；`enable-version` 与 `enable-debug` 已接通。详见 [FAQ / 为什么我的 knife4j.setting 配置不生效](./faq#react-setting-not-effective)。
 - **Gateway context-path 下聚合出错**：升级到 `5.0.0` 或更高版本即可包含该修复（[#954](https://github.com/xiaoymin/knife4j/issues/954)）。

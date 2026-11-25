@@ -112,7 +112,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.enableSwaggerModels` | `boolean` | `true` | 显示 Swagger Models 功能 | ✅ |
 | `knife4j.setting.swaggerModelName` | `String` | `"Swagger Models"` | Swagger Models 名称 | ✅ |
 | `knife4j.setting.enableReloadCacheParameter` | `boolean` | `false` | 显示调试后刷新变量按钮 | — |
-| `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript 功能 | — |
+| `knife4j.setting.enableAfterScript` | `boolean` | `true` | 显示 afterScript（React UI 中控制安全的声明式响应后变量提取，不执行任意 JS） | ✅ |
 | `knife4j.setting.enableDocumentManage` | `boolean` | `true` | 显示文档管理功能 | ✅ |
 | `knife4j.setting.enableVersion` | `boolean` | `false` | 提示新增和已变化的接口（OpenAPI 3.0.x / 3.1.x / 3.2.x） | ✅ |
 | `knife4j.setting.enableRequestCache` | `boolean` | `true` | 启用请求参数缓存 | ✅ |
@@ -133,7 +133,7 @@ Boot 2 / springdoc 1.8.0 继续生成 OpenAPI 3.0，不能只改文档版本字�
 | `knife4j.setting.enableResponseCode` | `boolean` | `true` | 显示响应状态概要（状态码、说明、Schema 和 Media Type） | ✅ |
 | `knife4j.setting.homeCustomPath` | OAS2: —<br>OAS3 Boot2: `String`<br>OAS3 Jakarta / Boot4: `String` | OAS2: —<br>OAS3 Boot2: `null`<br>OAS3 Jakarta / Boot4: `null` | 后端读取的自定义首页 Markdown 文件路径；React 接收读取后的内容 | — |
 
-> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，表中标 ✅ 的字段表示读取后端默认值；用户在前端设置面板中的本地选择会覆盖后端默认值。`enableAfterScript` / `enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费；这两项存在于 Vue2 基线，并已移植到 Vue3。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
+> React 新前端会读取后端注入到 OpenAPI JSON 的 `x-openapi.x-setting`，表中标 ✅ 的字段表示读取后端默认值；用户在前端设置面板中的本地选择会覆盖后端默认值。`enableAfterScript` 已在 React 接通并控制声明式响应后变量提取（不执行任意 JavaScript，也不兼容旧 `ke.*` 脚本）；`enableReloadCacheParameter` 仍会由后端写入 extension，React 暂不消费（存在于 Vue2 基线并已移植到 Vue3）。`enableVersion` 与 `enableRequestCache` 已在 React 接通。详见 [FAQ](../guide/faq#react-setting-not-effective)。
 
 > `enableDynamicParameter` 在 React UI 中只控制 `application/x-www-form-urlencoded` 和 `multipart/form-data` 请求体的未声明文本字段。Query、Header、Cookie 的自定义参数能力始终可用，不受该开关控制；Path 参数、JSON/raw Body 和动态 file part 不在该开关的支持范围内。
 

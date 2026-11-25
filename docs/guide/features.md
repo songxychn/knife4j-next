@@ -179,12 +179,18 @@ Knife4j 提供 UI 端临时设置全局参数的功能，适用于后台全局 T
 
 如果后端已经在 `Docket` 或 `@SecurityScheme` 中配置了全局参数，UI 全局参数可忽略。
 
-### AfterScript（请求后脚本）
+### AfterScript（请求后脚本）与 React 响应提取
 
-AfterScript 功能允许在每个接口调试 Tab 中编写一段 JavaScript 脚本，当接口调用成功后自动执行。最典型的场景是**登录后自动设置全局 Token**。
+- **Vue2 / Vue3（OAS2）**：AfterScript 允许在每个接口调试 Tab 中编写一段 JavaScript 脚本，在接口调用成功后执行 `ke.*` API（通过主窗口 `new Function()` 运行）。
+- **React UI（OAS3）**：出于安全边界与严格 CSP 兼容考虑，**不执行任意 JavaScript，也不兼容旧版 `ke.*` 脚本语法**；改为提供**声明式「响应提取」**能力（受 `knife4j.setting.enable-after-script` 与本地设置面板控制，默认开启）：
+  - 支持在单接口调试页配置规则，从 2xx 普通文本或 JSON 响应的 JSON Body（JSONPath，禁用脚本求值）或 Response Header 提取标量值并拼接可选前缀（如 `Bearer `）；
+  - 可逐条选择写入**当前分组**（默认）或**全部分组（Application）**的 `header` / `query` 请求参数，从下一次请求生效；
+  - 默认开启值掩码，执行结果仅保留在内存中展示（不落盘），支持基于当前响应**手动试运行**与一键应用；
+  - 非 2xx 响应、网络错误、SSE、OAS 3.2 流式响应、图片与文件/二进制响应均自动跳过；单条规则失败不会覆盖已有参数，也不会把原请求标记为失败；
+  - 提取规则按接口持久化并接入设置页「重置全部本地数据」清理登记。
 
-::: warning ⚠️ React UI 暂不支持
-AfterScript 存在于 Vue2 基线，并已移植到 Vue3 UI（`knife4j-openapi2-spring-boot-starter` 打包的 `front/vue3`）。React 新前端暂不支持。
+::: info 与 Vue2 / Vue3 AfterScript 的差异
+如需编写包含自定义逻辑的 `ke.*` 任意 JavaScript 脚本，仅存在于 Vue2 基线与本仓库 Vue3 UI（`knife4j-openapi2-spring-boot-starter` 打包的 `front/vue3`）。React UI 仅提供上述安全的声明式响应提取规则（以及左侧「请求参数 → 请求获取」兜底非文档内端点）。
 :::
 
 #### 全局对象

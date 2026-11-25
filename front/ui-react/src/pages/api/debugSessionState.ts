@@ -2,6 +2,7 @@ import type { BuiltRequest } from 'knife4j-core';
 import type { DebugResponsePayload, SseEvent } from './ResponsePanel';
 import type { CookieParameterSource } from './cookieParameterSource';
 import type { Oas32SequentialStreamView } from '../../schema/oas32SequentialView';
+import type { ResponseExtractionRunLog } from './responseExtraction';
 
 export interface DebugSessionState {
   response: DebugResponsePayload | null;
@@ -11,6 +12,8 @@ export interface DebugSessionState {
   builtRequestCookieSource?: CookieParameterSource;
   sseEvents: SseEvent[] | null;
   sequentialStream?: Oas32SequentialStreamView | null;
+  /** In-memory execution summary for post-response variable extraction (never persisted). */
+  extractionLog?: ResponseExtractionRunLog | null;
 }
 
 const debugSessionStates = new Map<string, DebugSessionState>();

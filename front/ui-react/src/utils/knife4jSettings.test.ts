@@ -62,6 +62,7 @@ describe('knife4j setting extraction', () => {
       enableHost: true,
       enableHostText: 'http://localhost:9000',
       enableRequestCache: false,
+      enableAfterScript: true,
       enableDynamicParameter: true,
       enableFilterMultipartApis: true,
       enableFilterMultipartApiMethodType: 'PUT',
@@ -73,6 +74,7 @@ describe('knife4j setting extraction', () => {
       'x-openapi': {
         'x-setting': {
           enableRequestCache: 'false',
+          enableAfterScript: 'false',
           enableResponseCode: 'false',
           enableVersion: 'true',
           enableDynamicParameter: 'true',

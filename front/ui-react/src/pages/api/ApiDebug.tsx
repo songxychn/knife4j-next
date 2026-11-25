@@ -84,11 +84,22 @@ import SchemaExampleNotice from '../../components/schema/SchemaExampleNotice';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useGlobalParam, type ScopedGlobalParamItem } from '../../context/GlobalParamContext';
+import { globalParamIdentity } from '../../context/globalParamState';
 import { projectAndPlanOas32Security } from '../../auth/oas32SecurityUi';
 import { useSchemaEngine, useExternalResources } from '../../context/SchemaEngineContext';
 import { useSettings } from '../../context/SettingsContext';
 import type { DebugResponsePayload, SseEvent } from './ResponsePanel';
 import { DebugResponseSection } from './DebugResponseSection';
+import { DebugResponseExtractionPanel } from './DebugResponseExtractionPanel';
+import {
+  evaluateResponseExtraction,
+  isCrossOriginUrl,
+  summarizeResponseExtractionLog,
+  type ResponseExtractionInput,
+  type ResponseExtractionRule,
+  type ResponseExtractionRunLog,
+} from './responseExtraction';
+import { readResponseExtractionRules, writeResponseExtractionRules } from './responseExtractionStorage';
 import { COMMON_HEADER_NAMES } from '../../constants/httpHeaders';
 import {
   currentOrigin,
@@ -244,7 +255,7 @@ export default function ApiDebug() {
   const { loading: docLoading, swaggerDoc, operation } = useCurrentOperation();
   const { activeSwaggerGroup, operationRetrievalUri, routeGroupReady } = useGroup();
   const { settings } = useSettings();
-  const { effectiveParams, cookieSession } = useGlobalParam();
+  const { effectiveParams, cookieSession, upsertParams } = useGlobalParam();
   const schemaEngine = useSchemaEngine();
   const resources = useExternalResources();
   const groupContextPath = activeSwaggerGroup?.contextPath;
@@ -450,6 +461,10 @@ export default function ApiDebug() {
   const [sseEvents, setSseEvents] = useState<SseEvent[] | null>(null);
   const [sseStreaming, setSseStreaming] = useState(false);
   const [sequentialStream, setSequentialStream] = useState<Oas32SequentialStreamView | null>(null);
+  const [extractionRules, setExtractionRules] = useState<ResponseExtractionRule[]>([]);
+  const extractionRulesRef = useRef<ResponseExtractionRule[]>([]);
+  const [extractionPersistenceFailed, setExtractionPersistenceFailed] = useState(false);
+  const [extractionLog, setExtractionLog] = useState<ResponseExtractionRunLog | null>(null);
   const sseAbortRef = useRef<AbortController | null>(null);
   const activeDebugCacheKeyRef = useRef<string | null>(null);
   const currentSchemaEngineRef = useRef(schemaEngine);
@@ -610,6 +625,11 @@ export default function ApiDebug() {
     setSequentialStream(
       cachedSession?.sequentialStream ? { ...cachedSession.sequentialStream, streaming: false } : null,
     );
+    setExtractionLog(cachedSession?.extractionLog ?? null);
+    const loadedRules = debugCacheKey !== null ? readResponseExtractionRules(debugCacheKey) : [];
+    extractionRulesRef.current = loadedRules;
+    setExtractionRules(loadedRules);
+    setExtractionPersistenceFailed(false);
     setHydratedDebugCacheKey(debugCacheKey);
   }, [
     applyInitialDebugState,
@@ -625,7 +645,14 @@ export default function ApiDebug() {
 
   useEffect(() => {
     if (debugCacheKey === null || hydratedDebugCacheKey !== debugCacheKey) return;
-    if (!response && !error && !builtRequest && sseEvents === null && sequentialStream === null) {
+    if (
+      !response &&
+      !error &&
+      !builtRequest &&
+      sseEvents === null &&
+      sequentialStream === null &&
+      extractionLog === null
+    ) {
       removeDebugSessionState(debugCacheKey);
       return;
     }
@@ -636,12 +663,14 @@ export default function ApiDebug() {
       builtRequestCookieSource,
       sseEvents,
       sequentialStream: sequentialStream ? { ...sequentialStream, streaming: false } : sequentialStream,
+      extractionLog,
     });
   }, [
     builtRequest,
     builtRequestCookieSource,
     debugCacheKey,
     error,
+    extractionLog,
     hydratedDebugCacheKey,
     response,
     sseEvents,
@@ -1032,6 +1061,81 @@ export default function ApiDebug() {
     proxyOrigin: currentOrigin(),
     proxyContextPath: groupContextPath,
   });
+
+  const handleExtractionRulesChange = useCallback(
+    (nextRules: ResponseExtractionRule[]) => {
+      extractionRulesRef.current = nextRules;
+      setExtractionRules(nextRules);
+      if (debugCacheKey !== null) {
+        const persisted = writeResponseExtractionRules(debugCacheKey, nextRules);
+        setExtractionPersistenceFailed(!persisted);
+      }
+    },
+    [debugCacheKey],
+  );
+
+  const runResponseExtraction = useCallback(
+    (
+      input: ResponseExtractionInput,
+      mode: 'auto' | 'dry-run',
+      applyMutations: boolean,
+      rulesOverride?: readonly ResponseExtractionRule[],
+    ) => {
+      const rules = rulesOverride ?? extractionRulesRef.current;
+      const evaluation = evaluateResponseExtraction(rules, input, { mode });
+      if (evaluation.log.status === 'skipped' && evaluation.log.skipReason === 'no-enabled-rules') {
+        if (mode === 'dry-run') {
+          setExtractionLog(evaluation.log);
+        } else {
+          setExtractionLog(null);
+        }
+        return;
+      }
+
+      if (applyMutations && evaluation.mutations.length > 0) {
+        const { shadowedApplicationIdentities } = upsertParams(evaluation.mutations);
+        const annotatedItems = evaluation.log.items.map((item) => {
+          if (item.status !== 'updated' || item.targetScope !== 'application') return item;
+          const identity = globalParamIdentity({ in: item.targetIn, name: item.targetName });
+          return shadowedApplicationIdentities.has(identity) ? { ...item, shadowedByGroup: true } : item;
+        });
+        setExtractionLog({ ...evaluation.log, items: annotatedItems });
+        return;
+      }
+
+      setExtractionLog(evaluation.log);
+    },
+    [upsertParams],
+  );
+
+  const currentResponseExtractionInput = useMemo<ResponseExtractionInput | null>(() => {
+    if (sseEvents !== null || sequentialStream !== null) {
+      return {
+        status: response?.status ?? 200,
+        headers: response?.headers ?? {},
+        rawText: response?.rawText ?? '',
+        kind: response?.kind ?? 'text',
+        isStreaming: true,
+      };
+    }
+    if (!response) return null;
+    return {
+      status: response.status,
+      headers: response.headers,
+      rawText: response.rawText,
+      kind: response.kind,
+      isCrossOrigin: isCrossOriginUrl(builtRequest?.url, currentOrigin()),
+    };
+  }, [builtRequest?.url, response, sequentialStream, sseEvents]);
+
+  const handleApplyExtractionNow = useCallback(
+    (rulesOverride?: readonly ResponseExtractionRule[]) => {
+      if (!currentResponseExtractionInput) return;
+      runResponseExtraction(currentResponseExtractionInput, 'auto', true, rulesOverride);
+      void message.success(t('apiDebug.extract.applied'));
+    },
+    [currentResponseExtractionInput, runResponseExtraction, t],
+  );
 
   if (docLoading || !authReady || !routeGroupReady) {
     return (
@@ -1600,8 +1704,10 @@ export default function ApiDebug() {
     setSseEvents(null);
     setSequentialStream(null);
     setSseStreaming(false);
+    setExtractionLog(null);
     setBuiltRequest(built);
     setBuiltRequestCookieSource(requestCookieSource);
+    const requestIsCrossOrigin = isCrossOriginUrl(built.url, currentOrigin());
     await executeDebugRequest({
       request: {
         built,
@@ -1621,6 +1727,34 @@ export default function ApiDebug() {
       getSchemaSession: () =>
         currentSchemaEngineRef.current.status === 'ready' ? currentSchemaEngineRef.current.session : undefined,
       finalizeHistory: (update) => finalizeHistoryEntry(requestDebugCacheKey, pendingHistoryId, update),
+      onResponseCompleted: (completedResponse) => {
+        if (!settings.enableAfterScript) return;
+        runResponseExtraction(
+          {
+            status: completedResponse.status,
+            headers: completedResponse.headers,
+            rawText: completedResponse.rawText,
+            kind: completedResponse.kind,
+            isCrossOrigin: requestIsCrossOrigin,
+          },
+          'auto',
+          true,
+        );
+      },
+      onStreamingResponseCompleted: (status) => {
+        if (!settings.enableAfterScript) return;
+        runResponseExtraction(
+          {
+            status,
+            headers: {},
+            rawText: '',
+            kind: 'text',
+            isStreaming: true,
+          },
+          'auto',
+          false,
+        );
+      },
       diagnoseResponse: (completedResponse) => {
         const responseSchemaPreparation = prepareResponseBodySchemaEvaluation({
           document: swaggerDoc,
@@ -1747,6 +1881,7 @@ export default function ApiDebug() {
     setResponseProgress(null);
     setResponse(null);
     setError(null);
+    setExtractionLog(null);
   };
 
   /** 复制请求预览内容到剪贴板 */
@@ -2329,6 +2464,25 @@ export default function ApiDebug() {
         />
       ),
     },
+    ...(settings.enableAfterScript
+      ? [
+          {
+            key: 'extract',
+            label: `${t('apiDebug.tab.extract')} (${extractionRules.filter((rule) => rule.enabled).length})`,
+            disabled: false,
+            children: (
+              <DebugResponseExtractionPanel
+                rules={extractionRules}
+                persistenceFailed={extractionPersistenceFailed}
+                currentResponseInput={currentResponseExtractionInput}
+                extractionLog={extractionLog}
+                onRulesChange={handleExtractionRulesChange}
+                onApplyCurrentResponse={handleApplyExtractionNow}
+              />
+            ),
+          },
+        ]
+      : []),
   ];
 
   const defaultTab =
@@ -2345,7 +2499,10 @@ export default function ApiDebug() {
               : debugModel.bodyContents.length > 0
                 ? 'body'
                 : 'preview';
-  const currentActiveTab = activeTab ?? defaultTab;
+  const currentActiveTab =
+    activeTab && (activeTab !== 'extract' || settings.enableAfterScript) ? activeTab : defaultTab;
+  const extractionSummary =
+    settings.enableAfterScript && extractionLog ? summarizeResponseExtractionLog(extractionLog) : null;
 
   return (
     <OperationModeLayout activeKey="debug">
@@ -2716,6 +2873,27 @@ export default function ApiDebug() {
           )}
 
           <Divider style={{ margin: '12px 0' }} />
+
+          {extractionSummary && (currentActiveTab !== 'extract' || requestCollapsed) && (
+            <Alert
+              type={extractionSummary.type}
+              showIcon
+              title={t(extractionSummary.key, extractionSummary.params)}
+              action={
+                <Button
+                  size="small"
+                  type="link"
+                  onClick={() => {
+                    setRequestCollapsed(false);
+                    setActiveTab('extract');
+                  }}
+                >
+                  {t('apiDebug.extract.viewLog')}
+                </Button>
+              }
+              style={{ marginBottom: 12 }}
+            />
+          )}
 
           <DebugResponseSection
             loading={loading}
