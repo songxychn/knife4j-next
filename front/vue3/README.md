@@ -6,6 +6,16 @@ OAS2 兼容维护 UI（Vue 3 + Vite）。本目录产物被 `knife4j/knife4j-ope
 > 关于职责边界：只接收 OAS2 / Swagger 2 侧的回归修复与显示层 bug 修复，**不做功能扩张**。新功能请求一律
 > 指向 OAS3 主线 `front/ui-react`。详见 `.agent/PROJECT.md` 的「前端分工策略」一节。
 
+## 遗留 OAS3 解析路径（冻结）
+
+`src/core/Knife4jAsync.js` 中的 `basicInfoOAS3`、`analysisDefinitionAsyncOAS3`、`initApiInfoAsyncOAS3` 及
+`src/core/oas3/` 是继承自 upstream 的 OAS3 解析路径。它仍在使用：`knife4j-aggregation-spring-boot-starter`
+（Boot 2 / javax）打包本 UI，并支持 `swagger-version: "3.0"` 的下游路由（见 `docs/guide/aggregation.md`），
+删除会破坏这类聚合应用。
+
+该路径保持现状、不删除、不再增强，除安全问题外不做修复：相关问题标 `wontfix` + `wontfix:oas2-scope`，引导迁移到
+`knife4j-aggregation-jakarta-spring-boot-starter` / `knife4j-aggregation-boot4-spring-boot-starter`（React UI，需升级到 Spring Boot 3 / 4）。
+
 ## 包管理器
 
 本目录使用 [Bun](https://bun.com/) 作为包管理器（基准版本见仓库根目录 `.bun-version`，依赖锁定见本目录
