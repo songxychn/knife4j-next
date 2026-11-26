@@ -115,7 +115,7 @@ export function enableMarkdownCodeRenderer() {
         if (language === 'mermaid') {
           return '<pre class="mermaid">' + code + '</pre>'
         }
-        return '<pre><code class="language-' + language + '">' + code + '</code></pre>'
+        return '<pre><code class="language-' + escapeHeadingText(String(language), true) + '">' + escapeHeadingText(code, true) + '</code></pre>'
       }
     }
   })
