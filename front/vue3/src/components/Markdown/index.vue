@@ -6,9 +6,19 @@
 <script>
 import "@/assets/css/markdown-preview.css";
 import { marked, enableMarkdownCodeRenderer } from '@/core/markdown.js';
-import mermaid from 'mermaid';
 
-mermaid.initialize({ logLevel: 5, startOnLoad: false });
+// Mermaid 体积较大，仅在文档实际包含图表时加载；加载失败时允许下次渲染重试。
+let mermaidLoader = null;
+function loadMermaid() {
+  mermaidLoader ??= import('mermaid').then(({ default: mermaid }) => {
+    mermaid.initialize({ logLevel: 5, startOnLoad: false });
+    return mermaid;
+  }, error => {
+    mermaidLoader = null;
+    throw error;
+  });
+  return mermaidLoader;
+}
 
 enableMarkdownCodeRenderer();
 export default {
@@ -23,11 +33,17 @@ export default {
       return marked.parse(this.source);
     }
   },
+  methods: {
+    renderMermaid() {
+      if (!this.$el.querySelector('.mermaid')) return;
+      return loadMermaid().then(mermaid => mermaid.run({ querySelector: '.knife4j-markdown .mermaid' }));
+    }
+  },
   updated() {
-    mermaid.run({ querySelector: '.knife4j-markdown .mermaid' });
+    this.renderMermaid();
   },
   mounted() {
-    mermaid.run({ querySelector: '.knife4j-markdown .mermaid' });
+    this.renderMermaid();
   }
 }
 </script>

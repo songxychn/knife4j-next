@@ -159,15 +159,18 @@ try {
   assert.ok(script)
   const imports = [
     /^import "@\/assets\/css\/markdown-preview\.css";\s*$/m,
-    /^import \{ marked, enableMarkdownCodeRenderer \} from '@\/core\/markdown\.js';\s*$/m,
-    /^import mermaid from 'mermaid';\s*$/m
+    /^import \{ marked, enableMarkdownCodeRenderer \} from '@\/core\/markdown\.js';\s*$/m
   ]
   for (const pattern of imports) { assert.match(script, pattern); script = script.replace(pattern, '') }
   assert.doesNotMatch(script, /^import\s/m)
+  assert.match(script, /import\('mermaid'\)/, 'Mermaid stays a dynamic import')
   const calls = []
   const mermaid = { initialize: options => calls.push(['initialize', options]), run: options => calls.push(['run', options]) }
-  const component = Function('marked', 'enableMarkdownCodeRenderer', 'mermaid', script.replace('export default', 'return'))(marked, enableMarkdownCodeRenderer, mermaid)
-  assert.deepEqual(calls, [['initialize', { logLevel: 5, startOnLoad: false }]])
+  let importResult = () => Promise.reject(new Error('offline'))
+  const importMermaid = () => { calls.push(['import']); return importResult() }
+  const component = Function('marked', 'enableMarkdownCodeRenderer', 'importMermaid',
+    script.replace("import('mermaid')", 'importMermaid()').replace('export default', 'return'))(marked, enableMarkdownCodeRenderer, importMermaid)
+  assert.deepEqual(calls, [], 'Mermaid is not loaded with the component')
   checkContent(component.computed.markdownSource.call({ source: content }), true)
   checkConsumers(true)
   const activated = documentFor(marked.parse('```html\n' + code + '\n```\n\n```a"b\nx\n```'))
@@ -183,9 +186,21 @@ try {
   for (const word of words) word.render = await loadWord(word.file)
   checkConsumers(true)
   assert.equal(marked.parse(content), after, 'later Word loading preserves headings and code renderer')
-  component.mounted()
-  component.updated()
-  assert.deepEqual(calls.slice(1), Array(2).fill(['run', { querySelector: '.knife4j-markdown .mermaid' }]))
+  const instance = html => ({ ...component.methods, $el: documentFor('<div class="knife4j-markdown">' + html + '</div>').body.firstChild })
+  const plain = instance(component.computed.markdownSource.call({ source: '# 无图表\n\n```json\n{}\n```' }))
+  component.mounted.call(plain)
+  component.updated.call(plain)
+  assert.deepEqual(calls, [], 'documents without diagrams never load Mermaid')
+  const diagram = instance(component.computed.markdownSource.call({ source: content }))
+  await assert.rejects(diagram.renderMermaid(), /offline/)
+  importResult = () => Promise.resolve({ default: mermaid })
+  component.mounted.call(diagram)
+  component.updated.call(diagram)
+  await diagram.renderMermaid()
+  assert.deepEqual(calls, [
+    ['import'], ['import'], ['initialize', { logLevel: 5, startOnLoad: false }],
+    ...Array(3).fill(['run', { querySelector: '.knife4j-markdown .mermaid' }])
+  ], 'failed loads retry; a successful load initializes once and runs on mount/update')
   console.log('Markdown checks passed: shared headings, component activation order, OAS2 descriptions, and Chinese/English Word consumers')
 } finally {
   dom.window.close()
