@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -65,7 +66,7 @@ func TestHandlerServesRootUIAndPassesThroughOtherRequests(t *testing.T) {
 		t.Fatal("browser config was injected after the module script")
 	}
 
-	reference := firstAssetReference(t, body)
+	reference := assetReference(t, body, scriptReferencePattern)
 	request(t, got, http.MethodGet, "/"+reference, http.StatusOK)
 	request(t, got, http.MethodHead, "/doc.html", http.StatusOK)
 
@@ -102,8 +103,8 @@ func TestHandlerServesSubpathAssets(t *testing.T) {
 	}
 
 	for _, target := range []string{
-		"/internal/assets/index.js",
-		"/internal/assets/index.css",
+		"/internal/" + assetReference(t, doc.Body.String(), scriptReferencePattern),
+		"/internal/" + assetReference(t, doc.Body.String(), stylesheetReferencePattern),
 		"/internal/knife4j-next-mark.svg",
 		"/internal/oauth2-redirect.html",
 	} {
@@ -179,7 +180,7 @@ func TestHandlerServesOpenAPI32JSONThroughEmbeddedUI(t *testing.T) {
 		t.Fatalf("injected specUrl = %q, want /openapi.json", config["specUrl"])
 	}
 
-	reference := firstAssetReference(t, doc.Body.String())
+	reference := assetReference(t, doc.Body.String(), scriptReferencePattern)
 	request(t, got, http.MethodGet, "/"+reference, http.StatusOK)
 
 	specResponse := request(t, got, http.MethodGet, "/openapi.json", http.StatusOK)
@@ -227,18 +228,25 @@ func readInjectedConfig(t *testing.T, body string) map[string]string {
 	return config
 }
 
-func firstAssetReference(t *testing.T, body string) string {
-	t.Helper()
+var (
+	scriptReferencePattern     = regexp.MustCompile(`<script [^>]*src="\./(assets/[^"]+\.js)"`)
+	stylesheetReferencePattern = regexp.MustCompile(`<link [^>]*href="\./(assets/[^"]+\.css)"`)
+)
 
-	const marker = `src="./`
-	start := strings.Index(body, marker)
-	if start < 0 {
-		t.Fatal("document does not contain a relative script asset")
+func assetReference(t *testing.T, body string, pattern *regexp.Regexp) string {
+	t.Helper()
+	match := pattern.FindStringSubmatch(body)
+	if match == nil {
+		t.Fatalf("document does not contain asset matching %s", pattern)
 	}
-	start += len(marker)
-	end := strings.IndexByte(body[start:], '"')
-	if end < 0 {
-		t.Fatal("relative script asset is not terminated")
+	return match[1]
+}
+
+func embeddedScriptReference(t *testing.T) string {
+	t.Helper()
+	index, err := embeddedUI.ReadFile(staticRoot + "/" + indexFile)
+	if err != nil {
+		t.Fatal(err)
 	}
-	return body[start : start+end]
+	return assetReference(t, string(index), scriptReferencePattern)
 }

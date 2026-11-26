@@ -132,7 +132,7 @@ func TestDisabledBypassesDocumentConfigurationAndKeepsHostRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
-	for _, target := range []string{"/doc.html", "/assets/index.js", "/openapi.json", "/api/ping"} {
+	for _, target := range []string{"/doc.html", "/" + embeddedScriptReference(t), "/openapi.json", "/api/ping"} {
 		request(t, got, http.MethodGet, target, nextStatus)
 	}
 	got, err = NewHandler(Config{Disabled: true}, nil)
@@ -219,7 +219,7 @@ func TestBasicAuthProtectsAllEmbeddedFilesAndConfiguredLocalSpecs(t *testing.T) 
 				}
 			}
 			for _, target := range []string{
-				basePath + "/doc.html", basePath + "/assets/index.js", basePath + "/oauth2-redirect.html",
+				basePath + "/doc.html", basePath + "/" + embeddedScriptReference(t), basePath + "/oauth2-redirect.html",
 				basePath + "/openapi.json?version=2", "/specs/root.json",
 			} {
 				want := http.StatusOK
@@ -356,7 +356,7 @@ func TestBasicAuthPreventsSharedCachingIncludingHostSpecResponses(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, target := range []string{"/doc.html", "/assets/index.js", "/openapi.json"} {
+			for _, target := range []string{"/doc.html", "/" + embeddedScriptReference(t), "/openapi.json"} {
 				response := authenticatedRequest(got, http.MethodGet, target, "user", "secret")
 				if response.Code != http.StatusOK || response.Result().Header.Get("Cache-Control") != "private, no-store" {
 					t.Fatalf("%s: status=%d cache=%q", target, response.Code, response.Result().Header.Get("Cache-Control"))

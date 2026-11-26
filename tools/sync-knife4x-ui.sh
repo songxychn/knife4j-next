@@ -53,6 +53,12 @@ if ! grep -q 'src="\./assets/' "$index_html" || ! grep -q 'href="\./assets/' "$i
   echo "Knife4x UI entry must reference JavaScript and CSS under ./assets/" >&2
   exit 1
 fi
+for asset in "$build_dir"/assets/*; do
+  if [[ ! ${asset##*/} =~ -[A-Za-z0-9_-]{8,}\.[^.]+$ ]]; then
+    echo "Expected a content hash in the built asset name: ${asset##*/}" >&2
+    exit 1
+  fi
+done
 if find "$build_dir" -type f -name '*.map' -print -quit | grep -q .; then
   echo "Knife4x UI assets must not contain source maps" >&2
   exit 1

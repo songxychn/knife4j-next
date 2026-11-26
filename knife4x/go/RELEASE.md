@@ -45,14 +45,11 @@ git diff --check
 核对候选提交的 `.github/workflows/release.yml` 仍只以根级 `v*` tag 自动触发 Java 发布。
 另使用 Go 1.22 执行 `./tools/test-knife4x-go.sh --module core` 验证
 公共库最低版本；脚本禁用自动工具链切换，不允许以新版 Go 代替最低版本验证。
-再检查将进入 module 下载包的许可证与 UI 资产：
+同步检查会逐文件核对嵌入式 UI 与当前构建产物。另确认许可证与入口随 module 分发。
 
 ```bash
 test -s knife4x/go/LICENSE
 test -s knife4x/go/internal/ui/static/index.html
-test -s knife4x/go/internal/ui/static/assets/index.js
-test -s knife4x/go/internal/ui/static/assets/lib.js
-test -s knife4x/go/internal/ui/static/assets/index.css
 ```
 
 最后核对用户入口与迁移文档：
@@ -110,6 +107,7 @@ printf '%s\n' "$sum_response" | grep -F "${module} ${version}/go.mod h1:"
 仍通过公共 proxy 下载；临时 `GOMODCACHE` 避免复用本机缓存：
 
 ```bash
+candidate_ui="$PWD/knife4x/go/internal/ui/static"
 consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 
@@ -130,6 +128,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 
 	knife4x "github.com/songxychn/knife4j-next/knife4x/go"
 )
@@ -142,12 +142,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	for _, path := range []string{"/doc.html", "/assets/index.js", "/assets/lib.js", "/assets/index.css"} {
+	get := func(path string) string {
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 		if recorder.Code != http.StatusOK || recorder.Body.Len() == 0 {
 			panic(fmt.Sprintf("empty or unsuccessful Handler response for %s: %d", path, recorder.Code))
 		}
+		return recorder.Body.String()
+	}
+	doc := get("/doc.html")
+	refs := regexp.MustCompile(`(src|href)="\./(assets/[^"]+)"`).FindAllStringSubmatch(doc, -1)
+	hasScript, hasStyle := false, false
+	for _, ref := range refs {
+		get("/" + ref[2])
+		hasScript = hasScript || ref[1] == "src" && strings.HasSuffix(ref[2], ".js")
+		hasStyle = hasStyle || strings.HasSuffix(ref[2], ".css")
+	}
+	if !hasScript || !hasStyle {
+		panic("doc.html must reference the JavaScript entry and stylesheet")
 	}
 	fmt.Println("knife4x-consumer-ok")
 }
@@ -164,10 +176,7 @@ go list -m all | grep -Fx "$module $version"
 
 module_dir="$(go list -m -f '{{.Dir}}' "$module")"
 test -s "$module_dir/LICENSE"
-test -s "$module_dir/internal/ui/static/index.html"
-test -s "$module_dir/internal/ui/static/assets/index.js"
-test -s "$module_dir/internal/ui/static/assets/lib.js"
-test -s "$module_dir/internal/ui/static/assets/index.css"
+diff -qr "$candidate_ui" "$module_dir/internal/ui/static"
 ```
 
 只有公共 proxy 的 origin hash / ref、`sum.golang.org` checksum、无 `replace` consumer

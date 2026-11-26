@@ -45,6 +45,14 @@ async fn bytes(response: Response) -> Vec<u8> {
         .to_vec()
 }
 
+fn asset_reference<'a>(doc: &'a str, marker: &str, extension: &str) -> &'a str {
+    doc.split(marker)
+        .skip(1)
+        .filter_map(|rest| rest.split_once('"').map(|(path, _)| path))
+        .find(|path| path.starts_with("assets/") && path.ends_with(extension))
+        .expect("document must reference the bundled asset")
+}
+
 #[tokio::test]
 async fn serves_assets_with_correct_body_and_preserves_host_routes() {
     for prefix in ["", "/internal"] {
@@ -57,8 +65,8 @@ async fn serves_assets_with_correct_body_and_preserves_host_routes() {
         let doc = String::from_utf8(bytes(doc).await).unwrap();
         assert!(doc.contains("window.__KNIFE4X_CONFIG__="));
         for (tail, mime) in [
-            ("assets/index.js", "javascript"),
-            ("assets/index.css", "text/css"),
+            (asset_reference(&doc, r#"src="./"#, ".js"), "javascript"),
+            (asset_reference(&doc, r#"href="./"#, ".css"), "text/css"),
             ("oauth2-redirect.html", "text/html"),
             ("knife4j-next-mark.svg", "image/svg+xml"),
         ] {
@@ -109,9 +117,18 @@ async fn protects_ui_and_local_spec_without_changing_business_routes() {
         .basic_auth(BasicAuth::new("reader", "doc-test-pass").unwrap());
     let app = mount(host(), cfg).unwrap().with_state("document");
 
+    let doc = request(
+        &app,
+        Method::GET,
+        "/internal/doc.html",
+        Some("reader:doc-test-pass"),
+    )
+    .await;
+    let doc = String::from_utf8(bytes(doc).await).unwrap();
+    let script = format!("/internal/{}", asset_reference(&doc, r#"src="./"#, ".js"));
     for path in [
         "/internal/doc.html",
-        "/internal/assets/index.js",
+        &script,
         "/internal/oauth2-redirect.html",
         "/api/openapi.json",
     ] {

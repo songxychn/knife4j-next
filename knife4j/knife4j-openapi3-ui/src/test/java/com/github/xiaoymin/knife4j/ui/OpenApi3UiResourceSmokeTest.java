@@ -40,9 +40,9 @@ public class OpenApi3UiResourceSmokeTest {
     @Test
     public void shouldPackageOas32ConsumptionAssetsWithStableIdentity() throws IOException {
         String docHtml = readResource("META-INF/resources/doc.html");
-        Assert.assertTrue("doc.html should keep the WebJar entry",
-                docHtml.contains("webjars/knife4j-ui-react/assets/index.js"));
-        String indexJs = readResource("META-INF/resources/webjars/knife4j-ui-react/assets/index.js");
+        Matcher entry = Pattern.compile("src=\"(webjars/knife4j-ui-react/assets/[^\"]+\\.js)\"").matcher(docHtml);
+        Assert.assertTrue("doc.html should reference the WebJar entry", entry.find());
+        String indexJs = readResource("META-INF/resources/" + entry.group(1));
         Assert.assertTrue("packaged UI should include the OAS 3.2 change-tracking snapshot id",
                 indexJs.contains("oas3.2-v1"));
         Assert.assertTrue("packaged UI should include the OAS 3.2 dialect URI",
@@ -55,9 +55,11 @@ public class OpenApi3UiResourceSmokeTest {
         int jsAssets = 0;
         while (matcher.find()) {
             String asset = matcher.group(1);
-            // React build artifacts are under webjars/knife4j-ui-react/assets/
+            Assert.assertTrue("Expected a context-relative WebJar URL: " + asset, asset.startsWith("webjars/knife4j-ui-react/"));
+            assertResource("META-INF/resources/" + asset);
             if (asset.startsWith("webjars/knife4j-ui-react/assets/")) {
-                assertResource("META-INF/resources/" + asset);
+                Assert.assertTrue("Expected a content-hashed asset: " + asset,
+                        asset.matches(".+-[A-Za-z0-9_-]{8}\\.[^./]+"));
                 if (asset.endsWith(".css")) {
                     cssAssets++;
                 }

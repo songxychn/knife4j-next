@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Boot3JakartaDocHttpSmokeTest {
@@ -127,8 +128,9 @@ public class Boot3JakartaDocHttpSmokeTest {
 
         HttpResponse docHtml = get(port, "/doc.html");
         Assert.assertEquals(200, docHtml.statusCode);
-        Assert.assertTrue(docHtml.body.contains("webjars/knife4j-ui-react/"));
-        Assert.assertEquals(200, get(port, "/webjars/knife4j-ui-react/assets/index.js").statusCode);
+        Matcher entry = Pattern.compile("src=\"(webjars/knife4j-ui-react/assets/[^\"]+\\.js)\"").matcher(docHtml.body);
+        Assert.assertTrue("doc.html should reference the WebJar entry", entry.find());
+        Assert.assertEquals(200, get(port, "/" + entry.group(1)).statusCode);
 
         HttpResponse runtimeConfig = get(port, "/knife4j/config");
         Assert.assertEquals(200, runtimeConfig.statusCode);
