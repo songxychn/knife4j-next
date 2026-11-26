@@ -63,8 +63,7 @@ try {
   await nextTick()
   assert.deepEqual(languageChanges, ['en-US', 'zh-CN'])
 
-  // A service switch changes the selected instance and visible menu together,
-  // while retaining the accumulated menus for the other service.
+  // A service switch changes the selected instance and visible menu together.
   first.globals.setServiceOptions([{ label: 'Pets', value: 'pets' }, { label: 'Orders', value: 'orders' }])
   for (const [id, title] of [['pets', 'Pets'], ['orders', 'Orders']]) {
     first.globals.setDefaultService(id)
@@ -76,14 +75,13 @@ try {
     { selected: 'pets', title: 'Pets', menu: ['pets'] },
     { selected: 'orders', title: 'Orders', menu: ['orders'] },
   ])
-  assert.deepEqual(first.globals.menuData.map((item) => item.key), ['pets', 'orders'])
+  assert.equal('menuData' in first.globals.$state, false, 'menus are not accumulated across services')
   first.globals.setDefaultService('pets')
   first.globals.setSwaggerInstance({ id: 'pets', title: 'Pets' })
-  first.globals.setCurrentMenuData(first.globals.menuData.filter((item) => item.key === 'pets'))
+  first.globals.setCurrentMenuData([{ key: 'pets' }])
   await nextTick()
   assert.deepEqual(view.service.value, { selected: 'pets', title: 'Pets', menu: ['pets'] })
   assert.equal(serviceChanges.length, 3)
-  assert.equal(first.globals.menuData.length, 2)
 
   // Both replacement and nested mutation must invalidate Vue consumers.
   first.globals.setSettings({ enableHost: true })
@@ -122,7 +120,7 @@ try {
 
   // Mutable defaults and model dictionaries must stay local to their app.
   assert.equal(second.globals.language, 'zh-CN')
-  assert.equal(second.globals.menuData.length, 0)
+  assert.equal(second.globals.currentMenuData.length, 0)
   assert.equal(second.globals.serviceOptions.length, 0)
   assert.equal(second.globals.swaggerCurrentInstance, null)
   assert.deepEqual(Object.keys(second.globals.settings), [])

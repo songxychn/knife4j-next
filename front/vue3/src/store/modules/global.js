@@ -3,7 +3,6 @@ import { defineStore } from 'pinia'
 export const useGlobalsStore = defineStore('Globals',{
   state() {
     return {
-      menuData: [],
       language: 'zh-CN',
       swagger: null,
       swaggerCurrentInstance: null,
@@ -38,7 +37,6 @@ export const useGlobalsStore = defineStore('Globals',{
       this.enableVersion = gitVersion;
     },
     setMenuData(menudatas) {
-      this.menuData = this.menuData.concat(menudatas);
       this.currentMenuData = menudatas;
     },
     setCurrentMenuData(menudatas) {

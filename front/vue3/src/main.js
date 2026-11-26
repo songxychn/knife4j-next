@@ -8,23 +8,6 @@ import { setupI18n } from '@/lang/index.js'
 import { createFromIconfontCN } from '@ant-design/icons-vue'
 import axios from 'axios'
 
-String.prototype.gblen = function () {
-  let len = 0
-  for (let i = 0; i < this.length; i++) {
-    if (this.charCodeAt(i) > 127 || this.charCodeAt(i) == 94) {
-      len += 2;
-    } else {
-      len++;
-    }
-  }
-  return len;
-}
-
-String.prototype.startWith = function (str) {
-  const reg = new RegExp("^" + str)
-  return reg.test(this);
-}
-
 /***
  * 自定义图标
  */

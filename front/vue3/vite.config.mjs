@@ -3,7 +3,6 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import Components from 'unplugin-vue-components/vite'
 import {AntDesignVueResolver} from 'unplugin-vue-components/resolvers'
-import viteCompression from 'vite-plugin-compression';
 import removeConsole from 'vite-plugin-remove-console';
 import path, {resolve} from 'path'
 import fs from 'fs'
@@ -58,12 +57,6 @@ export default defineConfig({
       // 保持现有 Vue 模板声明范围，不生成 TSX 全局变量声明。
       dtsTsx: false,
       resolvers: [AntDesignVueResolver({ importStyle: false })]
-    }),
-    viteCompression({
-      deleteOriginFile: false, //删除源文件
-      threshold: 10240, //压缩前最小文件大小
-      algorithm: 'gzip', //压缩算法
-      ext: '.gz', //文件类型
     }),
     removeConsole({
       // iconfont.js 是 iconfont.cn 生成的 IIFE 资源，不经过 babel 处理
